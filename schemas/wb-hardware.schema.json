@@ -1,0 +1,657 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "Hardware Modules Configuration",
+  "limited": true,
+  "strictProps": false,
+  "definitions": {
+    "module_none": {
+      "title": " ",
+      "options": {
+        "hidden": true,
+        "remove_empty_properties": true,
+        "collapsed": true
+      }
+    },
+    "slot": {
+      "type": "object",
+      "headerTemplate": "{{translate self.name}}",
+      "id": "slot_item",
+      "options": {
+        "disable_collapse": true,
+        "wb": {
+          "disable_panel": true,
+          "disable_title": true
+        }
+      },
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "options": {
+            "hidden": true
+          }
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "propertyOrder": 1,
+          "options": {
+            "hidden": true
+          }
+        },
+        "compatible": {
+          "type": "array",
+          "minLength": 1,
+          "options": {
+            "hidden": true
+          }
+        },
+        "module": {
+          "title": "Module type",
+          "description": "Type of the module plugged to the slot",
+          "type": "string",
+          "watch": {
+            "all_modules": "modules",
+            "slot_compatible": "slot_item.compatible"
+          },
+          "options": {
+            "enum_hidden": [
+              "wbe2-ai-cm-1",
+              "wbe2r-rtc"
+            ]
+          },
+          "enumSource": [
+            {
+              "source": [
+                {
+                  "title": "None",
+                  "value": ""
+                }
+              ],
+              "title": "{{item.title}}",
+              "value": "{{item.value}}"
+            },
+            {
+              "source": "all_modules",
+              "filter": "{{if watched.slot_compatible intersect item.compatible_slots}}1{{endif}}",
+              "title": "{{item.description}}",
+              "value": "{{item.id}}"
+            }
+          ],
+          "propertyOrder": 2
+        },
+        "options": {
+          "type": "object",
+          "title": " ",
+          "options": {
+            "disable_collapse": true
+          },
+          "watch": {
+            "all_modules": "modules",
+            "module_type": "slot_item.module"
+          },
+          "links": [
+            {
+              "rel": "describedBy",
+              "href": "#/definitions/module_{{if all_modules.[module_type] == \"\"}}none{{else}}{{module_type}}{{endif}}"
+            }
+          ],
+          "propertyOrder": 3
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "compatible",
+        "module"
+      ],
+      "defaultProperties": [
+        "id",
+        "name",
+        "compatible",
+        "module",
+        "options"
+      ]
+    },
+    "module": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "compatible_slots": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "id",
+        "description",
+        "compatible_slots"
+      ]
+    },
+    "module_wb6-can-rs485": {
+      "title": "RS485 failsafe bias configuration",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "title": "Failsafe bias mode",
+          "minLength": 1,
+          "enumSource": [
+            {
+              "source": [
+                {
+                  "value": "enabled",
+                  "title": "Enabled"
+                },
+                {
+                  "value": "disabled",
+                  "title": "Disabled"
+                }
+              ],
+              "value": "{{item.value}}",
+              "title": "{{item.title}}"
+            }
+          ],
+          "default": "enabled",
+          "options": {
+            "disable_collapse": true,
+            "disable_array_add": true,
+            "disable_array_delete": true,
+            "disable_array_reorder": true
+          },
+          "propertyOrder": 1
+        }
+      },
+      "required": [
+        "mode"
+      ]
+    },
+    "module_wb67-can-rs485": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "title": "Failsafe bias",
+          "type": "string",
+          "enum": [
+            "enabled",
+            "disabled"
+          ],
+          "default": "enabled",
+          "options": {
+            "enum_titles": [
+              "Enabled",
+              "Disabled"
+            ]
+          },
+          "propertyOrder": 1
+        },
+        "terminatorsMode": {
+          "title": "120Ω termination resistor",
+          "type": "string",
+          "enum": [
+            "enabled",
+            "disabled"
+          ],
+          "default": "enabled",
+          "options": {
+            "enum_titles": [
+              "Enabled",
+              "Disabled"
+            ]
+          },
+          "propertyOrder": 2
+        }
+      },
+      "required": [
+        "mode",
+        "terminatorsMode"
+      ],
+      "options": {
+        "wb": {
+          "disable_title": true
+        }
+      }
+    },
+    "module_wb67-can-uart": {
+      "type": "object",
+      "properties": {
+        "terminatorsMode": {
+          "title": "120Ω termination resistor",
+          "type": "string",
+          "enum": [
+            "enabled",
+            "disabled"
+          ],
+          "default": "disabled",
+          "options": {
+            "enum_titles": [
+              "Enabled",
+              "Disabled"
+            ]
+          }
+        }
+      },
+      "required": [
+        "terminatorsMode"
+      ],
+      "options": {
+        "wb": {
+          "disable_title": true
+        }
+      }
+    },
+    "module_wb67-can": {
+      "type": "object",
+      "properties": {
+        "terminatorsMode": {
+          "title": "120Ω termination resistor",
+          "type": "string",
+          "enum": [
+            "enabled",
+            "disabled"
+          ],
+          "default": "disabled",
+          "options": {
+            "enum_titles": [
+              "Enabled",
+              "Disabled"
+            ]
+          }
+        }
+      },
+      "required": [
+        "terminatorsMode"
+      ],
+      "options": {
+        "wb": {
+          "disable_title": true
+        }
+      }
+    },
+    "module_wbe-ai-cvr-2": {
+      "title": "WBE-AI-CVR-2 module configuration",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "title": "Mode",
+          "enum": [
+            "separate"
+          ],
+          "default": "separate",
+          "options": {
+            "hidden": true
+          },
+          "propertyOrder": 1
+        },
+        "channels": {
+          "type": "array",
+          "title": "Channels",
+          "minItems": 2,
+          "maxItems": 2,
+          "_format": "tabs",
+          "items": {
+            "type": "object",
+            "title": "Channel options",
+            "headerTemplate": "Channel {{i1}}",
+            "options": {
+              "disable_collapse": true
+            },
+            "properties": {
+              "mode": {
+                "type": "string",
+                "title": "Mode",
+                "minLength": 1,
+                "enumSource": [
+                  {
+                    "source": [
+                      {
+                        "value": "voltage",
+                        "title": "Voltage, 0-3.3 V"
+                      },
+                      {
+                        "value": "voltage_x10",
+                        "title": "Voltage x10, 0-33.3 V"
+                      },
+                      {
+                        "value": "current",
+                        "title": "Current, 0-70 mA"
+                      }
+                    ],
+                    "value": "{{item.value}}",
+                    "title": "{{item.title}}"
+                  }
+                ],
+                "default": "voltage",
+                "propertyOrder": 1
+              },
+              "gain": {
+                "type": "number",
+                "title": "Gain",
+                "enum": [
+                  3,
+                  2,
+                  1,
+                  0.5,
+                  0.25,
+                  0.125
+                ],
+                "default": 1,
+                "propertyOrder": 2
+              }
+            },
+            "required": [
+              "mode",
+              "gain"
+            ]
+          },
+          "options": {
+            "disable_collapse": true,
+            "disable_array_add": true,
+            "disable_array_delete": true,
+            "disable_array_reorder": true
+          },
+          "propertyOrder": 2
+        }
+      },
+      "required": [
+        "mode",
+        "channels"
+      ]
+    },
+    "module_wbio-ai-dv-12": {
+      "title": "WBIO-AI-DV-12 module configuration",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "title": "Mode",
+          "enum": [
+            "separate"
+          ],
+          "default": "separate",
+          "options": {
+            "hidden": true
+          },
+          "propertyOrder": 1
+        },
+        "channels": {
+          "type": "array",
+          "title": "Channels",
+          "minItems": 12,
+          "maxItems": 12,
+          "_format": "tabs",
+          "items": {
+            "type": "object",
+            "title": "Channel options",
+            "headerTemplate": "Channel A{{i1}}",
+            "options": {
+              "disable_collapse": true
+            },
+            "properties": {
+              "mode": {
+                "type": "string",
+                "title": "Mode",
+                "minLength": 1,
+                "enumSource": [
+                  {
+                    "source": [
+                      {
+                        "value": "voltage",
+                        "title": "Voltage, 0-2.5 V"
+                      },
+                      {
+                        "value": "voltage_pm50",
+                        "title": "Voltage +/-50V"
+                      },
+                      {
+                        "value": "current_20ma",
+                        "title": "Current 0-20mA"
+                      }
+                    ],
+                    "value": "{{item.value}}",
+                    "title": "{{item.title}}"
+                  }
+                ],
+                "default": "voltage_pm50",
+                "propertyOrder": 1
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          },
+          "options": {
+            "disable_collapse": true,
+            "disable_array_add": true,
+            "disable_array_delete": true,
+            "disable_array_reorder": true
+          },
+          "propertyOrder": 2
+        }
+      },
+      "required": [
+        "mode",
+        "channels"
+      ]
+    },
+    "battery_params": {
+      "title": "Reset button configuration",
+      "type": "object",
+      "properties": {
+        "resetButon": {
+          "type": "string",
+          "title": "Reset button",
+          "minLength": 1,
+          "enumSource": [
+            {
+              "source": [
+                {
+                  "value": "enabled",
+                  "title": "Enabled"
+                },
+                {
+                  "value": "disabled",
+                  "title": "Disabled"
+                }
+              ],
+              "value": "{{item.value}}",
+              "title": "{{item.title}}"
+            }
+          ],
+          "default": "enabled",
+          "options": {
+            "disable_collapse": true,
+            "disable_array_add": true,
+            "disable_array_delete": true,
+            "disable_array_reorder": true
+          },
+          "propertyOrder": 1
+        }
+      },
+      "required": [
+        "resetButon"
+      ]
+    },
+    "module_wbmz2-battery": {
+      "$ref": "#/definitions/battery_params"
+    },
+    "module_wbmz3-battery": {
+      "$ref": "#/definitions/battery_params"
+    }
+  },
+  "properties": {
+    "slots": {
+      "type": "array",
+      "title": "List of extension slots",
+      "options": {
+        "disable_collapse": true,
+        "disable_array_add": true,
+        "disable_array_delete": true,
+        "disable_array_reorder": true,
+        "wb": {
+          "disable_title": true
+        }
+      },
+      "items": {
+        "$ref": "#/definitions/slot"
+      },
+      "_format": "tabs",
+      "propertyOrder": 1
+    },
+    "modules": {
+      "type": "array",
+      "options": {
+        "hidden": true
+      },
+      "items": {
+        "$ref": "#/definitions/module"
+      }
+    }
+  },
+  "required": [
+    "slots"
+  ],
+  "configFile": {
+    "path": "/etc/wb-hardware.conf",
+    "needReload": true,
+    "service": "wb-hwconf-manager",
+    "toJSON": [
+      "wb-hwconf-helper",
+      "confed-tojson"
+    ],
+    "fromJSON": [
+      "wb-hwconf-helper",
+      "confed-fromjson"
+    ]
+  },
+  "options": {
+    "disable_collapse": true
+  },
+  "translations": {
+    "ru": {
+      "Hardware Modules Configuration": "Модули расширения и порты",
+      "List of extension slots": "Список слотов расширения",
+      "Module type": "Тип модуля",
+      "Type of the module plugged to the slot": "Тип модуля, установленного в слоте",
+      "None": "Не установлен",
+      "Internal slot 1": "Внутренний слот 1",
+      "Internal slot 2": "Внутренний слот 2",
+      "Internal slot 3": "Внутренний слот 3",
+      "Internal slot 4": "Внутренний слот 4",
+      "External I/O module 1": "Модуль WBIO 1",
+      "External I/O module 2": "Модуль WBIO 2",
+      "External I/O module 3": "Модуль WBIO 3",
+      "External I/O module 4": "Модуль WBIO 4",
+      "External I/O module 5": "Модуль WBIO 5",
+      "External I/O module 6": "Модуль WBIO 6",
+      "External I/O module 7": "Модуль WBIO 7",
+      "External I/O module 8": "Модуль WBIO 8",
+      "RS485-1 interface config": "Интерфейс RS485-1",
+      "RS485-2 interface config": "Интерфейс RS485-2",
+      "RS485-2/CAN interface config": "Интерфейс RS485-2/CAN",
+      "Modem slot": "Слот модема",
+      "W1 terminal mode": "Режим W1",
+      "W2 terminal mode": "Режим W2",
+      "Backup power supply": "Источник резервного питания",
+      "2nd Ethernet Slot": "Второй Ethernet слот",
+      "GSM modem": "GSM модем",
+      "RS485 interface": "Интерфейс RS485",
+      "RS485 failsafe bias configuration": "Настройка RS485 failsafe bias",
+      "Failsafe bias mode": "Режим failsafe bias",
+      "Enabled": "Включен",
+      "Disabled": "Выключен",
+      "UART-CAN interface": "Интерфейс UART-CAN",
+      "CAN interface": "Интерфейс CAN",
+      "1-Wire master": "1-Wire мастер",
+      "Discrete input": "Дискретный вход",
+      "RTC option for WB5.6 (w/o GSM modem)": "RTC для WB5.6 (без GSM модема)",
+      "No GSM Modem": "Без GSM модема",
+      "120Ω termination resistor": "120Ω резистор-терминатор",
+      "WBC-2G v.2: 2G Modem (v.2xx)": "WBC-2G v.2: 2G модем (v.2xx)",
+      "WBC-2G: 2G Modem": "WBC-2G: 2G модем",
+      "WBC-3G: 3G+2G Modem": "WBC-3G: 3G+2G модем",
+      "WBC-4G: 4G+3G+2G Modem": "WBC-4G: 4G+3G+2G модем",
+      "WBC-NB: NB-IoT + eMTC + 2G Modem": "WBC-NB: NB-IoT + eMTC + 2G модем",
+      "WBE-AI-CVR-2: analog inputs extension module": "WBE-AI-CVR-2: модуль расширения аналоговых входов",
+      "WBE-AI-CVR-2 module configuration": "Настройки модуля WBE-AI-CVR-2",
+      "Channels": "Каналы",
+      "Channel options": "Настройки канала",
+      "Channel {{i1}}": "Канал {{i1}}",
+      "Mode": "Режим",
+      "Voltage, 0-3.3 V": "Напряжение, 0-3.3 В",
+      "Voltage x10, 0-33.3 V": "Напряжение x10, 0-33.3 В",
+      "Current, 0-70 mA": "Ток, 0-70 мА",
+      "Gain": "Усиление",
+      "WBE-AO-10V-2: Dual channel analog voltage output (0-10V) module": "WBE-AO-10V-2: двухканальный модуль аналоговых выходов (0-10В)",
+      "WBE-DI-DR-3: digital inputs extension module": "WBE-DI-DR-3: модуль расширения цифровых входов",
+      "WBE-DO-OC-2: Dual Open-Collector Output Module": "WBE-DO-OC-2: двухканальный модуль выходов типа \"открытый коллектор\"",
+      "WBE-DO-R6C-1: Single SPDT relay output extension module": "WBE-DO-R6C-1: модуль расширения с одним SPDT релейным выходом",
+      "WBE-I-CAN-ISO: Isolated CAN interface module": "WBE-I-CAN-ISO: модуль с изолированным CAN интерфейсом",
+      "WBE-I-KNX: KIMaip KNX interface module": "WBE-I-KNX: модуль с интерфейсом KIMaip KNX",
+      "WBE-I-W1: 1-Wire interface module": "WBE-I-W1: модуль с интерфейсом 1-Wire",
+      "WBE-MICROSD: microSD module (slow)": "WBE-MICROSD: низкоскоростной модуль microSD",
+      "WBE-MICROSD: microSD module (fast)": "WBE-MICROSD: высокоскоростной модуль microSD",
+      "Temperature and humidity sensor and status LED for Wiren Board NETMON-2 r.1": "Датчик температуры и влажности и светодиодный индикатор состояния для Wiren Board NETMON-2 r.1",
+      "WBE-R-GPS: GPS/GLONASS GNSS extension module": "WBE-R-GPS: модуль расширения GPS/ГЛОНАСС",
+      "WBE2-AI-CM-1: Current, voltage, power monitor": "WBE2-AI-CM-1: монитор тока, напряжения, мощности",
+      "WBE2-AO-10V-2: Dual channel analog voltage output (0-10V) module": "WBE2-AO-10V-2: двухканальный модуль аналоговых выходов (0-10В)",
+      "WBE-DO-SSR-2: Dual Small Signal SSR Module": "WBE-DO-SSR-2: двухканальный модуль выходов типа \"сухой контакт\" (оптореле)",
+      "WBE2-DO-SSR-2: Dual Small Signal SSR Module": "WBE2-DO-SSR-2: двухканальный модуль выходов типа \"сухой контакт\" (оптореле)",
+      "WBE2-DI-DR-3: digital inputs extension module": "WBE2-DI-DR-3: модуль расширения цифровых входов",
+      "WBE2-DO-OC-2: Dual Open collector Module": "WBE2-DO-OC-2: двухканальный модуль выходов типа \"открытый коллектор\"",
+      "WBE2-DO-R6C-1: Single SPDT relay output extension module": "WBE2-DO-R6C-1: модуль расширения с одним SPDT релейным выходом",
+      "WBE2-DO-R3A-1: Single NO relay output extension module": "WBE2-DO-R3A-1: модуль расширения с одним NO релейным выходом",
+      "WBE2-I-EBUS: eBus Boiler Interface": "WBE2-I-EBUS: интерфейс eBus для котлов",
+      "WBE2-I-OPENTHERM: OpenTherm Boiler Interface": "WBE2-I-OPENTHERM: интерфейс OpenTherm для котлов",
+      "WBE2-I-RS232: RS-232 interface module": "WBE2-I-RS232: модуль с интерфейсом RS-232",
+      "WBE2-I-RS485-ISO: Isolated RS-485 interface module": "WBE2-I-RS485-ISO: модуль с изолированным интерфейсом RS-485",
+      "WBE2-I-UARTCAN-ISO: Isolated UART-CAN interface module": "WBE2-I-UARTCAN-ISO: модуль с изолированным интерфейсом UART-CAN",
+      "WBE2-I-1WIRE v4.0: 1-Wire bus master": "WBE2-I-1WIRE v4.0: мастер шины 1-Wire",
+      "WBE2-I-1WIRE: 1-Wire bus master": "WBE2-I-1WIRE: мастер шины 1-Wire",
+      "WBE2R-R-ZIGBEE: ZigBee Interface": "WBE2R-R-ZIGBEE: интерфейс ZigBee",
+      "WBE2R-R-ZWAVE-ZWAY: Z-Wave Interface": "WBE2R-R-ZWAVE-ZWAY: Интерфейс Z-Wave",
+      "Expose SPI (DIY)": "Интерфейс SPI (DIY)",
+      "WBE2S-R-433MHZ radio module": "WBE2S-R-433MHZ: радио модуль",
+      "Expose I2C Pins (DIY)": "Интерфейс I2C (DIY)",
+      "Expose UART Pins (DIY)": "Интерфейс UART (DIY)",
+      "WBE3-MICROSD: microSD module": "WBE3-MICROSD: модуль microSD",
+      "WBE3-R-GPS: GPS/GLONASS Receiver": "WBE3-R-GPS: приёмник GPS/ГЛОНАСС",
+      "WBIO-AI-DV-12 Analog Inputs": "WBIO-AI-DV-12: аналоговые входы",
+      "2nd Ethernet option for WB5": "Второй Ethernet порт для WB5",
+      "WBMZ-DIO-TTL-16: TTL GPIO mezonine extension module": "WBMZ-DIO-TTL-16: мезонинный модуль расширения TTL GPIO",
+      "WBIO-DO-SSR-8: Small Signal SSR I/O Module": "WBIO-DO-SSR-8: модуль ввода/вывода с выходами типа \"сухой контакт\"",
+      "WBIO-DO-R10R-4: 4 Channel Roller Shutter Relay I/O module": "WBIO-DO-R10R-4: 4-канальный релейный модуль ввода/вывода для приводов штор и т.п.",
+      "WBIO-DO-RxA-8: 8 Channel Relay I/O module": "WBIO-DO-RxA-8: 8-канальный релейный модуль ввода/вывода",
+      "WBIO-DO-R3A-4: 4 Channel Relay I/O module": "WBIO-DO-R3A-4: 4-канальный релейный модуль ввода/вывода",
+      "WBIO-DO-R1G-16: 16 Channel Relay I/O module": "WBIO-DO-R1G-16: 16-канальный релейный модуль ввода/вывода",
+      "WBIO-DO-HS-8: High side switch I/O module": "WBIO-DO-HS-8: модуль ввода/вывода с выходами типа \"High side switch\"",
+      "WBIO-DIO-TTL-8: TTL GPIO I/O module": "WBIO-DIO-TTL-8: модуль ввода/вывода TTL GPIO",
+      "WBIO-DI-WD-14: Digital inputs (dry/wet contact) I/O module": "WBIO-DI-WD-14: модуль ввода/вывода с цифровыми входами типа \"сухой или мокрый контакт\"",
+      "WBIO-DI-LVD-16: Low Voltage Digital Inputs I/O module": "WBIO-DI-LVD-16: модуль ввода/вывода с низковольтными цифровыми входами",
+      "WBIO-DI-LVD-8: Low Voltage Digital Inputs I/O module": "WBIO-DI-LVD-8: модуль ввода/вывода с низковольтными цифровыми входами",
+      "WBIO-DI-HVD-16: High Voltage Digital Inputs I/O module": "WBIO-DI-HVD-16: модуль ввода/вывода с высоковольтными цифровыми входами",
+      "WBIO-DI-HVD-8: High Voltage Digital Inputs I/O module": "WBIO-DI-HVD-8: модуль ввода/вывода с высоковольтными цифровыми входами",
+      "WBIO-DI-DR-16: Digital inputs (dry contact) I/O module": "WBIO-DI-DR-16: модуль ввода/вывода с цифровыми входами типа \"сухой контакт\"",
+      "WBIO-DI-DR-14: Digital inputs (dry contact) I/O module": "WBIO-DI-DR-14: модуль ввода/вывода с цифровыми входами типа \"сухой контакт\"",
+      "WBIO-DI-DR-8: Digital inputs (dry contact) I/O module": "WBIO-DI-DR-8: модуль ввода/вывода с цифровыми входами типа \"сухой контакт\"",
+      "WBIO-AO-10V-8 Analog Outputs": "WBIO-AO-10V-8 аналоговые выходы",
+      "WBIO-AI-DV-12 module configuration": "Настройки модуля WBIO-AI-DV-12",
+      "Channel A{{i1}}": "Канал А{{i1}}",
+      "Voltage, 0-2.5 V": "Напряжение 0-2.5В",
+      "Voltage +/-50V": "Напряжение +/-50В",
+      "Current 0-20mA": "Ток 0-20мА"
+    }
+  }
+}

@@ -1,0 +1,286 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "title": "KNXD Configuration",
+    "description": "KNX network data router configuration",
+    "configFile": {
+        "path": "/etc/wb-knxd-config.conf",
+        "service": "wb-knxd-config"
+    },
+    "options": {
+        "collapsed": false,
+        "disable_collapse": true,
+        "disable_properties": true
+    },
+    "properties": {
+        "Interface": {
+            "type": "object",
+            "title": "Interface sections",
+            "propertyOrder": 1,
+            "options": {
+                "collapsed": false,
+                "disable_collapse": true,
+                "disable_properties": true
+            },
+            "properties": {
+                "Layer2": {
+                    "propertyOrder": 1,
+                    "title": "Driver (-b, --layer2)",
+                    "description": "Driver : device path (default ncn5120:/dev/ttyKNX)",
+                    "type": "string",
+                    "minLength": 1,
+                    "default": "ncn5120:/dev/ttyKNX"
+                },
+                "OtherOptions": {
+                    "propertyOrder": 2,
+                    "title": "Other Options",
+                    "description": "Enter your custom options here (or leave empty) - it will be inserted at the end of the config.",
+                    "type": "string",
+                    "default": ""
+                }
+            }
+        },
+
+        "Address": {
+            "type": "object",
+            "title": "Address section",
+            "propertyOrder": 2,
+            "options": {
+                "collapsed": false,
+                "disable_collapse": true,
+                "disable_properties": true
+            },
+            "properties": {
+                "EibAddr": {
+                    "propertyOrder": 1,
+                    "title": "EIB address (-e, --eibaddr)",
+                    "description": "Set our EIB address to EIBADDR (default 0.0.1)",
+                    "type": "string",
+                    "pattern": "^([0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3})$",
+                    "minLength": 1,
+                    "default": "0.0.1"
+                },
+                "ClientAddrs": {
+                    "propertyOrder": 2,
+                    "title": "Client-addrs (-E, --client-addrs)",
+                    "description": "Assign addresses ADDRSTART through ADDRSTART+n to clients (default 0.0.2:50)",
+                    "type": "string",
+                    "pattern": "^([0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}):([0-9]{1,6})$",
+                    "minLength": 1,
+                    "default": "0.0.2:50"
+                }
+            }
+        },
+        "MulticastServer": {
+            "type": "object",
+            "title": "Multicast server section",
+            "propertyOrder": 3,
+            "options": {
+                "collapsed": false,
+                "disable_collapse": true,
+                "disable_properties": true
+            },
+            "properties": {
+                "Forced": {
+                    "propertyOrder": 1,
+                    "type": "boolean",
+                    "title": "Allow forced broadcast",
+                    "description": "Treat routing counter 7 as per KNX spec (dangerous)",
+                    "default": false,
+                    "_format": "checkbox"
+                },
+                "Discovery": {
+                    "propertyOrder": 2,
+                    "type": "boolean",
+                    "title": "Discovery (-D, --Discovery)",
+                    "description": "Enable the EIBnet/IP server to answer discovery and description requests (SEARCH, DESCRIPTION)",
+                    "default": true,
+                    "_format": "checkbox"
+                },
+                "Tunnelling": {
+                    "propertyOrder": 3,
+                    "type": "boolean",
+                    "title": "Tunnelling (-T, --Tunnelling)",
+                    "description": "Enable EIBnet/IP Tunneling in the EIBnet/IP server",
+                    "default": true,
+                    "_format": "checkbox"
+                },
+                "Routing": {
+                    "propertyOrder": 4,
+                    "type": "boolean",
+                    "title": "Routing (-R, --Routing)",
+                    "description": "Enable EIBnet/IP Routing in the EIBnet/IP server",
+                    "default": true,
+                    "_format": "checkbox"
+                },
+                "Server": {
+                    "propertyOrder": 5,
+                    "type": "boolean",
+                    "title": "Server (-S, --Server)",
+                    "description": "Starts an EIBnet/IP multicast server",
+                    "default": true,
+                    "_format": "checkbox"
+                },
+                "Name": {
+                    "propertyOrder": 6,
+                    "title": "Custom name of the server",
+                    "description": "Default is knxd.",
+                    "type": "string",
+                    "default": "knxd"
+                },
+                "Address": {
+                    "propertyOrder": 7,
+                    "title": "Server address",
+                    "description": "Default 224.0.23.12:3671",
+                    "type": "string",
+                    "pattern": "^([0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}):([0-9]{1,6})$",
+                    "minLength": 1,
+                    "default": "224.0.23.12:3671"
+                }
+            }
+        },
+        "Cache": {
+            "type": "object",
+            "title": "Cache section",
+            "description": "Group cache options.",
+            "propertyOrder": 4,
+            "options": {
+                "collapsed": false,
+                "disable_collapse": false,
+                "disable_properties": false
+            },
+            "properties": {
+                "GroupCache": {
+                    "propertyOrder": 1,
+                    "type": "boolean",
+                    "title": "GroupCache (-c, --GroupCache)",
+                    "description": "Enable caching of group communication network state",
+                    "default": false,
+                    "_format": "checkbox"
+                }
+            }
+        },
+        "Global": {
+            "type": "object",
+            "title": "Global section",
+            "description": "Debug options.",
+            "propertyOrder": 5,
+            "options": {
+                "collapsed": false,
+                "disable_collapse": false,
+                "disable_properties": false
+            },
+            "properties": {
+                "Error": {
+                    "propertyOrder": 1,
+                    "title": "Error Level (-f, --error)",
+                    "description": "Set error level (default 3: warnings)",
+                    "oneOf": [
+                        {
+                            "type": "string",
+                            "pattern": "^(0x[A-Fa-f\\d]+|\\d+|(0x[A-Fa-f\\d]+|\\d+):(0x[A-Fa-f\\d]+|\\d+))$"
+                        },
+                        {
+                            "type": "integer"
+                        }
+                    ],
+                    "minLength": 1,
+                    "default": "3"
+                },
+                "Trace": {
+                    "propertyOrder": 2,
+                    "title": "Trace mask (-t, --trace)",
+                    "description": "Set trace flags (bitmask)",
+                    "oneOf": [
+                        {
+                            "type": "string",
+                            "pattern": "^(0x[A-Fa-f\\d]+|\\d+|(0x[A-Fa-f\\d]+|\\d+):(0x[A-Fa-f\\d]+|\\d+))$"
+                        },
+                        {
+                            "type": "integer"
+                        }
+                    ],
+                    "minLength": 1,
+                    "default": "1023"
+                }
+            }
+        },
+        "LocalListener": {
+            "type": "object",
+            "title": "Local listener section",
+            "description": "DO NOT use this options here. Systemd already does that on behalf of knxd, via 'knx.socket'.",
+            "propertyOrder": 6,
+            "options": {
+                "collapsed": false,
+                "disable_collapse": false,
+                "disable_properties": false
+            },
+            "properties": {
+                "ListenTcp": {
+                    "propertyOrder": 1,
+                    "title": "Listen: tcp port (-i, --listen-tcp)",
+                    "description": "Listen at TCP port PORT (default 6720)",
+                    "type": "string",
+                    "minLength": 1,
+                    "default": "6720"
+                },
+                "ListenLocal": {
+                    "propertyOrder": 2,
+                    "title": "Listen: local file (-u, --listen-local)",
+                    "description": "Listen at Unix domain socket FILE (default /var/run/knx)",
+                    "type": "string",
+                    "minLength": 1,
+                    "default": "/var/run/knx"
+                }
+            }
+        }
+    },
+
+    "translations": {
+        "ru": {
+            "KNXD Configuration": "Маршрутизатор данных KNX",
+            "KNX network data router configuration": "Конфигурация маршрутизатора данных сети KNX",
+            "Interface sections": "Интерфейсы",
+            "Driver (-b, --layer2)": "Драйвер (-b, --layer2)",
+            "Driver : device path (default ncn5120:/dev/ttyKNX)": "Задается в формате драйвер:путь_к_устройству (по умолчанию ncn5120:/dev/ttyKNX)",
+            "Other Options": "Параметры",
+            "Enter your custom options here (or leave empty) - it will be inserted at the end of the config.": "Секция дополнительных параметров (оставьте поле пустым, если дополнительные параметры не требуются). Указанные параметры будут добавлены в конце конфигурационного файла",
+            "Address section": "Адреса",
+            "EIB address (-e, --eibaddr)": "EIB-адрес (-e, --eibaddr)",
+            "Set our EIB address to EIBADDR (default 0.0.1)": "Физический KNX-адрес маршрутизатора knxd (по умолчанию 0.0.1)",
+            "Client-addrs (-E, --client-addrs)": "Адреса клиентов (-E, --client-addrs)",
+            "Assign addresses ADDRSTART through ADDRSTART+n to clients (default 0.0.2:50)": "Задаются в формате ADDRSTART:n. Параметр указывает knxd выдавать KNX-адреса узлам из IP-сети в диапазоне ADDRSTART..ADDRSTART+n (по умолчанию 0.0.2:50)",
+            "Multicast server section": "Сервер групповых сообщений",
+            "Allow forced broadcast": "Разрешить принудительные широковещательные сообщения",
+            "Treat routing counter 7 as per KNX spec (dangerous)": "Обрабатывать счетчик маршрутизации 7 согласно спецификации KNX (опасно)",
+            "Discovery (-D, --Discovery)": "Обнаружение (-D, --Discovery)",
+            "Enable the EIBnet/IP server to answer discovery and description requests (SEARCH, DESCRIPTION)": "Разрешить серверу EIBnet/IP отвечать на запросы обнаружения и описания сети (SEARCH, DESCRIPTION)",
+            "Tunnelling (-T, --Tunnelling)": "Туннелирование (-T, --Tunnelling)",
+            "Enable EIBnet/IP Tunneling in the EIBnet/IP server": "Включить туннелирование на сервере EIBnet/IP",
+            "Routing (-R, --Routing)": "Маршрутизация (-R, --Routing)",
+            "Enable EIBnet/IP Routing in the EIBnet/IP server": " Включить маршрутизацию на сервере EIBnet/IP",
+            "Server (-S, --Server)": "Сервер (-S, --Server)",
+            "Starts an EIBnet/IP multicast server": "Включить сервер групповых сообщений EIBnet/IP",
+            "Custom name of the server": "Пользовательское имя сервера",
+            "Default is knxd.": "По умолчанию имя сервера \"knxd\"",
+            "Server address": "Адрес сервера",
+            "Default 224.0.23.12:3671": "По умолчанию 224.0.23.12:3671",
+            "Cache section": "Кэширование",
+            "Group cache options.": "Параметры кэширования",
+            "GroupCache (-c, --GroupCache)": "Состояние групповой связи",
+            "Enable caching of group communication network state": "Включить кэширование состояния групповой связи сети",
+            "Global section": "Глобальные параметры",
+            "Debug options.": "Параметры диагностики",
+            "Error Level (-f, --error)": "Уровень диагностических сообщений (-f, --error)",
+            "Set error level (default 3: warnings)": "Определяет типы диагностических сообщений, которые будут выведены (по умолчанию 3: предупреждения)",
+            "Trace mask (-t, --trace)": "Маска трассировки (-t, --trace)",
+            "Set trace flags (bitmask)": "Задает флаги трассировки в виде битовой маски",
+            "Local listener section": "Локальное прослушивание",
+            "DO NOT use this options here. Systemd already does that on behalf of knxd, via 'knx.socket'.": "НЕ ИСПОЛЬЗУЙТЕ эти параметры здесь. Systemd уже делает это от имени knxd через \"knx.socket\"",
+            "Listen: tcp port (-i, --listen-tcp)": "Источник прослушивания: TCP порт (-i, --listen-tcp)",
+            "Listen at TCP port PORT (default 6720)": "Прослушивать TCP-порт с заданным номером (по умолчанию 6720)",
+            "Listen: local file (-u, --listen-local)": "Источник прослушивания: локальный файл (-u, --listen-local)",
+            "Listen at Unix domain socket FILE (default /var/run/knx)": "Прослушивать локальный Unix-сокет файл (по умолчанию /var/run/knx)"
+        }
+    }
+}

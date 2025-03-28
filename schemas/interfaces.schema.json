@@ -1,0 +1,522 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "title": "Network Interfaces",
+    "description": "Specifies network configuration of the system",
+    "configFile": {
+        "path": "/etc/network/interfaces",
+        "toJSON": "networkparser",
+        "fromJSON": ["networkparser", "-s"],
+        "restartDelayMS": 4000,
+        "service": "networking"
+    },
+    "definitions": {
+        "iface_common": {
+            "type": "object",
+            "properties": {
+                "auto": {
+                    "type": "boolean",
+                    "default": true,
+                    "title": "Auto",
+                    "_format": "checkbox",
+                    "propertyOrder": 1
+                },
+                "name": {
+                    "type": "string",
+                    "title": "Name",
+                    "minLength": 1,
+                    "propertyOrder": 2
+                },
+                "allow-hotplug": {
+                    "type": "boolean",
+                    "default": true,
+                    "title": "Allow hotplug",
+                    "_format": "checkbox",
+                    "propertyOrder": 3
+                }
+            },
+            "_properties_that_are_not_used_for_now": {
+                "pre-up": {
+                    "title": "Pre-up command",
+                    "type": "string",
+                    "propertyOrder": 100
+                },
+                "up": {
+                    "title": "Up command",
+                    "type": "string",
+                    "propertyOrder": 101
+                },
+                "post-up": {
+                    "title": "Post-up command",
+                    "description": "Same as 'Up command'",
+                    "type": "string",
+                    "propertyOrder": 102
+                },
+                "down": {
+                    "title": "Down command",
+                    "type": "string",
+                    "propertyOrder": 103
+                },
+                "pre-down": {
+                    "title": "Pre-down command",
+                    "description": "Same as 'Down command'",
+                    "type": "string",
+                    "propertyOrder": 104
+                },
+                "post-down": {
+                    "title": "Post-down command",
+                    "type": "string",
+                    "propertyOrder": 105
+                }
+            }
+        },
+        "method_loopback": {
+            "title": "Loopback interface",
+            "allOf": [
+                { "$ref": "#/definitions/iface_common" },
+                {
+                    "type": "object",
+                    "properties": {
+                        "mode": {
+                            "type": "string",
+                            "title": "Mode",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["inet"]
+                        },
+                        "method": {
+                            "type": "string",
+                            "title": "Method",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["loopback"]
+                        },
+                        "options": {
+                            "type": "object",
+                            "title": "Options",
+                            "options": {
+                                "hidden": true
+                            }
+                        }
+                    },
+                    "defaultProperties": [
+                        "name",
+                        "method",
+                        "mode"
+                    ],
+                    "required": ["name", "method", "mode"]
+                }
+            ]
+        },
+        "method_static": {
+            "title": "Static IP",
+            "allOf": [
+                { "$ref": "#/definitions/iface_common" },
+                {
+                    "type": "object",
+                    "properties": {
+                        "mode": {
+                            "type": "string",
+                            "title": "Mode",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["inet"]
+                        },
+                        "method": {
+                            "type": "string",
+                            "title": "Method",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["static"]
+                        },
+                        "options": {
+                            "type": "object",
+                            "title": "Options",
+                            "properties": {
+                                "address": {
+                                    "type": "string",
+                                    "title": "IP address",
+                                    "format": "ipv4",
+                                    "propertyOrder": 11
+                                },
+                                "netmask": {
+                                    "type": "string",
+                                    "title": "Network mask",
+                                    "format": "ipv4",
+                                    "propertyOrder": 12
+                                },
+                                "broadcast": {
+                                    "type": "string",
+                                    "title": "Broadcast address",
+                                    "format": "ipv4",
+                                    "propertyOrder": 13
+                                },
+                                "gateway": {
+                                    "type": "string",
+                                    "title": "Default gateway",
+                                    "format": "ipv4",
+                                    "propertyOrder": 14
+                                },
+                                "metric": {
+                                    "type": "string",
+                                    "title": "Routing metric for default gateway",
+                                    "format": "ipv4",
+                                    "propertyOrder": 15
+                                },
+                                "hwaddress": {
+                                    "type": "string",
+                                    "title": "MAC address",
+                                    "pattern": "^(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$",
+                                    "propertyOrder": 16
+                                },
+                                "pointopoint": {
+                                    "type": "string",
+                                    "title": "Point-to-point address",
+                                    "description": "For point-to-point configuration",
+                                    "format": "ipv4",
+                                    "propertyOrder": 17
+                                },
+                                "mtu": {
+                                    "type": "string",
+                                    "title": "MTU",
+                                    "default": 1500,
+                                    "propertyOrder": 18
+                                },
+                                "scope": {
+                                    "type": "string",
+                                    "title": "Address validity scope",
+                                    "enum": [
+                                        "global",
+                                        "link",
+                                        "host"
+                                    ],
+                                    "options": {
+                                        "enum_titles": [
+                                            "global",
+                                            "link",
+                                            "host"
+                                        ]
+                                    },
+                                    "propertyOrder": 19
+                                }
+                            },
+                            "required": ["address"],
+                            "defaultProperties": [
+                                "address",
+                                "netmask",
+                                "gateway",
+                                "mtu"
+                            ]
+                        }
+                    },
+                    "defaultProperties": [
+                        "name",
+                        "auto",
+                        "mode",
+                        "method",
+                        "options"
+                    ],
+                    "required": ["name", "mode", "method"]
+                }
+            ]
+        },
+        "method_dhcp": {
+            "title": "DHCP",
+            "allOf": [
+                { "$ref": "#/definitions/iface_common" },
+                {
+                    "type": "object",
+                    "properties": {
+                        "mode": {
+                            "type": "string",
+                            "title": "Mode",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["inet"]
+                        },
+                        "method": {
+                            "type": "string",
+                            "title": "Method",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["dhcp"]
+                        },
+                        "options": {
+                            "type": "object",
+                            "title": "Options",
+                            "properties": {
+                                "hwaddress": {
+                                    "type": "string",
+                                    "title": "MAC address",
+                                    "pattern": "^(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$",
+                                    "propertyOrder": 11
+                                },
+                                "hostname": {
+                                    "type": "string",
+                                    "title": "Hostname to be requested",
+                                    "propertyOrder": 12
+                                },
+                                "client": {
+                                    "type": "string",
+                                    "title": "Client identifier",
+                                    "propertyOrder": 13
+                                }
+                            },
+                            "defaultProperties": "hostname"
+                        }
+                    },
+                    "defaultProperties": [
+                        "name",
+                        "auto",
+                        "mode",
+                        "method",
+                        "options"
+                    ],
+                    "required": ["name", "mode", "method"]
+                }
+            ]
+        },
+        "method_can": {
+            "title": "CAN",
+            "allOf": [
+                { "$ref": "#/definitions/iface_common" },
+                {
+                    "type": "object",
+                    "properties": {
+                        "mode": {
+                            "type": "string",
+                            "title": "Mode",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["can"]
+                        },
+                        "method": {
+                            "type": "string",
+                            "title": "Method",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["static"]
+                        },
+                        "options": {
+                            "type": "object",
+                            "title": "Options",
+                            "properties": {
+                                "bitrate": {
+                                    "type": "string",
+                                    "title": "Bitrate",
+                                    "propertyOrder": 11
+                                }
+                            },
+                            "required": ["bitrate"]
+                        }
+                    },
+                    "defaultProperties": [
+                        "name",
+                        "allow-hotplug",
+                        "mode",
+                        "method",
+                        "options"
+                    ],
+                    "required": ["name", "mode", "method"]
+                }
+            ]
+        },
+        "method_ppp": {
+            "title": "PPP",
+            "allOf": [
+                { "$ref": "#/definitions/iface_common" },
+                {
+                    "type": "object",
+                    "properties": {
+                        "mode": {
+                            "type": "string",
+                            "title": "Mode",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["inet"]
+                        },
+                        "method": {
+                            "type": "string",
+                            "title": "Method",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["ppp"]
+                        },
+                        "options": {
+                            "type": "object",
+                            "title": "Options",
+                            "properties": {
+                                "provider": {
+                                    "type": "string",
+                                    "title": "Provider name",
+                                    "description": "Refers to the file in /etc/ppp/peers",
+                                    "propertyOrder": 11
+                                },
+                                "unit": {
+                                    "type": "string",
+                                    "title": "PPP unit number",
+                                    "propertyOrder": 12
+                                },
+                                "options": {
+                                    "type": "string",
+                                    "title": "Additional options",
+                                    "propertyOrder": 13
+                                }
+                            },
+                            "defaultProperties": [
+                                "provider"
+                            ]
+                        }
+                    },
+                    "defaultProperties": [
+                        "name",
+                        "auto",
+                        "mode",
+                        "method",
+                        "options"
+                    ],
+                    "required": ["name", "mode", "method"]
+                }
+            ]
+        },
+        "method_manual": {
+            "title": "Manual",
+            "allOf": [
+                { "$ref": "#/definitions/iface_common" },
+                {
+                    "type": "object",
+                    "properties": {
+                        "mode": {
+                            "type": "string",
+                            "title": "Mode",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["inet"]
+                        },
+                        "method": {
+                            "type": "string",
+                            "title": "Method",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["manual"]
+                        },
+                        "options": {
+                            "type": "object",
+                            "title": "Options",
+                            "properties": {
+                                "hwaddress": {
+                                    "type": "string",
+                                    "title": "MAC address",
+                                    "pattern": "^(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$",
+                                    "propertyOrder": 11
+                                },
+                                "mtu": {
+                                    "type": "string",
+                                    "title": "MTU",
+                                    "propertyOrder": 12
+                                }
+                            },
+                            "defaultProperties": ["mtu"]
+                        }
+                    },
+                    "defaultProperties": [
+                        "name",
+                        "auto",
+                        "mode",
+                        "method"
+                    ],
+                    "required": ["name", "mode", "method"]
+                }
+            ]
+        }
+    },
+    "properties": {
+        "interfaces": {
+            "type": "array",
+            "title": "List of network interfaces",
+            "items": {
+                "headerTemplate": "Interface{{ |self.name}}",
+                "oneOf": [
+                    {
+                        "$ref": "#/definitions/method_loopback"
+                    },
+                    {
+                        "$ref": "#/definitions/method_static"
+                    },
+                    { "$ref": "#/definitions/method_dhcp" },
+                    { "$ref": "#/definitions/method_ppp" },
+                    { "$ref": "#/definitions/method_can" },
+                    {
+                        "$ref": "#/definitions/method_manual"
+                    }
+                ],
+                "options": {
+                    "keep_oneof_values": false
+                }
+            },
+            "_format": "tabs"
+        }
+    },
+    "required": ["interfaces"],
+
+    "translations": {
+        "ru": {
+            "Network Interfaces": "Сетевые интерфейсы",
+            "Specifies network configuration of the system": "Конфигурация сетевых интерфейсов контроллера",
+            "Auto": "Включать автоматически",
+            "Name": "Имя интерфейса",
+            "Allow hotplug": "Разрешить горячее подключение",
+            "Pre-up command": "Команды перед включением интерфейса",
+            "Up command": "Команда включения интерфейса",
+            "Post-up command": "Комада после включения интерфейса",
+            "Down command": "Команда выключения интерфейса",
+            "Pre-down command": "Комадна перед выключением интерфейса",
+            "Post-down command": "Команда после выключения интерфейса",
+            "Loopback interface": "Loopback-интерфейс",
+            "name": "имя",
+            "Static IP": "Статический IP-адрес",
+            "IP address": "IP-адрес",
+            "Network mask": "Маска подсети",
+            "Broadcast address": "Широковещательный адрес",
+            "Default gateway": "Основной шлюз",
+            "Routing metric for default gateway": "Метрика основного шлюза",
+            "MAC address": "MAC-адрес",
+            "Address validity scope": "Область действия адреса",
+            "global": "глобальный",
+            "link": "подключение",
+            "host": "хост",
+            "address": "адрес",
+            "netmask": "маска подсети",
+            "gateway": "шлюз",
+            "auto": "автоматически",
+            "Mode": "Режим",
+            "Method": "Метод",
+            "Options": "Параметры",
+            "Hostname to be requested": "Имя хоста",
+            "Client identifier": "Идентификатор клиента",
+            "Bitrate": "Скорость обмена (бит/с)",
+            "allow-hotplug": "горячее подключение",
+            "Provider name": "Имя провайдера",
+            "PPP unit number": "Номер устройства PPP",
+            "Additional options": "Дополнительные параметры",
+            "Manual": "Пользовательский",
+            "List of network interfaces": "Список сетевых интерфейсов",
+            "Interface{{ |self.name}}": "Интерфейс {{ |self.name}}",
+            "Point-to-point address": "Адрес конечного узла",
+            "For point-to-point configuration": "Для конфигурации соединения точка-точка",
+            "Refers to the file in /etc/ppp/peers": "Указать имя файла конфигурации из директории /etc/ppp/peers"
+        }
+    }
+}

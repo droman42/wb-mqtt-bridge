@@ -1,0 +1,275 @@
+{
+  "type": "object",
+  "title": "KNX Group Objects Configuration",
+  "description": "",
+  "definitions": {
+    "datapointTypeMqtt": {
+      "type": "string",
+      "title": "MQTT",
+      "enum": [
+        "Raw_Value",
+        "1.xxx_B1",
+        "2.xxx_B2",
+        "3.xxx_B1U3",
+        "4.xxx_Character_Set",
+        "5.xxx_8-Bit_Unsigned_Value",
+        "6.xxx_V8",
+        "7.xxx_2-Octet_Unsigned_Value",
+        "8.xxx_2-Octet_Signed_Value",
+        "9.xxx_2-Octet_Float_Value",
+        "12.001_4-Octet_Unsigned_Value",
+        "13.xxx_4-Octet_Signed_Value",
+        "14.xxx_4-Octet_Float_Value",
+        "20.xxx_N8"
+      ]
+    },
+    "datapointTypeJSON": {
+      "type": "string",
+      "title": "JSON",
+      "enum": [
+        "1.xxx_B1_JSON",
+        "  1.001_Switch_JSON",
+        "  1.002_Bool_JSON",
+        "  1.002_Enable_JSON",
+        "2.xxx_B2_JSON",
+        "3.xxx_B1U3_JSON",
+        "4.xxx_CharacterSet_JSON",
+        "5.xxx_8-Bit_Unsigned_Value_JSON",
+        "6.xxx_V8_JSON",
+        "  6.020_Status_with_Mode_JSON",
+        "7.xxx_2-Octet_Unsigned_Value_JSON",
+        "8.xxx_2-Octet_Signed_Value_JSON",
+        "9.xxx_2-Octet_Float_Value_JSON",
+        "10.xxx_Time_JSON",
+        "  10.001_Time_Of_Day_JSON",
+        "11.xxx_Date_JSON",
+        "  11.001_Date_JSON",
+        "12.xxx_4-Octet_Unsigned_Value_JSON",
+        "  12.001_Value-4-Ucount_JSON",
+        "13.xxx_4-Octet_Signed_Value_JSON",
+        "14.xxx_4-Octet_Float_Value_JSON",
+        "15.xxx_Access_Data_JSON",
+        "  15.000_Access_Data_JSON",
+        "16.xxx_String_JSON",
+        "17.xxx_SceneNumber_JSON",
+        "18.xxx_SceneControl_JSON",
+        "19.xxx_Date_Time_JSON",
+        "  19.001_Date_Time_JSON",
+        "20.xxx_N8_JSON",
+        "21.xxx_B8_JSON",
+        "  21.001_Status_Gen_JSON",
+        "  21.002_Device_Control_JSON",
+        "23.xxx_N2_JSON",
+        "26.xxx_Scene_Info_JSON",
+        "  26.001_Scene_Info_JSON",
+        "27.xxx_Combined_Info_On_Off_JSON",
+        "  27.001_Combined_Info_On_Off_JSON",
+        "29.xxx_V64_JSON"
+      ]
+    },
+    "device": {
+      "headerTemplate": "device_header_template",
+      "type": "object",
+      "title": "Device",
+      "properties": {
+        "deviceId": {
+          "type": "string",
+          "title": "Device ID",
+          "pattern": "^[^$#+\\/\"']+$",
+          "options": {
+            "patternmessage": "Incorrect Device ID"
+          },
+          "propertyOrder": 1
+        },
+        "deviceTitle": {
+          "type": "string",
+          "title": "Device Title",
+          "propertyOrder": 2
+        },
+        "controls": {
+          "type": "array",
+          "title": "List of Group Objects",
+          "items": {
+            "$ref": "#/definitions/control"
+          },
+          "minItems": 0,
+          "_format": "tabs",
+          "propertyOrder": 3,
+          "options": {
+            "disable_collapse": true,
+            "disable_array_delete_last_row": true
+          }
+        }
+      },
+      "required": [
+        "deviceId",
+        "deviceTitle",
+        "controls"
+      ]
+    },
+    "control": {
+      "headerTemplate": "group_object_header_template",
+      "type": "object",
+      "title": "Group Object",
+      "properties": {
+        "controlId": {
+          "type": "string",
+          "title": "Control ID",
+          "pattern": "^[^$#+\\/\"']+$",
+          "options": {
+            "patternmessage": "Incorrect Control ID"
+          },
+          "propertyOrder": 1
+        },
+        "controlTitle": {
+          "type": "string",
+          "title": "Group Object Title",
+          "propertyOrder": 2
+        },
+        "groupAddress": {
+          "title": "Group Address",
+          "type": "string",
+          "propertyOrder": 3,
+          "pattern": "(?!^ *0\\/0\\/0 *$)(?!^ *0\\/0 *$)(?!^ *0 *$)(?=(^ *(\\d|[1-2]\\d|3[0-1])\\/([0-7])\\/(\\d|[1-9]\\d|1\\d{1,2}|2[0-4]\\d|25[0-5]) *$)|(^ *(\\d|[1-2]\\d|3[0-1])\\/(\\d|[^0]\\d{1,2}|1\\d{3}|20[0-3]\\d|204[0-7]) *$)|(^ *(\\d|[^0]\\d{1,3}|[1-5]\\d{4}|6[0-4]\\d{3}|65[0-4]\\d{2}|655[0-2]\\d|6553[0-5]) *$))",
+          "options": {
+            "inputAttributes": {
+              "placeholder": "Example: 7/7/140 , 7/1034 , 32001"
+            },
+            "patternmessage": "Incorrect KNX address"
+          }
+        },
+        "dataPointType": {
+          "title": "Datapoint Type",
+          "oneOf": [
+            { "$ref": "#/definitions/datapointTypeMqtt" },
+            { "$ref": "#/definitions/datapointTypeJSON" }
+          ],
+          "default": "1.xxx_B1",
+          "propertyOrder": 4
+        },
+        "readPollInterval": {
+          "type": "integer",
+          "title": "Group Object polling interval (ms)",
+          "minimum": 0,
+          "maximum": 100000,
+          "default": 0,
+          "propertyOrder": 5
+        },
+        "readPollTimeout": {
+          "type": "integer",
+          "title": "Poll responce timeout (ms)",
+          "minimum": 0,
+          "maximum": 100000,
+          "default": 0,
+          "propertyOrder": 6
+        },
+        "readOnly": {
+          "type": "boolean",
+          "title": "Read only",
+          "default": false,
+          "_format": "checkbox",
+          "propertyOrder": 7
+        },
+        "feedbackGroupAddress": {
+          "title": "Feedback Group Address",
+          "type": "string",
+          "propertyOrder": 8,
+          "pattern": "(?!^ *0\\/0\\/0 *$)(?!^ *0\\/0 *$)(?!^ *0 *$)(?=(^ *(\\d|[1-2]\\d|3[0-1])\\/([0-7])\\/(\\d|[1-9]\\d|1\\d{1,2}|2[0-4]\\d|25[0-5]) *$)|(^ *(\\d|[1-2]\\d|3[0-1])\\/(\\d|[^0]\\d{1,2}|1\\d{3}|20[0-3]\\d|204[0-7]) *$)|(^ *(\\d|[^0]\\d{1,3}|[1-5]\\d{4}|6[0-4]\\d{3}|65[0-4]\\d{2}|655[0-2]\\d|6553[0-5]) *$)|(^$))",
+          "options": {
+            "inputAttributes": {
+              "placeholder": "Example: 7/7/140 , 7/1034 , 32001"
+            },
+            "patternmessage": "Incorrect KNX address"
+          }
+        }
+      },
+      "required": [
+        "dataPointType"
+      ]
+    }
+  },
+  "properties": {
+    "configVersion": {
+      "type": "integer",
+      "title": "Config version",
+      "minimum": 1,
+      "maximum": 1,
+      "default": 1,
+      "propertyOrder": 1,
+      "options": {
+        "hidden": true
+      }
+    },
+    "debug": {
+      "type": "boolean",
+      "title": "Enable debug logging",
+      "default": false,
+      "_format": "checkbox",
+      "propertyOrder": 2
+    },
+    "enableLegacyKnxDevice": {
+      "type": "boolean",
+      "title": "Enable the KNX Gateway Device: knx/data",
+      "default": true,
+      "_format": "checkbox",
+      "propertyOrder": 3
+    },
+    "devices": {
+      "type": "array",
+      "title": "List of Devices",
+      "items": {
+        "$ref": "#/definitions/device"
+      },
+      "minItems": 0,
+      "_format": "tabs",
+      "propertyOrder": 5,
+      "options": {
+        "disable_collapse": true,
+        "disable_array_delete_last_row": true
+      }
+    }
+  },
+  "options": {
+    "disable_edit_json": false
+  },
+  "defaultProperties": [
+    "configVersion",
+    "debug"
+  ],
+  "required": [
+    "configVersion",
+    "debug",
+    "devices",
+    "enableLegacyKnxDevice"
+  ],
+  "configFile": {
+    "path": "/etc/wb-mqtt-knx.conf",
+    "service": "wb-mqtt-knx",
+    "validate": false
+  },
+  "translations": {
+    "en": {
+      "device_header_template": "{{self.deviceId}}",
+      "group_object_header_template": "{{self.controlId}} ({{self.groupAddress}})",
+    },
+    "ru": {
+      "KNX Group Objects Configuration": "Настройка Групповых объектов KNX",
+      "Enable debug logging": "Включить отладочные сообщения",
+      "Enable the KNX Gateway Device: knx/data": "Включить устройство KNX моста: knx/data",
+      "List of Devices": "Список устройств",
+      "Device": "Устройство",
+      "Device ID": "Идентификатор устройства в MQTT",
+      "Device Title": "Название устройства",
+      "Group Object": "Групповой объект",
+      "List of Group Objects": "Список Групповых объектов",
+      "Control ID": "Идентификатор Группового объекта в MQTT",
+      "Group Object Title": "Название Группового объекта",
+      "Group Address": "Групповой адрес",
+      "Datapoint Type": "Тип данных",
+      "Read only": "Только для чтения",
+      "Group Object polling interval (ms)": "Интервал опроса Группового объекта (мс)",
+      "Poll responce timeout (ms)": "Время ожидания ответа на запрос (мс)",
+      "Feedback Group Address": "Групповой адрес для приёма статуса"
+    }
+  }
+}

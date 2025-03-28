@@ -1,0 +1,665 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "Настройки инженерные",
+  "description": "Настройки работы систем дома",
+  "options": {
+	"disable_edit_json" : true,
+    "disable_collapse" : true,
+	"disable_properties" : true,
+	"disable_array_reorder" : true,
+    "collapsed": false
+  },
+  "properties": {
+    "slots": {
+      "type": "array",
+      "title": "  ",
+      "minItems": 1,
+      "maxItems": 10,
+	  "items": {
+		"type": "object",
+		"title": "Channel options",
+		"headerTemplate": "{{self.name}}",
+		  "options": {
+		  "disable_array_reorder" : true,
+		  "disable_collapse" : true,
+		  "disable_array_add" : true,
+		  "disable_edit_json" : true,
+		  "disable_properties" : true,
+		  "collapsed": false,
+          "compact": true,
+		  "disable_array_delete": true
+		  },
+		"properties": {
+		  "id": {
+			"type": "string",
+			"title": "ID",
+			"minLength": 1,
+			"default": "0",
+			"propertyOrder": 1,
+			"options": {"hidden": true}
+		  },
+		  "name": {
+			"type": "string",
+			"title": "Name",
+			"minLength": 1,
+			"default": "Лампы",
+			"propertyOrder": 1,
+			"options": {"hidden": true}
+		  },
+		  "on_off": {
+			"type": "array",
+			"items": {
+			"$ref": "#/definitions/on_off"
+			},
+			  "title": "Обычные лампы",
+	     	  "propertyOrder": 1,
+			  "options": {
+			  "disable_array_reorder" : true,
+			  "disable_collapse" : false,
+			  "disable_array_add" : true,
+			  "disable_edit_json" : true,
+			  "disable_properties" : true,
+			  "collapsed": true,
+			  "disable_array_delete": true
+			  }
+		  },
+		  "dimmer": {
+			"type": "array",
+			"items": {
+			"$ref": "#/definitions/dimmer"
+			},
+			  "title": "Диммеры",
+			  "propertyOrder": 2,
+			  "options": {
+			  "disable_array_reorder" : true,
+			  "disable_collapse" : false,
+			  "disable_array_add" : true,
+			  "disable_edit_json" : true,
+			  "disable_properties" : true,
+			  "collapsed": true,
+			  "disable_array_delete": true
+			  }
+		  },
+		  "radiator": {
+			"type": "array",
+			"items": {
+			"$ref": "#/definitions/heater"
+			},
+			  "title": "Радиаторы",
+			  "propertyOrder": 3,
+			  "options": {
+			  "disable_array_reorder" : true,
+			  "disable_collapse" : false,
+			  "disable_array_add" : true,
+			  "disable_edit_json" : true,
+			  "disable_properties" : true,
+			  "collapsed": true,
+			  "disable_array_delete": true
+			  }
+		  },
+		  "floor": {
+			"type": "array",
+			"items": {
+			"$ref": "#/definitions/heater"
+			},
+			  "title": "Теплые полы",
+			  "propertyOrder": 4,
+			  "options": {
+			  "disable_array_reorder" : true,
+			  "disable_collapse" : false,
+			  "disable_array_add" : true,
+			  "disable_edit_json" : true,
+			  "disable_properties" : true,
+			  "collapsed": true,
+			  "disable_array_delete": true
+			  }
+		  },
+		  "fan": {
+			"type": "array",
+			"items": {
+			"$ref": "#/definitions/fan"
+			},
+			  "title": " Вентиляторы",
+	     	  "propertyOrder": 5,
+			  "options": {
+			  "disable_array_reorder" : true,
+			  "disable_collapse" : false,
+			  "disable_array_add" : true,
+			  "disable_edit_json" : true,
+			  "disable_properties" : true,
+			  "collapsed": true,
+			  "disable_array_delete": true
+			  }
+		  }
+		}
+	  },
+	  "options": {
+		"disable_collapse": true,
+		"disable_array_add": true,
+		"disable_array_delete": true,
+		"disable_array_reorder": true
+	  },
+      "_format": "tabs",
+      "propertyOrder": 1
+    }
+  },
+  "configFile": {
+    "path": "/mnt/data/etc/wb-mqtt-setpoints.conf",
+    "service": "wb-rules"
+  },
+  "definitions": {
+    "on_off": {
+      "type": "object",
+      "headerTemplate": "{{self.mark}} : \"{{self.name}}\"",
+      "required": [ "name"],
+      "_format": "grid",
+	  "options": {
+		"disable_edit_json" : true,
+		"disable_properties" : true,
+		"disable_array_reorder" : true,
+		"collapsed": true
+	  },
+      "properties": {
+        "i": {
+	      "title": "Индекс",
+          "type": "string",
+          "default": "1",
+          "description": "Порядковый номер в списке",
+		  "propertyOrder": 22,
+		  "options": {"hidden": true}
+        },
+          "mark": {
+	      "title": "Позиция лампы",
+          "type": "string",
+          "default": "1",
+          "description": "Маркировка на плане помещения",
+		  "propertyOrder": 1,
+		  "options": {"hidden": false,
+		  				"grid_columns": 3}
+        },
+        "name": {
+		  "title": "Комната",
+          "type": "string",
+          "default": "Спальня",
+          "description": "Наименование комнаты",
+		  "propertyOrder": 2,
+		  "options": {"hidden": false,
+		  				"grid_columns": 3}
+        },
+        "ch1": {
+		  "title": "Реле 1",
+          "type": "string",
+          "default": "MR6LV/K1",
+          "description": "Контакт 1 реле управления",
+		  "propertyOrder": 3,
+		  "options": {"hidden": false,
+		  				"grid_columns": 3}
+        },
+        "ch2": {
+		  "title": "Реле 2",
+          "type": "string",
+          "default": "",
+          "description": "Контакт 2 реле управления",
+		  "propertyOrder": 4,
+		  "options": {"hidden": false,
+		  				"grid_columns": 3}
+        },
+        "input": {
+		  "title": "Вход",
+          "type": "string",
+          "default": "MR6LV/Input 1 counter",
+          "description": "Выключатели (через ',')",
+		  "propertyOrder": 5,
+		  "options": {"hidden": false,
+		  				"grid_columns": 4}
+        },
+        "sensor": {
+		  "title": "Датчик",
+          "type": "string",
+          "default": "wb-gpio/EXT1_IN1",
+          "description": "Датчики (через ',')",
+		  "propertyOrder": 6,
+		  "options": {"hidden": false,
+		  				"grid_columns": 6}
+        },
+        "sensorInverse": {
+		  "title": "Инверсия",
+          "type": "boolean",
+          "default": "true",
+          "description": "Инверсия входа Датчика",
+		  "_format": "checkbox",
+		  "propertyOrder": 7,
+		  "options": {"hidden": false,
+		  				"grid_columns": 2}
+        },
+		"duration": {
+		  "title": "Длительность",
+		  "description": "Время свечения после датчика",
+	      "type": "number",
+          "default": 10,
+	      "propertyOrder": 8,
+		  "options": {"hidden": false,
+		  				"grid_columns": 2}
+	    },
+		"afterlighting": {
+		  "title": "Автовыключение",
+		  "description": "Время свечения после выключателя",
+	      "type": "number",
+          "default": 10,
+	      "propertyOrder": 9,
+		  "options": {"hidden": false,
+		  				"grid_columns": 2}
+	    },
+		"delay": {
+		  "title": "Задержка",
+		  "description": "Задержка включения Канала 2",
+	      "type": "number",
+          "default": 10,
+		  "minimum": 0,
+		  "maximum": 10,
+	      "propertyOrder": 10,
+		  "options": {"hidden": false,
+		  				"grid_columns": 2}
+	    },
+        "day": {
+		  "title": "День",
+          "type": "boolean",
+          "default": "true",
+          "description": "Включать днем",
+		  "_format": "checkbox",
+		  "propertyOrder": 11,
+		  "options": {"hidden": false,
+		  				"grid_columns": 2}
+        },
+        "evening": {
+		  "title": "Вечер",
+          "type": "boolean",
+          "default": "true",
+          "description": "Включать вечером",
+		  "_format": "checkbox",
+		  "propertyOrder": 12,
+		  "options": {"hidden": false,
+		  				"grid_columns": 2}
+        },
+        "night": {
+		  "title": "Ночь",
+          "type": "boolean",
+          "default": "false",
+          "description": "Включать ночью",
+		  "_format": "checkbox",
+		  "propertyOrder": 13,
+		  "options": {"hidden": false,
+		  				"grid_columns": 2}
+        }
+      }
+    },
+    "dimmer": {
+      "type": "object",
+      "headerTemplate": "{{self.mark}} : \"{{self.name}}\"",
+      "required": [ "name"],
+      "_format": "grid",
+	  "options": {
+		"disable_edit_json" : true,
+		"disable_properties" : true,
+		"disable_array_reorder" : true,
+		"collapsed": true
+	  },
+      "properties": {
+        "i": {
+	      "title": "Индекс",
+          "type": "string",
+          "default": "1",
+          "description": "Порядковый номер в списке",
+		  "propertyOrder": 22,
+		  "options": {"hidden": true}
+        },
+          "mark": {
+	      "title": "Позиция лампы",
+          "type": "string",
+          "default": "1",
+          "description": "Маркировка на плане помещения",
+		  "propertyOrder": 1,
+		  "options": {"hidden": false,
+		  				"grid_columns": 6}
+        },
+        "name": {
+		  "title": "Комната",
+          "type": "string",
+          "default": "Спальня",
+          "description": "Наименование комнаты",
+		  "propertyOrder": 2,
+		  "options": {"hidden": false,
+		  				"grid_columns": 6}
+        },
+        "ch1": {
+		  "title": "Канал 1",
+          "type": "string",
+          "default": "MDM3/K1",
+          "description": "Канал 1 диммера",
+		  "propertyOrder": 3,
+		  "options": {"hidden": false,
+		  				"grid_columns": 3}
+        },
+        "ch2": {
+		  "title": "Канал 2",
+          "type": "string",
+          "default": "",
+          "description": "Канал 2 диммера",
+		  "propertyOrder": 5,
+		  "options": {"hidden": false,
+		  				"grid_columns": 3}
+        },
+        "ch1dimm": {
+		  "title": "Диммер 1",
+          "type": "string",
+          "default": "MDM3/Channel 1",
+          "description": "Уровень диммирования канала 1",
+		  "propertyOrder": 4,
+		  "options": {"hidden": false,
+		  				"grid_columns": 3}
+        },
+        "ch2dimm": {
+		  "title": "Диммер 2",
+          "type": "string",
+          "default": "",
+          "description": "Уровень диммирования канала 2",
+		  "propertyOrder": 6,
+		  "options": {"hidden": false,
+		  				"grid_columns": 3}
+        },
+        "input": {
+		  "title": "Вход",
+          "type": "string",
+          "default": "MR6LV/Input 1 counter",
+          "description": "Выключатели (через ',')",
+		  "propertyOrder": 7,
+		  "options": {"hidden": false,
+		  				"grid_columns": 5}
+        },
+        "sensor": {
+		  "title": "Датчик",
+          "type": "string",
+          "default": "wb-gpio/EXT1_IN1",
+          "description": "Датчики (через ',')",
+		  "propertyOrder": 8,
+		  "options": {"hidden": false,
+		  				"grid_columns": 5}
+        },
+        "sensorInverse": {
+		  "title": "Инверсия 1",
+          "type": "boolean",
+          "default": "true",
+          "description": "Инверсия входа Датчика",
+		  "_format": "checkbox",
+		  "propertyOrder": 9,
+		  "options": {"hidden": false,
+		  				"grid_columns": 2}
+        },
+		"duration": {
+		  "title": "Длительность",
+		  "description": "Время свечения после датчика",
+	      "type": "number",
+          "default": 10,
+	      "propertyOrder": 10,
+		  "options": {"hidden": false,
+		  				"grid_columns": 2}
+	    },
+		"afterlighting": {
+		  "title": "Автовыключение",
+		  "description": "Время свечения после выключателя",
+	      "type": "number",
+          "default": 10,
+	      "propertyOrder": 11,
+		  "options": {"hidden": false,
+		  				"grid_columns": 2}
+	    },
+		"delay": {
+		  "title": "Задержка",
+		  "description": "Задержка включения Канала 2",
+	      "type": "number",
+          "default": 10,
+		  "minimum": 0,
+		  "maximum": 10,
+	      "propertyOrder": 12,
+		  "options": {"hidden": false,
+		  				"grid_columns": 2}
+	    },
+        "day": {
+		  "title": "День",
+		  "description": "Уровень после включения",
+          "type": ["number", "null"],
+          "default": 100,
+		  "propertyOrder": 13,
+		  "options": {"hidden": false,
+		  				"grid_columns": 2}
+        },
+        "evening": {
+		  "title": "Вечер",
+		  "description": "Уровень после включения",
+          "type": ["number", "null"],
+          "default": 50,
+		  "propertyOrder": 14,
+		  "options": {"hidden": false,
+		  				"grid_columns": 2}
+        },
+        "night": {
+		  "title": "Ночь",
+		  "description": "Уровень после включения",
+          "type": ["number", "null"],
+          "default": 0,
+		  "propertyOrder": 15,
+		  "options": {"hidden": false,
+		  				"grid_columns": 2}
+        }
+      }
+    },
+    "heater": {
+      "type": "object",
+      "headerTemplate": "{{self.i}} : \"{{self.name}}\" ({{self.mark}})",
+      "required": [ "name"],
+      "_format": "grid",
+	  "options": {
+		"disable_edit_json" : true,
+		"disable_properties" : true,
+		"disable_array_reorder" : true,
+		"collapsed": true
+	  },
+      "properties": {
+        "i": {
+	      "title": "Индекс",
+          "type": "string",
+          "default": "1",
+          "description": "Порядковый номер в списке",
+		  "propertyOrder": 22,
+		  "options": {"hidden": true}
+        },
+          "mark": {
+	      "title": "Позиция управления",
+          "type": "string",
+          "default": "1",
+          "description": "Маркировка на плане помещения",
+		  "propertyOrder": 1,
+		  "options": {"hidden": false}
+        },
+        "name": {
+		  "title": "Комната",
+          "type": "string",
+          "default": "Спальня",
+          "description": "Наименование комнаты",
+		  "propertyOrder": 2,
+		  "options": {"hidden": false}
+        },
+        "alias": {
+		  "title": "Код",
+          "type": "string",
+          "default": "bedroom",
+          "description": "Обозначение комнаты",
+		  "propertyOrder": 3,
+		  "options": {"hidden": false}
+        },
+        "ch1": {
+		  "title": "Реле 1",
+          "type": "string",
+          "default": "MR6LV/K1",
+          "description": "Контакт 1 реле управления",
+		  "propertyOrder": 5,
+		  "options": {"hidden": false}
+        },
+        "ch1inversion": {
+		  "title": "Клапан НЗ (НО)",
+          "type": "boolean",
+          "default": "true",
+          "description": "Инверсия управления Реле 1",
+		  "_format": "checkbox",
+		  "propertyOrder": 6,
+		  "options": {"hidden": false}
+        },
+        "airSensor": {
+		  "title": "Датчик воздуха",
+          "type": "string",
+          "default": "St01/T2",
+          "description": "Датчик температуры воздуха",
+		  "propertyOrder": 10,
+		  "options": {"hidden": false}
+        },
+        "floorSensor": {
+		  "title": "Датчик пола",
+          "type": "string",
+          "default": "St01/T1",
+          "description": "Датчик температуры пола",
+		  "propertyOrder": 11,
+		  "options": {"hidden": false}
+        },
+		"deviation": {
+		  "title": "Отклонение",
+		  "description": "Параметр гистерезиса",
+	      "type": "number",
+          "default": 0.3,
+		  "minimum": 0,
+		  "maximum": 5,
+	      "propertyOrder": 12,
+		  "options": {"hidden": false}
+	    },
+		"PWMcycle": {
+		  "title": "ШИМ",
+		  "description": "Период работы ШИМ",
+	      "type": "number",
+          "default": 10,
+		  "minimum": 1,
+		  "maximum": 30,
+	      "propertyOrder": 13,
+		  "options": {"hidden": false}
+	    },
+		"PWM": {
+		  "title": "Скважность ШИМ",
+		  "description": "Скважность работы ШИМ",
+	      "type": "number",
+          "default": 0,
+		  "minimum": 0,
+		  "maximum": 30,
+	      "propertyOrder": 14,
+		  "options": {"hidden": false}
+	    }
+      }
+    },
+    "fan": {
+      "type": "object",
+      "headerTemplate": "{{self.i}} : \"{{self.name}}\" ({{self.mark}})",
+      "required": [ "name"],
+      "_format": "grid",
+	  "options": {
+		"disable_edit_json" : true,
+		"disable_properties" : true,
+		"disable_array_reorder" : true,
+		"collapsed": true
+	  },
+      "properties": {
+        "i": {
+	      "title": "Индекс",
+          "type": "string",
+          "default": "1",
+          "description": "Порядковый номер в списке",
+		  "propertyOrder": 22,
+		  "options": {"hidden": true}
+        },
+          "mark": {
+	      "title": "Позиция управления",
+          "type": "string",
+          "default": "1",
+          "description": "Маркировка на плане помещения",
+		  "propertyOrder": 1,
+		  "options": {"hidden": false}
+        },
+        "name": {
+		  "title": "Комната",
+          "type": "string",
+          "default": "Спальня",
+          "description": "Наименование комнаты",
+		  "propertyOrder": 2,
+		  "options": {"hidden": false}
+        },
+        "alias": {
+		  "title": "Код",
+          "type": "string",
+          "default": "bedroom",
+          "description": "Обозначение комнаты",
+		  "propertyOrder": 3,
+		  "options": {"hidden": false}
+        },
+        "ch1": {
+		  "title": "Реле 1",
+          "type": "string",
+          "default": "MR6LV/K1",
+          "description": "Контакт 1 реле управления",
+		  "propertyOrder": 4,
+		  "options": {"hidden": false}
+        },
+        "forceInput": {
+		  "title": "Выключатель",
+          "type": "string",
+          "default": "fan_set_points/force_vent_00",
+          "description": "Вход выключателя управления",
+		  "propertyOrder": 5,
+		  "options": {"hidden": false}
+        },
+        "temperatureSensor": {
+		  "title": "Датчик воздуха",
+          "type": "string",
+          "default": "St01/T2",
+          "description": "Датчик температуры воздуха",
+		  "propertyOrder": 6,
+		  "options": {"hidden": false}
+        },
+        "humiditySensor": {
+		  "title": "Датчик влажности",
+          "type": "string",
+          "default": "St01/T1",
+          "description": "Датчик влажности воздуха",
+		  "propertyOrder": 7,
+		  "options": {"hidden": false}
+        },
+		"deviationT": {
+		  "title": "Отклонение T",
+		  "description": "Параметр гистерезиса температуры",
+	      "type": "number",
+          "default": 0.3,
+		  "minimum": 0,
+		  "maximum": 5,
+	      "propertyOrder": 8,
+		  "options": {"hidden": false}
+	    },
+		"deviationH": {
+		  "title": "Отклонение H",
+		  "description": "Параметр гистерезиса влажности",
+	      "type": "number",
+          "default": 3,
+		  "minimum": 0,
+		  "maximum": 15,
+	      "propertyOrder": 9,
+		  "options": {"hidden": false}
+	    }
+      }
+    }
+  }
+}

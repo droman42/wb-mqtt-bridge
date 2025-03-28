@@ -1,0 +1,179 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "Настройки AV Системы",
+  "options": {
+    "disable_edit_json": true,
+    "disable_collapse": true,
+    "disable_properties": true
+  },
+  "configFile": {
+    "path": "/mnt/data/etc/wb-mqtt-avsystem.conf",
+    "service": "wb-rules"
+  },
+  "properties": {
+    "avdevice": {
+      "type": "array",
+      "title": " ",
+      "items": {
+        "type": "object",
+        "headerTemplate": "{{self.name}}",
+        "title": "Group",
+        "options": {
+          "disable_properties": true,
+          "disable_edit_json": true,
+          "compact": true,
+          "disable_collapse": true
+        },
+        "_format": "grid",
+        "properties": {
+          "name": {
+            "type": "string",
+            "propertyOrder": 1,
+            "options": {
+              "hidden": true
+            }
+          },
+          "type": {
+            "type": "string",
+            "propertyOrder": 2,
+            "options": {
+              "hidden": true
+            }
+          },
+          "alias": {
+            "type": "string",
+            "propertyOrder": 3,
+            "options": {
+              "hidden": true
+            }
+          },
+          "info": {
+            "type": "string",
+            "propertyOrder": 5,
+            "title": "Дополнительная информация",
+            "maxLength": 60,
+            "options": {
+              "hidden": false,
+	      "grid_columns": 6
+            }
+          },
+          "dodocus": {
+            "propertyOrder": 4,
+            "type": "string",
+            "title": "Селектор Dodocus",
+          "enum": [
+            "--NONE--",
+            "Reel 1",
+            "Reel 2",
+            "Tape",
+            "LD",
+            "Phono"
+          ],
+            "options": {
+              "hidden": false,
+	      "grid_columns": 2
+            }
+          },
+          "device": {
+            "type": "array",
+            "_format": "table",
+            "title": "УСТРОЙСТВА",
+            "propertyOrder": 6,
+            "items": {
+              "$ref": "#/definitions/device"
+            },
+            "options": {
+              "disable_array_reorder": false,
+              "disable_array_delete_last_row": true,
+              "disable_array_delete_all_rows": true,
+              "compact": true,
+              "grid_columns": 12
+            }
+          }
+        }
+      },
+      "options": {
+        "disable_array_reorder": true,
+        "disable_array_delete_last_row": true,
+        "disable_array_delete_all_rows": true,
+        "disable_collapse": true,
+        "disable_array_add": true,
+        "disable_array_delete": true
+      },
+      "_format": "tabs"
+    }
+  },
+  "definitions": {
+    "device": {
+      "type": "object",
+      "headerTemplate": "{{self.button}}",
+      "_format": "grid",
+      "options": {
+        "disable_edit_json": true,
+        "disable_array_add": false,
+        "disable_properties": true,
+        "collapsed": true
+      },
+      "properties": {
+        "button": {
+          "type": "string",
+          "title": "Функция устройства",
+          "propertyOrder": 1,
+          "enum": [
+            "Power On",
+            "Power Off",
+            "Power Toggle",
+            "Play",
+            "Stop",
+            "Pause",
+            "Fast Forward/Chapter+",
+            "Rewind/Chapter-",
+            "Inputs",
+            "Options",
+            "Home",
+            "Volume+",
+            "Volume-",
+            "Up",
+            "Down",
+            "Left",
+            "Right",
+            "OK/Enter",
+            "Back",
+            "Audio",
+            "Subtitles",
+            "Mute",
+            "Mode",
+            "Special"
+          ]
+        },
+        "location": {
+          "type": "string",
+          "maxLength": 25,
+          "propertyOrder": 2,
+          "title": "Устройство хранения"
+        },
+        "rom": {
+          "type": "integer",
+          "title": "Ячейка памяти",
+          "default": 1,
+          "minimum": 1,
+          "maximum": 80,
+          "propertyOrder": 3
+        },
+        "text": {
+          "type": "string",
+          "title": "Название",
+          "maxLength": 10,
+          "propertyOrder": 4
+        }
+      },
+      "required": [
+        "button",
+        "location",
+        "rom",
+        "text"
+      ]
+    }
+  }
+}
