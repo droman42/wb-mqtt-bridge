@@ -3,3 +3,56 @@ include/
 lib/
 lib64/
 pyenv.cfg
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+.env
+
+# Logs
+logs/*
+!logs/.gitkeep
+
+# Authentication
+*.pem
+*.key
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Config files containing sensitive information
+# Uncomment if you don't want to commit configs with sensitive data
+# config/system.json
+# config/devices/*.json
