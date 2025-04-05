@@ -1,68 +1,89 @@
 import json
 import logging
 from typing import Dict, Any, List
+from .base_device import BaseDevice
 
 logger = logging.getLogger(__name__)
 
-def subscribe_topics(config: Dict[str, Any]) -> List[str]:
-    """Define the MQTT topics this device should subscribe to."""
-    # Get topics from config, or use defaults
-    if 'mqtt_topics' in config:
-        return config['mqtt_topics']
-    else:
-        # Default topics if not specified in config
-        device_name = config.get('device_name', 'example_device')
-        return [
-            f"home/{device_name}/status",
-            f"home/{device_name}/command"
-        ]
-
-async def handle_message(topic: str, payload: str):
-    """Handle incoming MQTT messages for this device."""
-    logger.debug(f"Example device received message on {topic}: {payload}")
+class ExampleDevice(BaseDevice):
+    """Example device implementation."""
     
-    try:
-        # Try to parse JSON payload
-        data = json.loads(payload)
-        
-        # Handle different topics
-        if topic.endswith('/status'):
-            process_status_update(data)
-        elif topic.endswith('/command'):
-            await process_command(data)
+    async def setup(self) -> bool:
+        """Initialize the device."""
+        try:
+            # Initialize device state
+            self.state = {
+                "power": "off",
+                "last_reading": None,
+                "update_interval": self.config.get("parameters", {}).get("update_interval", 60),
+                "threshold": self.config.get("parameters", {}).get("threshold", 25.5)
+            }
+            logger.info(f"Example device {self.device_name} initialized")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to initialize device {self.device_name}: {str(e)}")
+            return False
+    
+    async def shutdown(self) -> bool:
+        """Cleanup device resources."""
+        try:
+            # Perform any necessary cleanup
+            logger.info(f"Example device {self.device_name} shutdown complete")
+            return True
+        except Exception as e:
+            logger.error(f"Error during device shutdown: {str(e)}")
+            return False
+    
+    def subscribe_topics(self) -> List[str]:
+        """Define the MQTT topics this device should subscribe to."""
+        if 'mqtt_topics' in self.config:
+            return self.config['mqtt_topics']
         else:
-            logger.warning(f"Unhandled topic for example device: {topic}")
-    except json.JSONDecodeError:
-        logger.warning(f"Invalid JSON payload: {payload}")
-    except Exception as e:
-        logger.error(f"Error handling message: {str(e)}")
-
-def process_status_update(data: Dict[str, Any]):
-    """Process a status update from the device."""
-    logger.info(f"Device status update: {data}")
+            return [
+                f"home/{self.device_name}/status",
+                f"home/{self.device_name}/command"
+            ]
     
-    # Here you would implement logic to handle the status update
-    # For example, updating a database or triggering other actions
-
-async def process_command(data: Dict[str, Any]):
-    """Process a command for the device."""
-    logger.info(f"Received command: {data}")
+    async def handle_message(self, topic: str, payload: str):
+        """Handle incoming MQTT messages for this device."""
+        logger.debug(f"Example device received message on {topic}: {payload}")
+        
+        try:
+            data = json.loads(payload)
+            
+            if topic.endswith('/status'):
+                await self.process_status_update(data)
+            elif topic.endswith('/command'):
+                await self.process_command(data)
+            else:
+                logger.warning(f"Unhandled topic for example device: {topic}")
+        except json.JSONDecodeError:
+            logger.warning(f"Invalid JSON payload: {payload}")
+        except Exception as e:
+            logger.error(f"Error handling message: {str(e)}")
     
-    command = data.get('command')
-    if not command:
-        logger.warning("Command message missing 'command' field")
-        return
+    async def process_status_update(self, data: Dict[str, Any]):
+        """Process a status update from the device."""
+        logger.info(f"Device status update: {data}")
+        self.update_state({"last_reading": data})
     
-    # Handle different commands
-    if command == 'turnOn':
-        # Logic to turn on the device
-        logger.info("Turning device ON")
-        # You might publish a message to another topic here
-    elif command == 'turnOff':
-        # Logic to turn off the device
-        logger.info("Turning device OFF")
-    elif command == 'getData':
-        # Logic to get data from the device
-        logger.info("Getting data from device")
-    else:
-        logger.warning(f"Unknown command: {command}") 
+    async def process_command(self, data: Dict[str, Any]):
+        """Process a command for the device."""
+        logger.info(f"Received command: {data}")
+        
+        command = data.get('command')
+        if not command:
+            logger.warning("Command message missing 'command' field")
+            return
+        
+        if command == 'turnOn':
+            self.update_state({"power": "on"})
+            logger.info("Turning device ON")
+        elif command == 'turnOff':
+            self.update_state({"power": "off"})
+            logger.info("Turning device OFF")
+        elif command == 'getData':
+            logger.info("Getting device data")
+            return self.get_state()
+        else:
+            logger.warning(f"Unknown command: {command}") 

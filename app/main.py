@@ -59,9 +59,10 @@ async def startup_event():
     logger = logging.getLogger(__name__)
     logger.info("Starting MQTT Web Service")
     
-    # Initialize device manager
+    # Initialize device manager and load devices
     device_manager = DeviceManager()
-    device_manager.load_device_modules()
+    await device_manager.load_device_modules()
+    await device_manager.initialize_devices(config_manager.get_all_device_configs())
     
     # Initialize MQTT client
     mqtt_broker_config = config_manager.get_mqtt_broker_config()
@@ -90,6 +91,8 @@ async def shutdown_event():
     logger = logging.getLogger(__name__)
     logger.info("Shutting down MQTT Web Service")
     
+    if device_manager:
+        await device_manager.shutdown_devices()
     if mqtt_client:
         await mqtt_client.stop()
     
@@ -153,7 +156,7 @@ async def reload_system_task():
         
         # Reload configs and device modules
         config_manager.reload_configs()
-        device_manager.reload_device_modules()
+        await device_manager.load_device_modules()
         
         # Reconfigure MQTT client
         mqtt_broker_config = config_manager.get_mqtt_broker_config()
@@ -184,59 +187,3 @@ async def reload_system_task():
         logger.error(f"Error during system reload: {str(e)}")
 
 @app.get("/devices", tags=["Devices"])
-async def get_devices():
-    """Get list of all devices."""
-    if not device_manager:
-        raise HTTPException(status_code=503, detail="Service not fully initialized")
-    
-    devices = []
-    for device_name in device_manager.get_all_devices():
-        config = config_manager.get_device_config(device_name)
-        devices.append({
-            "name": device_name,
-            "config": config
-        })
-    
-    return {"devices": devices}
-
-@app.get("/devices/{device_name}", tags=["Devices"])
-async def get_device(device_name: str):
-    """Get information about a specific device."""
-    if not config_manager:
-        raise HTTPException(status_code=503, detail="Service not fully initialized")
-    
-    device_config = config_manager.get_device_config(device_name)
-    if not device_config:
-        raise HTTPException(status_code=404, detail=f"Device {device_name} not found")
-    
-    return {"device": device_name, "config": device_config}
-
-@app.post("/publish", tags=["MQTT"])
-async def publish_message(message: MQTTMessage):
-    """Publish a message to an MQTT topic."""
-    if not mqtt_client:
-        raise HTTPException(status_code=503, detail="MQTT client not initialized")
-    
-    success = await mqtt_client.publish(
-        message.topic,
-        message.payload,
-        qos=message.qos,
-        retain=message.retain
-    )
-    
-    if success:
-        return {"status": "published", "topic": message.topic}
-    else:
-        raise HTTPException(status_code=500, detail="Failed to publish message")
-
-# Start the application if running directly
-if __name__ == "__main__":
-    # Load config to get web service settings
-    temp_config_manager = ConfigManager()
-    system_config = temp_config_manager.get_system_config()
-    web_config = system_config.get('web_service', {})
-    
-    host = web_config.get('host', '0.0.0.0')
-    port = web_config.get('port', 8000)
-    
-    uvicorn.run("app.main:app", host=host, port=port, reload=True) 
