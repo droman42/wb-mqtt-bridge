@@ -9,8 +9,17 @@ class BaseDevice(ABC):
     
     def __init__(self, config: Dict[str, Any]):
         self.config = config
+        self.device_id = config.get('device_id', 'unknown')
         self.device_name = config.get('device_name', 'unknown')
         self.state = {}  # Device state storage
+    
+    def get_id(self) -> str:
+        """Return the device ID."""
+        return self.device_id
+    
+    def get_name(self) -> str:
+        """Return the device name."""
+        return self.device_name
     
     @abstractmethod
     async def setup(self) -> bool:

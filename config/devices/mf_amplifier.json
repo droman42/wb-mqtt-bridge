@@ -1,0 +1,85 @@
+{
+  "device_name": "Musical Fidelity M6si",
+  "device_type": "wirenboard_ir",
+  "device_id": "amplifier_living_room",
+  "alias": "samsung_tv_living_room",
+  "commands": {
+    "power": {
+      "button": "power",
+      "topic": "/devices/amplifier/controls/power_toggle",
+      "location": "wb-msw-v3_207",
+      "rom_position": "17",
+      "description": "Power On/Off"
+    },
+    "volume_up": {
+      "button": "vol_up",
+      "topic": "/devices/amplifier/controls/volume_up",
+      "location": "wb-msw-v3_207",
+      "rom_position": "18",
+      "description": "Volume Up"
+    },
+    "volume_down": {
+      "button": "vol_down",
+      "topic": "/devices/amplifier/controls/volume_down",
+      "location": "wb-msw-v3_207",
+      "rom_position": "19",
+      "description": "Volume Down"
+    },
+    "mute": {
+      "button": "mute",
+      "topic": "/devices/amplifier/controls/mute",
+      "location": "wb-msw-v3_207",
+      "rom_position": "20",
+      "description": "Mute"
+    },
+    "input_cd": {
+      "button": "cd",
+      "topic": "/devices/amplifier/controls/cd",
+      "location": "wb-msw-v3_207",
+      "rom_position": "21",
+      "description": "CD"
+    },
+    "input_usb": {
+      "button": "usb",
+      "topic": "/devices/amplifier/controls/usb",
+      "location": "wb-msw-v3_218",
+      "rom_position": "1",
+      "description": "USB"
+    },
+    "input_phono": {
+      "button": "phono",
+      "topic": "/devices/amplifier/controls/phono",
+      "location": "wb-msw-v3_218",
+      "rom_position": "2",
+      "description": "Phono"
+    },
+    "input_tuner": {
+      "button": "tuner",
+      "topic": "/devices/amplifier/controls/tuner",
+      "location": "wb-msw-v3_207",
+      "rom_position": "22",
+      "description": "Tuner"
+    },
+    "input_aux1": {
+      "button": "aux1",
+      "topic": "/devices/amplifier/controls/aux1",
+      "location": "wb-msw-v3_207",
+      "rom_position": "23",
+      "description": "AUX1"
+    },
+    "input_aux2": {
+      "button": "aux2",
+      "topic": "/devices/amplifier/controls/aux2",
+      "location": "wb-msw-v3_207",
+      "rom_position": "24",
+      "description": "AUX2"
+    },
+    "input_balanced": {
+      "button": "balanced",
+      "topic": "/devices/amplifier/controls/balanced",
+      "location": "wb-msw-v3_207",
+      "rom_position": "25",
+      "description": "Balanced"
+    }
+  }
+} 

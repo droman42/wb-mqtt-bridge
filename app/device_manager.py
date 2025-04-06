@@ -12,7 +12,8 @@ class DeviceManager:
     
     def __init__(self, devices_dir: str = "devices"):
         self.devices_dir = devices_dir
-        self.devices: Dict[str, BaseDevice] = {}
+        self.device_classes = {}  # Stores class definitions
+        self.devices = {}  # Stores device instances
     
     async def load_device_modules(self):
         """Dynamically load all device modules from the devices directory."""
@@ -34,46 +35,43 @@ class DeviceManager:
                     module = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(module)
                     
-                    # Find device class (subclass of BaseDevice)
-                    device_class = None
-                    for item in dir(module):
-                        obj = getattr(module, item)
-                        if isinstance(obj, type) and issubclass(obj, BaseDevice) and obj != BaseDevice:
-                            device_class = obj
-                            break
-                    
-                    if not device_class:
-                        logger.warning(f"No device class found in module: {module_name}")
-                        continue
-                    
-                    logger.info(f"Loaded device module: {module_name}")
-                    self.devices[module_name] = device_class
+                    # Find all device classes in the module
+                    for item_name, item in module.__dict__.items():
+                        if isinstance(item, type) and issubclass(item, BaseDevice) and item != BaseDevice:
+                            self.device_classes[item.__name__] = item
+                            logger.info(f"Registered device class: {item.__name__}")
                 
                 except Exception as e:
                     logger.error(f"Error loading device module {module_name}: {str(e)}")
     
     async def initialize_devices(self, configs: Dict[str, Dict[str, Any]]):
         """Initialize all devices with their configurations."""
-        for device_name, config in configs.items():
-            device_type = config.get('device_type')
-            if device_type not in self.devices:
-                logger.warning(f"No device found for type: {device_type}")
-                continue
-            
+        for device_id, config in configs.items():
             try:
+                # Get the device class name from config
+                class_name = config.get('device_class')
+                if not class_name:
+                    logger.error(f"No device class specified for device {device_id}")
+                    continue
+                
+                # Get the device class
+                device_class = self.device_classes.get(class_name)
+                if not device_class:
+                    logger.error(f"Device class {class_name} not found for device {device_id}")
+                    continue
+                
                 # Create device instance
-                device_class = self.devices[device_type]
                 device = device_class(config)
                 
                 # Initialize the device
                 if await device.setup():
-                    self.devices[device_name] = device
-                    logger.info(f"Initialized device: {device_name}")
+                    self.devices[device_id] = device
+                    logger.info(f"Initialized device: {device_id} (class: {class_name})")
                 else:
-                    logger.error(f"Failed to initialize device: {device_name}")
+                    logger.error(f"Failed to initialize device: {device_id}")
             
             except Exception as e:
-                logger.error(f"Error initializing device {device_name}: {str(e)}")
+                logger.error(f"Error initializing device {device_id}: {str(e)}")
     
     async def shutdown_devices(self):
         """Shutdown all devices."""
@@ -84,11 +82,15 @@ class DeviceManager:
             except Exception as e:
                 logger.error(f"Error shutting down device {device_name}: {str(e)}")
     
-    def get_device_topics(self, device_name: str) -> List[str]:
+    def get_device(self, device_id: str) -> Optional[BaseDevice]:
+        """Get a device instance by its ID."""
+        return self.devices.get(device_id)
+    
+    def get_device_topics(self, device_id: str) -> List[str]:
         """Get the topics to subscribe for a device."""
-        device = self.devices.get(device_name)
+        device = self.devices.get(device_id)
         if not device:
-            logger.warning(f"No device found: {device_name}")
+            logger.warning(f"No device found with ID: {device_id}")
             return []
         return device.subscribe_topics()
     

@@ -59,27 +59,35 @@ class ConfigManager:
             raise
     
     def _load_device_configs(self):
-        """Load all device configurations from the devices directory."""
+        """Load all device configurations based on system config."""
         self.device_configs = {}
         
-        if not os.path.exists(self.devices_dir):
-            logger.warning(f"Devices directory not found at {self.devices_dir}")
-            return
+        devices_config = self.system_config.get('devices', {})
         
-        for filename in os.listdir(self.devices_dir):
-            if filename.endswith('.json'):
-                device_path = os.path.join(self.devices_dir, filename)
-                try:
-                    with open(device_path, 'r') as f:
-                        device_config = json.load(f)
-                        device_name = device_config.get('device_name')
-                        if device_name:
-                            self.device_configs[device_name] = device_config
-                            logger.info(f"Loaded config for device: {device_name}")
-                        else:
-                            logger.warning(f"Missing device_name in config: {device_path}")
-                except Exception as e:
-                    logger.error(f"Error loading device config {filename}: {str(e)}")
+        for device_id, device_info in devices_config.items():
+            config_file = device_info.get('config_file')
+            if not config_file:
+                logger.warning(f"No config file specified for device {device_id}")
+                continue
+                
+            config_path = os.path.join(self.devices_dir, config_file)
+            try:
+                with open(config_path, 'r') as f:
+                    device_config = json.load(f)
+                    # Add device_id to the config
+                    device_config['device_id'] = device_id
+                    # Add class information
+                    device_config['device_class'] = device_info.get('class')
+                    self.device_configs[device_id] = device_config
+                    logger.info(f"Loaded config for device: {device_id}")
+            except Exception as e:
+                logger.error(f"Error loading device config {config_file}: {str(e)}")
+    
+    def get_device_class_name(self, device_id: str) -> str:
+        """Get the class name for a device."""
+        devices_config = self.system_config.get('devices', {})
+        device_info = devices_config.get(device_id, {})
+        return device_info.get('class')
     
     def get_system_config(self) -> Dict[str, Any]:
         """Get the system configuration."""

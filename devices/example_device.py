@@ -11,17 +11,17 @@ class ExampleDevice(BaseDevice):
     async def setup(self) -> bool:
         """Initialize the device."""
         try:
-            # Initialize device state
+            logger.info(f"Initializing device: {self.get_name()}")
             self.state = {
                 "power": "off",
                 "last_reading": None,
                 "update_interval": self.config.get("parameters", {}).get("update_interval", 60),
                 "threshold": self.config.get("parameters", {}).get("threshold", 25.5)
             }
-            logger.info(f"Example device {self.device_name} initialized")
+            logger.info(f"Example device {self.get_name()} initialized")
             return True
         except Exception as e:
-            logger.error(f"Failed to initialize device {self.device_name}: {str(e)}")
+            logger.error(f"Failed to initialize device {self.get_name()}: {str(e)}")
             return False
     
     async def shutdown(self) -> bool:

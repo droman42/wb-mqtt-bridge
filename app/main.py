@@ -187,3 +187,20 @@ async def reload_system_task():
         logger.error(f"Error during system reload: {str(e)}")
 
 @app.get("/devices", tags=["Devices"])
+async def get_device(device_id: str):
+    """Get information about a specific device."""
+    if not device_manager:
+        raise HTTPException(status_code=503, detail="Service not fully initialized")
+    
+    device = device_manager.get_device(device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
+    
+    device_config = config_manager.get_device_config(device_id)
+    return {
+        "device_id": device_id,
+        "device_name": device.get_name(),
+        "device_class": device_config.get('device_class'),
+        "config": device_config,
+        "state": device.get_state()
+    }

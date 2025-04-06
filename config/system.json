@@ -14,5 +14,19 @@
     "port": 8000
   },
   "log_level": "INFO",
-  "log_file": "logs/service.log"
+  "log_file": "logs/service.log",
+  "devices": {
+    "samsung_tv_living": {
+      "class": "WirenboardIRDevice",
+      "config_file": "samsung_tv_living.json"
+    },
+    "samsung_tv_bedroom": {
+      "class": "WirenboardIRDevice",
+      "config_file": "samsung_tv_bedroom.json"
+    },
+    "example_device": {
+      "class": "ExampleDevice",
+      "config_file": "example_device.json"
+    }
+  }
 } 
