@@ -21,6 +21,9 @@ class ConfigManager:
         # Load configurations
         self._load_system_config()
         self._load_device_configs()
+        
+        # Override MQTT broker config with environment variables
+        self._apply_environment_variables()
     
     def _load_system_config(self):
         """Load the system configuration from JSON file."""
@@ -117,4 +120,32 @@ class ConfigManager:
         self._load_system_config()
         self._load_device_configs()
         logger.info("All configurations reloaded")
-        return True 
+        return True
+    
+    def _apply_environment_variables(self):
+        """Apply environment variables to configuration."""
+        mqtt_config = self.system_config.get('mqtt_broker', {})
+        
+        # Update MQTT broker configuration
+        mqtt_config.update({
+            'host': os.getenv('MQTT_BROKER_HOST', mqtt_config.get('host', 'localhost')),
+            'port': int(os.getenv('MQTT_BROKER_PORT', mqtt_config.get('port', 1883)))
+        })
+        
+        # Add authentication only if credentials are provided
+        username = os.getenv('MQTT_USERNAME')
+        password = os.getenv('MQTT_PASSWORD')
+        if username and password:
+            mqtt_config['auth'] = {
+                'username': username,
+                'password': password
+            }
+        else:
+            # Remove auth if it exists in config
+            mqtt_config.pop('auth', None)
+        
+        # Update logging configuration
+        self.system_config['log_level'] = os.getenv('LOG_LEVEL', self.system_config.get('log_level', 'INFO'))
+        
+        # Update the system configuration
+        self.system_config['mqtt_broker'] = mqtt_config 

@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  mqtt-web-service:
+    build: .
+    container_name: mqtt-web-service
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - ./config:/app/config
+      - ./logs:/app/logs
+    environment:
+      - MQTT_BROKER_HOST=${MQTT_BROKER_HOST:-localhost}
+      - MQTT_BROKER_PORT=${MQTT_BROKER_PORT:-1883}
+      - MQTT_USERNAME
+      - MQTT_PASSWORD
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    networks:
+      - mqtt-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: mqtt-web-service-nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+    depends_on:
+      - mqtt-web-service
+    networks:
+      - mqtt-network
+
+networks:
+  mqtt-network:
+    driver: bridge 

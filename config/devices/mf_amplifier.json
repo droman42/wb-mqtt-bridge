@@ -2,7 +2,7 @@
   "device_name": "Musical Fidelity M6si",
   "device_type": "wirenboard_ir",
   "device_id": "amplifier_living_room",
-  "alias": "samsung_tv_living_room",
+  "alias": "amplifier",
   "commands": {
     "power": {
       "button": "power",

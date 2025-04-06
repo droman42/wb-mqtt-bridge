@@ -125,3 +125,4 @@ class WirenboardIRDevice(BaseDevice):
     def get_last_command(self) -> Dict[str, Any]:
         """Return information about the last executed command."""
         return self.state.get("last_command") 
+    

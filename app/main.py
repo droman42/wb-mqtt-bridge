@@ -3,7 +3,7 @@ import logging
 import asyncio
 import json
 import uvicorn
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from pydantic import BaseModel
@@ -110,6 +110,11 @@ class SystemInfo(BaseModel):
     mqtt_broker: Dict[str, Any]
     devices: List[str]
 
+class DeviceAction(BaseModel):
+    """Model for device action requests."""
+    button: str
+    params: Optional[Dict[str, Any]] = None
+
 # API endpoints
 @app.get("/", tags=["System"])
 async def root():
@@ -203,4 +208,71 @@ async def get_device(device_id: str):
         "device_class": device_config.get('device_class'),
         "config": device_config,
         "state": device.get_state()
+    }
+
+@app.post("/devices/{device_id}/action", tags=["Devices"])
+async def execute_device_action(
+    device_id: str, 
+    action: DeviceAction,
+    background_tasks: BackgroundTasks
+):
+    """Execute an action on a specific device."""
+    if not device_manager:
+        raise HTTPException(status_code=503, detail="Service not fully initialized")
+    
+    device = device_manager.get_device(device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
+    
+    # Execute the action
+    result = await device.execute_action(action.button, action.params)
+    
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    # If there's an MQTT command to be published, do it in the background
+    if result.get("mqtt_command"):
+        mqtt_cmd = result["mqtt_command"]
+        background_tasks.add_task(
+            mqtt_client.publish,
+            mqtt_cmd["topic"],
+            mqtt_cmd["payload"]
+        )
+    
+    return {
+        "device_id": device_id,
+        "button": action.button,
+        "state": result["state"],
+        "message": "Action executed successfully"
+    }
+
+# Add endpoint to get available actions for a device
+@app.get("/devices/{device_id}/actions", tags=["Devices"])
+async def get_device_actions(device_id: str):
+    """Get list of available actions for a device."""
+    if not device_manager:
+        raise HTTPException(status_code=503, detail="Service not fully initialized")
+    
+    device = device_manager.get_device(device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
+    
+    # For WirenboardIRDevice, get commands from config
+    if isinstance(device, WirenboardIRDevice):
+        commands = device.get_available_commands()
+        return {
+            "device_id": device_id,
+            "actions": [
+                {
+                    "button": cmd_config["button"],
+                    "description": cmd_config.get("description", "No description")
+                }
+                for cmd_config in commands.values()
+            ]
+        }
+    
+    # For other devices, return empty list or device-specific actions
+    return {
+        "device_id": device_id,
+        "actions": []
     }

@@ -33,18 +33,32 @@ class MQTTClient:
     async def connect(self):
         """Connect to the MQTT broker."""
         try:
-            self.client = Client(
-                hostname=self.host,
-                port=self.port,
-                identifier=self.client_id,
-                keepalive=self.keepalive,
-                username=self.username,
-                password=self.password
-            )
+            # Get authentication credentials if they exist
+            auth = self.config.get('auth', {})
+            username = auth.get('username')
+            password = auth.get('password')
+            
+            # Create client with or without authentication
+            client_args = {
+                'hostname': self.host,
+                'port': self.port,
+                'identifier': self.client_id,
+                'keepalive': self.keepalive
+            }
+            
+            # Add authentication only if credentials are provided
+            if username and password:
+                client_args.update({
+                    'username': username,
+                    'password': password
+                })
+            
+            self.client = Client(**client_args)
             await self.client.connect()
             self.connected = True
             logger.info(f"Connected to MQTT broker at {self.host}:{self.port}")
             return True
+            
         except MqttError as e:
             logger.error(f"Failed to connect to MQTT broker: {str(e)}")
             self.connected = False
