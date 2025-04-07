@@ -2,8 +2,11 @@ import os
 import logging
 import asyncio
 import json
+from devices.wirenboard_ir_device import WirenboardIRDevice
 import uvicorn
 from typing import Dict, Any, List, Optional
+from logging.handlers import TimedRotatingFileHandler
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from pydantic import BaseModel
@@ -21,21 +24,54 @@ app = FastAPI(
 
 # Setup logging
 def setup_logging(log_file: str, log_level: str):
-    """Configure the logging system."""
-    log_dir = os.path.dirname(log_file)
-    if log_dir and not os.path.exists(log_dir):
-        os.makedirs(log_dir, exist_ok=True)
-    
-    numeric_level = getattr(logging, log_level.upper(), logging.INFO)
-    
-    logging.basicConfig(
-        level=numeric_level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(log_file),
-            logging.StreamHandler()
-        ]
-    )
+    """Configure the logging system with daily rotation."""
+    try:
+        # Create logs directory if it doesn't exist
+        log_dir = os.path.dirname(log_file)
+        Path(log_dir).mkdir(parents=True, exist_ok=True)
+        
+        # Set up logging format
+        log_formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        
+        # Create timed rotating file handler
+        file_handler = TimedRotatingFileHandler(
+            filename=log_file,
+            when='midnight',  # Rotate at midnight
+            interval=1,       # One day interval
+            backupCount=30,   # Keep 30 days of logs
+            encoding='utf-8'
+        )
+        
+        # Set custom suffix for rotated files
+        file_handler.suffix = "%Y%m%d.log"
+        file_handler.setFormatter(log_formatter)
+        
+        # Create console handler
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(log_formatter)
+        
+        # Get root logger
+        root_logger = logging.getLogger()
+        
+        # Remove any existing handlers
+        root_logger.handlers = []
+        
+        # Add our handlers
+        root_logger.addHandler(file_handler)
+        root_logger.addHandler(console_handler)
+        
+        # Set log level
+        numeric_level = getattr(logging, log_level.upper(), logging.INFO)
+        root_logger.setLevel(numeric_level)
+        
+        logger = logging.getLogger(__name__)
+        logger.info("Logging system initialized with daily rotation")
+        
+    except Exception as e:
+        print(f"Error setting up logging: {str(e)}")
+        raise
 
 # Global instances
 config_manager = None
@@ -50,7 +86,7 @@ async def startup_event():
     # Initialize config manager
     config_manager = ConfigManager()
     
-    # Setup logging
+    # Setup logging with system config
     system_config = config_manager.get_system_config()
     log_file = system_config.get('log_file', 'logs/service.log')
     log_level = system_config.get('log_level', 'INFO')

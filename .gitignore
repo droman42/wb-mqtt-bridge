@@ -63,8 +63,7 @@ docker-compose.override.yml
 broadlink_cli.py
 broadlink_discovery.py
 share/man/man1/ipython.1
-share/jupyter/kernels/python3/logo-svg.svg
-share/jupyter/kernels/python3/logo-64x64.png
-share/jupyter/kernels/python3/logo-32x32.png
+share/
+etc/jupyter/
 pyvenv.cfg
 lib64
