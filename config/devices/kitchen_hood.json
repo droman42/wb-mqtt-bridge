@@ -1,0 +1,38 @@
+{
+  "device_name": "kitchen_hood",
+  "device_type": "broadlink_kitchen_hood",
+  "device_id": "kitchen_hood",
+  "alias": "kitchen_hood",
+  "broadlink": {
+    "host": "192.168.110.131",
+    "mac": "EC:0B:AE:EE:21:66",
+    "device_class": "0x520b"
+  },
+  "commands": {
+    "light_on": {
+      "button": "light_on",
+      "topic": "/devices/kitchen_hood/controls/light_on",
+      "rf_code": "scCUAACfBgALCRUSCxMLEwoTChMLEwsTCgoTFAoTCxMKFAkLExMLFAkAAbEKChUSCxMKEwoUCxILEwoUCgoUEgsUChMKEwoKFBQKEwoAAbELCRQTCxMKEwsSDBMKEwoUCgkVEwoTChQKEwsJFBQJFAoAAbELCRQTChQLEgsTChQJFAoTCwkUFAoTChQKEwoKFBMKFAoABdw=",
+      "description": "Light On"
+    },
+    "light_off": {
+      "button": "light_off",
+      "topic": "/devices/kitchen_hood/controls/light_off",
+      "rf_code": "scDcAACfBgAKCBUTCxMLEwoTChQKEwsSCwkVEwoTCxMKFAoJFBQJFAsAAbEKChMTDBILEwoTChQLEgsTCgkVEwoUChMKFAoKExQKEwsAAbEKChMTDBILEwoUChMLEgsTCgkVEwsSCxQKEwoKExQLEgsAAbEKChQTCxMKEwoUChMLEwoUCgoTFAoTChQKEwoKFBMLEwoAAbEKChUSCxMKFAoTCxILEwsTCgoUEwoUChMKFAkLFBILEwoAAbELCRUTChMKFAoTCxMKFAoTCgoUEwoUChMKFAoKFBMKFAkABdw=",
+      "description": "Light Off"
+    },
+    "hood_up": {
+      "button": "hood_up",
+      "topic": "/devices/kitchen_hood/controls/hood_up",
+      "rf_code": "scC0AQCfBgAKChMTDBILEwoTChQLEgsJFBQJFAoTCxMKFAoKExQKEwsAAbEKChQSDBMKEwoTCxMLEgsJFBQKEwsSCxQKEwoKExQLEwoAAbEKChQTCxMKEwoUCxILEwoJFBQKEwsTCxMKEwoKFBMLEwoAAbEKChQTCxMKEwsTCxILEwoJFRMLEgsUChMKFAkKFBQKFAkAAbELCRUTChMKFAoTCxMKEwsJFBMLEwoUChMKEwsKFBMKFAkAAbELCRUTChMKEwwSCxMKFAoJFRILFAkUChMKEwsKFBMKFAkAAbELCRUTChMKEwwSCxMKFAoKFBILEwoUChMLEwoKFBMKEwoAAbELCRUTChMLEwsTChMKEwsKFBMKEwoUChMLEwoJFRMKFAoAAbELCBUTChQKEwsTChMLEwsJFBQJFAoTCxILFAoJFBQJFAsAAbEKCRQTCxIMEwoTChQKEwsJFBQJFAoTCxMLEwoJFBQKEwsAAbEKChMTDBILEwoTCxMLEgsJFBQKEwsSCxQKEwoKExQKEwsAAbEKChUSCxMKEwoUChMLEgsJFBQKEwsTChQKEwoKFBMLEwoABdw=",
+      "description": "Hood Up"
+    },
+    "hood_down": {
+      "button": "hood_down",
+      "topic": "/devices/kitchen_hood/controls/hood_down",
+      "rf_code": "scBsAQCfBgAMCRQUChMKEwoTDBILEwoUCgoTEwsUCRQKEwoKFBMLEwoAAbEKChQTCxMKEwoUChMLEwoUCgoTEwsTChQKEwoKExQLFAkAAbEKChQTCxMKEwsTChMLEwsTCgkUFAkUCxMKFAkLExMLEwoAAbELCRQTCxILFAoTChMKFAsSCwkUFAoTCxILFAoJFBMKFAoAAbIKCRQTChQLEgsTChMLEwsSCwkUFAoTChMLEwsJFBQJFAsAAbALCRQTChQLEgsTChQKEwoUCgkVEwoUCRQLEgsJFBQJFAoAAbELCRQUChMKEwsTChQKEwoUCwkUEwoUChMKEwsJFBQKEwoAAbELCRUTChMKEwsTCxMKEwoUCgoUEgsUCRQKEwsJFBQKEwoAAbELCRUTChMKFAoTCxILEwoUCgoUEgsUChMKEwoLExMLEwoAAbEKChUSCxMKFAoTCxILFAoTCgoTFAoTCxMKFAoKFBILFAkABdw=",
+      "description": "Hood Down"
+    }
+  },
+  "key_pressed_topic": "/devices/kitchen_switch/controls/button"
+} 

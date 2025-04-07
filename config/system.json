@@ -12,13 +12,13 @@
   "log_level": "INFO",
   "log_file": "logs/service.log",
   "devices": {
-    "samsung_tv_living": {
+    "mf_amplifier": {
       "class": "WirenboardIRDevice",
-      "config_file": "samsung_tv_living.json"
+      "config_file": "mf_amplifier.json"
     },
-    "samsung_tv_bedroom": {
-      "class": "WirenboardIRDevice",
-      "config_file": "samsung_tv_bedroom.json"
+    "kitchen_hood": {
+      "class": "BroadlinkKitchenHood",
+      "config_file": "kitchen_hood.json"
     },
     "example_device": {
       "class": "ExampleDevice",
