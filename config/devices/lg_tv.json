@@ -1,0 +1,233 @@
+{
+  "device_name": "living_room_tv",
+  "device_type": "lg_tv",
+  "device_id": "living_room_tv",
+  "alias": "living_room_tv",
+  "tv": {
+    "ip_address": "192.168.1.100",
+    "mac_address": "AA:BB:CC:DD:EE:FF",
+    "secure": true,
+    "store_path": "/tmp/living_room_tv_store.json"
+  },
+  "power_topic": "/devices/living_room_tv/controls/power",
+  "volume_topic": "/devices/living_room_tv/controls/volume",
+  "app_launch_topic": "/devices/living_room_tv/controls/app_launch",
+  "input_source_topic": "/devices/living_room_tv/controls/input_source",
+  "commands": {
+    "power": {
+      "button": "POWER",
+      "topic": "/devices/living_room_tv/controls/buttons/power",
+      "description": "Power Button"
+    },
+    "home": {
+      "button": "HOME",
+      "topic": "/devices/living_room_tv/controls/buttons/home",
+      "description": "Home Button"
+    },
+    "back": {
+      "button": "BACK",
+      "topic": "/devices/living_room_tv/controls/buttons/back",
+      "description": "Back Button"
+    },
+    "up": {
+      "button": "UP",
+      "topic": "/devices/living_room_tv/controls/buttons/up",
+      "description": "Up Button"
+    },
+    "down": {
+      "button": "DOWN",
+      "topic": "/devices/living_room_tv/controls/buttons/down",
+      "description": "Down Button"
+    },
+    "left": {
+      "button": "LEFT",
+      "topic": "/devices/living_room_tv/controls/buttons/left",
+      "description": "Left Button"
+    },
+    "right": {
+      "button": "RIGHT",
+      "topic": "/devices/living_room_tv/controls/buttons/right",
+      "description": "Right Button"
+    },
+    "enter": {
+      "button": "ENTER",
+      "topic": "/devices/living_room_tv/controls/buttons/enter",
+      "description": "Enter/OK Button"
+    },
+    "volume_up": {
+      "button": "VOLUMEUP",
+      "topic": "/devices/living_room_tv/controls/buttons/volume_up",
+      "description": "Volume Up"
+    },
+    "volume_down": {
+      "button": "VOLUMEDOWN",
+      "topic": "/devices/living_room_tv/controls/buttons/volume_down",
+      "description": "Volume Down"
+    },
+    "mute": {
+      "button": "MUTE",
+      "topic": "/devices/living_room_tv/controls/buttons/mute",
+      "description": "Mute"
+    },
+    "channel_up": {
+      "button": "CHANNELUP",
+      "topic": "/devices/living_room_tv/controls/buttons/channel_up",
+      "description": "Channel Up"
+    },
+    "channel_down": {
+      "button": "CHANNELDOWN",
+      "topic": "/devices/living_room_tv/controls/buttons/channel_down",
+      "description": "Channel Down"
+    },
+    "play": {
+      "button": "PLAY",
+      "topic": "/devices/living_room_tv/controls/buttons/play",
+      "description": "Play"
+    },
+    "pause": {
+      "button": "PAUSE",
+      "topic": "/devices/living_room_tv/controls/buttons/pause",
+      "description": "Pause"
+    },
+    "stop": {
+      "button": "STOP",
+      "topic": "/devices/living_room_tv/controls/buttons/stop",
+      "description": "Stop"
+    },
+    "fast_forward": {
+      "button": "FASTFORWARD",
+      "topic": "/devices/living_room_tv/controls/buttons/fast_forward",
+      "description": "Fast Forward"
+    },
+    "rewind": {
+      "button": "REWIND",
+      "topic": "/devices/living_room_tv/controls/buttons/rewind",
+      "description": "Rewind"
+    },
+    "netflix": {
+      "button": "NETFLIX",
+      "topic": "/devices/living_room_tv/controls/buttons/netflix",
+      "description": "Netflix Button"
+    },
+    "amazon": {
+      "button": "AMAZON",
+      "topic": "/devices/living_room_tv/controls/buttons/amazon",
+      "description": "Amazon Button"
+    },
+    "youtube": {
+      "button": "YOUTUBE",
+      "topic": "/devices/living_room_tv/controls/buttons/youtube",
+      "description": "YouTube Button"
+    },
+    "red": {
+      "button": "RED",
+      "topic": "/devices/living_room_tv/controls/buttons/red",
+      "description": "Red Button"
+    },
+    "green": {
+      "button": "GREEN",
+      "topic": "/devices/living_room_tv/controls/buttons/green",
+      "description": "Green Button"
+    },
+    "yellow": {
+      "button": "YELLOW",
+      "topic": "/devices/living_room_tv/controls/buttons/yellow",
+      "description": "Yellow Button"
+    },
+    "blue": {
+      "button": "BLUE",
+      "topic": "/devices/living_room_tv/controls/buttons/blue",
+      "description": "Blue Button"
+    },
+    "0": {
+      "button": "0",
+      "topic": "/devices/living_room_tv/controls/buttons/0",
+      "description": "0 Button"
+    },
+    "1": {
+      "button": "1",
+      "topic": "/devices/living_room_tv/controls/buttons/1",
+      "description": "1 Button"
+    },
+    "2": {
+      "button": "2",
+      "topic": "/devices/living_room_tv/controls/buttons/2",
+      "description": "2 Button"
+    },
+    "3": {
+      "button": "3",
+      "topic": "/devices/living_room_tv/controls/buttons/3",
+      "description": "3 Button"
+    },
+    "4": {
+      "button": "4",
+      "topic": "/devices/living_room_tv/controls/buttons/4",
+      "description": "4 Button"
+    },
+    "5": {
+      "button": "5",
+      "topic": "/devices/living_room_tv/controls/buttons/5",
+      "description": "5 Button"
+    },
+    "6": {
+      "button": "6",
+      "topic": "/devices/living_room_tv/controls/buttons/6",
+      "description": "6 Button"
+    },
+    "7": {
+      "button": "7",
+      "topic": "/devices/living_room_tv/controls/buttons/7",
+      "description": "7 Button"
+    },
+    "8": {
+      "button": "8",
+      "topic": "/devices/living_room_tv/controls/buttons/8",
+      "description": "8 Button"
+    },
+    "9": {
+      "button": "9",
+      "topic": "/devices/living_room_tv/controls/buttons/9",
+      "description": "9 Button"
+    },
+    "info": {
+      "button": "INFO",
+      "topic": "/devices/living_room_tv/controls/buttons/info",
+      "description": "Info Button"
+    },
+    "guide": {
+      "button": "GUIDE",
+      "topic": "/devices/living_room_tv/controls/buttons/guide",
+      "description": "Guide Button"
+    },
+    "exit": {
+      "button": "EXIT",
+      "topic": "/devices/living_room_tv/controls/buttons/exit",
+      "description": "Exit Button"
+    },
+    "menu": {
+      "button": "MENU",
+      "topic": "/devices/living_room_tv/controls/buttons/menu",
+      "description": "Menu Button"
+    },
+    "settings": {
+      "button": "MENU",
+      "topic": "/devices/living_room_tv/controls/buttons/settings",
+      "description": "Settings Button"
+    },
+    "asterisk": {
+      "button": "ASTERISK",
+      "topic": "/devices/living_room_tv/controls/buttons/asterisk",
+      "description": "Asterisk Button"
+    },
+    "dash": {
+      "button": "DASH",
+      "topic": "/devices/living_room_tv/controls/buttons/dash",
+      "description": "Dash Button"
+    },
+    "cc": {
+      "button": "CC",
+      "topic": "/devices/living_room_tv/controls/buttons/cc",
+      "description": "Closed Caption Button"
+    }
+  }
+} 

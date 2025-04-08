@@ -148,10 +148,16 @@ class BroadlinkKitchenHood(BaseDevice):
                             state_update["light"] = "on"
                         elif cmd_name == "light_off":
                             state_update["light"] = "off"
-                        elif cmd_name == "hood_up":
-                            state_update["hood"] = "up"
-                        elif cmd_name == "hood_down":
-                            state_update["hood"] = "down"
+                        elif cmd_name == "hood_speed1":
+                            state_update["speed"] = 1
+                        elif cmd_name == "hood_speed2":
+                            state_update["speed"] = 2
+                        elif cmd_name == "hood_speed3":
+                            state_update["speed"] = 3
+                        elif cmd_name == "hood_speed4":
+                            state_update["speed"] = 4
+                        elif cmd_name == "hood_off":
+                            state_update["speed"] = 0
                         
                         self.update_state(state_update)
                     break

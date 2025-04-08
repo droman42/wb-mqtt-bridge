@@ -1,0 +1,134 @@
+{
+  "device_name": "Zappiti Neo",
+  "device_type": "wirenboard_ir",
+  "device_id": "video",
+  "alias": "video",
+  "commands": {
+    "power_on": {
+      "button": "power_on",
+      "topic": "/devices/video/controls/power_on",
+      "location": "wb-msw-v3_207",
+      "rom_position": "26",
+      "description": "Power On"
+    },
+    "power_off": {
+      "button": "power_off",
+      "topic": "/devices/video/controls/power_off",
+      "location": "wb-msw-v3_207",
+      "rom_position": "27",
+      "description": "Power Off"
+    },
+    "pause": {
+      "button": "pause",
+      "topic": "/devices/video/controls/pause",
+      "location": "wb-msw-v3_207",
+      "rom_position": "28",
+      "description": "Pause"
+    },
+    "chapter_plus": {
+      "button": "chapter_plus",
+      "topic": "/devices/video/controls/chapter_plus",
+      "location": "wb-msw-v3_207",
+      "rom_position": "29",
+      "description": "Chapter+"
+    },
+    "chapter_minus": {
+      "button": "chapter_minus",
+      "topic": "/devices/video/controls/chapter_minus",
+      "location": "wb-msw-v3_207",
+      "rom_position": "30",
+      "description": "Chapter-"
+    },
+    "stop": {
+      "button": "stop",
+      "topic": "/devices/video/controls/stop",
+      "location": "wb-msw-v3_207",
+      "rom_position": "31",
+      "description": "Stop"
+    },
+    "up": {
+      "button": "up",
+      "topic": "/devices/video/controls/up",
+      "location": "wb-msw-v3_207",
+      "rom_position": "32",
+      "description": "Up"
+    },
+    "down": {
+      "button": "down",
+      "topic": "/devices/video/controls/down",
+      "location": "wb-msw-v3_207",
+      "rom_position": "33",
+      "description": "Down"
+    },
+    "left": {
+      "button": "left",
+      "topic": "/devices/video/controls/left",
+      "location": "wb-msw-v3_207",
+      "rom_position": "34",
+      "description": "Left"
+    },
+    "right": {
+      "button": "right",
+      "topic": "/devices/video/controls/right",
+      "location": "wb-msw-v3_207",
+      "rom_position": "35",
+      "description": "Right"
+    },
+    "ok_enter": {
+      "button": "ok_enter",
+      "topic": "/devices/video/controls/ok_enter",
+      "location": "wb-msw-v3_207",
+      "rom_position": "36",
+      "description": "OK/Enter"
+    },
+    "audio": {
+      "button": "audio",
+      "topic": "/devices/video/controls/audio",
+      "location": "wb-msw-v3_207",
+      "rom_position": "37",
+      "description": "Audio"
+    },
+    "subtitles": {
+      "button": "subtitles",
+      "topic": "/devices/video/controls/subtitles",
+      "location": "wb-msw-v3_207",
+      "rom_position": "38",
+      "description": "Subtitles"
+    },
+    "home": {
+      "button": "home",
+      "topic": "/devices/video/controls/home",
+      "location": "wb-msw-v3_218",
+      "rom_position": "3",
+      "description": "Home"
+    },
+    "settings": {
+      "button": "settings",
+      "topic": "/devices/video/controls/settings",
+      "location": "wb-msw-v3_218",
+      "rom_position": "4",
+      "description": "Settings"
+    },
+    "back": {
+      "button": "back",
+      "topic": "/devices/video/controls/back",
+      "location": "wb-msw-v3_218",
+      "rom_position": "5",
+      "description": "Back"
+    },
+    "zappiti": {
+      "button": "zappiti",
+      "topic": "/devices/video/controls/zappiti",
+      "location": "wb-msw-v3_218",
+      "rom_position": "6",
+      "description": "Zappiti"
+    },
+    "explorer": {
+      "button": "explorer",
+      "topic": "/devices/video/controls/explorer",
+      "location": "wb-msw-v3_218",
+      "rom_position": "7",
+      "description": "Explorer"
+    }
+  }
+} 

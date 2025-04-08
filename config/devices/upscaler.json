@@ -1,0 +1,106 @@
+{
+  "device_name": "DVDO Edge Green",
+  "device_type": "wirenboard_ir",
+  "device_id": "upscaler",
+  "alias": "upscaler",
+  "commands": {
+    "power_on": {
+      "button": "power_on",
+      "topic": "/devices/upscaler/controls/power_on",
+      "location": "wb-msw-v3_207",
+      "rom_position": "57",
+      "description": "Power On"
+    },
+    "power_off": {
+      "button": "power_off",
+      "topic": "/devices/upscaler/controls/power_off",
+      "location": "wb-msw-v3_207",
+      "rom_position": "58",
+      "description": "Power Off"
+    },
+    "input_video": {
+      "button": "input_video",
+      "topic": "/devices/upscaler/controls/input_video",
+      "location": "wb-msw-v3_207",
+      "rom_position": "59",
+      "description": "Input Video"
+    },
+    "input_s_vhs": {
+      "button": "input_s_vhs",
+      "topic": "/devices/upscaler/controls/input_s_vhs",
+      "location": "wb-msw-v3_207",
+      "rom_position": "60",
+      "description": "Input S-VHS"
+    },
+    "ratio_4_3": {
+      "button": "ratio_4_3",
+      "topic": "/devices/upscaler/controls/ratio_4_3",
+      "location": "wb-msw-v3_207",
+      "rom_position": "61",
+      "description": "Ratio 4:3"
+    },
+    "ratio_16_9": {
+      "button": "ratio_16_9",
+      "topic": "/devices/upscaler/controls/ratio_16_9",
+      "location": "wb-msw-v3_218",
+      "rom_position": "8",
+      "description": "Ratio 16:9"
+    },
+    "letterbox": {
+      "button": "letterbox",
+      "topic": "/devices/upscaler/controls/letterbox",
+      "location": "wb-msw-v3_218",
+      "rom_position": "9",
+      "description": "Letterbox"
+    },
+    "menu": {
+      "button": "menu",
+      "topic": "/devices/upscaler/controls/menu",
+      "location": "wb-msw-v3_218",
+      "rom_position": "10",
+      "description": "Menu"
+    },
+    "menu_exit": {
+      "button": "menu_exit",
+      "topic": "/devices/upscaler/controls/menu_exit",
+      "location": "wb-msw-v3_218",
+      "rom_position": "11",
+      "description": "Menu Exit"
+    },
+    "menu_up": {
+      "button": "menu_up",
+      "topic": "/devices/upscaler/controls/menu_up",
+      "location": "wb-msw-v3_218",
+      "rom_position": "12",
+      "description": "Menu Up"
+    },
+    "menu_down": {
+      "button": "menu_down",
+      "topic": "/devices/upscaler/controls/menu_down",
+      "location": "wb-msw-v3_218",
+      "rom_position": "13",
+      "description": "Menu Down"
+    },
+    "menu_left": {
+      "button": "menu_left",
+      "topic": "/devices/upscaler/controls/menu_left",
+      "location": "wb-msw-v3_218",
+      "rom_position": "14",
+      "description": "Menu Left"
+    },
+    "menu_right": {
+      "button": "menu_right",
+      "topic": "/devices/upscaler/controls/menu_right",
+      "location": "wb-msw-v3_218",
+      "rom_position": "15",
+      "description": "Menu Right"
+    },
+    "ok_enter": {
+      "button": "ok_enter",
+      "topic": "/devices/upscaler/controls/ok_enter",
+      "location": "wb-msw-v3_218",
+      "rom_position": "16",
+      "description": "OK/Enter"
+    }
+  }
+} 
