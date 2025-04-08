@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  mqtt-web-service:
+  wb-mqtt-bridge:
     build: .
-    container_name: mqtt-web-service
+    container_name: wb-mqtt-bridge
     restart: unless-stopped
     ports:
       - "${API_PORT:-8000}:8000"
@@ -21,14 +21,14 @@ services:
 
   nginx:
     image: nginx:alpine
-    container_name: mqtt-web-service-nginx
+    container_name: wb-mqtt-bridge-nginx
     restart: unless-stopped
     ports:
       - "${NGINX_PORT:-8081}:80"
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
     depends_on:
-      - mqtt-web-service
+      - wb-mqtt-bridge
     networks:
       - mqtt-network
 

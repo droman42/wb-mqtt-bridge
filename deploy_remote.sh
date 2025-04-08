@@ -2,8 +2,8 @@
 
 # Default values
 DEFAULT_PORT=8080
-SERVICE_NAME="mqtt-web-service"
-WORKSPACE_DIR="mqtt-web-service"
+SERVICE_NAME="wb-mqtt-bridge"
+WORKSPACE_DIR="wb-mqtt-bridge"
 VENV_DIR="venv"
 NGINX_AVAILABLE="/etc/nginx/sites-available"
 NGINX_ENABLED="/etc/nginx/sites-enabled"

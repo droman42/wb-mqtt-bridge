@@ -1,5 +1,5 @@
 """
-Setup script for the mqtt-web-service package.
+Setup script for the wb-mqtt-bridge package.
 """
 
 from setuptools import setup, find_packages
@@ -8,14 +8,14 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name="mqtt-web-service",
+    name="wb-mqtt-bridge",
     version="0.1.0",
-    author="Your Name",
-    author_email="your.email@example.com",
+    author="Dmitri Romanovskij",
+    author_email="dmitri.romanovski@gmail.com",
     description="A Python-based web service that acts as an MQTT client to manage multiple devices using a plugin-based architecture",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/mqtt-web-service",
+    url="https://github.com/droman42/wb-mqtt-bridge",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 3 - Alpha",
@@ -50,7 +50,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "mqtt-web-service=app.main:main",
+            "wb-mqtt-bridge=app.main:main",
         ],
     },
 ) 

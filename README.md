@@ -22,8 +22,8 @@ A Python-based web service that acts as an MQTT client to manage multiple device
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/mqtt-web-service.git
-cd mqtt-web-service
+git clone https://github.com/droman42/wb-mqtt-bridge.git
+cd wb-mqtt-bridge
 ```
 
 2. Create a virtual environment and install dependencies:
