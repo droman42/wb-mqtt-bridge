@@ -5,56 +5,56 @@
   "alias": "ld_player",
   "commands": {
     "power": {
-      "button": "power",
+      "action": "power",
       "topic": "/devices/ld_player/controls/power_toggle",
       "location": "wb-msw-v3_207",
       "rom_position": "64",
       "description": "Power On/Off"
     },
     "tray": {
-      "button": "tray",
+      "action": "tray",
       "topic": "/devices/ld_player/controls/tray",
       "location": "wb-msw-v3_207",
       "rom_position": "65",
       "description": "Tray"
     },
     "play": {
-      "button": "play",
+      "action": "play",
       "topic": "/devices/ld_player/controls/play",
       "location": "wb-msw-v3_207",
       "rom_position": "66",
       "description": "Play"
     },
     "stop": {
-      "button": "stop",
+      "action": "stop",
       "topic": "/devices/ld_player/controls/stop",
       "location": "wb-msw-v3_207",
       "rom_position": "67",
       "description": "Stop"
     },
     "pause": {
-      "button": "pause",
+      "action": "pause",
       "topic": "/devices/ld_player/controls/pause",
       "location": "wb-msw-v3_207",
       "rom_position": "68",
       "description": "Pause"
     },
     "chapter_plus": {
-      "button": "chapter_plus",
+      "action": "chapter_plus",
       "topic": "/devices/ld_player/controls/chapter_plus",
       "location": "wb-msw-v3_207",
       "rom_position": "69",
       "description": "Chapter+"
     },
     "chapter_minus": {
-      "button": "chapter_minus",
+      "action": "chapter_minus",
       "topic": "/devices/ld_player/controls/chapter_minus",
       "location": "wb-msw-v3_207",
       "rom_position": "70",
       "description": "Chapter-"
     },
     "audio": {
-      "button": "audio",
+      "action": "audio",
       "topic": "/devices/ld_player/controls/audio",
       "location": "wb-msw-v3_207",
       "rom_position": "71",

@@ -48,14 +48,14 @@ class WirenboardIRDevice(BaseDevice):
         alias = self.state.get("alias", self.device_name)
         commands = self.state.get("available_commands", {})
         
-        # Create subscription topics for each command button
+        # Create subscription topics for each command action
         topics = []
         for command in commands.values():
             topic = command.get("topic")
             if topic:
                 topics.append(topic)
             else:
-                logger.error(f"MQTT subscription topic {command.get('button')} not found for {alias}")
+                logger.error(f"MQTT subscription topic {command.get('action')} not found for {alias}")
         
         logger.debug(f"Device {self.get_name()} subscribing to topics: {topics}")
         return topics

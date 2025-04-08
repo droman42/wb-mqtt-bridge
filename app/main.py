@@ -150,7 +150,7 @@ class SystemInfo(BaseModel):
 
 class DeviceAction(BaseModel):
     """Model for device action requests."""
-    button: str
+    action: str
     params: Optional[Dict[str, Any]] = None
 
 # API endpoints
@@ -289,8 +289,8 @@ async def execute_device_action(
         raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
     
     # Execute the action
-    logger.info(f"Executing action {action.button} for device {device_id} with params {action.params}")
-    result = await device.execute_action(action.button, action.params)
+    logger.info(f"Executing action {action.action} for device {device_id} with params {action.params}")
+    result = await device.execute_action(action.action, action.params)
     
     if not result["success"]:
         raise HTTPException(status_code=400, detail=result["error"])
@@ -306,7 +306,7 @@ async def execute_device_action(
     
     return {
         "device_id": device_id,
-        "button": action.button,
+        "action": action.action,
         "state": result["state"],
         "message": "Action executed successfully"
     }
@@ -329,7 +329,7 @@ async def get_device_actions(device_id: str):
             "device_id": device_id,
             "actions": [
                 {
-                    "button": cmd_config["button"],
+                    "action": cmd_config.get("action"),
                     "description": cmd_config.get("description", "No description")
                 }
                 for cmd_config in commands.values()

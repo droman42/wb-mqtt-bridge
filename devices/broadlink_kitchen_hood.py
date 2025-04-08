@@ -149,7 +149,7 @@ class BroadlinkKitchenHood(BaseDevice):
                             self.update_state({
                                 "light": new_light_state,
                                 "last_command": {
-                                    "button": command_name,
+                                    "action": command_name,
                                     "source": "wall_switch"
                                 }
                             })
@@ -164,7 +164,7 @@ class BroadlinkKitchenHood(BaseDevice):
                         # Update state based on command
                         state_update = {
                             "last_command": {
-                                "button": cmd_config["button"],
+                                "action": cmd_config.get("action"),
                                 "source": "mqtt"
                             }
                         }

@@ -366,20 +366,20 @@ class LgTv(BaseDevice):
             logger.error(f"Failed to launch app: {str(e)}")
             return False
     
-    async def send_button(self, button):
-        """Send a button press to the TV."""
+    async def send_action(self, action):
+        """Send an action press to the TV."""
         if not self.state.get("connected", False):
             await self._connect_to_tv()
         
         try:
             # Run in executor since PyWebOSTV uses blocking calls
-            def send_button_sync():
+            def send_action_sync():
                 try:
                     # Create a separate input connection
                     self.input_control.connect_input()
                     
-                    # Map button names to methods
-                    button_methods = {
+                    # Map action names to methods
+                    action_methods = {
                         "UP": self.input_control.up,
                         "DOWN": self.input_control.down,
                         "LEFT": self.input_control.left,
@@ -424,11 +424,11 @@ class LgTv(BaseDevice):
                     }
                     
                     # Call the appropriate method if it exists
-                    if button in button_methods:
-                        button_methods[button]()
+                    if action in action_methods:
+                        action_methods[action]()
                         result = True
                     else:
-                        logger.warning(f"Unknown button: {button}")
+                        logger.warning(f"Unknown action: {action}")
                         result = False
                     
                     # Close the input connection
@@ -436,15 +436,15 @@ class LgTv(BaseDevice):
                     return result
                     
                 except Exception as e:
-                    logger.error(f"Error sending button: {str(e)}")
+                    logger.error(f"Error sending action: {str(e)}")
                     return False
             
             return await asyncio.get_event_loop().run_in_executor(
-                self.executor, send_button_sync
+                self.executor, send_action_sync
             )
             
         except Exception as e:
-            logger.error(f"Failed to send button: {str(e)}")
+            logger.error(f"Failed to send action: {str(e)}")
             return False
     
     async def set_input_source(self, input_source):
@@ -531,14 +531,14 @@ class LgTv(BaseDevice):
                 if topic == cmd_config["topic"]:
                     if payload.lower() in ["1", "true", "on"]:
                         # Process command
-                        button = cmd_config.get("button")
-                        if button:
-                            await self.send_button(button)
+                        action = cmd_config.get("action")
+                        if action:
+                            await self.send_action(action)
                             
                         # Update state based on command
                         self.update_state({
                             "last_command": {
-                                "button": cmd_name,
+                                "action": cmd_name,
                                 "source": "mqtt"
                             }
                         })

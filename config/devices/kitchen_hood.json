@@ -1,5 +1,5 @@
 {
-  "device_name": "kitchen_hood",
+  "device_name": "Kitchen Hood",
   "device_type": "broadlink_kitchen_hood",
   "device_id": "kitchen_hood",
   "alias": "kitchen_hood",
@@ -10,44 +10,44 @@
   },
   "commands": {
     "light_on": {
-      "button": "light_on",
+      "action": "light_on",
       "topic": "/devices/kitchen_hood/controls/light_on",
       "rf_code": "scBEAgCfBgAKCxQSCxMKFAoTCxMKFAoUCRQKChQUCRQJFAoKFBQJFAoAAbELCRUTChQKEwsTChMKFAoTCxQJChMVCRQKEwsJFBQJFAsAAbEKChQTCxMKFAoTChMLFAkUChMKChQUChQJFAoKFBMKFAkAAbILCRQUChMKFAoUChMKEwoUCxMKCRQUChMLEwoKFBQJFAoAAbIKChMUCxMKEwoUCRQLEwoUChMKChQTChQKFAkLFBILFAkAAbILCRQUChMKEwsTChQKEwoUChMLCRQUCRQLEgsJFBQKFAoAAbIJCxMUChMLEwoTChQLEgsUCRQKChQTChQKEwoKFBMLEwoAAbELCRQUChQJFAsSCxQJFAoTCxMKChQTChQKEwsJFBQJFAoAAbIKChMUCxILFAoTChMLEwoUChMKCxQSCxQJFAkLExQKFAkAAbILCRQUChMKFAoTCxMKFAkUCxILCRQUChMKFAoKFBMKFAkAAbMKCRQUChMLEwoUChMKEwsUChMKChMUChQKEwoLExMLEwoAAbILCRQUCRQKEwsTChQKEwoUCRQLCRQUCRQKFAoJFBQKFAkAAbMJChQTCxMKFAoTChQKEwsTChQJCxMUChMLEwoKExQLEgsAAbEKCxQTChQJFAoTCxMLEwoTChQKChQTChQJFAsJFBQJFAoAAbIKCRUTChMLEwsTChMKFAsSCxQJCxMTCxMKFAoKExQKEwsAAbEKChUSCxMKFAoTCxILFAkUChQKCRUTChQJFAoKFBQJFAoABdw=",
       "description": "Light On"
     },
     "light_off": {
-      "button": "light_off",
+      "action": "light_off",
       "topic": "/devices/kitchen_hood/controls/light_off",
       "rf_code": "scDcAACfBgALChUSCxMKFAoTCxIMEwoTChQJFAsSCxQJFAoKFBMKFAoAAbELCRUTChMKFAoTCxMKFAoTChMLEwsTChMKFAsJFBQJFAoAAbELCRQUChMLEgsUChMKFAkUCxILEwoUChMLEwoKFBMKFAsAAbEKCRQUCxILEwoUCRQKEwsTChQKEwoUChMLEwoJFRMLEwoAAbIKChQSCxQJFAoTChQLEgsUCRQKEwsSCxQKEwoKFBMLEwoAAbEMCBUTChMLEwoTCxMKFAoTChQKEwsTChQJFAsJFBQJFAoABdw=",
       "description": "Light Off"
     },
-    "hood_speed1": {
-      "button": "hood_speed1",
-      "topic": "/devices/kitchen_hood/controls/hood_up",
+    "speed1": {
+      "action": "hood_speed1",
+      "topic": "/devices/kitchen_hood/controls/speed1",
       "rf_code": "scD8AQCfBgALChUSCxMKEwsTChMLEwsTCgoTFAsSCxMKFAoKFBMKFAkAAbILCRQUChMKEwoUCxILFAkUCgoUEgsUChMKEwsKFBMKFAkAAbILCRQTCxMKEwsTCxMKEwoUCwkUEwoUCRQLEgsJFRMKEwsAAbIKCRQTChQLEwoTChQKEwsSCwkVEwoUChMLEwoJFBQLEgsAAbEKChQTCxMLEwoTChMLEwsTCgoTFAsSCxMKFAoKFBMKFAoAAbELCRUTChMKEwsTCxILFAoTCgoUEwsTChMKFAsJFBMKFAoAAbELCRQUChMKEwsTCxMKEwoUCwkUFAkUChMLEwoKFBMKFAkAAbMKCRQTChQLEwoTCxMKEwsSCwoUEwoUCxILEwoJFBQKEwsAAbIKCRQTCxQKEwoTChQKEwsTCgoTFAsSCxQKEwoKFBMKFAoAAbEKChUSCxMKFAoTCxILFAoTCgoUEwsTChMKFAsJFBMKFAoAAbELCRQUChMKEwsTCxMKEwoUCwkUEwoUChMLEwoJFRMKFAkAAbMKCRQTChQLEgsTChQKEwsTCwkUEwoTCxMLEwoJFBQKEwsAAbEKChQTCxIMEwoTChMMEgsTCgkVEwsSCxQJFAoKExQKFAoAAbELCRUSCxMKFAoTCxILFAoTCgoUEwsTChMKFAoKFBQJFAoABdw=",
       "description": "Hood Speed 1"
     },
-    "hood_speed2": {
-      "button": "hood_speed2",
-      "topic": "/devices/kitchen_hood/controls/hood_up",
+    "speed2": {
+      "action": "hood_speed2",
+      "topic": "/devices/kitchen_hood/controls/speed2",
       "rf_code": "scAAAQCfBgAMCRUTChMKEwwSCxMKFAoKFBMKFAoTChQKEwsJFBQJFAoAAbIKChQTCxILFAoTChMLEwoKFBMKFAsSCxQJFAoKExQKFAoAAbELCRQUChMKEwsTCxMKEwoKFRILFAkUChMKFAoKFBMKFAkAAbMKCRQTCxMLEwoUCRQKEwsJFBQKEwoUChQKEwoKExQLEgsAAbIKCRUTChQKEwoTCxQKEwoKExQKFAoTChQJFAsJFBQJFAoAAbIKCRUTChMLEwoUChMKFAsJFBMKFAoTCxMKFAkLExQKEwsAAbEKChQTCxMKEwoUCxILEwoKFBMLEwoUCRQKFAoKFBQJFAkABdw=",
       "description": "Hood Speed 2"
     },
-    "hood_speed3": {
-      "button": "hood_speed3",
-      "topic": "/devices/kitchen_hood/controls/hood_up",
+    "speed3": {
+      "action": "hood_speed3",
+      "topic": "/devices/kitchen_hood/controls/speed3",
       "rf_code": "scBsAQCfBgALCRUSCxMLEwoTCxMLEwoJFAoVEgsUCRQJFAoKFBQKEwoAAbILCRQTChQLEgsTChQKEwsJFAkUFAoUChMLEwoJFBQLEgsAAbELChQTChQKEwoTCxQKEwoKEwsUEwoUCRQKEwsKExQKEwoAAbMKCRQTCxMLEwoTCxMLEgsJFAoUEwsTChQKEwoLExMLFAkAAbILCRQTChQKEwsSCxQKEwoKFAkVEwoUCRQLEgsJFBQKFAoAAbIKChQSCxQKEwoTCxMLEwoJFAsTEwsUCRQKEwoKFBQKEwoAAbILCRQTCxMLEgsUCRQKEwsJFAoUEwoUChMLEwoJFBQLEwoAAbIKChQTChQKEwoTDBILEwoKEwsUEgsUChMKEwsJFBQKFAkAAbMKCRQUChMLEwoUCRQLEgsJFAoUEwsTChQKEwoKExQLFAkAAbILCRQTChQKEwsTChQKEwoKFQkUEwoUCRQLEwoKFBMKFAoABdw=",
       "description": "Hood Speed 3"
     },
-    "hood_speed4": {
-      "button": "hood_speed4",
-      "topic": "/devices/kitchen_hood/controls/hood_up",
+    "speed4": {
+      "action": "hood_speed4",
+      "topic": "/devices/kitchen_hood/controls/speed4",
       "rf_code": "scAkAQCfBgALCBUTChQKEwsTChQKChMTCxMLEwoUCRQKEwsJFBQKEwsAAbELCRUSCxMLEwoTCxIMCRQTChQKEwsTChQKEwoKFBQKEwoAAbEMCBUTChQLEgsTChQKChQSCxQJFAoTCxMLEwoJFBQLEgsAAbELCRUTChQKEwoTCxQKCRQTChQKFAoUCRQJFAsJFBQKEwoAAbIKCRUTCxIMEwoTChMLCRUTChQKEwsSCxQJFAoKFBMKFAoAAbELCRUTChMKFAsSCxMLCRQTCxILFAoTChQKEwsJFBQJFAsAAbEKChQTCxMLEwoTChQKCRUTChQKEwsTChQJFAoKFBMKFAoAAbELCRUTChMMEgsTChQKChQSCxQKEwoTCxMLEwoJFBQLEgsABdw=",
       "description": "Hood Speed 4"
     },
-    "hood_off": {
-      "button": "hood_off",
-      "topic": "/devices/kitchen_hood/controls/hood_down",
+    "off": {
+      "action": "hood_off",
+      "topic": "/devices/kitchen_hood/controls/off",
       "rf_code": "scCQAQCfBgALChUSCxMKFAoTCxILFAoTChQLEgsTChQJFAoKFBMKFAoAAbELCRUTChMKFAsSCxMKFAoTCxILFAoTChMKFAsJFBQJFAoAAbELCRQUChMLEgsUChMKEwsTCxMKFAkUChMLEwoKFBMKFAoAAbIKChMUChMLEwoUChMLEgsUChMKEwoUCxMKEwoKExQLEgsAAbIKChQSCxMLEwoTCxMLEwoTChQKEwsTChQKEwoKFBMLEwoAAbELCRUTChMKFAsSCxMKFAoTCxMLEwoTChQJFAsJFBQKEwoAAbELCRQUChMLEwsTChMKFAsSCxMKFAoTChMLEwsJFBQJFAsAAbEKChMUCxILEwoUChMLEwsTChMKFAkUCxMKFAkLExMLEwoAAbIKChQTCxMKEwoUCxILEwoUChMKFAoUChMKFAkLFBILFAkAAbILCRQTChQKEwsTCxMKEwoUChMLEwoUChMKEwsJFRMKFAkAAbILCRQUChMLEgsTCxMKEwsTCxMKEwoUChMLEgsKFBMKEwsABdw=",
       "description": "Hood Off"
     }

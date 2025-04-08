@@ -50,33 +50,33 @@ class BaseDevice(ABC):
         self.state.update(updates)
         logger.debug(f"Updated state for {self.device_name}: {updates}")
     
-    async def execute_action(self, button: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Execute an action identified by button name."""
+    async def execute_action(self, action: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Execute an action identified by action name."""
         try:
-            # Simulate MQTT message for the button
+            # Simulate MQTT message for the action
             device_alias = self.config.get('alias', self.device_name)
-            topic = f"/devices/{device_alias}/controls/{button}"
+            topic = f"/devices/{device_alias}/controls/{action}"
             
-            # Default payload for button press
+            # Default payload for action press
             payload = "1"
             
             # Handle the message and get MQTT command if any
-            logger.debug(f"Executing action {button} for device {self.device_id} with topic {topic} and payload {payload}")
+            logger.debug(f"Executing action {action} for device {self.device_id} with topic {topic} and payload {payload}")
             result = await self.handle_message(topic, payload)
             
             return {
                 "success": True,
                 "device_id": self.device_id,
-                "button": button,
+                "action": action,
                 "mqtt_command": result,
                 "state": self.get_state()
             }
             
         except Exception as e:
-            logger.error(f"Error executing action {button} for device {self.device_id}: {str(e)}")
+            logger.error(f"Error executing action {action} for device {self.device_id}: {str(e)}")
             return {
                 "success": False,
                 "device_id": self.device_id,
-                "button": button,
+                "action": action,
                 "error": str(e)
             } 

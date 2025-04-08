@@ -5,14 +5,14 @@
   "alias": "streamer",
   "commands": {
     "power": {
-      "button": "power",
+      "action": "power",
       "topic": "/devices/streamer/controls/power_toggle",
       "location": "wb-msw-v3_207",
       "rom_position": "62",
       "description": "Power On/Off"
     },
     "input_stream": {
-      "button": "input_stream",
+      "action": "input_stream",
       "topic": "/devices/streamer/controls/input_stream",
       "location": "wb-msw-v3_218",
       "rom_position": "17",

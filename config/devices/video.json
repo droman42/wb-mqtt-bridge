@@ -5,126 +5,126 @@
   "alias": "video",
   "commands": {
     "power_on": {
-      "button": "power_on",
+      "action": "power_on",
       "topic": "/devices/video/controls/power_on",
       "location": "wb-msw-v3_207",
       "rom_position": "26",
       "description": "Power On"
     },
     "power_off": {
-      "button": "power_off",
+      "action": "power_off",
       "topic": "/devices/video/controls/power_off",
       "location": "wb-msw-v3_207",
       "rom_position": "27",
       "description": "Power Off"
     },
     "pause": {
-      "button": "pause",
+      "action": "pause",
       "topic": "/devices/video/controls/pause",
       "location": "wb-msw-v3_207",
       "rom_position": "28",
       "description": "Pause"
     },
     "chapter_plus": {
-      "button": "chapter_plus",
+      "action": "chapter_plus",
       "topic": "/devices/video/controls/chapter_plus",
       "location": "wb-msw-v3_207",
       "rom_position": "29",
       "description": "Chapter+"
     },
     "chapter_minus": {
-      "button": "chapter_minus",
+      "action": "chapter_minus",
       "topic": "/devices/video/controls/chapter_minus",
       "location": "wb-msw-v3_207",
       "rom_position": "30",
       "description": "Chapter-"
     },
     "stop": {
-      "button": "stop",
+      "action": "stop",
       "topic": "/devices/video/controls/stop",
       "location": "wb-msw-v3_207",
       "rom_position": "31",
       "description": "Stop"
     },
     "up": {
-      "button": "up",
+      "action": "up",
       "topic": "/devices/video/controls/up",
       "location": "wb-msw-v3_207",
       "rom_position": "32",
       "description": "Up"
     },
     "down": {
-      "button": "down",
+      "action": "down",
       "topic": "/devices/video/controls/down",
       "location": "wb-msw-v3_207",
       "rom_position": "33",
       "description": "Down"
     },
     "left": {
-      "button": "left",
+      "action": "left",
       "topic": "/devices/video/controls/left",
       "location": "wb-msw-v3_207",
       "rom_position": "34",
       "description": "Left"
     },
     "right": {
-      "button": "right",
+      "action": "right",
       "topic": "/devices/video/controls/right",
       "location": "wb-msw-v3_207",
       "rom_position": "35",
       "description": "Right"
     },
     "ok_enter": {
-      "button": "ok_enter",
+      "action": "ok_enter",
       "topic": "/devices/video/controls/ok_enter",
       "location": "wb-msw-v3_207",
       "rom_position": "36",
       "description": "OK/Enter"
     },
     "audio": {
-      "button": "audio",
+      "action": "audio",
       "topic": "/devices/video/controls/audio",
       "location": "wb-msw-v3_207",
       "rom_position": "37",
       "description": "Audio"
     },
     "subtitles": {
-      "button": "subtitles",
+      "action": "subtitles",
       "topic": "/devices/video/controls/subtitles",
       "location": "wb-msw-v3_207",
       "rom_position": "38",
       "description": "Subtitles"
     },
     "home": {
-      "button": "home",
+      "action": "home",
       "topic": "/devices/video/controls/home",
       "location": "wb-msw-v3_218",
       "rom_position": "3",
       "description": "Home"
     },
     "settings": {
-      "button": "settings",
+      "action": "settings",
       "topic": "/devices/video/controls/settings",
       "location": "wb-msw-v3_218",
       "rom_position": "4",
       "description": "Settings"
     },
     "back": {
-      "button": "back",
+      "action": "back",
       "topic": "/devices/video/controls/back",
       "location": "wb-msw-v3_218",
       "rom_position": "5",
       "description": "Back"
     },
     "zappiti": {
-      "button": "zappiti",
+      "action": "zappiti",
       "topic": "/devices/video/controls/zappiti",
       "location": "wb-msw-v3_218",
       "rom_position": "6",
       "description": "Zappiti"
     },
     "explorer": {
-      "button": "explorer",
+      "action": "explorer",
       "topic": "/devices/video/controls/explorer",
       "location": "wb-msw-v3_218",
       "rom_position": "7",
