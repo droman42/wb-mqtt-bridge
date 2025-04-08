@@ -132,17 +132,23 @@ class ConfigManager:
             'port': int(os.getenv('MQTT_BROKER_PORT', mqtt_config.get('port', 1883)))
         })
         
-        # Add authentication only if credentials are provided
+        # Add authentication only if credentials are provided and non-empty
         username = os.getenv('MQTT_USERNAME')
         password = os.getenv('MQTT_PASSWORD')
-        if username and password:
+        if username and password and username.strip() and password.strip():
             mqtt_config['auth'] = {
                 'username': username,
                 'password': password
             }
-        else:
-            # Remove auth if it exists in config
-            mqtt_config.pop('auth', None)
+            logger.info("Using MQTT authentication credentials from environment variables")
+        elif 'auth' in mqtt_config:
+            # If credentials exist in the config file and were not overridden by environment
+            # variables, keep them if they are not empty
+            auth = mqtt_config.get('auth', {})
+            if not (auth.get('username') and auth.get('password')):
+                # Remove auth if it exists in config but credentials are empty
+                mqtt_config.pop('auth', None)
+                logger.info("MQTT authentication disabled (empty credentials)")
         
         # Update logging configuration
         self.system_config['log_level'] = os.getenv('LOG_LEVEL', self.system_config.get('log_level', 'INFO'))

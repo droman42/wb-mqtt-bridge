@@ -7,6 +7,7 @@ import uvicorn
 from typing import Dict, Any, List, Optional
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from pydantic import BaseModel
@@ -14,13 +15,6 @@ from pydantic import BaseModel
 from app.config_manager import ConfigManager
 from app.device_manager import DeviceManager
 from app.mqtt_client import MQTTClient
-
-# Create the FastAPI app
-app = FastAPI(
-    title="MQTT Web Service",
-    description="A web service that manages MQTT devices",
-    version="1.0.0"
-)
 
 # Setup logging
 def setup_logging(log_file: str, log_level: str):
@@ -78,9 +72,10 @@ config_manager = None
 device_manager = None
 mqtt_client = None
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize the application on startup."""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for FastAPI application."""
+    # Startup
     global config_manager, device_manager, mqtt_client
     
     # Initialize config manager
@@ -113,18 +108,17 @@ async def startup_event():
             mqtt_client.register_handler(device_name, handler)
         
         # Get topics
-        topics = device_manager.get_device_topics(device_name, device_config)
+        topics = device_manager.get_device_topics(device_name)
         if topics:
             device_topics[device_name] = topics
     
     # Start MQTT client
     await mqtt_client.start(device_topics)
     logger.info("MQTT Web Service started successfully")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Clean up resources on shutdown."""
-    logger = logging.getLogger(__name__)
+    
+    yield
+    
+    # Shutdown
     logger.info("Shutting down MQTT Web Service")
     
     if device_manager:
@@ -133,6 +127,14 @@ async def shutdown_event():
         await mqtt_client.stop()
     
     logger.info("MQTT Web Service shutdown complete")
+
+# Create the FastAPI app with lifespan
+app = FastAPI(
+    title="MQTT Web Service",
+    description="A web service that manages MQTT devices",
+    version="1.0.0",
+    lifespan=lifespan
+)
 
 # API models
 class MQTTMessage(BaseModel):
@@ -189,6 +191,7 @@ async def reload_system(background_tasks: BackgroundTasks):
 
 async def reload_system_task():
     """Background task to reload the system."""
+    global mqtt_client
     logger = logging.getLogger(__name__)
     
     try:
@@ -212,16 +215,13 @@ async def reload_system_task():
                 new_mqtt_client.register_handler(device_name, handler)
             
             # Get topics
-            topics = device_manager.get_device_topics(device_name, device_config)
+            topics = device_manager.get_device_topics(device_name)
             if topics:
                 device_topics[device_name] = topics
         
         # Start new MQTT client
-        await new_mqtt_client.start(device_topics)
-        
-        # Replace old client with new one
-        global mqtt_client
         mqtt_client = new_mqtt_client
+        await new_mqtt_client.start(device_topics)
         
         logger.info("System reload completed successfully")
     except Exception as e:
@@ -230,21 +230,48 @@ async def reload_system_task():
 @app.get("/devices", tags=["Devices"])
 async def get_device(device_id: str):
     """Get information about a specific device."""
+    logger = logging.getLogger(__name__)
+    
     if not device_manager:
         raise HTTPException(status_code=503, detail="Service not fully initialized")
     
-    device = device_manager.get_device(device_id)
-    if not device:
-        raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
-    
-    device_config = config_manager.get_device_config(device_id)
-    return {
-        "device_id": device_id,
-        "device_name": device.get_name(),
-        "device_class": device_config.get('device_class'),
-        "config": device_config,
-        "state": device.get_state()
-    }
+    try:
+        device = device_manager.get_device(device_id)
+        if not device:
+            logger.error(f"Device {device_id} not found")
+            raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
+        
+        device_config = config_manager.get_device_config(device_id)
+        
+        if not device_config:
+            logger.error(f"Configuration for device {device_id} not found")
+            raise HTTPException(status_code=404, detail=f"Configuration for device {device_id} not found")
+        
+        # Safely get device name and state to handle potential errors
+        try:
+            device_name = device.get_name()
+        except Exception as e:
+            logger.warning(f"Error getting device name for {device_id}: {str(e)}")
+            device_name = device_id
+            
+        try:
+            device_state = device.get_state()
+        except Exception as e:
+            logger.warning(f"Error getting device state for {device_id}: {str(e)}")
+            device_state = {"error": str(e)}
+        
+        return {
+            "device_id": device_id,
+            "device_name": device_name,
+            "device_class": device_config.get('device_class'),
+            "config": device_config,
+            "state": device_state
+        }
+    except Exception as e:
+        logger.error(f"Error getting device {device_id}: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.post("/devices/{device_id}/action", tags=["Devices"])
 async def execute_device_action(
@@ -253,6 +280,7 @@ async def execute_device_action(
     background_tasks: BackgroundTasks
 ):
     """Execute an action on a specific device."""
+    logger = logging.getLogger(__name__)
     if not device_manager:
         raise HTTPException(status_code=503, detail="Service not fully initialized")
     
@@ -261,6 +289,7 @@ async def execute_device_action(
         raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
     
     # Execute the action
+    logger.info(f"Executing action {action.button} for device {device_id} with params {action.params}")
     result = await device.execute_action(action.button, action.params)
     
     if not result["success"]:

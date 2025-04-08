@@ -1,7 +1,7 @@
 import json
 import logging
 from typing import Dict, Any, List
-from .base_device import BaseDevice
+from devices.base_device import BaseDevice
 
 logger = logging.getLogger(__name__)
 

@@ -61,6 +61,7 @@ class BaseDevice(ABC):
             payload = "1"
             
             # Handle the message and get MQTT command if any
+            logger.debug(f"Executing action {button} for device {self.device_id} with topic {topic} and payload {payload}")
             result = await self.handle_message(topic, payload)
             
             return {

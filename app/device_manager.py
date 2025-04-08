@@ -2,6 +2,7 @@ import os
 import importlib.util
 import logging
 import inspect
+import sys
 from typing import Dict, Any, Callable, List, Optional
 from devices.base_device import BaseDevice
 
@@ -21,9 +22,15 @@ class DeviceManager:
             logger.warning(f"Devices directory not found: {self.devices_dir}")
             return
         
+        # Add the parent directory to sys.path to enable absolute imports
+        parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if parent_dir not in sys.path:
+            sys.path.append(parent_dir)
+            logger.info(f"Added {parent_dir} to Python path for imports")
+        
         for filename in os.listdir(self.devices_dir):
             if filename.endswith('.py') and not filename.startswith('__') and filename != 'base_device.py':
-                module_name = filename[:-3]
+                module_name = f"devices.{filename[:-3]}"
                 module_path = os.path.join(self.devices_dir, filename)
                 
                 try:
@@ -43,6 +50,8 @@ class DeviceManager:
                 
                 except Exception as e:
                     logger.error(f"Error loading device module {module_name}: {str(e)}")
+                    import traceback
+                    logger.error(traceback.format_exc())
     
     async def initialize_devices(self, configs: Dict[str, Dict[str, Any]]):
         """Initialize all devices with their configurations."""
@@ -108,4 +117,8 @@ class DeviceManager:
         if not device:
             logger.warning(f"No device found: {device_name}")
             return {}
-        return device.get_state() 
+        return device.get_state()
+    
+    def get_all_devices(self) -> List[str]:
+        """Get a list of all device IDs."""
+        return list(self.devices.keys()) 

@@ -1,7 +1,7 @@
 import json
 import logging
 from typing import Dict, Any, List
-from .base_device import BaseDevice
+from devices.base_device import BaseDevice
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ class WirenboardIRDevice(BaseDevice):
             if topic:
                 topics.append(topic)
             else:
-                logger.error(f"MQTT subscription topic {command.get("button")} not found for {alias}")
+                logger.error(f"MQTT subscription topic {command.get('button')} not found for {alias}")
         
         logger.debug(f"Device {self.get_name()} subscribing to topics: {topics}")
         return topics

@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pywebostv.discovery import *
 from pywebostv.connection import *
 from pywebostv.controls import *
-from .base_device import BaseDevice
+from devices.base_device import BaseDevice
 
 logger = logging.getLogger(__name__)
 
@@ -38,19 +38,13 @@ class LgTv(BaseDevice):
                 
             self.state["ip_address"] = tv_config.get("ip_address")
             self.state["mac_address"] = tv_config.get("mac_address")
-            
-            # Get store path for client key
-            store_path = tv_config.get("store_path", f"/tmp/{self.device_id}_store.json")
-            try:
-                if os.path.exists(store_path):
-                    with open(store_path, 'r') as f:
-                        self.store = json.load(f)
-                else:
-                    self.store = {}
-            except Exception as e:
-                logger.warning(f"Could not load client store: {str(e)}")
-                self.store = {}
-            
+
+            # Get connection client key
+            if tv_config.get("client_key") == "":
+                logger.error(f"No Access Key configured for TV {self.get_name()}")
+                return False
+            self.store = {"client_key": tv_config.get("client_key")}
+
             if not self.state["ip_address"]:
                 logger.error(f"No IP address configured for TV {self.get_name()}")
                 return False
@@ -121,6 +115,11 @@ class LgTv(BaseDevice):
             
             # Run in executor since PyWebOSTV uses blocking calls
             def connect_sync():
+                # Check if store is valid
+                if not self.store:
+                    logger.error("Invalid store - cannot connect to TV")
+                    return None
+                
                 # Create client
                 if self.config.get("tv", {}).get("secure", True):
                     client = WebOSClient(ip_address, secure=True)
@@ -131,20 +130,17 @@ class LgTv(BaseDevice):
                 client.connect()
                 
                 # Register with the TV
+                registered = False
                 for status in client.register(self.store):
                     if status == WebOSClient.PROMPTED:
                         logger.info("Please accept the connection on the TV!")
                     elif status == WebOSClient.REGISTERED:
                         logger.info("Registration successful!")
+                        registered = True
                 
-                # Save the updated store
-                store_path = self.config.get("tv", {}).get("store_path", 
-                                                           f"/tmp/{self.device_id}_store.json")
-                try:
-                    with open(store_path, 'w') as f:
-                        json.dump(self.store, f)
-                except Exception as e:
-                    logger.warning(f"Could not save client store: {str(e)}")
+                if not registered:
+                    logger.error("Failed to register with TV")
+                    return None
                 
                 return client
             
