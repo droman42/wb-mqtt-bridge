@@ -6,4 +6,5 @@ python-dotenv>=1.0.0
 broadlink>=0.18.0
 pywebostv>=0.8.9
 websockets>=10.0
-asyncio>=3.4.3 
+asyncio>=3.4.3
+paho-mqtt>=1.6.1 

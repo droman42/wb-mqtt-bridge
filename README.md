@@ -135,3 +135,74 @@ For production deployment, it's recommended to:
 ## License
 
 MIT 
+
+# MQTT Sniffer
+
+A simple utility to monitor all MQTT topic changes on a broker and log them to a file.
+
+## Installation
+
+1. Make sure you have Python 3.6+ installed
+2. Install the required dependency:
+
+```bash
+pip install paho-mqtt
+```
+
+## Usage
+
+Run the MQTT sniffer with default settings:
+
+```bash
+python mqtt_sniffer.py
+```
+
+This will connect to a local MQTT broker on port 1883 and log all topic changes to `mqtt_sniffer.log`.
+
+### Command Line Options
+
+```
+  -h, --help            Show this help message and exit
+  -b BROKER, --broker BROKER
+                        MQTT broker address (default: localhost)
+  -p PORT, --port PORT  MQTT broker port (default: 1883)
+  -u USERNAME, --username USERNAME
+                        MQTT broker username
+  -P PASSWORD, --password PASSWORD
+                        MQTT broker password
+  -l LOG_FILE, --log-file LOG_FILE
+                        Path to log file (default: mqtt_sniffer.log)
+  -t TOPIC, --topic TOPIC
+                        MQTT topic filter (default: # - all topics)
+```
+
+### Examples
+
+Connect to a remote broker:
+```bash
+python mqtt_sniffer.py -b mqtt.example.com
+```
+
+Connect with authentication:
+```bash
+python mqtt_sniffer.py -u myuser -P mypassword
+```
+
+Log only specific topics:
+```bash
+python mqtt_sniffer.py -t "home/sensors/#"
+```
+
+Specify a custom log file:
+```bash
+python mqtt_sniffer.py -l my_mqtt_traffic.log
+```
+
+## Output Format
+
+The log file contains entries in the following format:
+```
+2023-06-01 12:34:56.789 - INFO - Topic: home/temperature | Payload: 22.5
+```
+
+Each entry includes a timestamp, log level, topic name, and message payload. 

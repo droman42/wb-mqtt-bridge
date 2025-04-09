@@ -52,5 +52,5 @@
       "description": "Hood Off"
     }
   },
-  "key_pressed_topic": "/devices/wb-mr6c_47/controls/Input 6 counter"
+  "key_pressed_topic": "/devices/wb-gpio/controls/EXT2_IN2"
 } 

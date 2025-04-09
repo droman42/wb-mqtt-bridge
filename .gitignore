@@ -67,3 +67,4 @@ share/
 etc/jupyter/
 pyvenv.cfg
 lib64
+*.log
