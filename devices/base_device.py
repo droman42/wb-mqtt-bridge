@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Type
 import logging
 import json
+from datetime import datetime
+
+from app.schemas import BaseDeviceState, LastCommand
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +17,7 @@ class BaseDevice(ABC):
         self.device_name = config.get('device_name', 'unknown')
         self.state = {}  # Device state storage
         self._action_handlers = {}  # Cache for action handlers
+        self._state_schema: Optional[Type[BaseDeviceState]] = None
     
     def get_id(self) -> str:
         """Return the device ID."""
@@ -128,11 +132,12 @@ class BaseDevice(ABC):
                 
                 # Update state
                 self.update_state({
-                    "last_command": {
-                        "action": action_name,
-                        "source": "mqtt",
-                        "timestamp": "timestamp_here"  # TODO: Add actual timestamp
-                    }
+                    "last_command": LastCommand(
+                        action=action_name,
+                        source="mqtt",
+                        timestamp=datetime.now(),
+                        params=action_config.get("params")
+                    ).dict()
                 })
         except Exception as e:
             logger.error(f"Error executing action {action_name}: {str(e)}")
@@ -151,6 +156,16 @@ class BaseDevice(ABC):
     
     def get_state(self) -> Dict[str, Any]:
         """Get the current device state."""
+        if self._state_schema:
+            try:
+                return self._state_schema(
+                    device_id=self.device_id,
+                    device_name=self.device_name,
+                    **self.state
+                ).dict()
+            except Exception as e:
+                logger.error(f"Error validating state with schema: {str(e)}")
+                return self.state
         return self.state
     
     def update_state(self, updates: Dict[str, Any]):

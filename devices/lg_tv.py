@@ -9,61 +9,66 @@ from pywebostv.discovery import *
 from pywebostv.connection import *
 from pywebostv.controls import *
 from devices.base_device import BaseDevice
+from app.schemas import LgTvState
 
 logger = logging.getLogger(__name__)
 
 class LgTv(BaseDevice):
     """Implementation of an LG TV controlled over the network using PyWebOSTV library."""
     
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self._state_schema = LgTvState
+        self.state = {
+            "power": "unknown",
+            "volume": 0,
+            "mute": False,
+            "current_app": None,
+            "input_source": None,
+            "last_command": None,
+            "connected": False,
+            "ip_address": None,
+            "mac_address": None
+        }
+        self.client = None
+        self.system = None
+        self.media = None
+        self.app = None
+        self.source_control = None
+        self.executor = None
+    
     async def setup(self) -> bool:
         """Initialize the device."""
         try:
-            # Initialize device state
-            self.state = {
-                "power": "unknown",
-                "volume": 0,
-                "mute": False,
-                "current_app": None,
-                "input_source": None,
-                "last_command": None,
-                "connected": False
-            }
-            
             # Get TV configuration
             tv_config = self.config.get("tv", {})
             if not tv_config:
                 logger.error(f"No TV configuration for device {self.get_name()}")
-                return False
-                
+                self.state["error"] = "No TV configuration"
+                return True  # Return True to allow device to be initialized even without TV config
+            
             self.state["ip_address"] = tv_config.get("ip_address")
             self.state["mac_address"] = tv_config.get("mac_address")
-
-            # Get connection client key
-            if tv_config.get("client_key") == "":
-                logger.error(f"No Access Key configured for TV {self.get_name()}")
-                return False
-            self.store = {"client_key": tv_config.get("client_key")}
-
-            if not self.state["ip_address"]:
-                logger.error(f"No IP address configured for TV {self.get_name()}")
-                return False
             
-            # Set up executor for synchronous calls
+            # Initialize store and executor
+            self.store = {"client_key": tv_config.get("client_key")}
             self.executor = ThreadPoolExecutor(max_workers=2)
             
-            # Try to connect to TV
-            try:
-                await self._connect_to_tv()
-            except Exception as e:
-                logger.warning(f"Could not connect to TV during setup: {str(e)}")
-                # Continue setup even if TV is off
+            # Initialize TV connection
+            if await self._connect_to_tv():
+                logger.info(f"Successfully connected to TV {self.get_name()}")
+                self.state["connected"] = True
+            else:
+                logger.error(f"Failed to connect to TV {self.get_name()}")
+                self.state["connected"] = False
+                self.state["error"] = "Failed to connect to TV"
             
-            logger.info(f"LG TV {self.get_name()} initialized")
             return True
             
         except Exception as e:
-            logger.error(f"Failed to initialize LG TV {self.get_name()}: {str(e)}")
-            return False
+            logger.error(f"Failed to initialize TV {self.get_name()}: {str(e)}")
+            self.state["error"] = str(e)
+            return True  # Return True to allow device to be initialized even with errors
     
     async def shutdown(self) -> bool:
         """Cleanup device resources."""
@@ -111,42 +116,47 @@ class LgTv(BaseDevice):
         """Establish a connection to the TV using PyWebOSTV."""
         try:
             ip_address = self.state.get("ip_address")
+            if not ip_address:
+                logger.error("No IP address configured for TV")
+                return False
             
             # Run in executor since PyWebOSTV uses blocking calls
             def connect_sync():
-                # Check if store is valid
-                if not self.store:
-                    logger.error("Invalid store - cannot connect to TV")
+                try:
+                    # Create client
+                    if self.config.get("tv", {}).get("secure", True):
+                        client = WebOSClient(ip_address, secure=True)
+                    else:
+                        client = WebOSClient(ip_address)
+                    
+                    # Connect
+                    client.connect()
+                    
+                    # Register with the TV
+                    registered = False
+                    for status in client.register(self.store):
+                        if status == WebOSClient.PROMPTED:
+                            logger.info("Please accept the connection on the TV!")
+                        elif status == WebOSClient.REGISTERED:
+                            logger.info("Registration successful!")
+                            registered = True
+                    
+                    if not registered:
+                        logger.error("Failed to register with TV")
+                        return None
+                    
+                    return client
+                except Exception as e:
+                    logger.error(f"Error in connect_sync: {str(e)}")
                     return None
-                
-                # Create client
-                if self.config.get("tv", {}).get("secure", True):
-                    client = WebOSClient(ip_address, secure=True)
-                else:
-                    client = WebOSClient(ip_address)
-                
-                # Connect
-                client.connect()
-                
-                # Register with the TV
-                registered = False
-                for status in client.register(self.store):
-                    if status == WebOSClient.PROMPTED:
-                        logger.info("Please accept the connection on the TV!")
-                    elif status == WebOSClient.REGISTERED:
-                        logger.info("Registration successful!")
-                        registered = True
-                
-                if not registered:
-                    logger.error("Failed to register with TV")
-                    return None
-                
-                return client
             
             # Run the connection in a separate thread
             self.client = await asyncio.get_event_loop().run_in_executor(
                 self.executor, connect_sync
             )
+            
+            if not self.client:
+                return False
             
             # Initialize controls
             self.media = MediaControl(self.client)
@@ -546,14 +556,37 @@ class LgTv(BaseDevice):
         except Exception as e:
             logger.error(f"Error handling message for {self.get_name()}: {str(e)}")
     
-    def get_current_state(self) -> Dict[str, Any]:
+    def get_current_state(self) -> LgTvState:
         """Return the current state of the TV."""
-        return {
-            "power": self.state.get("power", "unknown"),
-            "volume": self.state.get("volume", 0),
-            "mute": self.state.get("mute", False),
-            "current_app": self.state.get("current_app"),
-            "input_source": self.state.get("input_source"),
-            "connected": self.state.get("connected", False),
-            "last_command": self.state.get("last_command")
-        } 
+        return LgTvState(
+            device_id=self.device_id,
+            device_name=self.device_name,
+            power=self.state.get("power", "unknown"),
+            volume=self.state.get("volume", 0),
+            mute=self.state.get("mute", False),
+            current_app=self.state.get("current_app"),
+            input_source=self.state.get("input_source"),
+            connected=self.state.get("connected", False),
+            ip_address=self.state.get("ip_address"),
+            mac_address=self.state.get("mac_address"),
+            last_command=self.state.get("last_command"),
+            error=self.state.get("error")
+        )
+        
+    def get_state(self) -> Dict[str, Any]:
+        """Override BaseDevice get_state to ensure we safely return state."""
+        if not hasattr(self, 'state') or self.state is None:
+            return LgTvState(
+                device_id=self.device_id,
+                device_name=self.device_name,
+                power="unknown",
+                volume=0,
+                mute=False,
+                current_app=None,
+                input_source=None,
+                connected=False,
+                ip_address=None,
+                mac_address=None,
+                error="Device state not properly initialized"
+            ).model_dump()
+        return super().get_state() 

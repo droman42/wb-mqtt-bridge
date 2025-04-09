@@ -5,6 +5,7 @@ import inspect
 import sys
 from typing import Dict, Any, Callable, List, Optional
 from devices.base_device import BaseDevice
+from app.schemas import DeviceConfig
 
 logger = logging.getLogger(__name__)
 
@@ -28,10 +29,12 @@ class DeviceManager:
             sys.path.append(parent_dir)
             logger.info(f"Added {parent_dir} to Python path for imports")
         
+        logger.info(f"Loading device modules from {self.devices_dir}")
         for filename in os.listdir(self.devices_dir):
             if filename.endswith('.py') and not filename.startswith('__') and filename != 'base_device.py':
                 module_name = f"devices.{filename[:-3]}"
                 module_path = os.path.join(self.devices_dir, filename)
+                logger.info(f"Loading module: {module_name} from {module_path}")
                 
                 try:
                     spec = importlib.util.spec_from_file_location(module_name, module_path)
@@ -52,13 +55,20 @@ class DeviceManager:
                     logger.error(f"Error loading device module {module_name}: {str(e)}")
                     import traceback
                     logger.error(traceback.format_exc())
+        
+        logger.info(f"Loaded device classes: {list(self.device_classes.keys())}")
     
-    async def initialize_devices(self, configs: Dict[str, Dict[str, Any]]):
+    async def initialize_devices(self, configs: Dict[str, DeviceConfig]):
         """Initialize all devices with their configurations."""
+        logger.info(f"Initializing devices with configs: {list(configs.keys())}")
         for device_id, config in configs.items():
             try:
+                # Convert Pydantic model to dict
+                config_dict = config.model_dump()
+                logger.info(f"Initializing device {device_id} with class {config_dict.get('device_class')}")
+                
                 # Get the device class name from config
-                class_name = config.get('device_class')
+                class_name = config_dict.get('device_class')
                 if not class_name:
                     logger.error(f"No device class specified for device {device_id}")
                     continue
@@ -67,10 +77,11 @@ class DeviceManager:
                 device_class = self.device_classes.get(class_name)
                 if not device_class:
                     logger.error(f"Device class {class_name} not found for device {device_id}")
+                    logger.error(f"Available classes: {list(self.device_classes.keys())}")
                     continue
                 
                 # Create device instance
-                device = device_class(config)
+                device = device_class(config_dict)
                 
                 # Initialize the device
                 if await device.setup():
@@ -81,6 +92,8 @@ class DeviceManager:
             
             except Exception as e:
                 logger.error(f"Error initializing device {device_id}: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
     
     async def shutdown_devices(self):
         """Shutdown all devices."""

@@ -15,6 +15,20 @@ from pydantic import BaseModel
 from app.config_manager import ConfigManager
 from app.device_manager import DeviceManager
 from app.mqtt_client import MQTTClient
+from app.schemas import (
+    MQTTBrokerConfig,
+    DeviceConfig,
+    DeviceState,
+    DeviceActionResponse,
+    DeviceActionsResponse,
+    SystemConfig,
+    ErrorResponse,
+    MQTTMessage,
+    SystemInfo,
+    ServiceInfo,
+    DeviceAction,
+    ReloadResponse
+)
 
 # Setup logging
 def setup_logging(log_file: str, log_level: str):
@@ -83,8 +97,8 @@ async def lifespan(app: FastAPI):
     
     # Setup logging with system config
     system_config = config_manager.get_system_config()
-    log_file = system_config.get('log_file', 'logs/service.log')
-    log_level = system_config.get('log_level', 'INFO')
+    log_file = system_config.log_file or 'logs/service.log'
+    log_level = system_config.log_level
     setup_logging(log_file, log_level)
     
     logger = logging.getLogger(__name__)
@@ -96,8 +110,14 @@ async def lifespan(app: FastAPI):
     await device_manager.initialize_devices(config_manager.get_all_device_configs())
     
     # Initialize MQTT client
-    mqtt_broker_config = config_manager.get_mqtt_broker_config()
-    mqtt_client = MQTTClient(mqtt_broker_config)
+    mqtt_broker_config = system_config.mqtt_broker
+    mqtt_client = MQTTClient({
+        'host': mqtt_broker_config.host,
+        'port': mqtt_broker_config.port,
+        'client_id': mqtt_broker_config.client_id,
+        'keepalive': mqtt_broker_config.keepalive,
+        'auth': mqtt_broker_config.auth
+    })
     
     # Get topics for all devices
     device_topics = {}
@@ -136,32 +156,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# API models
-class MQTTMessage(BaseModel):
-    topic: str
-    payload: Any
-    qos: int = 0
-    retain: bool = False
-
-class SystemInfo(BaseModel):
-    version: str = "1.0.0"
-    mqtt_broker: Dict[str, Any]
-    devices: List[str]
-
-class DeviceAction(BaseModel):
-    """Model for device action requests."""
-    action: str
-    params: Optional[Dict[str, Any]] = None
-
 # API endpoints
-@app.get("/", tags=["System"])
+@app.get("/", tags=["System"], response_model=ServiceInfo)
 async def root():
     """Root endpoint - service information."""
-    return {
-        "service": "MQTT Web Service",
-        "version": "1.0.0",
-        "status": "running"
-    }
+    return ServiceInfo(
+        service="MQTT Web Service",
+        version="1.0.0",
+        status="running"
+    )
 
 @app.get("/system", tags=["System"], response_model=SystemInfo)
 async def get_system_info():
@@ -169,13 +172,13 @@ async def get_system_info():
     if not config_manager or not device_manager:
         raise HTTPException(status_code=503, detail="Service not fully initialized")
     
-    return {
-        "version": "1.0.0",
-        "mqtt_broker": config_manager.get_mqtt_broker_config(),
-        "devices": device_manager.get_all_devices()
-    }
+    return SystemInfo(
+        version="1.0.0",
+        mqtt_broker=config_manager.get_mqtt_broker_config(),
+        devices=device_manager.get_all_devices()
+    )
 
-@app.post("/reload", tags=["System"])
+@app.post("/reload", tags=["System"], response_model=ReloadResponse)
 async def reload_system(background_tasks: BackgroundTasks):
     """Reload configurations and device modules."""
     if not config_manager or not device_manager or not mqtt_client:
@@ -187,7 +190,10 @@ async def reload_system(background_tasks: BackgroundTasks):
     # Reload in the background to not block the response
     background_tasks.add_task(reload_system_task)
     
-    return {"status": "reload initiated"}
+    return ReloadResponse(
+        status="reload initiated",
+        message="System reload has been initiated in the background"
+    )
 
 async def reload_system_task():
     """Background task to reload the system."""
@@ -196,7 +202,7 @@ async def reload_system_task():
     
     try:
         # Stop MQTT client
-        await mqtt_client.stop()
+        await mqtt_client.disconnect()
         
         # Reload configs and device modules
         config_manager.reload_configs()
@@ -204,7 +210,13 @@ async def reload_system_task():
         
         # Reconfigure MQTT client
         mqtt_broker_config = config_manager.get_mqtt_broker_config()
-        new_mqtt_client = MQTTClient(mqtt_broker_config)
+        new_mqtt_client = MQTTClient({
+            'host': mqtt_broker_config.host,
+            'port': mqtt_broker_config.port,
+            'client_id': mqtt_broker_config.client_id,
+            'keepalive': mqtt_broker_config.keepalive,
+            'auth': mqtt_broker_config.auth
+        })
         
         # Get topics for all devices
         device_topics = {}
@@ -221,13 +233,16 @@ async def reload_system_task():
         
         # Start new MQTT client
         mqtt_client = new_mqtt_client
-        await new_mqtt_client.start(device_topics)
+        await mqtt_client.connect()
+        
+        # Initialize devices
+        await device_manager.initialize_devices()
         
         logger.info("System reload completed successfully")
     except Exception as e:
         logger.error(f"Error during system reload: {str(e)}")
 
-@app.get("/devices", tags=["Devices"])
+@app.get("/devices/{device_id}", tags=["Devices"], response_model=DeviceState)
 async def get_device(device_id: str):
     """Get information about a specific device."""
     logger = logging.getLogger(__name__)
@@ -260,20 +275,20 @@ async def get_device(device_id: str):
             logger.warning(f"Error getting device state for {device_id}: {str(e)}")
             device_state = {"error": str(e)}
         
-        return {
-            "device_id": device_id,
-            "device_name": device_name,
-            "device_class": device_config.get('device_class'),
-            "config": device_config,
-            "state": device_state
-        }
+        return DeviceState(
+            device_id=device_id,
+            device_name=device_name,
+            state=device_state,
+            last_command=device_state.get("last_command"),
+            error=device_state.get("error")
+        )
     except Exception as e:
         logger.error(f"Error getting device {device_id}: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@app.post("/devices/{device_id}/action", tags=["Devices"])
+@app.post("/devices/{device_id}/action", tags=["Devices"], response_model=DeviceActionResponse)
 async def execute_device_action(
     device_id: str, 
     action: DeviceAction,
@@ -304,17 +319,19 @@ async def execute_device_action(
             mqtt_cmd["payload"]
         )
     
-    return {
-        "device_id": device_id,
-        "action": action.action,
-        "state": result["state"],
-        "message": "Action executed successfully"
-    }
+    return DeviceActionResponse(
+        success=True,
+        device_id=device_id,
+        action=action.action,
+        state=result["state"],
+        message="Action executed successfully"
+    )
 
 # Add endpoint to get available actions for a device
-@app.get("/devices/{device_id}/actions", tags=["Devices"])
+@app.get("/devices/{device_id}/actions", tags=["Devices"], response_model=DeviceActionsResponse)
 async def get_device_actions(device_id: str):
     """Get list of available actions for a device."""
+    logger = logging.getLogger(__name__)
     if not device_manager:
         raise HTTPException(status_code=503, detail="Service not fully initialized")
     
@@ -322,22 +339,34 @@ async def get_device_actions(device_id: str):
     if not device:
         raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
     
-    # For WirenboardIRDevice, get commands from config
-    if isinstance(device, WirenboardIRDevice):
-        commands = device.get_available_commands()
-        return {
-            "device_id": device_id,
-            "actions": [
-                {
-                    "action": cmd_config.get("action"),
-                    "description": cmd_config.get("description", "No description")
-                }
-                for cmd_config in commands.values()
+    # Get device-specific actions
+    try:
+        actions = []
+        if hasattr(device, 'get_available_commands') and callable(device.get_available_commands):
+            commands = device.get_available_commands()
+            logger.info(f"Retrieved {len(commands)} commands for device {device_id}")
+            
+            actions = [
+                {"action": cmd_name, "description": cmd_config.get("description", "No description")}
+                for cmd_name, cmd_config in commands.items()
             ]
-        }
-    
-    # For other devices, return empty list or device-specific actions
-    return {
-        "device_id": device_id,
-        "actions": []
-    }
+        else:
+            logger.warning(f"Device {device_id} does not implement get_available_commands method")
+            
+            # Try to get commands from device configuration if available
+            if hasattr(device, 'config') and hasattr(device.config, 'commands'):
+                commands = device.config.commands
+                actions = [
+                    {"action": cmd_name, "description": cmd_data.get("description", "No description")}
+                    for cmd_name, cmd_data in commands.items()
+                ]
+        
+        return DeviceActionsResponse(
+            device_id=device_id,
+            actions=actions
+        )
+    except Exception as e:
+        logger.error(f"Error getting actions for device {device_id}: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

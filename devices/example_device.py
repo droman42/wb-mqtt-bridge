@@ -2,26 +2,32 @@ import json
 import logging
 from typing import Dict, Any, List
 from devices.base_device import BaseDevice
+from app.schemas import ExampleDeviceState
 
 logger = logging.getLogger(__name__)
 
 class ExampleDevice(BaseDevice):
     """Example device implementation."""
     
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self._state_schema = ExampleDeviceState
+        self.state = {
+            "power": "off",
+            "last_reading": None,
+            "update_interval": self.config.get("parameters", {}).get("update_interval", 60),
+            "threshold": self.config.get("parameters", {}).get("threshold", 25.5)
+        }
+    
     async def setup(self) -> bool:
         """Initialize the device."""
         try:
             logger.info(f"Initializing device: {self.get_name()}")
-            self.state = {
-                "power": "off",
-                "last_reading": None,
-                "update_interval": self.config.get("parameters", {}).get("update_interval", 60),
-                "threshold": self.config.get("parameters", {}).get("threshold", 25.5)
-            }
             logger.info(f"Example device {self.get_name()} initialized")
             return True
         except Exception as e:
             logger.error(f"Failed to initialize device {self.get_name()}: {str(e)}")
+            self.state["error"] = str(e)
             return False
     
     async def shutdown(self) -> bool:
@@ -86,4 +92,31 @@ class ExampleDevice(BaseDevice):
             logger.info("Getting device data")
             return self.get_state()
         else:
-            logger.warning(f"Unknown command: {command}") 
+            logger.warning(f"Unknown command: {command}")
+    
+    def get_current_state(self) -> ExampleDeviceState:
+        """Return the current state of the device."""
+        return ExampleDeviceState(
+            device_id=self.device_id,
+            device_name=self.device_name,
+            power=self.state.get("power", "off"),
+            last_reading=self.state.get("last_reading"),
+            update_interval=self.state.get("update_interval", 60),
+            threshold=self.state.get("threshold", 25.5),
+            last_command=self.state.get("last_command"),
+            error=self.state.get("error")
+        )
+        
+    def get_state(self) -> Dict[str, Any]:
+        """Override BaseDevice get_state to ensure we safely return state."""
+        if not hasattr(self, 'state') or self.state is None:
+            return ExampleDeviceState(
+                device_id=self.device_id,
+                device_name=self.device_name,
+                power="off",
+                last_reading=None,
+                update_interval=60,
+                threshold=25.5,
+                error="Device state not properly initialized"
+            ).dict()
+        return super().get_state() 

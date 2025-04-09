@@ -2,33 +2,38 @@ import json
 import logging
 from typing import Dict, Any, List
 from devices.base_device import BaseDevice
+from app.schemas import WirenboardIRState
 
 logger = logging.getLogger(__name__)
 
 class WirenboardIRDevice(BaseDevice):
     """Implementation of an IR device controlled through Wirenboard."""
     
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self._state_schema = WirenboardIRState
+        self.state = {
+            "last_command": None,
+            "alias": self.config.get("alias", self.device_name)
+        }
+    
     async def setup(self) -> bool:
         """Initialize the device."""
         try:
-            # Initialize device state
-            self.state = {
-                "last_command": None,
-                "alias": self.config.get("alias", self.device_name)
-            }
-            
             # Load and validate commands configuration
             commands = self.config.get("commands", {})
             if not commands:
                 logger.error(f"No commands defined for device {self.get_name()}")
-                return False
+                self.state["error"] = "No commands defined"
+                return True  # Return True to allow device to be initialized even without commands
             
             logger.info(f"Wirenboard IR device {self.get_name()} initialized with {len(commands)} commands")
             return True
             
         except Exception as e:
             logger.error(f"Failed to initialize Wirenboard IR device {self.get_name()}: {str(e)}")
-            return False
+            self.state["error"] = str(e)
+            return True  # Return True to allow device to be initialized even with errors
     
     async def shutdown(self) -> bool:
         """Cleanup device resources."""
@@ -38,6 +43,27 @@ class WirenboardIRDevice(BaseDevice):
         except Exception as e:
             logger.error(f"Error during device shutdown: {str(e)}")
             return False
+    
+    def get_current_state(self) -> WirenboardIRState:
+        """Return the current state of the device."""
+        return WirenboardIRState(
+            device_id=self.device_id,
+            device_name=self.device_name,
+            alias=self.state.get("alias", self.device_name),
+            last_command=self.state.get("last_command"),
+            error=self.state.get("error")
+        )
+        
+    def get_state(self) -> Dict[str, Any]:
+        """Override BaseDevice get_state to ensure we safely return state."""
+        if not hasattr(self, 'state') or self.state is None:
+            return WirenboardIRState(
+                device_id=self.device_id,
+                device_name=self.device_name,
+                alias=self.device_name,
+                error="Device state not properly initialized"
+            ).dict()
+        return super().get_state()
     
     def subscribe_topics(self) -> List[str]:
         """Define the MQTT topics this device should subscribe to."""
