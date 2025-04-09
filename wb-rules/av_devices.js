@@ -1,58 +1,53 @@
-// Define virtual device for Musical Fidelity M6si integrated amplifier
+// Define virtual devices for AV equipment control
+
+// Musical Fidelity M6si Integrated Amplifier
 defineVirtualDevice("amplifier", {
     title: "Musical Fideliy M6si",
     cells: {
-      // Toggle power state of the amplifier
+      // Power control
       power_toggle: {
         type: "pushbutton",
         value: false
       },
-      // Increase volume level
+      // Volume controls
       volume_up: {
         type: "pushbutton",
         value: false
       },
-      // Decrease volume level
       volume_down: {
         type: "pushbutton",
         value: false
       },
-      // Toggle mute state
+      // Mute function
       mute: {
         type: "pushbutton",
         value: false
       },
-      // Select CD input source
+      // Input selection controls
       cd: {
         type: "pushbutton",
         value: false
       },
-      // Select USB input source
       usb: {
         type: "pushbutton",
         value: false
       },
-      // Select phono input source
       phono: {
         type: "pushbutton",
         value: false
       },
-      // Select tuner input source
       tuner: {
         type: "pushbutton",
         value: false
       },
-      // Select AUX 1 input source
       aux1: {
         type: "pushbutton",
         value: false
       },
-      // Select AUX 2 input source
       aux2: {
         type: "pushbutton",
         value: false
       },
-      // Select balanced input source
       balanced: {
         type: "pushbutton",
         value: false
@@ -60,46 +55,43 @@ defineVirtualDevice("amplifier", {
     }
   });
 
-  // Define virtual device for Pioneer CLD-D925 Laserdisc player
+  // Pioneer CLD-D925 Laserdisc Player
   defineVirtualDevice("ld_player", {
     title: "Pioneer CLD-D925",
     cells: {
-      // Toggle power state of the player
+      // Power control
       power_toggle: {
         type: "pushbutton",
         value: false
       },
-      // Open/close disc tray
+      // Disc tray control
       tray: {
         type: "pushbutton",
         value: false
       },
-      // Start playback
+      // Playback controls
       play: {
         type: "pushbutton",
         value: false
       },
-      // Stop playback
       stop: {
         type: "pushbutton",
         value: false
       },
-      // Pause/resume playback
       pause: {
         type: "pushbutton",
         value: false
       },
-      // Skip to next chapter
+      // Chapter navigation
       chapter_plus: {
         type: "pushbutton",
         value: false
       },
-      // Skip to previous chapter
       chapter_minus: {
         type: "pushbutton",
         value: false
       },
-      // Toggle audio mode
+      // Audio track selection
       audio: {
         type: "pushbutton",
         value: false
@@ -107,79 +99,171 @@ defineVirtualDevice("amplifier", {
     }
   });
 
-  // Define virtual device for DVDO Edge Green video processor/upscaler
+  // DVDO Edge Green Video Processor
   defineVirtualDevice("upscaler", {
     title: "DVDO Edge Green",
     cells: {
-      // Turn on the upscaler
+      // Power controls
       power_on: {
         type: "pushbutton",
         value: false
       },
-      // Turn off the upscaler
       power_off: {
         type: "pushbutton",
         value: false
       },
-      // Select video input
+      // Input selection
       input_video: {
         type: "pushbutton",
         value: false
       },
-      // Select S-VHS input
       input_s_vhs: {
         type: "pushbutton",
         value: false
       },
-      // Set aspect ratio to 4:3
+      // Aspect ratio controls
       ratio_4_3: {
         type: "pushbutton",
         value: false
       },
-      // Set aspect ratio to 16:9
       ratio_16_9: {
         type: "pushbutton",
         value: false
       },
-      // Toggle letterbox mode
       letterbox: {
         type: "pushbutton",
         value: false
       },
-      // Open main menu
+      // Menu navigation controls
       menu: {
         type: "pushbutton",
         value: false
       },
-      // Exit menu
       menu_exit: {
         type: "pushbutton",
         value: false
       },
-      // Navigate menu up
       menu_up: {
         type: "pushbutton",
         value: false
       },
-      // Navigate menu down
       menu_down: {
         type: "pushbutton",
         value: false
       },
-      // Navigate menu left
       menu_left: {
         type: "pushbutton",
         value: false
       },
-      // Navigate menu right
       menu_right: {
         type: "pushbutton",
         value: false
       },
-      // Confirm menu selection
       ok_enter: {
         type: "pushbutton",
         value: false
       }
     }
   });
+
+  // Zappiti Neo Media Player
+  defineVirtualDevice("video", {
+    title: "Zappiti Neo",
+    cells: {
+      // Power controls
+      power_on: {
+        type: "pushbutton",
+        value: false
+      },
+      power_off: {
+        type: "pushbutton",
+        value: false
+      },
+      // Playback controls
+      play_pause: {
+        type: "pushbutton",
+        value: false
+      },
+      chapter_plus: {
+        type: "pushbutton",
+        value: false
+      },
+      chapter_minus: {
+        type: "pushbutton",
+        value: false
+      },
+      stop: {
+        type: "pushbutton",
+        value: false
+      },
+      // Navigation controls
+      up: {
+        type: "pushbutton",
+        value: false
+      },
+      down: {
+        type: "pushbutton",
+        value: false
+      },
+      left: {
+        type: "pushbutton",
+        value: false
+      },
+      right: {
+        type: "pushbutton",
+        value: false
+      },
+      ok_enter: {
+        type: "pushbutton",
+        value: false
+      },
+      // Media controls
+      audio: {
+        type: "pushbutton",
+        value: false
+      },
+      subtitles: {
+        type: "pushbutton",
+        value: false
+      },
+      // System controls
+      home : {
+        type: "pushbutton",
+        value: false
+      },
+      settings: {
+        type: "pushbutton",
+        value: false
+      },
+      back: {
+        type: "pushbutton",
+        value: false
+      },
+      zappiti: {
+        type: "pushbutton",
+        value: false
+      },
+      explorer: {
+        type: "pushbutton",
+        value: false
+      }
+    }
+  });
+
+  // Auralic Altair G1 Streamer
+  defineVirtualDevice("streamer", {
+    title: "Auralic Altair G1",
+    cells: {
+      // Power control
+      power_toggle: {
+        type: "pushbutton",
+        value: false
+      },
+      // Input selection
+      input_stream: {
+        type: "pushbutton",
+        value: false
+      }
+    }
+  });
+

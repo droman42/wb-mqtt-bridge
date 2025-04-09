@@ -18,12 +18,12 @@
       "rom_position": "27",
       "description": "Power Off"
     },
-    "pause": {
-      "action": "pause",
-      "topic": "/devices/video/controls/pause",
+    "play_pause": {
+      "action": "play_pause",
+      "topic": "/devices/video/controls/play_pause",
       "location": "wb-msw-v3_207",
       "rom_position": "28",
-      "description": "Pause"
+      "description": "Play/Pause"
     },
     "chapter_plus": {
       "action": "chapter_plus",
