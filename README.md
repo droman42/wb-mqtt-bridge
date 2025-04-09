@@ -105,7 +105,7 @@ class MyCustomDevice(BaseDevice):
     async def setup(self) -> bool:
         # Initialize device
         self.state = {
-            "available_commands": self.config.get("commands", {})
+            "device_specific_state": None
         }
         return True
         
