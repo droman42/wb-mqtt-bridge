@@ -9,7 +9,7 @@ defineVirtualDevice("amplifier", {
         type: "pushbutton",
         value: false
       },
-      vol_down: {
+      volume_down: {
         type: "pushbutton",
         value: false
       },
