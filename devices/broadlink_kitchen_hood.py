@@ -22,7 +22,6 @@ class BroadlinkKitchenHood(BaseDevice):
                 "light": "off",
                 "speed": 0,
                 "last_command": None,
-                "available_commands": self.config.get("commands", {}),
                 "device_id": self.config.get("device_id"),  # Use device_id from config
                 "connection_status": "disconnected"
             }
@@ -62,15 +61,14 @@ class BroadlinkKitchenHood(BaseDevice):
                 # Return True to keep device accessible in UI even with errors
                 return True
             
-            logger.info(f"Kitchen hood {self.get_name()} initialized with {len(self.state['available_commands'])} commands")
+            logger.info(f"Kitchen hood {self.get_name()} initialized with {len(self.get_available_commands())} commands")
             return True
             
         except Exception as e:
             logger.error(f"Failed to initialize kitchen hood {self.get_name()}: {str(e)}")
             self.state = {
                 "connection_status": "error",
-                "error": str(e),
-                "available_commands": self.config.get("commands", {})
+                "error": str(e)
             }
             # Return True to keep device accessible in UI even with errors
             return True
@@ -90,7 +88,7 @@ class BroadlinkKitchenHood(BaseDevice):
         topics = []
         
         # Add command topics
-        for command in self.state.get("available_commands", {}).values():
+        for command in self.get_available_commands().values():
             topic = command.get("topic")
             if topic:
                 topics.append(topic)
@@ -139,7 +137,7 @@ class BroadlinkKitchenHood(BaseDevice):
                     
                     # Get appropriate light command based on desired state
                     command_name = "light_off" if current_light_state == "on" else "light_on"
-                    light_command = self.state["available_commands"].get(command_name)
+                    light_command = self.get_available_commands().get(command_name)
                     logger.info(f"Light command: {light_command}")
                     
                     if light_command:
@@ -157,7 +155,7 @@ class BroadlinkKitchenHood(BaseDevice):
                 return
             
             # Handle command topics
-            for cmd_name, cmd_config in self.state["available_commands"].items():
+            for cmd_name, cmd_config in self.get_available_commands().items():
                 if topic == cmd_config["topic"] and payload.lower() in ["1", "true"]:
                     # Send RF code
                     if await self._send_rf_code(cmd_config["rf_code"]):
@@ -190,10 +188,6 @@ class BroadlinkKitchenHood(BaseDevice):
             
         except Exception as e:
             logger.error(f"Error handling message for {self.get_name()}: {str(e)}")
-    
-    def get_available_commands(self) -> Dict[str, Any]:
-        """Return the list of available commands for this device."""
-        return self.state.get("available_commands", {})
     
     def get_current_state(self) -> Dict[str, Any]:
         """Return the current state of the hood."""

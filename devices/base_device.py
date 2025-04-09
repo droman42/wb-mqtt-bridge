@@ -79,4 +79,8 @@ class BaseDevice(ABC):
                 "device_id": self.device_id,
                 "action": action,
                 "error": str(e)
-            } 
+            }
+            
+    def get_available_commands(self) -> Dict[str, Any]:
+        """Return the list of available commands for this device."""
+        return self.config.get("commands", {})

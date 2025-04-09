@@ -14,7 +14,6 @@ class WirenboardIRDevice(BaseDevice):
             # Initialize device state
             self.state = {
                 "last_command": None,
-                "available_commands": {},
                 "alias": self.config.get("alias", self.device_name)
             }
             
@@ -23,9 +22,6 @@ class WirenboardIRDevice(BaseDevice):
             if not commands:
                 logger.error(f"No commands defined for device {self.get_name()}")
                 return False
-            
-            # Store commands in state for easy access
-            self.state["available_commands"] = commands
             
             logger.info(f"Wirenboard IR device {self.get_name()} initialized with {len(commands)} commands")
             return True
@@ -46,7 +42,7 @@ class WirenboardIRDevice(BaseDevice):
     def subscribe_topics(self) -> List[str]:
         """Define the MQTT topics this device should subscribe to."""
         alias = self.state.get("alias", self.device_name)
-        commands = self.state.get("available_commands", {})
+        commands = self.get_available_commands()
         
         # Create subscription topics for each command action
         topics = []
@@ -81,7 +77,7 @@ class WirenboardIRDevice(BaseDevice):
         try:
             # Find matching command configuration by comparing full topic
             matching_command = None
-            for cmd_name, cmd_config in self.state["available_commands"].items():
+            for cmd_name, cmd_config in self.get_available_commands().items():
                 if cmd_config.get("topic") == topic:
                     matching_command = cmd_config
                     break
@@ -117,10 +113,6 @@ class WirenboardIRDevice(BaseDevice):
             
         except Exception as e:
             logger.error(f"Error handling message for {self.get_name()}: {str(e)}")
-    
-    def get_available_commands(self) -> Dict[str, Any]:
-        """Return the list of available commands for this device."""
-        return self.state.get("available_commands", {})
     
     def get_last_command(self) -> Dict[str, Any]:
         """Return information about the last executed command."""

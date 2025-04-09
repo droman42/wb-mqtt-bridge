@@ -26,7 +26,6 @@ class LgTv(BaseDevice):
                 "current_app": None,
                 "input_source": None,
                 "last_command": None,
-                "available_commands": self.config.get("commands", {}),
                 "connected": False
             }
             
@@ -83,7 +82,7 @@ class LgTv(BaseDevice):
         topics = []
         
         # Add command topics from configuration
-        for command in self.state.get("available_commands", {}).values():
+        for command in self.get_available_commands().values():
             topic = command.get("topic")
             if topic:
                 topics.append(topic)
@@ -527,7 +526,7 @@ class LgTv(BaseDevice):
                 return
             
             # Handle command topics from configuration
-            for cmd_name, cmd_config in self.state["available_commands"].items():
+            for cmd_name, cmd_config in self.get_available_commands().items():
                 if topic == cmd_config["topic"]:
                     if payload.lower() in ["1", "true", "on"]:
                         # Process command
@@ -546,10 +545,6 @@ class LgTv(BaseDevice):
             
         except Exception as e:
             logger.error(f"Error handling message for {self.get_name()}: {str(e)}")
-    
-    def get_available_commands(self) -> Dict[str, Any]:
-        """Return the list of available commands for this device."""
-        return self.state.get("available_commands", {})
     
     def get_current_state(self) -> Dict[str, Any]:
         """Return the current state of the TV."""
