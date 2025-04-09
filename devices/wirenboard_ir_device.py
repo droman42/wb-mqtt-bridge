@@ -1,6 +1,7 @@
 import json
 import logging
 from typing import Dict, Any, List
+from datetime import datetime
 from devices.base_device import BaseDevice
 from app.schemas import WirenboardIRState
 
@@ -95,7 +96,8 @@ class WirenboardIRDevice(BaseDevice):
             logger.warning("Missing location or rom_position in command config")
             return ""
             
-        return f"/devices/{location}/controls/Play from ROM{rom_position}"
+        # Use the original format without /on suffix
+        return f"/devices/{location}/controls/Play from ROM{rom_position}/on"
     
     async def handle_message(self, topic: str, payload: str):
         """Handle incoming MQTT messages for this device."""
@@ -126,15 +128,15 @@ class WirenboardIRDevice(BaseDevice):
                     "last_command": {
                         "topic": topic,
                         "command_topic": command_topic,
-                        "timestamp": "timestamp_here"  # You might want to add actual timestamp
+                        "timestamp": datetime.now().isoformat()
                     }
                 })
                 
-                # The actual command publishing will be handled by the MQTT client
-                # We'll return the topic and value to be published
+                # Return the topic and payload to be published
+                # This is crucial for both MQTT subscription handling and API action handling
                 return {
                     "topic": command_topic,
-                    "payload": "true"
+                    "payload": 1  # Use integer instead of string - many devices expect numeric values
                 }
             
         except Exception as e:
@@ -143,4 +145,42 @@ class WirenboardIRDevice(BaseDevice):
     def get_last_command(self) -> Dict[str, Any]:
         """Return information about the last executed command."""
         return self.state.get("last_command") 
+    
+    def _get_action_handler(self, action_name: str) -> callable:
+        """
+        Override the base _get_action_handler to create a generic handler
+        that uses the handle_message logic for all actions.
+        """
+        # Check if we already cached this handler
+        if action_name not in self._action_handlers:
+            # Create a closure that will handle any action using our message handling logic
+            async def generic_handler(action_config):
+                logger.info(f"Executing {action_name} action for {self.get_name()} via generic handler")
+                
+                # Get the topic associated with this action
+                topic = action_config.get("topic", "")
+                if not topic:
+                    raise ValueError(f"No topic defined for action {action_name}")
+                
+                # Simulate a message on this topic with payload "1"
+                result = await self.handle_message(topic, "1")
+                
+                # If handle_message returns a message to publish, structure it for the API
+                if result and isinstance(result, dict) and "topic" in result and "payload" in result:
+                    logger.info(f"Publishing MQTT command for {action_name}: {result}")
+                    return {
+                        "mqtt_command": {
+                            "topic": result["topic"],
+                            "payload": result["payload"]
+                        }
+                    }
+                else:
+                    logger.warning(f"No valid MQTT command returned from handle_message for {action_name}")
+                
+                return {}
+                
+            # Cache the handler
+            self._action_handlers[action_name] = generic_handler
+            
+        return self._action_handlers[action_name] 
     

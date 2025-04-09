@@ -13,6 +13,13 @@ class MQTTClient:
     
     def __init__(self, broker_config: Dict[str, Any]):
         logger.info(f"Initializing MQTT client with broker config: {broker_config}")
+        
+        # Check if broker_config is a Pydantic model and convert it to dict if needed
+        if hasattr(broker_config, 'model_dump'):
+            broker_config = broker_config.model_dump()
+        elif hasattr(broker_config, 'dict'):
+            broker_config = broker_config.dict()
+            
         self.host = broker_config.get('host', 'localhost')
         logger.info(f"MQTT broker host set to: {self.host} (from config)")
         self.port = broker_config.get('port', 1883)
@@ -129,7 +136,30 @@ class MQTTClient:
                             handler = self.message_handlers.get(device_name)
                             if handler:
                                 try:
-                                    await handler(topic, payload)
+                                    mqtt_command = await handler(topic, payload)
+                                    # Check if the handler returned an MQTT command to publish
+                                    if mqtt_command and isinstance(mqtt_command, dict) and "topic" in mqtt_command and "payload" in mqtt_command:
+                                        logger.info(f"Device {device_name} returned MQTT command to publish: {mqtt_command}")
+                                        # Publish the command
+                                        publish_topic = mqtt_command["topic"]
+                                        publish_payload = mqtt_command["payload"]
+                                        logger.info(f"Publishing message - Topic: {publish_topic}, Payload: {publish_payload}, Type: {type(publish_payload)}")
+                                        
+                                        # Try to convert numeric strings to integers for certain device types
+                                        if device_name.startswith("wirenboard_") and isinstance(publish_payload, str) and publish_payload.isdigit():
+                                            publish_payload = int(publish_payload)
+                                            logger.info(f"Converted payload to integer: {publish_payload}")
+                                            
+                                        try:
+                                            success = await self.publish(publish_topic, publish_payload)
+                                            if success:
+                                                logger.info(f"Successfully published to {publish_topic}")
+                                            else:
+                                                logger.error(f"Failed to publish to {publish_topic}")
+                                        except Exception as e:
+                                            logger.error(f"Error publishing to {publish_topic}: {str(e)}")
+                                    else:
+                                        logger.warning(f"Device {device_name} did not return a valid MQTT command to publish")
                                 except Exception as e:
                                     logger.error(f"Error in handler for {device_name}: {str(e)}")
             
@@ -187,12 +217,16 @@ class MQTTClient:
             return False
         
         try:
-            # Convert payload to JSON string if it's a dict
+            # Handle different payload types
             if isinstance(payload, dict):
                 payload = json.dumps(payload)
-            
+            elif isinstance(payload, bool):
+                payload = "true" if payload else "false"
+            elif isinstance(payload, (int, float)):
+                payload = str(payload)
+                
+            logger.debug(f"Publishing to {topic}: {payload} (type: {type(payload).__name__})")
             await self.client.publish(topic, payload, qos=qos, retain=retain)
-            logger.debug(f"Published to {topic}: {payload}")
             return True
         except MqttError as e:
             logger.error(f"Failed to publish to {topic}: {str(e)}")

@@ -128,7 +128,7 @@ class BaseDevice(ABC):
             handler = self._get_action_handler(action_name)
             logger.debug(f"Executing action: {action_name} with handler: {handler}")
             if handler:
-                await handler(action_config)
+                result = await handler(action_config)
                 
                 # Update state
                 self.update_state({
@@ -139,8 +139,13 @@ class BaseDevice(ABC):
                         params=action_config.get("params")
                     ).dict()
                 })
+                
+                # Return any result from the handler
+                return result
+                
         except Exception as e:
             logger.error(f"Error executing action {action_name}: {str(e)}")
+            return None
     
     def _get_action_handler(self, action_name: str) -> Optional[callable]:
         """Get or create an action handler for the given action name."""
@@ -192,14 +197,20 @@ class BaseDevice(ABC):
                 raise ValueError(f"Action {action} not found in device configuration")
             
             # Execute the action
-            await self._execute_single_action(action, cmd_config)
+            result = await self._execute_single_action(action, cmd_config)
             
-            return {
+            response = {
                 "success": True,
                 "device_id": self.device_id,
                 "action": action,
                 "state": self.get_state()
             }
+            
+            # If the action handler returned a result with mqtt_command, include it in the response
+            if result and isinstance(result, dict) and "mqtt_command" in result:
+                response["mqtt_command"] = result["mqtt_command"]
+            
+            return response
             
         except Exception as e:
             logger.error(f"Error executing action {action} for device {self.device_id}: {str(e)}")
