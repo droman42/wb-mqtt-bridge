@@ -11,21 +11,20 @@ logger = logging.getLogger(__name__)
 class BroadlinkKitchenHood(BaseDevice):
     """Implementation of a kitchen hood controlled through Broadlink RF."""
     
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self.broadlink_device = None
+        self.state = {
+            "light": "off",
+            "speed": 0,
+            "last_command": None,
+            "device_id": self.config.get("device_id"),  # Use device_id from config
+            "connection_status": "disconnected"
+        }
+
     async def setup(self) -> bool:
         """Initialize the device."""
         try:
-            # Initialize Broadlink device as an instance variable
-            self.broadlink_device = None
-            
-            # Initialize device state
-            self.state = {
-                "light": "off",
-                "speed": 0,
-                "last_command": None,
-                "device_id": self.config.get("device_id"),  # Use device_id from config
-                "connection_status": "disconnected"
-            }
-            
             # Initialize Broadlink device
             broadlink_config = self.config.get("broadlink", {})
             if not broadlink_config:
@@ -101,6 +100,51 @@ class BroadlinkKitchenHood(BaseDevice):
         logger.debug(f"Device {self.get_name()} subscribing to topics: {topics}")
         return topics
     
+    async def handle_light_on(self, action_config: Dict[str, Any]):
+        """Handle light on action."""
+        rf_code = action_config.get("rf_code")
+        if not rf_code:
+            logger.error("No RF code found in action configuration")
+            return
+            
+        if await self._send_rf_code(rf_code):
+            self.update_state({"light": "on"})
+
+    async def handle_light_off(self, action_config: Dict[str, Any]):
+        """Handle light off action."""
+        rf_code = action_config.get("rf_code")
+        if not rf_code:
+            logger.error("No RF code found in action configuration")
+            return
+            
+        if await self._send_rf_code(rf_code):
+            self.update_state({"light": "off"})
+
+    async def handle_speed_change(self, action_config: Dict[str, Any]):
+        """Handle hood speed change action."""
+        speed = action_config.get("speed")
+        if speed is None:
+            logger.error("Speed value not provided in action config")
+            return
+
+        rf_code = action_config.get("rf_code")
+        if not rf_code:
+            logger.error("No RF code found in action configuration")
+            return
+            
+        if await self._send_rf_code(rf_code):
+            self.update_state({"speed": speed})
+
+    async def handle_hood_off(self, action_config: Dict[str, Any]):
+        """Handle hood off action."""
+        rf_code = action_config.get("rf_code")
+        if not rf_code:
+            logger.error("No RF code found in action configuration")
+            return
+            
+        if await self._send_rf_code(rf_code):
+            self.update_state({"speed": 0})
+
     async def _send_rf_code(self, rf_code_base64: str) -> bool:
         """Send RF code using Broadlink device."""
         try:
@@ -122,72 +166,6 @@ class BroadlinkKitchenHood(BaseDevice):
             self.state["connection_status"] = "error"
             self.state["error"] = str(e)
             return False
-    
-    async def handle_message(self, topic: str, payload: str):
-        """Handle incoming MQTT messages for this device."""
-        logger.debug(f"Kitchen hood received message on {topic}: {payload}")
-        
-        try:
-            # Handle key pressed topic (wall switch)
-            if topic == self.config.get("key_pressed_topic"):
-                if payload.lower() in ["1", "true"]:
-                    # Toggle light
-                    current_light_state = self.state.get("light", "off")
-                    new_light_state = "off" if current_light_state == "on" else "on"
-                    
-                    # Get appropriate light command based on desired state
-                    command_name = "light_off" if current_light_state == "on" else "light_on"
-                    light_command = self.get_available_commands().get(command_name)
-                    logger.info(f"Light command: {light_command}")
-                    
-                    if light_command:
-                        # Send RF code
-                        if await self._send_rf_code(light_command["rf_code"]):
-                            # Update state
-                            self.update_state({
-                                "light": new_light_state,
-                                "last_command": {
-                                    "action": command_name,
-                                    "source": "wall_switch"
-                                }
-                            })
-                            logger.debug(f"Light state updated to {new_light_state}")
-                return
-            
-            # Handle command topics
-            for cmd_name, cmd_config in self.get_available_commands().items():
-                if topic == cmd_config["topic"] and payload.lower() in ["1", "true"]:
-                    # Send RF code
-                    if await self._send_rf_code(cmd_config["rf_code"]):
-                        # Update state based on command
-                        state_update = {
-                            "last_command": {
-                                "action": cmd_config.get("action"),
-                                "source": "mqtt"
-                            }
-                        }
-                        
-                        # Update specific states based on command
-                        if cmd_name == "light_on":
-                            state_update["light"] = "on"
-                        elif cmd_name == "light_off":
-                            state_update["light"] = "off"
-                        elif cmd_name == "hood_speed1":
-                            state_update["speed"] = 1
-                        elif cmd_name == "hood_speed2":
-                            state_update["speed"] = 2
-                        elif cmd_name == "hood_speed3":
-                            state_update["speed"] = 3
-                        elif cmd_name == "hood_speed4":
-                            state_update["speed"] = 4
-                        elif cmd_name == "hood_off":
-                            state_update["speed"] = 0
-                        
-                        self.update_state(state_update)
-                    break
-            
-        except Exception as e:
-            logger.error(f"Error handling message for {self.get_name()}: {str(e)}")
     
     def get_current_state(self) -> Dict[str, Any]:
         """Return the current state of the hood."""

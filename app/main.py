@@ -61,7 +61,7 @@ def setup_logging(log_file: str, log_level: str):
         root_logger.setLevel(numeric_level)
         
         logger = logging.getLogger(__name__)
-        logger.info("Logging system initialized with daily rotation")
+        logger.info("Logging system initialized with daily rotation at level %s", log_level)
         
     except Exception as e:
         print(f"Error setting up logging: {str(e)}")

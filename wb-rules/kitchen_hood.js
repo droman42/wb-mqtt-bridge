@@ -10,7 +10,7 @@ defineVirtualDevice("Kitchen_Hood_Control", {
 		readOnly: false,
         value: false
       },
-      fanPower: {
+      speed: {
         type: "range",
         readOnly: false,
         max: 4,

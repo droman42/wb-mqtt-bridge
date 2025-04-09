@@ -151,7 +151,7 @@ class ConfigManager:
                 logger.info("MQTT authentication disabled (empty credentials)")
         
         # Update logging configuration
-        self.system_config['log_level'] = os.getenv('LOG_LEVEL', self.system_config.get('log_level', 'INFO'))
+        # self.system_config['log_level'] = os.getenv('LOG_LEVEL', self.system_config.get('log_level', 'INFO'))
         
         # Update the system configuration
         self.system_config['mqtt_broker'] = mqtt_config 
