@@ -1,20 +1,27 @@
 # MQTT Web Service
 
-A Python-based web service that acts as an MQTT client to manage multiple devices using a plugin-based architecture.
+A Python-based web service that acts as an MQTT client to manage multiple devices using an object-oriented plugin-based architecture.
 
 ## Features
 
 - FastAPI REST API for device management
 - MQTT client for device communication
+- Object-oriented device class architecture
 - Plugin-based architecture for device modules
 - JSON configuration files
 - Logging system
+- Support for various device types:
+  - LG TV control
+  - Broadlink RF devices (Kitchen Hood)
+  - Wirenboard IR devices
 
 ## Architecture
 
 - **Web Service**: Built with FastAPI
 - **MQTT Client**: Based on `asyncio-mqtt`
-- **Device Modules**: Plugin-based system for device-specific functionality
+- **Device Architecture**:
+  - `BaseDevice` abstract class with common functionality
+  - Device-specific implementations that inherit from BaseDevice
 - **Configuration**: JSON files for system and device settings
 - **Logging**: File-based logging
 
@@ -51,32 +58,79 @@ Or use uvicorn directly:
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
+## Device Management
+
+The application supports various device types through the following architecture:
+
+### BaseDevice Class
+
+The `BaseDevice` class provides common functionality for all devices:
+- Device initialization and configuration
+- State management
+- Common utility methods like `get_available_commands()`
+- Abstract methods that must be implemented by device-specific classes
+
+### Supported Device Types
+
+1. **LG TV (lg_tv.py)**
+   - LG webOS TV control via WebSocket connection
+   - Commands for power, volume, app launching, etc.
+
+2. **Broadlink Kitchen Hood (broadlink_kitchen_hood.py)**
+   - Controls kitchen hood via Broadlink RF commands
+   - Support for light and fan speed control
+
+3. **Wirenboard IR Device (wirenboard_ir_device.py)**
+   - IR device control through Wirenboard MQTT interface
+   - Custom command mapping
+
+## Creating New Device Implementations
+
+To add support for a new device type:
+
+1. Create a new Python file in the `devices/` directory
+2. Create a class that inherits from `BaseDevice`
+3. Implement the required abstract methods:
+   - `async setup()` - Initialize the device
+   - `async shutdown()` - Clean up device resources
+   - `subscribe_topics()` - Return MQTT topics to subscribe to
+   - `async handle_message(topic, payload)` - Process incoming MQTT messages
+
+Example:
+```python
+from devices.base_device import BaseDevice
+from typing import Dict, Any, List
+
+class MyCustomDevice(BaseDevice):
+    async def setup(self) -> bool:
+        # Initialize device
+        self.state = {
+            "available_commands": self.config.get("commands", {})
+        }
+        return True
+        
+    async def shutdown(self) -> bool:
+        # Clean up resources
+        return True
+        
+    def subscribe_topics(self) -> List[str]:
+        # Return MQTT topics to subscribe to
+        return [f"home/{self.get_name()}/command"]
+        
+    async def handle_message(self, topic: str, payload: str):
+        # Process incoming messages
+        print(f"Received on {topic}: {payload}")
+```
+
 ## API Endpoints
 
 - `GET /` - Service information
 - `GET /system` - System information
 - `POST /reload` - Reload configurations and devices
 - `GET /devices` - List all devices
-- `GET /devices/{device_name}` - Get information about a specific device
+- `GET /devices/{device_id}` - Get information about a specific device
+- `POST /devices/{device_id}/action/{action}` - Execute device action
 - `POST /publish` - Publish a message to an MQTT topic
-
-## Creating Device Modules
-
-1. Create a new Python file in the `devices/` directory
-2. Implement two main functions:
-   - `subscribe_topics(config)` - Returns a list of MQTT topics to subscribe to
-   - `handle_message(topic, payload)` - Processes incoming MQTT messages
-
-Example:
-```python
-def subscribe_topics(config):
-    device_name = config.get('device_name', 'default')
-    return [f"home/{device_name}/command", f"home/{device_name}/status"]
-
-async def handle_message(topic, payload):
-    # Process the message
-    print(f"Received on {topic}: {payload}")
-```
 
 ## Configuration Files
 
@@ -106,35 +160,41 @@ async def handle_message(topic, payload):
 
 ```json
 {
-  "device_name": "example_device",
+  "device_id": "example_device",
+  "device_name": "Example Device",
   "device_type": "example",
-  "mqtt_topics": [
-    "home/example/status",
-    "home/example/command"
-  ],
-  "auth": {
-    "username": "device_user",
-    "password": "device_password"
-  },
-  "parameters": {
-    "update_interval": 60,
-    "threshold": 25.5
+  "commands": {
+    "power_on": {
+      "topic": "home/example/power",
+      "rf_code": "base64_encoded_rf_code_here",
+      "action": "power_on"
+    },
+    "power_off": {
+      "topic": "home/example/power",
+      "rf_code": "base64_encoded_rf_code_here", 
+      "action": "power_off"
+    }
   }
 }
 ```
 
 ## Deployment
 
-For production deployment, it's recommended to:
+The project includes several deployment options:
 
-1. Run behind an Nginx reverse proxy
-2. Use a process manager like Supervisor or systemd
-3. Set up proper authentication
-4. Use environment variables for sensitive configuration
+1. **Docker**
+   - Use the provided Dockerfile and docker-compose.yml
+   - Run `docker_deploy.sh` or `docker-compose up -d`
+
+2. **Local Deployment**
+   - Run `deploy_local.sh` for a local deployment
+
+3. **Remote Deployment**
+   - Run `deploy_remote.sh` for remote server deployment
 
 ## License
 
-MIT 
+MIT
 
 # MQTT Sniffer
 
