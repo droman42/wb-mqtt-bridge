@@ -1,0 +1,36 @@
+{
+    "device_name": "Revox A77 MK4",
+    "device_type": "wirenboard_ir",
+    "device_id": "reel_to_reel",
+    "alias": "reel_to_reel",
+    "commands": {
+      "play": {
+        "action": "play",
+        "topic": "/devices/reel_to_reel/controls/play",
+        "location": "wb-msw-v3_207",
+        "rom_position": "72",
+        "description": "Play"
+      },
+      "stop": {
+        "action": "stop",
+        "topic": "/devices/reel_to_reel/controls/stop",
+        "location": "wb-msw-v3_207",
+        "rom_position": "73",
+        "description": "Stop"
+      },
+      "rewind_forward": {
+        "action": "rewind_forward",
+        "topic": "/devices/reel_to_reel/controls/rewind_forward",
+        "location": "wb-msw-v3_207",
+        "rom_position": "74",
+        "description": "Rewind Forward"
+      },
+      "rewind_backward": {
+        "action": "rewind_backward",
+        "topic": "/devices/reel_to_reel/controls/rewind_backward",
+        "location": "wb-msw-v3_218",
+        "rom_position": "75",
+        "description": "Rewind Backward"
+      }
+    }
+  } 

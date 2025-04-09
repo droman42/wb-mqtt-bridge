@@ -267,3 +267,61 @@ defineVirtualDevice("amplifier", {
     }
   });
 
+  // Panasonic NV-FS90 VHS Player
+  defineVirtualDevice("vhs_player", {
+    title: "Panasonic NV-FS90",
+    cells: {
+      // Power control
+      power_toggle: {
+        type: "pushbutton",
+        value: false
+      },
+      // Playback controls
+      play: {
+        type: "pushbutton",
+        value: false
+      },
+      stop: {
+        type: "pushbutton",
+        value: false
+      },
+      pause: {
+        type: "pushbutton",
+        value: false
+      },
+      // Chapter navigation
+      chapter_plus: {
+        type: "pushbutton",
+        value: false
+      },
+      chapter_minus: {
+        type: "pushbutton",
+        value: false
+      }
+    }
+  });
+
+  // Revox A77 MK4 Reel-to-Reel Tape Recorder
+  defineVirtualDevice("reel_to_reel", {
+    title: "Revox A77 MK4",
+    cells: {
+      // Playback controls
+      play: {
+        type: "pushbutton",
+        value: false
+      },
+      stop: {
+        type: "pushbutton",
+        value: false
+      },
+      rewind_forward: {
+        type: "pushbutton",
+        value: false
+      },
+      rewind_backward: {
+        type: "pushbutton",
+        value: false
+      }
+    }
+  });
+
