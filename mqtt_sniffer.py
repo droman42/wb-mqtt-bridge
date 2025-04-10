@@ -5,6 +5,7 @@ import asyncio
 import logging
 from datetime import datetime
 import os
+import json
 from typing import Optional
 
 import paho.mqtt.client as mqtt
@@ -125,6 +126,32 @@ class MqttSniffer:
         self.client.disconnect()
         self.logger.info("MQTT Sniffer stopped")
 
+def read_broker_config(config_path: str = "config/system.json") -> dict:
+    """
+    Read MQTT broker configuration from system.json file.
+    
+    Args:
+        config_path: Path to the system.json configuration file
+        
+    Returns:
+        Dictionary containing broker configuration parameters
+    """
+    try:
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+            broker_config = config.get('mqtt_broker', {})
+            auth = broker_config.get('auth', {})
+            
+            return {
+                'broker': broker_config.get('host', 'localhost'),
+                'port': broker_config.get('port', 1883),
+                'username': auth.get('username'),
+                'password': auth.get('password')
+            }
+    except Exception as e:
+        logging.error(f"Error reading config file: {str(e)}")
+        return {}
+
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="MQTT Sniffer - Log all MQTT topic changes")
@@ -140,11 +167,23 @@ def parse_args():
                         help="MQTT topic filter (default: # - all topics)")
     parser.add_argument("-f", "--filter-substring", 
                         help="Only report topics containing this substring")
+    parser.add_argument("-c", "--config", action="store_true",
+                        help="Use broker parameters from config/system.json")
     return parser.parse_args()
 
 async def main():
     """Main entry point for the MQTT sniffer."""
     args = parse_args()
+    
+    # If config flag is set, read parameters from config file
+    if args.config:
+        config = read_broker_config()
+        if config:
+            args.broker = config['broker']
+            args.port = config['port']
+            args.username = config['username']
+            args.password = config['password']
+            print("Using broker parameters from config/system.json")
     
     # Print parameter description if no parameters are specified
     if args.broker == "localhost" and args.port == 1883 and args.username is None and args.password is None and args.log_file == "mqtt_sniffer.log" and args.topic == "#":
