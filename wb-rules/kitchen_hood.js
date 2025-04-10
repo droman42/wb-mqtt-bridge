@@ -2,7 +2,7 @@
 
 // ------------------Virtual device to support kitchen hood-------------
 
-defineVirtualDevice("Kitchen_Hood_Control", {
+defineVirtualDevice("kitchen_hood", {
     title: "Контроль за вытяжкой",
     cells: {
       light: {
@@ -37,10 +37,10 @@ defineRule("Kitchen Light Switch Control", {
 			// Обрабатываем сигнал сразу
 			log("Throttle: обрабатываем значение: " + newValue);
 			// Здесь логика твоего действия:
-			// log("Было: " + dev["Kitchen_Hood_Control/light"]);
-			dev["Kitchen_Hood_Control/light"] = !lastSwitchState;
+			// log("Было: " + dev["kitchen_hood/light"]);
+			dev["kitchen_hood/light"] = !lastSwitchState;
 			lastSwitchState = !lastSwitchState;
-			// log("Стало: " + dev["Kitchen_Hood_Control/light"]);
+			// log("Стало: " + dev["kitchen_hood/light"]);
 			// Устанавливаем блокировку на THROTTLE_TIME
 			throttleLock = true;
 			setTimeout(function () {
