@@ -14,11 +14,12 @@ A Python-based web service that acts as an MQTT client to manage multiple device
   - LG TV control
   - Broadlink RF devices (Kitchen Hood)
   - Wirenboard IR devices
+  - Revox A77 Reel-to-Reel tape recorder
 
 ## Architecture
 
 - **Web Service**: Built with FastAPI, fully Pydantic-conformant
-- **MQTT Client**: Based on `aiomqtt` (former `asyncio-mqtt`)
+- **MQTT Client**: Based on `aiomqtt`
 - **Device Architecture**:
   - `BaseDevice` abstract class with common functionality
   - Device-specific implementations that inherit from BaseDevice
@@ -41,6 +42,7 @@ pip install -r requirements.txt
 ```
 
 3. Configure the application:
+   - Edit `.env` for environment variables
    - Edit `config/system.json` for MQTT broker settings
    - Add device configurations in `config/devices/`
 
@@ -83,6 +85,10 @@ The `BaseDevice` class provides common functionality for all devices:
 3. **Wirenboard IR Device (wirenboard_ir_device.py)**
    - IR device control through Wirenboard MQTT interface
    - Custom command mapping
+
+4. **Revox A77 Reel-to-Reel (revox_a77_reel_to_reel.py)**
+   - Control for Revox A77 tape recorder
+   - Support for transport controls and tape operations
 
 ## Creating New Device Implementations
 
@@ -133,6 +139,16 @@ class MyCustomDevice(BaseDevice):
 - `POST /publish` - Publish a message to an MQTT topic
 
 ## Configuration Files
+
+### Environment Variables (.env)
+
+```env
+MQTT_BROKER_HOST=localhost
+MQTT_BROKER_PORT=1883
+MQTT_USERNAME=user
+MQTT_PASSWORD=pass
+LOG_LEVEL=INFO
+```
 
 ### System Configuration (config/system.json)
 
@@ -192,11 +208,17 @@ The project includes several deployment options:
 3. **Remote Deployment**
    - Run `deploy_remote.sh` for remote server deployment
 
+## Development Tools
+
+- `mqtt_sniffer.py` - MQTT topic monitoring tool
+- `test_LGTV_living.ipynb` - Jupyter notebook for LG TV testing
+- `test_broadlink.ipynb` - Jupyter notebook for Broadlink device testing
+
 ## License
 
 MIT
 
-# MQTT Sniffer
+## MQTT Sniffer
 
 A simple utility to monitor all MQTT topic changes on a broker and log them to a file.
 
@@ -234,6 +256,9 @@ This will connect to a local MQTT broker on port 1883 and log all topic changes 
                         Path to log file (default: mqtt_sniffer.log)
   -t TOPIC, --topic TOPIC
                         MQTT topic filter (default: # - all topics)
+  -f FILTER_SUBSTRING, --filter-substring FILTER_SUBSTRING
+                        Only report topics containing this substring
+  -c, --config          Use broker parameters from config/system.json
 ```
 
 ### Examples
@@ -253,9 +278,19 @@ Log only specific topics:
 python mqtt_sniffer.py -t "home/sensors/#"
 ```
 
+Filter topics containing a specific substring:
+```bash
+python mqtt_sniffer.py -f "temperature"
+```
+
 Specify a custom log file:
 ```bash
 python mqtt_sniffer.py -l my_mqtt_traffic.log
+```
+
+Use configuration from system.json:
+```bash
+python mqtt_sniffer.py -c
 ```
 
 ## Output Format
