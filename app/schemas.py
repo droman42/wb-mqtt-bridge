@@ -131,4 +131,12 @@ class ReloadResponse(BaseModel):
     """Schema for system reload response."""
     status: str
     message: Optional[str] = None
-    timestamp: datetime = Field(default_factory=datetime.now) 
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+class MQTTPublishResponse(BaseModel):
+    """Schema for MQTT publish response."""
+    success: bool
+    message: str
+    topic: str
+    timestamp: datetime = Field(default_factory=datetime.now)
+    error: Optional[str] = None 

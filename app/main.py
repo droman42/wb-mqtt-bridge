@@ -27,7 +27,8 @@ from app.schemas import (
     SystemInfo,
     ServiceInfo,
     DeviceAction,
-    ReloadResponse
+    ReloadResponse,
+    MQTTPublishResponse
 )
 
 # Setup logging
@@ -370,3 +371,49 @@ async def get_device_actions(device_id: str):
         import traceback
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.post("/publish", tags=["MQTT"], response_model=MQTTPublishResponse, responses={
+    503: {"model": ErrorResponse, "description": "Service not fully initialized"},
+    500: {"model": ErrorResponse, "description": "Internal server error"}
+})
+async def publish_message(message: MQTTMessage, background_tasks: BackgroundTasks):
+    """Publish a message to an MQTT topic.
+    
+    Args:
+        message: The MQTT message to publish
+        background_tasks: FastAPI background tasks manager
+        
+    Returns:
+        MQTTPublishResponse with status of the operation
+        
+    Raises:
+        HTTPException: If service is not initialized or an error occurs
+    """
+    logger = logging.getLogger(__name__)
+    if not mqtt_client:
+        raise HTTPException(
+            status_code=503,
+            detail="Service not fully initialized"
+        )
+    
+    try:
+        # Publish the message in the background
+        background_tasks.add_task(
+            mqtt_client.publish,
+            message.topic,
+            message.payload,
+            message.qos,
+            message.retain
+        )
+        
+        return MQTTPublishResponse(
+            success=True,
+            message=f"Message queued for publishing to {message.topic}",
+            topic=message.topic
+        )
+    except Exception as e:
+        logger.error(f"Failed to publish message: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
