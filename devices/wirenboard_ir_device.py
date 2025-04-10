@@ -1,17 +1,18 @@
 import json
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime
 from devices.base_device import BaseDevice
 from app.schemas import WirenboardIRState
+from app.mqtt_client import MQTTClient
 
 logger = logging.getLogger(__name__)
 
 class WirenboardIRDevice(BaseDevice):
     """Implementation of an IR device controlled through Wirenboard."""
     
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(config)
+    def __init__(self, config: Dict[str, Any], mqtt_client: Optional[MQTTClient] = None):
+        super().__init__(config, mqtt_client)
         self._state_schema = WirenboardIRState
         self.state = {
             "last_command": None,

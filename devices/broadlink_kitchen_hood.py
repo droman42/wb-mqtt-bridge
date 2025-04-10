@@ -6,14 +6,15 @@ from typing import Dict, Any, List, Optional
 import broadlink
 from devices.base_device import BaseDevice
 from app.schemas import KitchenHoodState
+from app.mqtt_client import MQTTClient
 
 logger = logging.getLogger(__name__)
 
 class BroadlinkKitchenHood(BaseDevice):
     """Implementation of a kitchen hood controlled through Broadlink RF."""
     
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(config)
+    def __init__(self, config: Dict[str, Any], mqtt_client: Optional[MQTTClient] = None):
+        super().__init__(config, mqtt_client)
         self.broadlink_device = None
         self._state_schema = KitchenHoodState
         self.state = {

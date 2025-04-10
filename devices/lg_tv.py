@@ -10,14 +10,15 @@ from pywebostv.connection import *
 from pywebostv.controls import *
 from devices.base_device import BaseDevice
 from app.schemas import LgTvState
+from app.mqtt_client import MQTTClient
 
 logger = logging.getLogger(__name__)
 
 class LgTv(BaseDevice):
     """Implementation of an LG TV controlled over the network using PyWebOSTV library."""
     
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(config)
+    def __init__(self, config: Dict[str, Any], mqtt_client: Optional[MQTTClient] = None):
+        super().__init__(config, mqtt_client)
         self._state_schema = LgTvState
         self.state = {
             "power": "unknown",

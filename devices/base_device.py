@@ -11,13 +11,14 @@ logger = logging.getLogger(__name__)
 class BaseDevice(ABC):
     """Base class for all device implementations."""
     
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Dict[str, Any], mqtt_client: Optional['MQTTClient'] = None):
         self.config = config
         self.device_id = config.get('device_id', 'unknown')
         self.device_name = config.get('device_name', 'unknown')
         self.state = {}  # Device state storage
         self._action_handlers = {}  # Cache for action handlers
         self._state_schema: Optional[Type[BaseDeviceState]] = None
+        self.mqtt_client = mqtt_client
     
     def get_id(self) -> str:
         """Return the device ID."""

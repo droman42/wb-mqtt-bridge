@@ -6,16 +6,18 @@ import sys
 from typing import Dict, Any, Callable, List, Optional
 from devices.base_device import BaseDevice
 from app.schemas import DeviceConfig
+from app.mqtt_client import MQTTClient
 
 logger = logging.getLogger(__name__)
 
 class DeviceManager:
     """Manages device modules and their message handlers."""
     
-    def __init__(self, devices_dir: str = "devices"):
+    def __init__(self, devices_dir: str = "devices", mqtt_client: Optional[MQTTClient] = None):
         self.devices_dir = devices_dir
         self.device_classes = {}  # Stores class definitions
         self.devices = {}  # Stores device instances
+        self.mqtt_client = mqtt_client
     
     async def load_device_modules(self):
         """Dynamically load all device modules from the devices directory."""
@@ -59,41 +61,24 @@ class DeviceManager:
         logger.info(f"Loaded device classes: {list(self.device_classes.keys())}")
     
     async def initialize_devices(self, configs: Dict[str, DeviceConfig]):
-        """Initialize all devices with their configurations."""
-        logger.info(f"Initializing devices with configs: {list(configs.keys())}")
+        """Initialize devices from their configurations."""
         for device_id, config in configs.items():
             try:
-                # Convert Pydantic model to dict
-                config_dict = config.model_dump()
-                logger.info(f"Initializing device {device_id} with class {config_dict.get('device_class')}")
+                device_type = config.device_type
+                device_class = self.device_classes.get(device_type)
                 
-                # Get the device class name from config
-                class_name = config_dict.get('device_class')
-                if not class_name:
-                    logger.error(f"No device class specified for device {device_id}")
-                    continue
-                
-                # Get the device class
-                device_class = self.device_classes.get(class_name)
                 if not device_class:
-                    logger.error(f"Device class {class_name} not found for device {device_id}")
-                    logger.error(f"Available classes: {list(self.device_classes.keys())}")
+                    logger.error(f"Device type {device_type} not found for device {device_id}")
                     continue
                 
-                # Create device instance
-                device = device_class(config_dict)
+                # Create device instance with MQTT client
+                device = device_class(config.dict(), self.mqtt_client)
+                await device.setup()
+                self.devices[device_id] = device
+                logger.info(f"Initialized device {device_id} of type {device_type}")
                 
-                # Initialize the device
-                if await device.setup():
-                    self.devices[device_id] = device
-                    logger.info(f"Initialized device: {device_id} (class: {class_name})")
-                else:
-                    logger.error(f"Failed to initialize device: {device_id}")
-            
             except Exception as e:
-                logger.error(f"Error initializing device {device_id}: {str(e)}")
-                import traceback
-                logger.error(traceback.format_exc())
+                logger.error(f"Failed to initialize device {device_id}: {str(e)}")
     
     async def shutdown_devices(self):
         """Shutdown all devices."""

@@ -4,14 +4,15 @@ import asyncio
 from typing import Dict, Any, List, Optional
 from devices.base_device import BaseDevice
 from app.schemas import BaseDeviceState, RevoxA77ReelToReelState
+from app.mqtt_client import MQTTClient
 
 logger = logging.getLogger(__name__)
 
 class RevoxA77ReelToReel(BaseDevice):
     """Implementation of a Revox A77 reel-to-reel controlled through Wirenboard IR."""
     
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(config)
+    def __init__(self, config: Dict[str, Any], mqtt_client: Optional[MQTTClient] = None):
+        super().__init__(config, mqtt_client)
         self._state_schema = RevoxA77ReelToReelState
         self.state = {
             "last_command": None,
@@ -105,9 +106,8 @@ class RevoxA77ReelToReel(BaseDevice):
             stop_command = await self._send_ir_command(stop_config, "stop")
             if stop_command:
                 # Publish stop command immediately
-                from app.main import mqtt_client
-                if mqtt_client:
-                    await mqtt_client.publish(stop_command["topic"], stop_command["payload"])
+                if self.mqtt_client:
+                    await self.mqtt_client.publish(stop_command["topic"], stop_command["payload"])
                     logger.info("Published stop command")
                 else:
                     logger.error("MQTT client not available")
