@@ -3,6 +3,9 @@
     "device_type": "wirenboard_ir",
     "device_id": "reel_to_reel",
     "alias": "reel_to_reel",
+    "parameters": {
+        "sequence_delay": 5
+    },
     "commands": {
       "play": {
         "action": "play",

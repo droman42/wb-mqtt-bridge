@@ -56,6 +56,11 @@ class WirenboardIRState(BaseDeviceState):
     """Schema for Wirenboard IR device state."""
     alias: str
 
+class RevoxA77ReelToReelState(BaseDeviceState):
+    """Schema for Revox A77 reel-to-reel state."""
+    last_command: str
+    connection_status: str
+
 class ExampleDeviceState(BaseDeviceState):
     """Schema for example device state."""
     power: str

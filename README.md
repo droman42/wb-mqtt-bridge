@@ -17,7 +17,7 @@ A Python-based web service that acts as an MQTT client to manage multiple device
 
 ## Architecture
 
-- **Web Service**: Built with FastAPI
+- **Web Service**: Built with FastAPI, fully Pydantic-conformant
 - **MQTT Client**: Based on `aiomqtt` (former `asyncio-mqtt`)
 - **Device Architecture**:
   - `BaseDevice` abstract class with common functionality
