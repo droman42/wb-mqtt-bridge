@@ -15,6 +15,12 @@ A Python-based web service that acts as an MQTT client to manage multiple device
   - Broadlink RF devices (Kitchen Hood)
   - Wirenboard IR devices
   - Revox A77 Reel-to-Reel tape recorder
+  - **eMotiva XMC2 Device (emotiva_xmc2.py)**
+    - Manages eMotiva XMC2 processor device
+    - Supports power on/off and Zone 2 power management
+    - Handles notifications for power, volume, input, and more
+    - Maintains device state including power and source status
+    - Logs errors and updates state with error messages
 
 ## Architecture
 
@@ -89,6 +95,13 @@ The `BaseDevice` class provides common functionality for all devices:
 4. **Revox A77 Reel-to-Reel (revox_a77_reel_to_reel.py)**
    - Control for Revox A77 tape recorder
    - Support for transport controls and tape operations
+
+5. **eMotiva XMC2 Device (emotiva_xmc2.py)**
+   - Manages eMotiva XMC2 processor device
+   - Supports power on/off and Zone 2 power management
+   - Handles notifications for power, volume, input, and more
+   - Maintains device state including power and source status
+   - Logs errors and updates state with error messages
 
 ## Creating New Device Implementations
 
