@@ -139,4 +139,14 @@ class MQTTPublishResponse(BaseModel):
     message: str
     topic: str
     timestamp: datetime = Field(default_factory=datetime.now)
-    error: Optional[str] = None 
+    error: Optional[str] = None
+
+class EMotivaXMC2State(BaseDeviceState):
+    """Schema for eMotiva XMC2 device state."""
+    power: Optional[str] = None
+    zone2_power: Optional[str] = None
+    source_status: Optional[str] = None
+    video_input: Optional[str] = None
+    audio_input: Optional[str] = None
+    startup_complete: bool = False
+    notifications: bool = False

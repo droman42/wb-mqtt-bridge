@@ -1,0 +1,43 @@
+{
+    "device_type": "emotiva_xmc2",
+    "alias": "processor",
+    "device_id": "emotiva_xmc2",
+    "device_name": "eMotiva XMC2 Processor",
+    "emotiva": {
+        "host": "192.168.110.177",
+        "port": 7002,
+        "update_interval": 60
+    },
+    "commands": {
+        "power_on": {
+            "action": "power_on",
+            "topic": "/devices/processor/controls/power_on",
+            "description": "Turn on the processor"
+        },
+        "power_off": {
+            "action": "power_off",
+            "topic": "/devices/processor/controls/power_off",
+            "description": "Turn off the processor"
+        },
+        "zone2_on": {
+            "action": "zone2_on",
+            "topic": "/devices/processor/controls/zone2_on",
+            "description": "Turn on zone 2"
+        },
+        "zappiti": {
+            "action": "zappiti",
+            "topic": "/devices/processor/controls/zappiti",
+            "description": "Switch to Zappiti"
+        },
+        "apple_tv": {
+            "action": "apple_tv",
+            "topic": "/devices/processor/controls/apple_tv",
+            "description": "Switch to Apple TV"
+        },
+        "dvdo": {
+            "action": "dvdo",
+            "topic": "/devices/processor/controls/dvdo",
+            "description": "Switch to DVDO"
+        }
+    }
+} 

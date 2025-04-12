@@ -25,3 +25,10 @@ coverage.xml
 etc/
 prompts/
 schemas/
+wb-rules/
+*.sh
+broadlink_cli.py
+broadlink_discovery.py
+mqtt_sniffer.py
+*.ipynb
+TODO.md

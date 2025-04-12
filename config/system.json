@@ -51,6 +51,10 @@
     "reel_to_reel": {
       "class": "RevoxA77ReelToReel",
       "config_file": "reel_to_reel.json"
+    },
+    "processor": {
+      "class": "EMotivaXMC2",
+      "config_file": "emotiva_xmc2.json"
     }
   }
 } 

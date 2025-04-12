@@ -26,13 +26,6 @@ COPY . .
 # Create necessary directories
 RUN mkdir -p logs config/devices
 
-# Create non-root user
-RUN useradd -m -u 1000 mqtt_service && \
-    chown -R mqtt_service:mqtt_service /app
-
-# Switch to non-root user
-USER mqtt_service
-
 # Expose port
 EXPOSE 8000
 
