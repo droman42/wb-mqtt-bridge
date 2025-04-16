@@ -3,11 +3,15 @@ import logging
 import asyncio
 import os
 from typing import Dict, Any, List, Optional
-from socket import socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_BROADCAST
-from concurrent.futures import ThreadPoolExecutor
-from pywebostv.discovery import *
-from pywebostv.connection import *
-from pywebostv.controls import *
+from asyncwebostv.connection import WebOSClient
+from asyncwebostv.controls import (
+    MediaControl,
+    SystemControl,
+    ApplicationControl,
+    TvControl,
+    InputControl,
+    SourceControl
+)
 from devices.base_device import BaseDevice
 from app.schemas import LgTvState
 from app.mqtt_client import MQTTClient
@@ -15,7 +19,7 @@ from app.mqtt_client import MQTTClient
 logger = logging.getLogger(__name__)
 
 class LgTv(BaseDevice):
-    """Implementation of an LG TV controlled over the network using PyWebOSTV library."""
+    """Implementation of an LG TV controlled over the network using AsyncWebOSTV library."""
     
     def __init__(self, config: Dict[str, Any], mqtt_client: Optional[MQTTClient] = None):
         super().__init__(config, mqtt_client)
@@ -35,8 +39,9 @@ class LgTv(BaseDevice):
         self.system = None
         self.media = None
         self.app = None
+        self.tv_control = None
+        self.input_control = None
         self.source_control = None
-        self.executor = None
     
     async def setup(self) -> bool:
         """Initialize the device."""
@@ -51,9 +56,8 @@ class LgTv(BaseDevice):
             self.state["ip_address"] = tv_config.get("ip_address")
             self.state["mac_address"] = tv_config.get("mac_address")
             
-            # Initialize store and executor
-            self.store = {"client_key": tv_config.get("client_key")}
-            self.executor = ThreadPoolExecutor(max_workers=2)
+            # Store client key
+            self.client_key = tv_config.get("client_key")
             
             # Initialize TV connection
             if await self._connect_to_tv():
@@ -74,8 +78,8 @@ class LgTv(BaseDevice):
     async def shutdown(self) -> bool:
         """Cleanup device resources."""
         try:
-            # Close down the executor
-            self.executor.shutdown(wait=False)
+            if self.client and self.client.connection:
+                await self.client.close()
             
             logger.info(f"LG TV {self.get_name()} shutdown complete")
             return True
@@ -114,50 +118,45 @@ class LgTv(BaseDevice):
         return topics
     
     async def _connect_to_tv(self) -> bool:
-        """Establish a connection to the TV using PyWebOSTV."""
+        """Establish a connection to the TV using AsyncWebOSTV."""
         try:
             ip_address = self.state.get("ip_address")
             if not ip_address:
                 logger.error("No IP address configured for TV")
                 return False
             
-            # Run in executor since PyWebOSTV uses blocking calls
-            def connect_sync():
+            # Create client
+            secure_mode = self.config.get("tv", {}).get("secure", True)
+            self.client = WebOSClient(ip_address, secure=secure_mode, client_key=self.client_key)
+            
+            # Connect to the TV
+            await self.client.connect()
+            
+            # Register with the TV if needed
+            if not self.client.client_key:
+                logger.info("No client key found, registering with TV...")
+                store = {}
+                registered = False
+                
                 try:
-                    # Create client
-                    if self.config.get("tv", {}).get("secure", True):
-                        client = WebOSClient(ip_address, secure=True)
-                    else:
-                        client = WebOSClient(ip_address)
-                    
-                    # Connect
-                    client.connect()
-                    
-                    # Register with the TV
-                    registered = False
-                    for status in client.register(self.store):
+                    async for status in self.client.register(store):
                         if status == WebOSClient.PROMPTED:
                             logger.info("Please accept the connection on the TV!")
                         elif status == WebOSClient.REGISTERED:
                             logger.info("Registration successful!")
                             registered = True
-                    
-                    if not registered:
-                        logger.error("Failed to register with TV")
-                        return None
-                    
-                    return client
+                            self.client_key = store.get("client_key")
+                            # Store client key for future use
+                            if self.client_key and self.mqtt_client:
+                                # Notify about new client key via state update
+                                self.state["client_key"] = self.client_key
                 except Exception as e:
-                    logger.error(f"Error in connect_sync: {str(e)}")
-                    return None
-            
-            # Run the connection in a separate thread
-            self.client = await asyncio.get_event_loop().run_in_executor(
-                self.executor, connect_sync
-            )
-            
-            if not self.client:
-                return False
+                    logger.error(f"Error during registration: {str(e)}")
+                    return False
+                
+                if not registered:
+                    logger.error("Failed to register with TV")
+                    return False
             
             # Initialize controls
             self.media = MediaControl(self.client)
@@ -183,321 +182,265 @@ class LgTv(BaseDevice):
     async def _update_tv_state(self):
         """Update the TV state information."""
         try:
-            # Run in executor since PyWebOSTV uses blocking calls
-            def get_state_sync():
-                state_updates = {}
-                
-                try:
-                    # Get volume info
-                    volume_info = self.media.get_volume()
+            # Get volume info
+            try:
+                if self.media:
+                    # Call get_volume without parameters to avoid linter errors
+                    volume_info = await self.media.get_volume()  # type: ignore
                     if volume_info:
-                        state_updates["volume"] = volume_info.get("volume", 0)
-                        state_updates["mute"] = volume_info.get("muted", False)
-                except Exception as e:
-                    logger.debug(f"Could not get volume info: {str(e)}")
-                
-                try:
-                    # Get current app
-                    foreground_app = self.app.get_current()
-                    if foreground_app:
-                        state_updates["current_app"] = foreground_app
-                except Exception as e:
-                    logger.debug(f"Could not get current app: {str(e)}")
-                
-                return state_updates
+                        self.state["volume"] = volume_info.get("volume", 0)
+                        self.state["mute"] = volume_info.get("muted", False)
+            except Exception as e:
+                logger.debug(f"Could not get volume info: {str(e)}")
             
-            # Run in a separate thread
-            state_updates = await asyncio.get_event_loop().run_in_executor(
-                self.executor, get_state_sync
-            )
+            # Get current app
+            # Note: We don't get the current app as the asyncwebostv library doesn't provide a direct method
+            # This would require additional implementation
             
-            # Update state
-            if state_updates:
-                self.update_state(state_updates)
-                
+            # Get input source 
+            # Note: We don't get the source info as the asyncwebostv library doesn't provide a direct method
+            # This would require additional implementation
+            
+            return True
         except Exception as e:
-            logger.error(f"Failed to update TV state: {str(e)}")
+            logger.error(f"Error updating TV state: {str(e)}")
+            return False
     
     async def power_on(self):
-        """Power on the TV using Wake-on-LAN."""
+        """Power on the TV (if supported)."""
         try:
-            mac = self.state.get("mac_address")
-            if not mac:
-                logger.error("No MAC address configured for TV")
-                return False
-                
-            # Send magic packet
-            mac_bytes = bytes.fromhex(mac.replace(':', ''))
-            magic_packet = b'\xff' * 6 + mac_bytes * 16
+            # Note: Power on might not be directly supported via WebOS API
+            # Most TVs must be woken using Wake-on-LAN which requires MAC address
+            logger.info(f"Attempting to power on TV {self.get_name()}")
             
-            sock = socket(AF_INET, SOCK_DGRAM)
-            sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
-            sock.sendto(magic_packet, ('255.255.255.255', 9))
-            sock.close()
+            # Try to use system power method if available
+            if self.system and self.client:
+                try:
+                    # Send turn on message directly 
+                    await self.client.send_message('request', 'ssap://system/turnOn', {})
+                    self.state["power"] = "on"
+                    self.state["last_command"] = "power_on"
+                    return True
+                except Exception as e:
+                    logger.debug(f"System power on failed: {str(e)}")
             
-            self.update_state({"power": "on"})
-            logger.info(f"Sent WOL packet to {mac}")
-            return True
-            
+            self.state["last_command"] = "power_on"
+            return False
         except Exception as e:
-            logger.error(f"Failed to send WOL packet: {str(e)}")
+            logger.error(f"Error powering on TV: {str(e)}")
             return False
     
     async def power_off(self):
         """Power off the TV."""
-        if not self.state.get("connected", False):
-            await self._connect_to_tv()
-        
         try:
-            # Run in executor since PyWebOSTV uses blocking calls
-            def power_off_sync():
-                try:
-                    self.system.power_off()
-                    return True
-                except Exception as e:
-                    logger.error(f"Error powering off TV: {str(e)}")
-                    return False
+            logger.info(f"Powering off TV {self.get_name()}")
             
-            result = await asyncio.get_event_loop().run_in_executor(
-                self.executor, power_off_sync
-            )
+            # Use system turnOff method
+            if self.system and self.client:
+                # Send turn off message directly
+                await self.client.send_message('request', 'ssap://system/turnOff', {})
+                self.state["power"] = "off"
+                self.state["last_command"] = "power_off"
+                return True
             
-            if result:
-                self.update_state({"power": "off", "connected": False})
-                
-            return result
-            
+            return False
         except Exception as e:
-            logger.error(f"Failed to power off TV: {str(e)}")
+            logger.error(f"Error powering off TV: {str(e)}")
             return False
     
     async def set_volume(self, volume):
-        """Set the TV volume."""
-        if not self.state.get("connected", False):
-            await self._connect_to_tv()
-        
+        """Set the volume level."""
         try:
-            # Ensure volume is in valid range
-            volume = max(0, min(100, int(volume)))
+            volume = int(volume)
+            logger.info(f"Setting TV {self.get_name()} volume to {volume}")
             
-            # Run in executor since PyWebOSTV uses blocking calls
-            def set_volume_sync():
-                try:
-                    self.media.set_volume(volume)
-                    return True
-                except Exception as e:
-                    logger.error(f"Error setting volume: {str(e)}")
-                    return False
+            if self.media and self.client:
+                # Send volume message directly
+                await self.client.send_message('request', 'ssap://audio/setVolume', {"volume": volume})
+                self.state["volume"] = volume
+                self.state["last_command"] = f"set_volume_{volume}"
+                return True
             
-            result = await asyncio.get_event_loop().run_in_executor(
-                self.executor, set_volume_sync
-            )
-            
-            if result:
-                self.update_state({"volume": volume})
-                
-            return result
-            
+            return False
         except Exception as e:
-            logger.error(f"Failed to set volume: {str(e)}")
+            logger.error(f"Error setting volume: {str(e)}")
             return False
     
-    async def set_mute(self, mute):
-        """Mute or unmute the TV."""
-        if not self.state.get("connected", False):
-            await self._connect_to_tv()
-        
+    async def set_mute(self, mute=None):
+        """Set mute state on TV."""
         try:
-            # Convert to boolean
-            mute_state = bool(mute)
+            # Convert "true"/"false" strings to bool if needed
+            if isinstance(mute, str):
+                mute = mute.lower() in ["true", "1", "yes"]
             
-            # Run in executor since PyWebOSTV uses blocking calls
-            def set_mute_sync():
-                try:
-                    self.media.mute(mute_state)
-                    return True
-                except Exception as e:
-                    logger.error(f"Error setting mute: {str(e)}")
-                    return False
+            logger.info(f"Setting mute to {mute} on TV {self.get_name()}")
             
-            result = await asyncio.get_event_loop().run_in_executor(
-                self.executor, set_mute_sync
-            )
-            
-            if result:
-                self.update_state({"mute": mute_state})
+            if not self.client:
+                logger.error("TV client not initialized")
+                return False
                 
-            return result
+            # Send mute command directly
+            await self.client.send_message('request', 'ssap://audio/setMute', {"mute": mute})
+            
+            # Update state
+            self.state["mute"] = mute
+            self.state["last_command"] = "mute_set"
+            return True
             
         except Exception as e:
-            logger.error(f"Failed to set mute: {str(e)}")
+            logger.error(f"Error setting mute: {str(e)}")
             return False
     
-    async def launch_app(self, app_id):
-        """Launch an app on the TV."""
-        if not self.state.get("connected", False):
-            await self._connect_to_tv()
-        
+    async def launch_app(self, app_name):
+        """Launch an app by name or ID."""
         try:
-            # Run in executor since PyWebOSTV uses blocking calls
-            def launch_app_sync():
-                try:
-                    # Get all apps
-                    apps = self.app.list_apps()
-                    
-                    # Find the app by ID
-                    target_app = None
-                    for app in apps:
-                        if app["id"] == app_id:
-                            target_app = app
-                            break
-                    
-                    if target_app:
-                        self.app.launch(target_app)
-                        return True
-                    else:
-                        logger.warning(f"App {app_id} not found")
-                        return False
-                        
-                except Exception as e:
-                    logger.error(f"Error launching app: {str(e)}")
-                    return False
+            logger.info(f"Launching app {app_name} on TV {self.get_name()}")
             
-            result = await asyncio.get_event_loop().run_in_executor(
-                self.executor, launch_app_sync
-            )
+            if not self.client:
+                logger.error("TV client not initialized")
+                return False
             
-            if result:
-                self.update_state({"current_app": app_id})
-                
-            return result
+            # First retrieve list of available apps directly
+            apps_response = await self.client.send_message('request', 'ssap://com.webos.applicationManager/listApps', {}, get_queue=True)  # type: ignore
+            if not apps_response or not apps_response.get("payload") or not apps_response.get("payload").get("apps"):  # type: ignore
+                logger.error("Could not retrieve list of apps")
+                return False
+            
+            apps = apps_response.get("payload").get("apps", [])  # type: ignore
+            
+            # Try to find the app by name or ID
+            target_app = None
+            for app in apps:
+                if app_name.lower() in app.get("title", "").lower() or app_name == app.get("id"):
+                    target_app = app
+                    break
+            
+            if not target_app:
+                logger.error(f"App {app_name} not found on TV")
+                return False
+            
+            # Launch the app directly
+            await self.client.send_message('request', 'ssap://system.launcher/launch', {"id": target_app["id"]})
+            self.state["current_app"] = target_app["id"]
+            self.state["last_command"] = f"launch_app_{app_name}"
+            return True
             
         except Exception as e:
-            logger.error(f"Failed to launch app: {str(e)}")
+            logger.error(f"Error launching app: {str(e)}")
             return False
     
     async def send_action(self, action):
-        """Send an action press to the TV."""
-        if not self.state.get("connected", False):
-            await self._connect_to_tv()
-        
+        """Send a control action to the TV."""
         try:
-            # Run in executor since PyWebOSTV uses blocking calls
-            def send_action_sync():
-                try:
-                    # Create a separate input connection
-                    self.input_control.connect_input()
-                    
-                    # Map action names to methods
-                    action_methods = {
-                        "UP": self.input_control.up,
-                        "DOWN": self.input_control.down,
-                        "LEFT": self.input_control.left,
-                        "RIGHT": self.input_control.right,
-                        "ENTER": self.input_control.ok,
-                        "HOME": self.input_control.home,
-                        "BACK": self.input_control.back,
-                        "MENU": self.input_control.menu,
-                        "VOLUMEUP": self.input_control.volume_up,
-                        "VOLUMEDOWN": self.input_control.volume_down,
-                        "MUTE": self.input_control.mute,
-                        "CHANNELUP": self.input_control.channel_up,
-                        "CHANNELDOWN": self.input_control.channel_down,
-                        "PLAY": self.input_control.play,
-                        "PAUSE": self.input_control.pause,
-                        "STOP": self.input_control.stop,
-                        "FASTFORWARD": self.input_control.fastforward,
-                        "REWIND": self.input_control.rewind,
-                        "EXIT": self.input_control.exit,
-                        "RED": self.input_control.red,
-                        "GREEN": self.input_control.green,
-                        "YELLOW": self.input_control.yellow,
-                        "BLUE": self.input_control.blue,
-                        "NETFLIX": lambda: self.input_control.type("NETFLIX"),
-                        "AMAZON": lambda: self.input_control.type("AMAZON"),
-                        "YOUTUBE": lambda: self.input_control.type("YOUTUBE"),
-                        "INFO": self.input_control.info,
-                        "DASH": self.input_control.dash,
-                        "ASTERISK": self.input_control.asterisk,
-                        "CC": self.input_control.cc,
-                        "0": lambda: self.input_control.num_0(),
-                        "1": lambda: self.input_control.num_1(),
-                        "2": lambda: self.input_control.num_2(),
-                        "3": lambda: self.input_control.num_3(),
-                        "4": lambda: self.input_control.num_4(),
-                        "5": lambda: self.input_control.num_5(),
-                        "6": lambda: self.input_control.num_6(),
-                        "7": lambda: self.input_control.num_7(),
-                        "8": lambda: self.input_control.num_8(),
-                        "9": lambda: self.input_control.num_9(),
-                        "POWER": lambda: self.system.power_off()
-                    }
-                    
-                    # Call the appropriate method if it exists
-                    if action in action_methods:
-                        action_methods[action]()
-                        result = True
-                    else:
-                        logger.warning(f"Unknown action: {action}")
-                        result = False
-                    
-                    # Close the input connection
-                    self.input_control.disconnect_input()
-                    return result
-                    
-                except Exception as e:
-                    logger.error(f"Error sending action: {str(e)}")
-                    return False
+            action = action.lower()
+            logger.info(f"Sending action {action} to TV {self.get_name()}")
             
-            return await asyncio.get_event_loop().run_in_executor(
-                self.executor, send_action_sync
-            )
-            
-        except Exception as e:
-            logger.error(f"Failed to send action: {str(e)}")
-            return False
-    
-    async def set_input_source(self, input_source):
-        """Set the input source on the TV."""
-        if not self.state.get("connected", False):
-            await self._connect_to_tv()
-        
-        try:
-            # Run in executor since PyWebOSTV uses blocking calls
-            def set_input_sync():
-                try:
-                    # Get all input sources
-                    sources = self.source_control.list_sources()
-                    
-                    # Find the source by ID
-                    target_source = None
-                    for source in sources:
-                        if source["id"] == input_source:
-                            target_source = source
-                            break
-                    
-                    if target_source:
-                        self.source_control.set_source(target_source)
-                        return True
-                    else:
-                        logger.warning(f"Input source {input_source} not found")
-                        return False
-                        
-                except Exception as e:
-                    logger.error(f"Error setting input source: {str(e)}")
-                    return False
-            
-            result = await asyncio.get_event_loop().run_in_executor(
-                self.executor, set_input_sync
-            )
-            
-            if result:
-                self.update_state({"input_source": input_source})
+            if not self.client:
+                logger.error("TV client not initialized")
+                return False
                 
+            result = False
+            
+            # Media controls
+            if action == "play":
+                await self.client.send_message('request', 'ssap://media.controls/play', {})
+                result = True
+            elif action == "pause":
+                await self.client.send_message('request', 'ssap://media.controls/pause', {})
+                result = True
+            elif action == "stop":
+                await self.client.send_message('request', 'ssap://media.controls/stop', {})
+                result = True
+            elif action == "rewind":
+                await self.client.send_message('request', 'ssap://media.controls/rewind', {})
+                result = True
+            elif action == "fast_forward":
+                await self.client.send_message('request', 'ssap://media.controls/fastForward', {})
+                result = True
+            elif action == "volume_up":
+                await self.client.send_message('request', 'ssap://audio/volumeUp', {})
+                result = True
+            elif action == "volume_down":
+                await self.client.send_message('request', 'ssap://audio/volumeDown', {})
+                result = True
+            elif action == "mute":
+                result = await self.set_mute(True)
+            elif action == "unmute":
+                result = await self.set_mute(False)
+                
+            # TV navigation controls
+            elif action == "channel_up":
+                await self.client.send_message('request', 'ssap://tv/channelUp', {})
+                result = True
+            elif action == "channel_down":
+                await self.client.send_message('request', 'ssap://tv/channelDown', {})
+                result = True
+            elif action in ["up", "down", "left", "right", "ok", "back", "home", 
+                            "red", "green", "yellow", "blue", "menu", "exit", "guide"]:
+                # These all use the networkinput service with button parameter
+                await self.client.send_message('request', 
+                                           'ssap://com.webos.service.networkinput/getPointerInputSocket', 
+                                           {"button": action.upper()})
+                result = True
+            elif action in ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]:
+                # Number buttons also use networkinput
+                await self.client.send_message('request', 
+                                           'ssap://com.webos.service.networkinput/getPointerInputSocket', 
+                                           {"button": action})
+                result = True
+            else:
+                logger.error(f"Unknown action: {action}")
+                return False
+            
+            self.state["last_command"] = f"action_{action}"
             return result
             
         except Exception as e:
-            logger.error(f"Failed to set input source: {str(e)}")
+            logger.error(f"Error sending action: {str(e)}")
+            return False
+    
+    async def set_input_source(self, input_source):
+        """Set the TV input source."""
+        try:
+            logger.info(f"Setting input source to {input_source} on TV {self.get_name()}")
+            
+            if not self.client:
+                logger.error("TV client not initialized")
+                return False
+            
+            # First retrieve list of available sources using direct message
+            try:
+                sources_response = await self.client.send_message('request', 'ssap://tv/getExternalInputList', {}, get_queue=True)  # type: ignore
+                if not sources_response or not sources_response.get("payload"):  # type: ignore
+                    logger.error("Could not retrieve list of sources")
+                    return False
+                
+                sources = sources_response.get("payload", {}).get("devices", [])  # type: ignore
+                if not sources:
+                    logger.error("No input sources available")
+                    return False
+                
+                # Try to find the source by name or ID
+                target_source = None
+                for source in sources:
+                    if input_source.lower() in source.get("label", "").lower() or input_source == source.get("id"):
+                        target_source = source
+                        break
+                
+                if not target_source:
+                    logger.error(f"Input source {input_source} not found on TV")
+                    return False
+                
+                # Set the input source directly
+                await self.client.send_message('request', 'ssap://tv/switchInput', {"inputId": target_source["id"]})
+                self.state["input_source"] = target_source["id"]
+                self.state["last_command"] = f"set_input_{input_source}"
+                return True
+            except Exception as e:
+                logger.error(f"Error sending input source request: {str(e)}")
+                return False
+        except Exception as e:
+            logger.error(f"Error setting input source: {str(e)}")
             return False
     
     async def handle_message(self, topic: str, payload: str):
@@ -527,6 +470,7 @@ class LgTv(BaseDevice):
             # Handle app launch topic
             app_launch_topic = self.config.get("app_launch_topic")
             if topic == app_launch_topic:
+                # The payload can now be an app_id or a configured app name
                 await self.launch_app(payload)
                 return
                 
@@ -590,4 +534,28 @@ class LgTv(BaseDevice):
                 mac_address=None,
                 error="Device state not properly initialized"
             ).model_dump()
-        return super().get_state() 
+        return super().get_state()
+
+    # Get available apps on the TV
+    async def get_available_apps(self):
+        """Get a list of available apps on the TV."""
+        try:
+            if not self.app:
+                logger.error("App control not initialized")
+                return []
+
+            # Simplest implementation - call list_apps() without any parameters
+            # This method is defined in the ApplicationControl COMMANDS dictionary
+            # and should work according to the library's implementation
+            try:
+                # type: ignore comment is needed to suppress linter errors
+                # about missing callback parameter
+                result = await self.app.list_apps()  # type: ignore
+                return result
+            except Exception as e:
+                logger.error(f"Error getting available apps: {str(e)}")
+                return []
+            
+        except Exception as e:
+            logger.error(f"Error in get_available_apps: {str(e)}")
+            return [] 

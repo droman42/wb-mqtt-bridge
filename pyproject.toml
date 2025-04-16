@@ -1,0 +1,92 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wb-mqtt-bridge"
+version = "0.1.0"
+description = "A Python-based web service that acts as an MQTT client to manage multiple devices using a plugin-based architecture"
+readme = "README.md"
+authors = [
+    {name = "Dmitri Romanovskij", email = "dmitri.romanovski@gmail.com"}
+]
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Home Automation",
+    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "fastapi>=0.103.0",
+    "uvicorn>=0.23.2",
+    "aiomqtt>=1.0.0",
+    "pydantic>=2.3.0",
+    "python-dotenv>=1.0.0",
+    "broadlink>=0.18.0",
+    "websockets>=10.0",
+    "asyncio>=3.4.3",
+    "paho-mqtt>=1.6.1",
+    # Local dependencies are installed in editable mode with pip install -e
+    # "asyncwebostv @ file:///home/droman42/development/asyncwebostv"
+    # "pymotivaxmc2 @ file:///home/droman42/development/pymotivaxmc2"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "pytest-cov>=2.0",
+    "black>=21.0",
+    "mypy>=0.9",
+    "flake8>=3.9",
+]
+
+[project.urls]
+Homepage = "https://github.com/droman42/wb-mqtt-bridge"
+Issues = "https://github.com/droman42/wb-mqtt-bridge/issues"
+
+[project.scripts]
+wb-mqtt-bridge = "app.main:main"
+
+[tool.setuptools]
+packages = ["app", "devices"]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.package-dir]
+"" = "."
+
+[tool.setuptools.package-data]
+"*" = ["*.py"]
+
+[tool.black]
+line-length = 88
+target-version = ["py38", "py39", "py310", "py311"]
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false 

@@ -203,43 +203,50 @@ async def reload_system_task():
     
     try:
         # Stop MQTT client
-        await mqtt_client.disconnect()
+        if mqtt_client:
+            await mqtt_client.stop()
         
         # Reload configs and device modules
-        config_manager.reload_configs()
-        await device_manager.load_device_modules()
+        if config_manager:
+            config_manager.reload_configs()
+        
+        if device_manager:
+            await device_manager.load_device_modules()
         
         # Reconfigure MQTT client
-        mqtt_broker_config = config_manager.get_mqtt_broker_config()
-        new_mqtt_client = MQTTClient({
-            'host': mqtt_broker_config.host,
-            'port': mqtt_broker_config.port,
-            'client_id': mqtt_broker_config.client_id,
-            'keepalive': mqtt_broker_config.keepalive,
-            'auth': mqtt_broker_config.auth
-        })
-        
-        # Get topics for all devices
-        device_topics = {}
-        for device_name, device_config in config_manager.get_all_device_configs().items():
-            # Register message handler
-            handler = device_manager.get_message_handler(device_name)
-            if handler:
-                new_mqtt_client.register_handler(device_name, handler)
+        if config_manager:
+            mqtt_broker_config = config_manager.get_mqtt_broker_config()
+            new_mqtt_client = MQTTClient({
+                'host': mqtt_broker_config.host,
+                'port': mqtt_broker_config.port,
+                'client_id': mqtt_broker_config.client_id,
+                'keepalive': mqtt_broker_config.keepalive,
+                'auth': mqtt_broker_config.auth
+            })
             
-            # Get topics
-            topics = device_manager.get_device_topics(device_name)
-            if topics:
-                device_topics[device_name] = topics
-        
-        # Start new MQTT client
-        mqtt_client = new_mqtt_client
-        await mqtt_client.connect()
-        
-        # Initialize devices
-        await device_manager.initialize_devices()
-        
-        logger.info("System reload completed successfully")
+            # Get topics for all devices
+            device_topics = {}
+            if device_manager and config_manager:
+                for device_name, device_config in config_manager.get_all_device_configs().items():
+                    # Register message handler
+                    handler = device_manager.get_message_handler(device_name)
+                    if handler:
+                        new_mqtt_client.register_handler(device_name, handler)
+                    
+                    # Get topics
+                    topics = device_manager.get_device_topics(device_name)
+                    if topics:
+                        device_topics[device_name] = topics
+            
+            # Start new MQTT client
+            mqtt_client = new_mqtt_client
+            await mqtt_client.start(device_topics)  # using start instead of connect
+            
+            # Initialize devices
+            if device_manager and config_manager:
+                await device_manager.initialize_devices(config_manager.get_all_device_configs())
+            
+            logger.info("System reload completed successfully")
     except Exception as e:
         logger.error(f"Error during system reload: {str(e)}")
 
@@ -257,7 +264,9 @@ async def get_device(device_id: str):
             logger.error(f"Device {device_id} not found")
             raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
         
-        device_config = config_manager.get_device_config(device_id)
+        device_config = None
+        if config_manager:
+            device_config = config_manager.get_device_config(device_id)
         
         if not device_config:
             logger.error(f"Configuration for device {device_id} not found")
@@ -276,11 +285,22 @@ async def get_device(device_id: str):
             logger.warning(f"Error getting device state for {device_id}: {str(e)}")
             device_state = {"error": str(e)}
         
+        # Get last command if it exists and is a dictionary
+        last_command = device_state.get("last_command")
+        if last_command and isinstance(last_command, dict):
+            # Convert to Dict[str, Any] type
+            last_command_dict: Dict[str, Any] = {}
+            for k, v in last_command.items():
+                last_command_dict[str(k)] = v
+            last_command = last_command_dict
+        else:
+            last_command = None
+            
         return DeviceState(
             device_id=device_id,
             device_name=device_name,
             state=device_state,
-            last_command=device_state.get("last_command"),
+            last_command=last_command,
             error=device_state.get("error")
         )
     except Exception as e:
@@ -306,13 +326,13 @@ async def execute_device_action(
     
     # Execute the action
     logger.info(f"Executing action {action.action} for device {device_id} with params {action.params}")
-    result = await device.execute_action(action.action, action.params)
+    result = await device.execute_action(action.action, action.params or {})
     
     if not result["success"]:
         raise HTTPException(status_code=400, detail=result["error"])
     
     # If there's an MQTT command to be published, do it in the background
-    if result.get("mqtt_command"):
+    if result.get("mqtt_command") and mqtt_client is not None:
         mqtt_cmd = result["mqtt_command"]
         background_tasks.add_task(
             mqtt_client.publish,
@@ -355,8 +375,8 @@ async def get_device_actions(device_id: str):
             logger.warning(f"Device {device_id} does not implement get_available_commands method")
             
             # Try to get commands from device configuration if available
-            if hasattr(device, 'config') and hasattr(device.config, 'commands'):
-                commands = device.config.commands
+            if hasattr(device, 'config') and isinstance(device.config, dict) and 'commands' in device.config:
+                commands = device.config['commands']
                 actions = [
                     {"action": cmd_name, "description": cmd_data.get("description", "No description")}
                     for cmd_name, cmd_data in commands.items()
@@ -417,55 +437,3 @@ async def publish_message(message: MQTTMessage, background_tasks: BackgroundTask
             status_code=500,
             detail=str(e)
         )
-
-async def start_service():
-    """Start the web service and initialize all components."""
-    try:
-        global config_manager, device_manager, mqtt_client
-        
-        # Initialize configuration manager
-        config_manager = ConfigManager()
-        await config_manager.load_config()
-        
-        # Initialize MQTT client
-        mqtt_client = MQTTClient({
-            'host': config_manager.get_mqtt_broker_host(),
-            'port': config_manager.get_mqtt_broker_port(),
-            'client_id': config_manager.get_mqtt_client_id(),
-            'keepalive': config_manager.get_mqtt_keepalive(),
-            'auth': {
-                'username': config_manager.get_mqtt_username(),
-                'password': config_manager.get_mqtt_password()
-            }
-        })
-        
-        # Initialize device manager with MQTT client
-        device_manager = DeviceManager(mqtt_client=mqtt_client)
-        await device_manager.load_device_modules()
-        
-        # Get device configurations
-        device_configs = config_manager.get_device_configs()
-        await device_manager.initialize_devices(device_configs)
-        
-        # Register message handlers for each device
-        for device_id, device in device_manager.devices.items():
-            handler = device_manager.get_message_handler(device_id)
-            if handler:
-                mqtt_client.register_handler(device_id, handler)
-        
-        # Get all device topics
-        device_topics = {}
-        for device_id in device_manager.get_all_devices():
-            topics = device_manager.get_device_topics(device_id)
-            if topics:
-                device_topics[device_id] = topics
-        
-        # Start MQTT client with device topics
-        await mqtt_client.start(device_topics)
-        
-        logger.info("Service started successfully")
-        return True
-        
-    except Exception as e:
-        logger.error(f"Failed to start service: {str(e)}")
-        return False

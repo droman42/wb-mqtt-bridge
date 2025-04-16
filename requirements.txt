@@ -4,8 +4,10 @@ aiomqtt>=1.0.0
 pydantic>=2.3.0
 python-dotenv>=1.0.0
 broadlink>=0.18.0
-pywebostv>=0.8.9
+#pywebostv>=0.8.9
+# Temporarily using local asyncwebostv, install manually with:
+# pip install -e ../asyncwebostv
 websockets>=10.0
 asyncio>=3.4.3
 paho-mqtt>=1.6.1
-pymotivaxmc2>=0.3.0 
+-e ../pymotivaxmc2

@@ -5,6 +5,7 @@
     "device_name": "eMotiva XMC2 Processor",
     "emotiva": {
         "host": "192.168.110.177",
+        "mac": "E8:EB:1B:18:8F:3E",
         "port": 7002,
         "update_interval": 60
     },

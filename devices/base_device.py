@@ -1,17 +1,19 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional, Type
+from typing import Dict, Any, List, Optional, Type, Callable, TYPE_CHECKING
 import logging
 import json
 from datetime import datetime
+from socket import socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_BROADCAST
 
 from app.schemas import BaseDeviceState, LastCommand
+from app.mqtt_client import MQTTClient
 
 logger = logging.getLogger(__name__)
 
 class BaseDevice(ABC):
     """Base class for all device implementations."""
     
-    def __init__(self, config: Dict[str, Any], mqtt_client: Optional['MQTTClient'] = None):
+    def __init__(self, config: Dict[str, Any], mqtt_client: Optional["MQTTClient"] = None):
         self.config = config
         self.device_id = config.get('device_id', 'unknown')
         self.device_name = config.get('device_name', 'unknown')
@@ -148,7 +150,7 @@ class BaseDevice(ABC):
             logger.error(f"Error executing action {action_name}: {str(e)}")
             return None
     
-    def _get_action_handler(self, action_name: str) -> Optional[callable]:
+    def _get_action_handler(self, action_name: str) -> Optional[Callable]:
         """Get or create an action handler for the given action name."""
         if action_name not in self._action_handlers:
             handler_name = f"handle_{action_name}"
@@ -179,7 +181,7 @@ class BaseDevice(ABC):
         self.state.update(updates)
         logger.debug(f"Updated state for {self.device_name}: {updates}")
     
-    async def execute_action(self, action: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
+    async def execute_action(self, action: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Execute an action identified by action name."""
         try:
             # Find the command configuration for this action
@@ -221,6 +223,42 @@ class BaseDevice(ABC):
                 "action": action,
                 "error": str(e)
             }
+    
+    async def send_wol_packet(self, mac_address: str, ip_address: str = '255.255.255.255', port: int = 9) -> bool:
+        """
+        Send a Wake-on-LAN magic packet to the specified MAC address.
+        
+        Args:
+            mac_address: MAC address of the target device (format: xx:xx:xx:xx:xx:xx)
+            ip_address: Broadcast IP address (default: 255.255.255.255)
+            port: UDP port to send the packet to (default: 9)
+            
+        Returns:
+            bool: True if the packet was sent successfully, False otherwise
+        """
+        try:
+            if not mac_address:
+                logger.error("No MAC address provided for Wake-on-LAN")
+                return False
+                
+            # Convert MAC address to bytes
+            mac_bytes = bytes.fromhex(mac_address.replace(':', ''))
+            
+            # Create the magic packet (6 bytes of 0xFF followed by MAC address repeated 16 times)
+            magic_packet = b'\xff' * 6 + mac_bytes * 16
+            
+            # Send the packet
+            sock = socket(AF_INET, SOCK_DGRAM)
+            sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
+            sock.sendto(magic_packet, (ip_address, port))
+            sock.close()
+            
+            logger.info(f"Sent WOL packet to {mac_address}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to send WOL packet: {str(e)}")
+            return False
     
     def get_available_commands(self) -> Dict[str, Any]:
         """Return the list of available commands for this device."""

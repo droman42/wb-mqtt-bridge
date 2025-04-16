@@ -15,20 +15,25 @@ class MQTTClient:
         logger.info(f"Initializing MQTT client with broker config: {broker_config}")
         
         # Check if broker_config is a Pydantic model and convert it to dict if needed
-        if hasattr(broker_config, 'model_dump'):
-            broker_config = broker_config.model_dump()
-        elif hasattr(broker_config, 'dict'):
-            broker_config = broker_config.dict()
+        config_dict = broker_config
+        try:
+            if hasattr(broker_config, 'model_dump'):
+                config_dict = broker_config.model_dump()  # type: ignore
+            elif hasattr(broker_config, 'dict') and callable(getattr(broker_config, 'dict')):
+                config_dict = broker_config.dict()  # type: ignore
+        except AttributeError:
+            # Already a dict, continue
+            pass
             
-        self.host = broker_config.get('host', 'localhost')
+        self.host = config_dict.get('host', 'localhost')
         logger.info(f"MQTT broker host set to: {self.host} (from config)")
-        self.port = broker_config.get('port', 1883)
+        self.port = config_dict.get('port', 1883)
         logger.info(f"MQTT broker port set to: {self.port} (from config)")
-        self.client_id = broker_config.get('client_id', 'mqtt_web_service')
-        self.keepalive = broker_config.get('keepalive', 60)
+        self.client_id = config_dict.get('client_id', 'mqtt_web_service')
+        self.keepalive = config_dict.get('keepalive', 60)
         
         # Authentication settings
-        auth = broker_config.get('auth', {})
+        auth = config_dict.get('auth', {})
         self.username = auth.get('username')
         self.password = auth.get('password')
         
@@ -111,10 +116,10 @@ class MQTTClient:
                         try:
                             # Try UTF-8 first, fall back to latin-1 if that fails
                             try:
-                                payload = message.payload.decode('utf-8')
+                                payload = message.payload.decode('utf-8')  # type: ignore
                             except UnicodeDecodeError:
                                 # If UTF-8 fails, try latin-1 which can handle any byte sequence
-                                payload = message.payload.decode('latin-1')
+                                payload = message.payload.decode('latin-1')  # type: ignore
                                 logger.warning(f"Received non-UTF-8 payload on topic {topic}, using latin-1 decoding")
                         
                         except Exception as e:

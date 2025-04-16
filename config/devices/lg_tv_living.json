@@ -13,6 +13,12 @@
   "volume_topic": "/devices/living_room_tv/controls/volume",
   "app_launch_topic": "/devices/living_room_tv/controls/app_launch",
   "input_source_topic": "/devices/living_room_tv/controls/input_source",
+  "apps": {
+    "youtube": "youtube.leanback.v4",
+    "netflix": "netflix",
+    "prime": "com.amazon.amazonvideo.livingroom",
+    "appletv": "com.apple.appletv"
+  },
   "commands": {
     "power": {
       "action": "POWER",

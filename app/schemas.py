@@ -58,7 +58,7 @@ class WirenboardIRState(BaseDeviceState):
 
 class RevoxA77ReelToReelState(BaseDeviceState):
     """Schema for Revox A77 reel-to-reel state."""
-    last_command: str
+    last_command: str = ""
     connection_status: str
 
 class ExampleDeviceState(BaseDeviceState):

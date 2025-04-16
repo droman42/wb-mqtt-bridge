@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Callable
 from datetime import datetime
 from devices.base_device import BaseDevice
 from app.schemas import WirenboardIRState
@@ -143,11 +143,11 @@ class WirenboardIRDevice(BaseDevice):
         except Exception as e:
             logger.error(f"Error handling message for {self.get_name()}: {str(e)}")
     
-    def get_last_command(self) -> Dict[str, Any]:
+    def get_last_command(self) -> Optional[Dict[str, Any]]:
         """Return information about the last executed command."""
         return self.state.get("last_command") 
     
-    def _get_action_handler(self, action_name: str) -> callable:
+    def _get_action_handler(self, action_name: str) -> Callable:
         """
         Override the base _get_action_handler to create a generic handler
         that uses the handle_message logic for all actions.

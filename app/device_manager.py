@@ -64,7 +64,7 @@ class DeviceManager:
         """Initialize devices from their configurations."""
         for device_id, config in configs.items():
             try:
-                device_type = config.device_type
+                device_type = config.device_class
                 device_class = self.device_classes.get(device_type)
                 
                 if not device_class:

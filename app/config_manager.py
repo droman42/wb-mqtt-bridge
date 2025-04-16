@@ -1,7 +1,7 @@
 import json
 import os
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from app.schemas import SystemConfig, DeviceConfig, MQTTBrokerConfig
 
 logger = logging.getLogger(__name__)
@@ -88,7 +88,7 @@ class ConfigManager:
             except Exception as e:
                 logger.error(f"Error loading device config {config_file}: {str(e)}")
     
-    def get_device_class_name(self, device_id: str) -> str:
+    def get_device_class_name(self, device_id: str) -> Optional[str]:
         """Get the class name for a device."""
         devices_config = self.system_config.devices
         device_info = devices_config.get(device_id, {})
@@ -98,7 +98,7 @@ class ConfigManager:
         """Get the system configuration."""
         return self.system_config
     
-    def get_device_config(self, device_name: str) -> DeviceConfig:
+    def get_device_config(self, device_name: str) -> Optional[DeviceConfig]:
         """Get the configuration for a specific device."""
         return self.device_configs.get(device_name)
     
@@ -129,31 +129,15 @@ class ConfigManager:
         mqtt_config = self.system_config.mqtt_broker
         
         # Update MQTT broker configuration
-        mqtt_config.update({
-            'host': os.getenv('MQTT_BROKER_HOST', mqtt_config.get('host', 'localhost')),
-            'port': int(os.getenv('MQTT_BROKER_PORT', mqtt_config.get('port', 1883)))
-        })
+        mqtt_config.host = os.getenv('MQTT_BROKER_HOST', mqtt_config.host)
+        mqtt_config.port = int(os.getenv('MQTT_BROKER_PORT', str(mqtt_config.port)))
         
         # Add authentication only if credentials are provided and non-empty
         username = os.getenv('MQTT_USERNAME')
         password = os.getenv('MQTT_PASSWORD')
         if username and password and username.strip() and password.strip():
-            mqtt_config['auth'] = {
-                'username': username,
-                'password': password
-            }
+            mqtt_config.auth = {"username": username, "password": password}
             logger.info("Using MQTT authentication credentials from environment variables")
-        elif 'auth' in mqtt_config:
-            # If credentials exist in the config file and were not overridden by environment
-            # variables, keep them if they are not empty
-            auth = mqtt_config.get('auth', {})
-            if not (auth.get('username') and auth.get('password')):
-                # Remove auth if it exists in config but credentials are empty
-                mqtt_config.pop('auth', None)
-                logger.info("MQTT authentication disabled (empty credentials)")
-        
-        # Update logging configuration
-        # self.system_config['log_level'] = os.getenv('LOG_LEVEL', self.system_config.get('log_level', 'INFO'))
         
         # Update the system configuration
         self.system_config.mqtt_broker = mqtt_config 

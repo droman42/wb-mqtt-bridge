@@ -23,8 +23,8 @@ def main():
     print(f"   MQTT_USERNAME = {os.getenv('MQTT_USERNAME', 'not set')}")
     print(f"   MQTT_PASSWORD = {os.getenv('MQTT_PASSWORD', 'not set')}")
     
-    # Initialize MQTT client
-    mqtt_client = MQTTClient(mqtt_broker_config)
+    # Initialize MQTT client with converted config
+    mqtt_client = MQTTClient(mqtt_broker_config.model_dump())
     print(f"3. MQTT Client initialized with:")
     print(f"   host = {mqtt_client.host}")
     print(f"   port = {mqtt_client.port}")

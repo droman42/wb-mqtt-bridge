@@ -171,7 +171,7 @@ class RevoxA77ReelToReel(BaseDevice):
         return RevoxA77ReelToReelState(
             device_id=self.device_id,
             device_name=self.device_name,
-            last_command=self.state.get("last_command"),
+            last_command=self.state.get("last_command", ""),
             connection_status=self.state.get("connection_status", "unknown"),
             error=self.state.get("error")
         ) 
