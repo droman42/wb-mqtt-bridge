@@ -1,12 +1,12 @@
 import logging
 import json
 from typing import Dict, Any, List, Optional
-from pymotivaxmc2 import Emotiva, EmotivaConfig
+from pymotivaxmc2 import Emotiva, EmotivaConfig as PyEmotivaConfig
 from datetime import datetime
 import asyncio
 
 from devices.base_device import BaseDevice
-from app.schemas import EMotivaXMC2State, LastCommand
+from app.schemas import EmotivaXMC2State, LastCommand, EmotivaConfig
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ class EMotivaXMC2(BaseDevice):
     
     def __init__(self, config: Dict[str, Any], mqtt_client=None):
         super().__init__(config, mqtt_client)
-        self._state_schema = EMotivaXMC2State
+        self._state_schema = EmotivaXMC2State
         self.client = None
         
         # Initialize device state
@@ -27,6 +27,13 @@ class EMotivaXMC2(BaseDevice):
             "source_status": None,
             "video_input": None,
             "audio_input": None,
+            "volume": None,
+            "mute": None,
+            "audio_mode": None,
+            "audio_bitstream": None,
+            "connected": False,
+            "ip_address": None,
+            "mac_address": None,
             "startup_complete": False,
             "notifications": False,
             "last_command": None,
@@ -37,31 +44,43 @@ class EMotivaXMC2(BaseDevice):
         """Initialize the device."""
         try:
             # Get emotiva-specific configuration
-            emotiva_config = self.config.get("emotiva", {})
-            if not emotiva_config:
+            emotiva_dict = self.config.get("emotiva", {})
+            if not emotiva_dict:
                 logger.error(f"Missing 'emotiva' configuration for device: {self.get_name()}")
                 self.state["error"] = "Missing emotiva configuration"
                 return False
+            
+            # Validate emotiva configuration with pydantic model
+            try:
+                emotiva_config = EmotivaConfig(**emotiva_dict)
+            except Exception as e:
+                logger.error(f"Invalid emotiva configuration for device: {self.get_name()}: {str(e)}")
+                self.state["error"] = f"Invalid emotiva configuration: {str(e)}"
+                return False
                 
             # Get the host IP address
-            host = emotiva_config.get("host")
+            host = emotiva_config.host
             if not host:
                 logger.error(f"Missing 'host' in emotiva configuration for device: {self.get_name()}")
                 self.state["error"] = "Missing host configuration"
                 return False
+            
+            # Store MAC address if available in config
+            if emotiva_config.mac:
+                self.state["mac_address"] = emotiva_config.mac
                 
             logger.info(f"Initializing eMotiva XMC2 device: {self.get_name()} at {host}")
             
             # Prepare configuration with optional parameters
             emotiva_options = {
-                "timeout": emotiva_config.get("timeout", 2),
-                "max_retries": emotiva_config.get("max_retries", 3),
-                "retry_delay": emotiva_config.get("retry_delay", 1.0),
-                "keepalive_interval": emotiva_config.get("keepalive_interval", 60)
+                "timeout": emotiva_config.timeout,
+                "max_retries": emotiva_config.max_retries,
+                "retry_delay": emotiva_config.retry_delay,
+                "keepalive_interval": emotiva_config.update_interval
             }
             
             # Create client instance with proper configuration
-            self.client = Emotiva(EmotivaConfig(
+            self.client = Emotiva(PyEmotivaConfig(
                 ip=host,
                 **{k: v for k, v in emotiva_options.items() if v is not None}
             ))
@@ -102,7 +121,7 @@ class EMotivaXMC2(BaseDevice):
                 logger.error(f"Error discovering eMotiva device at {host}: {error_message}")
                 
                 # We can still try to use the device even if discovery failed
-                if emotiva_config.get("force_connect", False):
+                if emotiva_config.force_connect:
                     logger.warning(f"Force connect enabled, continuing with setup despite discovery failure")
                     
                     # Set up notification handling
@@ -639,13 +658,10 @@ class EMotivaXMC2(BaseDevice):
             timestamp=datetime.now()
         ).model_dump()
     
-    def get_current_state(self) -> EMotivaXMC2State:
-        """Return the current state of the device."""
-        # Get the zone status info properly
-        zone_status = self.state.get("zone_status", {})
-        
-        # Create a properly formatted state object
-        return EMotivaXMC2State(
+    def get_current_state(self) -> EmotivaXMC2State:
+        """Get a typed representation of the current state."""
+        # Convert dictionary state to a proper schema object
+        return EmotivaXMC2State(
             device_id=self.device_id,
             device_name=self.device_name,
             power=self.state.get("power", "standby"),
@@ -717,6 +733,16 @@ class EMotivaXMC2(BaseDevice):
             updates["volume"] = float(volume_value) if volume_value else 0
             logger.debug(f"Volume updated: {volume_value}")
             
+        # Process mute state
+        if "mute" in notification_data:
+            mute_data = notification_data["mute"]
+            mute_state = mute_data.get("value", False)
+            # Convert string "true"/"false" to boolean if needed
+            if isinstance(mute_state, str):
+                mute_state = mute_state.lower() == "true"
+            updates["mute"] = bool(mute_state)
+            logger.debug(f"Mute state updated: {mute_state}")
+            
         # Process input source
         if "input" in notification_data:
             input_data = notification_data["input"]
@@ -738,12 +764,19 @@ class EMotivaXMC2(BaseDevice):
             updates["audio_input"] = audio_value
             logger.debug(f"Audio input updated: {audio_value}")
             
-        # Process mode
+        # Process audio bitstream
+        if "audio_bitstream" in notification_data:
+            bitstream_data = notification_data["audio_bitstream"]
+            bitstream_value = bitstream_data.get("value", "unknown")
+            updates["audio_bitstream"] = bitstream_value
+            logger.debug(f"Audio bitstream updated: {bitstream_value}")
+            
+        # Process mode (audio mode)
         if "mode" in notification_data:
             mode_data = notification_data["mode"]
             mode_value = mode_data.get("value", "unknown")
-            updates["mode"] = mode_value
-            logger.debug(f"Mode updated: {mode_value}")
+            updates["audio_mode"] = mode_value
+            logger.debug(f"Audio mode updated: {mode_value}")
         
         # Update device state with notification data
         if updates:

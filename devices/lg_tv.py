@@ -13,7 +13,7 @@ from asyncwebostv.controls import (
     SourceControl
 )
 from devices.base_device import BaseDevice
-from app.schemas import LgTvState
+from app.schemas import LgTvState, LgTvConfig, LastCommand
 from app.mqtt_client import MQTTClient
 
 logger = logging.getLogger(__name__)
@@ -44,20 +44,29 @@ class LgTv(BaseDevice):
         self.source_control = None
     
     async def setup(self) -> bool:
-        """Initialize the device."""
+        """Initialize the TV device."""
         try:
-            # Get TV configuration
-            tv_config = self.config.get("tv", {})
-            if not tv_config:
-                logger.error(f"No TV configuration for device {self.get_name()}")
-                self.state["error"] = "No TV configuration"
-                return True  # Return True to allow device to be initialized even without TV config
+            # Get TV-specific configuration
+            tv_dict = self.config.get("tv", {})
+            if not tv_dict:
+                logger.error(f"Missing 'tv' configuration for {self.get_name()}")
+                self.state["error"] = "Missing TV configuration"
+                return False
+                
+            # Validate TV configuration with pydantic model
+            try:
+                tv_config = LgTvConfig(**tv_dict)
+            except Exception as e:
+                logger.error(f"Invalid TV configuration for device: {self.get_name()}: {str(e)}")
+                self.state["error"] = f"Invalid TV configuration: {str(e)}"
+                return False
+                
+            # Update state with configuration values
+            self.state["ip_address"] = tv_config.ip_address
+            self.state["mac_address"] = tv_config.mac_address
             
-            self.state["ip_address"] = tv_config.get("ip_address")
-            self.state["mac_address"] = tv_config.get("mac_address")
-            
-            # Store client key
-            self.client_key = tv_config.get("client_key")
+            # Store client key for WebOS authentication
+            self.client_key = tv_config.client_key
             
             # Initialize TV connection
             if await self._connect_to_tv():
@@ -73,13 +82,13 @@ class LgTv(BaseDevice):
         except Exception as e:
             logger.error(f"Failed to initialize TV {self.get_name()}: {str(e)}")
             self.state["error"] = str(e)
-            return True  # Return True to allow device to be initialized even with errors
+            return False
     
     async def shutdown(self) -> bool:
         """Cleanup device resources."""
         try:
-            if self.client and self.client.connection:
-                await self.client.close()
+            if self.tv and self.tv.connection:
+                await self.tv.close()
             
             logger.info(f"LG TV {self.get_name()} shutdown complete")
             return True
@@ -118,59 +127,67 @@ class LgTv(BaseDevice):
         return topics
     
     async def _connect_to_tv(self) -> bool:
-        """Establish a connection to the TV using AsyncWebOSTV."""
+        """Connect to the TV."""
         try:
-            ip_address = self.state.get("ip_address")
-            if not ip_address:
+            ip = self.state.get("ip_address")
+            if not ip:
                 logger.error("No IP address configured for TV")
                 return False
+                
+            # Get TV-specific configuration
+            tv_dict = self.config.get("tv", {})
+            tv_config = LgTvConfig(**tv_dict)
             
-            # Create client
-            secure_mode = self.config.get("tv", {}).get("secure", True)
-            self.client = WebOSClient(ip_address, secure=secure_mode, client_key=self.client_key)
+            # Use secure WebSocket mode by default, can be disabled in config
+            secure_mode = tv_config.secure
+            
+            # Create a new TV client
+            self.tv = WebOSClient(ip, secure=secure_mode)
             
             # Connect to the TV
-            await self.client.connect()
+            await self.tv.connect()
             
             # Register with the TV if needed
-            if not self.client.client_key:
+            if not self.tv.client_key:
                 logger.info("No client key found, registering with TV...")
                 store = {}
                 registered = False
                 
                 try:
-                    async for status in self.client.register(store):
+                    async for status in self.tv.register(store):
                         if status == WebOSClient.PROMPTED:
                             logger.info("Please accept the connection on the TV!")
                         elif status == WebOSClient.REGISTERED:
-                            logger.info("Registration successful!")
                             registered = True
-                            self.client_key = store.get("client_key")
-                            # Store client key for future use
-                            if self.client_key and self.mqtt_client:
-                                # Notify about new client key via state update
-                                self.state["client_key"] = self.client_key
+                            logger.info("TV registration successful!")
+                            
+                            # Save the client key for future use
+                            if store.get("client_key"):
+                                self.client_key = store["client_key"]
+                                logger.info("Client key obtained and stored")
+                            
+                            break
                 except Exception as e:
-                    logger.error(f"Error during registration: {str(e)}")
+                    logger.error(f"Error during TV registration: {str(e)}")
                     return False
                 
                 if not registered:
-                    logger.error("Failed to register with TV")
+                    logger.error("Failed to register with the TV")
                     return False
             
             # Initialize controls
-            self.media = MediaControl(self.client)
-            self.system = SystemControl(self.client)
-            self.app = ApplicationControl(self.client)
-            self.tv_control = TvControl(self.client)
-            self.input_control = InputControl(self.client)
-            self.source_control = SourceControl(self.client)
+            self.media = MediaControl(self.tv)
+            self.system = SystemControl(self.tv)
+            self.app = ApplicationControl(self.tv)
+            self.tv_control = TvControl(self.tv)
+            self.input_control = InputControl(self.tv)
+            self.source_control = SourceControl(self.tv)
             
             # Get initial TV state
             await self._update_tv_state()
             
             self.state["connected"] = True
-            logger.info(f"Successfully connected to LG TV at {ip_address}")
+            logger.info(f"Successfully connected to LG TV at {ip}")
             
             return True
             
@@ -214,10 +231,10 @@ class LgTv(BaseDevice):
             logger.info(f"Attempting to power on TV {self.get_name()}")
             
             # Try to use system power method if available
-            if self.system and self.client:
+            if self.system and self.tv:
                 try:
                     # Send turn on message directly 
-                    await self.client.send_message('request', 'ssap://system/turnOn', {})
+                    await self.tv.send_message('request', 'ssap://system/turnOn', {})
                     self.state["power"] = "on"
                     self.state["last_command"] = "power_on"
                     return True
@@ -236,9 +253,9 @@ class LgTv(BaseDevice):
             logger.info(f"Powering off TV {self.get_name()}")
             
             # Use system turnOff method
-            if self.system and self.client:
+            if self.system and self.tv:
                 # Send turn off message directly
-                await self.client.send_message('request', 'ssap://system/turnOff', {})
+                await self.tv.send_message('request', 'ssap://system/turnOff', {})
                 self.state["power"] = "off"
                 self.state["last_command"] = "power_off"
                 return True
@@ -254,9 +271,9 @@ class LgTv(BaseDevice):
             volume = int(volume)
             logger.info(f"Setting TV {self.get_name()} volume to {volume}")
             
-            if self.media and self.client:
+            if self.media and self.tv:
                 # Send volume message directly
-                await self.client.send_message('request', 'ssap://audio/setVolume', {"volume": volume})
+                await self.tv.send_message('request', 'ssap://audio/setVolume', {"volume": volume})
                 self.state["volume"] = volume
                 self.state["last_command"] = f"set_volume_{volume}"
                 return True
@@ -275,12 +292,12 @@ class LgTv(BaseDevice):
             
             logger.info(f"Setting mute to {mute} on TV {self.get_name()}")
             
-            if not self.client:
+            if not self.tv:
                 logger.error("TV client not initialized")
                 return False
                 
             # Send mute command directly
-            await self.client.send_message('request', 'ssap://audio/setMute', {"mute": mute})
+            await self.tv.send_message('request', 'ssap://audio/setMute', {"mute": mute})
             
             # Update state
             self.state["mute"] = mute
@@ -296,12 +313,12 @@ class LgTv(BaseDevice):
         try:
             logger.info(f"Launching app {app_name} on TV {self.get_name()}")
             
-            if not self.client:
+            if not self.tv:
                 logger.error("TV client not initialized")
                 return False
             
             # First retrieve list of available apps directly
-            apps_response = await self.client.send_message('request', 'ssap://com.webos.applicationManager/listApps', {}, get_queue=True)  # type: ignore
+            apps_response = await self.tv.send_message('request', 'ssap://com.webos.applicationManager/listApps', {}, get_queue=True)  # type: ignore
             if not apps_response or not apps_response.get("payload") or not apps_response.get("payload").get("apps"):  # type: ignore
                 logger.error("Could not retrieve list of apps")
                 return False
@@ -320,7 +337,7 @@ class LgTv(BaseDevice):
                 return False
             
             # Launch the app directly
-            await self.client.send_message('request', 'ssap://system.launcher/launch', {"id": target_app["id"]})
+            await self.tv.send_message('request', 'ssap://system.launcher/launch', {"id": target_app["id"]})
             self.state["current_app"] = target_app["id"]
             self.state["last_command"] = f"launch_app_{app_name}"
             return True
@@ -335,7 +352,7 @@ class LgTv(BaseDevice):
             action = action.lower()
             logger.info(f"Sending action {action} to TV {self.get_name()}")
             
-            if not self.client:
+            if not self.tv:
                 logger.error("TV client not initialized")
                 return False
                 
@@ -343,25 +360,25 @@ class LgTv(BaseDevice):
             
             # Media controls
             if action == "play":
-                await self.client.send_message('request', 'ssap://media.controls/play', {})
+                await self.tv.send_message('request', 'ssap://media.controls/play', {})
                 result = True
             elif action == "pause":
-                await self.client.send_message('request', 'ssap://media.controls/pause', {})
+                await self.tv.send_message('request', 'ssap://media.controls/pause', {})
                 result = True
             elif action == "stop":
-                await self.client.send_message('request', 'ssap://media.controls/stop', {})
+                await self.tv.send_message('request', 'ssap://media.controls/stop', {})
                 result = True
             elif action == "rewind":
-                await self.client.send_message('request', 'ssap://media.controls/rewind', {})
+                await self.tv.send_message('request', 'ssap://media.controls/rewind', {})
                 result = True
             elif action == "fast_forward":
-                await self.client.send_message('request', 'ssap://media.controls/fastForward', {})
+                await self.tv.send_message('request', 'ssap://media.controls/fastForward', {})
                 result = True
             elif action == "volume_up":
-                await self.client.send_message('request', 'ssap://audio/volumeUp', {})
+                await self.tv.send_message('request', 'ssap://audio/volumeUp', {})
                 result = True
             elif action == "volume_down":
-                await self.client.send_message('request', 'ssap://audio/volumeDown', {})
+                await self.tv.send_message('request', 'ssap://audio/volumeDown', {})
                 result = True
             elif action == "mute":
                 result = await self.set_mute(True)
@@ -370,21 +387,21 @@ class LgTv(BaseDevice):
                 
             # TV navigation controls
             elif action == "channel_up":
-                await self.client.send_message('request', 'ssap://tv/channelUp', {})
+                await self.tv.send_message('request', 'ssap://tv/channelUp', {})
                 result = True
             elif action == "channel_down":
-                await self.client.send_message('request', 'ssap://tv/channelDown', {})
+                await self.tv.send_message('request', 'ssap://tv/channelDown', {})
                 result = True
             elif action in ["up", "down", "left", "right", "ok", "back", "home", 
                             "red", "green", "yellow", "blue", "menu", "exit", "guide"]:
                 # These all use the networkinput service with button parameter
-                await self.client.send_message('request', 
+                await self.tv.send_message('request', 
                                            'ssap://com.webos.service.networkinput/getPointerInputSocket', 
                                            {"button": action.upper()})
                 result = True
             elif action in ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]:
                 # Number buttons also use networkinput
-                await self.client.send_message('request', 
+                await self.tv.send_message('request', 
                                            'ssap://com.webos.service.networkinput/getPointerInputSocket', 
                                            {"button": action})
                 result = True
@@ -404,13 +421,13 @@ class LgTv(BaseDevice):
         try:
             logger.info(f"Setting input source to {input_source} on TV {self.get_name()}")
             
-            if not self.client:
+            if not self.tv:
                 logger.error("TV client not initialized")
                 return False
             
             # First retrieve list of available sources using direct message
             try:
-                sources_response = await self.client.send_message('request', 'ssap://tv/getExternalInputList', {}, get_queue=True)  # type: ignore
+                sources_response = await self.tv.send_message('request', 'ssap://tv/getExternalInputList', {}, get_queue=True)  # type: ignore
                 if not sources_response or not sources_response.get("payload"):  # type: ignore
                     logger.error("Could not retrieve list of sources")
                     return False
@@ -432,7 +449,7 @@ class LgTv(BaseDevice):
                     return False
                 
                 # Set the input source directly
-                await self.client.send_message('request', 'ssap://tv/switchInput', {"inputId": target_source["id"]})
+                await self.tv.send_message('request', 'ssap://tv/switchInput', {"inputId": target_source["id"]})
                 self.state["input_source"] = target_source["id"]
                 self.state["last_command"] = f"set_input_{input_source}"
                 return True

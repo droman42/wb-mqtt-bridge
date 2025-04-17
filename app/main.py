@@ -179,6 +179,20 @@ async def get_system_info():
         devices=device_manager.get_all_devices()
     )
 
+@app.get("/config/system", tags=["System"], response_model=SystemConfig)
+async def get_system_config():
+    """Get system configuration."""
+    if not config_manager:
+        raise HTTPException(status_code=503, detail="Service not fully initialized")
+    
+    try:
+        system_config = config_manager.get_system_config()
+        return system_config
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error retrieving system config: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 @app.post("/reload", tags=["System"], response_model=ReloadResponse)
 async def reload_system(background_tasks: BackgroundTasks):
     """Reload configurations and device modules."""

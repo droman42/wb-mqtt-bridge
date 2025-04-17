@@ -10,6 +10,34 @@ class MQTTBrokerConfig(BaseModel):
     auth: Optional[Dict[str, str]] = None
     keepalive: int = 60
 
+class EmotivaConfig(BaseModel):
+    """Schema for Emotiva XMC2 device configuration."""
+    host: str
+    port: int = 7002
+    mac: Optional[str] = None
+    update_interval: int = 60
+    timeout: Optional[float] = None
+    max_retries: Optional[int] = None
+    retry_delay: Optional[float] = None
+    force_connect: bool = False
+
+class LgTvConfig(BaseModel):
+    """Schema for LG WebOS TV device configuration."""
+    ip_address: str
+    mac_address: Optional[str] = None
+    secure: bool = True
+    client_key: Optional[str] = None
+    timeout: int = 5
+    reconnect_interval: Optional[int] = None
+
+class BroadlinkConfig(BaseModel):
+    """Schema for Broadlink device configuration."""
+    host: str
+    mac: str
+    device_class: str
+    timeout: Optional[int] = None
+    retry_count: Optional[int] = None
+
 class DeviceConfig(BaseModel):
     """Schema for device configuration."""
     device_id: str
@@ -18,8 +46,9 @@ class DeviceConfig(BaseModel):
     mqtt_topics: List[str] = []
     parameters: Dict[str, Any] = {}
     commands: Dict[str, Any] = {}
-    broadlink: Optional[Dict[str, Any]] = None
-    tv: Optional[Dict[str, Any]] = None
+    broadlink: Optional[BroadlinkConfig] = None
+    tv: Optional[LgTvConfig] = None
+    emotiva: Optional[EmotivaConfig] = None
 
 class LastCommand(BaseModel):
     """Schema for last executed command."""
@@ -141,12 +170,19 @@ class MQTTPublishResponse(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.now)
     error: Optional[str] = None
 
-class EMotivaXMC2State(BaseDeviceState):
+class EmotivaXMC2State(BaseDeviceState):
     """Schema for eMotiva XMC2 device state."""
     power: Optional[str] = None
     zone2_power: Optional[str] = None
     source_status: Optional[str] = None
     video_input: Optional[str] = None
     audio_input: Optional[str] = None
+    volume: Optional[int] = None
+    mute: Optional[bool] = None
+    audio_mode: Optional[str] = None
+    audio_bitstream: Optional[str] = None
+    connected: bool = False
+    ip_address: Optional[str] = None
+    mac_address: Optional[str] = None
     startup_complete: bool = False
     notifications: bool = False

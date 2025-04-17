@@ -5,7 +5,7 @@ import asyncio
 from typing import Dict, Any, List, Optional
 import broadlink
 from devices.base_device import BaseDevice
-from app.schemas import KitchenHoodState
+from app.schemas import KitchenHoodState, BroadlinkConfig
 from app.mqtt_client import MQTTClient
 
 logger = logging.getLogger(__name__)
@@ -26,35 +26,36 @@ class BroadlinkKitchenHood(BaseDevice):
         }
 
     async def setup(self) -> bool:
-        """Initialize the device."""
+        """Initialize the Broadlink device for the kitchen hood."""
         try:
-            # Initialize Broadlink device
-            broadlink_config = self.config.get("broadlink", {})
-            if not broadlink_config:
-                logger.error(f"No Broadlink configuration for device {self.get_name()}")
-                self.state["connection_status"] = "error"
-                self.state["error"] = "No Broadlink configuration"
-                return True
-            
+            # Get Broadlink-specific configuration
+            broadlink_dict = self.config.get("broadlink", {})
+            if not broadlink_dict:
+                logger.error(f"Missing 'broadlink' configuration for device: {self.get_name()}")
+                self.state["error"] = "Missing Broadlink configuration"
+                return False
+                
+            # Validate Broadlink configuration with pydantic model
             try:
-                # Initialize Broadlink device directly with configuration
-                self.broadlink_device = broadlink.rm4pro(
-                    host=(broadlink_config["host"], 80),
-                    mac=bytes.fromhex(broadlink_config["mac"].replace(':', '')),
-                    devtype=int(broadlink_config["device_class"], 16)
-                )
-                
-                # Authenticate with the device
-                self.broadlink_device.auth()
-                logger.info(f"Successfully connected to Broadlink device for {self.get_name()}")
-                self.state["connection_status"] = "connected"
-                
+                broadlink_config = BroadlinkConfig(**broadlink_dict)
             except Exception as e:
-                err_msg = f"Failed to initialize Broadlink device: {str(e)}"
-                logger.error(err_msg)
-                self.state["connection_status"] = "error"
-                self.state["error"] = err_msg
-                return True
+                logger.error(f"Invalid Broadlink configuration for device: {self.get_name()}: {str(e)}")
+                self.state["error"] = f"Invalid Broadlink configuration: {str(e)}"
+                return False
+                
+            logger.info(f"Initializing Broadlink device: {self.get_name()} at {broadlink_config.host}")
+            
+            # Initialize the Broadlink device
+            self.broadlink_device = broadlink.rm(
+                host=(broadlink_config.host, 80),
+                mac=bytes.fromhex(broadlink_config.mac.replace(':', '')),
+                devtype=int(broadlink_config.device_class, 16)
+            )
+            
+            # Authenticate with the device
+            self.broadlink_device.auth()
+            logger.info(f"Successfully connected to Broadlink device for {self.get_name()}")
+            self.state["connection_status"] = "connected"
             
             logger.info(f"Kitchen hood {self.get_name()} initialized with {len(self.get_available_commands())} commands")
             return True
@@ -63,7 +64,7 @@ class BroadlinkKitchenHood(BaseDevice):
             logger.error(f"Failed to initialize device {self.get_name()}: {str(e)}")
             self.state["connection_status"] = "error"
             self.state["error"] = str(e)
-            return True
+            return False
     
     async def shutdown(self) -> bool:
         """Cleanup device resources."""
