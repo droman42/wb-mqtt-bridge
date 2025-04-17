@@ -325,3 +325,37 @@ defineVirtualDevice("amplifier", {
     }
   });
 
+  // eMotiva XMC-2 AV Processor
+  defineVirtualDevice("processor", {
+    title: "eMotiva XMC-2",
+    cells: {
+      // Power contros
+      power_on: {
+        type: "pushbutton",
+        value: false
+      },
+      power_off: {
+        type: "pushbutton",
+        value: false
+      },
+      // Zone 2 power control
+      zone2_on: {
+        type: "pushbutton",
+        value: false
+      },
+      // Input controls
+      zappiti: {
+        type: "pushbutton",
+        value: false
+      },
+      apple_tv: {
+        type: "pushbutton",
+        value: false
+      },
+      dvdo: {
+        type: "pushbutton",
+        value: false
+      }
+    }
+  });
+
