@@ -193,6 +193,39 @@ async def get_system_config():
         logger.error(f"Error retrieving system config: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+@app.get("/config/device/{device_id}", tags=["Devices"], response_model=DeviceConfig)
+async def get_device_config(device_id: str):
+    """Get full configuration for a specific device."""
+    if not config_manager:
+        raise HTTPException(status_code=503, detail="Service not fully initialized")
+    
+    try:
+        device_config = config_manager.get_device_config(device_id)
+        if not device_config:
+            logger = logging.getLogger(__name__)
+            logger.error(f"Configuration for device {device_id} not found")
+            raise HTTPException(status_code=404, detail=f"Device configuration for {device_id} not found")
+        
+        return device_config
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error retrieving device config for {device_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.get("/config/devices", tags=["Devices"], response_model=Dict[str, DeviceConfig])
+async def get_all_device_configs():
+    """Get configurations for all devices."""
+    if not config_manager:
+        raise HTTPException(status_code=503, detail="Service not fully initialized")
+    
+    try:
+        all_device_configs = config_manager.get_all_device_configs()
+        return all_device_configs
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error retrieving all device configs: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 @app.post("/reload", tags=["System"], response_model=ReloadResponse)
 async def reload_system(background_tasks: BackgroundTasks):
     """Reload configurations and device modules."""
@@ -361,50 +394,6 @@ async def execute_device_action(
         state=result["state"],
         message="Action executed successfully"
     )
-
-# Add endpoint to get available actions for a device
-@app.get("/devices/{device_id}/actions", tags=["Devices"], response_model=DeviceActionsResponse)
-async def get_device_actions(device_id: str):
-    """Get list of available actions for a device."""
-    logger = logging.getLogger(__name__)
-    if not device_manager:
-        raise HTTPException(status_code=503, detail="Service not fully initialized")
-    
-    device = device_manager.get_device(device_id)
-    if not device:
-        raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
-    
-    # Get device-specific actions
-    try:
-        actions = []
-        if hasattr(device, 'get_available_commands') and callable(device.get_available_commands):
-            commands = device.get_available_commands()
-            logger.info(f"Retrieved {len(commands)} commands for device {device_id}")
-            
-            actions = [
-                {"action": cmd_name, "description": cmd_config.get("description", "No description")}
-                for cmd_name, cmd_config in commands.items()
-            ]
-        else:
-            logger.warning(f"Device {device_id} does not implement get_available_commands method")
-            
-            # Try to get commands from device configuration if available
-            if hasattr(device, 'config') and isinstance(device.config, dict) and 'commands' in device.config:
-                commands = device.config['commands']
-                actions = [
-                    {"action": cmd_name, "description": cmd_data.get("description", "No description")}
-                    for cmd_name, cmd_data in commands.items()
-                ]
-        
-        return DeviceActionsResponse(
-            device_id=device_id,
-            actions=actions
-        )
-    except Exception as e:
-        logger.error(f"Error getting actions for device {device_id}: {str(e)}")
-        import traceback
-        logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.post("/publish", tags=["MQTT"], response_model=MQTTPublishResponse, responses={
     503: {"model": ErrorResponse, "description": "Service not fully initialized"},
