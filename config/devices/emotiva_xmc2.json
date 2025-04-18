@@ -3,6 +3,7 @@
     "alias": "processor",
     "device_id": "emotiva_xmc2",
     "device_name": "eMotiva XMC2 Processor",
+    "mqtt_progress_topic": "/devices/processor/controls/progress",
     "emotiva": {
         "host": "192.168.110.177",
         "mac": "E8:EB:1B:18:8F:3E",

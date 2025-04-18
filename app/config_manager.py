@@ -110,11 +110,11 @@ class ConfigManager:
         """Get the MQTT broker configuration."""
         return self.system_config.mqtt_broker
     
-    def get_all_device_topics(self) -> Dict[str, List[str]]:
-        """Get all topics for all devices."""
+    def get_all_progress_topics(self) -> Dict[str, str]:
+        """Get all progress topics for all devices."""
         topics = {}
         for device_name, config in self.device_configs.items():
-            topics[device_name] = config.mqtt_topics
+            topics[device_name] = config.mqtt_progress_topic
         return topics
     
     def reload_configs(self):

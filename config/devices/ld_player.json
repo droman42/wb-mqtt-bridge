@@ -3,6 +3,7 @@
   "device_type": "wirenboard_ir",
   "device_id": "ld_player",
   "alias": "ld_player",
+  "mqtt_progress_topic": "/devices/ld_player/controls/progress",
   "commands": {
     "power": {
       "action": "power",

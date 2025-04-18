@@ -3,6 +3,7 @@
   "device_type": "wirenboard_ir",
   "device_id": "amplifier_living_room",
   "alias": "amplifier",
+  "mqtt_progress_topic": "/devices/amplifier/controls/progress",
   "commands": {
     "power": {
       "action": "power",

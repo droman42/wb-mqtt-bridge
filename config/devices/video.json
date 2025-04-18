@@ -3,6 +3,7 @@
   "device_type": "wirenboard_ir",
   "device_id": "video",
   "alias": "video",
+  "mqtt_progress_topic": "/devices/video/controls/progress",
   "commands": {
     "power_on": {
       "action": "power_on",

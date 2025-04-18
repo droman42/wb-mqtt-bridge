@@ -43,7 +43,7 @@ class DeviceConfig(BaseModel):
     device_id: str
     device_name: str
     device_class: str
-    mqtt_topics: List[str] = []
+    mqtt_progress_topic: str = ""
     parameters: Dict[str, Any] = {}
     commands: Dict[str, Any] = {}
     broadlink: Optional[BroadlinkConfig] = None

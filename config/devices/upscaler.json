@@ -3,6 +3,7 @@
   "device_type": "wirenboard_ir",
   "device_id": "upscaler",
   "alias": "upscaler",
+  "mqtt_progress_topic": "/devices/upscaler/controls/progress",
   "commands": {
     "power_on": {
       "action": "power_on",

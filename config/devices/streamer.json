@@ -3,6 +3,7 @@
   "device_type": "wirenboard_ir",
   "device_id": "streamer",
   "alias": "streamer",
+  "mqtt_progress_topic": "/devices/streamer/controls/progress",
   "commands": {
     "power": {
       "action": "power",

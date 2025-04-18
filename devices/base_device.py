@@ -21,6 +21,7 @@ class BaseDevice(ABC):
         self._action_handlers = {}  # Cache for action handlers
         self._state_schema: Optional[Type[BaseDeviceState]] = None
         self.mqtt_client = mqtt_client
+        self.mqtt_progress_topic = config.get('mqtt_progress_topic', f'/devices/{self.device_id}/controls/progress')
     
     def get_id(self) -> str:
         """Return the device ID."""
@@ -263,3 +264,30 @@ class BaseDevice(ABC):
     def get_available_commands(self) -> Dict[str, Any]:
         """Return the list of available commands for this device."""
         return self.config.get("commands", {})
+    
+    async def publish_progress(self, message: str) -> bool:
+        """
+        Publish a progress message to the configured MQTT progress topic.
+        
+        Args:
+            message: The message to publish
+            
+        Returns:
+            bool: True if the message was published successfully, False otherwise
+        """
+        try:
+            if not self.mqtt_client:
+                logger.warning(f"Cannot publish progress: MQTT client not available for device {self.device_id}")
+                return False
+                
+            if not message:
+                logger.warning(f"Empty progress message not published for device {self.device_id}")
+                return False
+                
+            await self.mqtt_client.publish(self.mqtt_progress_topic, message)
+            logger.debug(f"Published progress message to {self.mqtt_progress_topic}: {message}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to publish progress message: {str(e)}")
+            return False
