@@ -46,7 +46,7 @@ class BroadlinkKitchenHood(BaseDevice):
             logger.info(f"Initializing Broadlink device: {self.get_name()} at {broadlink_config.host}")
             
             # Initialize the Broadlink device
-            self.broadlink_device = broadlink.rm(
+            self.broadlink_device = broadlink.rm4pro(
                 host=(broadlink_config.host, 80),
                 mac=bytes.fromhex(broadlink_config.mac.replace(':', '')),
                 devtype=int(broadlink_config.device_class, 16)
