@@ -10,6 +10,7 @@
       "topic": "/devices/ld_player/controls/power_toggle",
       "location": "wb-msw-v3_207",
       "rom_position": "64",
+      "group": "power",
       "description": "Power On/Off"
     },
     "tray": {
@@ -17,6 +18,7 @@
       "topic": "/devices/ld_player/controls/tray",
       "location": "wb-msw-v3_207",
       "rom_position": "65",
+      "group": "inputs",
       "description": "Tray"
     },
     "play": {
@@ -24,6 +26,7 @@
       "topic": "/devices/ld_player/controls/play",
       "location": "wb-msw-v3_207",
       "rom_position": "66",
+      "group": "playback",
       "description": "Play"
     },
     "stop": {
@@ -31,6 +34,7 @@
       "topic": "/devices/ld_player/controls/stop",
       "location": "wb-msw-v3_207",
       "rom_position": "67",
+      "group": "playback",
       "description": "Stop"
     },
     "pause": {
@@ -38,6 +42,7 @@
       "topic": "/devices/ld_player/controls/pause",
       "location": "wb-msw-v3_207",
       "rom_position": "68",
+      "group": "playback",
       "description": "Pause"
     },
     "chapter_plus": {
@@ -45,6 +50,7 @@
       "topic": "/devices/ld_player/controls/chapter_plus",
       "location": "wb-msw-v3_207",
       "rom_position": "69",
+      "group": "playback",
       "description": "Chapter+"
     },
     "chapter_minus": {
@@ -52,6 +58,7 @@
       "topic": "/devices/ld_player/controls/chapter_minus",
       "location": "wb-msw-v3_207",
       "rom_position": "70",
+      "group": "playback",
       "description": "Chapter-"
     },
     "audio": {
@@ -59,6 +66,7 @@
       "topic": "/devices/ld_player/controls/audio",
       "location": "wb-msw-v3_207",
       "rom_position": "71",
+      "group": "tracks",
       "description": "Audio"
     }
   }

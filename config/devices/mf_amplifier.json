@@ -10,6 +10,7 @@
       "topic": "/devices/amplifier/controls/power_toggle",
       "location": "wb-msw-v3_207",
       "rom_position": "17",
+      "group": "power",
       "description": "Power On/Off"
     },
     "volume_up": {
@@ -17,6 +18,7 @@
       "topic": "/devices/amplifier/controls/volume_up",
       "location": "wb-msw-v3_207",
       "rom_position": "18",
+      "group": "volume",
       "description": "Volume Up"
     },
     "volume_down": {
@@ -24,6 +26,7 @@
       "topic": "/devices/amplifier/controls/volume_down",
       "location": "wb-msw-v3_207",
       "rom_position": "19",
+      "group": "volume",
       "description": "Volume Down"
     },
     "mute": {
@@ -31,6 +34,7 @@
       "topic": "/devices/amplifier/controls/mute",
       "location": "wb-msw-v3_207",
       "rom_position": "20",
+      "group": "volume",
       "description": "Mute"
     },
     "input_cd": {
@@ -38,6 +42,7 @@
       "topic": "/devices/amplifier/controls/cd",
       "location": "wb-msw-v3_207",
       "rom_position": "21",
+      "group": "inputs",
       "description": "CD"
     },
     "input_usb": {
@@ -45,6 +50,7 @@
       "topic": "/devices/amplifier/controls/usb",
       "location": "wb-msw-v3_218",
       "rom_position": "1",
+      "group": "inputs",
       "description": "USB"
     },
     "input_phono": {
@@ -52,6 +58,7 @@
       "topic": "/devices/amplifier/controls/phono",
       "location": "wb-msw-v3_218",
       "rom_position": "2",
+      "group": "inputs",
       "description": "Phono"
     },
     "input_tuner": {
@@ -59,6 +66,7 @@
       "topic": "/devices/amplifier/controls/tuner",
       "location": "wb-msw-v3_207",
       "rom_position": "22",
+      "group": "inputs",
       "description": "Tuner"
     },
     "input_aux1": {
@@ -66,6 +74,7 @@
       "topic": "/devices/amplifier/controls/aux1",
       "location": "wb-msw-v3_207",
       "rom_position": "23",
+      "group": "inputs",
       "description": "AUX1"
     },
     "input_aux2": {
@@ -73,6 +82,7 @@
       "topic": "/devices/amplifier/controls/aux2",
       "location": "wb-msw-v3_207",
       "rom_position": "24",
+      "group": "inputs",
       "description": "AUX2"
     },
     "input_balanced": {
@@ -80,6 +90,7 @@
       "topic": "/devices/amplifier/controls/balanced",
       "location": "wb-msw-v3_207",
       "rom_position": "25",
+      "group": "inputs",
       "description": "Balanced"
     }
   }

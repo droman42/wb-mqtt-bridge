@@ -10,6 +10,7 @@ A Python-based web service that acts as an MQTT client to manage multiple device
 - Plugin-based architecture for device modules
 - JSON configuration files
 - Logging system
+- Action Groups for organizing device functions
 - Support for various device types:
   - LG TV control
   - Broadlink RF devices (Kitchen Hood)
@@ -76,7 +77,18 @@ The `BaseDevice` class provides common functionality for all devices:
 - Device initialization and configuration
 - State management
 - Common utility methods like `get_available_commands()`
+- Action grouping and indexing
+- Fixed sorting order for actions within groups
 - Abstract methods that must be implemented by device-specific classes
+
+### Action Groups
+
+The system organizes device actions into functional groups for easier management and display:
+
+- **Group Definition**: Groups are defined centrally in the `system.json` file
+- **Default Group**: Actions not assigned to any group are automatically placed in a "default" group
+- **Group API**: Access device actions by group through dedicated API endpoints
+- **Fixed Sorting**: Actions within groups maintain the order defined in configuration files
 
 ### Supported Device Types
 
@@ -150,6 +162,8 @@ class MyCustomDevice(BaseDevice):
 - `GET /devices/{device_id}` - Get information about a specific device
 - `POST /devices/{device_id}/action/{action}` - Execute device action
 - `POST /publish` - Publish a message to an MQTT topic
+- `GET /api/groups` - List all available function groups
+- `GET /api/devices/{device_id}/groups/{group_id}/actions` - List all actions associated with a specific group for a given device
 
 ## Configuration Files
 
@@ -181,7 +195,12 @@ LOG_LEVEL=INFO
     "port": 8000
   },
   "log_level": "INFO",
-  "log_file": "logs/service.log"
+  "log_file": "logs/service.log",
+  "groups": {
+    "volume": "Sound Volume",
+    "screen": "Screen Control",
+    "playback": "Playback"
+  }
 }
 ```
 
@@ -196,12 +215,25 @@ LOG_LEVEL=INFO
     "power_on": {
       "topic": "home/example/power",
       "rf_code": "base64_encoded_rf_code_here",
-      "action": "power_on"
+      "action": "power_on",
+      "group": "power"
     },
-    "power_off": {
-      "topic": "home/example/power",
+    "volume_up": {
+      "topic": "home/example/volume",
       "rf_code": "base64_encoded_rf_code_here", 
-      "action": "power_off"
+      "action": "volume_up",
+      "group": "volume"
+    },
+    "play": {
+      "topic": "home/example/playback",
+      "rf_code": "base64_encoded_rf_code_here", 
+      "action": "play",
+      "group": "playback"
+    },
+    "unassigned_action": {
+      "topic": "home/example/misc",
+      "rf_code": "base64_encoded_rf_code_here", 
+      "action": "misc_action"
     }
   }
 }

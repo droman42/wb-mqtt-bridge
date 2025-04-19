@@ -13,6 +13,7 @@
         "topic": "/devices/reel_to_reel/controls/play",
         "location": "wb-msw-v3_207",
         "rom_position": "72",
+        "group": "playback",
         "description": "Play"
       },
       "stop": {
@@ -20,6 +21,7 @@
         "topic": "/devices/reel_to_reel/controls/stop",
         "location": "wb-msw-v3_207",
         "rom_position": "73",
+        "group": "playback",
         "description": "Stop"
       },
       "rewind_forward": {
@@ -27,6 +29,7 @@
         "topic": "/devices/reel_to_reel/controls/rewind_forward",
         "location": "wb-msw-v3_207",
         "rom_position": "74",
+        "group": "playback",
         "description": "Rewind Forward"
       },
       "rewind_backward": {
@@ -34,6 +37,7 @@
         "topic": "/devices/reel_to_reel/controls/rewind_backward",
         "location": "wb-msw-v3_218",
         "rom_position": "75",
+        "group": "playback",
         "description": "Rewind Backward"
       }
     }

@@ -313,12 +313,12 @@ defineVirtualDevice("amplifier", {
         type: "pushbutton",
         value: false
       },
-      // Chapter navigation
-      chapter_plus: {
+      // Rewind controls
+      rewind_forward: {
         type: "pushbutton",
         value: false
       },
-      chapter_minus: {
+      rewind_backward: {
         type: "pushbutton",
         value: false
       }

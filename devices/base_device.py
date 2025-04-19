@@ -19,9 +19,58 @@ class BaseDevice(ABC):
         self.device_name = config.get('device_name', 'unknown')
         self.state = {}  # Device state storage
         self._action_handlers = {}  # Cache for action handlers
+        self._action_groups = {}  # Index of actions by group
         self._state_schema: Optional[Type[BaseDeviceState]] = None
         self.mqtt_client = mqtt_client
         self.mqtt_progress_topic = config.get('mqtt_progress_topic', f'/devices/{self.device_id}/controls/progress')
+        
+        # Build action group index
+        self._build_action_groups_index()
+    
+    def _build_action_groups_index(self):
+        """Build an index of actions organized by group."""
+        self._action_groups = {"default": []}  # Default group for actions with no group specified
+        
+        for cmd_name, cmd_config in self.get_available_commands().items():
+            # Get the group for this command
+            group = cmd_config.get("group", "default")
+            
+            # Add group to index if it doesn't exist
+            if group not in self._action_groups:
+                self._action_groups[group] = []
+            
+            # Add command to the group
+            action_info = {
+                "name": cmd_name,
+                "description": cmd_config.get("description", ""),
+                **{k: v for k, v in cmd_config.items() if k not in ["group", "description"]}
+            }
+            self._action_groups[group].append(action_info)
+            
+            # Handle multiple actions within a command if present
+            actions = cmd_config.get("actions", [])
+            for action in actions:
+                action_group = action.get("group", group)  # Inherit group from parent command if not specified
+                
+                # Add group to index if it doesn't exist
+                if action_group not in self._action_groups:
+                    self._action_groups[action_group] = []
+                
+                # Add action to the group
+                action_info = {
+                    "name": action.get("name", ""),
+                    "description": action.get("description", ""),
+                    **{k: v for k, v in action.items() if k not in ["group", "description"]}
+                }
+                self._action_groups[action_group].append(action_info)
+    
+    def get_available_groups(self) -> List[str]:
+        """Get a list of all available action groups for this device."""
+        return list(self._action_groups.keys())
+    
+    def get_actions_by_group(self, group: str) -> List[Dict[str, Any]]:
+        """Get all actions in a specific group."""
+        return self._action_groups.get(group, [])
     
     def get_id(self) -> str:
         """Return the device ID."""

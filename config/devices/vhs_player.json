@@ -10,6 +10,7 @@
         "topic": "/devices/vhs_player/controls/power_toggle",
         "location": "wb-msw-v3_207",
         "rom_position": "63",
+        "group": "power",
         "description": "Power On/Off"
       },
       "play": {
@@ -17,6 +18,7 @@
         "topic": "/devices/vhs_player/controls/play",
         "location": "wb-msw-v3_207",
         "rom_position": "76",
+        "group": "playback",
         "description": "Play"
       },
       "stop": {
@@ -24,6 +26,7 @@
         "topic": "/devices/vhs_player/controls/stop",
         "location": "wb-msw-v3_207",
         "rom_position": "77",
+        "group": "playback",
         "description": "Stop"
       },
       "pause": {
@@ -31,21 +34,24 @@
         "topic": "/devices/vhs_player/controls/pause",
         "location": "wb-msw-v3_207",
         "rom_position": "78",
+        "group": "playback",
         "description": "Pause"
       },
-      "chapter_plus": {
-        "action": "chapter_plus",
-        "topic": "/devices/vhs_player/controls/chapter_plus",
+      "rewind_forward": {
+        "action": "rewind_forward",
+        "topic": "/devices/vhs_player/controls/rewind_forward",
         "location": "wb-msw-v3_207",
         "rom_position": "79",
-        "description": "Chapter+"
+        "group": "playback",
+        "description": "Rewind Forward"
       },
-      "chapter_minus": {
-        "action": "chapter_minus",
-        "topic": "/devices/vhs_player/controls/chapter_minus",
+      "rewind_backward": {
+        "action": "rewind_backward",
+        "topic": "/devices/vhs_player/controls/rewind_backward",
         "location": "wb-msw-v3_218",
         "rom_position": "80",
-        "description": "Chapter-"
+        "group": "playback",
+        "description": "Rewind Backward"
       }
     }
   } 

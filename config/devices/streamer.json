@@ -10,6 +10,7 @@
       "topic": "/devices/streamer/controls/power",
       "location": "wb-msw-v3_207",
       "rom_position": "62",
+      "group": "power",
       "description": "Power On/Off"
     },
     "stream": {
@@ -17,6 +18,7 @@
       "topic": "/devices/streamer/controls/stream",
       "location": "wb-msw-v3_218",
       "rom_position": "17",
+      "group": "inputs",
       "description": "Streaming"
     }
   }

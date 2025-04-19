@@ -10,6 +10,7 @@
       "topic": "/devices/video/controls/power_on",
       "location": "wb-msw-v3_207",
       "rom_position": "26",
+      "group": "power",
       "description": "Power On"
     },
     "power_off": {
@@ -17,6 +18,7 @@
       "topic": "/devices/video/controls/power_off",
       "location": "wb-msw-v3_207",
       "rom_position": "27",
+      "group": "power",
       "description": "Power Off"
     },
     "play_pause": {
@@ -24,6 +26,7 @@
       "topic": "/devices/video/controls/play_pause",
       "location": "wb-msw-v3_207",
       "rom_position": "28",
+      "group": "playback",
       "description": "Play/Pause"
     },
     "chapter_plus": {
@@ -31,6 +34,7 @@
       "topic": "/devices/video/controls/chapter_plus",
       "location": "wb-msw-v3_207",
       "rom_position": "29",
+      "group": "playback",
       "description": "Chapter+"
     },
     "chapter_minus": {
@@ -38,6 +42,7 @@
       "topic": "/devices/video/controls/chapter_minus",
       "location": "wb-msw-v3_207",
       "rom_position": "30",
+      "group": "playback",
       "description": "Chapter-"
     },
     "stop": {
@@ -45,6 +50,7 @@
       "topic": "/devices/video/controls/stop",
       "location": "wb-msw-v3_207",
       "rom_position": "31",
+      "group": "playback",
       "description": "Stop"
     },
     "up": {
@@ -52,6 +58,7 @@
       "topic": "/devices/video/controls/up",
       "location": "wb-msw-v3_207",
       "rom_position": "32",
+      "group": "menu",
       "description": "Up"
     },
     "down": {
@@ -59,6 +66,7 @@
       "topic": "/devices/video/controls/down",
       "location": "wb-msw-v3_207",
       "rom_position": "33",
+      "group": "menu",
       "description": "Down"
     },
     "left": {
@@ -66,6 +74,7 @@
       "topic": "/devices/video/controls/left",
       "location": "wb-msw-v3_207",
       "rom_position": "34",
+      "group": "menu",
       "description": "Left"
     },
     "right": {
@@ -73,6 +82,7 @@
       "topic": "/devices/video/controls/right",
       "location": "wb-msw-v3_207",
       "rom_position": "35",
+      "group": "menu",
       "description": "Right"
     },
     "ok_enter": {
@@ -80,6 +90,7 @@
       "topic": "/devices/video/controls/ok_enter",
       "location": "wb-msw-v3_207",
       "rom_position": "36",
+      "group": "menu",
       "description": "OK/Enter"
     },
     "audio": {
@@ -87,6 +98,7 @@
       "topic": "/devices/video/controls/audio",
       "location": "wb-msw-v3_207",
       "rom_position": "37",
+      "group": "tracks",
       "description": "Audio"
     },
     "subtitles": {
@@ -94,6 +106,7 @@
       "topic": "/devices/video/controls/subtitles",
       "location": "wb-msw-v3_207",
       "rom_position": "38",
+      "group": "tracks",
       "description": "Subtitles"
     },
     "home": {
@@ -101,6 +114,7 @@
       "topic": "/devices/video/controls/home",
       "location": "wb-msw-v3_218",
       "rom_position": "3",
+      "group": "menu",
       "description": "Home"
     },
     "settings": {
@@ -108,6 +122,7 @@
       "topic": "/devices/video/controls/settings",
       "location": "wb-msw-v3_218",
       "rom_position": "4",
+      "group": "menu",
       "description": "Settings"
     },
     "back": {
@@ -115,6 +130,7 @@
       "topic": "/devices/video/controls/back",
       "location": "wb-msw-v3_218",
       "rom_position": "5",
+      "group": "menu",
       "description": "Back"
     },
     "zappiti": {
@@ -122,6 +138,7 @@
       "topic": "/devices/video/controls/zappiti",
       "location": "wb-msw-v3_218",
       "rom_position": "6",
+      "group": "apps",
       "description": "Zappiti"
     },
     "explorer": {
@@ -129,6 +146,7 @@
       "topic": "/devices/video/controls/explorer",
       "location": "wb-msw-v3_218",
       "rom_position": "7",
+      "group": "apps",
       "description": "Explorer"
     }
   }

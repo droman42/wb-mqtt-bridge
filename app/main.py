@@ -28,7 +28,10 @@ from app.schemas import (
     ServiceInfo,
     DeviceAction,
     ReloadResponse,
-    MQTTPublishResponse
+    MQTTPublishResponse,
+    Group,
+    ActionGroup,
+    GroupedActionsResponse
 )
 
 # Setup logging
@@ -440,3 +443,77 @@ async def publish_message(message: MQTTMessage, background_tasks: BackgroundTask
             status_code=500,
             detail=str(e)
         )
+
+# API endpoints for Action Groups
+@app.get("/api/groups", tags=["Groups"], response_model=List[Group])
+async def get_groups():
+    """List all available function groups."""
+    if not config_manager:
+        raise HTTPException(status_code=503, detail="Service not fully initialized")
+    
+    try:
+        groups = config_manager.get_groups()
+        return [{"id": group_id, "name": display_name} for group_id, display_name in groups.items()]
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error retrieving groups: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.get("/api/devices/{device_id}/groups/{group_id}/actions", tags=["Groups"], response_model=List[Dict[str, Any]])
+async def get_actions_by_group(device_id: str, group_id: str):
+    """List all actions in a group for a device."""
+    if not device_manager:
+        raise HTTPException(status_code=503, detail="Service not fully initialized")
+    
+    try:
+        device = device_manager.get_device(device_id)
+        if not device:
+            raise HTTPException(status_code=404, detail=f"Device '{device_id}' not found")
+        
+        # Check if the device has the requested group
+        if group_id not in device.get_available_groups():
+            raise HTTPException(status_code=404, detail=f"Group '{group_id}' not found for device '{device_id}'")
+        
+        return device.get_actions_by_group(group_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error retrieving actions for group '{group_id}' in device '{device_id}': {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.get("/api/devices/{device_id}/groups", tags=["Groups"], response_model=GroupedActionsResponse)
+async def get_device_actions_by_groups(device_id: str):
+    """Get all actions for a device organized by groups."""
+    if not device_manager or not config_manager:
+        raise HTTPException(status_code=503, detail="Service not fully initialized")
+    
+    try:
+        device = device_manager.get_device(device_id)
+        if not device:
+            raise HTTPException(status_code=404, detail=f"Device '{device_id}' not found")
+        
+        group_definitions = config_manager.get_groups()
+        groups = []
+        
+        for group_id in device.get_available_groups():
+            group_name = group_definitions.get(group_id, group_id.title())
+            actions = device.get_actions_by_group(group_id)
+            
+            if actions:  # Only include groups that have actions
+                groups.append(ActionGroup(
+                    group_id=group_id,
+                    group_name=group_name,
+                    actions=actions
+                ))
+        
+        return GroupedActionsResponse(
+            device_id=device_id,
+            groups=groups
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error retrieving grouped actions for device '{device_id}': {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

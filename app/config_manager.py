@@ -36,6 +36,10 @@ class ConfigManager:
         self._load_system_config()
         self._load_device_configs()
         
+        # Extract group definitions
+        self._groups = self.system_config.groups or {}
+        logger.info(f"Loaded {len(self._groups)} function groups from system config")
+        
         # Override MQTT broker config with environment variables
         # self._apply_environment_variables()
     
@@ -141,3 +145,13 @@ class ConfigManager:
         
         # Update the system configuration
         self.system_config.mqtt_broker = mqtt_config 
+    
+    def get_groups(self) -> Dict[str, str]:
+        """Get the function groups defined in the system configuration."""
+        groups = dict(self._groups)
+        
+        # Ensure default group exists
+        if "default" not in groups:
+            groups["default"] = "Default Group"
+            
+        return groups 

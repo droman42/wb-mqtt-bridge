@@ -126,6 +126,7 @@ class SystemConfig(BaseModel):
     log_level: str
     log_file: str
     devices: Dict[str, Dict[str, Any]]
+    groups: Dict[str, str] = Field(default_factory=dict)  # Internal name -> Display name
 
 class ErrorResponse(BaseModel):
     """Schema for error responses."""
@@ -186,3 +187,19 @@ class EmotivaXMC2State(BaseDeviceState):
     mac_address: Optional[str] = None
     startup_complete: bool = False
     notifications: bool = False
+
+class Group(BaseModel):
+    """Schema for a function group."""
+    id: str
+    name: str
+
+class ActionGroup(BaseModel):
+    """Schema for a group of actions."""
+    group_id: str
+    group_name: str
+    actions: List[Dict[str, Any]]  # Reusing existing action representations
+
+class GroupedActionsResponse(BaseModel):
+    """Schema for API responses that return actions grouped by function."""
+    device_id: str
+    groups: List[ActionGroup]

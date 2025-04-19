@@ -15,6 +15,16 @@
   },
   "log_level": "DEBUG",
   "log_file": "logs/service.log",
+  "groups": {
+    "volume": "Volume Control",
+    "screen": "Resolution Control",
+    "playback": "Playback",
+    "power": "Power Control",
+    "inputs": "Inputs",
+    "menu": "Menu",
+    "tracks": "Audio & Subtitles",
+    "apps": "Applications"
+  },
   "devices": {
     "mf_amplifier": {
       "class": "WirenboardIRDevice",
