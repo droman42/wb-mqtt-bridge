@@ -32,3 +32,4 @@ broadlink_discovery.py
 mqtt_sniffer.py
 *.ipynb
 TODO.md
+!docker_deploy.sh

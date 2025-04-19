@@ -446,7 +446,7 @@ async def publish_message(message: MQTTMessage, background_tasks: BackgroundTask
         )
 
 # API endpoints for Action Groups
-@app.get("/api/groups", tags=["Groups"], response_model=List[Group])
+@app.get("/groups", tags=["Groups"], response_model=List[Group])
 async def get_groups():
     """List all available function groups."""
     if not config_manager:
@@ -460,7 +460,7 @@ async def get_groups():
         logger.error(f"Error retrieving groups: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@app.get("/api/devices/{device_id}/groups/{group_id}/actions", tags=["Groups"], response_model=GroupActionsResponse)
+@app.get("/devices/{device_id}/groups/{group_id}/actions", tags=["Groups"], response_model=GroupActionsResponse)
 async def get_actions_by_group(device_id: str, group_id: str):
     """List all actions in a group for a device, with status information."""
     logger = logging.getLogger(__name__)
@@ -532,7 +532,7 @@ async def get_actions_by_group(device_id: str, group_id: str):
         logger.error(f"Error retrieving actions for group '{group_id}' in device '{device_id}': {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@app.get("/api/devices/{device_id}/groups", tags=["Groups"], response_model=GroupedActionsResponse)
+@app.get("/devices/{device_id}/groups", tags=["Groups"], response_model=GroupedActionsResponse)
 async def get_device_actions_by_groups(device_id: str):
     """Get all actions for a device organized by groups, including empty groups."""
     logger = logging.getLogger(__name__)

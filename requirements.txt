@@ -10,4 +10,7 @@ broadlink>=0.18.0
 websockets>=10.0
 asyncio>=3.4.3
 paho-mqtt>=1.6.1
--e ../pymotivaxmc2
+
+# Local dependencies - will be installed separately in the Dockerfile
+# pymotivaxmc2
+# asyncwebostv

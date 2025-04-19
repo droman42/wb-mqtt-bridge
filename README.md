@@ -53,6 +53,42 @@ pip install -r requirements.txt
    - Edit `config/system.json` for MQTT broker settings
    - Add device configurations in `config/devices/`
 
+## Docker Deployment
+
+The application can be easily deployed using Docker:
+
+1. Clone the repository and local dependencies:
+```bash
+git clone https://github.com/droman42/wb-mqtt-bridge.git
+cd wb-mqtt-bridge
+./docker_deploy.sh --deps
+```
+
+2. Configure the application:
+```bash
+# Edit .env file with your settings
+nano .env
+# Create your device configurations
+mkdir -p config/devices
+```
+
+3. Build and start the Docker containers:
+```bash
+./docker_deploy.sh --build
+```
+
+4. To stop the containers:
+```bash
+./docker_deploy.sh --down
+```
+
+5. To restart the containers:
+```bash
+./docker_deploy.sh --restart
+```
+
+The web service will be available at http://localhost:8000 (API) and http://localhost:8081 (Nginx frontend).
+
 ## Running the Application
 
 Start the web service:
