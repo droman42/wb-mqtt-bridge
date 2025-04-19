@@ -154,4 +154,20 @@ class ConfigManager:
         if "default" not in groups:
             groups["default"] = "Default Group"
             
-        return groups 
+        return groups
+
+    def is_valid_group(self, group_id: str) -> bool:
+        """Check if a group is defined in the system configuration.
+        The 'default' group is always considered valid.
+        
+        Args:
+            group_id: The group ID to validate
+            
+        Returns:
+            bool: True if the group is valid, False otherwise
+        """
+        if group_id == "default":
+            return True
+        
+        groups = self.get_groups()
+        return group_id in groups 

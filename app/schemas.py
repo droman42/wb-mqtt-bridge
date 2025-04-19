@@ -198,8 +198,19 @@ class ActionGroup(BaseModel):
     group_id: str
     group_name: str
     actions: List[Dict[str, Any]]  # Reusing existing action representations
+    status: str = "ok"  # Can be "ok" or "no_actions"
 
 class GroupedActionsResponse(BaseModel):
     """Schema for API responses that return actions grouped by function."""
     device_id: str
     groups: List[ActionGroup]
+    default_included: bool = False  # Whether the default group is included in the response
+
+class GroupActionsResponse(BaseModel):
+    """Schema for API responses that return actions for a specific group with status information."""
+    device_id: str
+    group_id: str
+    group_name: Optional[str] = None
+    status: str  # "ok", "no_actions", "invalid_group", "unknown_group"
+    message: Optional[str] = None
+    actions: List[Dict[str, Any]] = Field(default_factory=list)

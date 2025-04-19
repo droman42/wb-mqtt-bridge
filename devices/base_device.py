@@ -50,6 +50,7 @@ class BaseDevice(ABC):
             # Handle multiple actions within a command if present
             actions = cmd_config.get("actions", [])
             for action in actions:
+                # Get action group or inherit from parent command if not specified
                 action_group = action.get("group", group)  # Inherit group from parent command if not specified
                 
                 # Add group to index if it doesn't exist
