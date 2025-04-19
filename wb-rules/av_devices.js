@@ -275,12 +275,12 @@ defineVirtualDevice("amplifier", {
         value: ""
       },
       // Power control
-      power_toggle: {
+      power: {
         type: "pushbutton",
         value: false
       },
       // Input selection
-      input_stream: {
+      stream: {
         type: "pushbutton",
         value: false
       }

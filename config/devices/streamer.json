@@ -7,17 +7,17 @@
   "commands": {
     "power": {
       "action": "power",
-      "topic": "/devices/streamer/controls/power_toggle",
+      "topic": "/devices/streamer/controls/power",
       "location": "wb-msw-v3_207",
       "rom_position": "62",
       "description": "Power On/Off"
     },
-    "input_stream": {
-      "action": "input_stream",
-      "topic": "/devices/streamer/controls/input_stream",
+    "stream": {
+      "action": "stream",
+      "topic": "/devices/streamer/controls/stream",
       "location": "wb-msw-v3_218",
       "rom_position": "17",
-      "description": "Input Stream"
+      "description": "Streaming"
     }
   }
 } 
