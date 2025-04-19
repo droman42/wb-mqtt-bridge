@@ -23,7 +23,7 @@ coverage.xml
 .idea/
 .vscode/
 etc/
-prompts/
+docs/
 schemas/
 wb-rules/
 *.sh
