@@ -709,6 +709,8 @@ class EMotivaXMC2(BaseDevice):
             notification_data: Dictionary containing the notification data
         """
         logger.debug(f"Received notification from eMotiva device: {notification_data}")
+        # Create a background task for the async call
+        asyncio.create_task(self.publish_progress(json.dumps(notification_data)))
         
         updates = {}
         
@@ -781,9 +783,4 @@ class EMotivaXMC2(BaseDevice):
         # Update device state with notification data
         if updates:
             self.update_state(updates)
-            
-            # Publish updated state via MQTT if client is available
-            # if self.mqtt_client:
-                # state_topic = f"/devices/{self.device_id}/state"
-                # self.mqtt_client.publish(state_topic, json.dumps(self.get_state()))
-        
+

@@ -214,6 +214,7 @@ class BaseDevice(ABC):
             if result and isinstance(result, dict) and "mqtt_command" in result:
                 response["mqtt_command"] = result["mqtt_command"]
             
+            await self.publish_progress(f"Action {action} executed successfully")
             return response
             
         except Exception as e:
@@ -255,6 +256,7 @@ class BaseDevice(ABC):
             sock.close()
             
             logger.info(f"Sent WOL packet to {mac_address}")
+            await self.publish_progress(f"WOL packet sent to {mac_address}")
             return True
             
         except Exception as e:
@@ -284,7 +286,7 @@ class BaseDevice(ABC):
                 logger.warning(f"Empty progress message not published for device {self.device_id}")
                 return False
                 
-            await self.mqtt_client.publish(self.mqtt_progress_topic, message)
+            await self.mqtt_client.publish(self.mqtt_progress_topic, f"{self.device_name}: {message}")
             logger.debug(f"Published progress message to {self.mqtt_progress_topic}: {message}")
             return True
             

@@ -58,6 +58,7 @@ class BroadlinkKitchenHood(BaseDevice):
             self.state["connection_status"] = "connected"
             
             logger.info(f"Kitchen hood {self.get_name()} initialized with {len(self.get_available_commands())} commands")
+            await self.publish_progress(f"successfully initialized with {len(self.get_available_commands())} commands")
             return True
             
         except Exception as e:
@@ -71,6 +72,7 @@ class BroadlinkKitchenHood(BaseDevice):
         try:
             # Nothing to cleanup for Broadlink device
             logger.info(f"Kitchen hood {self.get_name()} shutdown complete")
+            await self.publish_progress(f"shutdown complete")
             return True
         except Exception as e:
             logger.error(f"Error during device shutdown: {str(e)}")
@@ -86,11 +88,6 @@ class BroadlinkKitchenHood(BaseDevice):
             if topic:
                 topics.append(topic)
         
-        # Add key pressed topic
-        key_pressed_topic = self.config.get("key_pressed_topic")
-        if key_pressed_topic:
-            topics.append(key_pressed_topic)
-        
         logger.debug(f"Device {self.get_name()} subscribing to topics: {topics}")
         return topics
     
@@ -98,21 +95,25 @@ class BroadlinkKitchenHood(BaseDevice):
         """Handle light on action."""
         rf_code = action_config.get("rf_code")
         if not rf_code:
-            logger.error("No RF code found in action configuration")
+            logger.error("No RF code found for light on")
+            await self.publish_progress("No RF code found for light on")
             return
             
         if await self._send_rf_code(rf_code):
             self.update_state({"light": "on"})
+            await self.publish_progress("Light turned on")
 
     async def handle_light_off(self, action_config: Dict[str, Any]):
         """Handle light off action."""
         rf_code = action_config.get("rf_code")
         if not rf_code:
-            logger.error("No RF code found in action configuration")
+            logger.error("No RF code found for light off")
+            await self.publish_progress("No RF code found for light off")
             return
             
         if await self._send_rf_code(rf_code):
             self.update_state({"light": "off"})
+            await self.publish_progress("Light turned off")
 
     async def handle_speed_change(self, action_config: Dict[str, Any]):
         """Handle hood speed change action."""
