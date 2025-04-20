@@ -53,41 +53,41 @@
       "group": "playback",
       "description": "Stop"
     },
-    "up": {
-      "action": "up",
-      "topic": "/devices/video/controls/up",
+    "menu_up": {
+      "action": "menu_up",
+      "topic": "/devices/video/controls/menu_up",
       "location": "wb-msw-v3_207",
       "rom_position": "32",
       "group": "menu",
       "description": "Up"
     },
-    "down": {
-      "action": "down",
-      "topic": "/devices/video/controls/down",
+    "menu_down": {
+      "action": "menu_down",
+      "topic": "/devices/video/controls/menu_down",
       "location": "wb-msw-v3_207",
       "rom_position": "33",
       "group": "menu",
       "description": "Down"
     },
-    "left": {
-      "action": "left",
-      "topic": "/devices/video/controls/left",
+    "menu_left": {
+      "action": "menu_left",
+      "topic": "/devices/video/controls/menu_left",
       "location": "wb-msw-v3_207",
       "rom_position": "34",
       "group": "menu",
       "description": "Left"
     },
-    "right": {
-      "action": "right",
-      "topic": "/devices/video/controls/right",
+    "menu_right": {
+      "action": "menu_right",
+      "topic": "/devices/video/controls/menu_right",
       "location": "wb-msw-v3_207",
       "rom_position": "35",
       "group": "menu",
       "description": "Right"
     },
-    "ok_enter": {
-      "action": "ok_enter",
-      "topic": "/devices/video/controls/ok_enter",
+    "menu_ok": {
+      "action": "menu_ok",
+      "topic": "/devices/video/controls/menu_ok",
       "location": "wb-msw-v3_207",
       "rom_position": "36",
       "group": "menu",

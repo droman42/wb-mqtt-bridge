@@ -171,7 +171,7 @@ defineVirtualDevice("amplifier", {
         type: "pushbutton",
         value: false
       },
-      ok_enter: {
+      menu_ok: {
         type: "pushbutton",
         value: false
       }
@@ -213,23 +213,23 @@ defineVirtualDevice("amplifier", {
         value: false
       },
       // Navigation controls
-      up: {
+      menu_up: {
         type: "pushbutton",
         value: false
       },
-      down: {
+      menu_down: {
         type: "pushbutton",
         value: false
       },
-      left: {
+      menu_left: {
         type: "pushbutton",
         value: false
       },
-      right: {
+      menu_right: {
         type: "pushbutton",
         value: false
       },
-      ok_enter: {
+      menu_ok: {
         type: "pushbutton",
         value: false
       },

@@ -109,9 +109,9 @@
       "group": "menu",
       "description": "Menu Right"
     },
-    "ok_enter": {
-      "action": "ok_enter",
-      "topic": "/devices/upscaler/controls/ok_enter",
+    "menu_ok": {
+      "action": "menu_ok",
+      "topic": "/devices/upscaler/controls/menu_ok",
       "location": "wb-msw-v3_218",
       "rom_position": "16",
       "group": "menu",
