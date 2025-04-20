@@ -55,7 +55,9 @@ pip install -r requirements.txt
 
 ## Docker Deployment
 
-The application can be easily deployed using Docker:
+The application can be deployed using Docker on various platforms including Wirenboard 7 (ARMv7 architecture).
+
+### Basic Docker Deployment
 
 1. Clone the repository and local dependencies:
 ```bash
@@ -88,6 +90,54 @@ mkdir -p config/devices
 ```
 
 The web service will be available at http://localhost:8000 (API) and http://localhost:8081 (Nginx frontend).
+
+### Wirenboard 7 Deployment
+
+The application supports deployment to Wirenboard 7 controllers, which use ARMv7 architecture and Debian Bullseye.
+
+#### Option 1: Direct Build on Wirenboard 7
+
+If you're running the script directly on your Wirenboard 7:
+
+```bash
+git clone https://github.com/droman42/wb-mqtt-bridge.git
+cd wb-mqtt-bridge
+./docker_deploy.sh --deps
+./docker_deploy.sh --build
+```
+
+#### Option 2: Cross-Platform Build and Transfer
+
+If you're building on a different architecture (e.g., x86_64/amd64) and deploying to Wirenboard 7:
+
+1. **Prerequisites**:
+   - Docker with Buildx support
+   - SSH access to your Wirenboard 7 device
+
+2. **Build, save, and transfer in one step**:
+```bash
+# Replace 192.168.1.100 with your Wirenboard's IP address
+./docker_deploy.sh -b --save --transfer 192.168.1.100
+```
+
+3. **Or build and save for later transfer**:
+```bash
+# Build and save images to ./images directory
+./docker_deploy.sh -b --save ./images
+
+# Later transfer the saved images
+./docker_deploy.sh --transfer 192.168.1.100
+```
+
+The script will:
+- Detect the need for cross-compilation
+- Set up ARM emulation using QEMU
+- Build ARM-compatible Docker images
+- Package the images and configuration files
+- Transfer everything to your Wirenboard device
+- Set up and start the containers on the remote device
+
+The web service will be available at http://wirenboard-ip:8081 after deployment.
 
 ## Running the Application
 
@@ -277,17 +327,10 @@ LOG_LEVEL=INFO
 
 ## Deployment
 
-The project includes several deployment options:
+The project is deployed using Docker:
 
-1. **Docker**
-   - Use the provided Dockerfile and docker-compose.yml
-   - Run `docker_deploy.sh` or `docker-compose up -d`
-
-2. **Local Deployment**
-   - Run `deploy_local.sh` for a local deployment
-
-3. **Remote Deployment**
-   - Run `deploy_remote.sh` for remote server deployment
+- Use the provided Dockerfile and docker-compose.yml
+- Run `docker_deploy.sh` with appropriate options (see Docker Deployment section)
 
 ## Development Tools
 

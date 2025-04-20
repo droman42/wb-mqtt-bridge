@@ -2,7 +2,11 @@ version: '3.8'
 
 services:
   wb-mqtt-bridge:
-    build: .
+    build: 
+      context: .
+      args:
+        # ARMv7 compatibility flags
+        ARCH: arm32v7
     container_name: wb-mqtt-bridge
     restart: unless-stopped
     ports:
@@ -30,7 +34,8 @@ services:
       start_period: 20s
 
   nginx:
-    image: nginx:alpine
+    # Specific ARM-compatible Nginx image based on Debian Bullseye for Wirenboard 7
+    image: arm32v7/nginx:1.22-bullseye
     container_name: wb-mqtt-bridge-nginx
     restart: unless-stopped
     ports:
