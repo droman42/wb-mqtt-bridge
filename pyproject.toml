@@ -10,11 +10,11 @@ readme = "README.md"
 authors = [
     {name = "Dmitri Romanovskij", email = "dmitri.romanovski@gmail.com"}
 ]
-license = {text = "MIT"}
+# Updated license format to SPDX per deprecation warning
+license = "MIT"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
@@ -59,16 +59,10 @@ wb-mqtt-bridge = "app.main:main"
 
 [tool.setuptools]
 packages = ["app", "devices"]
-include-package-data = true
 
-[tool.setuptools.dynamic]
-dependencies = {file = ["requirements.txt"]}
-
+# Simplified package structure
 [tool.setuptools.package-dir]
 "" = "."
-
-[tool.setuptools.package-data]
-"*" = ["*.py"]
 
 [tool.black]
 line-length = 88

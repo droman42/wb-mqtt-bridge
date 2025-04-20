@@ -12,7 +12,7 @@ services:
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
-      - ./config:/app/config
+      - ./config:/app/config:ro
       - ./logs:/app/logs
       # Mount local dependency directories if they exist
       - ${PYMOTIVAXMC2_PATH:-../pymotivaxmc2}:/app/pymotivaxmc2:ro
@@ -32,6 +32,12 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
+    # Limit resources on ARMv7 devices
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
 
   nginx:
     # Specific ARM-compatible Nginx image based on Debian Bullseye for Wirenboard 7
@@ -41,11 +47,17 @@ services:
     ports:
       - "${NGINX_PORT:-8081}:80"
     volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
     depends_on:
       - wb-mqtt-bridge
     networks:
       - mqtt-network
+    # Limit resources on ARMv7 devices
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.2'
 
 networks:
   mqtt-network:

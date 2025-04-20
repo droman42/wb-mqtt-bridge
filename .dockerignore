@@ -1,16 +1,41 @@
+# Version control
 .git
 .gitignore
+.github
+
+# Environment files
 .env
-__pycache__
-*.pyc
-*.pyo
-*.pyd
+.env.*
+!.env.example
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
 .Python
+env/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
 env/
 venv/
 .venv/
-pip-log.txt
-pip-delete-this-directory.txt
+ENV/
+
+# Testing and coverage
 .tox/
 .coverage
 .coverage.*
@@ -18,18 +43,53 @@ pip-delete-this-directory.txt
 nosetests.xml
 coverage.xml
 *.cover
-*.log
+.hypothesis/
 .pytest_cache/
+
+# Logs and data
+*.log
+logs/
+data/
+*.db
+*.sqlite3
+
+# IDEs and editors
 .idea/
 .vscode/
-etc/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# Build and docs
 docs/
+build/
+site/
+htmlcov/
+
+# Project-specific files that shouldn't be in the container
+etc/
 schemas/
 wb-rules/
 *.sh
+!docker_deploy.sh
 broadlink_cli.py
 broadlink_discovery.py
 mqtt_sniffer.py
+debug.py
+setup.py
 *.ipynb
 TODO.md
-!docker_deploy.sh
+info/
+share/
+test_*.py
+
+# Include essential files
+!app/
+!devices/
+!requirements.txt

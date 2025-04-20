@@ -1,16 +1,23 @@
+# Core dependencies
 fastapi>=0.103.0
 uvicorn>=0.23.2
 aiomqtt>=1.0.0
 pydantic>=2.3.0
 python-dotenv>=1.0.0
-broadlink>=0.18.0
-#pywebostv>=0.8.9
-# Temporarily using local asyncwebostv, install manually with:
-# pip install -e ../asyncwebostv
+
+# Low-level libraries
+paho-mqtt>=1.6.1
 websockets>=10.0
 asyncio>=3.4.3
-paho-mqtt>=1.6.1
 
-# Local dependencies - will be installed separately in the Dockerfile
+# The following packages are handled specially in the Dockerfile for ARM compatibility:
+#
+# cryptography - Uses PiWheels or a compatible version for ARM
+# broadlink - Depends on cryptography, installed after cryptography is properly installed
+#
+# These are not included directly here to avoid build issues on ARM
+
+# Local dependencies are mounted as volumes in docker-compose.yml
+# commented out to avoid install errors
 # pymotivaxmc2
 # asyncwebostv

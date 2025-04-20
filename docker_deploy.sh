@@ -1,5 +1,43 @@
 #!/bin/bash
 
+# Add this function at the beginning of the script, before the show_help function
+install_arm_packages() {
+    echo "Pre-installing ARM-compatible packages to ensure they're available..."
+    
+    # Create a secure temporary directory for downloading packages
+    TMP_DIR=$(mktemp -d)
+    
+    # Make sure to clean up on exit
+    trap 'rm -rf "$TMP_DIR"' EXIT
+    
+    cd "$TMP_DIR"
+    
+    # Try multiple versions of cryptography that are known to work well on ARM
+    echo "Trying to find a compatible cryptography wheel for ARMv7..."
+    
+    # List of versions to try, from most to least preferred
+    CRYPTO_VERSIONS=("36.0.2" "35.0.0" "3.4.8" "3.3.2")
+    FOUND_CRYPTO=false
+    
+    for VERSION in "${CRYPTO_VERSIONS[@]}"; do
+        echo "Trying cryptography version $VERSION..."
+        if pip download --platform=linux_armv7l --only-binary=:all: cryptography==$VERSION 2>/dev/null; then
+            echo "✓ Found compatible cryptography $VERSION for ARMv7"
+            FOUND_CRYPTO=true
+            # Update the Dockerfile to use this version
+            sed -i "s/ARG CRYPTO_VERSION=.*$/ARG CRYPTO_VERSION=$VERSION/g" Dockerfile
+            break
+        fi
+    done
+    
+    if [ "$FOUND_CRYPTO" = false ]; then
+        echo "⚠️ Could not find any compatible cryptography wheel for ARMv7"
+        echo "⚠️ Will use PiWheels repository during build (configured in Dockerfile)"
+    fi
+    
+    cd - > /dev/null
+}
+
 # Help message
 show_help() {
     echo "MQTT Web Service Docker Deployment Script"
@@ -13,6 +51,8 @@ show_help() {
     echo "  --deps            Clone/update required local dependencies"
     echo "  --save [path]     After building, save images to tar files for transfer to Wirenboard"
     echo "  --transfer [ip]   Transfer saved images to Wirenboard at specified IP address"
+    echo "  --target-dir [dir] Specify target directory on Wirenboard (default: /mnt/data/docker_exchange)"
+    echo "  --lean            Build optimized images for resource-constrained devices (Wirenboard)"
     echo "  --help            Show this help message"
     echo
     echo "This script supports ARMv7 architecture for Wirenboard 7."
@@ -22,7 +62,9 @@ show_help() {
     echo "  $0 -b --save                      # Build and save images to current directory"
     echo "  $0 --save ./images                # Save images to ./images directory"
     echo "  $0 --transfer 192.168.1.100       # Transfer previously saved images to Wirenboard"
+    echo "  $0 --transfer 192.168.1.100 --target-dir /opt/mqtt-bridge  # Transfer to custom directory"
     echo "  $0 -b --save --transfer 192.168.1.100  # Build, save, and transfer in one step"
+    echo "  $0 -b --lean                      # Build optimized images for Wirenboard"
 }
 
 # Parse command line arguments
@@ -31,6 +73,8 @@ SAVE_IMAGES=false
 TRANSFER_IMAGES=false
 SAVE_PATH="."
 WB_IP=""
+LEAN=false
+TARGET_DIR="/mnt/data/docker_exchange"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -67,6 +111,20 @@ while [[ $# -gt 0 ]]; do
                 echo "Error: --transfer requires an IP address"
                 exit 1
             fi
+            shift
+            ;;
+        --target-dir)
+            if [[ -n "$2" && ! "$2" =~ ^- ]]; then
+                TARGET_DIR="$2"
+                shift
+            else
+                echo "Error: --target-dir requires a directory path"
+                exit 1
+            fi
+            shift
+            ;;
+        --lean)
+            LEAN=true
             shift
             ;;
         --help)
@@ -109,9 +167,17 @@ if [[ "$HOST_ARCHITECTURE" != "$TARGET_ARCHITECTURE" ]]; then
     echo "Setting up ARM architecture emulation..."
     docker run --privileged --rm tonistiigi/binfmt --install arm
     
-    # Create and configure buildx builder for ARM
-    echo "Creating and configuring buildx builder for ARM architecture..."
-    docker buildx create --name arm_builder --use
+    # Check if arm_builder already exists
+    if docker buildx ls | grep -q "arm_builder"; then
+        echo "Using existing arm_builder..."
+        docker buildx use arm_builder
+    else
+        echo "Creating new arm_builder..."
+        docker buildx create --name arm_builder --use
+    fi
+    
+    # Bootstrap the builder
+    echo "Bootstrapping the builder..."
     docker buildx inspect --bootstrap
     
     echo "ARM build environment is ready"
@@ -181,14 +247,36 @@ save_images() {
     
     mkdir -p "$save_dir"
     
-    echo "Saving wb-mqtt-bridge image..."
-    docker save wb-mqtt-bridge:latest | gzip > "$save_dir/wb-mqtt-bridge.tar.gz"
+    # Check if wb-mqtt-bridge image exists
+    if ! docker image inspect wb-mqtt-bridge:latest >/dev/null 2>&1; then
+        echo "Error: wb-mqtt-bridge:latest image not found. Build it first with './docker_deploy.sh -b'"
+        echo "Continuing with other images..."
+    else
+        echo "Saving wb-mqtt-bridge image..."
+        docker save wb-mqtt-bridge:latest | gzip > "$save_dir/wb-mqtt-bridge.tar.gz"
+        echo "✓ Saved wb-mqtt-bridge:latest"
+    fi
     
-    echo "Saving arm32v7/nginx image..."
-    docker save arm32v7/nginx:1.22-bullseye | gzip > "$save_dir/nginx-arm32v7.tar.gz"
+    echo "Pulling and saving arm32v7/nginx image..."
+    # Pull the image first before trying to save it
+    if ! docker pull arm32v7/nginx:1.22-bullseye; then
+        echo "Error: Failed to pull arm32v7/nginx:1.22-bullseye"
+        echo "This may be because:"
+        echo "1. You don't have internet connection"
+        echo "2. The image doesn't exist or has been renamed"
+        echo "3. Docker buildx emulation isn't properly configured"
+        
+        # Create an empty file as a placeholder
+        touch "$save_dir/nginx-arm32v7.tar.gz"
+        echo "Created empty placeholder file. You will need to manually transfer the nginx image."
+    else
+        docker save arm32v7/nginx:1.22-bullseye | gzip > "$save_dir/nginx-arm32v7.tar.gz"
+        echo "✓ Saved arm32v7/nginx:1.22-bullseye"
+    fi
     
     echo "Saving docker-compose.yml and related files..."
     tar -czf "$save_dir/wb-mqtt-bridge-config.tar.gz" docker-compose.yml nginx/conf.d .env
+    echo "✓ Saved configuration files"
     
     echo "Images and configuration saved to:"
     echo "  $save_dir/wb-mqtt-bridge.tar.gz"
@@ -206,31 +294,76 @@ save_images() {
 transfer_images() {
     local wb_ip="$1"
     local save_dir="$2"
+    local target_dir="$3"
     
-    if [ ! -f "$save_dir/wb-mqtt-bridge.tar.gz" ] || [ ! -f "$save_dir/nginx-arm32v7.tar.gz" ]; then
-        echo "Error: Docker image files not found in $save_dir"
-        echo "Run '$0 --save $save_dir' first to create the image files"
+    if [ ! -f "$save_dir/wb-mqtt-bridge.tar.gz" ]; then
+        echo "Error: wb-mqtt-bridge.tar.gz not found in $save_dir"
+        echo "Run '$0 -b --save $save_dir' first to create the image files"
         exit 1
     fi
     
     echo "Transferring Docker images to Wirenboard 7 at $wb_ip..."
+    echo "Target directory: $target_dir"
     
     # Create remote directory
-    ssh root@$wb_ip "mkdir -p /root/wb-mqtt-bridge"
+    if ! ssh root@$wb_ip "mkdir -p $target_dir"; then
+        echo "Error: Failed to connect to Wirenboard at $wb_ip or create directory $target_dir"
+        echo "Please check:"
+        echo "1. The IP address is correct"
+        echo "2. SSH is enabled on the Wirenboard"
+        echo "3. SSH keys are set up for passwordless login"
+        exit 1
+    fi
     
     # Transfer files
     echo "Transferring images and configuration (this may take a while)..."
-    scp "$save_dir/wb-mqtt-bridge.tar.gz" "$save_dir/nginx-arm32v7.tar.gz" "$save_dir/wb-mqtt-bridge-config.tar.gz" root@$wb_ip:/root/wb-mqtt-bridge/
+    
+    # Transfer the wb-mqtt-bridge image
+    echo "Transferring wb-mqtt-bridge.tar.gz..."
+    if ! scp "$save_dir/wb-mqtt-bridge.tar.gz" root@$wb_ip:"$target_dir/"; then
+        echo "Error: Failed to transfer wb-mqtt-bridge.tar.gz"
+        exit 1
+    fi
+    
+    # Check if nginx image exists and has content
+    if [ -f "$save_dir/nginx-arm32v7.tar.gz" ] && [ -s "$save_dir/nginx-arm32v7.tar.gz" ]; then
+        echo "Transferring nginx-arm32v7.tar.gz..."
+        scp "$save_dir/nginx-arm32v7.tar.gz" root@$wb_ip:"$target_dir/" || echo "Warning: Failed to transfer nginx image, will try to pull it directly on Wirenboard"
+    else
+        echo "Nginx image not found or is empty. Will try to pull it directly on Wirenboard."
+    fi
+    
+    # Transfer config files
+    echo "Transferring configuration files..."
+    if ! scp "$save_dir/wb-mqtt-bridge-config.tar.gz" root@$wb_ip:"$target_dir/"; then
+        echo "Error: Failed to transfer configuration files"
+        exit 1
+    fi
     
     echo "Setting up on Wirenboard..."
-    ssh root@$wb_ip "cd /root/wb-mqtt-bridge && \
+    SSH_COMMAND="cd $target_dir && \
         tar -xzf wb-mqtt-bridge-config.tar.gz && \
-        docker load -i wb-mqtt-bridge.tar.gz && \
-        docker load -i nginx-arm32v7.tar.gz && \
-        docker-compose up -d"
+        docker load -i wb-mqtt-bridge.tar.gz"
+    
+    # Add nginx image loading if it exists
+    if [ -f "$save_dir/nginx-arm32v7.tar.gz" ] && [ -s "$save_dir/nginx-arm32v7.tar.gz" ]; then
+        SSH_COMMAND="$SSH_COMMAND && docker load -i nginx-arm32v7.tar.gz"
+    else
+        SSH_COMMAND="$SSH_COMMAND && docker pull arm32v7/nginx:1.22-bullseye || echo 'Warning: Failed to pull nginx image. You may need to transfer it manually.'"
+    fi
+    
+    # Start containers
+    SSH_COMMAND="$SSH_COMMAND && docker-compose up -d"
+    
+    # Execute the setup commands
+    if ! ssh root@$wb_ip "$SSH_COMMAND"; then
+        echo "Error: Failed to set up Docker containers on Wirenboard"
+        echo "You may need to log in manually and complete the setup"
+        exit 1
+    fi
     
     echo "Deployment to Wirenboard 7 complete."
-    echo "Check status with: ssh root@$wb_ip 'cd /root/wb-mqtt-bridge && docker-compose ps'"
+    echo "Check status with: ssh root@$wb_ip 'cd $target_dir && docker-compose ps'"
 }
 
 # Stop and remove containers if requested
@@ -243,13 +376,23 @@ fi
 # Build and start containers
 if [ "$BUILD" = true ]; then
     if [ "$CROSS_COMPILE" = true ]; then
+        install_arm_packages
         echo "Building with Docker Buildx for ARM architecture (Wirenboard 7)..."
         
         # Use buildx for cross-platform build of both services
         echo "Building wb-mqtt-bridge image..."
+        
+        # Check if we should build a lean image
+        BUILD_ARGS="--platform linux/arm/v7 --build-arg ARCH=arm32v7"
+        if [ "$LEAN" = true ]; then
+            echo "Building optimized lean image for resource-constrained devices..."
+            BUILD_ARGS="$BUILD_ARGS --build-arg LEAN=true"
+            # For lean builds, we use DOCKER_BUILDKIT to enable multi-stage builds
+            export DOCKER_BUILDKIT=1
+        fi
+        
         docker buildx build \
-            --platform linux/arm/v7 \
-            --build-arg ARCH=arm32v7 \
+            $BUILD_ARGS \
             --tag wb-mqtt-bridge:latest \
             --load \
             .
@@ -261,7 +404,14 @@ if [ "$BUILD" = true ]; then
         fi
     else
         echo "Building directly for native ARM architecture..."
-        docker-compose up -d --build
+        if [ "$LEAN" = true ]; then
+            echo "Building optimized lean image for resource-constrained devices..."
+            export DOCKER_BUILDKIT=1
+            docker-compose build --build-arg LEAN=true
+            docker-compose up -d
+        else
+            docker-compose up -d --build
+        fi
     fi
 elif [ "$RESTART" = true ]; then
     echo "Restarting containers..."
@@ -282,7 +432,7 @@ if [ "$TRANSFER_IMAGES" = true ]; then
         echo "Error: No IP address specified for transfer"
         exit 1
     fi
-    transfer_images "$WB_IP" "$SAVE_PATH"
+    transfer_images "$WB_IP" "$SAVE_PATH" "$TARGET_DIR"
 fi
 
 # Check container status if we're running locally
