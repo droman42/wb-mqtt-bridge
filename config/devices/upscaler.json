@@ -47,7 +47,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "61",
       "group": "screen",
-      "position": "",
+      "position": "E0",
       "description": "Ratio 4:3"
     },
     "ratio_16_9": {
@@ -56,6 +56,7 @@
       "location": "wb-msw-v3_218",
       "rom_position": "8",
       "group": "screen",
+      "position": "E1",
       "description": "Ratio 16:9"
     },
     "letterbox": {
@@ -64,6 +65,7 @@
       "location": "wb-msw-v3_218",
       "rom_position": "9",
       "group": "screen",
+      "position": "E2",
       "description": "Letterbox"
     },
     "menu": {
