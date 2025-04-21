@@ -15,6 +15,7 @@ from asyncwebostv.controls import (
 from devices.base_device import BaseDevice
 from app.schemas import LgTvState, LgTvConfig, LastCommand
 from app.mqtt_client import MQTTClient
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -409,7 +410,14 @@ class LgTv(BaseDevice):
                 logger.error(f"Unknown action: {action}")
                 return False
             
-            self.state["last_command"] = f"action_{action}"
+            self.update_state({
+                "last_command": LastCommand(
+                    action=f"action_{action}",
+                    source="api",
+                    timestamp=datetime.now(),
+                    position="button"
+                ).dict()
+            })
             return result
             
         except Exception as e:
@@ -451,7 +459,14 @@ class LgTv(BaseDevice):
                 # Set the input source directly
                 await self.tv.send_message('request', 'ssap://tv/switchInput', {"inputId": target_source["id"]})
                 self.state["input_source"] = target_source["id"]
-                self.state["last_command"] = f"set_input_{input_source}"
+                self.update_state({
+                    "last_command": LastCommand(
+                        action=f"set_input_{input_source}",
+                        source="api",
+                        timestamp=datetime.now(),
+                        position="input"
+                    ).dict()
+                })
                 return True
             except Exception as e:
                 logger.error(f"Error sending input source request: {str(e)}")
@@ -510,7 +525,8 @@ class LgTv(BaseDevice):
                         self.update_state({
                             "last_command": {
                                 "action": cmd_name,
-                                "source": "mqtt"
+                                "source": "mqtt",
+                                "position": cmd_config.get("position")
                             }
                         })
                     break

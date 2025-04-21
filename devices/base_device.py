@@ -190,7 +190,8 @@ class BaseDevice(ABC):
                         action=action_name,
                         source="mqtt",
                         timestamp=datetime.now(),
-                        params=action_config.get("params")
+                        params=action_config.get("params"),
+                        position=action_config.get("position")
                     ).dict()
                 })
                 

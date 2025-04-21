@@ -11,6 +11,7 @@
         "location": "wb-msw-v3_207",
         "rom_position": "63",
         "group": "power",
+        "position": "A0",
         "description": "Power On/Off"
       },
       "play": {
@@ -19,6 +20,7 @@
         "location": "wb-msw-v3_207",
         "rom_position": "76",
         "group": "playback",
+        "position": "B0",
         "description": "Play"
       },
       "stop": {
@@ -27,6 +29,7 @@
         "location": "wb-msw-v3_207",
         "rom_position": "77",
         "group": "playback",
+        "position": "B2",
         "description": "Stop"
       },
       "pause": {
@@ -35,6 +38,7 @@
         "location": "wb-msw-v3_207",
         "rom_position": "78",
         "group": "playback",
+        "position": "B1",
         "description": "Pause"
       },
       "rewind_forward": {
@@ -43,6 +47,7 @@
         "location": "wb-msw-v3_207",
         "rom_position": "79",
         "group": "playback",
+        "position": "C0",
         "description": "Rewind Forward"
       },
       "rewind_backward": {
@@ -51,6 +56,7 @@
         "location": "wb-msw-v3_218",
         "rom_position": "80",
         "group": "playback",
+        "position": "C1",
         "description": "Rewind Backward"
       }
     }

@@ -56,6 +56,7 @@ class LastCommand(BaseModel):
     source: str
     timestamp: datetime
     params: Optional[Dict[str, Any]] = None
+    position: Optional[str] = None  # Position information for the command
 
 class BaseDeviceState(BaseModel):
     """Base schema for device state."""
@@ -87,7 +88,6 @@ class WirenboardIRState(BaseDeviceState):
 
 class RevoxA77ReelToReelState(BaseDeviceState):
     """Schema for Revox A77 reel-to-reel state."""
-    last_command: str = ""
     connection_status: str
 
 class ExampleDeviceState(BaseDeviceState):

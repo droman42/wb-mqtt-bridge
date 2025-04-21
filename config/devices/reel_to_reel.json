@@ -14,6 +14,7 @@
         "location": "wb-msw-v3_207",
         "rom_position": "72",
         "group": "playback",
+        "position": "A0",
         "description": "Play"
       },
       "stop": {
@@ -22,6 +23,7 @@
         "location": "wb-msw-v3_207",
         "rom_position": "73",
         "group": "playback",
+        "position": "A1",
         "description": "Stop"
       },
       "rewind_forward": {
@@ -30,6 +32,7 @@
         "location": "wb-msw-v3_207",
         "rom_position": "74",
         "group": "playback",
+        "position": "A3",
         "description": "Rewind Forward"
       },
       "rewind_backward": {
@@ -38,6 +41,7 @@
         "location": "wb-msw-v3_218",
         "rom_position": "75",
         "group": "playback",
+        "position": "A2",
         "description": "Rewind Backward"
       }
     }

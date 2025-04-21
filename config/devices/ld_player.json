@@ -11,6 +11,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "64",
       "group": "power",
+      "position": "A0",
       "description": "Power On/Off"
     },
     "tray": {
@@ -19,6 +20,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "65",
       "group": "inputs",
+      "position": "A1",
       "description": "Tray"
     },
     "play": {
@@ -27,6 +29,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "66",
       "group": "playback",
+      "position": "B0",
       "description": "Play"
     },
     "stop": {
@@ -35,6 +38,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "67",
       "group": "playback",
+      "position": "B2",
       "description": "Stop"
     },
     "pause": {
@@ -43,6 +47,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "68",
       "group": "playback",
+      "position": "B1",
       "description": "Pause"
     },
     "chapter_plus": {
@@ -51,6 +56,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "69",
       "group": "playback",
+      "position": "C0",
       "description": "Chapter+"
     },
     "chapter_minus": {
@@ -59,6 +65,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "70",
       "group": "playback",
+      "position": "C1",
       "description": "Chapter-"
     },
     "audio": {
@@ -67,6 +74,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "71",
       "group": "tracks",
+      "position": "A2",
       "description": "Audio"
     }
   }

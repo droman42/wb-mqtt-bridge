@@ -3,8 +3,9 @@ import logging
 import asyncio
 from typing import Dict, Any, List, Optional
 from devices.base_device import BaseDevice
-from app.schemas import BaseDeviceState, RevoxA77ReelToReelState
+from app.schemas import BaseDeviceState, RevoxA77ReelToReelState, LastCommand
 from app.mqtt_client import MQTTClient
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -16,9 +17,7 @@ class RevoxA77ReelToReel(BaseDevice):
         self._state_schema = RevoxA77ReelToReelState
         self.state = {
             "last_command": None,
-            "connection_status": "connected",
-            "device_id": self.config.get("device_id"),
-            "device_name": self.config.get("device_name")
+            "connection_status": "connected"
         }
         # Get sequence delay configuration
         self.sequence_delay = self.config.get("parameters", {}).get("sequence_delay", 5)  # Default 5 seconds
@@ -80,7 +79,14 @@ class RevoxA77ReelToReel(BaseDevice):
             "payload": "1"
         }
         
-        self.update_state({"last_command": command_name})
+        self.update_state({
+            "last_command": LastCommand(
+                action=command_name,
+                source="mqtt",
+                timestamp=datetime.now(),
+                position=action_config.get("position")
+            ).dict()
+        })
         logger.info(f"Sending {command_name} command to {location} at position {rom_position}")
         return mqtt_command
 
@@ -171,7 +177,7 @@ class RevoxA77ReelToReel(BaseDevice):
         return RevoxA77ReelToReelState(
             device_id=self.device_id,
             device_name=self.device_name,
-            last_command=self.state.get("last_command", ""),
+            last_command=self.state.get("last_command"),
             connection_status=self.state.get("connection_status", "unknown"),
             error=self.state.get("error")
         ) 

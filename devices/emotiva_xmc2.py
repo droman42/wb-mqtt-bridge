@@ -650,12 +650,13 @@ class EMotivaXMC2(BaseDevice):
                 "device_id": self.device_id
             }
     
-    def record_last_command(self, command: str):
+    def record_last_command(self, command: str, position: Optional[str] = None):
         """Record the last command executed."""
         self.state["last_command"] = LastCommand(
             action=command,
             source=self.device_name,
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
+            position=position
         ).model_dump()
     
     def get_current_state(self) -> EmotivaXMC2State:

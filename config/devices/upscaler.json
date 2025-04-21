@@ -11,6 +11,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "57",
       "group": "power",
+      "position": "A0",
       "description": "Power On"
     },
     "power_off": {
@@ -19,6 +20,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "58",
       "group": "power",
+      "position": "A1",
       "description": "Power Off"
     },
     "input_video": {
@@ -27,6 +29,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "59",
       "group": "inputs",
+      "position": "A2",
       "description": "Input Video"
     },
     "input_s_vhs": {
@@ -35,6 +38,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "60",
       "group": "inputs",
+      "position": "A3",
       "description": "Input S-VHS"
     },
     "ratio_4_3": {
@@ -43,6 +47,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "61",
       "group": "screen",
+      "position": "",
       "description": "Ratio 4:3"
     },
     "ratio_16_9": {
@@ -67,6 +72,7 @@
       "location": "wb-msw-v3_218",
       "rom_position": "10",
       "group": "menu",
+      "position": "B0",
       "description": "Menu"
     },
     "menu_exit": {
@@ -75,6 +81,7 @@
       "location": "wb-msw-v3_218",
       "rom_position": "11",
       "group": "menu",
+      "position": "B2",
       "description": "Menu Exit"
     },
     "menu_up": {
@@ -83,6 +90,7 @@
       "location": "wb-msw-v3_218",
       "rom_position": "12",
       "group": "menu",
+      "position": "B1",
       "description": "Menu Up"
     },
     "menu_down": {
@@ -91,6 +99,7 @@
       "location": "wb-msw-v3_218",
       "rom_position": "13",
       "group": "menu",
+      "position": "D1",
       "description": "Menu Down"
     },
     "menu_left": {
@@ -99,6 +108,7 @@
       "location": "wb-msw-v3_218",
       "rom_position": "14",
       "group": "menu",
+      "position": "C0",
       "description": "Menu Left"
     },
     "menu_right": {
@@ -107,6 +117,7 @@
       "location": "wb-msw-v3_218",
       "rom_position": "15",
       "group": "menu",
+      "position": "C2",
       "description": "Menu Right"
     },
     "menu_ok": {
@@ -115,6 +126,7 @@
       "location": "wb-msw-v3_218",
       "rom_position": "16",
       "group": "menu",
+      "position": "C1",
       "description": "OK/Enter"
     }
   }

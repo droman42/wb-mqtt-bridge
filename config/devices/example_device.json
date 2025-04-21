@@ -12,5 +12,25 @@
   "parameters": {
     "update_interval": 60,
     "threshold": 25.5
+  },
+  "commands": {
+    "power_on": {
+      "action": "power_on",
+      "topic": "home/example/command/power",
+      "description": "Turn the device on",
+      "position": "primary"
+    },
+    "power_off": {
+      "action": "power_off",
+      "topic": "home/example/command/power",
+      "description": "Turn the device off",
+      "position": "primary"
+    },
+    "get_data": {
+      "action": "getData",
+      "topic": "home/example/command/getData",
+      "description": "Get device data",
+      "position": "secondary"
+    }
   }
 } 
