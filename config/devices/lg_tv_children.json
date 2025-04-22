@@ -1,0 +1,178 @@
+{
+    "device_name": "LG XXX",
+    "device_type": "lg_tv",
+    "device_id": "children_room_tv",
+    "alias": "children_room_tv",
+    "mqtt_progress_topic": "/devices/children_room_tv/controls/progress",
+    "tv": {
+      "ip_address": "192.168.110.220",
+      "mac_address": "14:C9:13:ED:23:BB",
+      "secure": true,
+      "client_key": "d173b1786d56b7eac6dc969395bdbcba"
+    },
+    "commands": {
+      "power": {
+        "action": "power",
+        "topic": "/devices/children_room_tv/controls/buttons/power",
+        "description": "Power On/Off",
+        "group": "power",
+        "position": "A0"
+      },
+      "home": {
+        "action": "home",
+        "topic": "/devices/children_room_tv/controls/buttons/home",
+        "description": "Home",
+        "group": "menu",
+        "position": "B0"
+      },
+      "back": {
+        "action": "back",
+        "topic": "/devices/children_room_tv/controls/buttons/back",
+        "description": "Back",
+        "group": "menu",
+        "position": "B2"
+      },
+      "up": {
+        "action": "up",
+        "topic": "/devices/children_room_tv/controls/buttons/up",
+        "description": "Up",
+        "group": "menu",
+        "position": "B1"
+      },
+      "down": {
+        "action": "down",
+        "topic": "/devices/children_room_tv/controls/buttons/down",
+        "description": "Down",
+        "group": "menu",
+        "position": "D1"
+      },
+      "left": {
+        "action": "left",
+        "topic": "/devices/children_room_tv/controls/buttons/left",
+        "description": "Left",
+        "group": "menu",
+        "position": "C0"
+      },
+      "right": {
+        "action": "right",
+        "topic": "/devices/children_room_tv/controls/buttons/right",
+        "description": "Right",
+        "group": "menu",
+        "position": "C2"
+      },
+      "enter": {
+        "action": "enter",
+        "topic": "/devices/children_room_tv/controls/buttons/enter",
+        "description": "Enter/OK",
+        "group": "menu",
+        "position": "C1"
+      },
+      "volume_up": {
+        "action": "volume_up",
+        "topic": "/devices/children_room_tv/controls/buttons/volume_up",
+        "description": "Volume Up",
+        "group": "volume",
+        "position": "A1"
+      },
+      "volume_down": {
+        "action": "volume_down",
+        "topic": "/devices/children_room_tv/controls/buttons/volume_down",
+        "description": "Volume Down",
+        "group": "volume",
+        "position": "A2"
+      },
+      "mute": {
+        "action": "mute",
+        "topic": "/devices/children_room_tv/controls/buttons/mute",
+        "description": "Mute",
+        "group": "volume",
+        "position": "A3"
+      },
+      "channel_up": {
+        "action": "channel_up",
+        "topic": "/devices/children_room_tv/controls/buttons/channel_up",
+        "description": "Channel Up",
+        "group": "channel",
+        "position": "F0"
+      },
+      "channel_down": {
+        "action": "channel_down",
+        "topic": "/devices/children_room_tv/controls/buttons/channel_down",
+        "description": "Channel Down",
+        "group": "channel",
+        "position": "F1"
+      },
+      "play": {
+        "action": "play",
+        "topic": "/devices/children_room_tv/controls/buttons/play",
+        "description": "Play",
+        "group": "playback",
+        "position": "E0"
+      },
+      "pause": {
+        "action": "pause",
+        "topic": "/devices/children_room_tv/controls/buttons/pause",
+        "description": "Pause",
+        "group": "playback",
+        "position": "E2"
+      },
+      "stop": {
+        "action": "stop",
+        "topic": "/devices/children_room_tv/controls/buttons/stop",
+        "description": "Stop",
+        "group": "playback",
+        "position": "E1"
+      },
+      "rewind_forward": {
+        "action": "rewind_forward",
+        "topic": "/devices/children_room_tv/controls/buttons/rewind_forward",
+        "description": "Fast Forward",
+        "group": "playback",
+        "position": "F2"
+      },
+      "rewind_backward": {
+        "action": "rewind_backward",
+        "topic": "/devices/children_room_tv/controls/buttons/rewind_backward",
+        "description": "Fast Backward",
+        "group": "playback",
+        "position": "F3"
+      },
+      "kinopoisk": {
+        "action": "kinopoisk",
+        "topic": "/devices/children_room_tv/controls/buttons/kinopoisk",
+        "description": "Launch Kinopoisk",
+        "appname": "Кинопоиск",
+        "group": "app",
+        "position": "G0"
+      },
+      "ivi": {
+        "action": "ivi",
+        "topic": "/devices/children_room_tv/controls/buttons/ivi",
+        "description": "Launch IVI",
+        "appname": "IVI",
+        "group": "app",
+        "position": "G1"
+      },
+      "exit": {
+        "action": "exit",
+        "topic": "/devices/children_room_tv/controls/buttons/exit",
+        "description": "Exit Button",
+        "group": "menu",
+        "position": "D0"
+      },
+      "menu": {
+        "action": "menu",
+        "topic": "/devices/children_room_tv/controls/buttons/menu",
+        "description": "Menu Button",
+        "group": "menu",
+        "position": "D2"
+      },
+      "settings": {
+        "action": "settings",
+        "topic": "/devices/children_room_tv/controls/buttons/settings",
+        "description": "Settings Button",
+        "group": "menu",
+        "position": "D3"
+      }
+    }
+  } 

@@ -1,6 +1,7 @@
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 from pydantic import BaseModel, Field
 from datetime import datetime
+from enum import Enum
 
 class MQTTBrokerConfig(BaseModel):
     """Schema for MQTT broker configuration."""
@@ -148,8 +149,83 @@ class SystemInfo(BaseModel):
 
 class DeviceAction(BaseModel):
     """Schema for device action requests."""
-    action: str
-    params: Optional[Dict[str, Any]] = None
+    action: str = Field(..., description="Action to execute on the device")
+    params: Optional[Dict[str, Any]] = Field(
+        None, 
+        description="Parameters for the action. Structure depends on the action type."
+    )
+    
+    # Example in the model description
+    class Config:
+        schema_extra = {
+            "examples": [
+                {
+                    "action": "move_cursor",
+                    "params": {
+                        "x": 500,
+                        "y": 300,
+                        "drag": False
+                    }
+                },
+                {
+                    "action": "move_cursor_relative",
+                    "params": {
+                        "dx": 100,
+                        "dy": -50,
+                        "drag": True
+                    }
+                },
+                {
+                    "action": "click",
+                    "params": {
+                        "x": 500,
+                        "y": 300
+                    }
+                },
+                {
+                    "action": "launch_app",
+                    "params": {
+                        "app_name": "Netflix"
+                    }
+                },
+                {
+                    "action": "set_volume",
+                    "params": {
+                        "volume": 30
+                    }
+                },
+                {
+                    "action": "set_mute",
+                    "params": {
+                        "mute": True
+                    }
+                },
+                {
+                    "action": "set_input_source",
+                    "params": {
+                        "input_source": "HDMI 1"
+                    }
+                },
+                {
+                    "action": "send_action",
+                    "params": {
+                        "command": "up"
+                    }
+                },
+                {
+                    "action": "power_on",
+                    "params": {}
+                },
+                {
+                    "action": "power_off",
+                    "params": {}
+                },
+                {
+                    "action": "wake_on_lan",
+                    "params": {}
+                }
+            ]
+        }
 
 class ServiceInfo(BaseModel):
     """Schema for service information."""
@@ -214,3 +290,87 @@ class GroupActionsResponse(BaseModel):
     status: str  # "ok", "no_actions", "invalid_group", "unknown_group"
     message: Optional[str] = None
     actions: List[Dict[str, Any]] = Field(default_factory=list)
+
+# Mouse control action parameter schemas
+class MoveCursorParams(BaseModel):
+    """Parameters for move_cursor action."""
+    x: int = Field(..., description="X coordinate (horizontal position)")
+    y: int = Field(..., description="Y coordinate (vertical position)")
+    drag: bool = Field(False, description="If True, perform drag operation")
+
+class MoveCursorRelativeParams(BaseModel):
+    """Parameters for move_cursor_relative action."""
+    dx: int = Field(..., description="Delta X (horizontal movement)")
+    dy: int = Field(..., description="Delta Y (vertical movement)")
+    drag: bool = Field(False, description="If True, perform drag operation")
+
+class ClickParams(BaseModel):
+    """Parameters for click action."""
+    x: int = Field(..., description="X coordinate (horizontal position)")
+    y: int = Field(..., description="Y coordinate (vertical position)")
+
+# TV control action parameter schemas
+class LaunchAppParams(BaseModel):
+    """Parameters for launch_app action."""
+    app_name: str = Field(..., description="Name or ID of the app to launch. Can be a partial name which will be matched against available apps.")
+
+class SetVolumeParams(BaseModel):
+    """Parameters for set_volume action."""
+    volume: int = Field(..., description="Volume level to set (typically 0-100)")
+
+class SetMuteParams(BaseModel):
+    """Parameters for set_mute action."""
+    mute: bool = Field(..., description="Whether to mute (true) or unmute (false)")
+
+class SetInputSourceParams(BaseModel):
+    """Parameters for set_input_source action."""
+    input_source: str = Field(..., description="Name or ID of the input source to select. Can be a partial name which will be matched against available sources.")
+
+class SendActionParams(BaseModel):
+    """Parameters for send_action action."""
+    command: str = Field(..., description="Remote control command to send (e.g. 'up', 'down', 'ok', 'menu', 'play', 'pause', etc.)")
+
+class WakeOnLanParams(BaseModel):
+    """Parameters for wake_on_lan action."""
+    # No parameters required for wake_on_lan action, but defined for consistency
+    pass
+
+class PowerOnParams(BaseModel):
+    """Parameters for power_on action."""
+    # No parameters required for power_on action, but defined for consistency
+    pass
+
+class PowerOffParams(BaseModel):
+    """Parameters for power_off action."""
+    # No parameters required for power_off action, but defined for consistency
+    pass
+
+# Enum for TV actions
+class TvActionType(str, Enum):
+    POWER_ON = "power_on"
+    POWER_OFF = "power_off"
+    SET_VOLUME = "set_volume"
+    SET_MUTE = "set_mute"
+    LAUNCH_APP = "launch_app"
+    SET_INPUT_SOURCE = "set_input_source"
+    SEND_ACTION = "send_action"
+    MOVE_CURSOR = "move_cursor"
+    MOVE_CURSOR_RELATIVE = "move_cursor_relative"
+    CLICK = "click"
+    WAKE_ON_LAN = "wake_on_lan"
+
+# Define Union type for action parameters
+ActionParams = Union[
+    Dict[str, Any],  # Generic parameters
+    MoveCursorParams,
+    MoveCursorRelativeParams,
+    ClickParams,
+    LaunchAppParams,
+    SetVolumeParams,
+    SetMuteParams,
+    SetInputSourceParams,
+    SendActionParams,
+    WakeOnLanParams,
+    PowerOnParams,
+    PowerOffParams
+]

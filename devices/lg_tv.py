@@ -43,9 +43,15 @@ class LgTv(BaseDevice):
         self.tv_control = None
         self.input_control = None
         self.source_control = None
+        self.client_key = None
+        self.tv_config = None
     
     async def setup(self) -> bool:
-        """Initialize the TV device."""
+        """Initialize the TV device configuration.
+        
+        This method validates the configuration and prepares the device for connection,
+        but does not actually connect to the TV.
+        """
         try:
             # Get TV-specific configuration
             tv_dict = self.config.get("tv", {})
@@ -56,28 +62,34 @@ class LgTv(BaseDevice):
                 
             # Validate TV configuration with pydantic model
             try:
-                tv_config = LgTvConfig(**tv_dict)
+                self.tv_config = LgTvConfig(**tv_dict)
             except Exception as e:
                 logger.error(f"Invalid TV configuration for device: {self.get_name()}: {str(e)}")
                 self.state["error"] = f"Invalid TV configuration: {str(e)}"
                 return False
                 
             # Update state with configuration values
-            self.state["ip_address"] = tv_config.ip_address
-            self.state["mac_address"] = tv_config.mac_address
+            self.state["ip_address"] = self.tv_config.ip_address
+            self.state["mac_address"] = self.tv_config.mac_address
             
             # Store client key for WebOS authentication
-            self.client_key = tv_config.client_key
+            self.client_key = self.tv_config.client_key
             
-            # Initialize TV connection
-            if await self._connect_to_tv():
-                logger.info(f"Successfully connected to TV {self.get_name()}")
-                self.state["connected"] = True
-            else:
-                logger.error(f"Failed to connect to TV {self.get_name()}")
-                self.state["connected"] = False
-                self.state["error"] = "Failed to connect to TV"
+            # Log a message if no client key is provided
+            if not self.client_key:
+                logger.warning(f"No client key provided for TV {self.get_name()}. Connection will likely fail.")
             
+            # Configuration is valid
+            logger.info(f"TV device {self.get_name()} is properly configured")
+            
+            # Attempt initial connection, but don't fail setup if it doesn't connect
+            try:
+                await self.connect()
+            except Exception as e:
+                logger.warning(f"Initial connection attempt failed for {self.get_name()}: {str(e)}")
+                # Connection failure shouldn't cause setup to fail if config is valid
+            
+            # Setup is successful if configuration is valid
             return True
             
         except Exception as e:
@@ -85,116 +97,156 @@ class LgTv(BaseDevice):
             self.state["error"] = str(e)
             return False
     
-    async def shutdown(self) -> bool:
-        """Cleanup device resources."""
+    async def connect(self) -> bool:
+        """Public method to establish a connection to the TV.
+        
+        This can be called during setup or anytime a reconnection is needed.
+        The connection will only use the client key provided in the configuration.
+        """
         try:
-            if self.tv and self.tv.connection:
-                await self.tv.close()
+            # Verify we have a client key before attempting connection
+            if not self.client_key:
+                logger.error(f"Cannot connect to TV {self.get_name()}: No client key provided in configuration.")
+                self.state["connected"] = False
+                self.state["error"] = "Missing client key in configuration"
+                return False
+                
+            connection_result = await self._connect_to_tv()
             
-            logger.info(f"LG TV {self.get_name()} shutdown complete")
+            if connection_result:
+                logger.info(f"Successfully connected to TV {self.get_name()}")
+                self.state["connected"] = True
+                self.state["error"] = None
+            else:
+                logger.error(f"Failed to connect to TV {self.get_name()}")
+                self.state["connected"] = False
+                if not self.state.get("error"):
+                    self.state["error"] = "Failed to connect to TV"
+                    
+            return connection_result
+        except Exception as e:
+            logger.error(f"Unexpected error connecting to TV {self.get_name()}: {str(e)}")
+            self.state["connected"] = False
+            self.state["error"] = str(e)
+            return False
+    
+    async def shutdown(self) -> bool:
+        """Clean up resources and disconnect from the TV."""
+        try:
+            # Disconnect from TV
+            if self.client:
+                await self.client.close()  # Use close() instead of disconnect()
+                self.client = None
+                self.state["connected"] = False
+                logger.info(f"Disconnected from TV {self.get_name()}")
             return True
         except Exception as e:
             logger.error(f"Error during device shutdown: {str(e)}")
             return False
     
-    def subscribe_topics(self) -> List[str]:
-        """Define the MQTT topics this device should subscribe to."""
-        topics = []
-        
-        # Add command topics from configuration
-        for command in self.get_available_commands().values():
-            topic = command.get("topic")
-            if topic:
-                topics.append(topic)
-        
-        # Add any additional control topics
-        power_topic = self.config.get("power_topic")
-        if power_topic:
-            topics.append(power_topic)
-            
-        volume_topic = self.config.get("volume_topic")
-        if volume_topic:
-            topics.append(volume_topic)
-            
-        app_launch_topic = self.config.get("app_launch_topic")
-        if app_launch_topic:
-            topics.append(app_launch_topic)
-            
-        input_source_topic = self.config.get("input_source_topic")
-        if input_source_topic:
-            topics.append(input_source_topic)
-        
-        logger.debug(f"Device {self.get_name()} subscribing to topics: {topics}")
-        return topics
-    
     async def _connect_to_tv(self) -> bool:
-        """Connect to the TV."""
+        """Connect to the TV using the configured parameters.
+        
+        This is an internal method that handles the WebOS connection logic.
+        It will attempt to connect using the provided client key. If the connection
+        fails and a MAC address is available, it will try to wake the TV using
+        Wake-on-LAN and attempt the connection again.
+        """
         try:
+            # Check if we have configuration and IP address
+            if not self.tv_config:
+                logger.error("TV configuration not initialized")
+                return False
+                
             ip = self.state.get("ip_address")
             if not ip:
                 logger.error("No IP address configured for TV")
                 return False
                 
-            # Get TV-specific configuration
-            tv_dict = self.config.get("tv", {})
-            tv_config = LgTvConfig(**tv_dict)
+            # Use secure WebSocket mode from config
+            secure_mode = self.tv_config.secure
             
-            # Use secure WebSocket mode by default, can be disabled in config
-            secure_mode = tv_config.secure
+            # Verify we have a client key before attempting connection
+            if not self.client_key:
+                logger.error("No client key provided in configuration. Cannot connect to TV.")
+                self.state["error"] = "Missing client key in configuration"
+                return False
             
-            # Create a new TV client
-            self.tv = WebOSClient(ip, secure=secure_mode)
+            # Create a new TV client with the client key for authentication
+            self.client = WebOSClient(ip, secure=secure_mode, client_key=self.client_key)
             
-            # Connect to the TV
-            await self.tv.connect()
-            
-            # Register with the TV if needed
-            if not self.tv.client_key:
-                logger.info("No client key found, registering with TV...")
-                store = {}
-                registered = False
+            # First connection attempt
+            connection_success = False
+            try:
+                logger.info(f"Attempting to connect to TV at {ip}...")
+                await self.client.connect()
+                connection_success = True
+            except Exception as e:
+                logger.warning(f"Initial connection attempt failed: {str(e)}")
                 
-                try:
-                    async for status in self.tv.register(store):
-                        if status == WebOSClient.PROMPTED:
-                            logger.info("Please accept the connection on the TV!")
-                        elif status == WebOSClient.REGISTERED:
-                            registered = True
-                            logger.info("TV registration successful!")
-                            
-                            # Save the client key for future use
-                            if store.get("client_key"):
-                                self.client_key = store["client_key"]
-                                logger.info("Client key obtained and stored")
-                            
-                            break
-                except Exception as e:
-                    logger.error(f"Error during TV registration: {str(e)}")
-                    return False
-                
-                if not registered:
-                    logger.error("Failed to register with the TV")
-                    return False
+                # The TV might be off, try to wake it using WOL if we have MAC address
+                mac_address = self.state.get("mac_address")
+                if mac_address:
+                    logger.info(f"TV appears to be off. Attempting to wake it using WOL to MAC: {mac_address}")
+                    wol_success = await self.send_wol_packet(mac_address)
+                    
+                    if wol_success:
+                        logger.info("Wake-on-LAN packet sent successfully. Waiting for TV to boot...")
+                        
+                        # Wait for TV to boot up (typically takes 10-20 seconds)
+                        boot_wait_time = self.tv_config.timeout or 15  # Default to 15 seconds if not specified
+                        logger.info(f"Waiting {boot_wait_time} seconds for TV to boot...")
+                        await asyncio.sleep(boot_wait_time)
+                        
+                        # Retry connection after TV has had time to boot
+                        try:
+                            # Create a new client instance after WOL
+                            self.client = WebOSClient(ip, secure=secure_mode, client_key=self.client_key)
+                            logger.info("Retrying connection after WOL...")
+                            await self.client.connect()
+                            connection_success = True
+                            logger.info("Connection successful after WOL!")
+                        except Exception as retry_error:
+                            logger.error(f"Connection failed even after WOL: {str(retry_error)}")
+                            self.state["error"] = "Connection failed after wake-on-LAN. TV may not be responding."
+                    else:
+                        logger.error("Failed to send Wake-on-LAN packet")
+                        self.state["error"] = "Failed to wake TV using Wake-on-LAN"
+                else:
+                    logger.warning("Cannot wake TV: No MAC address configured")
+                    self.state["error"] = "Connection failed and no MAC address available for Wake-on-LAN"
+            
+            # If we still couldn't connect, return failure
+            if not connection_success:
+                if not self.state.get("error"):
+                    self.state["error"] = "Failed to connect to TV"
+                return False
+            
+            # Check if the client key is valid (the client should have a client_key after connection)
+            if not self.client.client_key:
+                logger.error("Invalid or rejected client key. Authentication failed.")
+                self.state["error"] = "Invalid client key. Authentication failed."
+                return False
+            
+            logger.info("Successfully authenticated with TV using provided client key")
             
             # Initialize controls
-            self.media = MediaControl(self.tv)
-            self.system = SystemControl(self.tv)
-            self.app = ApplicationControl(self.tv)
-            self.tv_control = TvControl(self.tv)
-            self.input_control = InputControl(self.tv)
-            self.source_control = SourceControl(self.tv)
+            self.media = MediaControl(self.client)
+            self.system = SystemControl(self.client)
+            self.app = ApplicationControl(self.client)
+            self.tv_control = TvControl(self.client)
+            self.input_control = InputControl(self.client)
+            self.source_control = SourceControl(self.client)
             
             # Get initial TV state
             await self._update_tv_state()
             
-            self.state["connected"] = True
             logger.info(f"Successfully connected to LG TV at {ip}")
-            
             return True
             
         except Exception as e:
-            self.state["connected"] = False
             logger.error(f"Failed to connect to LG TV: {str(e)}")
+            self.state["error"] = f"Connection error: {str(e)}"
             return False
     
     async def _update_tv_state(self):
@@ -225,27 +277,56 @@ class LgTv(BaseDevice):
             return False
     
     async def power_on(self):
-        """Power on the TV (if supported)."""
+        """Power on the TV (if supported).
+        
+        This method tries two approaches to power on the TV:
+        1. First, it attempts to use the WebOS API's system/turnOn method
+        2. If that fails or there's no active connection, it falls back to Wake-on-LAN
+           using the MAC address from the configuration
+        """
         try:
-            # Note: Power on might not be directly supported via WebOS API
-            # Most TVs must be woken using Wake-on-LAN which requires MAC address
             logger.info(f"Attempting to power on TV {self.get_name()}")
+            success = False
             
-            # Try to use system power method if available
-            if self.system and self.tv:
+            # First try using WebOS API if we have an active connection
+            if self.system and self.client:
                 try:
-                    # Send turn on message directly 
-                    await self.tv.send_message('request', 'ssap://system/turnOn', {})
+                    logger.info("Attempting to power on via WebOS API...")
+                    await self.client.send_message('request', 'ssap://system/turnOn', {})
                     self.state["power"] = "on"
                     self.state["last_command"] = "power_on"
-                    return True
+                    success = True
+                    logger.info("Power on via WebOS API successful")
                 except Exception as e:
-                    logger.debug(f"System power on failed: {str(e)}")
+                    logger.debug(f"WebOS API power on failed: {str(e)}")
             
-            self.state["last_command"] = "power_on"
-            return False
+            # If WebOS method failed or we don't have an active connection, try Wake-on-LAN
+            if not success:
+                mac_address = self.state.get("mac_address")
+                if mac_address:
+                    logger.info(f"Attempting to power on via Wake-on-LAN to MAC: {mac_address}")
+                    # Use the send_wol_packet method from BaseDevice
+                    wol_success = await self.send_wol_packet(mac_address)
+                    if wol_success:
+                        logger.info("Wake-on-LAN packet sent successfully")
+                        # We can't be certain the TV will power on, but we've done our part
+                        # Assume it worked for state tracking purposes
+                        self.state["power"] = "on"
+                        self.state["last_command"] = "power_on_wol"
+                        success = True
+                    else:
+                        logger.error("Failed to send Wake-on-LAN packet")
+                else:
+                    logger.warning("Cannot use Wake-on-LAN: No MAC address configured for TV")
+            
+            # Update the state with the last command regardless of success
+            if not success:
+                self.state["last_command"] = "power_on_failed"
+                
+            return success
         except Exception as e:
             logger.error(f"Error powering on TV: {str(e)}")
+            self.state["last_command"] = "power_on_error"
             return False
     
     async def power_off(self):
@@ -254,9 +335,9 @@ class LgTv(BaseDevice):
             logger.info(f"Powering off TV {self.get_name()}")
             
             # Use system turnOff method
-            if self.system and self.tv:
+            if self.system and self.client:
                 # Send turn off message directly
-                await self.tv.send_message('request', 'ssap://system/turnOff', {})
+                await self.client.send_message('request', 'ssap://system/turnOff', {})
                 self.state["power"] = "off"
                 self.state["last_command"] = "power_off"
                 return True
@@ -272,9 +353,9 @@ class LgTv(BaseDevice):
             volume = int(volume)
             logger.info(f"Setting TV {self.get_name()} volume to {volume}")
             
-            if self.media and self.tv:
+            if self.media and self.client:
                 # Send volume message directly
-                await self.tv.send_message('request', 'ssap://audio/setVolume', {"volume": volume})
+                await self.client.send_message('request', 'ssap://audio/setVolume', {"volume": volume})
                 self.state["volume"] = volume
                 self.state["last_command"] = f"set_volume_{volume}"
                 return True
@@ -293,12 +374,12 @@ class LgTv(BaseDevice):
             
             logger.info(f"Setting mute to {mute} on TV {self.get_name()}")
             
-            if not self.tv:
+            if not self.client:
                 logger.error("TV client not initialized")
                 return False
                 
             # Send mute command directly
-            await self.tv.send_message('request', 'ssap://audio/setMute', {"mute": mute})
+            await self.client.send_message('request', 'ssap://audio/setMute', {"mute": mute})
             
             # Update state
             self.state["mute"] = mute
@@ -314,12 +395,12 @@ class LgTv(BaseDevice):
         try:
             logger.info(f"Launching app {app_name} on TV {self.get_name()}")
             
-            if not self.tv:
+            if not self.client:
                 logger.error("TV client not initialized")
                 return False
             
             # First retrieve list of available apps directly
-            apps_response = await self.tv.send_message('request', 'ssap://com.webos.applicationManager/listApps', {}, get_queue=True)  # type: ignore
+            apps_response = await self.client.send_message('request', 'ssap://com.webos.applicationManager/listApps', {}, get_queue=True)  # type: ignore
             if not apps_response or not apps_response.get("payload") or not apps_response.get("payload").get("apps"):  # type: ignore
                 logger.error("Could not retrieve list of apps")
                 return False
@@ -338,7 +419,7 @@ class LgTv(BaseDevice):
                 return False
             
             # Launch the app directly
-            await self.tv.send_message('request', 'ssap://system.launcher/launch', {"id": target_app["id"]})
+            await self.client.send_message('request', 'ssap://system.launcher/launch', {"id": target_app["id"]})
             self.state["current_app"] = target_app["id"]
             self.state["last_command"] = f"launch_app_{app_name}"
             return True
@@ -353,33 +434,65 @@ class LgTv(BaseDevice):
             action = action.lower()
             logger.info(f"Sending action {action} to TV {self.get_name()}")
             
-            if not self.tv:
+            if not self.client:
                 logger.error("TV client not initialized")
                 return False
                 
             result = False
             
+            # Mouse control actions
+            if action.startswith("mouse_"):
+                # Parse mouse command format: mouse_move_100_200 or mouse_click_100_200 or mouse_move_rel_10_20
+                parts = action.split("_")
+                if len(parts) >= 4:
+                    mouse_action = parts[1]  # move, click, or move_rel
+                    try:
+                        # Extract coordinates
+                        if mouse_action == "move" and len(parts) >= 4:
+                            x = int(parts[2])
+                            y = int(parts[3])
+                            drag = False
+                            if len(parts) >= 5 and parts[4] == "drag":
+                                drag = True
+                            result = await self.handle_move_cursor({"x": x, "y": y, "drag": drag})
+                        elif mouse_action == "click" and len(parts) >= 4:
+                            x = int(parts[2])
+                            y = int(parts[3])
+                            result = await self.handle_click({"x": x, "y": y})
+                        elif mouse_action == "rel" and len(parts) >= 4:
+                            dx = int(parts[2])
+                            dy = int(parts[3])
+                            drag = False
+                            if len(parts) >= 5 and parts[4] == "drag":
+                                drag = True
+                            result = await self.handle_move_cursor_relative({"dx": dx, "dy": dy, "drag": drag})
+                        else:
+                            logger.error(f"Invalid mouse action format: {action}")
+                    except ValueError:
+                        logger.error(f"Invalid coordinate values in mouse action: {action}")
+                else:
+                    logger.error(f"Invalid mouse action format: {action}")
             # Media controls
-            if action == "play":
-                await self.tv.send_message('request', 'ssap://media.controls/play', {})
+            elif action == "play":
+                await self.client.send_message('request', 'ssap://media.controls/play', {})
                 result = True
             elif action == "pause":
-                await self.tv.send_message('request', 'ssap://media.controls/pause', {})
+                await self.client.send_message('request', 'ssap://media.controls/pause', {})
                 result = True
             elif action == "stop":
-                await self.tv.send_message('request', 'ssap://media.controls/stop', {})
+                await self.client.send_message('request', 'ssap://media.controls/stop', {})
                 result = True
             elif action == "rewind":
-                await self.tv.send_message('request', 'ssap://media.controls/rewind', {})
+                await self.client.send_message('request', 'ssap://media.controls/rewind', {})
                 result = True
             elif action == "fast_forward":
-                await self.tv.send_message('request', 'ssap://media.controls/fastForward', {})
+                await self.client.send_message('request', 'ssap://media.controls/fastForward', {})
                 result = True
             elif action == "volume_up":
-                await self.tv.send_message('request', 'ssap://audio/volumeUp', {})
+                await self.client.send_message('request', 'ssap://audio/volumeUp', {})
                 result = True
             elif action == "volume_down":
-                await self.tv.send_message('request', 'ssap://audio/volumeDown', {})
+                await self.client.send_message('request', 'ssap://audio/volumeDown', {})
                 result = True
             elif action == "mute":
                 result = await self.set_mute(True)
@@ -388,21 +501,21 @@ class LgTv(BaseDevice):
                 
             # TV navigation controls
             elif action == "channel_up":
-                await self.tv.send_message('request', 'ssap://tv/channelUp', {})
+                await self.client.send_message('request', 'ssap://tv/channelUp', {})
                 result = True
             elif action == "channel_down":
-                await self.tv.send_message('request', 'ssap://tv/channelDown', {})
+                await self.client.send_message('request', 'ssap://tv/channelDown', {})
                 result = True
             elif action in ["up", "down", "left", "right", "ok", "back", "home", 
                             "red", "green", "yellow", "blue", "menu", "exit", "guide"]:
                 # These all use the networkinput service with button parameter
-                await self.tv.send_message('request', 
+                await self.client.send_message('request', 
                                            'ssap://com.webos.service.networkinput/getPointerInputSocket', 
                                            {"button": action.upper()})
                 result = True
             elif action in ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]:
                 # Number buttons also use networkinput
-                await self.tv.send_message('request', 
+                await self.client.send_message('request', 
                                            'ssap://com.webos.service.networkinput/getPointerInputSocket', 
                                            {"button": action})
                 result = True
@@ -429,13 +542,13 @@ class LgTv(BaseDevice):
         try:
             logger.info(f"Setting input source to {input_source} on TV {self.get_name()}")
             
-            if not self.tv:
+            if not self.client:
                 logger.error("TV client not initialized")
                 return False
             
             # First retrieve list of available sources using direct message
             try:
-                sources_response = await self.tv.send_message('request', 'ssap://tv/getExternalInputList', {}, get_queue=True)  # type: ignore
+                sources_response = await self.client.send_message('request', 'ssap://tv/getExternalInputList', {}, get_queue=True)  # type: ignore
                 if not sources_response or not sources_response.get("payload"):  # type: ignore
                     logger.error("Could not retrieve list of sources")
                     return False
@@ -457,7 +570,7 @@ class LgTv(BaseDevice):
                     return False
                 
                 # Set the input source directly
-                await self.tv.send_message('request', 'ssap://tv/switchInput', {"inputId": target_source["id"]})
+                await self.client.send_message('request', 'ssap://tv/switchInput', {"inputId": target_source["id"]})
                 self.state["input_source"] = target_source["id"]
                 self.update_state({
                     "last_command": LastCommand(
@@ -477,62 +590,50 @@ class LgTv(BaseDevice):
     
     async def handle_message(self, topic: str, payload: str):
         """Handle incoming MQTT messages for this device."""
-        logger.debug(f"LG TV received message on {topic}: {payload}")
-        
         try:
-            # Handle power topic
-            power_topic = self.config.get("power_topic")
-            if topic == power_topic:
-                if payload.lower() in ["on", "1", "true"]:
-                    await self.power_on()
-                elif payload.lower() in ["off", "0", "false"]:
-                    await self.power_off()
-                return
+            logger.debug(f"LG TV {self.get_name()} handling message on topic {topic}: {payload}")
             
-            # Handle volume topic
-            volume_topic = self.config.get("volume_topic")
-            if topic == volume_topic:
-                try:
-                    volume = int(payload)
-                    await self.set_volume(volume)
-                except ValueError:
-                    logger.error(f"Invalid volume value: {payload}")
-                return
-                
-            # Handle app launch topic
-            app_launch_topic = self.config.get("app_launch_topic")
-            if topic == app_launch_topic:
-                # The payload can now be an app_id or a configured app name
-                await self.launch_app(payload)
-                return
-                
-            # Handle input source topic
-            input_source_topic = self.config.get("input_source_topic")
-            if topic == input_source_topic:
-                await self.set_input_source(payload)
-                return
+            # Find matching command configuration for this topic
+            matching_command = None
+            matching_command_name = None
             
-            # Handle command topics from configuration
             for cmd_name, cmd_config in self.get_available_commands().items():
-                if topic == cmd_config["topic"]:
-                    if payload.lower() in ["1", "true", "on"]:
-                        # Process command
-                        action = cmd_config.get("action")
-                        if action:
-                            await self.send_action(action)
-                            
-                        # Update state based on command
-                        self.update_state({
-                            "last_command": {
-                                "action": cmd_name,
-                                "source": "mqtt",
-                                "position": cmd_config.get("position")
-                            }
-                        })
+                if cmd_config.get("topic") == topic:
+                    matching_command = cmd_config
+                    matching_command_name = cmd_name
                     break
             
+            if not matching_command:
+                logger.warning(f"No command configuration found for topic: {topic}")
+                return
+            
+            # Check if this command has an 'appname' parameter
+            appname = matching_command.get("appname")
+            
+            if appname:
+                # Launch the specified app directly
+                logger.info(f"Launching app {appname} based on MQTT message for {self.get_name()}")
+                
+                # Launch the app
+                result = await self.launch_app(appname)
+                
+                # Update state with last command information
+                self.update_state({
+                    "last_command": LastCommand(
+                        action=f"launch_app_{appname}",
+                        source="mqtt",
+                        timestamp=datetime.now(),
+                        position="app"
+                    ).dict()
+                })
+                
+                return result
+            else:
+                # No appname parameter, let the base class handle it
+                await super().handle_message(topic, payload)
+                
         except Exception as e:
-            logger.error(f"Error handling message for {self.get_name()}: {str(e)}")
+            logger.error(f"Error handling MQTT message in LG TV {self.get_name()}: {str(e)}")
     
     def get_current_state(self) -> LgTvState:
         """Return the current state of the TV."""
@@ -591,4 +692,389 @@ class LgTv(BaseDevice):
             
         except Exception as e:
             logger.error(f"Error in get_available_apps: {str(e)}")
-            return [] 
+            return []
+    
+    async def execute_action(self, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute a device action.
+        
+        This method is called by the API and allows the device to handle various actions,
+        including mouse control functions.
+        
+        Args:
+            action: Name of the action to execute
+            params: Dictionary of parameters for the action
+            
+        Returns:
+            Dictionary with:
+                success: Boolean indicating if the action was successful
+                state: Current device state
+                error: Error message if action failed (optional)
+        """
+        try:
+            logger.info(f"Executing action {action} for device {self.get_name()} with params {params}")
+            
+            # Handle standard device actions
+            if action == "power_on":
+                result = await self.power_on()
+                return {"success": result, "state": self.get_state()}
+            elif action == "wake_on_lan" or action == "wol":
+                result = await self.wake_on_lan()
+                return {"success": result, "state": self.get_state()}
+            elif action == "power_off":
+                result = await self.power_off()
+                return {"success": result, "state": self.get_state()}
+            elif action == "set_volume":
+                volume = params.get("volume")
+                if volume is None:
+                    return {"success": False, "error": "Missing volume parameter", "state": self.get_state()}
+                result = await self.set_volume(volume)
+                return {"success": result, "state": self.get_state()}
+            elif action == "set_mute":
+                mute = params.get("mute")
+                if mute is None:
+                    return {"success": False, "error": "Missing mute parameter", "state": self.get_state()}
+                result = await self.set_mute(mute)
+                return {"success": result, "state": self.get_state()}
+            elif action == "launch_app":
+                app_name = params.get("app_name")
+                if not app_name:
+                    return {"success": False, "error": "Missing app_name parameter", "state": self.get_state()}
+                result = await self.launch_app(app_name)
+                return {"success": result, "state": self.get_state()}
+            elif action == "set_input_source":
+                input_source = params.get("input_source")
+                if not input_source:
+                    return {"success": False, "error": "Missing input_source parameter", "state": self.get_state()}
+                result = await self.set_input_source(input_source)
+                return {"success": result, "state": self.get_state()}
+            elif action == "send_action":
+                command = params.get("command")
+                if not command:
+                    return {"success": False, "error": "Missing command parameter", "state": self.get_state()}
+                result = await self.send_action(command)
+                return {"success": result, "state": self.get_state()}
+            
+            # Handle mouse control actions using the handler methods
+            elif action == "move_cursor":
+                result = await self.handle_move_cursor(params)
+                return {"success": result, "state": self.get_state()}
+                
+            elif action == "move_cursor_relative":
+                result = await self.handle_move_cursor_relative(params)
+                return {"success": result, "state": self.get_state()}
+                
+            elif action == "click":
+                result = await self.handle_click(params)
+                return {"success": result, "state": self.get_state()}
+            
+            # Handle unknown actions
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unsupported action: {action}",
+                    "state": self.get_state()
+                }
+                
+        except Exception as e:
+            logger.error(f"Error executing action {action}: {str(e)}")
+            return {
+                "success": False,
+                "error": f"Error executing action: {str(e)}",
+                "state": self.get_state()
+            }
+
+    # Handler methods for cursor control
+    async def handle_move_cursor(self, action_config: Dict[str, Any]) -> bool:
+        """Handle move_cursor action.
+        
+        Args:
+            action_config: Dictionary with parameters including x, y, and optional drag
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            x = action_config.get("x")
+            y = action_config.get("y")
+            drag = action_config.get("drag", False)
+            
+            if x is None or y is None:
+                logger.error("Missing x or y parameters")
+                return False
+                
+            try:
+                x = int(x)
+                y = int(y)
+            except ValueError:
+                logger.error("x and y must be integers")
+                return False
+                
+            logger.info(f"Moving cursor to position x={x}, y={y}, drag={drag} on TV {self.get_name()}")
+            
+            if not self.client or not self.input_control:
+                logger.error("TV client or input control not initialized")
+                return False
+                
+            # Ensure we have a WebSocket connection to the input service
+            try:
+                if not self.input_control.ws_client:
+                    await self.input_control.connect_input()
+                    
+                if not self.input_control.ws_client:
+                    logger.error("Failed to establish WebSocket connection for pointer input")
+                    return False
+                    
+                # Send the move command directly
+                payload = {"x": x, "y": y, "drag": drag}
+                await self.input_control.ws_client.send(json.dumps(payload))
+                
+                # Update state with last command information
+                self.update_state({
+                    "last_command": LastCommand(
+                        action=f"move_cursor",
+                        source="api",
+                        timestamp=datetime.now(),
+                        params={"x": x, "y": y, "drag": drag},
+                        position="cursor"
+                    ).dict()
+                })
+                
+                return True
+            except Exception as e:
+                logger.error(f"WebSocket error in move_cursor: {str(e)}")
+                return False
+        except Exception as e:
+            logger.error(f"Error moving cursor: {str(e)}")
+            return False
+            
+    async def handle_move_cursor_relative(self, action_config: Dict[str, Any]) -> bool:
+        """Handle move_cursor_relative action.
+        
+        Args:
+            action_config: Dictionary with parameters including dx, dy, and optional drag
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            dx = action_config.get("dx")
+            dy = action_config.get("dy")
+            drag = action_config.get("drag", False)
+            
+            if dx is None or dy is None:
+                logger.error("Missing dx or dy parameters")
+                return False
+                
+            try:
+                dx = int(dx)
+                dy = int(dy)
+            except ValueError:
+                logger.error("dx and dy must be integers")
+                return False
+                
+            logger.info(f"Moving cursor by dx={dx}, dy={dy}, drag={drag} on TV {self.get_name()}")
+            
+            if not self.client or not self.input_control:
+                logger.error("TV client or input control not initialized")
+                return False
+                
+            # Ensure we have a WebSocket connection to the input service
+            try:
+                if not self.input_control.ws_client:
+                    await self.input_control.connect_input()
+                    
+                if not self.input_control.ws_client:
+                    logger.error("Failed to establish WebSocket connection for pointer input")
+                    return False
+                    
+                # Send the move_mouse command directly
+                payload = {"dx": dx, "dy": dy, "drag": drag, "move": True}
+                await self.input_control.ws_client.send(json.dumps(payload))
+                
+                # Update state with last command information
+                self.update_state({
+                    "last_command": LastCommand(
+                        action=f"move_cursor_relative",
+                        source="api",
+                        timestamp=datetime.now(),
+                        params={"dx": dx, "dy": dy, "drag": drag},
+                        position="cursor"
+                    ).dict()
+                })
+                
+                return True
+            except Exception as e:
+                logger.error(f"WebSocket error in move_cursor_relative: {str(e)}")
+                return False
+        except Exception as e:
+            logger.error(f"Error moving cursor relatively: {str(e)}")
+            return False
+            
+    async def handle_click(self, action_config: Dict[str, Any]) -> bool:
+        """Handle click action.
+        
+        Args:
+            action_config: Dictionary with parameters including x and y
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            x = action_config.get("x")
+            y = action_config.get("y")
+            
+            if x is None or y is None:
+                logger.error("Missing x or y parameters")
+                return False
+                
+            try:
+                x = int(x)
+                y = int(y)
+            except ValueError:
+                logger.error("x and y must be integers")
+                return False
+                
+            logger.info(f"Clicking at position x={x}, y={y} on TV {self.get_name()}")
+            
+            if not self.client or not self.input_control:
+                logger.error("TV client or input control not initialized")
+                return False
+                
+            # Ensure we have a WebSocket connection to the input service
+            try:
+                if not self.input_control.ws_client:
+                    await self.input_control.connect_input()
+                    
+                if not self.input_control.ws_client:
+                    logger.error("Failed to establish WebSocket connection for pointer input")
+                    return False
+                    
+                # Send the click command directly
+                payload = {"x": x, "y": y, "click": True}
+                await self.input_control.ws_client.send(json.dumps(payload))
+                
+                # Update state with last command information
+                self.update_state({
+                    "last_command": LastCommand(
+                        action=f"click",
+                        source="api",
+                        timestamp=datetime.now(),
+                        params={"x": x, "y": y},
+                        position="cursor"
+                    ).dict()
+                })
+                
+                return True
+            except Exception as e:
+                logger.error(f"WebSocket error in click: {str(e)}")
+                return False
+        except Exception as e:
+            logger.error(f"Error clicking: {str(e)}")
+            return False
+
+    # Action handlers for base class handle_message to use
+    
+    async def handle_power(self, action_config: Dict[str, Any]):
+        """Handle power action."""
+        await self.send_action("power")
+        return True
+        
+    async def handle_home(self, action_config: Dict[str, Any]):
+        """Handle home button action."""
+        await self.send_action("home")
+        return True
+        
+    async def handle_back(self, action_config: Dict[str, Any]):
+        """Handle back button action."""
+        await self.send_action("back")
+        return True
+        
+    async def handle_up(self, action_config: Dict[str, Any]):
+        """Handle up button action."""
+        await self.send_action("up")
+        return True
+        
+    async def handle_down(self, action_config: Dict[str, Any]):
+        """Handle down button action."""
+        await self.send_action("down")
+        return True
+        
+    async def handle_left(self, action_config: Dict[str, Any]):
+        """Handle left button action."""
+        await self.send_action("left")
+        return True
+        
+    async def handle_right(self, action_config: Dict[str, Any]):
+        """Handle right button action."""
+        await self.send_action("right")
+        return True
+        
+    async def handle_enter(self, action_config: Dict[str, Any]):
+        """Handle enter button action."""
+        await self.send_action("ok")
+        return True
+        
+    async def handle_volume_up(self, action_config: Dict[str, Any]):
+        """Handle volume up action."""
+        await self.send_action("volume_up")
+        return True
+        
+    async def handle_volume_down(self, action_config: Dict[str, Any]):
+        """Handle volume down action."""
+        await self.send_action("volume_down")
+        return True
+        
+    async def handle_mute(self, action_config: Dict[str, Any]):
+        """Handle mute action."""
+        await self.send_action("mute")
+        return True
+        
+    # Generic handler for any action that can be directly passed to send_action
+    async def handle_action(self, action_config: Dict[str, Any]):
+        """Generic handler for any action."""
+        action = action_config.get("action")
+        if action:
+            return await self.send_action(action)
+        return False
+
+    async def wake_on_lan(self) -> bool:
+        """Send a Wake-on-LAN packet to the TV using the configured MAC address.
+        
+        This method can be used independently of the power_on method when you
+        specifically want to use WOL without trying other power-on methods.
+        
+        Returns:
+            bool: True if the WOL packet was sent successfully, False otherwise
+        """
+        try:
+            mac_address = self.state.get("mac_address")
+            if not mac_address:
+                logger.error("Cannot use Wake-on-LAN: No MAC address configured for TV")
+                self.state["last_command"] = "wol_failed_no_mac"
+                return False
+                
+            logger.info(f"Sending Wake-on-LAN packet to TV {self.get_name()} (MAC: {mac_address})")
+            
+            # Use the send_wol_packet method from BaseDevice
+            wol_success = await self.send_wol_packet(mac_address)
+            
+            if wol_success:
+                logger.info("Wake-on-LAN packet sent successfully")
+                self.state["last_command"] = "wake_on_lan"
+                # We can't know for sure if the TV will turn on,
+                # but update the expected state for consistency
+                self.state["power"] = "on"
+                return True
+            else:
+                logger.error("Failed to send Wake-on-LAN packet")
+                self.state["last_command"] = "wol_failed"
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error sending Wake-on-LAN packet: {str(e)}")
+            self.state["last_command"] = "wol_error"
+            return False
+
+    async def handle_wake_on_lan(self, action_config: Dict[str, Any]):
+        """Handle Wake-on-LAN action."""
+        return await self.wake_on_lan() 

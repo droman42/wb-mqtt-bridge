@@ -366,7 +366,72 @@ async def execute_device_action(
     action: DeviceAction,
     background_tasks: BackgroundTasks
 ):
-    """Execute an action on a specific device."""
+    """Execute an action on a specific device.
+    
+    This endpoint allows executing various actions on devices. The available actions depend on the device type.
+    For LG TVs, the following mouse control actions are supported:
+    
+    * **move_cursor** - Move cursor to absolute position x,y
+      ```json
+      {
+        "action": "move_cursor",
+        "params": {
+          "x": 500,
+          "y": 300,
+          "drag": false
+        }
+      }
+      ```
+    
+    * **move_cursor_relative** - Move cursor by dx,dy relative to current position
+      ```json
+      {
+        "action": "move_cursor_relative",
+        "params": {
+          "dx": 100,
+          "dy": -50,
+          "drag": false
+        }
+      }
+      ```
+    
+    * **click** - Click at position x,y
+      ```json
+      {
+        "action": "click",
+        "params": {
+          "x": 500,
+          "y": 300
+        }
+      }
+      ```
+    
+    * **launch_app** - Launch an app by name
+      ```json
+      {
+        "action": "launch_app",
+        "params": {
+          "app_name": "Netflix"
+        }
+      }
+      ```
+    
+    * **wake_on_lan** - Wake the TV using Wake-on-LAN
+      ```json
+      {
+        "action": "wake_on_lan",
+        "params": {}
+      }
+      ```
+    
+    Other common actions include:
+    * **power_on** - Turn the TV on
+    * **power_off** - Turn the TV off
+    * **set_volume** - Set TV volume (params: volume)
+    * **set_mute** - Set TV mute state (params: mute)
+    * **set_input_source** - Change input source (params: input_source)
+    * **send_action** - Send remote control command (params: command)
+    """
     logger = logging.getLogger(__name__)
     if not device_manager:
         raise HTTPException(status_code=503, detail="Service not fully initialized")

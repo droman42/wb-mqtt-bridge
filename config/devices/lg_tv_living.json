@@ -10,190 +10,169 @@
     "secure": true,
     "client_key": "7cb66fab44c7d5b37f29e7db4d09e571"
   },
-  "power_topic": "/devices/living_room_tv/controls/power",
-  "volume_topic": "/devices/living_room_tv/controls/volume",
-  "app_launch_topic": "/devices/living_room_tv/controls/app_launch",
-  "input_source_topic": "/devices/living_room_tv/controls/input_source",
-  "apps": {
-    "youtube": "youtube.leanback.v4",
-    "netflix": "netflix",
-    "prime": "com.amazon.amazonvideo.livingroom",
-    "appletv": "com.apple.appletv"
-  },
   "commands": {
     "power": {
       "action": "power",
       "topic": "/devices/living_room_tv/controls/buttons/power",
       "description": "Power On/Off",
-      "position": "power"
+      "group": "power",
+      "position": "A0"
     },
     "home": {
       "action": "home",
       "topic": "/devices/living_room_tv/controls/buttons/home",
       "description": "Home",
-      "position": "nav_main"
+      "group": "menu",
+      "position": "B0"
     },
     "back": {
       "action": "back",
       "topic": "/devices/living_room_tv/controls/buttons/back",
       "description": "Back",
-      "position": "nav_main"
+      "group": "menu",
+      "position": "B2"
     },
     "up": {
       "action": "up",
       "topic": "/devices/living_room_tv/controls/buttons/up",
       "description": "Up",
-      "position": "nav_direction"
+      "group": "menu",
+      "position": "B1"
     },
     "down": {
       "action": "down",
       "topic": "/devices/living_room_tv/controls/buttons/down",
       "description": "Down",
-      "position": "nav_direction"
+      "group": "menu",
+      "position": "D1"
     },
     "left": {
       "action": "left",
       "topic": "/devices/living_room_tv/controls/buttons/left",
       "description": "Left",
-      "position": "nav_direction"
+      "group": "menu",
+      "position": "C0"
     },
     "right": {
       "action": "right",
       "topic": "/devices/living_room_tv/controls/buttons/right",
       "description": "Right",
-      "position": "nav_direction"
+      "group": "menu",
+      "position": "C2"
     },
     "enter": {
       "action": "enter",
       "topic": "/devices/living_room_tv/controls/buttons/enter",
       "description": "Enter/OK",
-      "position": "nav_direction"
+      "group": "menu",
+      "position": "C1"
     },
     "volume_up": {
       "action": "volume_up",
       "topic": "/devices/living_room_tv/controls/buttons/volume_up",
       "description": "Volume Up",
-      "position": "volume"
+      "group": "volume",
+      "position": "A1"
     },
     "volume_down": {
       "action": "volume_down",
       "topic": "/devices/living_room_tv/controls/buttons/volume_down",
       "description": "Volume Down",
-      "position": "volume"
+      "group": "volume",
+      "position": "A2"
     },
     "mute": {
       "action": "mute",
       "topic": "/devices/living_room_tv/controls/buttons/mute",
       "description": "Mute",
-      "position": "volume"
+      "group": "volume",
+      "position": "A3"
     },
     "channel_up": {
       "action": "channel_up",
       "topic": "/devices/living_room_tv/controls/buttons/channel_up",
       "description": "Channel Up",
-      "position": "channel"
+      "group": "channel",
+      "position": "F0"
     },
     "channel_down": {
       "action": "channel_down",
       "topic": "/devices/living_room_tv/controls/buttons/channel_down",
       "description": "Channel Down",
-      "position": "channel"
+      "group": "channel",
+      "position": "F1"
     },
     "play": {
       "action": "play",
       "topic": "/devices/living_room_tv/controls/buttons/play",
       "description": "Play",
-      "position": "playback"
+      "group": "playback",
+      "position": "E0"
     },
     "pause": {
       "action": "pause",
       "topic": "/devices/living_room_tv/controls/buttons/pause",
       "description": "Pause",
-      "position": "playback"
+      "group": "playback",
+      "position": "E2"
     },
     "stop": {
       "action": "stop",
       "topic": "/devices/living_room_tv/controls/buttons/stop",
       "description": "Stop",
-      "position": "playback"
+      "group": "playback",
+      "position": "E1"
     },
     "rewind_forward": {
       "action": "rewind_forward",
       "topic": "/devices/living_room_tv/controls/buttons/rewind_forward",
       "description": "Fast Forward",
-      "position": "playback"
+      "group": "playback",
+      "position": "F2"
     },
     "rewind_backward": {
       "action": "rewind_backward",
       "topic": "/devices/living_room_tv/controls/buttons/rewind_backward",
       "description": "Fast Backward",
-      "position": "playback"
+      "group": "playback",
+      "position": "F3"
     },
-    "netflix": {
-      "action": "NETFLIX",
-      "topic": "/devices/living_room_tv/controls/buttons/netflix",
-      "description": "Netflix Button",
-      "position": "app"
+    "kinopoisk": {
+      "action": "kinopoisk",
+      "topic": "/devices/living_room_tv/controls/buttons/kinopoisk",
+      "description": "Launch Kinopoisk",
+      "appname": "Кинопоиск",
+      "group": "app",
+      "position": "G0"
     },
-    "amazon": {
-      "action": "AMAZON",
-      "topic": "/devices/living_room_tv/controls/buttons/amazon",
-      "description": "Amazon Button",
-      "position": "app"
-    },
-    "youtube": {
-      "action": "YOUTUBE",
-      "topic": "/devices/living_room_tv/controls/buttons/youtube",
-      "description": "YouTube Button",
-      "position": "app"
-    },
-    "info": {
-      "action": "INFO",
-      "topic": "/devices/living_room_tv/controls/buttons/info",
-      "description": "Info Button",
-      "position": "function"
-    },
-    "guide": {
-      "action": "GUIDE",
-      "topic": "/devices/living_room_tv/controls/buttons/guide",
-      "description": "Guide Button",
-      "position": "function"
+    "ivi": {
+      "action": "ivi",
+      "topic": "/devices/living_room_tv/controls/buttons/ivi",
+      "description": "Launch IVI",
+      "appname": "IVI",
+      "group": "app",
+      "position": "G1"
     },
     "exit": {
-      "action": "EXIT",
+      "action": "exit",
       "topic": "/devices/living_room_tv/controls/buttons/exit",
       "description": "Exit Button",
-      "position": "function"
+      "group": "menu",
+      "position": "D0"
     },
     "menu": {
-      "action": "MENU",
+      "action": "menu",
       "topic": "/devices/living_room_tv/controls/buttons/menu",
       "description": "Menu Button",
-      "position": "function"
+      "group": "menu",
+      "position": "D2"
     },
     "settings": {
-      "action": "MENU",
+      "action": "settings",
       "topic": "/devices/living_room_tv/controls/buttons/settings",
       "description": "Settings Button",
-      "position": "function"
-    },
-    "asterisk": {
-      "action": "ASTERISK",
-      "topic": "/devices/living_room_tv/controls/buttons/asterisk",
-      "description": "Asterisk Button",
-      "position": "misc"
-    },
-    "dash": {
-      "action": "DASH",
-      "topic": "/devices/living_room_tv/controls/buttons/dash",
-      "description": "Dash Button",
-      "position": "misc"
-    },
-    "cc": {
-      "action": "CC",
-      "topic": "/devices/living_room_tv/controls/buttons/cc",
-      "description": "Closed Caption Button",
-      "position": "function"
+      "group": "menu",
+      "position": "D3"
     }
   }
 } 
