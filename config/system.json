@@ -58,6 +58,10 @@
       "class": "LgTv",
       "config_file": "lg_tv_living.json"
     },
+    "children_room_tv": {
+      "class": "LgTv",
+      "config_file": "lg_tv_children.json"
+    },
     "reel_to_reel": {
       "class": "RevoxA77ReelToReel",
       "config_file": "reel_to_reel.json"
