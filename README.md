@@ -425,3 +425,68 @@ The log file contains entries in the following format:
 ```
 
 Each entry includes a timestamp, log level, topic name, and message payload. 
+
+## LG TV SSL Support
+
+The project now supports secure SSL connections to LG WebOS TVs. This enhancement allows for encrypted communication between the bridge and the TV, which is important for security.
+
+### Features
+
+1. **Certificate Management Tools**
+   - Added `extract_lg_tv_cert.py` script to extract and save TV certificates
+   - Certificate verification to ensure valid connections
+
+2. **Secure Connection Options**
+   - `secure`: Enable/disable secure WebSocket connections
+   - `cert_file`: Path to the TV's certificate file
+   - `verify_ssl`: Enable/disable SSL certificate verification
+   - `ssl_options`: Additional SSL configuration options
+
+3. **New Actions**
+   - `extract_certificate`: Extract and save the TV's SSL certificate
+   - `verify_certificate`: Verify if the current certificate matches the TV
+
+### Usage
+
+#### Extracting a Certificate
+
+```bash
+python extract_lg_tv_cert.py 192.168.1.100 --output tv_cert.pem
+```
+
+#### Configuration Example
+
+```json
+{
+  "device_id": "living_room_tv",
+  "device_name": "Living Room TV",
+  "device_class": "lg_tv",
+  "tv": {
+    "ip_address": "192.168.1.100",
+    "mac_address": "AA:BB:CC:DD:EE:FF",
+    "client_key": "abcdef1234567890",
+    "secure": true,
+    "cert_file": "/path/to/tv_cert.pem",
+    "verify_ssl": true
+  }
+}
+```
+
+#### API Actions
+
+Extract certificate:
+```json
+{
+  "action": "extract_certificate",
+  "params": {
+    "output_file": "/path/to/save/certificate.pem"
+  }
+}
+```
+
+Verify certificate:
+```json
+{
+  "action": "verify_certificate"
+}
+``` 

@@ -15,8 +15,8 @@ class DeviceManager:
     
     def __init__(self, devices_dir: str = "devices", mqtt_client: Optional[MQTTClient] = None):
         self.devices_dir = devices_dir
-        self.device_classes = {}  # Stores class definitions
-        self.devices = {}  # Stores device instances
+        self.device_classes: Dict[str, type] = {}  # Stores class definitions
+        self.devices: Dict[str, BaseDevice] = {}  # Stores device instances
         self.mqtt_client = mqtt_client
     
     async def load_device_modules(self):
@@ -101,7 +101,7 @@ class DeviceManager:
             return []
         return device.subscribe_topics()
     
-    def get_message_handler(self, device_name: str) -> Optional[Callable]:
+    def get_message_handler(self, device_name: str) -> Optional[Callable[..., Any]]:
         """Get the message handler for a device."""
         device = self.devices.get(device_name)
         if not device:
@@ -115,7 +115,7 @@ class DeviceManager:
         if not device:
             logger.warning(f"No device found: {device_name}")
             return {}
-        return device.get_state()
+        return device.get_current_state()
     
     def get_all_devices(self) -> List[str]:
         """Get a list of all device IDs."""

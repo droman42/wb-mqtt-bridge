@@ -9,6 +9,7 @@ python-dotenv>=1.0.0
 paho-mqtt>=1.6.1
 websockets>=10.0
 asyncio>=3.4.3
+pyOpenSSL>=23.2.0
 
 # The following packages are handled specially in the Dockerfile for ARM compatibility:
 #

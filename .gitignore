@@ -34,7 +34,6 @@ logs/*
 !logs/.gitkeep
 
 # Authentication
-*.pem
 *.key
 
 # IDE specific files
@@ -68,3 +67,6 @@ etc/jupyter/
 pyvenv.cfg
 lib64
 *.log
+mypy.ini
+mypy-setup.md
+run_mypy.sh

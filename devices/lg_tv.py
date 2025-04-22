@@ -2,8 +2,16 @@ import json
 import logging
 import asyncio
 import os
-from typing import Dict, Any, List, Optional
+import ssl
+from typing import Dict, Any, List, Optional, Tuple, TYPE_CHECKING, Union, cast, Protocol, TypeVar
+
+# Import WebOSClient which should always be available
 from asyncwebostv.connection import WebOSClient
+
+# Direct import without try/except - if this fails, it means the dependency is missing
+# which is a real error we want to know about
+from asyncwebostv.secure_connection import SecureWebOSClient
+
 from asyncwebostv.controls import (
     MediaControl,
     SystemControl,
@@ -166,14 +174,41 @@ class LgTv(BaseDevice):
             # Use secure WebSocket mode from config
             secure_mode = self.tv_config.secure
             
+            # Get certificate file path if provided
+            cert_file = self.tv_config.cert_file
+            
+            # Get any additional SSL options
+            ssl_options = {}
+            if hasattr(self.tv_config, 'ssl_options') and self.tv_config.ssl_options:
+                ssl_options = self.tv_config.ssl_options
+            
             # Verify we have a client key before attempting connection
             if not self.client_key:
                 logger.error("No client key provided in configuration. Cannot connect to TV.")
                 self.state["error"] = "Missing client key in configuration"
                 return False
             
-            # Create a new TV client with the client key for authentication
-            self.client = WebOSClient(ip, secure=secure_mode, client_key=self.client_key)
+            # Create a new TV client with appropriate security settings
+            if secure_mode:
+                logger.info(f"Creating secure WebOS client for {ip}")
+                
+                # Ensure port is set to 3001 for secure WebSocket connections
+                if 'port' not in ssl_options:
+                    ssl_options['port'] = 3001
+                
+                # Let SecureWebOSClient handle the SSL context creation based on cert_file and verify_ssl
+                # This ensures hostname verification is properly disabled
+                self.client = SecureWebOSClient(
+                    host=ip,
+                    secure=True,
+                    client_key=self.client_key,
+                    verify_ssl=False,  # Critical: Always use False to disable hostname checking
+                    cert_file=cert_file,  # Pass cert_file directly and let SecureWebOSClient handle it
+                    **ssl_options
+                )
+            else:
+                logger.info(f"Creating standard WebOS client for {ip}")
+                self.client = WebOSClient(ip, secure=False, client_key=self.client_key)
             
             # First connection attempt
             connection_success = False
@@ -181,6 +216,38 @@ class LgTv(BaseDevice):
                 logger.info(f"Attempting to connect to TV at {ip}...")
                 await self.client.connect()
                 connection_success = True
+            except ssl.SSLError as ssl_error:
+                logger.error(f"SSL error during connection: {str(ssl_error)}")
+                self.state["error"] = f"SSL connection error: {str(ssl_error)}"
+                
+                # Check if it's a certificate verification error
+                if "CERTIFICATE_VERIFY_FAILED" in str(ssl_error) and secure_mode:
+                    logger.warning("Certificate verification failed. Consider extracting the TV certificate using extract_lg_tv_cert.py")
+                    
+                    # If fallback is possible, try without SSL context
+                    has_fallback = False
+                    if hasattr(self.tv_config, 'ssl_options') and self.tv_config.ssl_options:
+                        has_fallback = self.tv_config.ssl_options.get("allow_insecure_fallback", False)
+                        
+                    if has_fallback:
+                        logger.info("Attempting fallback connection without SSL context...")
+                        try:
+                            # Create a new client without cert_file to avoid SSL verification
+                            self.client = SecureWebOSClient(
+                                host=ip,
+                                secure=True,
+                                client_key=self.client_key,
+                                verify_ssl=False,
+                                # No cert_file to avoid verification issues
+                                **ssl_options
+                            )
+                            await self.client.connect()
+                            connection_success = True
+                            logger.warning("Connected with insecure fallback (without SSL verification)")
+                            self.state["error"] = "Connected with insecure fallback. Consider extracting TV certificate."
+                        except Exception as fallback_error:
+                            logger.error(f"Fallback connection also failed: {str(fallback_error)}")
+                            self.state["error"] = f"SSL connection failed, fallback also failed: {str(fallback_error)}"
             except Exception as e:
                 logger.warning(f"Initial connection attempt failed: {str(e)}")
                 
@@ -200,8 +267,19 @@ class LgTv(BaseDevice):
                         
                         # Retry connection after TV has had time to boot
                         try:
-                            # Create a new client instance after WOL
-                            self.client = WebOSClient(ip, secure=secure_mode, client_key=self.client_key)
+                            # Recreate the client using the same logic as above
+                            if secure_mode:
+                                self.client = SecureWebOSClient(
+                                    host=ip,
+                                    secure=True,
+                                    client_key=self.client_key,
+                                    verify_ssl=False,
+                                    cert_file=cert_file,  # Pass cert_file directly
+                                    **ssl_options
+                                )
+                            else:
+                                self.client = WebOSClient(ip, secure=False, client_key=self.client_key)
+                                
                             logger.info("Retrying connection after WOL...")
                             await self.client.connect()
                             connection_success = True
@@ -636,152 +714,55 @@ class LgTv(BaseDevice):
             logger.error(f"Error handling MQTT message in LG TV {self.get_name()}: {str(e)}")
     
     def get_current_state(self) -> LgTvState:
-        """Return the current state of the TV."""
+        """Get the current device state as a LgTvState model."""
+        # Create a LgTvState model with current values
         return LgTvState(
             device_id=self.device_id,
             device_name=self.device_name,
-            power=self.state.get("power", "unknown"),
-            volume=self.state.get("volume", 0),
-            mute=self.state.get("mute", False),
-            current_app=self.state.get("current_app"),
-            input_source=self.state.get("input_source"),
-            connected=self.state.get("connected", False),
-            ip_address=self.state.get("ip_address"),
-            mac_address=self.state.get("mac_address"),
-            last_command=self.state.get("last_command"),
-            error=self.state.get("error")
+            **self.state
         )
-        
-    def get_state(self) -> Dict[str, Any]:
-        """Override BaseDevice get_state to ensure we safely return state."""
-        if not hasattr(self, 'state') or self.state is None:
-            return LgTvState(
-                device_id=self.device_id,
-                device_name=self.device_name,
-                power="unknown",
-                volume=0,
-                mute=False,
-                current_app=None,
-                input_source=None,
-                connected=False,
-                ip_address=None,
-                mac_address=None,
-                error="Device state not properly initialized"
-            ).model_dump()
-        return super().get_state()
-
+    
     # Get available apps on the TV
     async def get_available_apps(self):
-        """Get a list of available apps on the TV."""
-        try:
-            if not self.app:
-                logger.error("App control not initialized")
-                return []
-
-            # Simplest implementation - call list_apps() without any parameters
-            # This method is defined in the ApplicationControl COMMANDS dictionary
-            # and should work according to the library's implementation
-            try:
-                # type: ignore comment is needed to suppress linter errors
-                # about missing callback parameter
-                result = await self.app.list_apps()  # type: ignore
-                return result
-            except Exception as e:
-                logger.error(f"Error getting available apps: {str(e)}")
-                return []
+        """Get a list of available apps."""
+        if not self.client or not self.app:
+            logger.error("Cannot get apps: Not connected to TV")
+            return []
             
+        try:
+            # This call returns a list of applications
+            # type-ignore comment is needed to suppress mypy errors with return type
+            result = await self.app.list_apps()  # type: ignore
+            if not result:
+                return []
+                
+            # Filter out system apps if desired
+            # apps = [app for app in result if not app.get("systemApp", False)]
+            
+            # Return all apps for now
+            return result
         except Exception as e:
-            logger.error(f"Error in get_available_apps: {str(e)}")
+            logger.error(f"Failed to get apps: {str(e)}")
             return []
     
-    async def execute_action(self, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a device action.
+    async def execute_action(self, action: str, params: Dict[str, Any] | None = None) -> Dict[str, Any]:
+        """Execute a device-specific action."""
+        # Initialize result
+        result: Dict[str, Any] = {"success": False, "message": f"Unknown action: {action}"}
+        params = params or {}
         
-        This method is called by the API and allows the device to handle various actions,
-        including mouse control functions.
+        # Look up handler for the requested action
+        handler = self._get_action_handler(action)
         
-        Args:
-            action: Name of the action to execute
-            params: Dictionary of parameters for the action
-            
-        Returns:
-            Dictionary with:
-                success: Boolean indicating if the action was successful
-                state: Current device state
-                error: Error message if action failed (optional)
-        """
-        try:
-            logger.info(f"Executing action {action} for device {self.get_name()} with params {params}")
-            
-            # Handle standard device actions
-            if action == "power_on":
-                result = await self.power_on()
-                return {"success": result, "state": self.get_state()}
-            elif action == "wake_on_lan" or action == "wol":
-                result = await self.wake_on_lan()
-                return {"success": result, "state": self.get_state()}
-            elif action == "power_off":
-                result = await self.power_off()
-                return {"success": result, "state": self.get_state()}
-            elif action == "set_volume":
-                volume = params.get("volume")
-                if volume is None:
-                    return {"success": False, "error": "Missing volume parameter", "state": self.get_state()}
-                result = await self.set_volume(volume)
-                return {"success": result, "state": self.get_state()}
-            elif action == "set_mute":
-                mute = params.get("mute")
-                if mute is None:
-                    return {"success": False, "error": "Missing mute parameter", "state": self.get_state()}
-                result = await self.set_mute(mute)
-                return {"success": result, "state": self.get_state()}
-            elif action == "launch_app":
-                app_name = params.get("app_name")
-                if not app_name:
-                    return {"success": False, "error": "Missing app_name parameter", "state": self.get_state()}
-                result = await self.launch_app(app_name)
-                return {"success": result, "state": self.get_state()}
-            elif action == "set_input_source":
-                input_source = params.get("input_source")
-                if not input_source:
-                    return {"success": False, "error": "Missing input_source parameter", "state": self.get_state()}
-                result = await self.set_input_source(input_source)
-                return {"success": result, "state": self.get_state()}
-            elif action == "send_action":
-                command = params.get("command")
-                if not command:
-                    return {"success": False, "error": "Missing command parameter", "state": self.get_state()}
-                result = await self.send_action(command)
-                return {"success": result, "state": self.get_state()}
-            
-            # Handle mouse control actions using the handler methods
-            elif action == "move_cursor":
-                result = await self.handle_move_cursor(params)
-                return {"success": result, "state": self.get_state()}
-                
-            elif action == "move_cursor_relative":
-                result = await self.handle_move_cursor_relative(params)
-                return {"success": result, "state": self.get_state()}
-                
-            elif action == "click":
-                result = await self.handle_click(params)
-                return {"success": result, "state": self.get_state()}
-            
-            # Handle unknown actions
-            else:
-                return {
-                    "success": False,
-                    "error": f"Unsupported action: {action}",
-                    "state": self.get_state()
-                }
-                
-        except Exception as e:
-            logger.error(f"Error executing action {action}: {str(e)}")
-            return {
-                "success": False,
-                "error": f"Error executing action: {str(e)}",
-                "state": self.get_state()
-            }
+        # Execute handler if found
+        if handler:
+            try:
+                result = await handler(params)
+            except Exception as e:
+                logger.error(f"Error executing action '{action}': {str(e)}")
+                result = {"success": False, "message": f"Error executing action: {str(e)}"}
+        
+        return result
 
     # Handler methods for cursor control
     async def handle_move_cursor(self, action_config: Dict[str, Any]) -> bool:
@@ -1077,4 +1058,125 @@ class LgTv(BaseDevice):
 
     async def handle_wake_on_lan(self, action_config: Dict[str, Any]):
         """Handle Wake-on-LAN action."""
-        return await self.wake_on_lan() 
+        return await self.wake_on_lan()
+
+    async def extract_certificate(self, output_file=None) -> Tuple[bool, str]:
+        """
+        Extract certificate from the TV and save it to a file.
+        
+        Args:
+            output_file: Optional path where to save the certificate. 
+                        If not provided, will use hostname_cert.pem
+        
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        try:
+            # Get TV IP address
+            ip = self.state.get("ip_address")
+            if not ip:
+                return False, "No IP address configured for TV"
+            
+            # Set default output file if not provided
+            if not output_file:
+                output_file = f"{ip}_cert.pem"
+            
+            # Import the tools we need for certificate extraction
+            import socket
+            import ssl
+            import OpenSSL.crypto as crypto
+            
+            # Create SSL context without verification
+            context = ssl.create_default_context()
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            
+            # Connect to the TV and get the certificate
+            logger.info(f"Connecting to {ip}:3001 to extract certificate...")
+            with socket.create_connection((ip, 3001)) as sock:
+                with context.wrap_socket(sock, server_hostname=ip) as ssock:
+                    cert_bin = ssock.getpeercert(binary_form=True)
+                    if not cert_bin:
+                        return False, "Failed to get certificate from TV"
+                    
+                    # Convert binary certificate to PEM format
+                    x509 = crypto.load_certificate(crypto.FILETYPE_ASN1, cert_bin)
+                    pem_data = crypto.dump_certificate(crypto.FILETYPE_PEM, x509)
+                    
+                    # Save to file
+                    with open(output_file, 'wb') as f:
+                        f.write(pem_data)
+                    
+                    logger.info(f"Certificate extracted and saved to {output_file}")
+                    
+                    # Update configuration to use this certificate
+                    if self.tv_config:
+                        self.tv_config.cert_file = os.path.abspath(output_file)
+                        logger.info("Updated TV configuration to use the extracted certificate")
+                    
+                    return True, f"Certificate saved to {output_file}"
+        
+        except Exception as e:
+            error_msg = f"Failed to extract certificate: {str(e)}"
+            logger.error(error_msg)
+            return False, error_msg
+    
+    async def verify_certificate(self) -> Tuple[bool, str]:
+        """
+        Verify if the current certificate matches the one on the TV.
+        
+        Returns:
+            Tuple of (valid: bool, message: str)
+        """
+        try:
+            # Check if we have a certificate file configured
+            if not self.tv_config or not self.tv_config.cert_file:
+                return False, "No certificate file configured"
+            
+            cert_file = self.tv_config.cert_file
+            if not os.path.exists(cert_file):
+                return False, f"Certificate file {cert_file} does not exist"
+            
+            # Get TV IP address
+            ip = self.state.get("ip_address")
+            if not ip:
+                return False, "No IP address configured for TV"
+            
+            # Import the tools we need for certificate verification
+            import socket
+            import ssl
+            import hashlib
+            import OpenSSL.crypto as crypto
+            
+            # Load the saved certificate
+            with open(cert_file, 'rb') as f:
+                saved_cert_data = f.read()
+                saved_cert = crypto.load_certificate(crypto.FILETYPE_PEM, saved_cert_data)
+                saved_cert_bin = crypto.dump_certificate(crypto.FILETYPE_ASN1, saved_cert)
+                saved_fingerprint = hashlib.sha256(saved_cert_bin).hexdigest()
+            
+            # Get the current certificate from the TV
+            context = ssl.create_default_context()
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            
+            with socket.create_connection((ip, 3001)) as sock:
+                with context.wrap_socket(sock, server_hostname=ip) as ssock:
+                    current_cert_bin = ssock.getpeercert(binary_form=True)
+                    if not current_cert_bin:
+                        return False, "Failed to get current certificate from TV"
+                    
+                    current_fingerprint = hashlib.sha256(current_cert_bin).hexdigest()
+            
+            # Compare fingerprints
+            if saved_fingerprint == current_fingerprint:
+                logger.info("Certificate verification successful: Certificate matches the one from the TV")
+                return True, "Certificate is valid and matches the TV"
+            else:
+                logger.warning("Certificate verification failed: Certificate does not match the one from the TV")
+                return False, "Certificate does not match the one from the TV. Consider refreshing it."
+                
+        except Exception as e:
+            error_msg = f"Failed to verify certificate: {str(e)}"
+            logger.error(error_msg)
+            return False, error_msg 

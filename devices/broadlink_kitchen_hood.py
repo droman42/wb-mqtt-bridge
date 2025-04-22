@@ -163,27 +163,13 @@ class BroadlinkKitchenHood(BaseDevice):
             return False
     
     def get_current_state(self) -> KitchenHoodState:
-        """Return the current state of the hood."""
+        """Return the current state of the kitchen hood."""
         return KitchenHoodState(
             device_id=self.device_id,
             device_name=self.device_name,
             light=self.state.get("light", "off"),
             speed=self.state.get("speed", 0),
-            connection_status=self.state.get("connection_status", "unknown"),
+            connection_status=self.state.get("connection_status", "disconnected"),
             last_command=self.state.get("last_command"),
             error=self.state.get("error")
-        )
-        
-    def get_state(self) -> Dict[str, Any]:
-        """Override BaseDevice get_state to ensure we safely return state."""
-        # Ensure self.state exists, even if initialization had problems
-        if not hasattr(self, 'state') or self.state is None:
-            return KitchenHoodState(
-                device_id=self.device_id,
-                device_name=self.device_name,
-                light="off",
-                speed=0,
-                connection_status="error",
-                error="Device state not properly initialized"
-            ).model_dump()
-        return super().get_state() 
+        ) 

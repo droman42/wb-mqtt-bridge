@@ -7,8 +7,9 @@
   "tv": {
     "ip_address": "192.168.110.133",
     "mac_address": "74:E6:B8:9C:36:5F",
+    "client_key": "7cb66fab44c7d5b37f29e7db4d09e571",
     "secure": true,
-    "client_key": "7cb66fab44c7d5b37f29e7db4d09e571"
+    "cert_file": "config/devices/certs/living_cert.pem"
   },
   "commands": {
     "power": {

@@ -331,7 +331,7 @@ async def get_device(device_id: str):
             device_name = device_id
             
         try:
-            device_state = device.get_state()
+            device_state = device.get_current_state()
         except Exception as e:
             logger.warning(f"Error getting device state for {device_id}: {str(e)}")
             device_state = {"error": str(e)}

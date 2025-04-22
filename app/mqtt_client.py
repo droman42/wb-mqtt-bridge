@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Dict, Any, Callable, Optional, List
+from typing import Dict, Any, Callable, Optional, List, Awaitable
 import json
 
 from aiomqtt import Client, MqttError
@@ -43,9 +43,9 @@ class MQTTClient:
         self.topic_subscribers: Dict[str, List[str]] = {}
         
         # MQTT client
-        self.client = None
+        self.client: Optional[Client] = None
         self.connected = False
-        self.tasks = []
+        self.tasks: List[asyncio.Task] = []
     
     async def start(self, device_topics: Dict[str, List[str]]):
         """Start the MQTT client with all the required subscriptions."""

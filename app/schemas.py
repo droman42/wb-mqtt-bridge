@@ -2,6 +2,7 @@ from typing import Dict, Any, List, Optional, Union
 from pydantic import BaseModel, Field
 from datetime import datetime
 from enum import Enum
+import os
 
 class MQTTBrokerConfig(BaseModel):
     """Schema for MQTT broker configuration."""
@@ -28,8 +29,16 @@ class LgTvConfig(BaseModel):
     mac_address: Optional[str] = None
     secure: bool = True
     client_key: Optional[str] = None
-    timeout: int = 5
+    cert_file: Optional[str] = None
+    ssl_options: Optional[Dict[str, Any]] = None
+    timeout: int = 15
     reconnect_interval: Optional[int] = None
+    
+    def model_post_init(self, __context: Any) -> None:
+        """Validate that cert_file exists if secure=True"""
+        if self.secure and self.cert_file:
+            if not os.path.exists(self.cert_file):
+                raise ValueError(f"Certificate file {self.cert_file} does not exist")
 
 class BroadlinkConfig(BaseModel):
     """Schema for Broadlink device configuration."""

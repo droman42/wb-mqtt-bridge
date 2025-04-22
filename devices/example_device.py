@@ -43,7 +43,8 @@ class ExampleDevice(BaseDevice):
     def subscribe_topics(self) -> List[str]:
         """Define the MQTT topics this device should subscribe to."""
         if 'mqtt_topics' in self.config:
-            return self.config['mqtt_topics']
+            topics: List[str] = self.config['mqtt_topics']
+            return topics
         else:
             return [
                 f"home/{self.device_name}/status",
@@ -90,7 +91,7 @@ class ExampleDevice(BaseDevice):
             logger.info("Turning device OFF")
         elif command == 'getData':
             logger.info("Getting device data")
-            return self.get_state()
+            return self.get_current_state()
         else:
             logger.warning(f"Unknown command: {command}")
     
@@ -105,18 +106,4 @@ class ExampleDevice(BaseDevice):
             threshold=self.state.get("threshold", 25.5),
             last_command=self.state.get("last_command"),
             error=self.state.get("error")
-        )
-        
-    def get_state(self) -> Dict[str, Any]:
-        """Override BaseDevice get_state to ensure we safely return state."""
-        if not hasattr(self, 'state') or self.state is None:
-            return ExampleDeviceState(
-                device_id=self.device_id,
-                device_name=self.device_name,
-                power="off",
-                last_reading=None,
-                update_interval=60,
-                threshold=25.5,
-                error="Device state not properly initialized"
-            ).dict()
-        return super().get_state() 
+        ) 

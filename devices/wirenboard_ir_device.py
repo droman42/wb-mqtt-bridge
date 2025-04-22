@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Dict, Any, List, Optional, Callable
+from typing import Dict, Any, List, Optional, Callable, Awaitable
 from datetime import datetime
 from devices.base_device import BaseDevice
 from app.schemas import WirenboardIRState
@@ -55,17 +55,6 @@ class WirenboardIRDevice(BaseDevice):
             last_command=self.state.get("last_command"),
             error=self.state.get("error")
         )
-        
-    def get_state(self) -> Dict[str, Any]:
-        """Override BaseDevice get_state to ensure we safely return state."""
-        if not hasattr(self, 'state') or self.state is None:
-            return WirenboardIRState(
-                device_id=self.device_id,
-                device_name=self.device_name,
-                alias=self.device_name,
-                error="Device state not properly initialized"
-            ).dict()
-        return super().get_state()
     
     def subscribe_topics(self) -> List[str]:
         """Define the MQTT topics this device should subscribe to."""
@@ -148,35 +137,55 @@ class WirenboardIRDevice(BaseDevice):
         """Return information about the last executed command."""
         return self.state.get("last_command") 
     
-    def _get_action_handler(self, action_name: str) -> Callable:
-        """
-        Override the base _get_action_handler to create a generic handler
-        that uses the handle_message logic for all actions.
-        """
-        # Check if we already cached this handler
+    def _get_action_handler(self, action_name: str) -> Callable[..., Awaitable[Dict[str, Any]]]:
+        """Get or create a handler for the specified action."""
         if action_name not in self._action_handlers:
-            # Create a closure that will handle any action using our message handling logic
+            # Check if we have a command configured for this action
+            action_config = self.config.get('actions', {}).get(action_name)
+            if not action_config:
+                logger.warning(f"No configuration found for action: {action_name}")
+                return lambda _: {}  # Return a no-op handler
+            
+            # Create a generic handler for this action
             async def generic_handler(action_config):
-                logger.info(f"Executing {action_name} action for {self.get_name()} via generic handler")
+                # Get MQTT command details from the action configuration
+                command_config = self.config.get('commands', {}).get(action_config.get('command'))
+                if not command_config:
+                    logger.error(f"No command configuration found for action: {action_name}")
+                    return {"success": False, "message": f"No command config for action: {action_name}"}
                 
-                # Get the topic associated with this action
-                topic = action_config.get("topic", "")
-                if not topic:
-                    raise ValueError(f"No topic defined for action {action_name}")
+                # Build the MQTT message
+                command_topic = self._get_command_topic(command_config)
+                command_payload = command_config.get('payload', '')
                 
-                # Simulate a message on this topic with payload "1"
-                result = await self.handle_message(topic, "1")
+                logger.info(f"Executing IR command for action {action_name}: {command_topic} = {command_payload}")
                 
-                # If handle_message returns a message to publish, structure it for the API
-                if result and isinstance(result, dict) and "topic" in result and "payload" in result:
-                    logger.info(f"Publishing MQTT command for {action_name}: {result}")
-                    return {
-                        "mqtt_command": {
-                            "topic": result["topic"],
-                            "payload": result["payload"]
-                        }
-                    }
+                # Create MQTT command to send via the handle_message method
+                mqtt_command = {
+                    "topic": command_topic,
+                    "payload": command_payload
+                }
+                
+                # Record this as the last command sent
+                self.state["last_command"] = {
+                    "action": action_name,
+                    "command": command_config.get('name', 'unknown'),
+                    "topic": command_topic,
+                    "payload": command_payload,
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+                # Send the command to the IR transmitter via MQTT
+                if self.mqtt_client:
+                    success = await self.mqtt_client.publish(command_topic, command_payload)
+                    if success:
+                        logger.info(f"Successfully sent IR command for action {action_name}")
+                        return {"success": True, "message": f"Successfully sent IR command: {action_name}"}
+                    else:
+                        logger.error(f"Failed to send IR command for action {action_name}")
+                        return {"success": False, "message": f"Failed to send IR command: {action_name}"}
                 else:
+                    logger.warning(f"No MQTT client available to send IR command for action {action_name}")
                     logger.warning(f"No valid MQTT command returned from handle_message for {action_name}")
                 
                 return {}

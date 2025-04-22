@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional, Type, Callable, TYPE_CHECKING
+from typing import Dict, Any, List, Optional, Type, Callable, TYPE_CHECKING, Awaitable, Coroutine, TypeVar, cast, Union
 import logging
 import json
 from datetime import datetime
@@ -17,9 +17,9 @@ class BaseDevice(ABC):
         self.config = config
         self.device_id = config.get('device_id', 'unknown')
         self.device_name = config.get('device_name', 'unknown')
-        self.state = {}  # Device state storage
-        self._action_handlers = {}  # Cache for action handlers
-        self._action_groups = {}  # Index of actions by group
+        self.state: Dict[str, Any] = {}  # Device state storage
+        self._action_handlers: Dict[str, Callable[..., Awaitable[Any]]] = {}  # Cache for action handlers
+        self._action_groups: Dict[str, List[str]] = {}  # Index of actions by group
         self._state_schema: Optional[Type[BaseDeviceState]] = None
         self.mqtt_client = mqtt_client
         self.mqtt_progress_topic = config.get('mqtt_progress_topic', f'/devices/{self.device_id}/controls/progress')
@@ -72,6 +72,23 @@ class BaseDevice(ABC):
     def get_actions_by_group(self, group: str) -> List[Dict[str, Any]]:
         """Get all actions in a specific group."""
         return self._action_groups.get(group, [])
+    
+    def get_actions(self) -> List[Dict[str, Any]]:
+        """Return a list of supported actions for this device."""
+        # Get all action handlers registered for this device
+        actions = []
+        for action_name in self._action_handlers:
+            # Skip internal actions (starting with underscore)
+            if action_name.startswith('_'):
+                continue
+                
+            # Add action to the list
+            actions.append({
+                'name': action_name,
+                'group': 'default'  # Default group for now
+            })
+            
+        return actions
     
     def get_id(self) -> str:
         """Return the device ID."""
@@ -202,30 +219,31 @@ class BaseDevice(ABC):
             logger.error(f"Error executing action {action_name}: {str(e)}")
             return None
     
-    def _get_action_handler(self, action_name: str) -> Optional[Callable]:
-        """Get or create an action handler for the given action name."""
-        if action_name not in self._action_handlers:
-            handler_name = f"handle_{action_name}"
-            handler = getattr(self, handler_name, None)
-            if handler and callable(handler):
-                self._action_handlers[action_name] = handler
-            else:
-                logger.warning(f"No handler found for action: {action_name}")
-                return None
-        return self._action_handlers[action_name]
+    def _get_action_handler(self, action: str) -> Optional[Callable[..., Any]]:
+        """Get the handler function for the specified action."""
+        # Convert to lower case for case-insensitive lookup
+        action = action.lower()
+        
+        # Check if we have a handler for this action
+        handler = self._action_handlers.get(action)
+        if handler:
+            return handler
+            
+        # If not found, check if maybe it's in camelCase and we have a handler for snake_case
+        if '_' not in action:
+            # Convert camelCase to snake_case and try again
+            snake_case = ''.join(['_' + c.lower() if c.isupper() else c for c in action]).lstrip('_')
+            handler = self._action_handlers.get(snake_case)
+            if handler:
+                return handler
+                
+        return None
     
-    def get_state(self) -> Dict[str, Any]:
-        """Get the current device state."""
+    def get_current_state(self) -> Dict[str, Any]:
+        """Get the current state of the device."""
         if self._state_schema:
-            try:
-                return self._state_schema(
-                    device_id=self.device_id,
-                    device_name=self.device_name,
-                    **self.state
-                ).dict()
-            except Exception as e:
-                logger.error(f"Error validating state with schema: {str(e)}")
-                return self.state
+            # Return validated state dict
+            return self._state_schema(**self.state).dict()
         return self.state
     
     def update_state(self, updates: Dict[str, Any]):
@@ -258,7 +276,7 @@ class BaseDevice(ABC):
                 "success": True,
                 "device_id": self.device_id,
                 "action": action,
-                "state": self.get_state()
+                "state": self.get_current_state()
             }
             
             # If the action handler returned a result with mqtt_command, include it in the response
