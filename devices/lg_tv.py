@@ -85,7 +85,7 @@ class LgTv(BaseDevice):
             
             # Log a message if no client key is provided
             if not self.client_key:
-                logger.warning(f"No client key provided for TV {self.get_name()}. Connection will likely fail.")
+                logger.warning(f"No client key provided for TV {self.get_name()}. TV will require manual pairing on first connection.")
             
             # Configuration is valid
             logger.info(f"TV device {self.get_name()} is properly configured")
@@ -109,22 +109,25 @@ class LgTv(BaseDevice):
         """Public method to establish a connection to the TV.
         
         This can be called during setup or anytime a reconnection is needed.
-        The connection will only use the client key provided in the configuration.
         """
         try:
-            # Verify we have a client key before attempting connection
-            if not self.client_key:
-                logger.error(f"Cannot connect to TV {self.get_name()}: No client key provided in configuration.")
-                self.state["connected"] = False
-                self.state["error"] = "Missing client key in configuration"
-                return False
-                
             connection_result = await self._connect_to_tv()
             
             if connection_result:
                 logger.info(f"Successfully connected to TV {self.get_name()}")
                 self.state["connected"] = True
                 self.state["error"] = None
+                
+                # Initialize control interfaces after successful connection
+                self.system = SystemControl(self.client)
+                self.media = MediaControl(self.client)
+                self.app = ApplicationControl(self.client)
+                self.tv_control = TvControl(self.client)
+                self.input_control = InputControl(self.client)
+                self.source_control = SourceControl(self.client)
+                
+                # Update TV state after successful connection
+                await self._update_tv_state()
             else:
                 logger.error(f"Failed to connect to TV {self.get_name()}")
                 self.state["connected"] = False
@@ -143,7 +146,7 @@ class LgTv(BaseDevice):
         try:
             # Disconnect from TV
             if self.client:
-                await self.client.close()  # Use close() instead of disconnect()
+                await self.client.close()
                 self.client = None
                 self.state["connected"] = False
                 logger.info(f"Disconnected from TV {self.get_name()}")
@@ -182,40 +185,99 @@ class LgTv(BaseDevice):
             if hasattr(self.tv_config, 'ssl_options') and self.tv_config.ssl_options:
                 ssl_options = self.tv_config.ssl_options
             
-            # Verify we have a client key before attempting connection
-            if not self.client_key:
-                logger.error("No client key provided in configuration. Cannot connect to TV.")
-                self.state["error"] = "Missing client key in configuration"
-                return False
+            # Create a store dictionary to hold the client key
+            key_store = {}
+            if self.client_key:
+                key_store["client_key"] = self.client_key
             
             # Create a new TV client with appropriate security settings
             if secure_mode:
                 logger.info(f"Creating secure WebOS client for {ip}")
                 
-                # Ensure port is set to 3001 for secure WebSocket connections
-                if 'port' not in ssl_options:
-                    ssl_options['port'] = 3001
+                # Always set verify_ssl to False by default for WebOS TVs, as they use self-signed certificates
+                # Only override if explicitly set in ssl_options
+                verify_ssl = ssl_options.get('verify_ssl', False)
                 
-                # Let SecureWebOSClient handle the SSL context creation based on cert_file and verify_ssl
-                # This ensures hostname verification is properly disabled
+                # Create a custom SSL context if needed
+                ssl_context = None
+                if cert_file:
+                    # Create SSL context with appropriate verification settings
+                    logger.info(f"Creating SSL context with certificate file {cert_file}")
+                    ssl_context = ssl.create_default_context()
+                    ssl_context.check_hostname = False  # Always disable hostname checking for TVs
+                    
+                    # Set verification mode based on verify_ssl
+                    if not verify_ssl:
+                        ssl_context.verify_mode = ssl.CERT_NONE
+                        logger.info("SSL certificate verification disabled")
+                    
+                    # Try to load the certificate file
+                    try:
+                        ssl_context.load_verify_locations(cert_file)
+                        logger.info(f"Loaded certificate from {cert_file}")
+                    except Exception as ssl_err:
+                        logger.error(f"Failed to load certificate file: {str(ssl_err)}")
+                        # If verification is required but certificate loading failed, we should fail
+                        if verify_ssl:
+                            logger.error("Certificate verification required but loading failed")
+                            self.state["error"] = f"SSL certificate error: {str(ssl_err)}"
+                            return False
+                        # Otherwise continue without certificate (with CERT_NONE)
+                        logger.warning("Continuing without certificate verification")
+                
+                # Ensure port is set to 3001 for secure WebSocket connections
+                port = ssl_options.get('port', 3001)
+                
+                # Create the secure client
                 self.client = SecureWebOSClient(
                     host=ip,
+                    port=port,
                     secure=True,
                     client_key=self.client_key,
-                    verify_ssl=False,  # Critical: Always use False to disable hostname checking
-                    cert_file=cert_file,  # Pass cert_file directly and let SecureWebOSClient handle it
-                    **ssl_options
+                    ssl_context=ssl_context,
+                    verify_ssl=verify_ssl,
+                    cert_file=cert_file if not ssl_context else None
                 )
             else:
                 logger.info(f"Creating standard WebOS client for {ip}")
                 self.client = WebOSClient(ip, secure=False, client_key=self.client_key)
             
             # First connection attempt
-            connection_success = False
             try:
                 logger.info(f"Attempting to connect to TV at {ip}...")
                 await self.client.connect()
-                connection_success = True
+                
+                # Once connected, always register with the TV to ensure a proper session
+                # This is critical - even with an existing client_key, we need to register
+                logger.info("Connected to TV. Registering client...")
+                
+                # Use the registration process which handles both new and existing keys
+                connection_success = False
+                registration_completed = False
+                try:
+                    async for status in self.client.register(key_store):
+                        if status == WebOSClient.PROMPTED:
+                            logger.info(f"Please accept the connection on TV {self.get_name()}!")
+                            self.state["error"] = "Waiting for user to accept connection on TV"
+                        elif status == WebOSClient.REGISTERED:
+                            logger.info(f"Registration successful for TV {self.get_name()}")
+                            self.client_key = key_store.get("client_key")
+                            
+                            # Update the client key in the state if it's new or changed
+                            if self.client_key:
+                                logger.info(f"Client key for future use: {self.client_key}")
+                                # You might want to persist this client key for future connections
+                                registration_completed = True
+                    
+                    # If we get here without errors, registration was successful
+                    connection_success = registration_completed
+                except Exception as reg_error:
+                    logger.error(f"Registration error: {str(reg_error)}")
+                    self.state["error"] = f"Registration error: {str(reg_error)}"
+                    connection_success = False
+                
+                return connection_success
+                
             except ssl.SSLError as ssl_error:
                 logger.error(f"SSL error during connection: {str(ssl_error)}")
                 self.state["error"] = f"SSL connection error: {str(ssl_error)}"
@@ -224,130 +286,108 @@ class LgTv(BaseDevice):
                 if "CERTIFICATE_VERIFY_FAILED" in str(ssl_error) and secure_mode:
                     logger.warning("Certificate verification failed. Consider extracting the TV certificate using extract_lg_tv_cert.py")
                     
-                    # If fallback is possible, try without SSL context
+                    # If fallback is possible, try without SSL
                     has_fallback = False
                     if hasattr(self.tv_config, 'ssl_options') and self.tv_config.ssl_options:
                         has_fallback = self.tv_config.ssl_options.get("allow_insecure_fallback", False)
                         
                     if has_fallback:
-                        logger.info("Attempting fallback connection without SSL context...")
+                        logger.info("Attempting fallback connection without SSL...")
                         try:
-                            # Create a new client without cert_file to avoid SSL verification
-                            self.client = SecureWebOSClient(
-                                host=ip,
-                                secure=True,
-                                client_key=self.client_key,
-                                verify_ssl=False,
-                                # No cert_file to avoid verification issues
-                                **ssl_options
-                            )
+                            # Create a new non-secure client as fallback
+                            self.client = WebOSClient(ip, secure=False, client_key=self.client_key)
                             await self.client.connect()
-                            connection_success = True
-                            logger.warning("Connected with insecure fallback (without SSL verification)")
+                            
+                            # Register even for fallback connections
+                            async for status in self.client.register(key_store):
+                                if status == WebOSClient.PROMPTED:
+                                    logger.info(f"Please accept the connection on TV {self.get_name()}!")
+                                elif status == WebOSClient.REGISTERED:
+                                    logger.info(f"Fallback registration successful for TV {self.get_name()}")
+                                    self.client_key = key_store.get("client_key")
+                            
+                            logger.warning("Connected with insecure fallback (without SSL)")
                             self.state["error"] = "Connected with insecure fallback. Consider extracting TV certificate."
+                            return True
                         except Exception as fallback_error:
                             logger.error(f"Fallback connection also failed: {str(fallback_error)}")
                             self.state["error"] = f"SSL connection failed, fallback also failed: {str(fallback_error)}"
-            except Exception as e:
-                logger.warning(f"Initial connection attempt failed: {str(e)}")
+                return False
                 
-                # The TV might be off, try to wake it using WOL if we have MAC address
-                mac_address = self.state.get("mac_address")
-                if mac_address:
-                    logger.info(f"TV appears to be off. Attempting to wake it using WOL to MAC: {mac_address}")
-                    wol_success = await self.send_wol_packet(mac_address)
-                    
-                    if wol_success:
-                        logger.info("Wake-on-LAN packet sent successfully. Waiting for TV to boot...")
+            except Exception as conn_error:
+                logger.error(f"Connection error: {str(conn_error)}")
+                self.state["error"] = f"Connection error: {str(conn_error)}"
+                
+                # If we have a MAC address, try to wake the TV and connect again
+                if self.state.get("mac_address") and "no response" in str(conn_error).lower():
+                    logger.info(f"TV may be off. Attempting Wake-on-LAN to {self.state['mac_address']}")
+                    if await self.wake_on_lan():
+                        logger.info("WoL packet sent. Waiting for TV to boot...")
+                        # Wait for the TV to boot
+                        await asyncio.sleep(15)
                         
-                        # Wait for TV to boot up (typically takes 10-20 seconds)
-                        boot_wait_time = self.tv_config.timeout or 15  # Default to 15 seconds if not specified
-                        logger.info(f"Waiting {boot_wait_time} seconds for TV to boot...")
-                        await asyncio.sleep(boot_wait_time)
-                        
-                        # Retry connection after TV has had time to boot
+                        # Try to connect again after WoL
                         try:
-                            # Recreate the client using the same logic as above
-                            if secure_mode:
-                                self.client = SecureWebOSClient(
-                                    host=ip,
-                                    secure=True,
-                                    client_key=self.client_key,
-                                    verify_ssl=False,
-                                    cert_file=cert_file,  # Pass cert_file directly
-                                    **ssl_options
-                                )
-                            else:
-                                self.client = WebOSClient(ip, secure=False, client_key=self.client_key)
-                                
-                            logger.info("Retrying connection after WOL...")
                             await self.client.connect()
-                            connection_success = True
-                            logger.info("Connection successful after WOL!")
-                        except Exception as retry_error:
-                            logger.error(f"Connection failed even after WOL: {str(retry_error)}")
-                            self.state["error"] = "Connection failed after wake-on-LAN. TV may not be responding."
-                    else:
-                        logger.error("Failed to send Wake-on-LAN packet")
-                        self.state["error"] = "Failed to wake TV using Wake-on-LAN"
-                else:
-                    logger.warning("Cannot wake TV: No MAC address configured")
-                    self.state["error"] = "Connection failed and no MAC address available for Wake-on-LAN"
-            
-            # If we still couldn't connect, return failure
-            if not connection_success:
-                if not self.state.get("error"):
-                    self.state["error"] = "Failed to connect to TV"
+                            
+                            # Register after WoL connection
+                            async for status in self.client.register(key_store):
+                                if status == WebOSClient.PROMPTED:
+                                    logger.info(f"Please accept the connection on TV {self.get_name()}!")
+                                elif status == WebOSClient.REGISTERED:
+                                    logger.info(f"Post-WoL registration successful for TV {self.get_name()}")
+                                    self.client_key = key_store.get("client_key")
+                            
+                            logger.info("Successfully connected after Wake-on-LAN")
+                            return True
+                        except Exception as wol_conn_error:
+                            logger.error(f"Failed to connect after Wake-on-LAN: {str(wol_conn_error)}")
+                
                 return False
-            
-            # Check if the client key is valid (the client should have a client_key after connection)
-            if not self.client.client_key:
-                logger.error("Invalid or rejected client key. Authentication failed.")
-                self.state["error"] = "Invalid client key. Authentication failed."
-                return False
-            
-            logger.info("Successfully authenticated with TV using provided client key")
-            
-            # Initialize controls
-            self.media = MediaControl(self.client)
-            self.system = SystemControl(self.client)
-            self.app = ApplicationControl(self.client)
-            self.tv_control = TvControl(self.client)
-            self.input_control = InputControl(self.client)
-            self.source_control = SourceControl(self.client)
-            
-            # Get initial TV state
-            await self._update_tv_state()
-            
-            logger.info(f"Successfully connected to LG TV at {ip}")
-            return True
-            
+                
         except Exception as e:
-            logger.error(f"Failed to connect to LG TV: {str(e)}")
-            self.state["error"] = f"Connection error: {str(e)}"
+            logger.error(f"Error in _connect_to_tv: {str(e)}")
+            self.state["error"] = str(e)
             return False
     
     async def _update_tv_state(self):
         """Update the TV state information."""
         try:
+            from typing import cast, Any
+            
             # Get volume info
             try:
                 if self.media:
-                    # Call get_volume without parameters to avoid linter errors
-                    volume_info = await self.media.get_volume()  # type: ignore
+                    # Cast to Any to avoid type checking issues
+                    media_control = cast(Any, self.media)
+                    volume_info = await media_control.get_volume()
                     if volume_info:
                         self.state["volume"] = volume_info.get("volume", 0)
                         self.state["mute"] = volume_info.get("muted", False)
             except Exception as e:
                 logger.debug(f"Could not get volume info: {str(e)}")
             
-            # Get current app
-            # Note: We don't get the current app as the asyncwebostv library doesn't provide a direct method
-            # This would require additional implementation
+            # Get current app using foreground app API
+            try:
+                if self.app and self.client:
+                    # Use the client's request method correctly to get foreground app info
+                    queue = await self.client.send_message('request', 'ssap://com.webos.applicationManager/getForegroundAppInfo', {}, get_queue=True)
+                    app_info = await queue.get()
+                    if app_info and "payload" in app_info:
+                        self.state["current_app"] = app_info["payload"].get("appId")
+            except Exception as e:
+                logger.debug(f"Could not get current app info: {str(e)}")
             
-            # Get input source 
-            # Note: We don't get the source info as the asyncwebostv library doesn't provide a direct method
-            # This would require additional implementation
+            # Get input source using the input control's get_input method if available
+            try:
+                if self.input_control:
+                    # Cast to Any to avoid type checking issues
+                    input_control = cast(Any, self.input_control)
+                    input_info = await input_control.get_input()
+                    if input_info and "inputId" in input_info:
+                        self.state["input_source"] = input_info.get("inputId")
+            except Exception as e:
+                logger.debug(f"Could not get input source info: {str(e)}")
             
             return True
         except Exception as e:
@@ -358,23 +398,29 @@ class LgTv(BaseDevice):
         """Power on the TV (if supported).
         
         This method tries two approaches to power on the TV:
-        1. First, it attempts to use the WebOS API's system/turnOn method
+        1. First, it attempts to use the WebOS API's system/turnOn method with monitoring
         2. If that fails or there's no active connection, it falls back to Wake-on-LAN
            using the MAC address from the configuration
         """
         try:
+            from typing import cast, Any
+            
             logger.info(f"Attempting to power on TV {self.get_name()}")
             success = False
             
             # First try using WebOS API if we have an active connection
             if self.system and self.client:
                 try:
-                    logger.info("Attempting to power on via WebOS API...")
-                    await self.client.send_message('request', 'ssap://system/turnOn', {})
-                    self.state["power"] = "on"
-                    self.state["last_command"] = "power_on"
-                    success = True
-                    logger.info("Power on via WebOS API successful")
+                    logger.info("Attempting to power on via WebOS API with monitoring...")
+                    # Cast to Any to avoid type checking issues
+                    system_control = cast(Any, self.system)
+                    result = await system_control.power_on_with_monitoring(timeout=20.0)
+                    
+                    if result.get("returnValue", False) or result.get("status") == "powered_on":
+                        self.state["power"] = "on"
+                        self.state["last_command"] = "power_on"
+                        success = True
+                        logger.info("Power on via WebOS API successful")
                 except Exception as e:
                     logger.debug(f"WebOS API power on failed: {str(e)}")
             
@@ -410,15 +456,28 @@ class LgTv(BaseDevice):
     async def power_off(self):
         """Power off the TV."""
         try:
+            from typing import cast, Any
+            
             logger.info(f"Powering off TV {self.get_name()}")
             
-            # Use system turnOff method
+            # Use system power_off_with_monitoring method
             if self.system and self.client:
-                # Send turn off message directly
-                await self.client.send_message('request', 'ssap://system/turnOff', {})
-                self.state["power"] = "off"
-                self.state["last_command"] = "power_off"
-                return True
+                try:
+                    # Cast to Any to avoid type checking issues
+                    system_control = cast(Any, self.system)
+                    result = await system_control.power_off_with_monitoring(timeout=10.0)
+                    
+                    # Check if power off was successful
+                    if result.get("returnValue", False) or result.get("status") in ["succeeded", "powered_off"]:
+                        self.state["power"] = "off"
+                        self.state["last_command"] = "power_off"
+                        return True
+                    else:
+                        logger.warning(f"Power off request failed: {result}")
+                        return False
+                except Exception as e:
+                    logger.error(f"Error during power off with monitoring: {str(e)}")
+                    return False
             
             return False
         except Exception as e:
@@ -428,15 +487,24 @@ class LgTv(BaseDevice):
     async def set_volume(self, volume):
         """Set the volume level."""
         try:
+            from typing import cast, Any
+            
             volume = int(volume)
             logger.info(f"Setting TV {self.get_name()} volume to {volume}")
             
             if self.media and self.client:
-                # Send volume message directly
-                await self.client.send_message('request', 'ssap://audio/setVolume', {"volume": volume})
-                self.state["volume"] = volume
-                self.state["last_command"] = f"set_volume_{volume}"
-                return True
+                # Cast to Any to avoid type checking issues
+                media_control = cast(Any, self.media)
+                result = await media_control.set_volume_with_monitoring(volume, timeout=5.0)
+                
+                # Check if volume setting was successful
+                if result.get("returnValue", False) or result.get("status") in ["success", "changed"]:
+                    self.state["volume"] = volume
+                    self.state["last_command"] = f"set_volume_{volume}"
+                    return True
+                else:
+                    logger.warning(f"Volume set failed: {result}")
+                    return False
             
             return False
         except Exception as e:
@@ -446,23 +514,31 @@ class LgTv(BaseDevice):
     async def set_mute(self, mute=None):
         """Set mute state on TV."""
         try:
+            from typing import cast, Any
+            
             # Convert "true"/"false" strings to bool if needed
             if isinstance(mute, str):
                 mute = mute.lower() in ["true", "1", "yes"]
             
             logger.info(f"Setting mute to {mute} on TV {self.get_name()}")
             
-            if not self.client:
-                logger.error("TV client not initialized")
+            if not self.client or not self.media:
+                logger.error("TV client or media control not initialized")
                 return False
                 
-            # Send mute command directly
-            await self.client.send_message('request', 'ssap://audio/setMute', {"mute": mute})
+            # Cast to Any to avoid type checking issues
+            media_control = cast(Any, self.media)
+            result = await media_control.set_mute_with_monitoring(mute, timeout=5.0)
             
-            # Update state
-            self.state["mute"] = mute
-            self.state["last_command"] = "mute_set"
-            return True
+            # Check if mute setting was successful
+            if result.get("returnValue", False) or result.get("status") in ["success", "changed"]:
+                # Update state
+                self.state["mute"] = mute
+                self.state["last_command"] = "mute_set"
+                return True
+            else:
+                logger.warning(f"Mute set failed: {result}")
+                return False
             
         except Exception as e:
             logger.error(f"Error setting mute: {str(e)}")
@@ -471,36 +547,50 @@ class LgTv(BaseDevice):
     async def launch_app(self, app_name):
         """Launch an app by name or ID."""
         try:
+            from typing import cast, Any
+            
             logger.info(f"Launching app {app_name} on TV {self.get_name()}")
             
-            if not self.client:
-                logger.error("TV client not initialized")
+            if not self.client or not self.app:
+                logger.error("TV client or application control not initialized")
                 return False
             
-            # First retrieve list of available apps directly
-            apps_response = await self.client.send_message('request', 'ssap://com.webos.applicationManager/listApps', {}, get_queue=True)  # type: ignore
-            if not apps_response or not apps_response.get("payload") or not apps_response.get("payload").get("apps"):  # type: ignore
-                logger.error("Could not retrieve list of apps")
+            # First retrieve list of available apps
+            try:
+                # Cast to Any to avoid type checking issues
+                app_control = cast(Any, self.app)
+                apps = await app_control.list_apps()
+                
+                if not apps:
+                    logger.error("Could not retrieve list of apps")
+                    return False
+                
+                # Try to find the app by name or ID
+                target_app = None
+                for app in apps:
+                    if app_name.lower() in app.get("title", "").lower() or app_name == app.get("id"):
+                        target_app = app
+                        break
+                
+                if not target_app:
+                    logger.error(f"App {app_name} not found on TV")
+                    return False
+                
+                # Launch the app with monitoring for more reliability
+                result = await app_control.launch_with_monitoring(target_app["id"], timeout=30.0)
+                
+                # Check if app launch was successful
+                if result.get("returnValue", False) or result.get("status") == "launched":
+                    self.state["current_app"] = target_app["id"]
+                    self.state["last_command"] = f"launch_app_{app_name}"
+                    return True
+                else:
+                    logger.error(f"Failed to launch app: {result}")
+                    return False
+                
+            except Exception as e:
+                logger.error(f"Error retrieving apps or launching app: {str(e)}")
                 return False
-            
-            apps = apps_response.get("payload").get("apps", [])  # type: ignore
-            
-            # Try to find the app by name or ID
-            target_app = None
-            for app in apps:
-                if app_name.lower() in app.get("title", "").lower() or app_name == app.get("id"):
-                    target_app = app
-                    break
-            
-            if not target_app:
-                logger.error(f"App {app_name} not found on TV")
-                return False
-            
-            # Launch the app directly
-            await self.client.send_message('request', 'ssap://system.launcher/launch', {"id": target_app["id"]})
-            self.state["current_app"] = target_app["id"]
-            self.state["last_command"] = f"launch_app_{app_name}"
-            return True
             
         except Exception as e:
             logger.error(f"Error launching app: {str(e)}")
@@ -618,20 +708,20 @@ class LgTv(BaseDevice):
     async def set_input_source(self, input_source):
         """Set the TV input source."""
         try:
+            from typing import cast, Any
+            
             logger.info(f"Setting input source to {input_source} on TV {self.get_name()}")
             
-            if not self.client:
-                logger.error("TV client not initialized")
+            if not self.client or not self.input_control:
+                logger.error("TV client or input control not initialized")
                 return False
             
-            # First retrieve list of available sources using direct message
+            # First retrieve list of available sources using input control
             try:
-                sources_response = await self.client.send_message('request', 'ssap://tv/getExternalInputList', {}, get_queue=True)  # type: ignore
-                if not sources_response or not sources_response.get("payload"):  # type: ignore
-                    logger.error("Could not retrieve list of sources")
-                    return False
+                # Cast to Any to avoid type checking issues
+                input_control = cast(Any, self.input_control)
+                sources = await input_control.list_inputs()
                 
-                sources = sources_response.get("payload", {}).get("devices", [])  # type: ignore
                 if not sources:
                     logger.error("No input sources available")
                     return False
@@ -647,20 +737,27 @@ class LgTv(BaseDevice):
                     logger.error(f"Input source {input_source} not found on TV")
                     return False
                 
-                # Set the input source directly
-                await self.client.send_message('request', 'ssap://tv/switchInput', {"inputId": target_source["id"]})
-                self.state["input_source"] = target_source["id"]
-                self.update_state({
-                    "last_command": LastCommand(
-                        action=f"set_input_{input_source}",
-                        source="api",
-                        timestamp=datetime.now(),
-                        position="input"
-                    ).dict()
-                })
-                return True
+                # Set the input source with monitoring for more reliable input switching
+                result = await input_control.set_input_with_monitoring(target_source["id"], timeout=10.0)
+                
+                # Check if input switching was successful
+                if result.get("returnValue", False) or result.get("status") in ["success", "changed"]:
+                    self.state["input_source"] = target_source["id"]
+                    self.update_state({
+                        "last_command": LastCommand(
+                            action=f"set_input_{input_source}",
+                            source="api",
+                            timestamp=datetime.now(),
+                            position="input"
+                        ).dict()
+                    })
+                    return True
+                else:
+                    logger.warning(f"Input source set failed: {result}")
+                    return False
+                
             except Exception as e:
-                logger.error(f"Error sending input source request: {str(e)}")
+                logger.error(f"Error retrieving or setting input source: {str(e)}")
                 return False
         except Exception as e:
             logger.error(f"Error setting input source: {str(e)}")
@@ -799,7 +896,7 @@ class LgTv(BaseDevice):
             # Ensure we have a WebSocket connection to the input service
             try:
                 if not self.input_control.ws_client:
-                    await self.input_control.connect_input()
+                    await self.input_control._ensure_pointer_socket()
                     
                 if not self.input_control.ws_client:
                     logger.error("Failed to establish WebSocket connection for pointer input")
@@ -862,7 +959,7 @@ class LgTv(BaseDevice):
             # Ensure we have a WebSocket connection to the input service
             try:
                 if not self.input_control.ws_client:
-                    await self.input_control.connect_input()
+                    await self.input_control._ensure_pointer_socket()
                     
                 if not self.input_control.ws_client:
                     logger.error("Failed to establish WebSocket connection for pointer input")
@@ -921,18 +1018,15 @@ class LgTv(BaseDevice):
                 logger.error("TV client or input control not initialized")
                 return False
                 
-            # Ensure we have a WebSocket connection to the input service
+            # Ensure we have a connection to the input service
             try:
-                if not self.input_control.ws_client:
-                    await self.input_control.connect_input()
-                    
-                if not self.input_control.ws_client:
-                    logger.error("Failed to establish WebSocket connection for pointer input")
-                    return False
-                    
-                # Send the click command directly
-                payload = {"x": x, "y": y, "click": True}
-                await self.input_control.ws_client.send(json.dumps(payload))
+                # Connect to the input service if needed
+                if not hasattr(self.input_control, 'ws_url') or not self.input_control.ws_url:
+                    await self.input_control._ensure_pointer_socket()
+                
+                # Call the click method with proper arguments
+                payload = {"x": x, "y": y}
+                await self.input_control.click(**payload)
                 
                 # Update state with last command information
                 self.update_state({
@@ -947,7 +1041,7 @@ class LgTv(BaseDevice):
                 
                 return True
             except Exception as e:
-                logger.error(f"WebSocket error in click: {str(e)}")
+                logger.error(f"Error in click command: {str(e)}")
                 return False
         except Exception as e:
             logger.error(f"Error clicking: {str(e)}")
@@ -1179,4 +1273,50 @@ class LgTv(BaseDevice):
         except Exception as e:
             error_msg = f"Failed to verify certificate: {str(e)}"
             logger.error(error_msg)
-            return False, error_msg 
+            return False, error_msg
+    
+    async def power_on_with_wol_fallback(self):
+        """Power on the TV with Wake-on-LAN fallback.
+        
+        This helper method first tries to use the system.power_on_with_monitoring method
+        from the SystemControl class. If that fails, it falls back to using Wake-on-LAN.
+        
+        Returns:
+            bool: True if power on was successful, False otherwise
+        """
+        try:
+            # Try WebOS API first if we have an active connection
+            if self.system and self.client:
+                try:
+                    # Cast to Any to avoid type checking issues
+                    system_control = cast(Any, self.system)
+                    
+                    # Call power_on_with_monitoring with appropriate timeout
+                    result = await system_control.power_on_with_monitoring(timeout=10.0)
+                    if result.get("returnValue", False) or result.get("status") == "powered_on":
+                        self.state["power"] = "on"
+                        self.state["last_command"] = "power_on"
+                        return True
+                except Exception as e:
+                    logger.debug(f"WebOS API power on failed: {str(e)}")
+            
+            # Fall back to Wake-on-LAN
+            mac_address = self.state.get("mac_address")
+            if mac_address:
+                wol_success = await self.send_wol_packet(mac_address)
+                if wol_success:
+                    logger.info("Wake-on-LAN packet sent successfully, waiting for TV to boot...")
+                    # Wait for TV to boot (typically takes 10-20 seconds)
+                    boot_wait_time = getattr(self.tv_config, "timeout", 15)
+                    await asyncio.sleep(boot_wait_time)  
+                    
+                    # Try to reconnect
+                    reconnect_success = await self.connect()
+                    if reconnect_success:
+                        logger.info("Successfully reconnected after WOL")
+                        return True
+            
+            return False
+        except Exception as e:
+            logger.error(f"Error in power_on_with_wol_fallback: {str(e)}")
+            return False 

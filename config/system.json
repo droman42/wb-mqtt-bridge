@@ -15,6 +15,9 @@
   },
   "log_level": "DEBUG",
   "log_file": "logs/service.log",
+  "loggers": {
+    "websockets.client": "INFO"
+  },
   "groups": {
     "volume": "Volume Control",
     "screen": "Resolution Control",

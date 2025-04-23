@@ -24,6 +24,14 @@ class BroadlinkKitchenHood(BaseDevice):
             "device_id": self.config.get("device_id"),
             "connection_status": "disconnected"
         }
+        
+        # Register action handlers
+        self._action_handlers = {
+            "light_on": self.handle_light_on,
+            "light_off": self.handle_light_off,
+            "speed_change": self.handle_speed_change,
+            "hood_off": self.handle_hood_off
+        }
 
     async def setup(self) -> bool:
         """Initialize the Broadlink device for the kitchen hood."""

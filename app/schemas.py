@@ -135,6 +135,7 @@ class SystemConfig(BaseModel):
     web_service: Dict[str, Any]
     log_level: str
     log_file: str
+    loggers: Optional[Dict[str, str]] = None
     devices: Dict[str, Dict[str, Any]]
     groups: Dict[str, str] = Field(default_factory=dict)  # Internal name -> Display name
 
@@ -166,7 +167,7 @@ class DeviceAction(BaseModel):
     
     # Example in the model description
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "examples": [
                 {
                     "action": "move_cursor",

@@ -106,6 +106,14 @@ async def lifespan(app: FastAPI):
     log_level = system_config.log_level
     setup_logging(log_file, log_level)
     
+    # Apply logger-specific configuration
+    if system_config.loggers:
+        for logger_name, logger_level in system_config.loggers.items():
+            specific_logger = logging.getLogger(logger_name)
+            specific_level = getattr(logging, logger_level.upper(), logging.INFO)
+            specific_logger.setLevel(specific_level)
+            logging.info(f"Set logger {logger_name} to level {logger_level}")
+    
     logger = logging.getLogger(__name__)
     logger.info("Starting MQTT Web Service")
     
