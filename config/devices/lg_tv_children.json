@@ -9,7 +9,9 @@
       "mac_address": "14:C9:13:ED:23:BB",
       "client_key": "8dceb902af3caf1caef1e5a1a78ee995",
       "secure": true,
-      "cert_file": "config/devices/certs/children_cert.pem"
+      "cert_file": "config/devices/certs/children_cert.pem",
+      "timeout": 20,
+      "reconnect_interval": 60
     },
     "commands": {
       "power": {

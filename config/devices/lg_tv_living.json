@@ -9,7 +9,9 @@
     "mac_address": "74:E6:B8:9C:36:5F",
     "client_key": "cd3b87661ebe87e6114d971f74aac8db",
     "secure": true,
-    "cert_file": "config/devices/certs/living_cert.pem"
+    "cert_file": "config/devices/certs/living_cert.pem",
+    "timeout": 20,
+    "reconnect_interval": 60
   },
   "commands": {
     "power": {

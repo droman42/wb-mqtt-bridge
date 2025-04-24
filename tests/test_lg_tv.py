@@ -3,7 +3,8 @@
 Test script for LG TV device.
 
 This script initializes an LG TV device using a provided configuration file
-and reports which controls were successfully initialized.
+and tests the complete initialization process, including automatic Wake-on-LAN
+functionality if the TV is not initially responsive.
 
 Usage:
     python test_lg_tv.py path/to/config.json
@@ -14,6 +15,7 @@ import argparse
 import json
 import logging
 import sys
+import time
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Tuple
 
@@ -52,329 +54,49 @@ def load_config(config_path: str) -> Dict[str, Any]:
         return json.load(f)
 
 
-async def test_control_functionality(tv: LgTv) -> Dict[str, Dict[str, Any]]:
+async def test_natural_initialization(tv: LgTv) -> bool:
     """
-    Test if each control is not only initialized but also functional.
-    This detects controls that are available but might report missing permissions.
+    Test the TV's natural initialization process, including Wake-on-LAN if needed.
+    This tests the device's ability to automatically wake and connect to the TV.
     
     Args:
-        tv: Initialized LG TV device instance
+        tv: LG TV device to test
         
     Returns:
-        Dictionary with control status information
+        True if initialization succeeded, False otherwise
     """
-    logger = logging.getLogger("test_control_functionality")
-    results = {}
+    logger = logging.getLogger("test_natural_initialization")
     
-    # Test Media Control
-    if tv.media is not None:
-        logger.info("Testing Media Control functionality...")
-        media_results = {}
-        
-        # Test volume get operation
-        try:
-            volume_info = await tv.media.get_volume()  # type: ignore
-            media_results["get_volume"] = {
-                "functional": True,
-                "result": volume_info
-            }
-        except Exception as e:
-            media_results["get_volume"] = {
-                "functional": False,
-                "error": str(e)
-            }
-            logger.warning(f"Media Control get_volume test failed: {str(e)}")
-            
-        # Test volume mute status (often requires separate permission)
-        try:
-            mute_status = await tv.media.get_mute()  # type: ignore
-            media_results["get_mute"] = {
-                "functional": True,
-                "result": mute_status
-            }
-        except Exception as e:
-            media_results["get_mute"] = {
-                "functional": False,
-                "error": str(e)
-            }
-            logger.warning(f"Media Control get_mute test failed: {str(e)}")
-            
-        # Test play status (may require additional rights)
-        try:
-            play_state = await tv.media.get_status()  # type: ignore
-            media_results["get_status"] = {
-                "functional": True,
-                "result": play_state
-            }
-        except Exception as e:
-            media_results["get_status"] = {
-                "functional": False,
-                "error": str(e)
-            }
-            logger.warning(f"Media Control get_status test failed: {str(e)}")
-        
-        results["Media Control"] = media_results
+    logger.info("Testing TV natural initialization process...")
     
-    # Test System Control
-    if tv.system is not None:
-        logger.info("Testing System Control functionality...")
-        system_results = {}
-        
-        # Test system info
-        try:
-            system_info = await tv.system.info()  # type: ignore
-            system_results["info"] = {
-                "functional": True,
-                "result": system_info
-            }
-        except Exception as e:
-            system_results["info"] = {
-                "functional": False,
-                "error": str(e)
-            }
-            logger.warning(f"System Control info test failed: {str(e)}")
-            
-        # Test power state (might need specific access rights)
-        try:
-            power_state = await tv.system.power_state()  # type: ignore
-            system_results["power_state"] = {
-                "functional": True,
-                "result": power_state
-            }
-        except Exception as e:
-            system_results["power_state"] = {
-                "functional": False,
-                "error": str(e)
-            }
-            logger.warning(f"System Control power_state test failed: {str(e)}")
-            
-        # Test notify (might need specific access rights)
-        try:
-            # Just a test message that won't be displayed for long
-            notify_result = await tv.system.notify("Test notification from Bridge")  # type: ignore
-            system_results["notify"] = {
-                "functional": True,
-                "result": notify_result
-            }
-        except Exception as e:
-            system_results["notify"] = {
-                "functional": False,
-                "error": str(e)
-            }
-            logger.warning(f"System Control notify test failed: {str(e)}")
-        
-        results["System Control"] = system_results
+    # Verify MAC address is properly configured
+    mac_address = tv.state.get("mac_address")
+    if not mac_address:
+        logger.warning("MAC address is not configured. Wake-on-LAN will not work.")
+    else:
+        logger.info(f"MAC address is configured: {mac_address}")
     
-    # Test Application Control
-    if tv.app is not None:
-        logger.info("Testing Application Control functionality...")
-        app_results = {}
+    # First, check if the TV is already connected
+    if tv.state.get("connected", False):
+        logger.info("TV is already connected. Testing reconnection...")
         
-        # Define apps_list as None initially
-        apps_list = None
-        
-        # Test list apps
-        try:
-            apps_list = await tv.app.list_apps()  # type: ignore
-            app_results["list_apps"] = {
-                "functional": True,
-                "count": len(apps_list) if apps_list else 0
-            }
-        except Exception as e:
-            app_results["list_apps"] = {
-                "functional": False,
-                "error": str(e)
-            }
-            logger.warning(f"Application Control list_apps test failed: {str(e)}")
-        
-        # Test get current app - requires additional permissions
-        try:
-            current_app = await tv.app.get_current()  # type: ignore
-            app_results["get_current"] = {
-                "functional": True,
-                "result": current_app
-            }
-        except Exception as e:
-            app_results["get_current"] = {
-                "functional": False,
-                "error": str(e)
-            }
-            logger.warning(f"Application Control get_current test failed: {str(e)}")
-            
-        # Test get app info - may require specific permissions
-        # Only try if apps_list was successfully retrieved and has items
-        if apps_list and len(apps_list) > 0:
-            try:
-                # Try to get info for the first app in the list
-                first_app = apps_list[0]
-                app_id = first_app.id if hasattr(first_app, 'id') else first_app
-                app_info = await tv.app.get_app_info(app_id)  # type: ignore
-                app_results["get_app_info"] = {
-                    "functional": True,
-                    "result": app_info
-                }
-            except Exception as e:
-                app_results["get_app_info"] = {
-                    "functional": False,
-                    "error": str(e)
-                }
-                logger.warning(f"Application Control get_app_info test failed: {str(e)}")
-        
-        results["Application Control"] = app_results
+        # Disconnect first to test reconnection
+        await tv.shutdown()
+        logger.info("Disconnected from TV. Waiting 2 seconds before reconnecting...")
+        await asyncio.sleep(2)
     
-    # Test TV Control
-    if tv.tv_control is not None:
-        logger.info("Testing TV Control functionality...")
-        tv_control_results = {}
-        
-        # Test get current channel (requires TV tuner rights)
-        try:
-            channel_info = await tv.tv_control.get_current_channel()  # type: ignore
-            tv_control_results["get_current_channel"] = {
-                "functional": True,
-                "result": channel_info
-            }
-        except Exception as e:
-            tv_control_results["get_current_channel"] = {
-                "functional": False,
-                "error": str(e)
-            }
-            logger.warning(f"TV Control get_current_channel test failed: {str(e)}")
-            
-        # Test get channel list (requires TV tuner rights)
-        try:
-            channel_list = await tv.tv_control.get_channel_list()  # type: ignore
-            tv_control_results["get_channel_list"] = {
-                "functional": True,
-                "count": len(channel_list) if channel_list else 0
-            }
-        except Exception as e:
-            tv_control_results["get_channel_list"] = {
-                "functional": False,
-                "error": str(e)
-            }
-            logger.warning(f"TV Control get_channel_list test failed: {str(e)}")
-            
-        results["TV Control"] = tv_control_results
+    # Now try to connect - this should trigger the full connection process
+    # including Wake-on-LAN if the TV is off
+    logger.info("Attempting to connect to TV...")
+    start_time = time.time()
+    connection_result = await tv.connect()
+    elapsed_time = time.time() - start_time
     
-    # Test Input Control
-    if tv.input_control is not None:
-        logger.info("Testing Input Control functionality...")
-        input_results = {}
+    if connection_result:
+        logger.info(f"Successfully connected to TV in {elapsed_time:.2f} seconds")
         
-        # Check if input connection can be established
-        try:
-            await tv.input_control.connect_input()
-            input_results["connect_input"] = {
-                "functional": True
-            }
-        except Exception as e:
-            input_results["connect_input"] = {
-                "functional": False,
-                "error": str(e)
-            }
-            logger.warning(f"Input Control connect_input test failed: {str(e)}")
-            
-        # Test remote key functionality if available
-        try:
-            # Just test if the method exists and can be called
-            has_method = hasattr(tv.input_control, "send_remote_key")
-            if has_method:
-                input_results["has_remote_key"] = {
-                    "functional": True
-                }
-            else:
-                input_results["has_remote_key"] = {
-                    "functional": False,
-                    "error": "Method not available"
-                }
-        except Exception as e:
-            input_results["has_remote_key"] = {
-                "functional": False,
-                "error": str(e)
-            }
-            
-        results["Input Control"] = input_results
-    
-    # Test Source Control
-    if tv.source_control is not None:
-        logger.info("Testing Source Control functionality...")
-        source_results = {}
-        
-        # Test list sources
-        try:
-            sources = await tv.source_control.list_sources()  # type: ignore
-            source_results["list_sources"] = {
-                "functional": True,
-                "count": len(sources) if sources else 0
-            }
-        except Exception as e:
-            source_results["list_sources"] = {
-                "functional": False,
-                "error": str(e)
-            }
-            logger.warning(f"Source Control list_sources test failed: {str(e)}")
-            
-        # Test get current input
-        try:
-            current_input = await tv.source_control.get_current_input()  # type: ignore
-            source_results["get_current_input"] = {
-                "functional": True,
-                "result": current_input
-            }
-        except Exception as e:
-            source_results["get_current_input"] = {
-                "functional": False,
-                "error": str(e)
-            }
-            logger.warning(f"Source Control get_current_input test failed: {str(e)}")
-            
-        results["Source Control"] = source_results
-    
-    return results
-
-
-async def test_lg_tv(config_path: str) -> None:
-    """
-    Initialize an LG TV device and test its functionality.
-    
-    Args:
-        config_path: Path to the configuration file
-    """
-    logger = logging.getLogger("test_lg_tv")
-    
-    try:
-        # Load configuration
-        logger.info(f"Loading configuration from {config_path}")
-        config = load_config(config_path)
-        
-        # Create LG TV device instance
-        logger.info(f"Initializing LG TV device: {config.get('device_name', 'unknown')}")
-        tv = LgTv(config)
-        
-        # Set up the device
-        logger.info("Setting up the device...")
-        setup_success = await tv.setup()
-        
-        if not setup_success:
-            logger.error("Device setup failed")
-            return
-            
-        # Report device state
-        logger.info("Device setup completed successfully")
-        logger.info(f"Device ID: {tv.get_id()}")
-        logger.info(f"Device Name: {tv.get_name()}")
-        
-        # Check if connected
-        connected = tv.state.get("connected", False)
-        logger.info(f"Connected: {connected}")
-        
-        if not connected:
-            logger.warning("Device is not connected. Some controls may not be available.")
-        
-        # Report initialized controls
-        logger.info("--- Initialized Controls ---")
-        controls_status = {
+        # Check if we have control interfaces
+        control_status = {
             "Media Control": tv.media is not None,
             "System Control": tv.system is not None,
             "Application Control": tv.app is not None,
@@ -383,44 +105,218 @@ async def test_lg_tv(config_path: str) -> None:
             "Source Control": tv.source_control is not None
         }
         
-        for control_name, is_available in controls_status.items():
-            status = "Available" if is_available else "Not Available"
-            logger.info(f"{control_name}: {status}")
+        for control_name, available in control_status.items():
+            logger.info(f"{control_name}: {'Available' if available else 'Not Available'}")
         
-        # Test the functionality of each control
-        if connected:
-            logger.info("\n--- Control Functionality Testing ---")
-            control_test_results = await test_control_functionality(tv)
-            
-            # Display the results
-            for control_name, operations in control_test_results.items():
-                logger.info(f"\n{control_name} Operations:")
-                for operation, status in operations.items():
-                    if status.get("functional", False):
-                        logger.info(f"  - {operation}: ✓ Functional")
-                    else:
-                        error_msg = status.get("error", "Unknown error")
-                        if "permission" in error_msg.lower() or "rights" in error_msg.lower() or "access" in error_msg.lower() or "not allowed" in error_msg.lower():
-                            logger.warning(f"  - {operation}: ✗ Missing permissions: {error_msg}")
-                        else:
-                            logger.warning(f"  - {operation}: ✗ Failed: {error_msg}")
-            
-            # Overall results summary
-            logger.info("\n--- Control Permissions Summary ---")
-            permissions_summary = {}
-            for control_name, operations in control_test_results.items():
-                functional_count = sum(1 for op in operations.values() if op.get("functional", False))
-                total_operations = len(operations)
-                permissions_summary[control_name] = {
-                    "functional": functional_count,
-                    "total": total_operations,
-                    "percentage": round((functional_count / total_operations) * 100) if total_operations > 0 else 0
-                }
-                
-            for control_name, stats in permissions_summary.items():
-                logger.info(f"{control_name}: {stats['functional']}/{stats['total']} operations available ({stats['percentage']}%)")
+        # Try to get TV state information
+        logger.info("Requesting current TV state...")
+        await tv._update_tv_state()
         
-        # Report available commands
+        logger.info(f"Current state: Power={tv.state.get('power', 'unknown')}, "
+                   f"Volume={tv.state.get('volume', 'unknown')}, "
+                   f"Muted={tv.state.get('mute', 'unknown')}, "
+                   f"Current app={tv.state.get('current_app', 'unknown')}, "
+                   f"Input source={tv.state.get('input_source', 'unknown')}")
+        
+        return True
+    else:
+        logger.error(f"Failed to connect to TV after {elapsed_time:.2f} seconds")
+        logger.error(f"Error: {tv.state.get('error', 'Unknown error')}")
+        
+        # Check if the error message contains "no response" which should trigger WoL
+        error_msg = tv.state.get("error", "")
+        if "no response" in error_msg.lower():
+            logger.info("Error contains 'no response', which should trigger WoL")
+        else:
+            logger.warning(f"Error message '{error_msg}' doesn't contain 'no response', which might be why WoL wasn't triggered")
+        
+        # Check if Wake-on-LAN was attempted
+        last_command = tv.state.get("last_command")
+        if last_command and (isinstance(last_command, dict) and 
+                             last_command.get("action") == "wake_on_lan" or
+                             last_command == "wake_on_lan" or
+                             last_command == "power_on_wol"):
+            logger.info("Wake-on-LAN was attempted during initialization")
+        else:
+            logger.warning("Wake-on-LAN was not attempted during initialization")
+        
+        return False
+
+
+async def test_direct_power_on(tv: LgTv) -> bool:
+    """
+    Test direct power-on functionality, which should use WoL if the TV is off.
+    
+    Args:
+        tv: LG TV device to test
+        
+    Returns:
+        True if power-on was successful, False otherwise
+    """
+    logger = logging.getLogger("test_direct_power_on")
+    
+    logger.info("Testing direct power-on functionality...")
+    
+    # Verify MAC address is properly configured
+    mac_address = tv.state.get("mac_address")
+    if not mac_address:
+        logger.warning("MAC address is not configured. Wake-on-LAN will not work.")
+    else:
+        logger.info(f"MAC address is configured: {mac_address}")
+    
+    # Try power on - this should use WoL if needed
+    logger.info("Calling power_on method directly...")
+    start_time = time.time()
+    result = await tv.power_on()
+    elapsed_time = time.time() - start_time
+    
+    logger.info(f"Power-on completed in {elapsed_time:.2f} seconds with result: {result}")
+    logger.info(f"Last command: {tv.state.get('last_command')}")
+    
+    # Check if Wake-on-LAN was used
+    last_command = tv.state.get("last_command")
+    if last_command and (
+        (isinstance(last_command, dict) and last_command.get("action") in ["wake_on_lan", "power_on_wol"]) or
+        last_command in ["wake_on_lan", "power_on_wol"]
+    ):
+        logger.info("Wake-on-LAN was used during power-on")
+    else:
+        logger.warning(f"Wake-on-LAN was not used during power-on. Last command: {last_command}")
+    
+    # At this point, the power_on method should have already attempted to connect if successful
+    # But we'll verify the connection state to confirm everything worked
+    if result:
+        if tv.state.get("connected", False):
+            logger.info("Successfully connected to TV after power-on")
+            return True
+        else:
+            logger.warning("TV powered on but not connected. Will attempt to connect...")
+            connect_result = await tv.connect()
+            if connect_result:
+                logger.info("Successfully connected to TV after explicit connect call")
+                return True
+            else:
+                logger.error(f"Failed to connect to TV after power-on. Error: {tv.state.get('error')}")
+                return False
+    
+    return result
+
+
+async def test_power_functions(tv: LgTv) -> Dict[str, Any]:
+    """
+    Test power-related functionality of the TV.
+    
+    Args:
+        tv: Initialized LG TV device instance
+        
+    Returns:
+        Dictionary with test results
+    """
+    logger = logging.getLogger("test_power_functions")
+    results = {}
+    
+    # Skip tests if TV is not connected
+    if not tv.state.get("connected", False):
+        logger.warning("TV is not connected. Skipping power function tests.")
+        return {"error": "TV not connected"}
+    
+    # Test power_off and power_on sequence
+    try:
+        logger.info("Testing power off...")
+        power_off_result = await tv.power_off()
+        results["power_off"] = {
+            "success": power_off_result,
+            "state_after": tv.state.get("power"),
+            "last_command": tv.state.get("last_command")
+        }
+        
+        logger.info(f"Power off result: {power_off_result}")
+        
+        # Wait a moment between power operations
+        await asyncio.sleep(5)
+        
+        logger.info("Testing power on...")
+        power_on_result = await tv.power_on()
+        results["power_on"] = {
+            "success": power_on_result,
+            "state_after": tv.state.get("power"),
+            "last_command": tv.state.get("last_command")
+        }
+        
+        logger.info(f"Power on result: {power_on_result}")
+        
+        # If power on succeeded, wait for the TV to fully boot
+        if power_on_result:
+            logger.info("Waiting for TV to complete boot process...")
+            await asyncio.sleep(10)
+            
+            # Test reconnect after power cycle
+            logger.info("Testing connection after power cycle...")
+            reconnect_result = await tv.connect()
+            results["reconnect_after_power_cycle"] = {
+                "success": reconnect_result,
+                "connected": tv.state.get("connected"),
+                "error": tv.state.get("error")
+            }
+    except Exception as e:
+        logger.error(f"Error testing power functions: {str(e)}")
+        results["error"] = str(e)
+    
+    return results
+
+
+async def test_lg_tv(config_path: str) -> None:
+    """
+    Main test function for LG TV device.
+    
+    Args:
+        config_path: Path to the configuration file
+    """
+    logger = logging.getLogger("test_lg_tv")
+    
+    try:
+        logger.info(f"Loading configuration from {config_path}")
+        config = load_config(config_path)
+        
+        # Get the device name from the config
+        device_name = config.get("device_name", "Unknown TV")
+        logger.info(f"Initializing LG TV device: {device_name}")
+        
+        # Create TV instance
+        tv = LgTv(config, mqtt_client=None)
+        
+        logger.info("Setting up the device...")
+        setup_success = await tv.setup()
+        
+        logger.info("Device setup completed successfully" if setup_success else "Device setup failed")
+        
+        # Display device information
+        logger.info(f"Device ID: {tv.get_id()}")
+        logger.info(f"Device Name: {tv.get_name()}")
+        logger.info(f"Connected: {tv.state.get('connected', False)}")
+        
+        # If not connected, first test direct power-on functionality
+        if not tv.state.get("connected", False):
+            logger.info("\n--- Testing Direct Power-On (should use WoL) ---")
+            power_on_result = await test_direct_power_on(tv)
+            logger.info(f"Direct power-on test {'succeeded' if power_on_result else 'failed'}")
+            
+            # If still not connected, test natural initialization
+            if not tv.state.get("connected", False):
+                logger.warning("Device is still not connected. Testing natural initialization process...")
+                init_result = await test_natural_initialization(tv)
+                logger.info(f"Natural initialization {'succeeded' if init_result else 'failed'}")
+        
+        # Report on initialized controls
+        logger.info("--- Initialized Controls ---")
+        logger.info(f"Media Control: {'Available' if tv.media else 'Not Available'}")
+        logger.info(f"System Control: {'Available' if tv.system else 'Not Available'}")
+        logger.info(f"Application Control: {'Available' if tv.app else 'Not Available'}")
+        logger.info(f"TV Control: {'Available' if tv.tv_control else 'Not Available'}")
+        logger.info(f"Input Control: {'Available' if tv.input_control else 'Not Available'}")
+        logger.info(f"Source Control: {'Available' if tv.source_control else 'Not Available'}")
+        
+        # Display available commands
         logger.info("\n--- Available Commands ---")
         for cmd_name, cmd_config in tv.get_available_commands().items():
             logger.info(f"Command: {cmd_name}")
@@ -432,27 +328,38 @@ async def test_lg_tv(config_path: str) -> None:
                 logger.info(f"  Group: {cmd_config['group']}")
             logger.info("---")
         
-        # Clean up
+        # Test power functions if TV is connected
+        if tv.state.get("connected", False):
+            logger.info("\n--- Testing Power Functions ---")
+            power_results = await test_power_functions(tv)
+            logger.info(f"Power function tests completed: {power_results}")
+        
+        # Shutdown the device
         logger.info("Shutting down the device...")
         await tv.shutdown()
-        logger.info("Test completed")
         
     except FileNotFoundError:
         logger.error(f"Configuration file not found: {config_path}")
     except json.JSONDecodeError:
         logger.error(f"Invalid JSON in configuration file: {config_path}")
     except Exception as e:
-        logger.error(f"Error during test: {str(e)}")
+        logger.error(f"Error during testing: {str(e)}")
+    
+    logger.info("Test completed")
 
 
 def main() -> None:
-    """Parse command line arguments and run the test."""
-    parser = argparse.ArgumentParser(description="Test LG TV device functionality")
-    parser.add_argument("config_file", help="Path to the configuration file")
+    """Main entry point for the script."""
+    # Set up command line arguments
+    parser = argparse.ArgumentParser(description="Test LG TV device")
+    parser.add_argument("config", help="Path to device configuration JSON file")
     args = parser.parse_args()
     
+    # Set up logging
     setup_logging()
-    asyncio.run(test_lg_tv(args.config_file))
+    
+    # Run the test
+    asyncio.run(test_lg_tv(args.config))
 
 
 if __name__ == "__main__":
