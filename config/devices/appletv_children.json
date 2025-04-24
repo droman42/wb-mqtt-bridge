@@ -1,0 +1,20 @@
+{
+  "device_type": "apple_tv_device",
+  "alias": "appletv_children",
+  "device_id": "appletv_children",
+  "device_name": "Apple TV Children",
+  "mqtt_progress_topic": "/devices/appletv_children/controls/progress",
+  "apple_tv": {
+    "ip_address": "192.168.110.169",
+    "name": "\u0414\u0435\u0442\u0441\u043a\u0430\u044f (2939)",
+    "protocols": {
+      "Companion": {
+        "identifier": null,
+        "credentials": "c608ddb1d8af62876fc0fe7a9e6a18e370883dabe6034fe2482ba75ec75fedbc:345a0249c6d033b518edace6f3f329c16649464927596d916884041314fa1df1:34353646333637312d333836452d343737312d384535352d374130433038353938454642:66376336323062662d653733322d346461612d616164312d353034633834316461353037",
+        "data": null
+      }
+    }
+  },
+  "commands": {
+  }
+} 

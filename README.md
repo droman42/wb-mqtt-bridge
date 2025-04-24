@@ -489,4 +489,125 @@ Verify certificate:
 {
   "action": "verify_certificate"
 }
-``` 
+```
+
+# Apple TV Utility
+
+A command-line utility for discovering, pairing, and connecting to Apple TV devices.
+
+## Features
+
+- Discover Apple TVs on your network
+- Pair with Apple TVs using PIN codes
+- Store and manage credentials for multiple devices
+- Test connections to paired devices
+- List and remove stored credentials
+
+## Requirements
+
+- Python 3.7+
+- `pyatv` library
+
+## Installation
+
+1. Install the required dependencies:
+
+```bash
+pip install pyatv
+```
+
+2. Make the script executable:
+
+```bash
+chmod +x apple_tv_util.py
+```
+
+## Usage
+
+### Scan for Apple TVs
+
+To scan your entire network for Apple TV devices:
+
+```bash
+./apple_tv_util.py scan
+```
+
+To scan specific IP addresses:
+
+```bash
+./apple_tv_util.py scan --ip 192.168.1.10 192.168.1.20
+```
+
+### Pair with an Apple TV
+
+To pair with an Apple TV at a specific IP address:
+
+```bash
+./apple_tv_util.py pair --ip 192.168.1.10
+```
+
+This will initiate the pairing process. If required, you'll be prompted to enter the PIN code displayed on your Apple TV.
+
+### Test Connection
+
+To test the connection to a paired Apple TV:
+
+```bash
+./apple_tv_util.py connect --ip 192.168.1.10
+```
+
+### List Stored Credentials
+
+To list all stored credentials:
+
+```bash
+./apple_tv_util.py list
+```
+
+### Remove Stored Credentials
+
+To remove stored credentials for a specific Apple TV:
+
+```bash
+./apple_tv_util.py remove --ip 192.168.1.10
+```
+
+## Credentials Storage
+
+All credentials are stored in a JSON file (`apple_tv_credentials.json`) in the same directory as the script. This file contains the necessary credentials to connect to your paired Apple TVs.
+
+## Integration
+
+You can import the `AppleTVManager` class in your own Python code to integrate Apple TV functionality:
+
+```python
+from apple_tv_util import AppleTVManager
+import asyncio
+
+async def example():
+    manager = AppleTVManager()
+    
+    # Discover devices
+    devices = await manager.discover_devices()
+    
+    # Connect to a device
+    if devices:
+        atv = await manager.connect_to_device(devices[0].address)
+        if atv:
+            # Do something with the connected device
+            print(f"Connected to {atv.device_info.name}")
+            await atv.close()
+
+if __name__ == "__main__":
+    asyncio.run(example())
+```
+
+## Notes
+
+- The utility will automatically select the first available protocol for pairing
+- All credentials are stored locally on your system
+- Pairing requires that your Apple TV is on the same network as your computer
+
+## License
+
+This project is open source and available under the MIT License. 

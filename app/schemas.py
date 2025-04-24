@@ -23,6 +23,18 @@ class EmotivaConfig(BaseModel):
     retry_delay: Optional[float] = None
     force_connect: bool = False
 
+class AppleTVProtocolConfig(BaseModel):
+    """Schema for Apple TV protocol configuration."""
+    identifier: Optional[str] = None
+    credentials: str
+    data: Optional[Any] = None
+
+class AppleTVConfig(BaseModel):
+    """Schema for Apple TV device configuration."""
+    ip_address: str
+    name: Optional[str] = None
+    protocols: Dict[str, AppleTVProtocolConfig]
+
 class LgTvConfig(BaseModel):
     """Schema for LG WebOS TV device configuration."""
     ip_address: str
@@ -59,6 +71,7 @@ class DeviceConfig(BaseModel):
     broadlink: Optional[BroadlinkConfig] = None
     tv: Optional[LgTvConfig] = None
     emotiva: Optional[EmotivaConfig] = None
+    apple_tv: Optional[AppleTVConfig] = None
 
 class LastCommand(BaseModel):
     """Schema for last executed command."""
@@ -106,6 +119,21 @@ class ExampleDeviceState(BaseDeviceState):
     last_reading: Optional[Dict[str, Any]]
     update_interval: int
     threshold: float
+
+class AppleTVState(BaseDeviceState):
+    """Schema for Apple TV device state."""
+    connected: bool = False
+    power: str = "unknown"
+    app: Optional[str] = None
+    playback_state: Optional[str] = None
+    media_type: Optional[str] = None
+    title: Optional[str] = None
+    artist: Optional[str] = None
+    album: Optional[str] = None
+    position: Optional[int] = None
+    total_time: Optional[int] = None
+    volume: Optional[int] = None
+    ip_address: Optional[str] = None
 
 class DeviceState(BaseModel):
     """Schema for device state."""
