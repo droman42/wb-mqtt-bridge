@@ -289,7 +289,7 @@ async def test_lg_tv(config_path: str) -> None:
         setup_success = await tv.setup()
         
         logger.info("Device setup completed successfully" if setup_success else "Device setup failed")
-        
+            
         # Display device information
         logger.info(f"Device ID: {tv.get_id()}")
         logger.info(f"Device Name: {tv.get_name()}")

@@ -4,12 +4,16 @@ uvicorn>=0.23.2
 aiomqtt>=1.0.0
 pydantic>=2.3.0
 python-dotenv>=1.0.0
+broadlink>=0.18.0
 
 # Low-level libraries
 paho-mqtt>=1.6.1
 websockets>=10.0
 asyncio>=3.4.3
 pyOpenSSL>=23.2.0
+
+# Apple TV support
+git+https://github.com/postlund/pyatv.git@f75e718bc0bdaf0a3ff06eb00086f781b3f06347#egg=pyatv
 
 # The following packages are handled specially in the Dockerfile for ARM compatibility:
 #
