@@ -14,12 +14,19 @@
       "reconnect_interval": 60
     },
     "commands": {
-      "power": {
-        "action": "power",
-        "topic": "/devices/children_room_tv/controls/buttons/power",
-        "description": "Power On/Off",
+      "power_on": {
+        "action": "power_on",
+        "topic": "/devices/children_room_tv/controls/buttons/power_on",
+        "description": "Power On",
         "group": "power",
         "position": "A0"
+      },
+      "power_off": {
+        "action": "power_off",
+        "topic": "/devices/children_room_tv/controls/buttons/power_off",
+        "description": "Power Off",
+        "group": "power",
+        "position": "A1"
       },
       "home": {
         "action": "home",
@@ -90,20 +97,6 @@
         "description": "Mute",
         "group": "volume",
         "position": "A3"
-      },
-      "channel_up": {
-        "action": "channel_up",
-        "topic": "/devices/children_room_tv/controls/buttons/channel_up",
-        "description": "Channel Up",
-        "group": "channel",
-        "position": "F0"
-      },
-      "channel_down": {
-        "action": "channel_down",
-        "topic": "/devices/children_room_tv/controls/buttons/channel_down",
-        "description": "Channel Down",
-        "group": "channel",
-        "position": "F1"
       },
       "play": {
         "action": "play",
@@ -176,6 +169,27 @@
         "description": "Settings Button",
         "group": "menu",
         "position": "D3"
+      },
+      "hdmi1": {
+        "action": "hdmi1",
+        "topic": "/devices/children_room_tv/controls/buttons/hdmi1",
+        "description": "HDMI 1",
+        "group": "inputs",
+        "position": "H0"
+      },
+      "hdmi2": {
+        "action": "hdmi2",
+        "topic": "/devices/children_room_tv/controls/buttons/hdmi2",
+        "description": "HDMI 2",
+        "group": "inputs",
+        "position": "H1"
+      },
+      "hdmi3": {
+        "action": "hdmi3",
+        "topic": "/devices/children_room_tv/controls/buttons/hdmi3",
+        "description": "HDMI 3",
+        "group": "inputs",
+        "position": "H2"
       }
     }
   } 

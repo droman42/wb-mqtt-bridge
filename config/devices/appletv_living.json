@@ -1,0 +1,20 @@
+{
+  "device_type": "apple_tv_device",
+  "alias": "appletv_living",
+  "device_id": "appletv_living",
+  "device_name": "Apple TV Living Room",
+  "mqtt_progress_topic": "/devices/appletv_living/controls/progress",
+  "apple_tv": {
+    "ip_address": "192.168.110.196",
+    "name": "\u0413\u043e\u0441\u0442\u0438\u043d\u0430\u044f (2)",
+    "protocols": {
+      "Companion": {
+        "identifier": null,
+        "credentials": "2b8e6bc2b51acf95f4e23791d39cead21777be3812610d2d4cc4d69a21918a6e:e5d2c2332a578ed6ffef664e9e2a65ac3f0eb4850238618216077716c86ef20d:32324431463434452d424130312d343443332d413645302d453638413141373638383441:61356332343736342d343465652d343239662d613437612d623639333839643939633464",
+        "data": null
+      }
+    }
+  },
+  "commands": {
+  }
+} 

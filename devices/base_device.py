@@ -170,6 +170,7 @@ class BaseDevice(ABC):
         # Find matching command configuration
         matching_commands = []
         for cmd_name, cmd_config in self.get_available_commands().items():
+            # Ensure topic exists and matches
             if cmd_config.get("topic") == topic:
                 matching_commands.append((cmd_name, cmd_config))
         
@@ -177,43 +178,59 @@ class BaseDevice(ABC):
             logger.warning(f"No command configuration found for topic: {topic}")
             return
         
-        # Process each matching command
+        # Process each matching command configuration found for the topic
         for cmd_name, cmd_config in matching_commands:
-            # Check if there are multiple actions defined
+            # Check if there are multiple specific actions defined under this command config
             actions = cmd_config.get("actions", [])
-            if not actions:
-                # Backward compatibility: single action
-                if payload.lower() in ["1", "true"]:
-                    await self._execute_single_action(cmd_name, cmd_config)
-            else:
-                # Process multiple actions
+            if actions:
+                # Process multiple actions, checking conditions against payload
+                processed_action = False
                 for action in actions:
                     condition = action.get("condition")
+                    # If condition exists and evaluates to true based on payload
                     if condition and self._evaluate_condition(condition, payload):
-                        await self._execute_single_action(action["name"], action)
+                        logger.debug(f"Condition '{condition}' met for action '{action.get('name')}' with payload '{payload}'")
+                        await self._execute_single_action(action["name"], action, payload)
+                        processed_action = True
+                        # Decide if we should break after first match or allow multiple? Assuming first match for now.
+                        break 
+                if not processed_action:
+                     logger.debug(f"No condition met for configured actions on topic {topic} with payload '{payload}'")
+            else:
+                # No specific actions array, treat the command config itself as the action
+                # The base class previously checked payload == "1" or "true" here,
+                # but we now pass the raw payload to the handler for more flexibility.
+                logger.debug(f"Executing single action '{cmd_name}' based on topic match.")
+                await self._execute_single_action(cmd_name, cmd_config, payload)
     
-    async def _execute_single_action(self, action_name: str, action_config: Dict[str, Any]):
-        """Execute a single action based on its configuration."""
+    async def _execute_single_action(self, action_name: str, action_config: Dict[str, Any], payload: str):
+        """Execute a single action based on its configuration, passing the payload."""
         try:
-            # Get the action handler
+            # Get the action handler method from the instance
             handler = self._get_action_handler(action_name)
-            logger.debug(f"Executing action: {action_name} with handler: {handler}")
-            if handler:
-                result = await handler(action_config)
-                
-                # Update state
-                self.update_state({
-                    "last_command": LastCommand(
-                        action=action_name,
-                        source="mqtt",
-                        timestamp=datetime.now(),
-                        params=action_config.get("params"),
-                        position=action_config.get("position")
-                    ).dict()
-                })
-                
-                # Return any result from the handler
-                return result
+            if not handler:
+                 logger.warning(f"No action handler found for action: {action_name} in device {self.get_name()}")
+                 return None
+
+            logger.debug(f"Executing action: {action_name} with handler: {handler} and config: {action_config}")
+            
+            # Call the handler, passing both the config dict for this action and the raw payload
+            # Handlers need to be defined like: async def my_handler(self, action_config: Dict[str, Any], payload: str)
+            result = await handler(action_config=action_config, payload=payload)
+            
+            # Update state with information about the last command executed
+            self.update_state({
+                "last_command": LastCommand(
+                    action=action_name,
+                    source="mqtt",
+                    timestamp=datetime.now(),
+                    params=action_config.get("params"),
+                    position=action_config.get("position")
+                ).dict()
+            })
+            
+            # Return any result from the handler
+            return result
                 
         except Exception as e:
             logger.error(f"Error executing action {action_name}: {str(e)}")
@@ -270,7 +287,7 @@ class BaseDevice(ABC):
                 raise ValueError(f"Action {action} not found in device configuration")
             
             # Execute the action
-            result = await self._execute_single_action(action, cmd_config)
+            result = await self._execute_single_action(action, cmd_config, "")
             
             response = {
                 "success": True,
