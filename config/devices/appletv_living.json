@@ -16,5 +16,120 @@
     }
   },
   "commands": {
+    "power_on": {
+      "action": "power_on",
+      "topic": "/devices/appletv_children/controls/power_on",
+      "description": "Power On",
+      "group": "power"
+    },
+    "power_off": {
+      "action": "power_off",
+      "topic": "/devices/appletv_children/controls/power_off",
+      "description": "Power Off",
+      "group": "power"
+    },
+    "play": {
+      "action": "play",
+      "topic": "/devices/appletv_children/controls/play",
+      "description": "Play",
+      "group": "playback"
+    },
+    "pause": {
+      "action": "pause",
+      "topic": "/devices/appletv_children/controls/pause",
+      "description": "Pause",
+      "group": "playback"
+    },
+    "stop": {
+      "action": "stop",
+      "topic": "/devices/appletv_children/controls/stop",
+      "description": "Stop",
+      "group": "playback"
+    },
+    "next": {
+      "action": "next",
+      "topic": "/devices/appletv_children/controls/next",
+      "description": "Next Track",
+      "group": "playback"
+    },
+    "previous": {
+      "action": "previous",
+      "topic": "/devices/appletv_children/controls/previous",
+      "description": "Previous Track",
+      "group": "playback"
+    },
+    "volume_up": {
+      "action": "volume_up",
+      "topic": "/devices/appletv_children/controls/volume_up",
+      "description": "Volume Up",
+      "group": "volume"
+    },
+    "volume_down": {
+      "action": "volume_down",
+      "topic": "/devices/appletv_children/controls/volume_down",
+      "description": "Volume Down",
+      "group": "volume"
+    },
+    "set_volume": {
+      "action": "set_volume",
+      "topic": "/devices/appletv_children/controls/set_volume",
+      "description": "Set Volume (Payload: 0-100)",
+      "group": "volume"
+    },
+    "youtube": {
+      "action": "launch_app",
+      "topic": "/devices/appletv_children/controls/youtube",
+      "description": "Launch YouTube",
+      "appname": "YouTube",
+      "group": "apps"
+    },
+    "refresh_status": {
+      "action": "refresh_status",
+      "topic": "/devices/appletv_children/controls/refresh",
+      "description": "Refresh Status",
+      "group": "power"
+    },
+    "menu": {
+      "action": "menu",
+      "topic": "/devices/appletv_children/controls/menu",
+      "description": "Remote: Menu",
+      "group": "menu"
+    },
+    "home": {
+      "action": "home",
+      "topic": "/devices/appletv_children/controls/home",
+      "description": "Remote: Home",
+      "group": "menu"
+    },
+    "select": {
+      "action": "select",
+      "topic": "/devices/appletv_children/controls/select",
+      "description": "Remote: Select/OK",
+      "group": "menu"
+    },
+    "up": {
+      "action": "up",
+      "topic": "/devices/appletv_children/controls/up",
+      "description": "Remote: Up",
+      "group": "menu"
+    },
+    "down": {
+      "action": "down",
+      "topic": "/devices/appletv_children/controls/down",
+      "description": "Remote: Down",
+      "group": "menu"
+    },
+    "left": {
+      "action": "left",
+      "topic": "/devices/appletv_children/controls/left",
+      "description": "Remote: Left",
+      "group": "menu"
+    },
+    "right": {
+      "action": "right",
+      "topic": "/devices/appletv_children/controls/right",
+      "description": "Remote: Right",
+      "group": "menu"
+    }
   }
 } 

@@ -34,6 +34,8 @@ class LgTv(BaseDevice):
         super().__init__(config, mqtt_client)
         self._state_schema = LgTvState
         self.state = {
+            "device_id": self.device_id,
+            "device_name": self.device_name,
             "power": "unknown",
             "volume": 0,
             "mute": False,
@@ -53,6 +55,62 @@ class LgTv(BaseDevice):
         self.source_control = None
         self.client_key = None
         self.tv_config = None
+        
+        # Register action handlers
+        self._register_lg_tv_action_handlers()
+        
+        # DEBUG: Look for handler methods in the class
+        handler_methods = [m for m in dir(self) if m.startswith("handle_") and callable(getattr(self, m))]
+        logger.debug(f"Found handler methods in {self.device_name}: {handler_methods}")
+        logger.debug(f"Action handlers dictionary: {self._action_handlers}")
+        
+        # DEBUG: Check specific handlers
+        has_power_on = hasattr(self, "handle_power_on") and callable(getattr(self, "handle_power_on"))
+        logger.debug(f"Has handle_power_on method: {has_power_on}")
+    
+    def _register_lg_tv_action_handlers(self):
+        """Register all action handlers for the LG TV."""
+        # Register handlers for media control actions
+        self._action_handlers.update({
+            'power_on': self.handle_power_on,
+            'power_off': self.handle_power_off,
+            'home': self.handle_home,
+            'back': self.handle_back,
+            'up': self.handle_up,
+            'down': self.handle_down,
+            'left': self.handle_left,
+            'right': self.handle_right,
+            'enter': self.handle_enter,
+            'exit': self.handle_exit,
+            'menu': self.handle_menu,
+            'settings': self.handle_settings,
+            'volume_up': self.handle_volume_up,
+            'volume_down': self.handle_volume_down,
+            'set_volume': self.handle_set_volume,
+            'mute': self.handle_mute,
+            'play': self.handle_play,
+            'pause': self.handle_pause,
+            'stop': self.handle_stop,
+            'rewind_forward': self.handle_rewind_forward,
+            'rewind_backward': self.handle_rewind_backward,
+            
+            # Pointer control
+            'move_cursor': self.handle_move_cursor,
+            'move_cursor_relative': self.handle_move_cursor_relative,
+            'click': self.handle_click,
+            
+            # Input sources
+            'hdmi1': self.handle_hdmi1,
+            'hdmi2': self.handle_hdmi2,
+            'hdmi3': self.handle_hdmi3,
+            
+            # Apps
+            'kinopoisk': self.handle_kinopoisk,
+            'ivi': self.handle_ivi,
+            
+            # Network
+            'wake_on_lan': self.handle_wake_on_lan,
+        })
     
     def _create_ssl_context(self, cert_file: Optional[str] = None, verify_ssl: bool = False) -> Optional[ssl.SSLContext]:
         """Create an SSL context for WebOS TV connections.
@@ -591,7 +649,12 @@ class LgTv(BaseDevice):
                     
                     if result.get("success", False):
                         self.state["power"] = "on"
-                        self.state["last_command"] = "power_on"
+                        self.state["last_command"] = LastCommand(
+                            action="power_on",
+                            source="api",
+                            timestamp=datetime.now(),
+                            params={"method": "webos_api"}
+                        ).dict()
                         success = True
                         logger.info("Power on via WebOS API successful")
                 except Exception as e:
@@ -610,12 +673,22 @@ class LgTv(BaseDevice):
                 # Connect to re-initialize all control interfaces
                 await self.connect()
             else:
-                self.state["last_command"] = "power_on_failed"
+                self.state["last_command"] = LastCommand(
+                    action="power_on",
+                    source="api",
+                    timestamp=datetime.now(),
+                    params={"status": "failed"}
+                ).dict()
                 
             return success
         except Exception as e:
             logger.error(f"Error powering on TV: {str(e)}")
-            self.state["last_command"] = "power_on_error"
+            self.state["last_command"] = LastCommand(
+                action="power_on",
+                source="api",
+                timestamp=datetime.now(),
+                params={"error": str(e)}
+            ).dict()
             return False
             
     async def _power_on_with_wol(self) -> bool:
@@ -640,7 +713,15 @@ class LgTv(BaseDevice):
             # We can't be certain the TV will power on, but we've done our part
             # Assume it worked for state tracking purposes
             self.state["power"] = "on"
-            self.state["last_command"] = "power_on_wol"
+            
+            # Use LastCommand object instead of string
+            self.state["last_command"] = LastCommand(
+                action="power_on",
+                source="wol",
+                timestamp=datetime.now(),
+                params={"method": "wol", "mac_address": mac_address}
+            ).dict()
+            
             return True
         else:
             logger.error("Failed to send Wake-on-LAN packet")
@@ -665,17 +746,40 @@ class LgTv(BaseDevice):
                 
                 if result.get("success", False):
                     self.state["power"] = "off"
-                    self.state["last_command"] = "power_off"
+                    self.state["last_command"] = LastCommand(
+                        action="power_off",
+                        source="api",
+                        timestamp=datetime.now()
+                    ).dict()
                     return True
                 else:
                     logger.warning(f"Power off failed: {result.get('error', 'Unknown error')}")
+                    error_msg = result.get('error', 'Unknown error')
+                    self.state["last_command"] = LastCommand(
+                        action="power_off",
+                        source="api",
+                        timestamp=datetime.now(),
+                        params={"error": error_msg}
+                    ).dict()
                     return False
             else:
                 logger.error("Cannot power off: Not connected to TV")
+                self.state["last_command"] = LastCommand(
+                    action="power_off",
+                    source="api",
+                    timestamp=datetime.now(),
+                    params={"error": "Not connected to TV"}
+                ).dict()
                 return False
                 
         except Exception as e:
             logger.error(f"Error powering off TV: {str(e)}")
+            self.state["last_command"] = LastCommand(
+                action="power_off",
+                source="api",
+                timestamp=datetime.now(),
+                params={"error": str(e)}
+            ).dict()
             return False
     
     async def handle_mute(self, action_config: Dict[str, Any]):
@@ -804,7 +908,15 @@ class LgTv(BaseDevice):
         success_status: bool = False
         message: str = f"Action '{action}' initiated." # Default message
 
+        # DEBUG: Log available handlers and the action being looked up
+        logger.debug(f"Looking for handler for action: '{action}'")
+        logger.debug(f"Available handlers: {list(self._action_handlers.keys())}")
+        logger.debug(f"Handler method exists: {'handle_' + action in dir(self)}")
+
         handler = self._get_action_handler(action)
+
+        # DEBUG: Log handler result
+        logger.debug(f"Handler lookup result: {handler}")
 
         if not handler:
             error_message = f"Unknown action: {action}"
@@ -912,15 +1024,12 @@ class LgTv(BaseDevice):
 
     # Action handlers for base class handle_message to use
 
-    async def handle_power_on(self, action_config: Dict[str, Any]):
+    async def handle_power_on(self, params: Dict[str, Any] = None, **kwargs):
         """Handle power on action."""
+        # Backward compatibility - params can come either as a named parameter or as kwargs['action_config']
+        action_config = kwargs.get('action_config', params or {})
         result = await self.power_on()
         return result
-        
-    async def handle_power_off(self, action_config: Dict[str, Any]):
-        """Handle power off action."""
-        result = await self.power_off()
-        return result 
         
     async def handle_home(self, action_config: Dict[str, Any]):
         """Handle home button action.
@@ -1232,7 +1341,12 @@ class LgTv(BaseDevice):
             mac_address = self.state.get("mac_address")
             if not mac_address:
                 logger.error("Cannot use Wake-on-LAN: No MAC address configured for TV")
-                self.state["last_command"] = "wol_failed_no_mac"
+                self.state["last_command"] = LastCommand(
+                    action="wake_on_lan",
+                    source="api",
+                    timestamp=datetime.now(),
+                    params={"error": "No MAC address configured"}
+                ).dict()
                 return False
                 
             logger.info(f"Sending Wake-on-LAN packet to TV {self.get_name()} (MAC: {mac_address})")
@@ -1242,19 +1356,34 @@ class LgTv(BaseDevice):
             
             if wol_success:
                 logger.info("Wake-on-LAN packet sent successfully")
-                self.state["last_command"] = "wake_on_lan"
+                self.state["last_command"] = LastCommand(
+                    action="wake_on_lan",
+                    source="api",
+                    timestamp=datetime.now(),
+                    params={"mac_address": mac_address}
+                ).dict()
                 # We can't know for sure if the TV will turn on,
                 # but update the expected state for consistency
                 self.state["power"] = "on"
                 return True
             else:
                 logger.error("Failed to send Wake-on-LAN packet")
-                self.state["last_command"] = "wol_failed"
+                self.state["last_command"] = LastCommand(
+                    action="wake_on_lan",
+                    source="api",
+                    timestamp=datetime.now(),
+                    params={"error": "Failed to send packet"}
+                ).dict()
                 return False
                 
         except Exception as e:
             logger.error(f"Error sending Wake-on-LAN packet: {str(e)}")
-            self.state["last_command"] = "wol_error"
+            self.state["last_command"] = LastCommand(
+                action="wake_on_lan",
+                source="api",
+                timestamp=datetime.now(),
+                params={"error": str(e)}
+            ).dict()
             return False
 
     async def handle_wake_on_lan(self, action_config: Dict[str, Any]):
@@ -1759,5 +1888,12 @@ class LgTv(BaseDevice):
         except Exception as e:
             logger.error(f"Error executing pointer action {action_name}: {str(e)}")
             return False
+
+    async def handle_power_off(self, params: Dict[str, Any] = None, **kwargs):
+        """Handle power off action."""
+        # Backward compatibility - params can come either as a named parameter or as kwargs['action_config'] 
+        action_config = kwargs.get('action_config', params or {})
+        result = await self.power_off()
+        return result
 
     

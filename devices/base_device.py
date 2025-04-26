@@ -241,23 +241,42 @@ class BaseDevice(ABC):
         # Convert to lower case for case-insensitive lookup
         action = action.lower()
         
+        # DEBUG: Log handler lookup attempt
+        logger.debug(f"[{self.device_name}] Looking up handler for action: '{action}'")
+        logger.debug(f"[{self.device_name}] Available handlers: {list(self._action_handlers.keys())}")
+        
         # Check if we have a handler for this action
         handler = self._action_handlers.get(action)
         if handler:
+            logger.debug(f"[{self.device_name}] Found direct handler for '{action}'")
             return handler
             
         # If not found, check if maybe it's in camelCase and we have a handler for snake_case
         if '_' not in action:
             # Convert camelCase to snake_case and try again
             snake_case = ''.join(['_' + c.lower() if c.isupper() else c for c in action]).lstrip('_')
+            logger.debug(f"[{self.device_name}] Trying snake_case variant: '{snake_case}'")
             handler = self._action_handlers.get(snake_case)
             if handler:
+                logger.debug(f"[{self.device_name}] Found handler for snake_case variant '{snake_case}'")
                 return handler
+        
+        # DEBUG: Check if we have a method named handle_X directly
+        method_name = f"handle_{action}"
+        if hasattr(self, method_name) and callable(getattr(self, method_name)):
+            logger.debug(f"[{self.device_name}] Found method {method_name} but it's not in _action_handlers")
                 
+        logger.debug(f"[{self.device_name}] No handler found for action '{action}'")
         return None
     
     def get_current_state(self) -> Dict[str, Any]:
         """Get the current state of the device."""
+        # Ensure device_id and device_name are always in the state
+        if "device_id" not in self.state:
+            self.state["device_id"] = self.device_id
+        if "device_name" not in self.state:
+            self.state["device_name"] = self.device_name
+            
         if self._state_schema:
             # Return validated state dict
             return self._state_schema(**self.state).dict()
@@ -265,6 +284,13 @@ class BaseDevice(ABC):
     
     def update_state(self, updates: Dict[str, Any]):
         """Update the device state."""
+        # Always ensure device_id and device_name are in the state
+        if "device_id" not in self.state:
+            self.state["device_id"] = self.device_id
+        if "device_name" not in self.state:
+            self.state["device_name"] = self.device_name
+            
+        # Update with the new values
         self.state.update(updates)
         logger.debug(f"Updated state for {self.device_name}: {updates}")
     

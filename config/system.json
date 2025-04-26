@@ -72,6 +72,14 @@
     "processor": {
       "class": "EMotivaXMC2",
       "config_file": "emotiva_xmc2.json"
+    },
+    "appletv_living": {
+      "class": "AppleTVDevice",
+      "config_file": "appletv_living.json"
+    },
+    "appletv_children": {
+      "class": "AppleTVDevice",
+      "config_file": "appletv_children.json"
     }
   }
 } 

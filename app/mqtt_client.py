@@ -148,7 +148,7 @@ class MQTTClient:
                                         # Publish the command
                                         publish_topic = mqtt_command["topic"]
                                         publish_payload = mqtt_command["payload"]
-                                        logger.info(f"Publishing message - Topic: {publish_topic}, Payload: {publish_payload}, Type: {type(publish_payload)}")
+                                        logger.info(f"Publishing message - Topic: {publish_topic}, Payload: {publish_payload}, Type: {type(publish_payload).__name__}")
                                         
                                         # Try to convert numeric strings to integers for certain device types
                                         if device_name.startswith("wirenboard_") and isinstance(publish_payload, str) and publish_payload.isdigit():

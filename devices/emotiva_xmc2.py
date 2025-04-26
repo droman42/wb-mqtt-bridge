@@ -209,10 +209,17 @@ class EMotivaXMC2(BaseDevice):
                             logger.warning(f"Error stopping notification listener for {self.get_name()}: {str(e)}")
                             all_cleanup_successful = False
                     
+                    # Save reference to notifier for cleanup right before we release the client
+                    notifier = self.client._notifier
+                    
+                    # Remove the notifier reference from client to prevent __del__ cleanup issue
+                    # This prevents the RuntimeWarning about coroutine never being awaited
+                    self.client._notifier = None
+                    
                     # As a fallback, try the generic cleanup method
                     try:
                         await asyncio.wait_for(
-                            self.client._notifier.cleanup(),
+                            notifier.cleanup(),
                             timeout=1.0
                         )
                         logger.info(f"Completed notification listener cleanup for {self.get_name()}")

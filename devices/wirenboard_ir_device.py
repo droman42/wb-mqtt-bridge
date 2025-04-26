@@ -18,6 +18,9 @@ class WirenboardIRDevice(BaseDevice):
             "last_command": None,
             "alias": self.config.get("alias", self.device_name)
         }
+        
+        # Pre-initialize handlers for all commands
+        self._initialize_action_handlers()
     
     async def setup(self) -> bool:
         """Initialize the device."""
@@ -46,15 +49,18 @@ class WirenboardIRDevice(BaseDevice):
             logger.error(f"Error during device shutdown: {str(e)}")
             return False
     
-    def get_current_state(self) -> WirenboardIRState:
+    def get_current_state(self) -> Dict[str, Any]:
         """Return the current state of the device."""
-        return WirenboardIRState(
+        # Create a Pydantic model instance and convert to dictionary
+        state = WirenboardIRState(
             device_id=self.device_id,
             device_name=self.device_name,
             alias=self.state.get("alias", self.device_name),
             last_command=self.state.get("last_command"),
             error=self.state.get("error")
         )
+        # Return dictionary representation for API compatibility
+        return state.dict()
     
     def subscribe_topics(self) -> List[str]:
         """Define the MQTT topics this device should subscribe to."""
@@ -137,61 +143,80 @@ class WirenboardIRDevice(BaseDevice):
         """Return information about the last executed command."""
         return self.state.get("last_command") 
     
-    def _get_action_handler(self, action_name: str) -> Callable[..., Awaitable[Dict[str, Any]]]:
-        """Get or create a handler for the specified action."""
-        if action_name not in self._action_handlers:
-            # Check if we have a command configured for this action
-            action_config = self.config.get('actions', {}).get(action_name)
-            if not action_config:
-                logger.warning(f"No configuration found for action: {action_name}")
-                return lambda _: {}  # Return a no-op handler
+    def _initialize_action_handlers(self):
+        """Initialize handlers for all configured commands in the 'commands' section."""
+        commands_config = self.config.get('commands', {})
+        
+        for cmd_name, cmd_config in commands_config.items():
+            action_name = cmd_name.lower()  # Use lowercase for case-insensitivity
+            # Create the handler and store it
+            self._action_handlers[action_name] = self._create_generic_handler(action_name, cmd_config)
+            logger.debug(f"Registered handler for command: {action_name}")
+
+    def _create_generic_handler(self, action_name: str, cmd_config: Dict[str, Any]):
+        """Create a generic handler function for the given command."""
+        async def generic_handler(action_config=None, payload=None, **kwargs):
+            # Handle both calling conventions
+            # Since we're using the cmd_config from initialization, we only need to handle
+            # additional parameters from action_config if provided
             
-            # Create a generic handler for this action
-            async def generic_handler(action_config):
-                # Get MQTT command details from the action configuration
-                command_config = self.config.get('commands', {}).get(action_config.get('command'))
-                if not command_config:
-                    logger.error(f"No command configuration found for action: {action_name}")
-                    return {"success": False, "message": f"No command config for action: {action_name}"}
-                
-                # Build the MQTT message
-                command_topic = self._get_command_topic(command_config)
-                command_payload = command_config.get('payload', '')
-                
-                logger.info(f"Executing IR command for action {action_name}: {command_topic} = {command_payload}")
-                
-                # Create MQTT command to send via the handle_message method
-                mqtt_command = {
-                    "topic": command_topic,
-                    "payload": command_payload
-                }
-                
-                # Record this as the last command sent
-                self.state["last_command"] = {
-                    "action": action_name,
-                    "command": command_config.get('name', 'unknown'),
-                    "topic": command_topic,
-                    "payload": command_payload,
-                    "timestamp": datetime.now().isoformat()
-                }
-                
-                # Send the command to the IR transmitter via MQTT
-                if self.mqtt_client:
-                    success = await self.mqtt_client.publish(command_topic, command_payload)
-                    if success:
-                        logger.info(f"Successfully sent IR command for action {action_name}")
-                        return {"success": True, "message": f"Successfully sent IR command: {action_name}"}
-                    else:
-                        logger.error(f"Failed to send IR command for action {action_name}")
-                        return {"success": False, "message": f"Failed to send IR command: {action_name}"}
+            # Build the MQTT message from the command config
+            command_topic = self._get_command_topic(cmd_config)
+            command_payload = cmd_config.get('payload', 1)  # Default to numeric 1 if not specified
+            
+            logger.info(f"Executing IR command for action {action_name}: {command_topic} = {command_payload}")
+            
+            # Create MQTT command to send via the handle_message method
+            mqtt_command = {
+                "topic": command_topic,
+                "payload": command_payload
+            }
+            
+            # Record this as the last command sent
+            self.state["last_command"] = {
+                "action": action_name,
+                "command": cmd_config.get('name', 'unknown'),
+                "topic": command_topic,
+                "payload": command_payload,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            # Send the command to the IR transmitter via MQTT
+            if self.mqtt_client:
+                success = await self.mqtt_client.publish(command_topic, command_payload)
+                if success:
+                    logger.info(f"Successfully sent IR command for action {action_name}")
+                    return {"success": True, "message": f"Successfully sent IR command: {action_name}"}
                 else:
-                    logger.warning(f"No MQTT client available to send IR command for action {action_name}")
-                    logger.warning(f"No valid MQTT command returned from handle_message for {action_name}")
-                
-                return {}
-                
-            # Cache the handler
-            self._action_handlers[action_name] = generic_handler
+                    logger.error(f"Failed to send IR command for action {action_name}")
+                    return {"success": False, "message": f"Failed to send IR command: {action_name}"}
+            else:
+                logger.warning(f"No MQTT client available to send IR command for action {action_name}")
+                logger.warning(f"No valid MQTT command returned from handle_message for {action_name}")
             
-        return self._action_handlers[action_name] 
+            return {}
+        
+        return generic_handler
+
+    def _get_action_handler(self, action_name: str) -> Optional[Callable[..., Any]]:
+        """Get the handler for the specified action from pre-initialized handlers."""
+        # Convert to lower case for case-insensitive lookup
+        action_name = action_name.lower()
+        
+        # Look up the handler directly from the pre-initialized dictionary
+        handler = self._action_handlers.get(action_name)
+        if handler:
+            return handler
+        
+        # If not found, check if maybe it's in camelCase and we have a handler for snake_case
+        if '_' not in action_name:
+            # Convert camelCase to snake_case and try again
+            snake_case = ''.join(['_' + c.lower() if c.isupper() else c for c in action_name]).lstrip('_')
+            handler = self._action_handlers.get(snake_case)
+            if handler:
+                return handler
+        
+        # No handler found
+        logger.warning(f"No action handler found for action: {action_name}")
+        return None
     

@@ -99,7 +99,7 @@ class BroadlinkKitchenHood(BaseDevice):
         logger.debug(f"Device {self.get_name()} subscribing to topics: {topics}")
         return topics
     
-    async def handle_light_on(self, action_config: Dict[str, Any]):
+    async def handle_light_on(self, action_config: Dict[str, Any], payload: str):
         """Handle light on action."""
         rf_code = action_config.get("rf_code")
         if not rf_code:
@@ -111,7 +111,7 @@ class BroadlinkKitchenHood(BaseDevice):
             self.update_state({"light": "on"})
             await self.publish_progress("Light turned on")
 
-    async def handle_light_off(self, action_config: Dict[str, Any]):
+    async def handle_light_off(self, action_config: Dict[str, Any], payload: str):
         """Handle light off action."""
         rf_code = action_config.get("rf_code")
         if not rf_code:
@@ -123,7 +123,7 @@ class BroadlinkKitchenHood(BaseDevice):
             self.update_state({"light": "off"})
             await self.publish_progress("Light turned off")
 
-    async def handle_speed_change(self, action_config: Dict[str, Any]):
+    async def handle_speed_change(self, action_config: Dict[str, Any], payload: str):
         """Handle hood speed change action."""
         speed = action_config.get("speed")
         if speed is None:
@@ -138,7 +138,7 @@ class BroadlinkKitchenHood(BaseDevice):
         if await self._send_rf_code(rf_code):
             self.update_state({"speed": speed})
 
-    async def handle_hood_off(self, action_config: Dict[str, Any]):
+    async def handle_hood_off(self, action_config: Dict[str, Any], payload: str):
         """Handle hood off action."""
         rf_code = action_config.get("rf_code")
         if not rf_code:

@@ -212,7 +212,9 @@ class AppleTVDevice(BaseDevice):
         try:
             logger.info(f"[{self.device_id}] Connecting to {self.atv_config.name} at {self.apple_tv_config.ip_address}...")
             self.atv = await connect(self.atv_config, loop=self.loop)
-            logger.info(f"[{self.device_id}] Successfully connected to {self.atv.device_info.name}")
+            # The device_info structure has changed, use a safer approach for the name
+            device_name = getattr(self.atv_config, 'name', 'Unknown')
+            logger.info(f"[{self.device_id}] Successfully connected to {device_name}")
             
             self.state["connected"] = True
             self.state["ip_address"] = self.atv_config.address # Update IP just in case
@@ -310,7 +312,7 @@ class AppleTVDevice(BaseDevice):
         logger.info(f"[{self.device_id}] Refreshing status...")
         try:
             # Power State (more reliable than just checking connection)
-            power_info = await self.atv.power.power_state()
+            power_info = self.atv.power.power_state
             self.state["power"] = power_info.name.lower() # Should be 'on' or 'off'
             
             # If power is off, no point checking media etc.

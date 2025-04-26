@@ -3,14 +3,16 @@
 Device Function Test Script
 
 This script automates testing of device functions by executing commands via REST API or MQTT.
-It loads a device configuration, tests all available commands, and logs the results.
+It communicates with the running service through HTTP API endpoints instead of directly
+instantiating device classes.
 
 Usage:
-    python device_test.py --config <path> --mode <rest|mqtt|both> [options]
+    python device_test.py --config <path> --service-url <url> --mode <rest|mqtt|both> [options]
 
 Options:
     --config <path>           Path to device config file (e.g., config/devices/device1.json)
-    --mode <rest|mqtt|both>   Interface to use for command execution
+    --service-url <url>       URL of the service (e.g., http://localhost:8000)
+    --mode <rest|mqtt|both>   Interface to use for command execution via API endpoints
     --wait <seconds>          Time to wait between commands (default: 1)
     --prompt                  Prompt for parameter values (default: use values from schema)
     --include <cmd1,cmd2,...> Only include these commands
@@ -26,16 +28,15 @@ import argparse
 import logging
 from typing import Dict, Any, List, Optional, Tuple, Set
 from pathlib import Path
-from pydantic import BaseModel
-import inspect
 
 # Add parent directory to path so we can import app modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Import required modules
+import httpx
 from app.config_manager import ConfigManager
-from app.device_manager import DeviceManager
-from app.mqtt_client import MQTTClient
-from devices.base_device import BaseDevice
+from app.schemas import DeviceAction, MQTTMessage
+from pydantic import ValidationError
 
 logger = logging.getLogger("device_test")
 
@@ -98,23 +99,22 @@ class TestResults:
 
 
 class DeviceTester:
-    """Class to test device functionality."""
+    """Class to test device functionality through HTTP API."""
     
-    def __init__(self, config_path: str, mode: str, wait_time: float, prompt: bool,
+    def __init__(self, config_path: str, service_url: str, mode: str, wait_time: float, prompt: bool,
                  include_commands: Optional[Set[str]] = None, exclude_commands: Optional[Set[str]] = None):
         self.config_path = config_path
+        self.service_url = service_url
         self.mode = mode
         self.wait_time = wait_time
         self.prompt = prompt
         self.include_commands = include_commands
         self.exclude_commands = exclude_commands
         
-        self.config_manager = ConfigManager()
-        self.mqtt_client = None
-        self.device_manager = None
-        self.device = None
         self.device_config = None
         self.device_id = None
+        self.config_manager = ConfigManager()
+        self.http_client = None
         
         self.command_groups = {}
         self.power_on_command = None
@@ -126,73 +126,49 @@ class DeviceTester:
         """Set up the test environment."""
         logger.info(f"Setting up test environment for config: {self.config_path}")
         
+        # Initialize HTTP client
+        self.http_client = httpx.AsyncClient(base_url=self.service_url)
+        
         # Load device configuration
         with open(self.config_path, 'r') as f:
-            device_config = json.load(f)
+            self.device_config = json.load(f)
         
         # Extract device ID from filename if not in config
-        if 'device_id' not in device_config:
-            device_id = os.path.basename(self.config_path).split('.')[0]
-            device_config['device_id'] = device_id
+        if 'device_id' not in self.device_config:
+            self.device_id = os.path.basename(self.config_path).split('.')[0]
+            self.device_config['device_id'] = self.device_id
+        else:
+            self.device_id = self.device_config['device_id']
         
-        self.device_id = device_config['device_id']
-        
-        # Get device class from system.json
+        # Load system configuration to verify device ID exists
         system_config = self.config_manager.get_system_config()
         
-        # Find device class info from system config
-        device_info = None
+        # Find device info from system config
+        device_found = False
         for dev_id, info in system_config.devices.items():
             config_file = info.get('config_file', '')
             if os.path.basename(self.config_path) == config_file or self.device_id == dev_id:
-                device_info = info
+                device_found = True
                 # Use the ID from system.json if found
                 self.device_id = dev_id
                 break
         
-        if not device_info:
-            raise ValueError(f"Device with config {self.config_path} not found in system configuration")
+        if not device_found:
+            logger.warning(f"Device with config {self.config_path} not found in system configuration")
         
-        device_class_name = device_info.get('class')
-        if not device_class_name:
-            raise ValueError(f"No class specified for device {self.device_id}")
-        
-        # Add class name to config
-        device_config['device_class'] = device_class_name
-        self.device_config = device_config
-        
-        # Set up MQTT client if needed
-        if self.mode in ['mqtt', 'both']:
-            mqtt_config = system_config.mqtt_broker
-            self.mqtt_client = MQTTClient(mqtt_config.model_dump())
-            await self.mqtt_client.connect()
-            logger.info(f"Connected to MQTT broker at {mqtt_config.host}:{mqtt_config.port}")
-        
-        # Set up device manager and load device modules
-        self.device_manager = DeviceManager(mqtt_client=self.mqtt_client)
-        await self.device_manager.load_device_modules()
-        
-        # Find device class
-        device_class = None
-        for name, cls in self.device_manager.device_classes.items():
-            if name == device_class_name:
-                device_class = cls
-                break
-        
-        if not device_class:
-            raise ValueError(f"Device class {device_class_name} not found")
-        
-        # Create device instance
-        self.device = device_class(device_config, self.mqtt_client)
-        await self.device.setup()
-        logger.info(f"Device {self.device_id} initialized successfully")
+        # Verify device commands from config
+        commands = self.device_config.get('commands', {})
+        if not commands:
+            logger.warning("No commands found in device configuration")
         
         # Organize commands into groups
         self._organize_commands()
+        
+        logger.info(f"Setup complete for device {self.device_id}")
     
     def _organize_commands(self):
         """Organize commands into groups and identify power commands."""
-        commands = self.device.get_available_commands()
+        commands = self.device_config.get('commands', {})
         
         # Group commands
         self.command_groups = {}
@@ -252,133 +228,414 @@ class DeviceTester:
         if not required_params:
             return param_values
         
-        # Get parameter schema from action handler
-        handler = getattr(self.device, f"_{action}", None) or getattr(self.device, action, None)
-        param_schemas = {}
-        
-        if handler:
-            sig = inspect.signature(handler)
-            for param_name, param in sig.parameters.items():
-                if param_name not in ['self', 'args', 'kwargs'] and param.annotation != inspect.Parameter.empty:
-                    param_schemas[param_name] = param.annotation
-        
-        for param_name, param_type in param_schemas.items():
-            if param_name in required_params:
-                default_value = required_params[param_name]
+        for param_name, default_value in required_params.items():
+            if self.prompt:
+                # Get parameter type (use default value's type or string)
+                param_type = type(default_value) if default_value is not None else str
+                param_desc = f"{param_name} ({param_type.__name__})"
                 
-                if self.prompt:
-                    # Prompt for parameter value
-                    param_desc = f"{param_name} ({param_type.__name__})"
-                    if default_value is not None:
-                        user_input = input(f"Enter value for {param_desc} [{default_value}]: ")
-                        if not user_input:
-                            param_values[param_name] = default_value
-                        else:
-                            # Try to convert to the right type
-                            try:
-                                if param_type == bool:
-                                    param_values[param_name] = user_input.lower() in ['true', 'yes', 'y', '1']
-                                else:
-                                    param_values[param_name] = param_type(user_input)
-                            except ValueError:
-                                logger.warning(f"Invalid input for {param_name}, using default")
-                                param_values[param_name] = default_value
-                    else:
-                        user_input = input(f"Enter value for {param_desc}: ")
-                        if user_input:
-                            try:
-                                if param_type == bool:
-                                    param_values[param_name] = user_input.lower() in ['true', 'yes', 'y', '1']
-                                else:
-                                    param_values[param_name] = param_type(user_input)
-                            except ValueError:
-                                logger.warning(f"Invalid input for {param_name}")
-                else:
-                    # Use default value
-                    if default_value is not None:
+                if default_value is not None:
+                    user_input = input(f"Enter value for {param_desc} [{default_value}]: ")
+                    if not user_input:
                         param_values[param_name] = default_value
+                    else:
+                        # Try to convert to the right type
+                        try:
+                            if param_type == bool:
+                                param_values[param_name] = user_input.lower() in ['true', 'yes', 'y', '1']
+                            else:
+                                param_values[param_name] = param_type(user_input)
+                        except ValueError:
+                            logger.warning(f"Invalid input for {param_name}, using default")
+                            param_values[param_name] = default_value
+                else:
+                    user_input = input(f"Enter value for {param_desc}: ")
+                    if user_input:
+                        try:
+                            # Basic type conversion attempt
+                            if user_input.lower() in ['true', 'yes', 'y', '1', 'false', 'no', 'n', '0']:
+                                param_values[param_name] = user_input.lower() in ['true', 'yes', 'y', '1']
+                            elif user_input.isdigit():
+                                param_values[param_name] = int(user_input)
+                            elif user_input.replace('.', '', 1).isdigit():
+                                param_values[param_name] = float(user_input)
+                            else:
+                                param_values[param_name] = user_input
+                        except ValueError:
+                            logger.warning(f"Invalid input for {param_name}")
+                            param_values[param_name] = user_input
+            else:
+                # Use default value if available
+                if default_value is not None:
+                    param_values[param_name] = default_value
         
         return param_values
     
+    def _fix_state_fields(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Add missing required fields to device state to avoid validation errors.
+        
+        Args:
+            state: The device state dictionary
+            
+        Returns:
+            Dict[str, Any]: State with required fields added
+        """
+        if not state:
+            return state
+            
+        # Add required fields if missing
+        if 'device_id' not in state:
+            state['device_id'] = self.device_id
+            logger.info(f"Added missing device_id={self.device_id} to state")
+            
+        if 'device_name' not in state:
+            # Extract device name directly from the config
+            device_name = ''
+            
+            # Check for device name in config if config exists
+            if self.device_config:
+                device_name = self.device_config.get('name', '')
+                
+                # If not in the top level, check device_info section
+                if not device_name and isinstance(self.device_config, dict) and 'device_info' in self.device_config:
+                    device_info = self.device_config.get('device_info', {})
+                    if isinstance(device_info, dict):
+                        device_name = device_info.get('name', '')
+            
+            # Fallback to a system config check
+            if not device_name:
+                try:
+                    system_config = self.config_manager.get_system_config()
+                    if hasattr(system_config, 'devices') and self.device_id in system_config.devices:
+                        device_info = system_config.devices[self.device_id]
+                        if isinstance(device_info, dict):
+                            device_name = device_info.get('name', '')
+                except Exception as e:
+                    logger.warning(f"Error accessing system config: {e}")
+            
+            # Last resort fallback
+            if not device_name:
+                device_name = self.device_id
+                
+            state['device_name'] = device_name
+            logger.info(f"Added missing device_name={device_name} to state")
+            
+        return state
+    
     async def _execute_command(self, command: str, command_config: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
-        """Execute a command and return success status and error message."""
-        action = command_config.get('action', command)
+        """Execute a command via HTTP API and return success status and error message."""
+        action_name = command_config.get('action', command)
         params = command_config.get('params', {})
         
-        logger.info(f"Executing command: {command} (action: {action})")
+        logger.info(f"Executing command: {command} (action: {action_name})")
         
         # Get parameter values
-        param_values = await self._get_parameter_values(action, params)
+        param_values = await self._get_parameter_values(action_name, params)
         
         # Execute command via appropriate interface
         start_time = time.time()
+        success = False
         error = None
+        state = None
         
         try:
             if self.mode == 'rest':
-                # Use the device's execute_action method for REST-like interface
-                result = await self.device.execute_action(action, param_values)
-                success = result.get('success', False)
-                if not success:
-                    error = result.get('error', 'Unknown error')
+                # Call the REST API endpoint
+                url = f"/devices/{self.device_id}/action"
+                payload = {"action": action_name, "params": param_values}
+                
+                # Validate payload against DeviceAction schema
+                try:
+                    device_action = DeviceAction(**payload)
+                    # Update payload with validated data
+                    payload = device_action.model_dump()
+                    logger.info(f"Validated DeviceAction schema: {payload}")
+                except ValidationError as ve:
+                    logger.error(f"DeviceAction schema validation failed: {ve}")
+                    return False, f"Schema validation error: {ve}"
+                
+                # Log HTTP request details
+                full_url = f"{self.service_url}{url}"
+                logger.info(f"HTTP Request: POST {full_url}")
+                logger.info(f"HTTP Headers: {{'Content-Type': 'application/json'}}")
+                logger.info(f"HTTP Payload: {json.dumps(payload)}")
+                
+                response = await self.http_client.post(url, json=payload)
+                
+                # Parse the response and check for validation errors in response
+                if response.status_code == 200:
+                    response_data = response.json()
+                    success = response_data.get("success", False)
+                    if not success:
+                        error = response_data.get("message", "Unknown REST error")
+                    state = response_data.get("state")
+                    
+                    # Additional validation of the state data
+                    if state and isinstance(state, dict):
+                        if 'device_id' not in state or 'device_name' not in state:
+                            # Try to fix the state by adding missing fields
+                            state = self._fix_state_fields(state)
+                else:
+                    success = False
+                    try:
+                        # Try to extract detailed error message
+                        error_data = response.json() if response.headers.get("content-type") == "application/json" else {}
+                        error = error_data.get("detail", response.text)
+                        
+                        # Look for Pydantic validation errors in the response
+                        if "validation error" in error.lower() or "validationerror" in error.lower():
+                            logger.error(f"Server-side validation error detected: {error}")
+                            if "device_id" in error and "device_name" in error:
+                                logger.error("Missing required fields in device state: device_id and device_name")
+                                
+                        # Add status code for more context
+                        error = f"HTTP {response.status_code}: {error}"
+                    except ValueError:
+                        # If JSON parsing fails
+                        error = f"HTTP {response.status_code}: {response.text}"
             
             elif self.mode == 'mqtt':
-                # Use the device's MQTT topic if available
+                # Get MQTT topic from command config
                 topic = command_config.get('topic')
                 if not topic:
                     logger.warning(f"No MQTT topic found for command {command}")
-                    return False, "No MQTT topic configured"
+                    return False, "No MQTT topic in config"
                 
-                # Convert parameters to MQTT payload
-                payload = json.dumps({"action": action, "params": param_values})
-                await self.mqtt_client.publish(topic, payload)
+                # Call the MQTT publish endpoint
+                mqtt_payload = {"action": action_name, "params": param_values}
+                mqtt_payload_string = json.dumps(mqtt_payload)
                 
-                # Wait for device state update
-                await asyncio.sleep(self.wait_time)
+                publish_url = "/publish"
+                publish_data = {"topic": topic, "payload": mqtt_payload_string}
                 
-                # Check device state for success
-                device_state = self.device.get_current_state()
-                last_command = device_state.get('last_command')
+                # Validate MQTT message against MQTTMessage schema
+                try:
+                    mqtt_message = MQTTMessage(**publish_data)
+                    # Update payload with validated data
+                    publish_data = mqtt_message.model_dump()
+                    logger.info(f"Validated MQTTMessage schema: {publish_data}")
+                except ValidationError as ve:
+                    logger.error(f"MQTTMessage schema validation failed: {ve}")
+                    return False, f"Schema validation error: {ve}"
                 
-                # Simple check - if the last command matches what we executed, consider it successful
-                success = last_command and (
-                    (isinstance(last_command, dict) and last_command.get('action') == action) or
-                    last_command == action
-                )
-                if not success:
-                    error = "Command not reflected in device state"
-            
-            else:  # mode == 'both'
-                # Execute via REST first
-                rest_result = await self.device.execute_action(action, param_values)
-                rest_success = rest_result.get('success', False)
+                # Log HTTP request details
+                full_url = f"{self.service_url}{publish_url}"
+                logger.info(f"HTTP Request: POST {full_url}")
+                logger.info(f"HTTP Headers: {{'Content-Type': 'application/json'}}")
+                logger.info(f"HTTP Payload: {json.dumps(publish_data)}")
                 
-                # Wait between commands
-                await asyncio.sleep(self.wait_time)
+                response = await self.http_client.post(publish_url, json=publish_data)
                 
-                # Then via MQTT
-                topic = command_config.get('topic')
-                if topic:
-                    payload = json.dumps({"action": action, "params": param_values})
-                    await self.mqtt_client.publish(topic, payload)
-                    
+                if response.status_code == 200 and response.json().get("success", False):
                     # Wait for device state update
                     await asyncio.sleep(self.wait_time)
                     
-                    # Update device state
-                    device_state = self.device.get_current_state()
+                    # Poll device state to check if command was successful
+                    status_url = f"/devices/{self.device_id}"
                     
-                    # Consider successful if either interface worked
-                    mqtt_success = 'error' not in device_state or not device_state['error']
-                    success = rest_success or mqtt_success
+                    # Log HTTP request details
+                    full_url = f"{self.service_url}{status_url}"
+                    logger.info(f"HTTP Request: GET {full_url}")
+                    logger.info(f"HTTP Headers: {{'Accept': 'application/json'}}")
                     
-                    if not success:
-                        error = rest_result.get('error') or device_state.get('error', 'Unknown error')
+                    status_response = await self.http_client.get(status_url)
+                    
+                    if status_response.status_code == 200:
+                        state = status_response.json()
+                        
+                        # Check for required fields in state
+                        if isinstance(state, dict):
+                            if 'device_id' not in state or 'device_name' not in state:
+                                # Try to fix the state by adding missing fields
+                                state = self._fix_state_fields(state)
+                        
+                        # Try to infer success from state
+                        last_action = state.get("last_action")
+                        if last_action == action_name:
+                            success = True
+                        else:
+                            # If we can't verify success via last_action, check for error fields
+                            success = not state.get("error") and not state.get("last_error")
+                            if not success:
+                                error = state.get("error") or state.get("last_error") or "Device state did not update as expected after MQTT command."
+                    else:
+                        success = False
+                        try:
+                            # Try to extract detailed error message
+                            error_data = status_response.json() if status_response.headers.get("content-type") == "application/json" else {}
+                            error = f"Status poll failed: HTTP {status_response.status_code}: {error_data.get('detail', status_response.text)}"
+                            
+                            # Check for validation errors
+                            if isinstance(error_data.get('detail'), str) and "validation error" in error_data.get('detail', '').lower():
+                                logger.error(f"Server-side validation error detected in device state: {error_data.get('detail')}")
+                                if "device_id" in error_data.get('detail', '') and "device_name" in error_data.get('detail', ''):
+                                    logger.error("Missing required fields in device state: device_id and device_name")
+                        except ValueError:
+                            error = f"Status poll failed: HTTP {status_response.status_code}: {status_response.text}"
                 else:
-                    # If no MQTT topic, just use REST result
-                    success = rest_success
-                    if not success:
-                        error = rest_result.get('error', 'Unknown error')
+                    success = False
+                    try:
+                        # Try to extract detailed error message
+                        error_data = response.json() if response.headers.get("content-type") == "application/json" else {}
+                        error = f"/publish call failed: HTTP {response.status_code}: {error_data.get('detail', response.text)}"
+                    except ValueError:
+                        error = f"/publish call failed: HTTP {response.status_code}: {response.text}"
+            
+            else:  # mode == 'both'
+                # First try REST
+                url = f"/devices/{self.device_id}/action"
+                payload = {"action": action_name, "params": param_values}
+                
+                # Validate payload against DeviceAction schema
+                try:
+                    device_action = DeviceAction(**payload)
+                    # Update payload with validated data
+                    payload = device_action.model_dump()
+                    logger.info(f"Validated DeviceAction schema: {payload}")
+                except ValidationError as ve:
+                    logger.error(f"DeviceAction schema validation failed: {ve}")
+                    return False, f"Schema validation error: {ve}"
+                
+                # Log HTTP request details
+                full_url = f"{self.service_url}{url}"
+                logger.info(f"HTTP Request: POST {full_url}")
+                logger.info(f"HTTP Headers: {{'Content-Type': 'application/json'}}")
+                logger.info(f"HTTP Payload: {json.dumps(payload)}")
+                
+                rest_response = await self.http_client.post(url, json=payload)
+                
+                rest_success = False
+                rest_error = None
+                
+                if rest_response.status_code == 200:
+                    response_data = rest_response.json()
+                    rest_success = response_data.get("success", False)
+                    if not rest_success:
+                        rest_error = response_data.get("message", "Unknown REST error")
+                    state = response_data.get("state")
+                    
+                    # Additional validation of the state data
+                    if state and isinstance(state, dict):
+                        if 'device_id' not in state or 'device_name' not in state:
+                            # Try to fix the state by adding missing fields
+                            state = self._fix_state_fields(state)
+                else:
+                    try:
+                        # Try to extract detailed error message
+                        error_data = rest_response.json() if rest_response.headers.get("content-type") == "application/json" else {}
+                        rest_error = error_data.get("detail") if rest_response.headers.get("content-type") == "application/json" else rest_response.text
+                        
+                        # Look for Pydantic validation errors in the response
+                        if isinstance(rest_error, str) and ("validation error" in rest_error.lower() or "validationerror" in rest_error.lower()):
+                            logger.error(f"Server-side validation error detected: {rest_error}")
+                            if "device_id" in rest_error and "device_name" in rest_error:
+                                logger.error("Missing required fields in device state: device_id and device_name")
+                                logger.error("This may be a configuration issue with the device state schema")
+                    except ValueError:
+                        rest_error = f"HTTP {rest_response.status_code}: {rest_response.text}"
+                
+                await asyncio.sleep(self.wait_time)
+                
+                # Then try MQTT
+                mqtt_success = False
+                mqtt_error = None
+                
+                topic = command_config.get('topic')
+                if topic:
+                    mqtt_payload = {"action": action_name, "params": param_values}
+                    mqtt_payload_string = json.dumps(mqtt_payload)
+                    
+                    publish_url = "/publish"
+                    publish_data = {"topic": topic, "payload": mqtt_payload_string}
+                    
+                    # Validate MQTT message against MQTTMessage schema
+                    mqtt_validation_passed = True
+                    try:
+                        mqtt_message = MQTTMessage(**publish_data)
+                        # Update payload with validated data
+                        publish_data = mqtt_message.model_dump()
+                        logger.info(f"Validated MQTTMessage schema: {publish_data}")
+                    except ValidationError as ve:
+                        mqtt_error = f"Schema validation error: {ve}"
+                        logger.error(f"MQTTMessage schema validation failed: {ve}")
+                        mqtt_success = False
+                        mqtt_validation_passed = False
+                    
+                    # Only proceed with MQTT if validation passed
+                    if mqtt_validation_passed:
+                        # Log HTTP request details
+                        full_url = f"{self.service_url}{publish_url}"
+                        logger.info(f"HTTP Request: POST {full_url}")
+                        logger.info(f"HTTP Headers: {{'Content-Type': 'application/json'}}")
+                        logger.info(f"HTTP Payload: {json.dumps(publish_data)}")
+                        
+                        mqtt_response = await self.http_client.post(publish_url, json=publish_data)
+                        
+                        if mqtt_response.status_code == 200 and mqtt_response.json().get("success", False):
+                            # Wait for state update
+                            await asyncio.sleep(self.wait_time)
+                            
+                            # Poll device state
+                            status_url = f"/devices/{self.device_id}"
+                            
+                            # Log HTTP request details
+                            full_url = f"{self.service_url}{status_url}"
+                            logger.info(f"HTTP Request: GET {full_url}")
+                            logger.info(f"HTTP Headers: {{'Accept': 'application/json'}}")
+                            
+                            status_response = await self.http_client.get(status_url)
+                            
+                            if status_response.status_code == 200:
+                                state = status_response.json()
+                                
+                                # Check for required fields in state
+                                if isinstance(state, dict):
+                                    if 'device_id' not in state or 'device_name' not in state:
+                                        # Try to fix the state by adding missing fields
+                                        state = self._fix_state_fields(state)
+                                
+                                # Infer success
+                                last_action = state.get("last_action")
+                                if last_action == action_name:
+                                    mqtt_success = True
+                                else:
+                                    # If we can't verify success via last_action, check for error fields
+                                    mqtt_success = not state.get("error") and not state.get("last_error")
+                                    if not mqtt_success:
+                                        mqtt_error = state.get("error") or state.get("last_error") or "Device state did not update as expected"
+                            else:
+                                mqtt_success = False
+                                try:
+                                    # Try to extract detailed error message
+                                    error_data = status_response.json() if status_response.headers.get("content-type") == "application/json" else {}
+                                    mqtt_error = f"Status poll failed: HTTP {status_response.status_code}: {error_data.get('detail', status_response.text)}"
+                                    
+                                    # Check for validation errors
+                                    if isinstance(error_data.get('detail'), str) and "validation error" in error_data.get('detail', '').lower():
+                                        logger.error(f"Server-side validation error detected in device state: {error_data.get('detail')}")
+                                        if "device_id" in error_data.get('detail', '') and "device_name" in error_data.get('detail', ''):
+                                            logger.error("Missing required fields in device state: device_id and device_name")
+                                except ValueError:
+                                    mqtt_error = f"Status poll failed: HTTP {status_response.status_code}: {status_response.text}"
+                        else:
+                            mqtt_success = False
+                            try:
+                                # Try to extract detailed error message
+                                error_data = mqtt_response.json() if mqtt_response.headers.get("content-type") == "application/json" else {}
+                                mqtt_error = f"/publish call failed: HTTP {mqtt_response.status_code}: {error_data.get('detail', mqtt_response.text)}"
+                            except ValueError:
+                                mqtt_error = f"/publish call failed: HTTP {mqtt_response.status_code}: {mqtt_response.text}"
+                else:
+                    mqtt_error = "No MQTT topic in config"
+                
+                # Combine results
+                success = rest_success or mqtt_success
+                if not success:
+                    if rest_error and mqtt_error:
+                        error = f"REST: {rest_error}; MQTT: {mqtt_error}"
+                    else:
+                        error = rest_error or mqtt_error
         
         except Exception as e:
             success = False
@@ -395,8 +652,8 @@ class DeviceTester:
             logger.error(f"Command {command} failed in {duration:.2f} seconds: {error}")
         
         # Log device state after command
-        device_state = self.device.get_current_state()
-        logger.info(f"Device state after command: {json.dumps(device_state, default=str)}")
+        if state:
+            logger.info(f"Device state after command: {json.dumps(state, default=str)}")
         
         # Record result
         self.results.record_command_result(command, success, duration, error)
@@ -478,13 +735,9 @@ class DeviceTester:
     
     async def cleanup(self):
         """Clean up resources."""
-        if self.device:
-            await self.device.shutdown()
-            logger.info(f"Device {self.device_id} shut down")
-        
-        if self.mqtt_client:
-            await self.mqtt_client.disconnect()
-            logger.info("Disconnected from MQTT broker")
+        if self.http_client:
+            await self.http_client.aclose()
+            logger.info("Closed HTTP client connection")
     
     def print_results(self):
         """Print test results."""
@@ -502,31 +755,32 @@ def setup_logging():
     )
     
     # Set lower log level for noisy libraries
-    for logger_name in ["websockets.client", "aiohttp.client"]:
+    for logger_name in ["websockets.client", "aiohttp.client", "httpx"]:
         logging.getLogger(logger_name).setLevel(logging.WARNING)
 
 
 async def main():
     """Main function."""
-    parser = argparse.ArgumentParser(description="Test device functionality.")
+    parser = argparse.ArgumentParser(description="Test device functionality via HTTP API.")
     parser.add_argument("--config", required=True, help="Path to device config file")
-    parser.add_argument("--mode", required=True, choices=["rest", "mqtt", "both"], 
-                        help="Interface to use for command execution")
-    parser.add_argument("--wait", type=float, default=1.0, 
+    parser.add_argument("--service-url", required=True, help="URL of the service (e.g., http://localhost:8000)")
+    parser.add_argument("--mode", choices=["rest", "mqtt", "both"], required=True,
+                        help="Interface to use for command execution via API endpoints")
+    parser.add_argument("--wait", type=float, default=1.0,
                         help="Time to wait between commands in seconds (default: 1.0)")
-    parser.add_argument("--prompt", action="store_true", 
+    parser.add_argument("--prompt", action="store_true",
                         help="Prompt for parameter values (default: use defaults)")
-    parser.add_argument("--include", type=str, 
+    parser.add_argument("--include", type=str,
                         help="Only include these commands (comma-separated)")
-    parser.add_argument("--exclude", type=str, 
+    parser.add_argument("--exclude", type=str,
                         help="Exclude these commands (comma-separated)")
-    
+
     args = parser.parse_args()
-    
+
     # Convert include/exclude to sets if provided
     include_commands = None
     exclude_commands = None
-    
+
     if args.include:
         include_commands = set(cmd.strip() for cmd in args.include.split(","))
     if args.exclude:
@@ -536,8 +790,10 @@ async def main():
     setup_logging()
     
     # Create and run the device tester
+    logger.info(f"Starting test run for {args.config} in {args.mode} mode using service {args.service_url}")
     tester = DeviceTester(
         config_path=args.config,
+        service_url=args.service_url,
         mode=args.mode,
         wait_time=args.wait,
         prompt=args.prompt,

@@ -117,12 +117,7 @@ async def lifespan(app: FastAPI):
     logger = logging.getLogger(__name__)
     logger.info("Starting MQTT Web Service")
     
-    # Initialize device manager and load devices
-    device_manager = DeviceManager(mqtt_client=mqtt_client)
-    await device_manager.load_device_modules()
-    await device_manager.initialize_devices(config_manager.get_all_device_configs())
-    
-    # Initialize MQTT client
+    # Initialize MQTT client first
     mqtt_broker_config = system_config.mqtt_broker
     mqtt_client = MQTTClient({
         'host': mqtt_broker_config.host,
@@ -131,6 +126,16 @@ async def lifespan(app: FastAPI):
         'keepalive': mqtt_broker_config.keepalive,
         'auth': mqtt_broker_config.auth
     })
+    
+    # Initialize device manager with null MQTT client initially
+    device_manager = DeviceManager(mqtt_client=None)
+    await device_manager.load_device_modules()
+    await device_manager.initialize_devices(config_manager.get_all_device_configs())
+    
+    # Now set the MQTT client for each initialized device
+    for device_id, device in device_manager.devices.items():
+        device.mqtt_client = mqtt_client
+        logger.info(f"Set MQTT client for device: {device_id}")
     
     # Get topics for all devices
     device_topics = {}
