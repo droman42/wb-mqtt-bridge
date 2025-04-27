@@ -12,7 +12,6 @@
   "commands": {
     "light_control": {
       "topic": "/devices/kitchen_hood/controls/light",
-      "position": "A0",
       "actions": [
         {
           "name": "light_on",
@@ -30,7 +29,6 @@
     },
     "speed_control": {
       "topic": "/devices/kitchen_hood/controls/speed",
-      "position": "A1",
       "actions": [
         {
           "name": "speed_change",
@@ -69,4 +67,4 @@
       ]
     }
   }
-} 
+}

@@ -11,7 +11,6 @@
       "location": "wb-msw-v3_207",
       "rom_position": "17",
       "group": "power",
-      "position": "A0",
       "description": "Power On/Off"
     },
     "volume_up": {
@@ -20,7 +19,6 @@
       "location": "wb-msw-v3_207",
       "rom_position": "18",
       "group": "volume",
-      "position": "A1",
       "description": "Volume Up"
     },
     "volume_down": {
@@ -29,7 +27,6 @@
       "location": "wb-msw-v3_207",
       "rom_position": "19",
       "group": "volume",
-      "position": "A2",
       "description": "Volume Down"
     },
     "mute": {
@@ -38,7 +35,6 @@
       "location": "wb-msw-v3_207",
       "rom_position": "20",
       "group": "volume",
-      "position": "A3",
       "description": "Mute"
     },
     "input_cd": {
@@ -47,7 +43,6 @@
       "location": "wb-msw-v3_207",
       "rom_position": "21",
       "group": "inputs",
-      "position": "B0",
       "description": "CD"
     },
     "input_usb": {
@@ -56,7 +51,6 @@
       "location": "wb-msw-v3_218",
       "rom_position": "1",
       "group": "inputs",
-      "position": "B1",
       "description": "USB"
     },
     "input_phono": {
@@ -65,7 +59,6 @@
       "location": "wb-msw-v3_218",
       "rom_position": "2",
       "group": "inputs",
-      "position": "B2",
       "description": "Phono"
     },
     "input_tuner": {
@@ -74,7 +67,6 @@
       "location": "wb-msw-v3_207",
       "rom_position": "22",
       "group": "inputs",
-      "position": "B3",
       "description": "Tuner"
     },
     "input_aux1": {
@@ -83,7 +75,6 @@
       "location": "wb-msw-v3_207",
       "rom_position": "23",
       "group": "inputs",
-      "position": "C0",
       "description": "AUX1"
     },
     "input_aux2": {
@@ -92,7 +83,6 @@
       "location": "wb-msw-v3_207",
       "rom_position": "24",
       "group": "inputs",
-      "position": "C1",
       "description": "AUX2"
     },
     "input_balanced": {
@@ -101,8 +91,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "25",
       "group": "inputs",
-      "position": "C2",
       "description": "Balanced"
     }
   }
-} 
+}

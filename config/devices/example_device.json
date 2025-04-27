@@ -17,20 +17,17 @@
     "power_on": {
       "action": "power_on",
       "topic": "home/example/command/power",
-      "description": "Turn the device on",
-      "position": "primary"
+      "description": "Turn the device on"
     },
     "power_off": {
       "action": "power_off",
       "topic": "home/example/command/power",
-      "description": "Turn the device off",
-      "position": "primary"
+      "description": "Turn the device off"
     },
     "get_data": {
       "action": "getData",
       "topic": "home/example/command/getData",
-      "description": "Get device data",
-      "position": "secondary"
+      "description": "Get device data"
     }
   }
-} 
+}

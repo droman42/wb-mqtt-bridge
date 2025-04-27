@@ -124,8 +124,7 @@ class WirenboardIRDevice(BaseDevice):
                     "last_command": {
                         "topic": topic,
                         "command_topic": command_topic,
-                        "timestamp": datetime.now().isoformat(),
-                        "position": matching_command.get("position")
+                        "timestamp": datetime.now().isoformat()
                     }
                 })
                 

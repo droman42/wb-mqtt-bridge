@@ -83,8 +83,7 @@ class RevoxA77ReelToReel(BaseDevice):
             "last_command": LastCommand(
                 action=command_name,
                 source="mqtt",
-                timestamp=datetime.now(),
-                position=action_config.get("position")
+                timestamp=datetime.now()
             ).dict()
         })
         logger.info(f"Sending {command_name} command to {location} at position {rom_position}")

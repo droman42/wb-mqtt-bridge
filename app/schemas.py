@@ -79,7 +79,6 @@ class LastCommand(BaseModel):
     source: str
     timestamp: datetime
     params: Optional[Dict[str, Any]] = None
-    position: Optional[str] = None  # Position information for the command
 
 class BaseDeviceState(BaseModel):
     """Base schema for device state."""

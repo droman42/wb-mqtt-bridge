@@ -1,57 +1,51 @@
 {
-    "device_type": "emotiva_xmc2",
-    "alias": "processor",
-    "device_id": "emotiva_xmc2",
-    "device_name": "eMotiva XMC2 Processor",
-    "mqtt_progress_topic": "/devices/processor/controls/progress",
-    "emotiva": {
-        "host": "192.168.110.177",
-        "mac": "E8:EB:1B:18:8F:3E",
-        "port": 7002,
-        "update_interval": 60
+  "device_type": "emotiva_xmc2",
+  "alias": "processor",
+  "device_id": "emotiva_xmc2",
+  "device_name": "eMotiva XMC2 Processor",
+  "mqtt_progress_topic": "/devices/processor/controls/progress",
+  "emotiva": {
+    "host": "192.168.110.177",
+    "mac": "E8:EB:1B:18:8F:3E",
+    "port": 7002,
+    "update_interval": 60
+  },
+  "commands": {
+    "power_on": {
+      "action": "power_on",
+      "topic": "/devices/processor/controls/power_on",
+      "group": "power",
+      "description": "Turn on the processor"
     },
-    "commands": {
-        "power_on": {
-            "action": "power_on",
-            "topic": "/devices/processor/controls/power_on",
-            "group": "power",
-            "description": "Turn on the processor",
-            "position": "A0"
-        },
-        "power_off": {
-            "action": "power_off",
-            "topic": "/devices/processor/controls/power_off",
-            "group": "power",
-            "description": "Turn off the processor",
-            "position": "A1"
-        },
-        "zone2_on": {
-            "action": "zone2_on",
-            "topic": "/devices/processor/controls/zone2_on",
-            "group": "power",
-            "description": "Turn on zone 2",
-            "position": "A2"
-        },
-        "zappiti": {
-            "action": "zappiti",
-            "topic": "/devices/processor/controls/zappiti",
-            "group": "inputs",
-            "description": "Switch to Zappiti",
-            "position": "B0"
-        },
-        "apple_tv": {
-            "action": "apple_tv",
-            "topic": "/devices/processor/controls/apple_tv",
-            "group": "inputs",
-            "description": "Switch to Apple TV",
-            "position": "B1"
-        },
-        "dvdo": {
-            "action": "dvdo",
-            "topic": "/devices/processor/controls/dvdo",
-            "group": "inputs",
-            "description": "Switch to DVDO",
-            "position": "B2"
-        }
+    "power_off": {
+      "action": "power_off",
+      "topic": "/devices/processor/controls/power_off",
+      "group": "power",
+      "description": "Turn off the processor"
+    },
+    "zone2_on": {
+      "action": "zone2_on",
+      "topic": "/devices/processor/controls/zone2_on",
+      "group": "power",
+      "description": "Turn on zone 2"
+    },
+    "zappiti": {
+      "action": "zappiti",
+      "topic": "/devices/processor/controls/zappiti",
+      "group": "inputs",
+      "description": "Switch to Zappiti"
+    },
+    "apple_tv": {
+      "action": "apple_tv",
+      "topic": "/devices/processor/controls/apple_tv",
+      "group": "inputs",
+      "description": "Switch to Apple TV"
+    },
+    "dvdo": {
+      "action": "dvdo",
+      "topic": "/devices/processor/controls/dvdo",
+      "group": "inputs",
+      "description": "Switch to DVDO"
     }
-} 
+  }
+}

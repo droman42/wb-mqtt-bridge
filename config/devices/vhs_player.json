@@ -1,63 +1,57 @@
 {
-    "device_name": "Panasonic NV-FS90",
-    "device_type": "wirenboard_ir",
-    "device_id": "vhs_player",
-    "alias": "vhs_player",
-    "mqtt_progress_topic": "/devices/vhs_player/controls/progress",
-    "commands": {
-      "power": {
-        "action": "power",
-        "topic": "/devices/vhs_player/controls/power_toggle",
-        "location": "wb-msw-v3_207",
-        "rom_position": "63",
-        "group": "power",
-        "position": "A0",
-        "description": "Power On/Off"
-      },
-      "play": {
-        "action": "play",
-        "topic": "/devices/vhs_player/controls/play",
-        "location": "wb-msw-v3_207",
-        "rom_position": "76",
-        "group": "playback",
-        "position": "B0",
-        "description": "Play"
-      },
-      "stop": {
-        "action": "stop",
-        "topic": "/devices/vhs_player/controls/stop",
-        "location": "wb-msw-v3_207",
-        "rom_position": "77",
-        "group": "playback",
-        "position": "B2",
-        "description": "Stop"
-      },
-      "pause": {
-        "action": "pause",
-        "topic": "/devices/vhs_player/controls/pause",
-        "location": "wb-msw-v3_207",
-        "rom_position": "78",
-        "group": "playback",
-        "position": "B1",
-        "description": "Pause"
-      },
-      "rewind_forward": {
-        "action": "rewind_forward",
-        "topic": "/devices/vhs_player/controls/rewind_forward",
-        "location": "wb-msw-v3_207",
-        "rom_position": "79",
-        "group": "playback",
-        "position": "C0",
-        "description": "Rewind Forward"
-      },
-      "rewind_backward": {
-        "action": "rewind_backward",
-        "topic": "/devices/vhs_player/controls/rewind_backward",
-        "location": "wb-msw-v3_218",
-        "rom_position": "80",
-        "group": "playback",
-        "position": "C1",
-        "description": "Rewind Backward"
-      }
+  "device_name": "Panasonic NV-FS90",
+  "device_type": "wirenboard_ir",
+  "device_id": "vhs_player",
+  "alias": "vhs_player",
+  "mqtt_progress_topic": "/devices/vhs_player/controls/progress",
+  "commands": {
+    "power": {
+      "action": "power",
+      "topic": "/devices/vhs_player/controls/power_toggle",
+      "location": "wb-msw-v3_207",
+      "rom_position": "63",
+      "group": "power",
+      "description": "Power On/Off"
+    },
+    "play": {
+      "action": "play",
+      "topic": "/devices/vhs_player/controls/play",
+      "location": "wb-msw-v3_207",
+      "rom_position": "76",
+      "group": "playback",
+      "description": "Play"
+    },
+    "stop": {
+      "action": "stop",
+      "topic": "/devices/vhs_player/controls/stop",
+      "location": "wb-msw-v3_207",
+      "rom_position": "77",
+      "group": "playback",
+      "description": "Stop"
+    },
+    "pause": {
+      "action": "pause",
+      "topic": "/devices/vhs_player/controls/pause",
+      "location": "wb-msw-v3_207",
+      "rom_position": "78",
+      "group": "playback",
+      "description": "Pause"
+    },
+    "rewind_forward": {
+      "action": "rewind_forward",
+      "topic": "/devices/vhs_player/controls/rewind_forward",
+      "location": "wb-msw-v3_207",
+      "rom_position": "79",
+      "group": "playback",
+      "description": "Rewind Forward"
+    },
+    "rewind_backward": {
+      "action": "rewind_backward",
+      "topic": "/devices/vhs_player/controls/rewind_backward",
+      "location": "wb-msw-v3_218",
+      "rom_position": "80",
+      "group": "playback",
+      "description": "Rewind Backward"
     }
-  } 
+  }
+}

@@ -1,48 +1,44 @@
 {
-    "device_name": "Revox A77 MK4",
-    "device_type": "wirenboard_ir",
-    "device_id": "reel_to_reel",
-    "alias": "reel_to_reel",
-    "mqtt_progress_topic": "/devices/reel_to_reel/controls/progress",
-    "parameters": {
-        "sequence_delay": 5
+  "device_name": "Revox A77 MK4",
+  "device_type": "wirenboard_ir",
+  "device_id": "reel_to_reel",
+  "alias": "reel_to_reel",
+  "mqtt_progress_topic": "/devices/reel_to_reel/controls/progress",
+  "parameters": {
+    "sequence_delay": 5
+  },
+  "commands": {
+    "play": {
+      "action": "play",
+      "topic": "/devices/reel_to_reel/controls/play",
+      "location": "wb-msw-v3_207",
+      "rom_position": "72",
+      "group": "playback",
+      "description": "Play"
     },
-    "commands": {
-      "play": {
-        "action": "play",
-        "topic": "/devices/reel_to_reel/controls/play",
-        "location": "wb-msw-v3_207",
-        "rom_position": "72",
-        "group": "playback",
-        "position": "A0",
-        "description": "Play"
-      },
-      "stop": {
-        "action": "stop",
-        "topic": "/devices/reel_to_reel/controls/stop",
-        "location": "wb-msw-v3_207",
-        "rom_position": "73",
-        "group": "playback",
-        "position": "A1",
-        "description": "Stop"
-      },
-      "rewind_forward": {
-        "action": "rewind_forward",
-        "topic": "/devices/reel_to_reel/controls/rewind_forward",
-        "location": "wb-msw-v3_207",
-        "rom_position": "74",
-        "group": "playback",
-        "position": "A3",
-        "description": "Rewind Forward"
-      },
-      "rewind_backward": {
-        "action": "rewind_backward",
-        "topic": "/devices/reel_to_reel/controls/rewind_backward",
-        "location": "wb-msw-v3_218",
-        "rom_position": "75",
-        "group": "playback",
-        "position": "A2",
-        "description": "Rewind Backward"
-      }
+    "stop": {
+      "action": "stop",
+      "topic": "/devices/reel_to_reel/controls/stop",
+      "location": "wb-msw-v3_207",
+      "rom_position": "73",
+      "group": "playback",
+      "description": "Stop"
+    },
+    "rewind_forward": {
+      "action": "rewind_forward",
+      "topic": "/devices/reel_to_reel/controls/rewind_forward",
+      "location": "wb-msw-v3_207",
+      "rom_position": "74",
+      "group": "playback",
+      "description": "Rewind Forward"
+    },
+    "rewind_backward": {
+      "action": "rewind_backward",
+      "topic": "/devices/reel_to_reel/controls/rewind_backward",
+      "location": "wb-msw-v3_218",
+      "rom_position": "75",
+      "group": "playback",
+      "description": "Rewind Backward"
     }
-  } 
+  }
+}

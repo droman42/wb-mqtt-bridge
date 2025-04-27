@@ -11,7 +11,6 @@
       "location": "wb-msw-v3_207",
       "rom_position": "62",
       "group": "power",
-      "position": "A0",
       "description": "Power On/Off"
     },
     "stream": {
@@ -20,8 +19,7 @@
       "location": "wb-msw-v3_218",
       "rom_position": "17",
       "group": "inputs",
-      "position": "A1",
       "description": "Streaming"
     }
   }
-} 
+}

@@ -798,7 +798,7 @@ class LgTv(BaseDevice):
             media_method_name="set_mute_with_monitoring",
             action_config=action_config,
             state_key_to_update="mute",
-            position="button",
+            requires_level=False,
             requires_state=True
         )
     
@@ -1045,8 +1045,7 @@ class LgTv(BaseDevice):
         """
         return await self._execute_simple_command(
             self.input_control,
-            "home",
-            "button"
+            "home"
         )
         
     async def handle_back(self, action_config: Dict[str, Any]):
@@ -1063,8 +1062,7 @@ class LgTv(BaseDevice):
         """
         return await self._execute_simple_command(
             self.input_control,
-            "back",
-            "button"
+            "back"
         )
         
     async def handle_up(self, action_config: Dict[str, Any]):
@@ -1081,8 +1079,7 @@ class LgTv(BaseDevice):
         """
         return await self._execute_simple_command(
             self.input_control,
-            "up",
-            "button"
+            "up"
         )
         
     async def handle_down(self, action_config: Dict[str, Any]):
@@ -1099,8 +1096,7 @@ class LgTv(BaseDevice):
         """
         return await self._execute_simple_command(
             self.input_control,
-            "down",
-            "button"
+            "down"
         )
         
     async def handle_left(self, action_config: Dict[str, Any]):
@@ -1117,8 +1113,7 @@ class LgTv(BaseDevice):
         """
         return await self._execute_simple_command(
             self.input_control,
-            "left",
-            "button"
+            "left"
         )
         
     async def handle_right(self, action_config: Dict[str, Any]):
@@ -1135,8 +1130,7 @@ class LgTv(BaseDevice):
         """
         return await self._execute_simple_command(
             self.input_control,
-            "right",
-            "button"
+            "right"
         )
         
     async def handle_enter(self, action_config: Dict[str, Any]):
@@ -1153,8 +1147,7 @@ class LgTv(BaseDevice):
         """
         return await self._execute_simple_command(
             self.input_control,
-            "ok",
-            "button"
+            "ok"
         )
         
     async def handle_exit(self, action_config: Dict[str, Any]):
@@ -1169,8 +1162,7 @@ class LgTv(BaseDevice):
         # Assuming InputControl has an 'exit' method
         return await self._execute_simple_command(
             self.input_control,
-            "exit",
-            "button"
+            "exit"
         )
 
     async def handle_menu(self, action_config: Dict[str, Any]):
@@ -1185,8 +1177,7 @@ class LgTv(BaseDevice):
         # Assuming InputControl has a 'menu' method
         return await self._execute_simple_command(
             self.input_control,
-            "menu",
-            "button"
+            "menu"
         )
 
     async def handle_settings(self, action_config: Dict[str, Any]):
@@ -1201,8 +1192,7 @@ class LgTv(BaseDevice):
         # Assuming InputControl has a 'settings' method
         return await self._execute_simple_command(
             self.input_control,
-            "settings",
-            "button"
+            "settings"
         )
         
     async def handle_volume_up(self, action_config: Dict[str, Any]):
@@ -1221,7 +1211,7 @@ class LgTv(BaseDevice):
             media_method_name="volume_up_with_monitoring",
             action_config=action_config,
             state_key_to_update="volume",
-            position="button",
+            requires_level=True,
             update_volume_after=True
         )
         
@@ -1241,7 +1231,7 @@ class LgTv(BaseDevice):
             media_method_name="volume_down_with_monitoring",
             action_config=action_config,
             state_key_to_update="volume",
-            position="button",
+            requires_level=True,
             update_volume_after=True
         )
         
@@ -1261,28 +1251,26 @@ class LgTv(BaseDevice):
             media_method_name="set_volume_with_monitoring",
             action_config=action_config,
             state_key_to_update="volume",
-            position="volume",
             requires_level=True
         )
             
     async def handle_play(self, action_config: Dict[str, Any]):
         """Handle play button action."""
-        return await self._execute_simple_command(self.media, "play", "playback")
+        return await self._execute_simple_command(self.media, "play")
         
     async def handle_pause(self, action_config: Dict[str, Any]):
         """Handle pause button action."""
-        return await self._execute_simple_command(self.media, "pause", "playback")
+        return await self._execute_simple_command(self.media, "pause")
         
     async def handle_stop(self, action_config: Dict[str, Any]):
         """Handle stop button action."""
-        return await self._execute_simple_command(self.media, "stop", "playback")
+        return await self._execute_simple_command(self.media, "stop")
         
     async def handle_rewind_forward(self, action_config: Dict[str, Any]):
         """Handle fast forward action (corresponds to rewind_forward in config)."""
         return await self._execute_simple_command(
             self.media, 
             "rewind_forward", 
-            "playback", 
             control_method_name="fastForward"
         )
         
@@ -1291,7 +1279,6 @@ class LgTv(BaseDevice):
         return await self._execute_simple_command(
             self.media, 
             "rewind_backward", 
-            "playback", 
             control_method_name="rewind"
         )
 
@@ -1618,7 +1605,7 @@ class LgTv(BaseDevice):
                 
                 if result.get("success", False):
                     self.state["input_source"] = target_source["id"]
-                    await self._update_last_command(action=f"set_input_{input_source}", position="input")
+                    await self._update_last_command(action=f"set_input_{input_source}", source="api")
                     return True
                 else:
                     logger.warning(f"Input source set failed: {result.get('error', 'Unknown error')}")
@@ -1667,7 +1654,7 @@ class LgTv(BaseDevice):
                 return source
         return None
     
-    async def _update_last_command(self, action: str, params: Optional[Dict[str, Any]] = None, position: Optional[str] = None, source: str = "api"):
+    async def _update_last_command(self, action: str, params: Optional[Dict[str, Any]] = None, source: str = "api"):
         """Helper method to update the last_command state."""
         try:
             self.update_state({
@@ -1675,8 +1662,7 @@ class LgTv(BaseDevice):
                     action=action,
                     source=source,
                     timestamp=datetime.now(),
-                    params=params if params else {},
-                    position=position
+                    params=params if params else {}
                 ).dict()
             })
         except Exception as e:
@@ -1687,7 +1673,6 @@ class LgTv(BaseDevice):
         self,
         control_instance: Any, # Pass the control object (e.g., self.input_control, self.media)
         action_name: str,
-        position: str,          # Position for last_command state (e.g., "button", "playback")
         control_method_name: Optional[str] = None
     ) -> bool:
         """Executes a simple, parameter-less command using a given control instance.
@@ -1697,7 +1682,6 @@ class LgTv(BaseDevice):
         Args:
             control_instance: The control object instance (e.g., self.input_control, self.media).
             action_name: The logical name of the action (e.g., "home", "play"). Used for logging and state update.
-            position: The position identifier for the last_command state (e.g., "button", "playback").
             control_method_name: The specific method name on the control instance to call.
                                  Defaults to action_name if not provided.
                                  
@@ -1724,7 +1708,7 @@ class LgTv(BaseDevice):
             await instance_method()
             
             # Update state with last command information
-            await self._update_last_command(action=action_name, position=position)
+            await self._update_last_command(action=action_name, source="api")
             
             return True
         except Exception as e:
@@ -1739,7 +1723,6 @@ class LgTv(BaseDevice):
         media_method_name: str,
         action_config: Dict[str, Any],
         state_key_to_update: str,
-        position: str,
         requires_level: bool = False,
         requires_state: bool = False,
         update_volume_after: bool = False
@@ -1811,7 +1794,7 @@ class LgTv(BaseDevice):
                         logger.debug(f"Could not update volume after {action_name}: {vol_err}")
                 
                 # Update last command
-                await self._update_last_command(action=action_name, params=params, position=position)
+                await self._update_last_command(action=action_name, params=params, source="api")
                 return True
             else:
                 logger.warning(f"{action_name} failed: {result.get('error', 'Unknown error')}")
@@ -1882,7 +1865,7 @@ class LgTv(BaseDevice):
                 await self.input_control.click(**payload)
             
             # Update last command
-            await self._update_last_command(action=action_name, params=payload, position=position)
+            await self._update_last_command(action=action_name, params=payload, source="api")
             return True
 
         except Exception as e:

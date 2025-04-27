@@ -11,8 +11,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "26",
       "group": "power",
-      "description": "Power On",
-      "position": "A0"
+      "description": "Power On"
     },
     "power_off": {
       "action": "power_off",
@@ -20,8 +19,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "27",
       "group": "power",
-      "description": "Power Off",
-      "position": "A1"
+      "description": "Power Off"
     },
     "play_pause": {
       "action": "play_pause",
@@ -29,8 +27,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "28",
       "group": "playback",
-      "description": "Play/Pause",
-      "position": "B0"
+      "description": "Play/Pause"
     },
     "chapter_plus": {
       "action": "chapter_plus",
@@ -38,8 +35,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "29",
       "group": "playback",
-      "description": "Chapter+",
-      "position": "B3"
+      "description": "Chapter+"
     },
     "chapter_minus": {
       "action": "chapter_minus",
@@ -47,8 +43,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "30",
       "group": "playback",
-      "description": "Chapter-",
-      "position": "B2"
+      "description": "Chapter-"
     },
     "stop": {
       "action": "stop",
@@ -56,8 +51,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "31",
       "group": "playback",
-      "description": "Stop",
-      "position": "B1"
+      "description": "Stop"
     },
     "menu_up": {
       "action": "menu_up",
@@ -65,8 +59,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "32",
       "group": "menu",
-      "description": "Up",
-      "position": "C1"
+      "description": "Up"
     },
     "menu_down": {
       "action": "menu_down",
@@ -74,8 +67,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "33",
       "group": "menu",
-      "description": "Down",
-      "position": "E1"
+      "description": "Down"
     },
     "menu_left": {
       "action": "menu_left",
@@ -83,8 +75,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "34",
       "group": "menu",
-      "description": "Left",
-      "position": "D0"
+      "description": "Left"
     },
     "menu_right": {
       "action": "menu_right",
@@ -92,8 +83,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "35",
       "group": "menu",
-      "description": "Right",
-      "position": "D2"
+      "description": "Right"
     },
     "menu_ok": {
       "action": "menu_ok",
@@ -101,8 +91,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "36",
       "group": "menu",
-      "description": "OK/Enter",
-      "position": "D1"
+      "description": "OK/Enter"
     },
     "audio": {
       "action": "audio",
@@ -110,8 +99,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "37",
       "group": "tracks",
-      "description": "Audio",
-      "position": "A2"
+      "description": "Audio"
     },
     "subtitles": {
       "action": "subtitles",
@@ -119,8 +107,7 @@
       "location": "wb-msw-v3_207",
       "rom_position": "38",
       "group": "tracks",
-      "description": "Subtitles",
-      "position": "A3"
+      "description": "Subtitles"
     },
     "home": {
       "action": "home",
@@ -128,8 +115,7 @@
       "location": "wb-msw-v3_218",
       "rom_position": "3",
       "group": "menu",
-      "description": "Home",
-      "position": "C0"
+      "description": "Home"
     },
     "settings": {
       "action": "settings",
@@ -137,8 +123,7 @@
       "location": "wb-msw-v3_218",
       "rom_position": "4",
       "group": "menu",
-      "description": "Settings",
-      "position": "E0"
+      "description": "Settings"
     },
     "back": {
       "action": "back",
@@ -146,8 +131,7 @@
       "location": "wb-msw-v3_218",
       "rom_position": "5",
       "group": "menu",
-      "description": "Back",
-      "position": "C2"
+      "description": "Back"
     },
     "zappiti": {
       "action": "zappiti",
@@ -155,8 +139,7 @@
       "location": "wb-msw-v3_218",
       "rom_position": "6",
       "group": "apps",
-      "description": "Zappiti",
-      "position": "F0"
+      "description": "Zappiti"
     },
     "explorer": {
       "action": "explorer",
@@ -164,8 +147,7 @@
       "location": "wb-msw-v3_218",
       "rom_position": "7",
       "group": "apps",
-      "description": "Explorer",
-      "position": "F1"
+      "description": "Explorer"
     }
   }
-} 
+}
