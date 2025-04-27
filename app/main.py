@@ -484,6 +484,15 @@ async def execute_device_action(
 async def publish_message(message: MQTTMessage, background_tasks: BackgroundTasks):
     """Publish a message to an MQTT topic.
     
+    This endpoint allows publishing messages to an MQTT topic with the following features:
+    
+    - **Optional payload**: If payload is not provided (null), it defaults to 1 (which will be sent as "1")
+    - **Multiple payload types**: Payload can be a string, number, boolean, object, or array
+    - **Type conversion**: 
+        - Dict/object payloads are JSON serialized
+        - Boolean payloads are converted to "true"/"false" strings
+        - Numeric payloads are converted to strings
+    
     Args:
         message: The MQTT message to publish
         background_tasks: FastAPI background tasks manager

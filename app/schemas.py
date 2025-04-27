@@ -173,10 +173,63 @@ class ErrorResponse(BaseModel):
 
 class MQTTMessage(BaseModel):
     """Schema for MQTT messages."""
-    topic: str
-    payload: Any
-    qos: int = 0
-    retain: bool = False
+    topic: str = Field(
+        ..., 
+        description="MQTT topic to publish the message to"
+    )
+    payload: Optional[Union[str, int, float, dict, list, bool]] = Field(
+        default=None,
+        description="Message payload to publish. Can be string, number, boolean, object, or array. If not provided, defaults to 1."
+    )
+    qos: int = Field(
+        default=0, 
+        description="Quality of Service level (0, 1, or 2)",
+        ge=0,
+        le=2
+    )
+    retain: bool = Field(
+        default=False, 
+        description="Whether to retain the message on the broker"
+    )
+    
+    class Config:
+        json_schema_extra = {
+            "examples": [
+                {
+                    "topic": "home/livingroom/light",
+                    "payload": "ON",
+                    "qos": 0,
+                    "retain": False
+                },
+                {
+                    "topic": "home/kitchen/temperature",
+                    "payload": 22.5,
+                    "qos": 1,
+                    "retain": True
+                },
+                {
+                    "topic": "home/devices/tv/power",
+                    "payload": True,
+                    "qos": 0,
+                    "retain": False
+                },
+                {
+                    "topic": "home/devices/thermostat/settings",
+                    "payload": {
+                        "target_temp": 21,
+                        "mode": "heat"
+                    },
+                    "qos": 1,
+                    "retain": True
+                },
+                {
+                    "topic": "home/devices/light/command",
+                    "payload": None,
+                    "qos": 0,
+                    "retain": False
+                }
+            ]
+        }
 
 class SystemInfo(BaseModel):
     """Schema for system information."""

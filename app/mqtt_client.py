@@ -222,6 +222,10 @@ class MQTTClient:
             return False
         
         try:
+            # Handle None payload by defaulting to 1
+            if payload is None:
+                payload = 1
+            
             # Handle different payload types
             if isinstance(payload, dict):
                 payload = json.dumps(payload)
