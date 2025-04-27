@@ -5,11 +5,11 @@ import os
 import ssl
 from typing import Dict, Any, List, Optional, Tuple, TYPE_CHECKING, Union, cast, Protocol, TypeVar
 
-# Import WebOSClient which should always be available
-from asyncwebostv.connection import WebOSClient
+# Import WebOSTV classes for higher-level API access
+from asyncwebostv import WebOSTV, SecureWebOSTV
 
-# Direct import without try/except - if this fails, it means the dependency is missing
-# which is a real error we want to know about
+# Keep original imports for backward compatibility
+from asyncwebostv.connection import WebOSClient
 from asyncwebostv.secure_connection import SecureWebOSClient
 
 from asyncwebostv.controls import (
@@ -120,58 +120,14 @@ class LgTv(BaseDevice):
             'refresh_input_sources': self.handle_refresh_input_sources,
         })
     
-    def _create_ssl_context(self, cert_file: Optional[str] = None, verify_ssl: bool = False) -> Optional[ssl.SSLContext]:
-        """Create an SSL context for WebOS TV connections.
-        
-        Args:
-            cert_file: Path to certificate file, if available
-            verify_ssl: Whether to verify SSL certificates
-            
-        Returns:
-            SSL context object or None if no cert_file is provided
-        """
-        if not cert_file:
-            return None
-            
-        try:
-            # Create SSL context with appropriate verification settings
-            logger.info(f"Creating SSL context with certificate file {cert_file}")
-            ssl_context = ssl.create_default_context()
-            ssl_context.check_hostname = False  # Always disable hostname checking for TVs
-            
-            # Set verification mode based on verify_ssl
-            if not verify_ssl:
-                ssl_context.verify_mode = ssl.CERT_NONE
-                logger.info("SSL certificate verification disabled")
-            
-            # Try to load the certificate file
-            try:
-                ssl_context.load_verify_locations(cert_file)
-                logger.info(f"Loaded certificate from {cert_file}")
-            except Exception as ssl_err:
-                logger.error(f"Failed to load certificate file: {str(ssl_err)}")
-                # If verification is required but certificate loading failed, we should fail
-                if verify_ssl:
-                    raise ssl_err
-                # Otherwise continue without certificate (with CERT_NONE)
-                logger.warning("Continuing without certificate verification")
-            
-            return ssl_context
-            
-        except Exception as e:
-            logger.error(f"Error creating SSL context: {str(e)}")
-            if verify_ssl:
-                raise  # Re-raise if verification is required
-            return None
-            
-    def _create_webos_client(self, secure: bool = False) -> Optional[Union[WebOSClient, SecureWebOSClient]]:
-        """Create a WebOS client based on configuration.
+    def _create_webos_tv(self, secure: bool = False) -> Optional[Union[WebOSTV, SecureWebOSTV]]:
+        """Create a WebOSTV client based on configuration.
         
         Args:
             secure: Whether to create a secure client
             
         Returns:
-            WebOS client instance or None if creation fails
+            WebOSTV instance or None if creation fails
         """
         try:
             # Check if we have configuration and IP address
@@ -187,49 +143,48 @@ class LgTv(BaseDevice):
             # Use configuration from TV config
             secure_mode = secure if secure else self.tv_config.secure
             
-            # Get certificate file path if provided
-            cert_file = self.tv_config.cert_file
-            
-            # Get any additional SSL options
-            ssl_options = {}
-            if hasattr(self.tv_config, 'ssl_options') and self.tv_config.ssl_options:
-                ssl_options = self.tv_config.ssl_options
-                
             # Create the appropriate client type
             if secure_mode:
-                logger.info(f"Creating secure WebOS client for {ip}")
+                logger.info(f"Creating secure WebOSTV client for {ip}")
+                
+                # Get certificate file path if provided
+                cert_file = self.tv_config.cert_file
+                
+                # Get any additional SSL options
+                ssl_options = {}
+                if hasattr(self.tv_config, 'ssl_options') and self.tv_config.ssl_options:
+                    ssl_options = self.tv_config.ssl_options
                 
                 # Always set verify_ssl to False by default for WebOS TVs, as they use self-signed certificates
                 # Only override if explicitly set in ssl_options
                 verify_ssl = ssl_options.get('verify_ssl', False)
                 
-                # Create SSL context if needed
-                ssl_context = self._create_ssl_context(cert_file, verify_ssl)
-                
                 # Ensure port is set to 3001 for secure WebSocket connections
                 port = ssl_options.get('port', 3001)
                 
-                # Create the secure client
-                return SecureWebOSClient(
+                # Create a secure WebOSTV client
+                return SecureWebOSTV(
                     host=ip,
                     port=port,
-                    secure=True,
                     client_key=self.client_key,
-                    ssl_context=ssl_context,
+                    cert_file=cert_file,
                     verify_ssl=verify_ssl,
-                    cert_file=cert_file if not ssl_context else None
+                    ssl_options=ssl_options
                 )
             else:
-                logger.info(f"Creating standard WebOS client for {ip}")
-                return WebOSClient(ip, secure=False, client_key=self.client_key)
+                logger.info(f"Creating standard WebOSTV client for {ip}")
+                return WebOSTV(ip, client_key=self.client_key, secure=False)
                 
         except Exception as e:
-            logger.error(f"Error creating WebOS client: {str(e)}")
+            logger.error(f"Error creating WebOSTV client: {str(e)}")
             self.state["error"] = f"Client creation error: {str(e)}"
             return None
             
     async def _initialize_control_interfaces(self) -> bool:
-        """Initialize control interfaces after successful connection.
+        """Initialize control interfaces mapping to WebOSTV's controls.
+        
+        Since WebOSTV already initializes controls, this method maps them to our class properties
+        for compatibility with existing code.
         
         Returns:
             True if initialization was successful, False otherwise
@@ -239,13 +194,13 @@ class LgTv(BaseDevice):
                 logger.error("Cannot initialize controls: No client available")
                 return False
                 
-            # Initialize control interfaces
-            self.system = SystemControl(self.client)
-            self.media = MediaControl(self.client)
-            self.app = ApplicationControl(self.client)
-            self.tv_control = TvControl(self.client)
-            self.input_control = InputControl(self.client)
-            self.source_control = SourceControl(self.client)
+            # Map WebOSTV control interfaces to our class properties
+            self.system = self.client.system
+            self.media = self.client.media
+            self.app = self.client.application  # Note the name difference
+            self.tv_control = self.client.tv
+            self.input_control = self.client.input
+            self.source_control = self.client.source
             
             # Verify we can access at least one control to confirm initialization is working
             try:
@@ -414,6 +369,7 @@ class LgTv(BaseDevice):
         try:
             # Disconnect from TV
             if self.client:
+                # WebOSTV.close() handles closing all connections including input
                 await self.client.close()
                 self.client = None
                 self.state["connected"] = False
@@ -437,8 +393,8 @@ class LgTv(BaseDevice):
         Wake-on-LAN and attempt the connection again.
         """
         try:
-            # Create a WebOS client
-            self.client = self._create_webos_client()
+            # Create a WebOSTV client
+            self.client = self._create_webos_tv()
             if not self.client:
                 return False
                 
@@ -447,14 +403,10 @@ class LgTv(BaseDevice):
                 ip = self.state.get("ip_address")
                 logger.info(f"Attempting to connect to TV at {ip}...")
                 
-                # If we have a client key, set it on the client before connecting
-                if self.client_key:
-                    self.client.client_key = self.client_key
-                
-                # Connect to the TV (this also handles registration)
+                # The WebOSTV connect method handles both connection and registration
                 await self.client.connect()
                 
-                # After successful connection, store the client key if it was created or updated
+                # After successful connection, store the client key
                 if self.client.client_key and self.client.client_key != self.client_key:
                     self.client_key = self.client.client_key
                     logger.info(f"Obtained new client key for future use: {self.client_key}")
@@ -510,15 +462,11 @@ class LgTv(BaseDevice):
         logger.info("Attempting fallback connection without SSL...")
         try:
             # Create a new non-secure client
-            self.client = self._create_webos_client(secure=False)
+            self.client = self._create_webos_tv(secure=False)
             if not self.client:
                 return False
-            
-            # If we have a client key, set it on the client before connecting    
-            if self.client_key:
-                self.client.client_key = self.client_key
                 
-            # Connect with the non-secure client
+            # Connect with the non-secure client - this handles both connection and registration
             await self.client.connect()
             
             # After successful connection, store the client key if it was created or updated
@@ -560,15 +508,11 @@ class LgTv(BaseDevice):
                 # Try to connect again after WoL
                 try:
                     # Create a fresh client
-                    self.client = self._create_webos_client()
+                    self.client = self._create_webos_tv()
                     if not self.client:
                         return False
                         
-                    # If we have a client key, set it on the client before connecting    
-                    if self.client_key:
-                        self.client.client_key = self.client_key
-                        
-                    # Connect to the TV (this also handles registration)
+                    # Connect to the TV - WebOSTV handles both connection and registration
                     await self.client.connect()
                     
                     # After successful connection, store the client key if it was created or updated
@@ -751,6 +695,7 @@ class LgTv(BaseDevice):
                 boot_wait_time = getattr(self.tv_config, "timeout", 5) if self.tv_config else 5
                 await asyncio.sleep(boot_wait_time)
                 
+                logger.debug("Reconnecting to TV after power on")
                 # Connect to re-initialize all control interfaces
                 await self.connect()
             else:
@@ -1437,40 +1382,24 @@ class LgTv(BaseDevice):
             if not output_file:
                 output_file = f"{ip}_cert.pem"
             
-            # Import the tools we need for certificate extraction
-            import socket
-            import ssl
-            import OpenSSL.crypto as crypto
+            # Create a temporary SecureWebOSTV client to extract the certificate
+            # without attempting a connection
+            secure_client = SecureWebOSTV(
+                host=ip,
+                port=3001,
+                client_key=self.client_key,
+                verify_ssl=False
+            )
             
-            # Create SSL context without verification
-            context = ssl.create_default_context()
-            context.check_hostname = False
-            context.verify_mode = ssl.CERT_NONE
+            # Use the client's get_certificate method
+            cert_pem = await secure_client.get_certificate(save_path=output_file)
             
-            # Connect to the TV and get the certificate
-            logger.info(f"Connecting to {ip}:3001 to extract certificate...")
-            with socket.create_connection((ip, 3001)) as sock:
-                with context.wrap_socket(sock, server_hostname=ip) as ssock:
-                    cert_bin = ssock.getpeercert(binary_form=True)
-                    if not cert_bin:
-                        return False, "Failed to get certificate from TV"
-                    
-                    # Convert binary certificate to PEM format
-                    x509 = crypto.load_certificate(crypto.FILETYPE_ASN1, cert_bin)
-                    pem_data = crypto.dump_certificate(crypto.FILETYPE_PEM, x509)
-                    
-                    # Save to file
-                    with open(output_file, 'wb') as f:
-                        f.write(pem_data)
-                    
-                    logger.info(f"Certificate extracted and saved to {output_file}")
-                    
-                    # Update configuration to use this certificate
-                    if self.tv_config:
-                        self.tv_config.cert_file = os.path.abspath(output_file)
-                        logger.info("Updated TV configuration to use the extracted certificate")
-                    
-                    return True, f"Certificate saved to {output_file}"
+            # Update configuration to use this certificate
+            if self.tv_config:
+                self.tv_config.cert_file = os.path.abspath(output_file)
+                logger.info("Updated TV configuration to use the extracted certificate")
+            
+            return True, f"Certificate saved to {output_file}"
         
         except Exception as e:
             error_msg = f"Failed to extract certificate: {str(e)}"
@@ -1498,39 +1427,56 @@ class LgTv(BaseDevice):
             if not ip:
                 return False, "No IP address configured for TV"
             
-            # Import the tools we need for certificate verification
-            import socket
-            import ssl
-            import hashlib
-            import OpenSSL.crypto as crypto
+            # Create a temporary SecureWebOSTV client for verification
+            secure_client = SecureWebOSTV(
+                host=ip,
+                port=3001,
+                client_key=self.client_key,
+                cert_file=cert_file,
+                verify_ssl=True
+            )
             
-            # Load the saved certificate
-            with open(cert_file, 'rb') as f:
-                saved_cert_data = f.read()
-                saved_cert = crypto.load_certificate(crypto.FILETYPE_PEM, saved_cert_data)
-                saved_cert_bin = crypto.dump_certificate(crypto.FILETYPE_ASN1, saved_cert)
-                saved_fingerprint = hashlib.sha256(saved_cert_bin).hexdigest()
-            
-            # Get the current certificate from the TV
-            context = ssl.create_default_context()
-            context.check_hostname = False
-            context.verify_mode = ssl.CERT_NONE
-            
-            with socket.create_connection((ip, 3001)) as sock:
-                with context.wrap_socket(sock, server_hostname=ip) as ssock:
-                    current_cert_bin = ssock.getpeercert(binary_form=True)
-                    if not current_cert_bin:
-                        return False, "Failed to get current certificate from TV"
-                    
+            # If we can extract a new certificate and compare, that would be ideal
+            try:
+                # Extract current certificate to temporary file
+                temp_cert_file = f"{ip}_temp_cert.pem"
+                await secure_client.get_certificate(save_path=temp_cert_file)
+                
+                # Import tools for comparison
+                import hashlib
+                import OpenSSL.crypto as crypto
+                
+                # Load the saved certificate
+                with open(cert_file, 'rb') as f:
+                    saved_cert_data = f.read()
+                    saved_cert = crypto.load_certificate(crypto.FILETYPE_PEM, saved_cert_data)
+                    saved_cert_bin = crypto.dump_certificate(crypto.FILETYPE_ASN1, saved_cert)
+                    saved_fingerprint = hashlib.sha256(saved_cert_bin).hexdigest()
+                
+                # Load the current certificate
+                with open(temp_cert_file, 'rb') as f:
+                    current_cert_data = f.read()
+                    current_cert = crypto.load_certificate(crypto.FILETYPE_PEM, current_cert_data)
+                    current_cert_bin = crypto.dump_certificate(crypto.FILETYPE_ASN1, current_cert)
                     current_fingerprint = hashlib.sha256(current_cert_bin).hexdigest()
-            
-            # Compare fingerprints
-            if saved_fingerprint == current_fingerprint:
-                logger.info("Certificate verification successful: Certificate matches the one from the TV")
-                return True, "Certificate is valid and matches the TV"
-            else:
-                logger.warning("Certificate verification failed: Certificate does not match the one from the TV")
-                return False, "Certificate does not match the one from the TV. Consider refreshing it."
+                
+                # Remove temporary file
+                try:
+                    os.remove(temp_cert_file)
+                except:
+                    pass
+                
+                # Compare fingerprints
+                if saved_fingerprint == current_fingerprint:
+                    logger.info("Certificate verification successful: Certificate matches the one from the TV")
+                    return True, "Certificate is valid and matches the TV"
+                else:
+                    logger.warning("Certificate verification failed: Certificate does not match the one from the TV")
+                    return False, "Certificate does not match the one from the TV. Consider refreshing it."
+                    
+            except Exception as verify_err:
+                logger.error(f"Failed to verify certificate: {str(verify_err)}")
+                return False, f"Failed to verify certificate: {str(verify_err)}"
                 
         except Exception as e:
             error_msg = f"Failed to verify certificate: {str(e)}"
