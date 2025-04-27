@@ -22,7 +22,7 @@ class BaseDevice(ABC):
         self._action_groups: Dict[str, List[str]] = {}  # Index of actions by group
         self._state_schema: Optional[Type[BaseDeviceState]] = None
         self.mqtt_client = mqtt_client
-        self.mqtt_progress_topic = config.get('mqtt_progress_topic', f'/devices/{self.device_id}/controls/progress')
+        self.mqtt_progress_topic = config.get('mqtt_progress_topic', None)
         
         # Build action group index
         self._build_action_groups_index()
@@ -393,6 +393,10 @@ class BaseDevice(ABC):
                 logger.warning(f"Cannot publish progress: MQTT client not available for device {self.device_id}")
                 return False
                 
+            if not self.mqtt_progress_topic:
+                logger.warning(f"No MQTT progress topic configured for device {self.device_id}")
+                return False
+
             if not message:
                 logger.warning(f"Empty progress message not published for device {self.device_id}")
                 return False

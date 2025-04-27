@@ -4,10 +4,6 @@
 defineVirtualDevice("amplifier", {
     title: "Musical Fideliy M6si",
     cells: {
-      progress: {
-        type: "text",
-        value: ""
-      },
       // Power control
       power_toggle: {
         type: "pushbutton",
@@ -63,10 +59,6 @@ defineVirtualDevice("amplifier", {
   defineVirtualDevice("ld_player", {
     title: "Pioneer CLD-D925",
     cells: {
-      progress: {
-        type: "text",
-        value: ""
-      },
       // Power control
       power_toggle: {
         type: "pushbutton",
@@ -111,10 +103,6 @@ defineVirtualDevice("amplifier", {
   defineVirtualDevice("upscaler", {
     title: "DVDO Edge Green",
     cells: {
-      progress: {
-        type: "text",
-        value: ""
-      },
       // Power controls
       power_on: {
         type: "pushbutton",
@@ -182,10 +170,6 @@ defineVirtualDevice("amplifier", {
   defineVirtualDevice("video", {
     title: "Zappiti Neo",
     cells: {
-      progress: {
-        type: "text",
-        value: ""
-      },
       // Power controls
       power_on: {
         type: "pushbutton",
@@ -270,10 +254,6 @@ defineVirtualDevice("amplifier", {
   defineVirtualDevice("streamer", {
     title: "Auralic Altair G1",
     cells: {
-      progress: {
-        type: "text",
-        value: ""
-      },
       // Power control
       power: {
         type: "pushbutton",
@@ -291,10 +271,6 @@ defineVirtualDevice("amplifier", {
   defineVirtualDevice("vhs_player", {
     title: "Panasonic NV-FS90",
     cells: {
-      progress: {
-        type: "text",
-        value: ""
-      },
       // Power control
       power_toggle: {
         type: "pushbutton",
@@ -329,10 +305,6 @@ defineVirtualDevice("amplifier", {
   defineVirtualDevice("reel_to_reel", {
     title: "Revox A77 MK4",
     cells: {
-      progress: {
-        type: "text",
-        value: ""
-      },
       // Playback controls
       play: {
         type: "pushbutton",
@@ -357,10 +329,6 @@ defineVirtualDevice("amplifier", {
   defineVirtualDevice("processor", {
     title: "eMotiva XMC-2",
     cells: {
-      progress: {
-        type: "text",
-        value: ""
-      },
       // Power contros
       power_on: {
         type: "pushbutton",

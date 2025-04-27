@@ -7,7 +7,7 @@ defineVirtualDevice("kitchen_hood", {
     cells: {
       light: {
         type: "switch",
-		readOnly: false,
+		    readOnly: false,
         value: false
       },
       speed: {

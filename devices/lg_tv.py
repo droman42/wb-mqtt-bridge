@@ -56,6 +56,10 @@ class LgTv(BaseDevice):
         self.client_key = None
         self.tv_config = None
         
+        # Cache for available apps and input sources
+        self._cached_apps = []
+        self._cached_input_sources = []
+        
         # Register action handlers
         self._register_lg_tv_action_handlers()
         
@@ -110,6 +114,10 @@ class LgTv(BaseDevice):
             
             # Network
             'wake_on_lan': self.handle_wake_on_lan,
+            
+            # Cache management
+            'refresh_app_list': self.handle_refresh_app_list,
+            'refresh_input_sources': self.handle_refresh_input_sources,
         })
     
     def _create_ssl_context(self, cert_file: Optional[str] = None, verify_ssl: bool = False) -> Optional[ssl.SSLContext]:
@@ -239,9 +247,81 @@ class LgTv(BaseDevice):
             self.input_control = InputControl(self.client)
             self.source_control = SourceControl(self.client)
             
+            # Verify we can access at least one control to confirm initialization is working
+            try:
+                # Use a simple non-state-changing call to check connection is working
+                await self.system.info()
+                logger.info(f"Control interfaces successfully initialized for {self.get_name()}")
+                
+                # After successful initialization, cache the list of apps and input sources
+                await self._refresh_app_cache()
+                await self._refresh_input_sources_cache()
+                
+            except Exception as control_err:
+                logger.warning(f"Controls initialized but test call failed: {str(control_err)}")
+                # We still consider initialization successful if objects were created
+            
             return True
         except Exception as e:
             logger.error(f"Error initializing control interfaces: {str(e)}")
+            return False
+            
+    async def _refresh_app_cache(self) -> bool:
+        """Refresh the cached list of available apps from the TV.
+        
+        Returns:
+            True if refresh was successful, False otherwise
+        """
+        try:
+            if not self.app or not self.client or not self.state.get("connected", False):
+                logger.debug("Cannot refresh app cache: Not connected to TV or app control not available")
+                return False
+                
+            from typing import cast, Any
+            
+            # Cast to Any to avoid type checking issues
+            app_control = cast(Any, self.app)
+            apps = await app_control.list_apps()
+            
+            if apps is not None:
+                self._cached_apps = apps
+                logger.info(f"App cache refreshed: {len(apps)} apps available")
+                return True
+            else:
+                logger.warning("Failed to get app list from TV")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error refreshing app cache: {str(e)}")
+            return False
+            
+    async def _refresh_input_sources_cache(self) -> bool:
+        """Refresh the cached list of available input sources from the TV.
+        
+        Returns:
+            True if refresh was successful, False otherwise
+        """
+        try:
+            if not self.input_control or not self.client or not self.state.get("connected", False):
+                logger.debug("Cannot refresh input sources cache: Not connected to TV or input control not available")
+                return False
+                
+            from typing import cast, Any
+            
+            # Cast to Any to avoid type checking issues
+            input_control = cast(Any, self.input_control)
+            sources = await input_control.list_inputs()
+            
+            if sources is not None:
+                self._cached_input_sources = sources
+                logger.info(f"Input sources cache refreshed: {len(sources)} sources available")
+                return True
+            else:
+                logger.warning("Failed to get input sources list from TV")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error refreshing input sources cache: {str(e)}")
             return False
     
     async def setup(self) -> bool:
@@ -337,6 +417,11 @@ class LgTv(BaseDevice):
                 await self.client.close()
                 self.client = None
                 self.state["connected"] = False
+                
+                # Clear cached data
+                self._cached_apps = []
+                self._cached_input_sources = []
+                
                 logger.info(f"Disconnected from TV {self.get_name()}")
             return True
         except Exception as e:
@@ -361,22 +446,21 @@ class LgTv(BaseDevice):
             try:
                 ip = self.state.get("ip_address")
                 logger.info(f"Attempting to connect to TV at {ip}...")
+                
+                # If we have a client key, set it on the client before connecting
+                if self.client_key:
+                    self.client.client_key = self.client_key
+                
+                # Connect to the TV (this also handles registration)
                 await self.client.connect()
                 
-                # Once connected, register with the TV
-                logger.info("Connected to TV. Registering client...")
+                # After successful connection, store the client key if it was created or updated
+                if self.client.client_key and self.client.client_key != self.client_key:
+                    self.client_key = self.client.client_key
+                    logger.info(f"Obtained new client key for future use: {self.client_key}")
                 
-                # Create a key store for the client key
-                key_store = {}
-                if self.client_key:
-                    key_store["client_key"] = self.client_key
-                
-                # Register with the TV
-                if await self._register_client(key_store):
-                    return True
-                else:
-                    logger.error("Failed to register with TV")
-                    return False
+                logger.info(f"Successfully connected to TV at {ip}")
+                return True
                 
             except ssl.SSLError as ssl_error:
                 # Handle SSL errors specially
@@ -429,22 +513,22 @@ class LgTv(BaseDevice):
             self.client = self._create_webos_client(secure=False)
             if not self.client:
                 return False
+            
+            # If we have a client key, set it on the client before connecting    
+            if self.client_key:
+                self.client.client_key = self.client_key
                 
             # Connect with the non-secure client
             await self.client.connect()
             
-            # Register with the TV
-            key_store = {}
-            if self.client_key:
-                key_store["client_key"] = self.client_key
-                
-            if await self._register_client(key_store):
-                logger.warning("Connected with insecure fallback (without SSL)")
-                self.state["error"] = "Connected with insecure fallback. Consider extracting TV certificate."
-                return True
-            else:
-                logger.error("Fallback registration failed")
-                return False
+            # After successful connection, store the client key if it was created or updated
+            if self.client.client_key and self.client.client_key != self.client_key:
+                self.client_key = self.client.client_key
+                logger.info(f"Obtained new client key from insecure connection: {self.client_key}")
+            
+            logger.warning("Connected with insecure fallback (without SSL)")
+            self.state["error"] = "Connected with insecure fallback. Consider extracting TV certificate."
+            return True
                 
         except Exception as fallback_error:
             logger.error(f"Fallback connection failed: {str(fallback_error)}")
@@ -480,19 +564,20 @@ class LgTv(BaseDevice):
                     if not self.client:
                         return False
                         
+                    # If we have a client key, set it on the client before connecting    
+                    if self.client_key:
+                        self.client.client_key = self.client_key
+                        
+                    # Connect to the TV (this also handles registration)
                     await self.client.connect()
                     
-                    # Register after WoL connection
-                    key_store = {}
-                    if self.client_key:
-                        key_store["client_key"] = self.client_key
-                        
-                    if await self._register_client(key_store):
-                        logger.info("Successfully connected after Wake-on-LAN")
-                        return True
-                    else:
-                        logger.error("Failed to register after Wake-on-LAN")
-                        return False
+                    # After successful connection, store the client key if it was created or updated
+                    if self.client.client_key and self.client.client_key != self.client_key:
+                        self.client_key = self.client.client_key
+                        logger.info(f"Obtained new client key after WoL: {self.client_key}")
+                    
+                    logger.info("Successfully connected after Wake-on-LAN")
+                    return True
                         
                 except Exception as wol_conn_error:
                     logger.error(f"Failed to connect after Wake-on-LAN: {str(wol_conn_error)}")
@@ -543,30 +628,26 @@ class LgTv(BaseDevice):
             logger.debug(f"Could not get volume info: {str(e)}")
             
     async def _update_current_app(self):
-        """Update current app information."""
-        if not self.client or not self.app:
+        """Update current app information using ApplicationControl."""
+        if not self.app:
             return
-            
+        
         try:
-            # Use the client's request method directly for foreground app info
-            queue = await self.client.send_message('request', 'ssap://com.webos.applicationManager/getForegroundAppInfo', {}, get_queue=True)
-            app_info = await queue.get()
-            if app_info and "payload" in app_info:
-                self.state["current_app"] = app_info["payload"].get("appId")
+            # Use ApplicationControl's foreground_app method
+            foreground_app = await self.app.foreground_app()
+            if foreground_app and isinstance(foreground_app, dict):
+                self.state["current_app"] = foreground_app.get("appId")
         except Exception as e:
             logger.debug(f"Could not get current app info: {str(e)}")
             
     async def _update_input_source(self):
-        """Update input source information."""
-        from typing import cast, Any
-        
+        """Update input source information using InputControl."""
         if not self.input_control:
             return
-            
+        
         try:
-            # Cast to Any to avoid type checking issues
-            input_control = cast(Any, self.input_control)
-            input_info = await input_control.get_input()
+            # Use InputControl's get_input method directly
+            input_info = await self.input_control.get_input()
             if input_info and "inputId" in input_info:
                 self.state["input_source"] = input_info.get("inputId")
         except Exception as e:
@@ -795,68 +876,58 @@ class LgTv(BaseDevice):
         """
         return await self._execute_media_command(
             action_name="mute",
-            media_method_name="set_mute_with_monitoring",
+            media_method_name="set_mute",
             action_config=action_config,
             state_key_to_update="mute",
-            requires_level=False,
             requires_state=True
         )
     
-    async def launch_app(self, app_name):
+    async def launch_app(self, app_name_or_id: str):
         """Launch an app by name or ID.
         
         Args:
-            app_name: The name or ID of the app to launch
+            app_name_or_id: The name or ID of the app to launch
             
         Returns:
             True if app launch was successful, False otherwise
         """
         try:
-            logger.info(f"Launching app {app_name} on TV {self.get_name()}")
+            logger.info(f"Launching app {app_name_or_id} on TV {self.get_name()}")
             
             if not self.client or not self.app or not self.state.get("connected", False):
-                logger.error("TV client or application control not initialized")
+                logger.error("Cannot launch app: Not connected or application control not available")
                 return False
             
-            # First retrieve list of available apps
-            try:
-                apps = await self._get_available_apps_internal()
-                
-                if not apps:
-                    logger.error("Could not retrieve list of apps")
-                    return False
-                
-                # Try to find the app by name or ID
-                target_app = self._find_app_by_name_or_id(apps, app_name)
-                
-                if not target_app:
-                    logger.error(f"App {app_name} not found on TV")
-                    return False
-                
-                # Launch the app with monitoring for more reliability
-                result = await self._execute_with_monitoring(
-                    self.app,
-                    "launch_with_monitoring",
-                    target_app["id"],
-                    timeout=30.0
-                )
-                
-                if result.get("success", False):
-                    self.state["current_app"] = target_app["id"]
-                    self.state["last_command"] = f"launch_app_{app_name}"
-                    return True
-                else:
-                    logger.error(f"Failed to launch app: {result.get('error', 'Unknown error')}")
-                    return False
-                
-            except Exception as e:
-                logger.error(f"Error retrieving apps or launching app: {str(e)}")
+            # Get apps from cache or refresh if needed
+            apps = await self._get_available_apps_internal()
+            
+            if not apps:
+                logger.error("Could not retrieve list of apps")
+                return False
+            
+            # Try to find the app by name or ID
+            target_app = self._find_app_by_name_or_id(apps, app_name_or_id)
+            
+            if not target_app:
+                logger.error(f"App {app_name_or_id} not found on TV")
+                return False
+            
+            # Use the app ID directly with the launch method
+            result = await self.app.launch(target_app["id"])
+            
+            # Check if launch was successful
+            if result and isinstance(result, dict) and result.get("returnValue", False):
+                self.state["current_app"] = target_app["id"]
+                await self._update_last_command(action=f"launch_app", params={"app": target_app["title"]}, source="api")
+                return True
+            else:
+                logger.warning(f"App launch failed: {result}")
                 return False
             
         except Exception as e:
             logger.error(f"Error launching app: {str(e)}")
             return False
-            
+
     def _find_app_by_name_or_id(self, apps, app_name):
         """Find an app by name or ID from a list of apps.
         
@@ -879,19 +950,16 @@ class LgTv(BaseDevice):
         Returns:
             List of app dictionaries or empty list if retrieval fails
         """
-        from typing import cast, Any
-        
-        if not self.client or not self.app or not self.state.get("connected", False):
-            logger.error("Cannot get apps: Not connected to TV")
-            return []
+        # If we have a cached list of apps, return it
+        if self._cached_apps:
+            return self._cached_apps
             
-        try:
-            # Cast to Any to avoid type checking issues
-            app_control = cast(Any, self.app)
-            return await app_control.list_apps()
-        except Exception as e:
-            logger.error(f"Failed to get apps: {str(e)}")
-            return []
+        # Otherwise try to refresh the cache
+        if await self._refresh_app_cache():
+            return self._cached_apps
+        
+        # If refresh failed, return empty list
+        return []
             
     async def get_available_apps(self):
         """Get a list of available apps.
@@ -1043,11 +1111,8 @@ class LgTv(BaseDevice):
         Returns:
             True if successful, False otherwise
         """
-        return await self._execute_simple_command(
-            self.input_control,
-            "home"
-        )
-        
+        return await self._execute_input_command("home", "home")
+    
     async def handle_back(self, action_config: Dict[str, Any]):
         """Handle back button action.
         
@@ -1060,15 +1125,12 @@ class LgTv(BaseDevice):
         Returns:
             True if successful, False otherwise
         """
-        return await self._execute_simple_command(
-            self.input_control,
-            "back"
-        )
-        
+        return await self._execute_input_command("back", "back")
+    
     async def handle_up(self, action_config: Dict[str, Any]):
         """Handle up button action.
         
-        This method sends a up button press command to the TV using the
+        This method sends an up button press command to the TV using the
         InputControl interface from the asyncwebostv library.
         
         Args:
@@ -1077,11 +1139,8 @@ class LgTv(BaseDevice):
         Returns:
             True if successful, False otherwise
         """
-        return await self._execute_simple_command(
-            self.input_control,
-            "up"
-        )
-        
+        return await self._execute_input_command("up", "up")
+    
     async def handle_down(self, action_config: Dict[str, Any]):
         """Handle down button action.
         
@@ -1094,11 +1153,8 @@ class LgTv(BaseDevice):
         Returns:
             True if successful, False otherwise
         """
-        return await self._execute_simple_command(
-            self.input_control,
-            "down"
-        )
-        
+        return await self._execute_input_command("down", "down")
+    
     async def handle_left(self, action_config: Dict[str, Any]):
         """Handle left button action.
         
@@ -1111,11 +1167,8 @@ class LgTv(BaseDevice):
         Returns:
             True if successful, False otherwise
         """
-        return await self._execute_simple_command(
-            self.input_control,
-            "left"
-        )
-        
+        return await self._execute_input_command("left", "left")
+    
     async def handle_right(self, action_config: Dict[str, Any]):
         """Handle right button action.
         
@@ -1128,15 +1181,12 @@ class LgTv(BaseDevice):
         Returns:
             True if successful, False otherwise
         """
-        return await self._execute_simple_command(
-            self.input_control,
-            "right"
-        )
-        
+        return await self._execute_input_command("right", "right")
+    
     async def handle_enter(self, action_config: Dict[str, Any]):
-        """Handle ok button action.
+        """Handle enter/ok button action.
         
-        This method sends a ok button press command to the TV using the
+        This method sends an OK button press command to the TV using the
         InputControl interface from the asyncwebostv library.
         
         Args:
@@ -1145,56 +1195,50 @@ class LgTv(BaseDevice):
         Returns:
             True if successful, False otherwise
         """
-        return await self._execute_simple_command(
-            self.input_control,
-            "ok"
-        )
-        
+        return await self._execute_input_command("enter", "ok")
+    
     async def handle_exit(self, action_config: Dict[str, Any]):
         """Handle exit button action.
         
+        This method sends an exit button press command to the TV using the
+        InputControl interface from the asyncwebostv library.
+        
         Args:
             action_config: Configuration for the action (not used)
             
         Returns:
             True if successful, False otherwise
         """
-        # Assuming InputControl has an 'exit' method
-        return await self._execute_simple_command(
-            self.input_control,
-            "exit"
-        )
-
+        return await self._execute_input_command("exit", "exit")
+    
     async def handle_menu(self, action_config: Dict[str, Any]):
         """Handle menu button action.
         
+        This method sends a menu button press command to the TV using the
+        InputControl interface from the asyncwebostv library.
+        
         Args:
             action_config: Configuration for the action (not used)
             
         Returns:
             True if successful, False otherwise
         """
-        # Assuming InputControl has a 'menu' method
-        return await self._execute_simple_command(
-            self.input_control,
-            "menu"
-        )
-
+        return await self._execute_input_command("menu", "menu")
+    
     async def handle_settings(self, action_config: Dict[str, Any]):
         """Handle settings button action.
         
+        This method sends a settings button press command to the TV using the
+        InputControl interface from the asyncwebostv library.
+        
         Args:
             action_config: Configuration for the action (not used)
             
         Returns:
             True if successful, False otherwise
         """
-        # Assuming InputControl has a 'settings' method
-        return await self._execute_simple_command(
-            self.input_control,
-            "settings"
-        )
-        
+        return await self._execute_input_command("settings", "settings")
+    
     async def handle_volume_up(self, action_config: Dict[str, Any]):
         """Handle volume up action.
         
@@ -1208,10 +1252,7 @@ class LgTv(BaseDevice):
         """
         return await self._execute_media_command(
             action_name="volume_up",
-            media_method_name="volume_up_with_monitoring",
-            action_config=action_config,
-            state_key_to_update="volume",
-            requires_level=True,
+            media_method_name="volume_up",
             update_volume_after=True
         )
         
@@ -1228,10 +1269,7 @@ class LgTv(BaseDevice):
         """
         return await self._execute_media_command(
             action_name="volume_down",
-            media_method_name="volume_down_with_monitoring",
-            action_config=action_config,
-            state_key_to_update="volume",
-            requires_level=True,
+            media_method_name="volume_down",
             update_volume_after=True
         )
         
@@ -1248,7 +1286,7 @@ class LgTv(BaseDevice):
         """
         return await self._execute_media_command(
             action_name="set_volume",
-            media_method_name="set_volume_with_monitoring",
+            media_method_name="set_volume",
             action_config=action_config,
             state_key_to_update="volume",
             requires_level=True
@@ -1256,31 +1294,23 @@ class LgTv(BaseDevice):
             
     async def handle_play(self, action_config: Dict[str, Any]):
         """Handle play button action."""
-        return await self._execute_simple_command(self.media, "play")
+        return await self._execute_media_command("play", "play")
         
     async def handle_pause(self, action_config: Dict[str, Any]):
         """Handle pause button action."""
-        return await self._execute_simple_command(self.media, "pause")
+        return await self._execute_media_command("pause", "pause")
         
     async def handle_stop(self, action_config: Dict[str, Any]):
         """Handle stop button action."""
-        return await self._execute_simple_command(self.media, "stop")
+        return await self._execute_media_command("stop", "stop")
         
     async def handle_rewind_forward(self, action_config: Dict[str, Any]):
-        """Handle fast forward action (corresponds to rewind_forward in config)."""
-        return await self._execute_simple_command(
-            self.media, 
-            "rewind_forward", 
-            control_method_name="fastForward"
-        )
+        """Handle fast forward action."""
+        return await self._execute_media_command("fast_forward", "fastForward")
         
     async def handle_rewind_backward(self, action_config: Dict[str, Any]):
-        """Handle rewind action (corresponds to rewind_backward in config)."""
-        return await self._execute_simple_command(
-            self.media, 
-            "rewind_backward", 
-            control_method_name="rewind"
-        )
+        """Handle rewind action."""
+        return await self._execute_media_command("rewind", "rewind")
 
     async def handle_kinopoisk(self, action_config: Dict[str, Any]):
         """Handle launching the Kinopoisk app using the configured appname."""
@@ -1507,63 +1537,6 @@ class LgTv(BaseDevice):
             logger.error(error_msg)
             return False, error_msg
     
-    async def _register_client(self, key_store: Optional[Dict[str, str]] = None) -> bool:
-        """Register the client with the TV.
-        
-        This handles the WebOS registration flow, which is required
-        even with an existing client key. Registration may require user
-        confirmation on the TV.
-        
-        Args:
-            key_store: Optional dictionary to store the client key
-            
-        Returns:
-            True if registration completed successfully, False otherwise
-        """
-        try:
-            if not self.client:
-                logger.error("Cannot register: No client available")
-                return False
-                
-            # Create a key store if not provided
-            if key_store is None:
-                key_store = {}
-                if self.client_key:
-                    key_store["client_key"] = self.client_key
-            
-            # Use the registration process which handles both new and existing keys
-            connection_success = False
-            registration_completed = False
-            
-            try:
-                async for status in self.client.register(key_store):
-                    if status == WebOSClient.PROMPTED:
-                        logger.info(f"Please accept the connection on TV {self.get_name()}!")
-                        self.state["error"] = "Waiting for user to accept connection on TV"
-                    elif status == WebOSClient.REGISTERED:
-                        logger.info(f"Registration successful for TV {self.get_name()}")
-                        
-                        # Update the client key if it was provided or changed
-                        if key_store.get("client_key"):
-                            self.client_key = key_store.get("client_key")
-                            logger.info(f"Client key for future use: {self.client_key}")
-                        
-                        registration_completed = True
-                
-                # If we get here without errors, registration was successful
-                connection_success = registration_completed
-            except Exception as reg_error:
-                logger.error(f"Registration error: {str(reg_error)}")
-                self.state["error"] = f"Registration error: {str(reg_error)}"
-                connection_success = False
-            
-            return connection_success
-            
-        except Exception as e:
-            logger.error(f"Error during client registration: {str(e)}")
-            self.state["error"] = f"Registration error: {str(e)}"
-            return False
-
     async def set_input_source(self, input_source):
         """Set the TV input source.
         
@@ -1624,19 +1597,16 @@ class LgTv(BaseDevice):
         Returns:
             List of input source dictionaries or empty list on failure
         """
-        from typing import cast, Any
-        
-        if not self.client or not self.input_control or not self.state.get("connected", False):
-            logger.error("Cannot get inputs: Not connected to TV")
-            return []
+        # If we have a cached list of input sources, return it
+        if self._cached_input_sources:
+            return self._cached_input_sources
             
-        try:
-            # Cast to Any to avoid type checking issues
-            input_control = cast(Any, self.input_control)
-            return await input_control.list_inputs()
-        except Exception as e:
-            logger.error(f"Failed to get input sources: {str(e)}")
-            return []
+        # Otherwise try to refresh the cache
+        if await self._refresh_input_sources_cache():
+            return self._cached_input_sources
+        
+        # If refresh failed, return empty list
+        return []
             
     def _find_input_by_name_or_id(self, sources, input_source):
         """Find an input source by name or ID.
@@ -1669,80 +1639,50 @@ class LgTv(BaseDevice):
             # Log error but don't prevent the main action from completing
             logger.error(f"Error updating last_command state for action '{action}': {e}")
 
-    async def _execute_simple_command(
-        self,
-        control_instance: Any, # Pass the control object (e.g., self.input_control, self.media)
-        action_name: str,
-        control_method_name: Optional[str] = None
-    ) -> bool:
-        """Executes a simple, parameter-less command using a given control instance.
-        
-        Handles connection checks, method invocation, state updates, and logging.
-        
-        Args:
-            control_instance: The control object instance (e.g., self.input_control, self.media).
-            action_name: The logical name of the action (e.g., "home", "play"). Used for logging and state update.
-            control_method_name: The specific method name on the control instance to call.
-                                 Defaults to action_name if not provided.
-                                 
-        Returns:
-            True if successful, False otherwise.
-        """
-        method_to_call = control_method_name if control_method_name else action_name
-        control_name = type(control_instance).__name__ if control_instance else "None"
-        try:
-            logger.info(f"Sending {action_name.upper()} command via {control_name} to TV {self.get_name()}")
-            
-            # Check client connection and if the control instance is valid
-            if not self.client or not control_instance or not self.state.get("connected", False):
-                logger.error(f"Cannot send {action_name.upper()} command: Not connected or {control_name} not available")
-                return False
-                
-            # Get the method from the provided control instance
-            instance_method = getattr(control_instance, method_to_call, None)
-            if not instance_method or not callable(instance_method):
-                logger.error(f"{control_name} method '{method_to_call}' not found or not callable for action '{action_name}'")
-                return False
-
-            # Call the control instance method
-            await instance_method()
-            
-            # Update state with last command information
-            await self._update_last_command(action=action_name, source="api")
-            
-            return True
-        except Exception as e:
-            logger.error(f"Error sending {action_name.upper()} command via {control_name}: {str(e)}")
-            # Optionally update last command state to reflect error
-            # await self._update_last_command(action=f"{action_name}_error", position=position)
-            return False
-
     async def _execute_media_command(
         self,
         action_name: str,
         media_method_name: str,
-        action_config: Dict[str, Any],
-        state_key_to_update: str,
+        action_config: Dict[str, Any] = None,
+        state_key_to_update: str = None,
         requires_level: bool = False,
         requires_state: bool = False,
         update_volume_after: bool = False
     ) -> bool:
         """Executes a command using MediaControl.
         
-        Handles connection checks, parameter validation (level/state),
-        execution via _execute_with_monitoring, state updates, and logging.
+        This unified helper works for both simple media commands (play, pause)
+        and complex ones with parameters (volume, mute).
+        
+        Args:
+            action_name: The name of the action (for logging and state updates)
+            media_method_name: The name of the method to call on MediaControl
+            action_config: Configuration for the action (optional for simple commands)
+            state_key_to_update: The state key to update after the action (optional)
+            requires_level: Whether the command requires a level parameter (e.g., volume)
+            requires_state: Whether the command requires a state parameter (e.g., mute)
+            update_volume_after: Whether to update volume state after the action
+            
+        Returns:
+            True if successful, False otherwise
         """
         try:
-            logger.info(f"Handling action '{action_name}' on TV {self.get_name()}")
+            action_config = action_config or {}
+            logger.info(f"Handling media action '{action_name}' on TV {self.get_name()}")
 
             if not self.client or not self.media or not self.state.get("connected", False):
                 logger.error(f"Cannot handle '{action_name}': Not connected or media control not available")
+                return False
+                
+            # Check if the media method exists on MediaControl
+            if not hasattr(self.media, media_method_name) or not callable(getattr(self.media, media_method_name)):
+                logger.error(f"Media method '{media_method_name}' not found on MediaControl")
                 return False
 
             params = {}
             args_for_method = []
 
-            # Handle parameter validation and preparation
+            # Handle parameter validation and preparation for complex commands
             if requires_level:
                 if "level" not in action_config:
                     logger.error(f"Missing 'level' parameter for {action_name}")
@@ -1769,25 +1709,36 @@ class LgTv(BaseDevice):
                 args_for_method.append(state)
                 params["state"] = state
             
-            # Execute the command using the monitoring helper
-            result = await self._execute_with_monitoring(
-                self.media,
-                media_method_name,
-                *args_for_method, 
-                timeout=5.0
-            )
+            # Get the method from MediaControl
+            method = getattr(self.media, media_method_name)
+            
+            # Call the method with any necessary arguments
+            if args_for_method:
+                result = await method(*args_for_method)
+            else:
+                result = await method()
 
-            if result.get("success", False):
-                # Update the specific state key (volume or mute)
-                if requires_level:
-                    self.state[state_key_to_update] = level
-                elif requires_state:
-                    self.state[state_key_to_update] = state
+            # Process result
+            success = False
+            if isinstance(result, dict):
+                success = result.get("returnValue", False)
+            elif result is not None:
+                success = bool(result)
+            else:
+                success = True  # Assume success if no result returned
+            
+            if success:
+                # Update the specific state key if provided
+                if state_key_to_update:
+                    if requires_level:
+                        self.state[state_key_to_update] = level
+                    elif requires_state:
+                        self.state[state_key_to_update] = state
                 
                 # Optionally update volume state after the action
                 if update_volume_after:
                     try:
-                        volume_info = await cast(Any, self.media).get_volume()
+                        volume_info = await self.media.get_volume()
                         if volume_info and "volume" in volume_info:
                             self.state["volume"] = volume_info["volume"]
                     except Exception as vol_err:
@@ -1797,79 +1748,11 @@ class LgTv(BaseDevice):
                 await self._update_last_command(action=action_name, params=params, source="api")
                 return True
             else:
-                logger.warning(f"{action_name} failed: {result.get('error', 'Unknown error')}")
+                logger.warning(f"Media action {action_name} failed")
                 return False
 
         except Exception as e:
-            logger.error(f"Error handling {action_name} action: {str(e)}")
-            return False
-            
-    async def _execute_pointer_command(
-        self,
-        action_name: str,
-        action_config: Dict[str, Any],
-        use_ws_send: bool,
-        required_params: List[str],
-        optional_params: Optional[Dict[str, Any]] = None,
-        position: str = "cursor"
-    ) -> bool:
-        """Executes a pointer/cursor command (move, click).
-        
-        Handles connection checks, parameter validation, WebSocket ensure/send or click,
-        state updates, and logging.
-        """
-        optional_params = optional_params or {}
-        try:
-            logger.info(f"Handling pointer action '{action_name}' on TV {self.get_name()}")
-            
-            if not self.client or not self.input_control or not self.state.get("connected", False):
-                logger.error(f"Cannot handle '{action_name}': Not connected or input control not available")
-                return False
-                
-            payload = {}
-            # Validate required parameters
-            for param in required_params:
-                if param not in action_config:
-                    logger.error(f"Missing '{param}' parameter for {action_name}")
-                    return False
-                try:
-                    payload[param] = int(action_config[param])
-                except (ValueError, TypeError):
-                    logger.error(f"Parameter '{param}' for {action_name} must be an integer")
-                    return False
-            
-            # Add optional parameters
-            for param, default in optional_params.items():
-                payload[param] = action_config.get(param, default)
-                # Special handling for drag if it needs conversion
-                if param == "drag" and isinstance(payload[param], str):
-                    payload[param] = payload[param].lower() == 'true'
-            
-            # Execute the command
-            if use_ws_send:
-                 # Ensure WebSocket connection
-                if not self.input_control.ws_client:
-                    await self.input_control._ensure_pointer_socket()
-                    
-                if not self.input_control.ws_client:
-                    logger.error(f"Failed to establish WebSocket connection for {action_name}")
-                    return False
-                    
-                # Add required fields for specific ws commands
-                if action_name == "move_cursor_relative":
-                    payload["move"] = True # Required for relative move via ws
-                
-                # Send payload via WebSocket
-                await self.input_control.ws_client.send(json.dumps(payload))
-            else: # Use input_control.click()
-                await self.input_control.click(**payload)
-            
-            # Update last command
-            await self._update_last_command(action=action_name, params=payload, source="api")
-            return True
-
-        except Exception as e:
-            logger.error(f"Error executing pointer action {action_name}: {str(e)}")
+            logger.error(f"Error handling media action {action_name}: {str(e)}")
             return False
 
     async def handle_power_off(self, params: Dict[str, Any] = None, **kwargs):
@@ -1879,4 +1762,70 @@ class LgTv(BaseDevice):
         result = await self.power_off()
         return result
 
+    async def _execute_input_command(self, action_name: str, button_method_name: str) -> bool:
+        """Execute an input button command using InputControl.
+        
+        This helper method provides a consistent implementation for all button commands
+        that use InputControl methods.
+        
+        Args:
+            action_name: The name of the action (for logging and state updates)
+            button_method_name: The name of the method to call on InputControl
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            logger.info(f"Sending {action_name.upper()} button command to TV {self.get_name()}")
+            
+            if not self.client or not self.input_control or not self.state.get("connected", False):
+                logger.error(f"Cannot send {action_name.upper()} command: Not connected or input control not available")
+                return False
+                
+            # Check if the button method exists on InputControl
+            if not hasattr(self.input_control, button_method_name) or not callable(getattr(self.input_control, button_method_name)):
+                logger.error(f"Button method '{button_method_name}' not found on InputControl")
+                return False
+                
+            # Call the button method on InputControl
+            method = getattr(self.input_control, button_method_name)
+            result = await method()
+            
+            if result:
+                await self._update_last_command(action=action_name, source="api")
+                return True
+            else:
+                logger.warning(f"{action_name.upper()} button command failed")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error sending {action_name.upper()} button command: {str(e)}")
+            return False
+    
+    async def refresh_app_list(self) -> bool:
+        """Public method to manually refresh the app list cache.
+        
+        Returns:
+            True if refresh was successful, False otherwise
+        """
+        logger.info(f"Manually refreshing app list for TV {self.get_name()}")
+        return await self._refresh_app_cache()
+        
+    async def refresh_input_sources(self) -> bool:
+        """Public method to manually refresh the input sources cache.
+        
+        Returns:
+            True if refresh was successful, False otherwise
+        """
+        logger.info(f"Manually refreshing input sources for TV {self.get_name()}")
+        return await self._refresh_input_sources_cache()
+        
+    # Add action handlers for these refresh methods
+    async def handle_refresh_app_list(self, action_config: Dict[str, Any]) -> bool:
+        """Handle refresh_app_list action."""
+        return await self.refresh_app_list()
+        
+    async def handle_refresh_input_sources(self, action_config: Dict[str, Any]) -> bool:
+        """Handle refresh_input_sources action."""
+        return await self.refresh_input_sources()
     
