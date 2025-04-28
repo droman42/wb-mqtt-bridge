@@ -59,15 +59,17 @@ This document outlines the plan to adapt the codebase to support optional parame
 ## 3. Action Execution Refactoring
 
 - **`_execute_single_action` Method:**
-    - **Signature Change:** Modify the signature from `(self, action_name, action_config, payload)` to `async def _execute_single_action(self, action_name: str, params: Dict[str, Any])`.
+    - **Signature Change:** Modify the signature from `(self, action_name, action_config, payload)` to `async def _execute_single_action(self, action_name: str, cmd_config: Dict[str, Any], params: Dict[str, Any])`.
     - **Functionality:**
+        - Retrieve the full command configuration (`cmd_config`) for the given `action_name`.
+        - Resolve and validate parameters (`params`) using the helper function or inline logic, based on `cmd_config['params']` and the input parameters.
         - Get the handler method using `_get_action_handler(action_name)`.
-        - Call the handler, passing only the resolved `params` dictionary: `await handler(params=params)`.
-        - Update `LastCommand` state in `self.state` using the resolved `params` dictionary.
+        - Call the handler, passing both the command configuration and the resolved parameters: `await handler(cmd_config=cmd_config, params=params)`.
+        - Update `LastCommand` state in `self.state` using the resolved `params` dictionary and potentially `action_name`.
 
 - **Specific Action Handlers (e.g., `handle_power_on`, `handle_set_brightness`):**
-    - **Signature Change:** Modify the signature of individual device action handlers to accept `self` and the resolved `params` dictionary: `async def handle_some_action(self, params: Dict[str, Any])`.
-    - **Implementation:** These handlers will now directly use the values from the provided `params` dictionary.
+    - **Signature Change:** Modify the signature of individual device action handlers to accept `self`, the command config (`cmd_config`), and the resolved `params` dictionary: `async def handle_some_action(self, cmd_config: Dict[str, Any], params: Dict[str, Any])`.
+    - **Implementation:** These handlers will now use values from the provided `params` dictionary for dynamic inputs and can access static configuration (like RF codes, topics, location, etc.) from the `cmd_config` dictionary.
 
 ## 4. Helper Function (Recommended)
 
@@ -81,6 +83,52 @@ This document outlines the plan to adapt the codebase to support optional parame
     - Returns the final, validated dictionary of parameters.
     - Raises a `ValueError` or similar exception if validation fails.
 - **Usage:** Call this helper from both `handle_message` (after parsing the payload) and `execute_action`.
+
+## 5. Specific Device Adaptation: BroadlinkKitchenHood
+
+The `BroadlinkKitchenHood` device requires specific adaptation due to its reliance on mapping MQTT payload values to distinct RF codes.
+
+- **Current State:** Relies on `condition` strings in the config's `actions` array, evaluated against the raw MQTT payload to select an action and its associated `rf_code`.
+- **Required Changes:**
+    - **Configuration (`config/devices/kitchen_hood.json`):**
+        - Remove the `actions` array and the `condition` key.
+        - Define simplified commands (`setLight`, `setSpeed`) using the new `params` structure (e.g., `setLight` takes a required string `state`, `setSpeed` takes a required integer `level`).
+        - Introduce a new top-level `rf_codes` object to map parameter values to the corresponding base64 RF codes. This map will have sub-objects (e.g., `light`, `speed`) where keys are the parameter values (as strings, e.g., `"on"`, `"0"`, `"1"`) and values are the RF codes.
+          ```json
+          // Example snippet within kitchen_hood.json
+          "rf_codes": {
+            "light": {
+              "on": "RF_CODE_LIGHT_ON...",
+              "off": "RF_CODE_LIGHT_OFF..."
+            },
+            "speed": {
+              "0": "RF_CODE_SPEED_0...", // Off
+              "1": "RF_CODE_SPEED_1...",
+              // ... other speeds
+            }
+          },
+          "commands": {
+            "setLight": {
+              "action": "set_light",
+              "topic": "/devices/kitchen_hood/controls/light",
+              "params": [{ "name": "state", "type": "string", "required": true }]
+            },
+            // ... setSpeed command ...
+          }
+          ```
+    - **Device Code (`devices/broadlink_kitchen_hood.py`):**
+        - Load the `rf_codes` map from the configuration during initialization.
+        - Consolidate existing action handlers (e.g., `handle_light_on`, `handle_light_off`) into new handlers matching the `action` defined in the commands (e.g., `handle_set_light`, `handle_set_speed`).
+        - Update the `_action_handlers` dictionary to map the new action names to the new handlers.
+        - Modify the new handlers:
+            - Change signature to accept `self` and `params: Dict[str, Any]`.
+            - Extract the parameter value (e.g., `state = params["state"]` or `level = params["level"]`).
+            - Convert the parameter value to a string if necessary (for the `speed` map lookup).
+            - Look up the correct RF code in the loaded `rf_codes` map using the parameter value.
+            - Send the RF code using `_send_rf_code`.
+            - Update the device state based on the parameter value.
+
+This adaptation aligns the kitchen hood with the general parameter handling mechanism while accommodating its specific RF code mapping requirement.
 
 ## Summary
 

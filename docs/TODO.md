@@ -24,8 +24,8 @@
 - [x] Сгенерить простую Веб-морду для управления AV-системой по FastAPI (?Vue.js?)
 - [ ] Инсталляция на контроллере через Docker
 - [x] Инсталляция правил и виртуальных устройств в wb-rules с помощью скрипта
-- [ ] Сделать девайсы Miele
-- [ ] Сделать пылесос Roborock S8
+- [ ] Сделать девайсы [Miele](https://github.com/nordicopen/pymiele/tree/main)
+- [ ] Сделать пылесос [Roborock S8](https://github.com/Python-roborock/python-roborock?tab=readme-ov-file)
 - [ ] Сделать progress reporting на веб интерфейсе
 - [x] Миграция на SVG Icons на веб интерфейсе
 - [ ] Сделать страничку для обучения IR кодам с пультов
