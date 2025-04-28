@@ -4,14 +4,18 @@ This document outlines the plan to adapt the codebase to support optional parame
 
 ## 1. Configuration Schema Update
 
-- **Introduce `params` Key:** Add a `params` key within each command definition object in the device JSON configuration files.
+- **Introduce `params` Key:** Add an *optional* `params` key within each command definition object in the device JSON configuration files. If omitted, the command takes no parameters.
 - **Parameter Definition Objects:** The `params` key will hold an array of objects, where each object defines a single parameter.
 - **Parameter Object Fields:**
     - `name` (string): The parameter name.
-    - `type` (string): Data type (e.g., "string", "integer", "float", "boolean"). Used for potential validation.
+    - `type` (string): Data type (e.g., "string", "integer", "float", "boolean", "range"). Used for potential validation.
+    - `min` (number, optional): Minimum allowed value (used with `type: "range"`).
+    - `max` (number, optional): Maximum allowed value (used with `type: "range"`).
     - `required` (boolean): `true` if the parameter must be provided, `false` otherwise.
     - `default` (any, optional): The default value to use if the parameter is not provided and `required` is `false`.
     - `description` (string, optional): A human-readable description.
+
+- **Update Pydantic Schemas:** Modify the corresponding Pydantic models (e.g., `DeviceConfig` and related models in `app/schemas.py`) to include the new, *optional* `params` structure (including fields like `name`, `type`, `required`, `default`, `min`, `max`) for validation.
 
 - **Example JSON Structure:**
   ```json
@@ -23,7 +27,7 @@ This document outlines the plan to adapt the codebase to support optional parame
         "topic": "/devices/light/set",
         "description": "Set light brightness and optional transition",
         "params": [
-          { "name": "level", "type": "integer", "required": true, "description": "Brightness level 0-100" },
+          { "name": "level", "type": "range", "min": 0, "max": 100, "required": true, "description": "Brightness level 0-100" },
           { "name": "transition", "type": "integer", "required": false, "default": 0, "description": "Transition time in seconds" }
         ]
       }
@@ -36,8 +40,8 @@ This document outlines the plan to adapt the codebase to support optional parame
 
 - **`handle_message` (MQTT Input):**
     1. Find matching command configuration (`cmd_config`) based on the incoming `topic`.
-    2. Check if `cmd_config` defines a `params` array.
-    3. **If `params` are defined:**
+    2. Check if `cmd_config` defines a `params` array. *If the `params` key is missing, treat it as an empty list.*
+    3. **If `params` are defined (and not empty):**
         - Assume the MQTT `payload` is a JSON string representing parameters (e.g., `'{"level": 80, "transition": 5}'`).
         - Parse the payload using `json.loads(payload)`.
         - Use a helper function (see Step 4) or inline logic to validate parsed parameters against the `cmd_config["params"]` definition (check required fields, apply defaults).
@@ -48,9 +52,9 @@ This document outlines the plan to adapt the codebase to support optional parame
 - **`execute_action` (API/Direct Call):**
     1. Accepts `action` (string) and `params` (dict) as input.
     2. Find the corresponding `cmd_config` for the `action`.
-    3. Retrieve the `params` definition from `cmd_config`.
+    3. Retrieve the `params` definition from `cmd_config`. *If the `params` key is missing, treat it as an empty list.*
     4. Use a helper function (see Step 4) or inline logic to create the final parameter dictionary:
-        - Start with default values specified in `cmd_config["params"]`.
+        - Start with default values specified in `cmd_config["params"]` (if any).
         - Override/add values from the `params` dictionary passed into `execute_action`.
     5. Validate the final dictionary: Ensure all `required: true` parameters have values. Optionally check types.
     6. Raise an error if validation fails.
@@ -79,7 +83,7 @@ This document outlines the plan to adapt the codebase to support optional parame
     - Takes the command configuration (specifically the `params` definition part) and the input parameters (either parsed from MQTT payload or passed via `execute_action`).
     - Applies default values for optional parameters.
     - Validates that all required parameters are present.
-    - Optionally performs type checking.
+    - Optionally performs type checking (including checking `min`/`max` for `range` types).
     - Returns the final, validated dictionary of parameters.
     - Raises a `ValueError` or similar exception if validation fails.
 - **Usage:** Call this helper from both `handle_message` (after parsing the payload) and `execute_action`.

@@ -1140,7 +1140,7 @@ class LgTv(BaseDevice):
         Returns:
             True if successful, False otherwise
         """
-        return await self._execute_input_command("enter", "ok")
+        return await self._execute_input_command("enter", "enter")
     
     async def handle_exit(self, action_config: Dict[str, Any]):
         """Handle exit button action.
