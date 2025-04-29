@@ -2,7 +2,7 @@ import json
 import logging
 import base64
 import asyncio
-from typing import Dict, Any, List, Optional, cast
+from typing import Dict, Any, List, Optional
 import broadlink
 from devices.base_device import BaseDevice
 from app.schemas import KitchenHoodState, BroadlinkConfig, BroadlinkKitchenHoodConfig, StandardCommandConfig
@@ -13,24 +13,25 @@ logger = logging.getLogger(__name__)
 class BroadlinkKitchenHood(BaseDevice):
     """Implementation of a kitchen hood controlled through Broadlink RF."""
     
-    def __init__(self, config: Dict[str, Any], mqtt_client: Optional[MQTTClient] = None):
+    def __init__(self, config: BroadlinkKitchenHoodConfig, mqtt_client: Optional[MQTTClient] = None):
         super().__init__(config, mqtt_client)
         self.broadlink_device = None
         self._state_schema = KitchenHoodState
         
-        # Get and use the typed config
-        self.typed_config = cast(BroadlinkKitchenHoodConfig, self.config)
+        # Store the typed config directly
+        self.config = config
         
-        self.state = {
-            "light": "off",
-            "speed": 0,
-            "last_command": None,
-            "device_id": self.typed_config.device_id,
-            "connection_status": "disconnected"
-        }
+        # Initialize state using Pydantic model
+        self.state = KitchenHoodState(
+            device_id=self.device_id,
+            device_name=self.device_name,
+            light="off",
+            speed=0,
+            connection_status="disconnected"
+        )
         
         # Load RF codes map from config directly
-        self.rf_codes = self.typed_config.rf_codes
+        self.rf_codes = self.config.rf_codes
         logger.debug(f"[{self.device_name}] Initialized with RF codes map: {list(self.rf_codes.keys())}")
         for category, codes in self.rf_codes.items():
             logger.debug(f"[{self.device_name}] RF codes category '{category}' contains {len(codes)} codes: {list(codes.keys())}")
@@ -45,8 +46,8 @@ class BroadlinkKitchenHood(BaseDevice):
     async def setup(self) -> bool:
         """Initialize the Broadlink device for the kitchen hood."""
         try:
-            # Get Broadlink configuration directly from typed config
-            broadlink_config = self.typed_config.broadlink
+            # Get Broadlink configuration directly from config
+            broadlink_config = self.config.broadlink
             
             logger.info(f"Initializing Broadlink device: {self.get_name()} at {broadlink_config.host}")
             
@@ -60,7 +61,9 @@ class BroadlinkKitchenHood(BaseDevice):
             # Authenticate with the device
             self.broadlink_device.auth()
             logger.info(f"Successfully connected to Broadlink device for {self.get_name()}")
-            self.state["connection_status"] = "connected"
+            
+            # Update state using model copy with update
+            self.state = self.state.model_copy(update={"connection_status": "connected"})
             
             # Log RF codes map status - Adding detailed debug here
             logger.debug(f"[{self.device_name}] RF codes after init: {list(self.rf_codes.keys())}")
@@ -80,8 +83,13 @@ class BroadlinkKitchenHood(BaseDevice):
             
         except Exception as e:
             logger.error(f"Failed to initialize device {self.get_name()}: {str(e)}")
-            self.state["connection_status"] = "error"
-            self.state["error"] = str(e)
+            
+            # Update state using model copy with update
+            self.state = self.state.model_copy(update={
+                "connection_status": "error",
+                "error": str(e)
+            })
+            
             return False
     
     async def shutdown(self) -> bool:
@@ -150,7 +158,8 @@ class BroadlinkKitchenHood(BaseDevice):
             return
             
         if await self._send_rf_code(rf_code):
-            self.update_state({"light": state})
+            # Update state using model copy with update
+            self.state = self.state.model_copy(update={"light": state})
             await self.publish_progress(f"Light turned {state}")
     
     async def handle_set_speed(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]):
@@ -197,7 +206,8 @@ class BroadlinkKitchenHood(BaseDevice):
             return
             
         if await self._send_rf_code(rf_code):
-            self.update_state({"speed": level})
+            # Update state using model copy with update
+            self.state = self.state.model_copy(update={"speed": level})
             await self.publish_progress(f"Speed set to {level}")
     
     async def _send_rf_code(self, rf_code_base64: str) -> bool:
@@ -218,21 +228,18 @@ class BroadlinkKitchenHood(BaseDevice):
             
         except Exception as e:
             logger.error(f"Error sending RF code: {str(e)}")
-            self.state["connection_status"] = "error"
-            self.state["error"] = str(e)
+            
+            # Update state using model copy with update
+            self.state = self.state.model_copy(update={
+                "connection_status": "error",
+                "error": str(e)
+            })
+            
             return False
     
     def get_current_state(self) -> KitchenHoodState:
         """Return the current state of the kitchen hood."""
-        return KitchenHoodState(
-            device_id=self.device_id,
-            device_name=self.device_name,
-            light=self.state.get("light", "off"),
-            speed=self.state.get("speed", 0),
-            connection_status=self.state.get("connection_status", "disconnected"),
-            last_command=self.state.get("last_command"),
-            error=self.state.get("error")
-        )
+        return self.state
 
     def get_available_commands(self) -> Dict[str, Any]:
         """Override to include custom command formatting."""

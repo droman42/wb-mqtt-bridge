@@ -111,8 +111,8 @@ class TestParameterValidation(unittest.TestCase):
             self.device._resolve_and_validate_params(cmd_config, {"range_param": 200})
         self.assertIn("above maximum", str(context.exception))
         
-    def test_raw_payload_conversion(self):
-        """Test raw payload conversion for single-parameter commands."""
+    def test_autoconversion_for_single_parameter(self):
+        """Test automatic conversion for a single parameter command with string input."""
         cmd_config = {
             "name": "test_command",
             "params": [
@@ -120,32 +120,13 @@ class TestParameterValidation(unittest.TestCase):
             ]
         }
         
-        # No parameters provided, but raw payload is
-        provided_params = {}
-        raw_payload = "42"
+        # Provide a string that can be automatically converted to the parameter type
+        provided_params = {"level": "42"}
         
-        result = self.device._resolve_and_validate_params(cmd_config, provided_params, raw_payload)
+        result = self.device._resolve_and_validate_params(cmd_config, provided_params)
         
-        # Should convert raw payload to parameter
+        # Should convert the string to integer
         self.assertEqual(result["level"], 42)
-        
-    def test_raw_payload_with_multiple_params(self):
-        """Test that raw payload is not used when multiple parameters are defined."""
-        cmd_config = {
-            "name": "test_command",
-            "params": [
-                {"name": "param1", "type": "integer", "required": True},
-                {"name": "param2", "type": "string", "required": True}
-            ]
-        }
-        
-        # No parameters provided
-        provided_params = {}
-        raw_payload = "42"
-        
-        # Should raise ValueError since multiple parameters are defined and can't be derived from a single payload
-        with self.assertRaises(ValueError):
-            self.device._resolve_and_validate_params(cmd_config, provided_params, raw_payload)
         
     def test_invalid_type_conversion(self):
         """Test validation fails with invalid type conversion."""

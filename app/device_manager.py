@@ -71,11 +71,8 @@ class DeviceManager:
                     logger.error(f"Device type {device_type} not found for device {device_id}")
                     continue
                 
-                # Convert config to dict, preserving all fields including those not explicitly defined
-                config_dict = config.model_dump(exclude_none=False)
-                
-                # Create device instance with MQTT client
-                device = device_class(config_dict, self.mqtt_client)
+                # Pass the typed configuration object directly to the device constructor
+                device = device_class(config, self.mqtt_client)
                 await device.setup()
                 self.devices[device_id] = device
                 logger.info(f"Initialized device {device_id} of type {device_type}")

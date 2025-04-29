@@ -1,7 +1,7 @@
 {
   "device_type": "emotiva_xmc2",
   "alias": "processor",
-  "device_id": "emotiva_xmc2",
+  "device_id": "processor",
   "device_name": "eMotiva XMC2 Processor",
   "mqtt_progress_topic": "/devices/processor/controls/progress",
   "emotiva": {

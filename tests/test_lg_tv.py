@@ -118,6 +118,28 @@ async def test_natural_initialization(tv: LgTv) -> bool:
                    f"Current app={tv.state.get('current_app', 'unknown')}, "
                    f"Input source={tv.state.get('input_source', 'unknown')}")
         
+        # Check if Wake-on-LAN was attempted
+        last_command = tv.state.get("last_command")
+        if last_command:
+            if hasattr(last_command, 'action'):
+                # It's a pydantic model
+                wake_on_lan_attempted = last_command.action == "wake_on_lan"
+            elif isinstance(last_command, dict) and "action" in last_command:
+                # Fallback for dict format
+                wake_on_lan_attempted = last_command["action"] == "wake_on_lan"
+            elif isinstance(last_command, str):
+                # Fallback for string format
+                wake_on_lan_attempted = last_command in ["wake_on_lan", "power_on_wol"]
+            else:
+                wake_on_lan_attempted = False
+            
+            if wake_on_lan_attempted:
+                logger.info("Wake-on-LAN was attempted during initialization")
+            else:
+                logger.warning("Wake-on-LAN was not attempted during initialization")
+        else:
+            logger.warning("No last_command recorded during initialization")
+        
         return True
     else:
         logger.error(f"Failed to connect to TV after {elapsed_time:.2f} seconds")
@@ -129,16 +151,6 @@ async def test_natural_initialization(tv: LgTv) -> bool:
             logger.info("Error contains 'no response', which should trigger WoL")
         else:
             logger.warning(f"Error message '{error_msg}' doesn't contain 'no response', which might be why WoL wasn't triggered")
-        
-        # Check if Wake-on-LAN was attempted
-        last_command = tv.state.get("last_command")
-        if last_command and (isinstance(last_command, dict) and 
-                             last_command.get("action") == "wake_on_lan" or
-                             last_command == "wake_on_lan" or
-                             last_command == "power_on_wol"):
-            logger.info("Wake-on-LAN was attempted during initialization")
-        else:
-            logger.warning("Wake-on-LAN was not attempted during initialization")
         
         return False
 
@@ -175,13 +187,25 @@ async def test_direct_power_on(tv: LgTv) -> bool:
     
     # Check if Wake-on-LAN was used
     last_command = tv.state.get("last_command")
-    if last_command and (
-        (isinstance(last_command, dict) and last_command.get("action") in ["wake_on_lan", "power_on_wol"]) or
-        last_command in ["wake_on_lan", "power_on_wol"]
-    ):
-        logger.info("Wake-on-LAN was used during power-on")
+    if last_command:
+        if hasattr(last_command, 'action'):
+            # It's a pydantic model
+            wol_used = last_command.action in ["wake_on_lan", "power_on_wol"]
+        elif isinstance(last_command, dict) and "action" in last_command:
+            # Fallback for dict format
+            wol_used = last_command["action"] in ["wake_on_lan", "power_on_wol"]
+        elif isinstance(last_command, str):
+            # Fallback for string format
+            wol_used = last_command in ["wake_on_lan", "power_on_wol"]
+        else:
+            wol_used = False
+        
+        if wol_used:
+            logger.info("Wake-on-LAN was used during power-on")
+        else:
+            logger.warning(f"Wake-on-LAN was not used during power-on. Last command: {last_command}")
     else:
-        logger.warning(f"Wake-on-LAN was not used during power-on. Last command: {last_command}")
+        logger.warning("No last_command recorded during power-on")
     
     # At this point, the power_on method should have already attempted to connect if successful
     # But we'll verify the connection state to confirm everything worked

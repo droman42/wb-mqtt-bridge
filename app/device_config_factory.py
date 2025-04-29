@@ -10,7 +10,6 @@ from app.schemas import (
     LgTvDeviceConfig,
     AppleTVDeviceConfig,
     EmotivaXMC2DeviceConfig,
-    ExampleDeviceConfig,
     StandardCommandConfig,
     IRCommandConfig,
     BroadlinkCommandConfig,
@@ -22,15 +21,14 @@ logger = logging.getLogger(__name__)
 class DeviceConfigFactory:
     """Factory for creating typed device configuration objects."""
 
-    # Mapping of device_class to configuration model
+    # Mapping of implementation class names to configuration model classes
     _config_map: Dict[str, Type[BaseDeviceConfig]] = {
-        "wirenboard_ir": WirenboardIRDeviceConfig,
-        "revox_a77_reel_to_reel": RevoxA77ReelToReelConfig,
-        "broadlink_kitchen_hood": BroadlinkKitchenHoodConfig,
-        "lg_tv": LgTvDeviceConfig,
-        "apple_tv_device": AppleTVDeviceConfig,
-        "emotiva_xmc2": EmotivaXMC2DeviceConfig,
-        "example_device": ExampleDeviceConfig
+        "WirenboardIRDevice": WirenboardIRDeviceConfig,
+        "RevoxA77ReelToReel": RevoxA77ReelToReelConfig,
+        "BroadlinkKitchenHood": BroadlinkKitchenHoodConfig,
+        "LgTv": LgTvDeviceConfig,
+        "AppleTVDevice": AppleTVDeviceConfig,
+        "EMotivaXMC2": EmotivaXMC2DeviceConfig
     }
 
     @classmethod
@@ -69,14 +67,14 @@ class DeviceConfigFactory:
                         logger.warning(f"Command {cmd_name} has invalid format, skipping")
                         continue
                         
-                    # Choose the appropriate command model
-                    if device_class in ["wirenboard_ir", "revox_a77_reel_to_reel"]:
+                    # Choose the appropriate command model based on device class
+                    if device_class == "WirenboardIRDevice" or device_class == "RevoxA77ReelToReel":
                         if "location" in cmd_config and "rom_position" in cmd_config:
                             processed_commands[cmd_name] = IRCommandConfig(**cmd_config)
                         else:
                             logger.error(f"IR Command {cmd_name} missing required fields: location and rom_position")
                             continue
-                    elif device_class == "broadlink_kitchen_hood" and "rf_code" in cmd_config:
+                    elif device_class == "BroadlinkKitchenHood" and "rf_code" in cmd_config:
                         processed_commands[cmd_name] = BroadlinkCommandConfig(**cmd_config)
                     else:
                         # Use standard command for all other devices
@@ -126,7 +124,7 @@ class DeviceConfigFactory:
         Register a new configuration model for a device class.
         
         Args:
-            device_class: Device class identifier
+            device_class: Device class name (e.g., "WirenboardIRDevice")
             config_model: Configuration model class
         """
         cls._config_map[device_class] = config_model

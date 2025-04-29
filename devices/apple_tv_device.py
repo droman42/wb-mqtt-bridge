@@ -12,7 +12,7 @@ from pyatv.interface import DeviceListener, Playing
 from pyatv.exceptions import AuthenticationError, ConnectionFailedError
 
 from devices.base_device import BaseDevice
-from app.schemas import AppleTVState, AppleTVDeviceConfig, StandardCommandConfig
+from app.schemas import AppleTVState, AppleTVDeviceConfig, StandardCommandConfig, LastCommand
 from app.mqtt_client import MQTTClient
 
 logger = logging.getLogger(__name__) # Define logger for the module
@@ -20,13 +20,13 @@ logger = logging.getLogger(__name__) # Define logger for the module
 class AppleTVDevice(BaseDevice):
     """Apple TV device integration for wb-mqtt-bridge, compliant with BaseDevice."""
     
-    def __init__(self, config: Dict[str, Any], mqtt_client: Optional[MQTTClient] = None):
+    def __init__(self, config: AppleTVDeviceConfig, mqtt_client: Optional[MQTTClient] = None):
         """Initialize the Apple TV device."""
-        # Call BaseDevice init first
+        # Call BaseDevice init first with proper Pydantic config
         super().__init__(config, mqtt_client)
         
-        # Get and use the typed config
-        self.typed_config = cast(AppleTVDeviceConfig, self.config)
+        # Store the config directly as it's already a Pydantic model
+        self.typed_config = config
         
         # Get Apple TV configuration directly from the typed config
         self.apple_tv_config = self.typed_config.apple_tv
@@ -36,23 +36,25 @@ class AppleTVDevice(BaseDevice):
         self.atv_config = None # pyatv config object (renamed from self.config)
         self._app_list: Dict[str, str] = {} # Maps lowercase app name to app identifier
 
-        # Initialize BaseDevice state structure
-        self.state = {
-            "connected": False,
-            "power": "unknown", # Corresponds to PowerState (on, off, unknown)
-            "app": None,
-            "playback_state": None, # Corresponds to DeviceState (idle, playing, paused, etc.)
-            "media_type": None, # Corresponds to MediaType (music, video, tv, unknown)
-            "title": None,
-            "artist": None,
-            "album": None,
-            "position": None,
-            "total_time": None,
-            "volume": None, # 0-100
-            "error": None,
-            "ip_address": self.apple_tv_config.ip_address,
-            "last_command": None # Standard state field from BaseDevice
-        }
+        # Initialize state using the AppleTVState Pydantic model
+        self.state = AppleTVState(
+            device_id=self.device_id,
+            device_name=self.device_name,
+            connected=False,
+            power="unknown",  # Corresponds to PowerState (on, off, unknown)
+            app=None,
+            playback_state=None,  # Corresponds to DeviceState (idle, playing, paused, etc.)
+            media_type=None,  # Corresponds to MediaType (music, video, tv, unknown)
+            title=None,
+            artist=None,
+            album=None,
+            position=None,
+            total_time=None,
+            volume=None,  # 0-100
+            error=None,
+            ip_address=self.apple_tv_config.ip_address,
+            last_command=None  # Standard state field from BaseDevice
+        )
         
         # Populate action handlers expected by BaseDevice
         # Action names (keys) should match the 'action' field in the device config JSON
@@ -97,7 +99,7 @@ class AppleTVDevice(BaseDevice):
             
             if not atvs:
                 logger.error(f"[{self.device_id}] No Apple TV found at {ip_address}")
-                self.state["error"] = f"No Apple TV found at {ip_address}"
+                self.state.error = f"No Apple TV found at {ip_address}"
                 await self.publish_state() # Publish initial error state
                 return False
             
@@ -128,22 +130,22 @@ class AppleTVDevice(BaseDevice):
             
         except ConnectionRefusedError:
              logger.error(f"[{self.device_id}] Connection refused by Apple TV at {ip_address}. Ensure it's powered on and network remote control is enabled.")
-             self.state["error"] = "Connection refused"
+             self.state.error = "Connection refused"
              await self.publish_state()
              return False
         except AuthenticationError as e:
              logger.error(f"[{self.device_id}] Authentication failed: {e}. Check credentials or pairing.")
-             self.state["error"] = f"Authentication failed: {e}"
+             self.state.error = f"Authentication failed: {e}"
              await self.publish_state()
              return False
         except ConnectionFailedError as e:
             logger.error(f"[{self.device_id}] Connection failed: {e}")
-            self.state["error"] = f"Connection failed: {e}"
+            self.state.error = f"Connection failed: {e}"
             await self.publish_state()
             return False
         except Exception as e:
             logger.error(f"[{self.device_id}] Unexpected error during setup: {e}", exc_info=True)
-            self.state["error"] = f"Setup error: {str(e)}"
+            self.state.error = f"Setup error: {str(e)}"
             await self.publish_state()
             return False
     
@@ -161,36 +163,37 @@ class AppleTVDevice(BaseDevice):
         try:
             # Publish full state to base topic
             state_topic = f"{self.base_topic}/state"
-            state_payload = json.dumps(self.state)
+            # Use Pydantic's json() method to serialize the state model to JSON
+            state_payload = self.state.model_dump_json()
             await self.mqtt_client.publish(state_topic, state_payload, retain=True) 
             logger.debug(f"[{self.device_id}] Published full state to {state_topic}")
 
             # Publish individual state components if configured/needed (Optional)
             # Example: Power state
             power_topic = f"{self.base_topic}/power_state"
-            if self.state.get("power") is not None:
-                await self.mqtt_client.publish(power_topic, self.state["power"], retain=True)
+            if self.state.power is not None:
+                await self.mqtt_client.publish(power_topic, self.state.power, retain=True)
 
             # Example: Volume level
             volume_topic = f"{self.base_topic}/volume_level"
-            if self.state.get("volume") is not None:
-                 await self.mqtt_client.publish(volume_topic, str(self.state["volume"]), retain=True)
+            if self.state.volume is not None:
+                 await self.mqtt_client.publish(volume_topic, str(self.state.volume), retain=True)
                  
             # Example: Current App
             app_topic = f"{self.base_topic}/current_app"
-            if self.state.get("app") is not None:
-                 await self.mqtt_client.publish(app_topic, self.state["app"], retain=True)
+            if self.state.app is not None:
+                 await self.mqtt_client.publish(app_topic, self.state.app, retain=True)
 
             # Example: Playback details (as JSON)
             playback_topic = f"{self.base_topic}/playback_details"
             playback_state = {
-                "state": self.state.get("playback_state"),
-                "media_type": self.state.get("media_type"),
-                "title": self.state.get("title"),
-                "artist": self.state.get("artist"),
-                "album": self.state.get("album"),
-                "position": self.state.get("position"),
-                "total_time": self.state.get("total_time")
+                "state": self.state.playback_state,
+                "media_type": self.state.media_type,
+                "title": self.state.title,
+                "artist": self.state.artist,
+                "album": self.state.album,
+                "position": self.state.position,
+                "total_time": self.state.total_time
             }
             if playback_state["state"]: # Only publish if playback state is known
                 await self.mqtt_client.publish(playback_topic, json.dumps(playback_state), retain=True)
@@ -215,9 +218,9 @@ class AppleTVDevice(BaseDevice):
             device_name = getattr(self.atv_config, 'name', 'Unknown')
             logger.info(f"[{self.device_id}] Successfully connected to {device_name}")
             
-            self.state["connected"] = True
-            self.state["ip_address"] = self.atv_config.address # Update IP just in case
-            self.state["error"] = None # Clear previous errors
+            self.state.connected = True
+            self.state.ip_address = self.atv_config.address # Update IP just in case
+            self.state.error = None # Clear previous errors
             
             # Assign listener for connection events and updates
             self.atv.listener = PyATVDeviceListener(self) 
@@ -232,22 +235,22 @@ class AppleTVDevice(BaseDevice):
             
         except AuthenticationError as e:
              logger.error(f"[{self.device_id}] Authentication failed during connect: {e}. Check credentials/pairing.")
-             self.state["connected"] = False
-             self.state["error"] = f"Authentication failed: {e}"
+             self.state.connected = False
+             self.state.error = f"Authentication failed: {e}"
              self.atv = None
              await self.publish_state()
              return False
         except ConnectionFailedError as e:
             logger.error(f"[{self.device_id}] Connection failed: {e}")
-            self.state["connected"] = False
-            self.state["error"] = f"Connection failed: {e}"
+            self.state.connected = False
+            self.state.error = f"Connection failed: {e}"
             self.atv = None
             await self.publish_state()
             return False
         except Exception as e:
             logger.error(f"[{self.device_id}] Unexpected error connecting: {e}", exc_info=True)
-            self.state["connected"] = False
-            self.state["error"] = f"Connection error: {str(e)}"
+            self.state.connected = False
+            self.state.error = f"Connection error: {str(e)}"
             self.atv = None
             await self.publish_state()
             return False
@@ -266,10 +269,10 @@ class AppleTVDevice(BaseDevice):
             finally:
                 # Update state even if close fails
                 self.atv = None
-                self.state["connected"] = False
-                self.state["power"] = "off" # Assume off if disconnected
-                self.state["playback_state"] = None # Reset playback
-                self.state["app"] = None # Reset app
+                self.state.connected = False
+                self.state.power = "off" # Assume off if disconnected
+                self.state.playback_state = None # Reset playback
+                self.state.app = None # Reset app
                 # Don't clear error here, might be reason for disconnect
                 await self.publish_state()
         else:
@@ -278,7 +281,7 @@ class AppleTVDevice(BaseDevice):
 
     async def _update_app_list(self):
         """Fetch and store the list of installed applications."""
-        if not self.atv or not self.state["connected"]:
+        if not self.atv or not self.state.connected:
             logger.debug(f"[{self.device_id}] Cannot update app list: not connected.")
             return
             
@@ -305,13 +308,13 @@ class AppleTVDevice(BaseDevice):
             params: Parameters (unused)
             publish: Whether to publish the state after refresh
         """
-        if not self.atv or not self.state["connected"]:
+        if not self.atv or not self.state.connected:
             logger.warning(f"[{self.device_id}] Cannot refresh status: not connected.")
             # Try to reconnect if requested via command? Maybe too aggressive.
             # Let's just update state to disconnected if possible.
-            if self.state["connected"]:
-                 self.state["connected"] = False
-                 self.state["power"] = "off"
+            if self.state.connected:
+                 self.state.connected = False
+                 self.state.power = "off"
                  if publish: await self.publish_state()
             return
         
@@ -319,27 +322,27 @@ class AppleTVDevice(BaseDevice):
         try:
             # Power State (more reliable than just checking connection)
             power_info = self.atv.power.power_state
-            self.state["power"] = power_info.name.lower() # Should be 'on' or 'off'
+            self.state.power = power_info.name.lower() # Should be 'on' or 'off'
             
             # If power is off, no point checking media etc.
-            if self.state["power"] != PowerState.On.name.lower():
-                 logger.info(f"[{self.device_id}] Device is not powered on ({self.state['power']}), skipping detailed status.")
+            if self.state.power != PowerState.On.name.lower():
+                 logger.info(f"[{self.device_id}] Device is not powered on ({self.state.power}), skipping detailed status.")
                  # Reset media/app state if device turned off
-                 self.state["app"] = None
-                 self.state["playback_state"] = None 
-                 self.state["title"] = None
-                 self.state["artist"] = None
-                 self.state["album"] = None
-                 self.state["position"] = None
-                 self.state["total_time"] = None
+                 self.state.app = None
+                 self.state.playback_state = None 
+                 self.state.title = None
+                 self.state.artist = None
+                 self.state.album = None
+                 self.state.position = None
+                 self.state.total_time = None
                  # Keep volume? Let's reset it for now.
-                 # self.state["volume"] = None 
+                 # self.state.volume = None 
                  if publish: await self.publish_state()
                  return
 
             # Get current app (only if powered on)
             app_info = await self.atv.apps.current_app()
-            self.state["app"] = app_info.name if app_info else None
+            self.state.app = app_info.name if app_info else None
             
             # Get playback state (only if powered on)
             playing_info = await self.atv.metadata.playing()
@@ -350,25 +353,25 @@ class AppleTVDevice(BaseDevice):
                 try:
                     volume_level = await self.atv.audio.volume() # 0.0 to 1.0
                     if volume_level is not None:
-                        self.state["volume"] = int(volume_level * 100)
+                        self.state.volume = int(volume_level * 100)
                     else:
-                         self.state["volume"] = None # Explicitly set to None if unavailable
+                         self.state.volume = None # Explicitly set to None if unavailable
                 except NotImplementedError:
                     logger.debug(f"[{self.device_id}] Volume control not implemented by device/protocol.")
-                    self.state["volume"] = None
+                    self.state.volume = None
                 except Exception as e:
                     logger.warning(f"[{self.device_id}] Could not get volume: {e}")
-                    self.state["volume"] = None # Ensure state reflects uncertainty
+                    self.state.volume = None # Ensure state reflects uncertainty
             else:
                  logger.debug(f"[{self.device_id}] Volume control not available via pyatv for this connection.")
-                 self.state["volume"] = None
+                 self.state.volume = None
 
-            self.state["error"] = None # Clear error on successful refresh
+            self.state.error = None # Clear error on successful refresh
             logger.info(f"[{self.device_id}] Status refresh complete.")
 
         except Exception as e:
             logger.error(f"[{self.device_id}] Error refreshing status: {e}", exc_info=True)
-            self.state["error"] = f"Status refresh error: {str(e)}"
+            self.state.error = f"Status refresh error: {str(e)}"
             # Should we assume disconnected on error? Maybe too drastic. Keep connected state.
             
         # Publish updated state if requested
@@ -378,30 +381,30 @@ class AppleTVDevice(BaseDevice):
     def _update_playing_state(self, playing: Optional[Playing]):
         """Helper to update state dictionary from pyatv Playing object."""
         if playing and playing.device_state:
-            self.state["playback_state"] = playing.device_state.name.lower() # idle, paused, playing, stopped, seeking, loading
-            self.state["media_type"] = playing.media_type.name.lower() if playing.media_type else None # music, video, tv, unknown
-            self.state["title"] = playing.title
-            self.state["artist"] = playing.artist
-            self.state["album"] = playing.album
+            self.state.playback_state = playing.device_state.name.lower() # idle, paused, playing, stopped, seeking, loading
+            self.state.media_type = playing.media_type.name.lower() if playing.media_type else None # music, video, tv, unknown
+            self.state.title = playing.title
+            self.state.artist = playing.artist
+            self.state.album = playing.album
             # Ensure position/total_time are ints or None
-            self.state["position"] = int(playing.position) if playing.position is not None else None
-            self.state["total_time"] = int(playing.total_time) if playing.total_time is not None else None
+            self.state.position = int(playing.position) if playing.position is not None else None
+            self.state.total_time = int(playing.total_time) if playing.total_time is not None else None
         else:
             # If nothing is playing or info is unavailable
-            self.state["playback_state"] = "idle" # Assume idle if not explicitly known
-            self.state["media_type"] = None
-            self.state["title"] = None
-            self.state["artist"] = None
-            self.state["album"] = None
-            self.state["position"] = None
-            self.state["total_time"] = None
+            self.state.playback_state = "idle" # Assume idle if not explicitly known
+            self.state.media_type = None
+            self.state.title = None
+            self.state.artist = None
+            self.state.album = None
+            self.state.position = None
+            self.state.total_time = None
 
     # --- Action Handlers (called by BaseDevice._execute_single_action) ---
     # Signature: async def handler(self, action_config: Dict[str, Any], payload: str)
 
     async def _ensure_connected(self) -> bool:
         """Ensure device is connected, attempting to connect if not."""
-        if self.atv and self.state["connected"]:
+        if self.atv and self.state.connected:
             return True
         logger.warning(f"[{self.device_id}] Not connected. Attempting to reconnect...")
         if await self.connect_to_device():
@@ -428,7 +431,7 @@ class AppleTVDevice(BaseDevice):
              return False
         except Exception as e:
             logger.error(f"[{self.device_id}] Error executing remote command {command_name}: {e}", exc_info=True)
-            self.state["error"] = f"Command error: {str(e)}"
+            self.state.error = f"Command error: {str(e)}"
             await self.publish_state() # Publish error state
             return False
             
@@ -459,7 +462,7 @@ class AppleTVDevice(BaseDevice):
                  asyncio.create_task(self._delayed_refresh(delay=2.0))
             except Exception as e:
                 logger.error(f"[{self.device_id}] Error turning on: {e}", exc_info=True)
-                self.state["error"] = f"Turn on error: {str(e)}"
+                self.state.error = f"Turn on error: {str(e)}"
                 await self.publish_state()
 
     async def turn_off(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]):
@@ -479,7 +482,7 @@ class AppleTVDevice(BaseDevice):
                  asyncio.create_task(self._delayed_refresh(delay=2.0))
             except Exception as e:
                 logger.error(f"[{self.device_id}] Error turning off: {e}", exc_info=True)
-                self.state["error"] = f"Turn off error: {str(e)}"
+                self.state.error = f"Turn off error: {str(e)}"
                 await self.publish_state()
 
     async def play(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]):
@@ -559,7 +562,7 @@ class AppleTVDevice(BaseDevice):
             await self.atv.audio.set_volume(normalized_level)
             
             # Update state immediately (optimistic) and schedule refresh
-            self.state["volume"] = level
+            self.state.volume = level
             asyncio.create_task(self._delayed_refresh()) 
             
         except ValueError:
@@ -568,7 +571,7 @@ class AppleTVDevice(BaseDevice):
              logger.warning(f"[{self.device_id}] Set volume not implemented by device/protocol.")
         except Exception as e:
             logger.error(f"[{self.device_id}] Error setting volume: {e}", exc_info=True)
-            self.state["error"] = f"Set volume error: {str(e)}"
+            self.state.error = f"Set volume error: {str(e)}"
             await self.publish_state()
 
     async def volume_up(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]):
@@ -600,15 +603,15 @@ class AppleTVDevice(BaseDevice):
             app_name = params["app"]
             logger.info(f"[{self.device_id}] Using app name from params: '{app_name}'")
         else:
-            # Prefer appid from command config if provided
-            app_id = cmd_config.get("appid") 
-            if app_id:
-                app_id_to_launch = app_id
-                logger.info(f"[{self.device_id}] Using app ID from config: {app_id}")
+            # Access from StandardCommandConfig
+            if hasattr(cmd_config, "appid") and cmd_config.appid:
+                app_id_to_launch = cmd_config.appid
+                logger.info(f"[{self.device_id}] Using app ID from config: {app_id_to_launch}")
             else:
-                # Fallback to appname from config
-                app_name = cmd_config.get("appname")
-                if not app_name:
+                # Fallback to appname attribute from config
+                if hasattr(cmd_config, "appname") and cmd_config.appname:
+                    app_name = cmd_config.appname
+                else:
                     logger.error(f"[{self.device_id}] Cannot launch app: No app specified in params or config")
                     return
                 logger.info(f"[{self.device_id}] Using app name from config: '{app_name}'")
@@ -622,7 +625,7 @@ class AppleTVDevice(BaseDevice):
                  await self._update_app_list() # Try to fetch if empty
                  if not self._app_list:
                       logger.error(f"[{self.device_id}] App list is empty, cannot find app '{app_name}'.")
-                      self.state["error"] = "App list unavailable"
+                      self.state.error = "App list unavailable"
                       await self.publish_state()
                       return
 
@@ -631,7 +634,7 @@ class AppleTVDevice(BaseDevice):
 
             if not app_id_to_launch:
                  logger.error(f"[{self.device_id}] App '{app_name}' not found in the installed apps list.")
-                 self.state["error"] = f"App not found: {app_name}"
+                 self.state.error = f"App not found: {app_name}"
                  await self.publish_state()
                  return
             else:
@@ -646,7 +649,7 @@ class AppleTVDevice(BaseDevice):
             asyncio.create_task(self._delayed_refresh(delay=2.0)) 
         except Exception as e:
             logger.error(f"[{self.device_id}] Error launching app {app_id_to_launch}: {e}", exc_info=True)
-            self.state["error"] = f"Launch app error: {str(e)}"
+            self.state.error = f"Launch app error: {str(e)}"
             await self.publish_state()
 
 
@@ -662,9 +665,9 @@ class PyATVDeviceListener(DeviceListener):
     def connection_lost(self, exception):
         """Called by pyatv when connection is lost unexpectedly."""
         logger.warning(f"[{self.device.device_id}] Connection lost: {exception}")
-        self.device.state["connected"] = False
-        self.device.state["power"] = "off" # Assume off
-        self.device.state["error"] = str(exception) if exception else "Connection lost"
+        self.device.state.connected = False
+        self.device.state.power = "off" # Assume off
+        self.device.state.error = str(exception) if exception else "Connection lost"
         self.device.atv = None # Clear device instance
         
         # Schedule state publish in the event loop
@@ -674,10 +677,10 @@ class PyATVDeviceListener(DeviceListener):
         """Called by pyatv when connection is closed intentionally (by self.atv.close())."""
         # This might be redundant if disconnect_from_device already handles state update,
         # but good to have as a fallback.
-        if self.device.state["connected"]: # Only log/update if we thought we were connected
+        if self.device.state.connected: # Only log/update if we thought we were connected
              logger.info(f"[{self.device.device_id}] Connection closed.")
-             self.device.state["connected"] = False
-             self.device.state["power"] = "off"
+             self.device.state.connected = False
+             self.device.state.power = "off"
              self.device.atv = None
              # Schedule state publish in the event loop
              self.loop.call_soon_threadsafe(asyncio.create_task, self.device.publish_state())
@@ -693,7 +696,7 @@ class PyATVDeviceListener(DeviceListener):
     def device_error(self, error: Exception):
          """Called by pyatv on certain device errors (less common)."""
          logger.error(f"[{self.device.device_id}] Received device error from listener: {error}")
-         self.device.state["error"] = f"Listener error: {str(error)}"
+         self.device.state.error = f"Listener error: {str(error)}"
          # Potentially mark as disconnected? Depends on error type.
-         # self.device.state["connected"] = False 
+         # self.device.state.connected = False 
          self.loop.call_soon_threadsafe(asyncio.create_task, self.device.publish_state()) 

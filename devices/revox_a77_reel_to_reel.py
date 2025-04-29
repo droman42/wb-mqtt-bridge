@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Dict, Any, List, Optional, Tuple, cast
+from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 from devices.base_device import BaseDevice
 from app.schemas import RevoxA77ReelToReelState, LastCommand, RevoxA77ReelToReelConfig, IRCommandConfig
@@ -12,17 +12,19 @@ logger = logging.getLogger(__name__)
 class RevoxA77ReelToReel(BaseDevice):
     """Implementation of a Revox A77 reel-to-reel controlled through Wirenboard IR."""
     
-    def __init__(self, config: Dict[str, Any], mqtt_client: Optional[MQTTClient] = None):
+    def __init__(self, config: RevoxA77ReelToReelConfig, mqtt_client: Optional[MQTTClient] = None):
         super().__init__(config, mqtt_client)
         self._state_schema = RevoxA77ReelToReelState
         
-        # Get and use the typed config
-        self.typed_config = cast(RevoxA77ReelToReelConfig, self.config)
+        # Use the config directly, no need for casting
+        self.typed_config = config
         
-        self.state = {
-            "last_command": None,
-            "connection_status": "connected"
-        }
+        # Initialize state as a proper Pydantic model
+        self.state = RevoxA77ReelToReelState(
+            device_id=self.device_id,
+            device_name=self.device_name,
+            connection_status="connected"
+        )
         
         # Register action handlers
         self._action_handlers = {
@@ -39,7 +41,7 @@ class RevoxA77ReelToReel(BaseDevice):
             commands = self.typed_config.commands
             if not commands:
                 logger.error(f"No commands defined for device {self.get_name()}")
-                self.state["error"] = "No commands defined"
+                self.update_state(error="No commands defined")
                 return True  # Return True to allow device to be initialized even without commands
             
             logger.info(f"Revox A77 reel-to-reel {self.get_name()} initialized with {len(commands)} commands")
@@ -47,8 +49,7 @@ class RevoxA77ReelToReel(BaseDevice):
             
         except Exception as e:
             logger.error(f"Failed to initialize device {self.get_name()}: {str(e)}")
-            self.state["connection_status"] = "error"
-            self.state["error"] = str(e)
+            self.update_state(connection_status="error", error=str(e))
             return True  # Return True to allow device to be initialized even with errors
 
     async def shutdown(self) -> bool:
@@ -167,14 +168,16 @@ class RevoxA77ReelToReel(BaseDevice):
         params["mqtt_topic"] = topic
         params["mqtt_payload"] = payload
         
-        self.update_state({
-            "last_command": LastCommand(
-                action=command_name,
-                source="mqtt",
-                timestamp=datetime.now(),
-                params=params
-            ).dict()
-        })
+        # Create the LastCommand object and update state directly
+        last_command = LastCommand(
+            action=command_name,
+            source="mqtt",
+            timestamp=datetime.now(),
+            params=params
+        )
+        
+        # Update state with the LastCommand object
+        self.update_state(last_command=last_command)
         
         logger.info(f"Sending {command_name} command to {location} at position {rom_position}")
         
@@ -343,10 +346,4 @@ class RevoxA77ReelToReel(BaseDevice):
 
     def get_current_state(self) -> RevoxA77ReelToReelState:
         """Return the current state of the device."""
-        return RevoxA77ReelToReelState(
-            device_id=self.device_id,
-            device_name=self.device_name,
-            last_command=self.state.get("last_command"),
-            connection_status=self.state.get("connection_status", "unknown"),
-            error=self.state.get("error")
-        ) 
+        return self.state 

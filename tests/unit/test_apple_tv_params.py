@@ -118,8 +118,8 @@ class TestAppleTVParameters(unittest.IsolatedAsyncioTestCase):
         self.appletv.loop = self.mock_loop
         self.appletv.atv = self.mock_atv
         self.appletv.atv_config = self.mock_atv_config
-        self.appletv.state["connected"] = True
-        self.appletv.state["power"] = "on"
+        self.appletv.state.connected = True
+        self.appletv.state.power = "on"
         
         # Mock internal methods to avoid network operations
         self.appletv.publish_state = AsyncMock()
@@ -144,7 +144,7 @@ class TestAppleTVParameters(unittest.IsolatedAsyncioTestCase):
         self.mock_audio.set_volume.assert_called_once_with(0.75)  # 75% converted to 0.75
         
         # Verify state was updated
-        self.assertEqual(self.appletv.state["volume"], 75)
+        self.assertEqual(self.appletv.state.volume, 75)
         
         # Verify refresh was scheduled
         self.appletv._delayed_refresh.assert_called_once()
@@ -161,7 +161,7 @@ class TestAppleTVParameters(unittest.IsolatedAsyncioTestCase):
         self.mock_audio.set_volume.assert_called_once_with(0.5)  # 50% converted to 0.5
         
         # Verify state was updated
-        self.assertEqual(self.appletv.state["volume"], 50)
+        self.assertEqual(self.appletv.state.volume, 50)
         
     async def test_launch_app_with_parameters(self):
         """Test launch_app handler with parameters."""

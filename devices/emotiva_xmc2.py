@@ -17,36 +17,35 @@ DeviceCommandFunc = Callable[..., Awaitable[Dict[str, Any]]]
 class EMotivaXMC2(BaseDevice):
     """eMotiva XMC2 processor device implementation."""
     
-    def __init__(self, config: Dict[str, Any], mqtt_client=None):
+    def __init__(self, config: EmotivaXMC2DeviceConfig, mqtt_client=None):
         super().__init__(config, mqtt_client)
         
-        # Get and use typed config
-        self.typed_config = cast(EmotivaXMC2DeviceConfig, self.config)
+        # Store the config directly as it's already properly typed
+        self.typed_config = config
         
-        self._state_schema = EmotivaXMC2State
         self.client = None
         
-        # Initialize device state
-        self.state = {
-            "device_id": self.typed_config.device_id,
-            "device_name": self.typed_config.device_name,
-            "power": None,
-            "zone2_power": None,
-            "source_status": None,
-            "video_input": None,
-            "audio_input": None,
-            "volume": None,
-            "mute": None,
-            "audio_mode": None,
-            "audio_bitstream": None,
-            "connected": False,
-            "ip_address": None,
-            "mac_address": None,
-            "startup_complete": False,
-            "notifications": False,
-            "last_command": None,
-            "error": None
-        }
+        # Initialize device state with Pydantic model
+        self.state = EmotivaXMC2State(
+            device_id=self.typed_config.device_id,
+            device_name=self.typed_config.device_name,
+            power=None,
+            zone2_power=None,
+            source_status=None,
+            video_input=None,
+            audio_input=None,
+            volume=None,
+            mute=None,
+            audio_mode=None,
+            audio_bitstream=None,
+            connected=False,
+            ip_address=None,
+            mac_address=None,
+            startup_complete=False,
+            notifications=False,
+            last_command=None,
+            error=None
+        )
         
         # Register action handlers
         self._action_handlers = {
@@ -70,12 +69,12 @@ class EMotivaXMC2(BaseDevice):
             host = emotiva_config.host
             if not host:
                 logger.error(f"Missing 'host' in emotiva configuration for device: {self.get_name()}")
-                self.state["error"] = "Missing host configuration"
+                self.update_state(error="Missing host configuration")
                 return False
             
             # Store MAC address if available in config
             if emotiva_config.mac:
-                self.state["mac_address"] = emotiva_config.mac
+                self.update_state(mac_address=emotiva_config.mac)
                 
             logger.info(f"Initializing eMotiva XMC2 device: {self.get_name()} at {host}")
             
@@ -115,12 +114,12 @@ class EMotivaXMC2(BaseDevice):
                 logger.info(f"Notification subscription result: {subscription_result}")
                 
                 # Update state with successful connection
-                self.update_state({
-                    "connected": True,
-                    "ip_address": host,
-                    "startup_complete": True,
-                    "notifications": True
-                })
+                self.update_state(
+                    connected=True,
+                    ip_address=host,
+                    startup_complete=True,
+                    notifications=True
+                )
                 
                 return True
             else:
@@ -136,30 +135,30 @@ class EMotivaXMC2(BaseDevice):
                     self.client.set_callback(self._handle_notification)
                     
                     # Update state
-                    self.update_state({
-                        "connected": True,
-                        "ip_address": host,
-                        "startup_complete": True,
-                        "notifications": False,
-                        "error": f"Discovery failed, using forced connection: {error_message}"
-                    })
+                    self.update_state(
+                        connected=True,
+                        ip_address=host,
+                        startup_complete=True,
+                        notifications=False,
+                        error=f"Discovery failed, using forced connection: {error_message}"
+                    )
                     
                     return True
                 else:
-                    self.state["error"] = error_message
+                    self.update_state(error=error_message)
                     return False
 
         except ConnectionError as e:
             logger.error(f"Connection error initializing eMotiva XMC2 device {self.get_name()}: {str(e)}")
-            self.state["error"] = f"Connection error: {str(e)}"
+            self.update_state(error=f"Connection error: {str(e)}")
             return False
         except TimeoutError as e:
             logger.error(f"Timeout error initializing eMotiva XMC2 device {self.get_name()}: {str(e)}")
-            self.state["error"] = f"Timeout error: {str(e)}"
+            self.update_state(error=f"Timeout error: {str(e)}")
             return False
         except Exception as e:
             logger.error(f"Failed to initialize eMotiva XMC2 device {self.get_name()}: {str(e)}")
-            self.state["error"] = str(e)
+            self.update_state(error=str(e))
             return False
     
     async def shutdown(self) -> bool:
@@ -256,11 +255,11 @@ class EMotivaXMC2(BaseDevice):
                 all_cleanup_successful = False
             
             # Final cleanup - update the state regardless of success
-            self.update_state({
-                "connected": False,
-                "notifications": False,
-                "error": None if all_cleanup_successful else "Partial shutdown completed with errors"
-            })
+            self.update_state(
+                connected=False,
+                notifications=False,
+                error=None if all_cleanup_successful else "Partial shutdown completed with errors"
+            )
             
             # Release client reference
             self.client = None
@@ -271,17 +270,17 @@ class EMotivaXMC2(BaseDevice):
             logger.error(f"Unexpected error during {self.get_name()} shutdown: {str(e)}")
             
             # Still update the state as disconnected even after errors
-            self.update_state({
-                "connected": False,
-                "notifications": False,
-                "error": f"Shutdown error: {str(e)}"
-            })
+            self.update_state(
+                connected=False,
+                notifications=False,
+                error=f"Shutdown error: {str(e)}"
+            )
             
             # Release client reference
             self.client = None
             
             return False
-        
+    
     def _validate_parameter(self, 
                            param_name: str, 
                            param_value: Any, 
@@ -434,19 +433,20 @@ class EMotivaXMC2(BaseDevice):
             result = await command_func()
         except asyncio.TimeoutError:
             logger.error(f"Timeout waiting for {action} response from {self.get_name()}")
-            self.state["error"] = "Command timeout"
+            self.update_state(error="Command timeout")
             return self._create_response(False, action, error="Command timeout")
         except Exception as e:
             logger.error(f"Error executing {action} on eMotiva XMC2: {str(e)}")
-            self.state["error"] = str(e)
+            self.update_state(error=str(e))
             return self._create_response(False, action, error=str(e))
         
         # Check if command was successful
         if self._is_command_successful(result):
             # Update state with provided updates
             if state_updates:
-                state_updates["error"] = None  # Clear any previous errors
-                self.update_state(state_updates)
+                # Clear any previous errors
+                state_updates["error"] = None
+                self.update_state(**state_updates)
             
             # Record last command
             self.record_last_command(action, params)
@@ -462,7 +462,7 @@ class EMotivaXMC2(BaseDevice):
             logger.error(f"Failed to execute {action} on eMotiva XMC2: {error_message}")
             
             # Update the state with the error
-            self.update_state({"error": error_message})
+            self.update_state(error=error_message)
             
             return self._create_response(False, action, error=error_message)
     
@@ -638,7 +638,10 @@ class EMotivaXMC2(BaseDevice):
             command_func=set_input_with_id,
             params=source_params,
             notification_topics=["input"],
-            state_updates={"input_source": source_id}
+            state_updates={
+                "input_source": source_id,
+                "source_status": source_name  # Set the display name directly
+            }
         )
         
         # Add source info to the response if successful
@@ -650,29 +653,19 @@ class EMotivaXMC2(BaseDevice):
     
     def record_last_command(self, command: str, params: Dict[str, Any] = None):
         """Record the last command executed with its parameters."""
-        self.state["last_command"] = LastCommand(
+        last_command = LastCommand(
             action=command,
             source=self.device_name,
             timestamp=datetime.now(),
             params=params
-        ).dict()
+        )
+        # Store the LastCommand model directly in the state
+        self.update_state(last_command=last_command)
     
     def get_current_state(self) -> EmotivaXMC2State:
-        """Get a typed representation of the current state."""
-        # Convert dictionary state to a proper schema object
-        return EmotivaXMC2State(
-            device_id=self.device_id,
-            device_name=self.device_name,
-            power=self.state.get("power", "standby"),
-            zone2_power=self.state.get("zone2_power", "standby"),
-            source_status=self._get_source_display_name(self.state.get("input_source")),
-            video_input=self.state.get("video_input"),
-            audio_input=self.state.get("audio_input"),
-            startup_complete=self.state.get("startup_complete", False),
-            notifications=self.state.get("notifications", False),
-            last_command=self.state.get("last_command"),
-            error=self.state.get("error")
-        )
+        """Get the current state of the device."""
+        # The state is already a Pydantic model, so we can return it directly
+        return self.state
     
     def _get_source_display_name(self, source_id: Optional[str]) -> Optional[str]:
         """Convert numeric source IDs to their display names."""
@@ -749,7 +742,9 @@ class EMotivaXMC2(BaseDevice):
             input_data = notification_data["input"]
             input_value = input_data.get("value", "unknown")
             updates["input_source"] = input_value
-            logger.info(f"Input source updated: {input_value}")
+            # Also set the source_status with the display name
+            updates["source_status"] = self._get_source_display_name(input_value)
+            logger.info(f"Input source updated: {input_value} (display name: {updates['source_status']})")
             
         # Process video input
         if "video_input" in notification_data:
@@ -781,7 +776,7 @@ class EMotivaXMC2(BaseDevice):
         
         # Update device state with notification data
         if updates:
-            self.update_state(updates)
+            self.update_state(**updates)
 
     async def handle_message(self, topic: str, payload: str):
         """Handle incoming MQTT messages for this device."""
@@ -790,7 +785,11 @@ class EMotivaXMC2(BaseDevice):
         # Find matching command configuration
         matching_commands = []
         for cmd_name, cmd_config in self.get_available_commands().items():
-            if cmd_config.get("topic") == topic:
+            # Use attribute access for StandardCommandConfig
+            if isinstance(cmd_config, StandardCommandConfig) and cmd_config.topic == topic:
+                matching_commands.append((cmd_name, cmd_config))
+            # Fallback for dictionary config (should not be needed with proper typing)
+            elif isinstance(cmd_config, dict) and cmd_config.get("topic") == topic:
                 matching_commands.append((cmd_name, cmd_config))
         
         if not matching_commands:
@@ -801,7 +800,13 @@ class EMotivaXMC2(BaseDevice):
         for cmd_name, cmd_config in matching_commands:
             # Process parameters if defined
             params = {}
-            param_definitions = cmd_config.get("params", [])
+            
+            # Get parameters definitions based on config type
+            if isinstance(cmd_config, StandardCommandConfig):
+                param_definitions = cmd_config.params or []
+            else:
+                # Fallback for dictionary config
+                param_definitions = cmd_config.get("params", [])
             
             if param_definitions:
                 # Try to parse payload as JSON
@@ -811,17 +816,29 @@ class EMotivaXMC2(BaseDevice):
                     # For single parameter commands, try to map raw payload to the first parameter
                     if len(param_definitions) == 1:
                         param_def = param_definitions[0]
-                        param_name = param_def["name"]
-                        param_type = param_def["type"]
+                        # Handle both dictionary and Pydantic model parameter definitions
+                        if isinstance(param_def, dict):
+                            param_name = param_def["name"]
+                            param_type = param_def["type"]
+                            required = param_def.get("required", True)
+                            min_value = param_def.get("min")
+                            max_value = param_def.get("max")
+                        else:
+                            # Pydantic model
+                            param_name = param_def.name
+                            param_type = param_def.type
+                            required = param_def.required
+                            min_value = getattr(param_def, 'min', None)
+                            max_value = getattr(param_def, 'max', None)
                         
                         # Use the validation helper to convert and validate the parameter
                         is_valid, converted_value, error_message = self._validate_parameter(
                             param_name=param_name,
                             param_value=payload,
                             param_type=param_type,
-                            required=param_def.get("required", True),
-                            min_value=param_def.get("min"),
-                            max_value=param_def.get("max"),
+                            required=required,
+                            min_value=min_value,
+                            max_value=max_value,
                             action=cmd_name
                         )
                         

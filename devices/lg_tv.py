@@ -30,26 +30,26 @@ logger = logging.getLogger(__name__)
 class LgTv(BaseDevice):
     """Implementation of an LG TV controlled over the network using AsyncWebOSTV library."""
     
-    def __init__(self, config: Dict[str, Any], mqtt_client: Optional[MQTTClient] = None):
+    def __init__(self, config: LgTvDeviceConfig, mqtt_client: Optional[MQTTClient] = None):
         super().__init__(config, mqtt_client)
         
-        # Get and use the typed config
-        self.typed_config = cast(LgTvDeviceConfig, self.config)
+        # Store the typed config directly
+        self.typed_config = config
         
         self._state_schema = LgTvState
-        self.state = {
-            "device_id": self.typed_config.device_id,
-            "device_name": self.typed_config.device_name,
-            "power": "unknown",
-            "volume": 0,
-            "mute": False,
-            "current_app": None,
-            "input_source": None,
-            "last_command": None,
-            "connected": False,
-            "ip_address": None,
-            "mac_address": None
-        }
+        self.state = LgTvState(
+            device_id=self.typed_config.device_id,
+            device_name=self.typed_config.device_name,
+            power="unknown",
+            volume=0,
+            mute=False,
+            current_app=None,
+            input_source=None,
+            last_command=None,
+            connected=False,
+            ip_address=None,
+            mac_address=None
+        )
         self.client = None
         self.system = None
         self.media = None
@@ -65,10 +65,10 @@ class LgTv(BaseDevice):
         self.client_key = self.tv_config.client_key
         
         # Initialize IP address from TV configuration
-        self.state["ip_address"] = self.tv_config.ip_address
+        self.state.ip_address = self.tv_config.ip_address
         
         # Initialize MAC address from TV configuration if available
-        self.state["mac_address"] = self.tv_config.mac_address
+        self.state.mac_address = self.tv_config.mac_address
         
         # Cache for available apps and input sources
         self._cached_apps = []
@@ -144,7 +144,7 @@ class LgTv(BaseDevice):
                 logger.error("TV configuration not initialized")
                 return None
                 
-            ip = self.state.get("ip_address")
+            ip = self.state.ip_address
             if not ip:
                 logger.error("No IP address configured for TV")
                 return None
@@ -186,7 +186,7 @@ class LgTv(BaseDevice):
                 
         except Exception as e:
             logger.error(f"Error creating WebOSTV client: {str(e)}")
-            self.state["error"] = f"Client creation error: {str(e)}"
+            self.state.error = f"Client creation error: {str(e)}"
             return None
             
     async def _initialize_control_interfaces(self) -> bool:
@@ -237,7 +237,7 @@ class LgTv(BaseDevice):
             True if refresh was successful, False otherwise
         """
         try:
-            if not self.app or not self.client or not self.state.get("connected", False):
+            if not self.app or not self.client or not self.state.connected:
                 logger.debug("Cannot refresh app cache: Not connected to TV or app control not available")
                 return False
                 
@@ -266,7 +266,7 @@ class LgTv(BaseDevice):
             True if refresh was successful, False otherwise
         """
         try:
-            if not self.input_control or not self.client or not self.state.get("connected", False):
+            if not self.input_control or not self.client or not self.state.connected:
                 logger.debug("Cannot refresh input sources cache: Not connected to TV or input control not available")
                 return False
                 
@@ -295,8 +295,8 @@ class LgTv(BaseDevice):
             logger.info(f"Setting up LG TV: {self.device_name}")
             
             # Use host from typed configuration directly
-            self.state["ip_address"] = self.tv_config.ip_address
-            self.state["mac_address"] = self.tv_config.mac_address
+            self.state.ip_address = self.tv_config.ip_address
+            self.state.mac_address = self.tv_config.mac_address
             
             # Initialize client key for WebOS 
             self.client_key = self.tv_config.client_key
@@ -316,7 +316,7 @@ class LgTv(BaseDevice):
                 
             # Initialize device state structure even if connection failed
             # This ensures proper state reporting in APIs
-            state_data = LgTvState(
+            self.state = LgTvState(
                 device_id=self.typed_config.device_id,
                 device_name=self.typed_config.device_name,
                 power="off" if not connection_success else "on",
@@ -325,16 +325,15 @@ class LgTv(BaseDevice):
                 current_app=None,
                 input_source=None,
                 connected=connection_success,
-                ip_address=self.state.get("ip_address"),
-                mac_address=self.state.get("mac_address")
+                ip_address=self.state.ip_address,
+                mac_address=self.state.mac_address
             )
-            self.state = state_data.dict()
             
             return True  # Setup completed even if connection failed
             
         except Exception as e:
             logger.error(f"Error setting up LG TV device {self.device_name}: {str(e)}")
-            self.state["error"] = str(e)
+            self.state.error = str(e)
             return False
     
     async def connect(self) -> bool:
@@ -350,8 +349,8 @@ class LgTv(BaseDevice):
             
             if connection_result:
                 logger.info(f"Successfully connected to TV {self.get_name()}")
-                self.state["connected"] = True
-                self.state["error"] = None
+                self.state.connected = True
+                self.state.error = None
                 
                 # Initialize control interfaces after successful connection
                 await self._initialize_control_interfaces()
@@ -360,15 +359,15 @@ class LgTv(BaseDevice):
                 await self._update_tv_state()
             else:
                 logger.error(f"Failed to connect to TV {self.get_name()}")
-                self.state["connected"] = False
-                if not self.state.get("error"):
-                    self.state["error"] = "Failed to connect to TV"
+                self.state.connected = False
+                if not self.state.error:
+                    self.state.error = "Failed to connect to TV"
                     
             return connection_result
         except Exception as e:
             logger.error(f"Unexpected error connecting to TV {self.get_name()}: {str(e)}")
-            self.state["connected"] = False
-            self.state["error"] = str(e)
+            self.state.connected = False
+            self.state.error = str(e)
             return False
     
     async def shutdown(self) -> bool:
@@ -379,7 +378,7 @@ class LgTv(BaseDevice):
                 # WebOSTV.close() handles closing all connections including input
                 await self.client.close()
                 self.client = None
-                self.state["connected"] = False
+                self.state.connected = False
                 
                 # Clear cached data
                 self._cached_apps = []
@@ -407,7 +406,7 @@ class LgTv(BaseDevice):
                 
             # First connection attempt
             try:
-                ip = self.state.get("ip_address")
+                ip = self.state.ip_address
                 logger.info(f"Attempting to connect to TV at {ip}...")
                 
                 # The WebOSTV connect method handles both connection and registration
@@ -431,7 +430,7 @@ class LgTv(BaseDevice):
                 
         except Exception as e:
             logger.error(f"Error in _connect_to_tv: {str(e)}")
-            self.state["error"] = str(e)
+            self.state.error = str(e)
             return False
             
     async def _handle_ssl_error(self, ssl_error: ssl.SSLError) -> bool:
@@ -444,7 +443,7 @@ class LgTv(BaseDevice):
             True if fallback connection succeeded, False otherwise
         """
         logger.error(f"SSL error during connection: {str(ssl_error)}")
-        self.state["error"] = f"SSL connection error: {str(ssl_error)}"
+        self.state.error = f"SSL connection error: {str(ssl_error)}"
         
         # Check if it's a certificate verification error and we're in secure mode
         if "CERTIFICATE_VERIFY_FAILED" in str(ssl_error) and self.tv_config and self.tv_config.secure:
@@ -482,12 +481,12 @@ class LgTv(BaseDevice):
                 logger.info(f"Obtained new client key from insecure connection: {self.client_key}")
             
             logger.warning("Connected with insecure fallback (without SSL)")
-            self.state["error"] = "Connected with insecure fallback. Consider extracting TV certificate."
+            self.state.error = "Connected with insecure fallback. Consider extracting TV certificate."
             return True
                 
         except Exception as fallback_error:
             logger.error(f"Fallback connection failed: {str(fallback_error)}")
-            self.state["error"] = f"SSL connection failed, fallback also failed: {str(fallback_error)}"
+            self.state.error = f"SSL connection failed, fallback also failed: {str(fallback_error)}"
             return False
             
     async def _handle_connection_error(self, conn_error: Exception) -> bool:
@@ -500,10 +499,10 @@ class LgTv(BaseDevice):
             True if connection was established or recovered, False otherwise
         """
         logger.error(f"Connection error: {str(conn_error)}")
-        self.state["error"] = f"Connection error: {str(conn_error)}"
+        self.state.error = f"Connection error: {str(conn_error)}"
         
         # If we have a MAC address and the error suggests the TV is off, try Wake-on-LAN
-        mac_address = self.state.get("mac_address")
+        mac_address = self.state.mac_address
         if mac_address and "no response" in str(conn_error).lower():
             logger.info(f"TV may be off. Attempting Wake-on-LAN to {mac_address}")
             if await self.wake_on_lan():
@@ -544,7 +543,7 @@ class LgTv(BaseDevice):
         Returns:
             True if at least some state information was updated, False otherwise
         """
-        if not self.client or not self.state.get("connected", False):
+        if not self.client or not self.state.connected:
             logger.debug("Cannot update TV state: Not connected")
             return False
             
@@ -573,8 +572,8 @@ class LgTv(BaseDevice):
             media_control = cast(Any, self.media)
             volume_info = await media_control.get_volume()
             if volume_info:
-                self.state["volume"] = volume_info.get("volume", 0)
-                self.state["mute"] = volume_info.get("muted", False)
+                self.state.volume = volume_info.get("volume", 0)
+                self.state.mute = volume_info.get("muted", False)
         except Exception as e:
             logger.debug(f"Could not get volume info: {str(e)}")
             
@@ -587,7 +586,7 @@ class LgTv(BaseDevice):
             # Use ApplicationControl's foreground_app method
             foreground_app = await self.app.foreground_app()
             if foreground_app and isinstance(foreground_app, dict):
-                self.state["current_app"] = foreground_app.get("appId")
+                self.state.current_app = foreground_app.get("appId")
         except Exception as e:
             logger.debug(f"Could not get current app info: {str(e)}")
             
@@ -600,7 +599,7 @@ class LgTv(BaseDevice):
             # Use InputControl's get_input method directly
             input_info = await self.input_control.get_input()
             if input_info and "inputId" in input_info:
-                self.state["input_source"] = input_info.get("inputId")
+                self.state.input_source = input_info.get("inputId")
         except Exception as e:
             logger.debug(f"Could not get input source info: {str(e)}")
     
@@ -670,7 +669,7 @@ class LgTv(BaseDevice):
             success = False
             
             # First try using WebOS API if we have an active connection
-            if self.system and self.client and self.state.get("connected", False):
+            if self.system and self.client and self.state.connected:
                 try:
                     logger.info("Attempting to power on via WebOS API with monitoring...")
                     result = await self._execute_with_monitoring(
@@ -680,13 +679,13 @@ class LgTv(BaseDevice):
                     )
                     
                     if result.get("success", False):
-                        self.state["power"] = "on"
-                        self.state["last_command"] = LastCommand(
+                        self.state.power = "on"
+                        self.state.last_command = LastCommand(
                             action="power_on",
                             source="api",
                             timestamp=datetime.now(),
                             params={"method": "webos_api"}
-                        ).dict()
+                        )
                         success = True
                         logger.info("Power on via WebOS API successful")
                 except Exception as e:
@@ -706,22 +705,22 @@ class LgTv(BaseDevice):
                 # Connect to re-initialize all control interfaces
                 await self.connect()
             else:
-                self.state["last_command"] = LastCommand(
+                self.state.last_command = LastCommand(
                     action="power_on",
                     source="api",
                     timestamp=datetime.now(),
                     params={"status": "failed"}
-                ).dict()
+                )
                 
             return success
         except Exception as e:
             logger.error(f"Error powering on TV: {str(e)}")
-            self.state["last_command"] = LastCommand(
+            self.state.last_command = LastCommand(
                 action="power_on",
                 source="api",
                 timestamp=datetime.now(),
                 params={"error": str(e)}
-            ).dict()
+            )
             return False
             
     async def _power_on_with_wol(self) -> bool:
@@ -733,7 +732,7 @@ class LgTv(BaseDevice):
         Returns:
             True if WoL was sent successfully, False otherwise
         """
-        mac_address = self.state.get("mac_address")
+        mac_address = self.state.mac_address
         if not mac_address:
             logger.warning("Cannot use Wake-on-LAN: No MAC address configured for TV")
             return False
@@ -745,15 +744,15 @@ class LgTv(BaseDevice):
             logger.info("Wake-on-LAN packet sent successfully")
             # We can't be certain the TV will power on, but we've done our part
             # Assume it worked for state tracking purposes
-            self.state["power"] = "on"
+            self.state.power = "on"
             
             # Use LastCommand object instead of string
-            self.state["last_command"] = LastCommand(
+            self.state.last_command = LastCommand(
                 action="power_on",
                 source="wol",
                 timestamp=datetime.now(),
                 params={"method": "wol", "mac_address": mac_address}
-            ).dict()
+            )
             
             return True
         else:
@@ -770,7 +769,7 @@ class LgTv(BaseDevice):
             logger.info(f"Powering off TV {self.get_name()}")
             
             # Use system power_off_with_monitoring method
-            if self.system and self.client and self.state.get("connected", False):
+            if self.system and self.client and self.state.connected:
                 result = await self._execute_with_monitoring(
                     self.system, 
                     "power_off_with_monitoring", 
@@ -778,41 +777,41 @@ class LgTv(BaseDevice):
                 )
                 
                 if result.get("success", False):
-                    self.state["power"] = "off"
-                    self.state["last_command"] = LastCommand(
+                    self.state.power = "off"
+                    self.state.last_command = LastCommand(
                         action="power_off",
                         source="api",
                         timestamp=datetime.now()
-                    ).dict()
+                    )
                     return True
                 else:
                     logger.warning(f"Power off failed: {result.get('error', 'Unknown error')}")
                     error_msg = result.get('error', 'Unknown error')
-                    self.state["last_command"] = LastCommand(
+                    self.state.last_command = LastCommand(
                         action="power_off",
                         source="api",
                         timestamp=datetime.now(),
                         params={"error": error_msg}
-                    ).dict()
+                    )
                     return False
             else:
                 logger.error("Cannot power off: Not connected to TV")
-                self.state["last_command"] = LastCommand(
+                self.state.last_command = LastCommand(
                     action="power_off",
                     source="api",
                     timestamp=datetime.now(),
                     params={"error": "Not connected to TV"}
-                ).dict()
+                )
                 return False
                 
         except Exception as e:
             logger.error(f"Error powering off TV: {str(e)}")
-            self.state["last_command"] = LastCommand(
+            self.state.last_command = LastCommand(
                 action="power_off",
                 source="api",
                 timestamp=datetime.now(),
                 params={"error": str(e)}
-            ).dict()
+            )
             return False
     
     async def handle_mute(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
@@ -850,7 +849,7 @@ class LgTv(BaseDevice):
             return False
         
         try:
-            if not self.app or not self.client or not self.state.get("connected", False):
+            if not self.app or not self.client or not self.state.connected:
                 logger.error(f"Cannot launch app {app_id}: Not connected to TV")
                 return False
             
@@ -958,7 +957,7 @@ class LgTv(BaseDevice):
                     message = f"Action '{action}' {'succeeded' if success_status else 'failed'}."
                     if not success_status:
                         # Try to get more specific error from state if available after failed action
-                        current_error_in_state = self.state.get("error") # Check state *after* handler execution
+                        current_error_in_state = self.state.error # Check state *after* handler execution
                         if current_error_in_state:
                            error_message = current_error_in_state
                         else:
@@ -1383,7 +1382,7 @@ class LgTv(BaseDevice):
         """
         try:
             # Get TV IP address
-            ip = self.state.get("ip_address")
+            ip = self.state.ip_address
             if not ip:
                 return False, "No IP address configured for TV"
             
@@ -1432,7 +1431,7 @@ class LgTv(BaseDevice):
                 return False, f"Certificate file {cert_file} does not exist"
             
             # Get TV IP address
-            ip = self.state.get("ip_address")
+            ip = self.state.ip_address
             if not ip:
                 return False, "No IP address configured for TV"
             
@@ -1510,7 +1509,7 @@ class LgTv(BaseDevice):
         input_source = params["source"]
         
         try:
-            if not self.source_control or not self.client or not self.state.get("connected", False):
+            if not self.source_control or not self.client or not self.state.connected:
                 logger.error(f"Cannot set input source to {input_source}: Not connected to TV")
                 return False
             
@@ -1535,7 +1534,7 @@ class LgTv(BaseDevice):
             
             if result.get("returnValue", False):
                 # Update state
-                self.state["input_source"] = input_name
+                self.state.input_source = input_name
                 await self._update_last_command("set_input_source", params, "api")
                 return True
             
@@ -1581,14 +1580,12 @@ class LgTv(BaseDevice):
     async def _update_last_command(self, action: str, params: Optional[Dict[str, Any]] = None, source: str = "api"):
         """Helper method to update the last_command state."""
         try:
-            self.update_state({
-                "last_command": LastCommand(
-                    action=action,
-                    source=source,
-                    timestamp=datetime.now(),
-                    params=params if params else {}
-                ).dict()
-            })
+            self.state.last_command = LastCommand(
+                action=action,
+                source=source,
+                timestamp=datetime.now(),
+                params=params if params else {}
+            )
         except Exception as e:
             # Log error but don't prevent the main action from completing
             logger.error(f"Error updating last_command state for action '{action}': {e}")
@@ -1622,7 +1619,7 @@ class LgTv(BaseDevice):
         try:
             logger.info(f"Executing media command: {action_name}")
             
-            if not self.media or not self.client or not self.state.get("connected", False):
+            if not self.media or not self.client or not self.state.connected:
                 logger.error(f"Cannot execute media command {action_name}: Not connected to TV")
                 return False
             
@@ -1671,9 +1668,9 @@ class LgTv(BaseDevice):
                     # Update state if needed
                     if state_key_to_update:
                         if requires_level:
-                            self.state[state_key_to_update] = level
+                            self.state.volume = level
                         elif requires_state:
-                            self.state[state_key_to_update] = state
+                            self.state.mute = state
                         
                     # Update volume state if requested
                     if update_volume_after:
@@ -1722,7 +1719,7 @@ class LgTv(BaseDevice):
         try:
             logger.info(f"Sending {action_name.upper()} button command to TV {self.get_name()}")
             
-            if not self.client or not self.input_control or not self.state.get("connected", False):
+            if not self.client or not self.input_control or not self.state.connected:
                 logger.error(f"Cannot send {action_name.upper()} command: Not connected or input control not available")
                 return False
                 
@@ -1801,15 +1798,15 @@ class LgTv(BaseDevice):
             bool: True if the WOL packet was sent successfully, False otherwise
         """
         try:
-            mac_address = self.state.get("mac_address")
+            mac_address = self.state.mac_address
             if not mac_address:
                 logger.error("Cannot use Wake-on-LAN: No MAC address configured for TV")
-                self.state["last_command"] = LastCommand(
+                self.state.last_command = LastCommand(
                     action="wake_on_lan",
                     source="api",
                     timestamp=datetime.now(),
                     params={"error": "No MAC address configured"}
-                ).dict()
+                )
                 return False
                 
             logger.info(f"Sending Wake-on-LAN packet to TV {self.get_name()} (MAC: {mac_address})")
@@ -1819,34 +1816,34 @@ class LgTv(BaseDevice):
             
             if wol_success:
                 logger.info("Wake-on-LAN packet sent successfully")
-                self.state["last_command"] = LastCommand(
+                self.state.last_command = LastCommand(
                     action="wake_on_lan",
                     source="api",
                     timestamp=datetime.now(),
                     params={"mac_address": mac_address}
-                ).dict()
+                )
                 # We can't know for sure if the TV will turn on,
                 # but update the expected state for consistency
-                self.state["power"] = "on"
+                self.state.power = "on"
                 return True
             else:
                 logger.error("Failed to send Wake-on-LAN packet")
-                self.state["last_command"] = LastCommand(
+                self.state.last_command = LastCommand(
                     action="wake_on_lan",
                     source="api",
                     timestamp=datetime.now(),
                     params={"error": "Failed to send packet"}
-                ).dict()
+                )
                 return False
                 
         except Exception as e:
             logger.error(f"Error sending Wake-on-LAN packet: {str(e)}")
-            self.state["last_command"] = LastCommand(
+            self.state.last_command = LastCommand(
                 action="wake_on_lan",
                 source="api",
                 timestamp=datetime.now(),
                 params={"error": str(e)}
-            ).dict()
+            )
             return False
     
     async def _execute_pointer_command(
@@ -1870,7 +1867,7 @@ class LgTv(BaseDevice):
         try:
             logger.info(f"Executing pointer command: {action_name}")
             
-            if not self.client or not self.state.get("connected", False):
+            if not self.client or not self.state.connected:
                 logger.error(f"Cannot execute pointer command {action_name}: Not connected to TV")
                 return False
                 

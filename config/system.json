@@ -53,9 +53,9 @@
       "class": "BroadlinkKitchenHood",
       "config_file": "kitchen_hood.json"
     },
-    "example_device": {
-      "class": "ExampleDevice",
-      "config_file": "example_device.json"
+    "vhs_player": {
+      "class": "WirenboardIRDevice",
+      "config_file": "vhs_player.json"
     },
     "living_room_tv": {
       "class": "LgTv",

@@ -2,7 +2,6 @@ import pytest
 import asyncio
 import json
 from unittest.mock import MagicMock, patch, AsyncMock
-from datetime import datetime, timedelta
 
 from devices.emotiva_xmc2 import EMotivaXMC2
 from app.mqtt_client import MQTTClient
@@ -11,17 +10,15 @@ from app.mqtt_client import MQTTClient
 @pytest.fixture
 def emotiva_config():
     return {
-        "device_name": "Test Emotiva XMC2",
-        "device_type": "emotiva_xmc2",
-        "device_id": "test_emotiva",
-        "alias": "test_processor",
-        "mqtt_progress_topic": "/devices/test_processor/controls/progress",
-        "emotiva": {
+        "device_id": "test_processor",
+        "device_name": "Test XMC2 Processor",
+        "device_class": "emotiva_xmc2",
+        "device_info": {
+            "name": "Test XMC2 Processor",
+            "model": "XMC2",
+            "manufacturer": "Emotiva",
             "host": "192.168.1.100",
-            "mac": "00:11:22:33:44:55",
-            "port": 7002,
-            "update_interval": 60,
-            "force_connect": True
+            "port": 7000
         },
         "commands": {
             "power_on": {
@@ -129,13 +126,16 @@ def emotiva_device(emotiva_config, mock_mqtt_client):
 
 
 @pytest.mark.asyncio
-async def test_legacy_handler_pattern(emotiva_device):
-    """Test that the legacy handler pattern still works."""
+async def test_power_on_with_parameters(emotiva_device):
+    """Test the power_on handler with parameter-based approach."""
     # Extract config for a command
     power_on_config = emotiva_device.get_available_commands()["power_on"]
     
-    # Call using the legacy pattern
-    result = await emotiva_device.handle_power_on(action_config=power_on_config)
+    # Call using the parameter pattern
+    result = await emotiva_device.handle_power_on(
+        cmd_config=power_on_config,
+        params={}
+    )
     
     # Verify the client method was called
     emotiva_device.client.set_power_on.assert_called_once()
@@ -147,12 +147,12 @@ async def test_legacy_handler_pattern(emotiva_device):
 
 
 @pytest.mark.asyncio
-async def test_new_parameter_pattern(emotiva_device):
-    """Test that the new parameter pattern works."""
+async def test_parameter_pattern(emotiva_device):
+    """Test that the parameter pattern works."""
     # Extract config for the set_volume command
     volume_config = emotiva_device.get_available_commands()["set_volume"]
     
-    # Call using the new pattern
+    # Call using the parameter pattern
     result = await emotiva_device.handle_set_volume(
         cmd_config=volume_config, 
         params={"level": -30.0}
@@ -223,16 +223,11 @@ async def test_mqtt_message_with_single_param(emotiva_device):
             mock_handle.assert_called_once()
             
             # Check that the params parameter contains the correctly parsed level
-            # The parameter might be passed directly or as a dictionary depending on implementation
-            if "params" in mock_handle.call_args[1]:
-                params = mock_handle.call_args[1]["params"]
-                # If params is a dictionary, check the level key
-                if isinstance(params, dict):
-                    assert "level" in params
-                    assert params["level"] == -35.5
-                # If params is a direct value, check it directly
-                else:
-                    assert params == -35.5
+            assert "params" in mock_handle.call_args[1]
+            params = mock_handle.call_args[1]["params"]
+            assert isinstance(params, dict)
+            assert "level" in params
+            assert params["level"] == -35.5
             
         finally:
             # Restore the original handler

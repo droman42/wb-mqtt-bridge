@@ -325,27 +325,26 @@ async def reload_system_task():
 
 @app.get("/devices/{device_id}", tags=["Devices"], response_model=DeviceState)
 async def get_device(device_id: str):
-    """Get information about a specific device."""
-    logger = logging.getLogger(__name__)
+    """Get information about a specific device.
     
+    Args:
+        device_id: The ID of the device to retrieve
+        
+    Returns:
+        DeviceState: The device state
+        
+    Raises:
+        HTTPException: If device is not found or an error occurs
+    """
+    logger = logging.getLogger(__name__)
     if not device_manager:
         raise HTTPException(status_code=503, detail="Service not fully initialized")
     
     try:
         device = device_manager.get_device(device_id)
         if not device:
-            logger.error(f"Device {device_id} not found")
             raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
-        
-        device_config = None
-        if config_manager:
-            device_config = config_manager.get_device_config(device_id)
-        
-        if not device_config:
-            logger.error(f"Configuration for device {device_id} not found")
-            raise HTTPException(status_code=404, detail=f"Configuration for device {device_id} not found")
-        
-        # Safely get device name and state to handle potential errors
+            
         try:
             device_name = device.get_name()
         except Exception as e:
@@ -358,16 +357,8 @@ async def get_device(device_id: str):
             logger.warning(f"Error getting device state for {device_id}: {str(e)}")
             device_state = {"error": str(e)}
         
-        # Get last command if it exists and is a dictionary
+        # Get last command from device state
         last_command = device_state.get("last_command")
-        if last_command and isinstance(last_command, dict):
-            # Convert to Dict[str, Any] type
-            last_command_dict: Dict[str, Any] = {}
-            for k, v in last_command.items():
-                last_command_dict[str(k)] = v
-            last_command = last_command_dict
-        else:
-            last_command = None
             
         return DeviceState(
             device_id=device_id,

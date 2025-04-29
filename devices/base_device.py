@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from socket import socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_BROADCAST
 
-from app.schemas import BaseDeviceState, LastCommand
+from app.schemas import BaseDeviceState, LastCommand, BaseDeviceConfig
 from app.mqtt_client import MQTTClient
 
 logger = logging.getLogger(__name__)
@@ -13,16 +13,21 @@ logger = logging.getLogger(__name__)
 class BaseDevice(ABC):
     """Base class for all device implementations."""
     
-    def __init__(self, config: Dict[str, Any], mqtt_client: Optional["MQTTClient"] = None):
+    def __init__(self, config: BaseDeviceConfig, mqtt_client: Optional["MQTTClient"] = None):
         self.config = config
-        self.device_id = config.get('device_id', 'unknown')
-        self.device_name = config.get('device_name', 'unknown')
-        self.state: Dict[str, Any] = {}  # Device state storage
+        # Use typed config directly - no fallbacks to dictionary access
+        self.device_id = config.device_id
+        self.device_name = config.device_name
+        self.mqtt_progress_topic = config.mqtt_progress_topic
+        
+        # Initialize state with basic device identification
+        self.state = BaseDeviceState(
+            device_id=self.device_id,
+            device_name=self.device_name
+        )
         self._action_handlers: Dict[str, Callable[..., Awaitable[Any]]] = {}  # Cache for action handlers
         self._action_groups: Dict[str, List[str]] = {}  # Index of actions by group
-        self._state_schema: Optional[Type[BaseDeviceState]] = None
         self.mqtt_client = mqtt_client
-        self.mqtt_progress_topic = config.get('mqtt_progress_topic', None)
         
         # Build action group index
         self._build_action_groups_index()
@@ -347,14 +352,12 @@ class BaseDevice(ABC):
             result = await handler(cmd_config=cmd_config, params=params)
             
             # Update state with information about the last command executed
-            self.update_state({
-                "last_command": LastCommand(
-                    action=action_name,
-                    source="mqtt" if "topic" in cmd_config else "api",
-                    timestamp=datetime.now(),
-                    params=params
-                ).dict()
-            })
+            self.update_state(last_command=LastCommand(
+                action=action_name,
+                source="mqtt" if "topic" in cmd_config else "api",
+                timestamp=datetime.now(),
+                params=params
+            ))
             
             # Return any result from the handler
             return result
@@ -363,29 +366,20 @@ class BaseDevice(ABC):
             logger.error(f"Error executing action {action_name}: {str(e)}")
             return None
     
-    def get_current_state(self) -> Dict[str, Any]:
+    def get_current_state(self) -> BaseDeviceState:
         """Get the current state of the device."""
-        # Ensure device_id and device_name are always in the state
-        if "device_id" not in self.state:
-            self.state["device_id"] = self.device_id
-        if "device_name" not in self.state:
-            self.state["device_name"] = self.device_name
-            
-        if self._state_schema:
-            # Return validated state dict
-            return self._state_schema(**self.state).dict()
         return self.state
     
-    def update_state(self, updates: Dict[str, Any]):
-        """Update the device state."""
-        # Always ensure device_id and device_name are in the state
-        if "device_id" not in self.state:
-            self.state["device_id"] = self.device_id
-        if "device_name" not in self.state:
-            self.state["device_name"] = self.device_name
-            
-        # Update with the new values
-        self.state.update(updates)
+    def update_state(self, **updates):
+        """
+        Update the device state using keyword arguments.
+        Each keyword argument will update the corresponding attribute in the state.
+        """
+        # Create a new state object with updated values
+        updated_data = self.state.dict(exclude_unset=True)
+        updated_data.update(updates)
+        self.state = BaseDeviceState(**updated_data)
+        
         logger.debug(f"Updated state for {self.device_name}: {updates}")
     
     async def execute_action(self, action: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -426,7 +420,7 @@ class BaseDevice(ABC):
                 "success": True,
                 "device_id": self.device_id,
                 "action": action,
-                "state": self.get_current_state()
+                "state": self.state.dict()
             }
             
             # If the action handler returned a result with mqtt_command, include it in the response
@@ -484,7 +478,7 @@ class BaseDevice(ABC):
     
     def get_available_commands(self) -> Dict[str, Any]:
         """Return the list of available commands for this device."""
-        return self.config.get("commands", {})
+        return self.config.commands
     
     async def publish_progress(self, message: str) -> bool:
         """

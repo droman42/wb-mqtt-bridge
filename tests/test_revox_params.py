@@ -58,33 +58,8 @@ def revox_device(revox_config, mock_mqtt_client):
 
 
 @pytest.mark.asyncio
-async def test_legacy_handler_pattern(revox_device):
-    """Test that the legacy handler pattern still works."""
-    # Extract config for a command
-    play_config = revox_device.get_available_commands()["play"]
-    
-    # Mock the _execute_sequence method to avoid actual sleep
-    with patch.object(revox_device, '_execute_sequence') as mock_execute:
-        mock_execute.return_value = {
-            "topic": "/devices/revox_ir/controls/Play from ROM1/on", 
-            "payload": "1"
-        }
-        
-        # Call using the legacy pattern
-        result = await revox_device.handle_play(action_config=play_config)
-        
-        # Verify it called the execution method correctly
-        mock_execute.assert_called_once_with(play_config, "play")
-        
-        # Verify the result is a valid MQTT command
-        assert isinstance(result, dict)
-        assert "topic" in result
-        assert "payload" in result
-
-
-@pytest.mark.asyncio
-async def test_new_parameter_pattern(revox_device):
-    """Test that the new parameter pattern works."""
+async def test_parameter_pattern(revox_device):
+    """Test that the parameter pattern works."""
     # Extract config for a command
     stop_config = revox_device.get_available_commands()["stop"]
     
@@ -95,7 +70,7 @@ async def test_new_parameter_pattern(revox_device):
             "payload": "1"
         }
         
-        # Call using the new pattern
+        # Call using the parameter pattern
         result = await revox_device.handle_stop(
             cmd_config=stop_config, 
             params={"value": "1"}
@@ -154,9 +129,9 @@ async def test_mqtt_message_handling(revox_device):
             
             # Verify handle_play was called with the right parameters
             mock_handle.assert_called_once()
-            # Check that it was called with the legacy pattern for backward compatibility
-            assert mock_handle.call_args[1]["action_config"] is not None
-            assert mock_handle.call_args[1]["payload"] == "1"
+            # Check that it was called with the parameter pattern
+            assert mock_handle.call_args[1]["cmd_config"] is not None
+            assert "params" in mock_handle.call_args[1]
         finally:
             # Restore the original handler
             revox_device._action_handlers["play"] = original_handler 

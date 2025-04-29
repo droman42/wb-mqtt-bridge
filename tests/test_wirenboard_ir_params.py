@@ -5,29 +5,30 @@ import asyncio
 from unittest.mock import MagicMock, patch
 import base64
 from devices.wirenboard_ir_device import WirenboardIRDevice
-from app.schemas import WirenboardIRState
+from app.schemas import WirenboardIRState, WirenboardIRDeviceConfig, IRCommandConfig
 
 
 @pytest.fixture
 def wirenboard_ir_config():
     """Create a test configuration for the WirenboardIR device."""
-    return {
-        "device_name": "Test IR Device",
-        "device_type": "wirenboard_ir",
-        "device_id": "test_ir",
-        "alias": "test_ir",
-        "mqtt_progress_topic": "/devices/test_ir/controls/progress",
-        "commands": {
-            "power": {
-                "action": "power",
-                "topic": "/devices/test_ir/controls/power",
-                "location": "wb-msw-v3_207",
-                "rom_position": "62",
-                "group": "power",
-                "description": "Power On/Off"
-            }
-        }
-    }
+    # Create IRCommandConfig for the power command
+    power_command = IRCommandConfig(
+        action="power",
+        topic="/devices/test_ir/controls/power",
+        location="wb-msw-v3_207",
+        rom_position="62",
+        group="power",
+        description="Power On/Off"
+    )
+    
+    # Create the device config
+    return WirenboardIRDeviceConfig(
+        device_id="test_ir",
+        device_name="Test IR Device",
+        device_class="wirenboard_ir",
+        mqtt_progress_topic="/devices/test_ir/controls/progress",
+        commands={"power": power_command}
+    )
 
 
 @pytest.fixture
@@ -48,30 +49,8 @@ async def wirenboard_ir_device(wirenboard_ir_config, mqtt_client):
 
 
 @pytest.mark.asyncio
-async def test_legacy_handler_pattern(wirenboard_ir_device, mqtt_client):
-    """Test the legacy handler pattern with action_config and payload."""
-    # Get the action handler
-    handler = wirenboard_ir_device._get_action_handler("power")
-    
-    # Create a mock action config
-    action_config = {
-        "location": "wb-msw-v3_207",
-        "rom_position": "62"
-    }
-    
-    # Call the handler with the legacy pattern
-    await handler(action_config=action_config, payload="1")
-    
-    # Verify MQTT message was published
-    mqtt_client.publish.assert_called_once()
-    args = mqtt_client.publish.call_args[0]
-    assert args[0] == "/devices/wb-msw-v3_207/controls/Play from ROM62/on"
-    assert args[1] == 1
-
-
-@pytest.mark.asyncio
 async def test_new_parameter_pattern(wirenboard_ir_device, mqtt_client):
-    """Test the new parameter pattern with cmd_config and params."""
+    """Test the parameter pattern with cmd_config and params."""
     # Get the action handler
     handler = wirenboard_ir_device._get_action_handler("power")
     
@@ -87,7 +66,7 @@ async def test_new_parameter_pattern(wirenboard_ir_device, mqtt_client):
     # Reset mock
     mqtt_client.publish.reset_mock()
     
-    # Call the handler with the new pattern
+    # Call the handler with the parameter pattern
     await handler(cmd_config=cmd_config, params=params)
     
     # Verify MQTT message was published
@@ -116,5 +95,7 @@ async def test_mqtt_message_handling(wirenboard_ir_device, mqtt_client):
     # Verify the last_command state was updated
     last_command = wirenboard_ir_device.get_last_command()
     assert last_command is not None
-    assert last_command["topic"] == "/devices/test_ir/controls/power"
-    assert last_command["command_topic"] == "/devices/wb-msw-v3_207/controls/Play from ROM62/on" 
+    # Access command_topic via params dictionary in the LastCommand model
+    assert last_command.params.get("command_topic") == "/devices/wb-msw-v3_207/controls/Play from ROM62/on"
+    # Access topic via params in the LastCommand model
+    assert last_command.params.get("topic") == "/devices/test_ir/controls/power" 

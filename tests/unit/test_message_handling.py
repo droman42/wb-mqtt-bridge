@@ -72,30 +72,27 @@ class TestMessageHandling(unittest.IsolatedAsyncioTestCase):
                     }
                 ]
             },
-            "legacyCommand": {
-                "topic": "/test/legacy"
-                # No params defined
+            "simpleCommand": {
+                "topic": "/test/simple",
+                "action": "simple_command"
             }
         }
         
         # Mock the get_available_commands method
         self.device.get_available_commands = MagicMock(return_value=self.test_commands)
         
-        # Create handlers for both old and new style
-        async def mock_new_handler(cmd_config, params):
-            return {"style": "new", "params": params}
-            
-        async def mock_old_handler(action_config, payload):
-            return {"style": "old", "payload": payload}
+        # Create handlers using parameter-based pattern
+        async def mock_handler(cmd_config, params):
+            return {"style": "parameter", "params": params}
         
         # Register mock handlers
         self.device._get_action_handler = MagicMock()
         self.device._get_action_handler.side_effect = lambda action: {
-            "set_level": mock_new_handler,
-            "multi_param": mock_new_handler,
-            "action_on": mock_new_handler,
-            "action_off": mock_old_handler,
-            "legacycommand": mock_old_handler
+            "set_level": mock_handler,
+            "multi_param": mock_handler,
+            "action_on": mock_handler,
+            "action_off": mock_handler,
+            "simple_command": mock_handler
         }.get(action.lower())
     
     async def test_handle_message_with_json_payload(self):
@@ -116,8 +113,8 @@ class TestMessageHandling(unittest.IsolatedAsyncioTestCase):
         # Since we're mocking _resolve_and_validate_params differently, check if params were passed
         self.assertIsNotNone(call_args[2])  # params
         
-    async def test_handle_message_with_raw_payload(self):
-        """Test handling a message with raw payload that can be converted to a parameter."""
+    async def test_handle_message_with_simple_payload(self):
+        """Test handling a message with simple payload that can be converted to a parameter."""
         # Raw payload (non-JSON) for a command with parameters
         payload = "50"  # Simple integer payload
         topic = "/test/level"
@@ -149,11 +146,11 @@ class TestMessageHandling(unittest.IsolatedAsyncioTestCase):
         call_args = self.device._execute_single_action.call_args[0]
         self.assertEqual(call_args[0], "action_on")  # action_name
     
-    async def test_handle_message_with_legacy_command(self):
+    async def test_handle_message_with_simple_command(self):
         """Test handling a message for a command with no parameters defined."""
         # Simple payload for a command without parameters
         payload = "ON"
-        topic = "/test/legacy"
+        topic = "/test/simple"
         
         # Reset the mock
         self.device._execute_single_action.reset_mock()
@@ -161,12 +158,12 @@ class TestMessageHandling(unittest.IsolatedAsyncioTestCase):
         # Handle the message
         await self.device.handle_message(topic, payload)
         
-        # Check that _execute_single_action was called with raw payload
+        # Check that _execute_single_action was called with parameters
         self.device._execute_single_action.assert_called_once()
         call_args = self.device._execute_single_action.call_args[0]
-        self.assertEqual(call_args[0], "legacyCommand")  # action_name
-        self.assertEqual(call_args[1], self.test_commands["legacyCommand"])  # cmd_config
-        self.assertEqual(call_args[3], "ON")  # raw_payload
+        self.assertEqual(call_args[0], "simpleCommand")  # action_name
+        self.assertEqual(call_args[1], self.test_commands["simpleCommand"])  # cmd_config
+        self.assertIsNotNone(call_args[2])  # params should not be None
     
     async def test_execute_action_with_parameters(self):
         """Test executing an action with parameters via API."""

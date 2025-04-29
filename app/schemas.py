@@ -143,11 +143,6 @@ class EmotivaXMC2DeviceConfig(BaseDeviceConfig):
     commands: Dict[str, StandardCommandConfig]
     emotiva: EmotivaConfig
 
-class ExampleDeviceConfig(BaseDeviceConfig):
-    """Configuration for Example device."""
-    commands: Dict[str, StandardCommandConfig]
-    parameters: Dict[str, Any] = {}
-
 # For backward compatibility during transition
 T = TypeVar('T', bound=BaseDeviceConfig)
 class DeviceConfig(BaseModel):
@@ -207,13 +202,6 @@ class RevoxA77ReelToReelState(BaseDeviceState):
     """Schema for Revox A77 reel-to-reel state."""
     connection_status: str
 
-class ExampleDeviceState(BaseDeviceState):
-    """Schema for example device state."""
-    power: str
-    last_reading: Optional[Dict[str, Any]]
-    update_interval: int
-    threshold: float
-
 class AppleTVState(BaseDeviceState):
     """Schema for Apple TV device state."""
     connected: bool = False
@@ -234,7 +222,7 @@ class DeviceState(BaseModel):
     device_id: str
     device_name: str
     state: Dict[str, Any]
-    last_command: Optional[Dict[str, Any]] = None
+    last_command: Optional[LastCommand] = None
     error: Optional[str] = None
 
 class DeviceActionResponse(BaseModel):

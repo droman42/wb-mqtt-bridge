@@ -49,7 +49,7 @@ async def test_rf_codes_loaded(kitchen_hood_device):
 
 @pytest.mark.asyncio
 async def test_set_light_parameter(kitchen_hood_device, mock_broadlink_device):
-    """Test the new handle_set_light handler with parameters."""
+    """Test the handle_set_light handler with parameters."""
     cmd_config = kitchen_hood_device.get_available_commands()["setLight"]
     
     # Test turning light on
@@ -80,7 +80,7 @@ async def test_set_light_parameter(kitchen_hood_device, mock_broadlink_device):
 
 @pytest.mark.asyncio
 async def test_set_speed_parameter(kitchen_hood_device, mock_broadlink_device):
-    """Test the new handle_set_speed handler with parameters."""
+    """Test the handle_set_speed handler with parameters."""
     cmd_config = kitchen_hood_device.get_available_commands()["setSpeed"]
     
     # Test each speed level
@@ -101,42 +101,8 @@ async def test_set_speed_parameter(kitchen_hood_device, mock_broadlink_device):
 
 
 @pytest.mark.asyncio
-async def test_handle_legacy_actions(kitchen_hood_device, mock_broadlink_device):
-    """Test that legacy action handlers use new parameter-based implementations when rf_codes are available."""
-    # Create mock action_config for legacy handlers
-    action_config = {
-        "rf_code": "dummy_code"  # This should NOT be used if rf_codes map is available
-    }
-    
-    # Test light_on legacy handler
-    await kitchen_hood_device.handle_light_on(action_config, "1")
-    
-    # It should use the parameter-based approach, sending the code from rf_codes map
-    rf_code_base64 = kitchen_hood_device.rf_codes["light"]["on"]
-    rf_code = base64.b64decode(rf_code_base64)
-    mock_broadlink_device.send_data.assert_called_with(rf_code)
-    
-    # Check state was updated
-    assert kitchen_hood_device.state["light"] == "on"
-    
-    # Reset mock
-    mock_broadlink_device.reset_mock()
-    
-    # Test hood_off legacy handler
-    await kitchen_hood_device.handle_hood_off(action_config, "0")
-    
-    # It should use the parameter-based approach, sending the code from rf_codes map
-    rf_code_base64 = kitchen_hood_device.rf_codes["speed"]["0"]
-    rf_code = base64.b64decode(rf_code_base64)
-    mock_broadlink_device.send_data.assert_called_with(rf_code)
-    
-    # Check state was updated
-    assert kitchen_hood_device.state["speed"] == 0
-
-
-@pytest.mark.asyncio
 async def test_mqtt_message_handling(kitchen_hood_device, mock_broadlink_device):
-    """Test that MQTT messages are properly processed with the new parameter system."""
+    """Test that MQTT messages are properly processed with the parameter system."""
     # We need to replace the async method with an async mock
     original_execute = kitchen_hood_device._execute_single_action
     
