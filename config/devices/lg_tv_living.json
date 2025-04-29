@@ -14,145 +14,178 @@
     "reconnect_interval": 60
   },
   "commands": {
-    "power": {
-      "action": "power",
-      "topic": "/devices/living_room_tv/controls/buttons/power",
-      "description": "Power On/Off",
+    "power_on": {
+      "action": "power_on",
+      "topic": "/devices/living_room_tv/controls/power_on",
+      "description": "Power On",
+      "group": "power"
+    },
+    "power_off": {
+      "action": "power_off",
+      "topic": "/devices/living_room_tv/controls/power_off",
+      "description": "Power Off",
       "group": "power"
     },
     "home": {
       "action": "home",
-      "topic": "/devices/living_room_tv/controls/buttons/home",
+      "topic": "/devices/living_room_tv/controls/home",
       "description": "Home",
       "group": "menu"
     },
     "back": {
       "action": "back",
-      "topic": "/devices/living_room_tv/controls/buttons/back",
+      "topic": "/devices/living_room_tv/controls/back",
       "description": "Back",
       "group": "menu"
     },
     "up": {
       "action": "up",
-      "topic": "/devices/living_room_tv/controls/buttons/up",
+      "topic": "/devices/living_room_tv/controls/up",
       "description": "Up",
       "group": "menu"
     },
     "down": {
       "action": "down",
-      "topic": "/devices/living_room_tv/controls/buttons/down",
+      "topic": "/devices/living_room_tv/controls/down",
       "description": "Down",
       "group": "menu"
     },
     "left": {
       "action": "left",
-      "topic": "/devices/living_room_tv/controls/buttons/left",
+      "topic": "/devices/living_room_tv/controls/left",
       "description": "Left",
       "group": "menu"
     },
     "right": {
       "action": "right",
-      "topic": "/devices/living_room_tv/controls/buttons/right",
+      "topic": "/devices/living_room_tv/controls/right",
       "description": "Right",
       "group": "menu"
     },
     "enter": {
       "action": "enter",
-      "topic": "/devices/living_room_tv/controls/buttons/enter",
+      "topic": "/devices/living_room_tv/controls/enter",
       "description": "Enter/OK",
       "group": "menu"
     },
     "volume_up": {
       "action": "volume_up",
-      "topic": "/devices/living_room_tv/controls/buttons/volume_up",
+      "topic": "/devices/living_room_tv/controls/volume_up",
       "description": "Volume Up",
       "group": "volume"
     },
     "volume_down": {
       "action": "volume_down",
-      "topic": "/devices/living_room_tv/controls/buttons/volume_down",
+      "topic": "/devices/living_room_tv/controls/volume_down",
       "description": "Volume Down",
       "group": "volume"
     },
     "mute": {
       "action": "mute",
-      "topic": "/devices/living_room_tv/controls/buttons/mute",
+      "topic": "/devices/living_room_tv/controls/mute",
       "description": "Mute",
       "group": "volume"
     },
-    "channel_up": {
-      "action": "channel_up",
-      "topic": "/devices/living_room_tv/controls/buttons/channel_up",
-      "description": "Channel Up",
-      "group": "channel"
-    },
-    "channel_down": {
-      "action": "channel_down",
-      "topic": "/devices/living_room_tv/controls/buttons/channel_down",
-      "description": "Channel Down",
-      "group": "channel"
-    },
     "play": {
       "action": "play",
-      "topic": "/devices/living_room_tv/controls/buttons/play",
+      "topic": "/devices/living_room_tv/controls/play",
       "description": "Play",
       "group": "playback"
     },
     "pause": {
       "action": "pause",
-      "topic": "/devices/living_room_tv/controls/buttons/pause",
+      "topic": "/devices/living_room_tv/controls/pause",
       "description": "Pause",
       "group": "playback"
     },
     "stop": {
       "action": "stop",
-      "topic": "/devices/living_room_tv/controls/buttons/stop",
+      "topic": "/devices/living_room_tv/controls/stop",
       "description": "Stop",
       "group": "playback"
     },
     "rewind_forward": {
       "action": "rewind_forward",
-      "topic": "/devices/living_room_tv/controls/buttons/rewind_forward",
+      "topic": "/devices/living_room_tv/controls/rewind_forward",
       "description": "Fast Forward",
       "group": "playback"
     },
     "rewind_backward": {
       "action": "rewind_backward",
-      "topic": "/devices/living_room_tv/controls/buttons/rewind_backward",
+      "topic": "/devices/living_room_tv/controls/rewind_backward",
       "description": "Fast Backward",
       "group": "playback"
     },
-    "kinopoisk": {
-      "action": "kinopoisk",
-      "topic": "/devices/living_room_tv/controls/buttons/kinopoisk",
-      "description": "Launch Kinopoisk",
-      "appname": "\u041a\u0438\u043d\u043e\u043f\u043e\u0438\u0441\u043a",
-      "group": "app"
-    },
-    "ivi": {
-      "action": "ivi",
-      "topic": "/devices/living_room_tv/controls/buttons/ivi",
-      "description": "Launch IVI",
-      "appname": "IVI",
-      "group": "app"
-    },
     "exit": {
       "action": "exit",
-      "topic": "/devices/living_room_tv/controls/buttons/exit",
+      "topic": "/devices/living_room_tv/controls/exit",
       "description": "Exit Button",
       "group": "menu"
     },
     "menu": {
       "action": "menu",
-      "topic": "/devices/living_room_tv/controls/buttons/menu",
+      "topic": "/devices/living_room_tv/controls/menu",
       "description": "Menu Button",
       "group": "menu"
     },
     "settings": {
       "action": "settings",
-      "topic": "/devices/living_room_tv/controls/buttons/settings",
+      "topic": "/devices/living_room_tv/controls/settings",
       "description": "Settings Button",
       "group": "menu"
+    },
+    "set_volume": {
+      "action": "set_volume",
+      "topic": "/devices/living_room_tv/controls/set",
+      "description": "Set Volume Level",
+      "group": "volume",
+      "params": [
+        {"name": "level", "type": "range", "min": 0, "max": 100, "required": true, "description": "Volume level (0-100)"}
+      ]
+    },
+    "move_cursor": {
+      "action": "move_cursor",
+      "topic": "/devices/living_room_tv/controls/move",
+      "description": "Move Cursor to Position",
+      "group": "pointer",
+      "params": [
+        {"name": "x", "type": "range", "min": 0, "max": 100, "required": true, "description": "X coordinate (0-100)"},
+        {"name": "y", "type": "range", "min": 0, "max": 100, "required": true, "description": "Y coordinate (0-100)"}
+      ]
+    },
+    "move_cursor_relative": {
+      "action": "move_cursor_relative",
+      "topic": "/devices/living_room_tv/controls/move_relative",
+      "description": "Move Cursor Relative",
+      "group": "pointer",
+      "params": [
+        {"name": "dx", "type": "range", "min": -50, "max": 50, "required": true, "description": "X displacement (-50 to 50)"},
+        {"name": "dy", "type": "range", "min": -50, "max": 50, "required": true, "description": "Y displacement (-50 to 50)"}
+      ]
+    },
+    "click": {
+      "action": "click",
+      "topic": "/devices/living_room_tv/controls/click",
+      "description": "Click at current position",
+      "group": "pointer"
+    },
+    "set_input_source": {
+      "action": "set_input_source",
+      "topic": "/devices/living_room_tv/controls/set_input",
+      "description": "Set Input Source",
+      "group": "inputs",
+      "params": [
+        {"name": "source", "type": "string", "required": true, "description": "Input source name or ID (e.g., 'hdmi1', 'hdmi2')"}
+      ]
+    },
+    "launch_app": {
+      "action": "launch_app",
+      "topic": "/devices/living_room_tv/controls/launch_app",
+      "description": "Launch App",
+      "group": "apps",
+      "params": [
+        {"name": "app_id", "type": "string", "required": true, "description": "App name or ID to launch"}
+      ]
     }
   }
 }

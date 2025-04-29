@@ -4,7 +4,7 @@ import asyncio
 import json
 from devices.wirenboard_ir_device import WirenboardIRDevice
 import uvicorn
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 from contextlib import asynccontextmanager
@@ -18,6 +18,7 @@ from app.mqtt_client import MQTTClient
 from app.schemas import (
     MQTTBrokerConfig,
     DeviceConfig,
+    BaseDeviceConfig,
     DeviceState,
     DeviceActionResponse,
     DeviceActionsResponse,
@@ -130,47 +131,55 @@ async def lifespan(app: FastAPI):
     # Initialize device manager with null MQTT client initially
     device_manager = DeviceManager(mqtt_client=None)
     await device_manager.load_device_modules()
+    
+    # Log the number of typed configurations
+    typed_configs = config_manager.get_all_typed_configs()
+    if typed_configs:
+        logger.info(f"Using {len(typed_configs)} typed device configurations")
+    
+    # Initialize devices using all available configurations
     await device_manager.initialize_devices(config_manager.get_all_device_configs())
     
     # Now set the MQTT client for each initialized device
     for device_id, device in device_manager.devices.items():
         device.mqtt_client = mqtt_client
-        logger.info(f"Set MQTT client for device: {device_id}")
+        
+        # Log whether this device is using a typed config
+        if device_id in typed_configs:
+            logger.info(f"Device {device_id} initialized with typed configuration")
+        else:
+            logger.info(f"Device {device_id} initialized with legacy configuration")
     
     # Get topics for all devices
     device_topics = {}
-    for device_name, device_config in config_manager.get_all_device_configs().items():
-        # Register message handler
-        handler = device_manager.get_message_handler(device_name)
-        if handler:
-            mqtt_client.register_handler(device_name, handler)
-        
-        # Get topics
-        topics = device_manager.get_device_topics(device_name)
-        if topics:
-            device_topics[device_name] = topics
+    for device_id, device in device_manager.devices.items():
+        topics = device.subscribe_topics()
+        device_topics[device_id] = topics
+        logger.info(f"Device {device_id} subscribed to topics: {topics}")
     
-    # Start MQTT client
-    await mqtt_client.start(device_topics)
-    logger.info("MQTT Web Service started successfully")
+    # Connect MQTT client
+    await mqtt_client.connect_and_subscribe({
+        # Add message handlers for all device topics
+        **{topic: device_manager.get_message_handler(device_id) 
+           for device_id, topics in device_topics.items()
+           for topic in topics}
+    })
     
-    yield
+    logger.info("System startup complete")
+    
+    yield  # Service is running
     
     # Shutdown
-    logger.info("Shutting down MQTT Web Service")
-    
-    if device_manager:
-        await device_manager.shutdown_devices()
-    if mqtt_client:
-        await mqtt_client.stop()
-    
-    logger.info("MQTT Web Service shutdown complete")
+    logger.info("System shutting down...")
+    await mqtt_client.disconnect()
+    await device_manager.shutdown_devices()
+    logger.info("System shutdown complete")
 
 # Create the FastAPI app with lifespan
 app = FastAPI(
     title="MQTT Web Service",
-    description="A web service that manages MQTT devices",
-    version="1.0.0",
+    description="A web service that manages MQTT devices with typed configurations",
+    version="1.1.0",
     lifespan=lifespan
 )
 
@@ -492,6 +501,35 @@ async def publish_message(message: MQTTMessage, background_tasks: BackgroundTask
         - Dict/object payloads are JSON serialized
         - Boolean payloads are converted to "true"/"false" strings
         - Numeric payloads are converted to strings
+    
+    ### Parameter-based Commands
+    
+    For devices with commands that accept parameters, the payload should be a JSON object
+    with properties matching the parameter names defined in the device configuration:
+    
+    - **Set volume example**: For a command with a 'level' parameter
+      ```json
+      {
+        "level": 50
+      }
+      ```
+    
+    - **Launch app example**: For a command with an 'app' parameter
+      ```json
+      {
+        "app": "Netflix"
+      }
+      ```
+    
+    - **Multiple parameters example**: For commands with multiple parameters
+      ```json
+      {
+        "temperature": 22.5,
+        "mode": "heat"
+      }
+      ```
+    
+    The parameters will be validated according to their definitions in the device configuration.
     
     Args:
         message: The MQTT message to publish

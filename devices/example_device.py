@@ -1,6 +1,7 @@
 import json
 import logging
-from typing import Dict, Any, List
+import asyncio
+from typing import Dict, Any, List, Optional
 from devices.base_device import BaseDevice
 from app.schemas import ExampleDeviceState
 
@@ -16,7 +17,18 @@ class ExampleDevice(BaseDevice):
             "power": "off",
             "last_reading": None,
             "update_interval": self.config.get("parameters", {}).get("update_interval", 60),
-            "threshold": self.config.get("parameters", {}).get("threshold", 25.5)
+            "threshold": self.config.get("parameters", {}).get("threshold", 25.5),
+            "temperature": 21,
+            "brightness": 50
+        }
+        
+        # Define action handlers for the parameter-based approach
+        self._action_handlers = {
+            "power_on": self.handle_power_on,
+            "power_off": self.handle_power_off,
+            "set_temperature": self.handle_set_temperature,
+            "set_brightness": self.handle_set_brightness,
+            "getData": self.handle_get_data
         }
     
     async def setup(self) -> bool:
@@ -83,15 +95,15 @@ class ExampleDevice(BaseDevice):
             logger.warning("Command message missing 'command' field")
             return
         
+        params = data.get('params', {})
+        
         if command == 'turnOn':
-            self.update_state({"power": "on"})
-            logger.info("Turning device ON")
+            await self.execute_action('power_on', params)
         elif command == 'turnOff':
-            self.update_state({"power": "off"})
-            logger.info("Turning device OFF")
+            await self.execute_action('power_off', params)
         elif command == 'getData':
             logger.info("Getting device data")
-            return self.get_current_state()
+            return await self.execute_action('getData', params)
         else:
             logger.warning(f"Unknown command: {command}")
     
@@ -106,4 +118,90 @@ class ExampleDevice(BaseDevice):
             threshold=self.state.get("threshold", 25.5),
             last_command=self.state.get("last_command"),
             error=self.state.get("error")
-        ) 
+        )
+    
+    # Handler methods for the parameter-based approach
+    async def handle_power_on(self, cmd_config: Dict[str, Any], params: Dict[str, Any]):
+        """Turn the device on with optional delay."""
+        delay = params.get("delay", 0)
+        
+        if delay > 0:
+            logger.info(f"Turning device ON after {delay}s delay")
+            await asyncio.sleep(delay)
+        
+        self.update_state({"power": "on"})
+        logger.info("Device turned ON")
+        return True
+    
+    async def handle_power_off(self, cmd_config: Dict[str, Any], params: Dict[str, Any]):
+        """Turn the device off with optional delay."""
+        delay = params.get("delay", 0)
+        
+        if delay > 0:
+            logger.info(f"Turning device OFF after {delay}s delay")
+            await asyncio.sleep(delay)
+        
+        self.update_state({"power": "off"})
+        logger.info("Device turned OFF")
+        return True
+    
+    async def handle_set_temperature(self, cmd_config: Dict[str, Any], params: Dict[str, Any]):
+        """Set the device temperature."""
+        temperature = params.get("temperature")
+        mode = params.get("mode", "auto")
+        
+        if temperature is None:
+            logger.error("No temperature provided")
+            return False
+        
+        self.update_state({"temperature": temperature, "mode": mode})
+        logger.info(f"Temperature set to {temperature}°C in {mode} mode")
+        return True
+    
+    async def handle_set_brightness(self, cmd_config: Dict[str, Any], params: Dict[str, Any]):
+        """Set the device brightness."""
+        level = params.get("level")
+        transition = params.get("transition", 0)
+        
+        if level is None:
+            logger.error("No brightness level provided")
+            return False
+        
+        if transition > 0:
+            current = self.state.get("brightness", 0)
+            logger.info(f"Transitioning brightness from {current} to {level} over {transition}s")
+            
+            # Simplified transition simulation
+            step = (level - current) / transition
+            for i in range(1, transition + 1):
+                interim_level = current + step * i
+                self.update_state({"brightness": round(interim_level)})
+                await asyncio.sleep(1)
+        else:
+            self.update_state({"brightness": level})
+            
+        logger.info(f"Brightness set to {level}%")
+        return True
+    
+    async def handle_get_data(self, cmd_config: Dict[str, Any], params: Dict[str, Any]):
+        """Get device data with optional filter."""
+        filter_str = params.get("filter")
+        
+        data = {
+            "power": self.state.get("power"),
+            "temperature": self.state.get("temperature"),
+            "brightness": self.state.get("brightness"),
+            "last_reading": self.state.get("last_reading"),
+            "update_interval": self.state.get("update_interval"),
+            "threshold": self.state.get("threshold")
+        }
+        
+        if filter_str:
+            filtered_data = {}
+            filter_keys = filter_str.split(',')
+            for key in filter_keys:
+                if key in data:
+                    filtered_data[key] = data[key]
+            return filtered_data
+        
+        return data 

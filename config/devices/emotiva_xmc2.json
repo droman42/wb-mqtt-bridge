@@ -46,6 +46,24 @@
       "topic": "/devices/processor/controls/dvdo",
       "group": "inputs",
       "description": "Switch to DVDO"
+    },
+    "set_volume": {
+      "action": "set_volume",
+      "topic": "/devices/processor/controls/volume",
+      "group": "volume",
+      "description": "Set the volume level",
+      "params": [
+        { "name": "level", "type": "range", "min": -96.0, "max": 0.0, "required": true, "description": "Volume level in dB (-96.0 to 0.0)" }
+      ]
+    },
+    "set_mute": {
+      "action": "set_mute",
+      "topic": "/devices/processor/controls/mute",
+      "group": "volume",
+      "description": "Set the mute state",
+      "params": [
+        { "name": "state", "type": "boolean", "required": true, "description": "Mute state (true/false)" }
+      ]
     }
   }
 }

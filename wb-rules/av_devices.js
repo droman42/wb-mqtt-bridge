@@ -359,3 +359,108 @@ defineVirtualDevice("amplifier", {
     }
   });
 
+  // eMotiva XMC-2 AV Processor
+  defineVirtualDevice("children_room_tv", {
+    title: "LG OLED55C6D",
+    cells: {
+      // Power contros
+      power_on: {
+        type: "pushbutton",
+        value: false
+      },
+      power_off: {
+        type: "pushbutton",
+        value: false
+      },
+      // Zone 2 power control
+      home: {
+        type: "pushbutton",
+        value: false
+      },
+      // Input controls
+      menu: {
+        type: "pushbutton",
+        value: false
+      },
+      exit: {
+        type: "pushbutton",
+        value: false
+      },
+      back: {
+        type: "pushbutton",
+        value: false
+      },
+      up: {
+        type: "pushbutton",
+        value: false
+      },
+      down: {
+        type: "pushbutton",
+        value: false
+      },
+      left: {
+        type: "pushbutton",
+        value: false
+      },
+      right: {
+        type: "pushbutton",
+        value: false
+      },
+      enter: {
+        type: "pushbutton",
+        value: false
+      },
+      play: {
+        type: "pushbutton",
+        value: false
+      },
+      pause: {
+        type: "pushbutton",
+        value: false
+      },
+      stop: {
+        type: "pushbutton",
+        value: false
+      },
+      rewind_forward: {
+        type: "pushbutton",
+        value: false
+      },
+      rewind_backward: {
+        type: "pushbutton",
+        value: false
+      },
+      settings: {
+        type: "pushbutton",
+        value: false
+      },
+      mute: {
+        type: "pushbutton",
+        value: false
+      },
+      volume_up: {
+        type: "pushbutton",
+        value: false
+      },
+      volume_down: {
+        type: "pushbutton",
+        value: false
+      },
+      set_volume: {
+        type: "range",
+        readonly: false,
+        max: 100,
+        value: 0
+      },
+      set_input_source: {
+        type: "text",
+        readonly: false,
+        value: ""
+      },
+      launch_app: {
+        type: "text",
+        readonly: false,
+        value: ""
+      }
+    }
+  });

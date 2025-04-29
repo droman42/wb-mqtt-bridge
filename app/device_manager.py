@@ -3,9 +3,9 @@ import importlib.util
 import logging
 import inspect
 import sys
-from typing import Dict, Any, Callable, List, Optional
+from typing import Dict, Any, Callable, List, Optional, Union
 from devices.base_device import BaseDevice
-from app.schemas import DeviceConfig
+from app.schemas import DeviceConfig, BaseDeviceConfig
 from app.mqtt_client import MQTTClient
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ class DeviceManager:
         
         logger.info(f"Loaded device classes: {list(self.device_classes.keys())}")
     
-    async def initialize_devices(self, configs: Dict[str, DeviceConfig]):
+    async def initialize_devices(self, configs: Dict[str, Union[DeviceConfig, BaseDeviceConfig]]):
         """Initialize devices from their configurations."""
         for device_id, config in configs.items():
             try:
@@ -71,14 +71,18 @@ class DeviceManager:
                     logger.error(f"Device type {device_type} not found for device {device_id}")
                     continue
                 
+                # Convert config to dict, preserving all fields including those not explicitly defined
+                config_dict = config.model_dump(exclude_none=False)
+                
                 # Create device instance with MQTT client
-                device = device_class(config.dict(), self.mqtt_client)
+                device = device_class(config_dict, self.mqtt_client)
                 await device.setup()
                 self.devices[device_id] = device
                 logger.info(f"Initialized device {device_id} of type {device_type}")
                 
             except Exception as e:
                 logger.error(f"Failed to initialize device {device_id}: {str(e)}")
+                logger.exception(e)
     
     async def shutdown_devices(self):
         """Shutdown all devices."""

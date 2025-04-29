@@ -47,8 +47,16 @@ class MQTTClient:
         self.connected = False
         self.tasks: List[asyncio.Task] = []
     
-    async def start(self, device_topics: Dict[str, List[str]]):
-        """Start the MQTT client with all the required subscriptions."""
+    async def connect_and_subscribe(self, topic_handlers: Dict[str, Callable]):
+        """
+        Connect to MQTT broker and subscribe to topics with their respective handlers.
+        
+        Args:
+            topic_handlers: Dictionary mapping topics to handler functions
+            
+        Returns:
+            bool: True if connection was successful, False otherwise
+        """
         try:
             # Create client with or without authentication
             client_args = {
@@ -67,29 +75,24 @@ class MQTTClient:
             else:
                 logger.info("Using anonymous MQTT connection (no credentials provided)")
             
-            # Initialize topic-device mapping
-            self.topic_subscribers = {}
+            # Store topic handlers
+            for topic, handler in topic_handlers.items():
+                logger.debug(f"Registered handler for topic: {topic}")
+                self.message_handlers[topic] = handler
             
-            # Create mapping of topics to devices
-            for device_name, topics in device_topics.items():
-                for topic in topics:
-                    if topic not in self.topic_subscribers:
-                        self.topic_subscribers[topic] = []
-                    self.topic_subscribers[topic].append(device_name)
-            
-            # Create client and start it in a background task
-            listener_task = asyncio.create_task(self._run_client(client_args, device_topics))
+            # Start the MQTT client task
+            listener_task = asyncio.create_task(self._run_mqtt_client(client_args, list(topic_handlers.keys())))
             self.tasks.append(listener_task)
             
-            logger.info(f"Started MQTT client connecting to broker at {self.host}:{self.port}")
+            logger.info(f"MQTT client connecting to broker at {self.host}:{self.port}")
             return True
             
         except Exception as e:
             logger.error(f"Failed to start MQTT client: {str(e)}")
             return False
     
-    async def _run_client(self, client_args, device_topics):
-        """Run the MQTT client in an async context manager."""
+    async def _run_mqtt_client(self, client_args, topics_to_subscribe):
+        """Run the MQTT client in an async context manager with the given topics."""
         max_retries = 5
         retry_delay = 5  # seconds
         retry_count = 0
@@ -104,11 +107,10 @@ class MQTTClient:
                     self.connected = True
                     logger.info(f"Connected to MQTT broker at {self.host}:{self.port}")
                     
-                    # Subscribe to topics for each device
-                    for device_name, topics in device_topics.items():
-                        for topic in topics:
-                            await client.subscribe(topic)
-                            logger.info(f"Subscribed to topic: {topic} for device: {device_name}")
+                    # Subscribe to all topics
+                    for topic in topics_to_subscribe:
+                        await client.subscribe(topic)
+                        logger.info(f"Subscribed to topic: {topic}")
                     
                     # Process incoming messages
                     async for message in client.messages:
@@ -128,49 +130,22 @@ class MQTTClient:
                         
                         logger.debug(f"Received message on {topic}: {payload}")
                         
-                        # Find devices that have subscribed to this topic
-                        # Use wildcard matching for MQTT topics
-                        devices_to_notify = set()
-                        for subscribed_topic, device_names in self.topic_subscribers.items():
-                            # Simple wildcard matching (+ and #)
-                            if self._topic_matches(subscribed_topic, topic):
-                                devices_to_notify.update(device_names)
-                        
-                        # Only notify devices that have subscribed to this topic
-                        for device_name in devices_to_notify:
-                            handler = self.message_handlers.get(device_name)
-                            if handler:
-                                try:
-                                    mqtt_command = await handler(topic, payload)
-                                    # Check if the handler returned an MQTT command to publish
-                                    if mqtt_command and isinstance(mqtt_command, dict) and "topic" in mqtt_command and "payload" in mqtt_command:
-                                        logger.info(f"Device {device_name} returned MQTT command to publish: {mqtt_command}")
-                                        # Publish the command
-                                        publish_topic = mqtt_command["topic"]
-                                        publish_payload = mqtt_command["payload"]
-                                        logger.info(f"Publishing message - Topic: {publish_topic}, Payload: {publish_payload}, Type: {type(publish_payload).__name__}")
-                                        
-                                        # Try to convert numeric strings to integers for certain device types
-                                        if device_name.startswith("wirenboard_") and isinstance(publish_payload, str) and publish_payload.isdigit():
-                                            publish_payload = int(publish_payload)
-                                            logger.info(f"Converted payload to integer: {publish_payload}")
-                                            
-                                        try:
-                                            success = await self.publish(publish_topic, publish_payload)
-                                            if success:
-                                                logger.info(f"Successfully published to {publish_topic}")
-                                            else:
-                                                logger.error(f"Failed to publish to {publish_topic}")
-                                        except Exception as e:
-                                            logger.error(f"Error publishing to {publish_topic}: {str(e)}")
-                                    else:
-                                        logger.warning(f"Device {device_name} did not return a valid MQTT command to publish")
-                                except Exception as e:
-                                    logger.error(f"Error in handler for {device_name}: {str(e)}")
-            
-            except CancelledError:
-                logger.info("MQTT client task was cancelled")
-                break
+                        # Find handler for this exact topic
+                        handler = self.message_handlers.get(topic)
+                        if handler:
+                            try:
+                                await handler(topic, payload)
+                            except Exception as e:
+                                logger.error(f"Error in message handler for topic {topic}: {str(e)}")
+                        else:
+                            # If no exact match, check for wildcard handlers
+                            for subscribed_topic, subscribed_handler in self.message_handlers.items():
+                                if self._topic_matches(subscribed_topic, topic):
+                                    try:
+                                        await subscribed_handler(topic, payload)
+                                    except Exception as e:
+                                        logger.error(f"Error in wildcard handler for topic {topic} (subscribed to {subscribed_topic}): {str(e)}")
+                
             except MqttError as e:
                 logger.error(f"MQTT error: {str(e)}")
                 if "Connection refused" in str(e):
@@ -186,8 +161,13 @@ class MQTTClient:
                     await asyncio.sleep(wait_time)
                 else:
                     logger.error(f"Max retries ({max_retries}) reached. Giving up MQTT connection.")
+            except CancelledError:
+                logger.info("MQTT client task cancelled")
+                break
             except Exception as e:
                 logger.error(f"Unexpected error in MQTT client: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
                 self.connected = False
                 retry_count += 1
                 if retry_count < max_retries:
@@ -201,14 +181,36 @@ class MQTTClient:
                     self.connected = False
                     self.client = None
     
-    async def stop(self):
-        """Stop the MQTT client and cancel all tasks."""
+    async def disconnect(self):
+        """Disconnect the MQTT client and cancel all tasks."""
         for task in self.tasks:
             if not task.done():
                 task.cancel()
         
         self.tasks = []
-        logger.info("MQTT client stopped")
+        self.connected = False
+        self.client = None
+        logger.info("MQTT client disconnected")
+    
+    # For backward compatibility
+    async def stop(self):
+        """Stop the MQTT client (backward compatibility method)."""
+        logger.warning("MQTTClient.stop() is deprecated, use disconnect() instead")
+        await self.disconnect()
+    
+    # For backward compatibility
+    async def start(self, device_topics: Dict[str, List[str]]):
+        """Start the MQTT client with device topics (backward compatibility method)."""
+        logger.warning("MQTTClient.start() is deprecated, use connect_and_subscribe() instead")
+        
+        topic_handlers = {}
+        for device_name, topics in device_topics.items():
+            handler = self.message_handlers.get(device_name)
+            if handler:
+                for topic in topics:
+                    topic_handlers[topic] = handler
+        
+        return await self.connect_and_subscribe(topic_handlers)
     
     def register_handler(self, device_name: str, handler: Callable):
         """Register a message handler for a device."""
@@ -239,31 +241,37 @@ class MQTTClient:
             return True
         except MqttError as e:
             logger.error(f"Failed to publish to {topic}: {str(e)}")
-            return False 
-
+            return False
+    
     def _topic_matches(self, subscription, topic):
-        """Check if a topic matches a subscription pattern with MQTT wildcards."""
-        # Direct match
-        if subscription == topic:
-            return True
-            
-        # Split into segments
-        sub_parts = subscription.split('/')
-        topic_parts = topic.split('/')
+        """Check if topic matches subscription pattern (with + and # wildcards)."""
+        # Split subscription pattern into segments
+        sub_segments = subscription.split('/')
+        topic_segments = topic.split('/')
         
-        # Single-level wildcard (+) and multi-level wildcard (#) handling
-        for i, sub_part in enumerate(sub_parts):
-            # Multi-level wildcard
-            if sub_part == '#':
-                return True
-                
-            # End of subscription pattern but not end of topic
-            if i >= len(topic_parts):
+        # If subscription ends with #, it matches everything after
+        if sub_segments[-1] == '#':
+            # Check if all previous segments match
+            return self._segments_match(sub_segments[:-1], topic_segments[:len(sub_segments)-1])
+        
+        # If segments count doesn't match and there's no # wildcard, can't match
+        if len(sub_segments) != len(topic_segments):
+            return False
+            
+        # Check segment by segment
+        return self._segments_match(sub_segments, topic_segments)
+    
+    def _segments_match(self, sub_segments, topic_segments):
+        """Helper method to check if topic segments match subscription segments."""
+        if len(sub_segments) != len(topic_segments):
+            return False
+            
+        for i in range(len(sub_segments)):
+            # + matches any single segment
+            if sub_segments[i] == '+':
+                continue
+            # Exact match required
+            if sub_segments[i] != topic_segments[i]:
                 return False
                 
-            # Single-level wildcard or exact match
-            if sub_part != '+' and sub_part != topic_parts[i]:
-                return False
-                
-        # If we've processed all subscription parts and all topic parts
-        return len(sub_parts) == len(topic_parts) 
+        return True 

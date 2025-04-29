@@ -8,7 +8,8 @@ A Python-based web service that acts as an MQTT client to manage multiple device
 - MQTT client for device communication
 - Object-oriented device class architecture
 - Plugin-based architecture for device modules
-- JSON configuration files
+- JSON configuration files with typed Pydantic models
+- **Optional parameters for device commands**
 - Logging system
 - Action Groups for organizing device functions
 - Support for various device types:
@@ -30,7 +31,8 @@ A Python-based web service that acts as an MQTT client to manage multiple device
 - **Device Architecture**:
   - `BaseDevice` abstract class with common functionality
   - Device-specific implementations that inherit from BaseDevice
-- **Configuration**: JSON files for system and device settings
+  - Standardized parameter handling for device commands
+- **Configuration**: Strongly-typed JSON files for system and device settings
 - **Logging**: File-based logging
 
 ## Installation
@@ -165,7 +167,31 @@ The `BaseDevice` class provides common functionality for all devices:
 - Common utility methods like `get_available_commands()`
 - Action grouping and indexing
 - Fixed sorting order for actions within groups
+- Parameter validation and processing for commands
 - Abstract methods that must be implemented by device-specific classes
+
+### Command Parameters
+
+The system now supports optional and required parameters for device commands:
+
+- **Parameter Definition**: Parameters are defined in the device configuration JSON files
+- **Validation**: Automatic validation of parameter types and constraints
+- **Default Values**: Support for default values for optional parameters
+- **JSON Support**: Parameters can be provided as JSON in MQTT payloads
+- **API Support**: Parameters can be passed directly through the API
+
+Example parameter definition in a device configuration:
+```json
+"setVolume": {
+  "action": "set_volume",
+  "topic": "/devices/living_room_tv/controls/set",
+  "description": "Set Volume Level",
+  "group": "volume",
+  "params": [
+    {"name": "level", "type": "range", "min": 0, "max": 100, "required": true, "description": "Volume level (0-100)"}
+  ]
+}
+```
 
 ### Action Groups
 
@@ -212,10 +238,15 @@ To add support for a new device type:
    - `async shutdown()` - Clean up device resources
    - `subscribe_topics()` - Return MQTT topics to subscribe to
    - `async handle_message(topic, payload)` - Process incoming MQTT messages
+4. Implement action handlers with the standardized signature:
+   ```python
+   async def handle_action_name(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+   ```
 
 Example:
 ```python
 from devices.base_device import BaseDevice
+from app.schemas import StandardCommandConfig
 from typing import Dict, Any, List
 
 class MyCustomDevice(BaseDevice):
@@ -236,8 +267,29 @@ class MyCustomDevice(BaseDevice):
         
     async def handle_message(self, topic: str, payload: str):
         # Process incoming messages
+        # BaseDevice handles parameter parsing and validation
         print(f"Received on {topic}: {payload}")
+        
+    async def handle_set_value(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        # Process the validated parameters
+        value = params.get("value")
+        if value is not None:
+            # Do something with the value
+            return True
+        return False
 ```
+
+## Implementation Status
+
+The project has completed a major refactoring to implement optional parameters for device commands and introduced a strongly-typed configuration system:
+
+- ✅ Parameter definition and validation infrastructure
+- ✅ BaseDevice updates for parameter handling
+- ✅ Migrated all devices to use the new parameter system
+- ✅ Standardized handler method signatures across all devices
+- ✅ Implemented strongly-typed configuration models
+- ✅ Removed backward compatibility code
+- ⏳ Finalizing documentation and preparing for release
 
 ## API Endpoints
 

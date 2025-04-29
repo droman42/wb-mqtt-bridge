@@ -1,8 +1,9 @@
-from typing import Dict, Any, List, Optional, Union
-from pydantic import BaseModel, Field
+from typing import Dict, Any, List, Optional, Union, Literal, Type, TypeVar, Generic
+from pydantic import BaseModel, Field, validator
 from datetime import datetime
 from enum import Enum
 import os
+from typing_extensions import Protocol
 
 class MQTTBrokerConfig(BaseModel):
     """Schema for MQTT broker configuration."""
@@ -60,19 +61,113 @@ class BroadlinkConfig(BaseModel):
     timeout: Optional[int] = None
     retry_count: Optional[int] = None
 
+class CommandParameterDefinition(BaseModel):
+    """Schema for command parameter definition."""
+    name: str = Field(..., description="Parameter name")
+    type: str = Field(..., description="Data type (e.g., 'string', 'integer', 'float', 'boolean', 'range')")
+    required: bool = Field(..., description="Whether this parameter must be provided")
+    default: Optional[Any] = Field(None, description="Default value if parameter is not provided and not required")
+    min: Optional[float] = Field(None, description="Minimum allowed value (used with type: 'range')")
+    max: Optional[float] = Field(None, description="Maximum allowed value (used with type: 'range')")
+    description: Optional[str] = Field(None, description="Human-readable description")
+
+# New strongly-typed command configuration models
+class BaseCommandConfig(BaseModel):
+    """Base schema for command configuration."""
+    action: Optional[str] = Field(None, description="Action identifier for this command")
+    topic: Optional[str] = Field(None, description="MQTT topic this command listens to")
+    description: Optional[str] = Field(None, description="Human-readable description of the command")
+    group: Optional[str] = Field(None, description="Functional group this command belongs to")
+    params: Optional[List[CommandParameterDefinition]] = Field(
+        None, 
+        description="Parameter definitions for this command"
+    )
+
+class StandardCommandConfig(BaseCommandConfig):
+    """Standard command configuration with no additional fields."""
+    pass
+
+class IRCommandConfig(BaseCommandConfig):
+    """Command configuration for IR-controlled devices."""
+    location: str = Field(..., description="IR blaster location identifier")
+    rom_position: str = Field(..., description="ROM position for the IR code")
+
+class BroadlinkCommandConfig(BaseCommandConfig):
+    """Command configuration for Broadlink devices."""
+    rf_code: str = Field(..., description="Base64-encoded RF code to transmit")
+
+# Device-specific parameter models
+class RevoxA77ReelToReelParams(BaseModel):
+    """Parameters specific to Revox A77 Reel-to-Reel device."""
+    sequence_delay: int = Field(5, description="Delay between sequence steps in seconds")
+
+# Base device configuration model
+class BaseDeviceConfig(BaseModel):
+    """Base schema for device configuration."""
+    device_id: str
+    device_name: str
+    device_class: str
+    mqtt_progress_topic: str = ""
+
+# Device-specific configuration models
+class WirenboardIRDeviceConfig(BaseDeviceConfig):
+    """Configuration for Wirenboard IR devices."""
+    commands: Dict[str, IRCommandConfig]
+
+class RevoxA77ReelToReelConfig(BaseDeviceConfig):
+    """Configuration for Revox A77 Reel-to-Reel device."""
+    commands: Dict[str, IRCommandConfig]
+    reel_to_reel: RevoxA77ReelToReelParams
+
+class BroadlinkKitchenHoodConfig(BaseDeviceConfig):
+    """Configuration for Broadlink kitchen hood device."""
+    commands: Dict[str, StandardCommandConfig]
+    broadlink: BroadlinkConfig
+    rf_codes: Dict[str, Dict[str, str]] = Field(
+        ...,
+        description="RF codes mapped by category (light, speed) and state"
+    )
+
+class LgTvDeviceConfig(BaseDeviceConfig):
+    """Configuration for LG TV device."""
+    commands: Dict[str, StandardCommandConfig]
+    tv: LgTvConfig
+
+class AppleTVDeviceConfig(BaseDeviceConfig):
+    """Configuration for Apple TV device."""
+    commands: Dict[str, StandardCommandConfig]
+    apple_tv: AppleTVConfig
+
+class EmotivaXMC2DeviceConfig(BaseDeviceConfig):
+    """Configuration for Emotiva XMC2 device."""
+    commands: Dict[str, StandardCommandConfig]
+    emotiva: EmotivaConfig
+
+class ExampleDeviceConfig(BaseDeviceConfig):
+    """Configuration for Example device."""
+    commands: Dict[str, StandardCommandConfig]
+    parameters: Dict[str, Any] = {}
+
+# For backward compatibility during transition
+T = TypeVar('T', bound=BaseDeviceConfig)
 class DeviceConfig(BaseModel):
-    """Schema for device configuration."""
+    """Legacy schema for device configuration with mixed command types.
+    This will be deprecated once all devices are migrated to typed configs.
+    """
     device_id: str
     device_name: str
     device_class: str
     mqtt_progress_topic: str = ""
     parameters: Dict[str, Any] = {}
-    commands: Dict[str, Any] = {}
+    commands: Dict[str, Union[Dict[str, Any], BaseCommandConfig]] = {}
+    
+    # Device-specific configurations
     broadlink: Optional[BroadlinkConfig] = None
     tv: Optional[LgTvConfig] = None
     emotiva: Optional[EmotivaConfig] = None
     apple_tv: Optional[AppleTVConfig] = None
 
+# The rest of the state models remain unchanged
 class LastCommand(BaseModel):
     """Schema for last executed command."""
     action: str
@@ -196,41 +291,30 @@ class MQTTMessage(BaseModel):
         json_schema_extra = {
             "examples": [
                 {
-                    "topic": "home/livingroom/light",
-                    "payload": "ON",
-                    "qos": 0,
+                    "topic": "/devices/light/set",
+                    "payload": "on",
+                    "qos": 1,
                     "retain": False
                 },
                 {
-                    "topic": "home/kitchen/temperature",
+                    "topic": "/devices/thermostat/set_temp",
                     "payload": 22.5,
                     "qos": 1,
                     "retain": True
                 },
                 {
-                    "topic": "home/devices/tv/power",
-                    "payload": True,
-                    "qos": 0,
-                    "retain": False
-                },
-                {
-                    "topic": "home/devices/thermostat/settings",
+                    "topic": "/devices/tv/command",
                     "payload": {
-                        "target_temp": 21,
-                        "mode": "heat"
+                        "action": "channel",
+                        "value": 5
                     },
-                    "qos": 1,
-                    "retain": True
-                },
-                {
-                    "topic": "home/devices/light/command",
-                    "payload": None,
                     "qos": 0,
                     "retain": False
                 }
             ]
         }
 
+# Keep the rest of the models as they were...
 class SystemInfo(BaseModel):
     """Schema for system information."""
     version: str = "1.0.0"
@@ -241,78 +325,22 @@ class DeviceAction(BaseModel):
     """Schema for device action requests."""
     action: str = Field(..., description="Action to execute on the device")
     params: Optional[Dict[str, Any]] = Field(
-        None, 
-        description="Parameters for the action. Structure depends on the action type."
+        default=None,
+        description="Optional parameters for the action"
     )
     
-    # Example in the model description
     class Config:
         json_schema_extra = {
             "examples": [
                 {
-                    "action": "move_cursor",
-                    "params": {
-                        "x": 500,
-                        "y": 300,
-                        "drag": False
-                    }
-                },
-                {
-                    "action": "move_cursor_relative",
-                    "params": {
-                        "dx": 100,
-                        "dy": -50,
-                        "drag": True
-                    }
-                },
-                {
-                    "action": "click",
-                    "params": {
-                        "x": 500,
-                        "y": 300
-                    }
-                },
-                {
-                    "action": "launch_app",
-                    "params": {
-                        "app_name": "Netflix"
-                    }
+                    "action": "power_on",
+                    "params": None
                 },
                 {
                     "action": "set_volume",
                     "params": {
-                        "volume": 30
+                        "volume": 50
                     }
-                },
-                {
-                    "action": "set_mute",
-                    "params": {
-                        "mute": True
-                    }
-                },
-                {
-                    "action": "set_input_source",
-                    "params": {
-                        "input_source": "HDMI 1"
-                    }
-                },
-                {
-                    "action": "send_action",
-                    "params": {
-                        "command": "up"
-                    }
-                },
-                {
-                    "action": "power_on",
-                    "params": {}
-                },
-                {
-                    "action": "power_off",
-                    "params": {}
-                },
-                {
-                    "action": "wake_on_lan",
-                    "params": {}
                 }
             ]
         }
@@ -381,7 +409,7 @@ class GroupActionsResponse(BaseModel):
     message: Optional[str] = None
     actions: List[Dict[str, Any]] = Field(default_factory=list)
 
-# Mouse control action parameter schemas
+# Keep other parameter models
 class MoveCursorParams(BaseModel):
     """Parameters for move_cursor action."""
     x: int = Field(..., description="X coordinate (horizontal position)")
@@ -399,7 +427,6 @@ class ClickParams(BaseModel):
     x: int = Field(..., description="X coordinate (horizontal position)")
     y: int = Field(..., description="Y coordinate (vertical position)")
 
-# TV control action parameter schemas
 class LaunchAppParams(BaseModel):
     """Parameters for launch_app action."""
     app_name: str = Field(..., description="Name or ID of the app to launch. Can be a partial name which will be matched against available apps.")
@@ -422,20 +449,19 @@ class SendActionParams(BaseModel):
 
 class WakeOnLanParams(BaseModel):
     """Parameters for wake_on_lan action."""
-    # No parameters required for wake_on_lan action, but defined for consistency
-    pass
+    mac_address: Optional[str] = Field(None, description="MAC address to send WOL packet to. If not provided, the device's configured MAC will be used.")
+    ip_address: Optional[str] = Field(None, description="IP address to send WOL packet to. Defaults to broadcast (255.255.255.255)")
+    port: int = Field(9, description="UDP port to send the WOL packet to")
 
 class PowerOnParams(BaseModel):
     """Parameters for power_on action."""
-    # No parameters required for power_on action, but defined for consistency
-    pass
+    force: bool = Field(False, description="Whether to force power on even if already on")
 
 class PowerOffParams(BaseModel):
     """Parameters for power_off action."""
-    # No parameters required for power_off action, but defined for consistency
-    pass
+    force: bool = Field(False, description="Whether to force power off even if already off")
+    delay: Optional[int] = Field(None, description="Optional delay in seconds before powering off")
 
-# Enum for TV actions
 class TvActionType(str, Enum):
     POWER_ON = "power_on"
     POWER_OFF = "power_off"
@@ -448,19 +474,3 @@ class TvActionType(str, Enum):
     MOVE_CURSOR_RELATIVE = "move_cursor_relative"
     CLICK = "click"
     WAKE_ON_LAN = "wake_on_lan"
-
-# Define Union type for action parameters
-ActionParams = Union[
-    Dict[str, Any],  # Generic parameters
-    MoveCursorParams,
-    MoveCursorRelativeParams,
-    ClickParams,
-    LaunchAppParams,
-    SetVolumeParams,
-    SetMuteParams,
-    SetInputSourceParams,
-    SendActionParams,
-    WakeOnLanParams,
-    PowerOnParams,
-    PowerOffParams
-]

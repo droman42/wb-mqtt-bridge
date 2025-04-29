@@ -21,7 +21,7 @@ from asyncwebostv.controls import (
     SourceControl
 )
 from devices.base_device import BaseDevice
-from app.schemas import LgTvState, LgTvConfig, LastCommand
+from app.schemas import LgTvState, LgTvConfig, LastCommand, LgTvDeviceConfig, StandardCommandConfig
 from app.mqtt_client import MQTTClient
 from datetime import datetime
 
@@ -32,10 +32,14 @@ class LgTv(BaseDevice):
     
     def __init__(self, config: Dict[str, Any], mqtt_client: Optional[MQTTClient] = None):
         super().__init__(config, mqtt_client)
+        
+        # Get and use the typed config
+        self.typed_config = cast(LgTvDeviceConfig, self.config)
+        
         self._state_schema = LgTvState
         self.state = {
-            "device_id": self.device_id,
-            "device_name": self.device_name,
+            "device_id": self.typed_config.device_id,
+            "device_name": self.typed_config.device_name,
             "power": "unknown",
             "volume": 0,
             "mute": False,
@@ -53,8 +57,18 @@ class LgTv(BaseDevice):
         self.tv_control = None
         self.input_control = None
         self.source_control = None
-        self.client_key = None
-        self.tv_config = None
+        
+        # Get the TV config directly from the typed config
+        self.tv_config = self.typed_config.tv
+        
+        # Initialize client_key from TV configuration
+        self.client_key = self.tv_config.client_key
+        
+        # Initialize IP address from TV configuration
+        self.state["ip_address"] = self.tv_config.ip_address
+        
+        # Initialize MAC address from TV configuration if available
+        self.state["mac_address"] = self.tv_config.mac_address
         
         # Cache for available apps and input sources
         self._cached_apps = []
@@ -103,14 +117,9 @@ class LgTv(BaseDevice):
             'move_cursor_relative': self.handle_move_cursor_relative,
             'click': self.handle_click,
             
-            # Input sources
-            'hdmi1': self.handle_hdmi1,
-            'hdmi2': self.handle_hdmi2,
-            'hdmi3': self.handle_hdmi3,
-            
-            # Apps
-            'kinopoisk': self.handle_kinopoisk,
-            'ivi': self.handle_ivi,
+            # Input and apps
+            'set_input_source': self.handle_set_input_source,
+            'launch_app': self.handle_launch_app,
             
             # Network
             'wake_on_lan': self.handle_wake_on_lan,
@@ -152,7 +161,7 @@ class LgTv(BaseDevice):
                 
                 # Get any additional SSL options
                 ssl_options = {}
-                if hasattr(self.tv_config, 'ssl_options') and self.tv_config.ssl_options:
+                if self.tv_config.ssl_options:
                     ssl_options = self.tv_config.ssl_options
                 
                 # Always set verify_ssl to False by default for WebOS TVs, as they use self-signed certificates
@@ -280,53 +289,51 @@ class LgTv(BaseDevice):
             return False
     
     async def setup(self) -> bool:
-        """Initialize the TV device configuration.
-        
-        This method validates the configuration and prepares the device for connection,
-        but does not actually connect to the TV.
-        """
+        """Initialize the device and establish connection to TV."""
         try:
-            # Get TV-specific configuration
-            tv_dict = self.config.get("tv", {})
-            if not tv_dict:
-                logger.error(f"Missing 'tv' configuration for {self.get_name()}")
-                self.state["error"] = "Missing TV configuration"
-                return False
-                
-            # Validate TV configuration with pydantic model
-            try:
-                self.tv_config = LgTvConfig(**tv_dict)
-            except Exception as e:
-                logger.error(f"Invalid TV configuration for device: {self.get_name()}: {str(e)}")
-                self.state["error"] = f"Invalid TV configuration: {str(e)}"
-                return False
-                
-            # Update state with configuration values
+            # Configure connection parameters from configuration
+            logger.info(f"Setting up LG TV: {self.device_name}")
+            
+            # Use host from typed configuration directly
             self.state["ip_address"] = self.tv_config.ip_address
             self.state["mac_address"] = self.tv_config.mac_address
             
-            # Store client key for WebOS authentication
+            # Initialize client key for WebOS 
             self.client_key = self.tv_config.client_key
             
-            # Log a message if no client key is provided
-            if not self.client_key:
-                logger.warning(f"No client key provided for TV {self.get_name()}. TV will require manual pairing on first connection.")
+            # For secure connections, check certificate exists
+            if self.tv_config.secure and self.tv_config.cert_file:
+                if not os.path.exists(self.tv_config.cert_file):
+                    logger.warning(f"Certificate file not found: {self.tv_config.cert_file}")
             
-            # Configuration is valid
-            logger.info(f"TV device {self.get_name()} is properly configured")
+            # Attempt initial connection
+            connection_success = await self.connect()
             
-            # Attempt initial connection, but don't fail setup if it doesn't connect
-            try:
-                await self.connect()
-            except Exception as e:
-                logger.warning(f"Initial connection attempt failed for {self.get_name()}: {str(e)}")
-                # Connection failure shouldn't cause setup to fail if config is valid
+            if connection_success:
+                logger.info(f"Successfully connected to LG TV {self.device_name}")
+            else:
+                logger.warning(f"Could not connect to LG TV {self.device_name}. Will try again later.")
+                
+            # Initialize device state structure even if connection failed
+            # This ensures proper state reporting in APIs
+            state_data = LgTvState(
+                device_id=self.typed_config.device_id,
+                device_name=self.typed_config.device_name,
+                power="off" if not connection_success else "on",
+                volume=0,
+                mute=False,
+                current_app=None,
+                input_source=None,
+                connected=connection_success,
+                ip_address=self.state.get("ip_address"),
+                mac_address=self.state.get("mac_address")
+            )
+            self.state = state_data.dict()
             
-            # Setup is successful if configuration is valid
-            return True
+            return True  # Setup completed even if connection failed
             
         except Exception as e:
-            logger.error(f"Failed to initialize TV {self.get_name()}: {str(e)}")
+            logger.error(f"Error setting up LG TV device {self.device_name}: {str(e)}")
             self.state["error"] = str(e)
             return False
     
@@ -647,7 +654,7 @@ class LgTv(BaseDevice):
             logger.error(f"Error executing {method_name}: {str(e)}")
             return {"success": False, "error": str(e)}
             
-    async def power_on(self):
+    async def power_on(self) -> bool:
         """Power on the TV (if supported).
         
         This method tries two approaches to power on the TV:
@@ -808,13 +815,12 @@ class LgTv(BaseDevice):
             ).dict()
             return False
     
-    async def handle_mute(self, action_config: Dict[str, Any]):
-        """Handle mute action.
-        
-        This method toggles or sets the mute state of the TV using MediaControl.
+    async def handle_mute(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        """Handle mute toggle action.
         
         Args:
-            action_config: Configuration for the action, can contain 'state' to set specific mute state
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for mute)
             
         Returns:
             True if successful, False otherwise
@@ -822,55 +828,61 @@ class LgTv(BaseDevice):
         return await self._execute_media_command(
             action_name="mute",
             media_method_name="set_mute",
-            action_config=action_config,
+            cmd_config=cmd_config,
             state_key_to_update="mute",
             requires_state=True
         )
-    
-    async def launch_app(self, app_name_or_id: str):
-        """Launch an app by name or ID.
+
+    async def handle_launch_app(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        """Handle launching an app on the TV.
         
         Args:
-            app_name_or_id: The name or ID of the app to launch
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing app_id parameter
             
         Returns:
-            True if app launch was successful, False otherwise
+            True if successful, False otherwise
         """
+        # Get app ID or name from params
+        app_id = params.get("app_id")
+        if not app_id:
+            logger.error("Missing required 'app_id' parameter")
+            return False
+        
         try:
-            logger.info(f"Launching app {app_name_or_id} on TV {self.get_name()}")
-            
-            if not self.client or not self.app or not self.state.get("connected", False):
-                logger.error("Cannot launch app: Not connected or application control not available")
+            if not self.app or not self.client or not self.state.get("connected", False):
+                logger.error(f"Cannot launch app {app_id}: Not connected to TV")
                 return False
             
-            # Get apps from cache or refresh if needed
-            apps = await self._get_available_apps_internal()
+            # Get available apps if not cached
+            if not self._cached_apps:
+                await self._refresh_app_cache()
             
-            if not apps:
-                logger.error("Could not retrieve list of apps")
+            # Find the app by name or ID
+            app_to_launch = self._find_app_by_name_or_id(self._cached_apps, app_id)
+            
+            if not app_to_launch:
+                logger.error(f"App '{app_id}' not found on TV")
                 return False
             
-            # Try to find the app by name or ID
-            target_app = self._find_app_by_name_or_id(apps, app_name_or_id)
+            actual_app_id = app_to_launch.get("id")
+            app_name = app_to_launch.get("title", app_id)
             
-            if not target_app:
-                logger.error(f"App {app_name_or_id} not found on TV")
-                return False
+            logger.info(f"Launching app '{app_name}' (ID: {actual_app_id})")
             
-            # Use the app ID directly with the launch method
-            result = await self.app.launch(target_app["id"])
+            # Launch the app
+            result = await self.app.launch(actual_app_id)
             
-            # Check if launch was successful
-            if result and isinstance(result, dict) and result.get("returnValue", False):
-                self.state["current_app"] = target_app["id"]
-                await self._update_last_command(action=f"launch_app", params={"app": target_app["title"]}, source="api")
+            if result.get("returnValue", False):
+                # Update state
+                await self._update_current_app()
+                await self._update_last_command("launch_app", params, "api")
                 return True
-            else:
-                logger.warning(f"App launch failed: {result}")
-                return False
             
+            logger.error(f"Failed to launch app: {result}")
+            return False
         except Exception as e:
-            logger.error(f"Error launching app: {str(e)}")
+            logger.error(f"Error launching app {app_id}: {str(e)}")
             return False
 
     def _find_app_by_name_or_id(self, apps, app_name):
@@ -985,212 +997,226 @@ class LgTv(BaseDevice):
         return response_dict
 
     # Handler methods for cursor control
-    async def handle_move_cursor(self, action_config: Dict[str, Any]) -> bool:
-        """Handle move_cursor action.
+    async def handle_move_cursor(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        """Handle move cursor action.
+        
+        Moves the cursor to an absolute position on the screen, using percentage values (0-100).
         
         Args:
-            action_config: Dictionary with parameters including x, y, and optional drag
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing x and y coordinates (0-100)
             
         Returns:
             True if successful, False otherwise
         """
+        # Validate parameters
+        if "x" not in params or "y" not in params:
+            logger.error("Missing required parameters: 'x' and 'y' are required")
+            return False
+        
+        try:
+            x = int(params["x"])
+            y = int(params["y"])
+        except (ValueError, TypeError):
+            logger.error(f"Invalid coordinates: x={params.get('x')}, y={params.get('y')}")
+            return False
+        
         return await self._execute_pointer_command(
             action_name="move_cursor",
-            action_config=action_config,
-            use_ws_send=True, 
-            required_params=["x", "y"],
-            optional_params={"drag": False}
+            required_params=True,
+            use_ws_send=True,
+            params={"x": x, "y": y}
         )
-            
-    async def handle_move_cursor_relative(self, action_config: Dict[str, Any]) -> bool:
-        """Handle move_cursor_relative action.
+
+    async def handle_move_cursor_relative(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        """Handle move cursor relative action.
+        
+        Moves the cursor by a relative amount in x and y directions (-50 to 50).
         
         Args:
-            action_config: Dictionary with parameters including dx, dy, and optional drag
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing dx and dy displacement values (-50 to 50)
             
         Returns:
             True if successful, False otherwise
         """
+        # Validate parameters
+        if "dx" not in params or "dy" not in params:
+            logger.error("Missing required parameters: 'dx' and 'dy' are required")
+            return False
+        
+        try:
+            dx = int(params["dx"])
+            dy = int(params["dy"])
+        except (ValueError, TypeError):
+            logger.error(f"Invalid displacement: dx={params.get('dx')}, dy={params.get('dy')}")
+            return False
+        
         return await self._execute_pointer_command(
             action_name="move_cursor_relative",
-            action_config=action_config,
-            use_ws_send=True,
-            required_params=["dx", "dy"],
-            optional_params={"drag": False}
+            required_params=True,
+            use_ws_send=False,
+            params={"dx": dx, "dy": dy}
         )
-            
-    async def handle_click(self, action_config: Dict[str, Any]) -> bool:
-        """Handle click action.
+
+    async def handle_click(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        """Handle click action at current cursor position.
         
         Args:
-            action_config: Dictionary with parameters including x and y
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for click)
             
         Returns:
             True if successful, False otherwise
         """
         return await self._execute_pointer_command(
             action_name="click",
-            action_config=action_config,
-            use_ws_send=False, # Uses input_control.click()
-            required_params=["x", "y"]
+            required_params=False,
+            use_ws_send=True,
+            params={}
         )
 
     # Action handlers for base class handle_message to use
 
-    async def handle_power_on(self, params: Dict[str, Any] = None, **kwargs):
-        """Handle power on action."""
-        # Backward compatibility - params can come either as a named parameter or as kwargs['action_config']
-        action_config = kwargs.get('action_config', params or {})
+    async def handle_power_on(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        """Handle power on action.
+        
+        Args:
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for power_on)
+            
+        Returns:
+            True if successful, False otherwise
+        """
         result = await self.power_on()
         return result
         
-    async def handle_home(self, action_config: Dict[str, Any]):
+    async def handle_home(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
         """Handle home button action.
         
-        This method sends a home button press command to the TV using the
-        InputControl interface from the asyncwebostv library.
-        
         Args:
-            action_config: Configuration for the action (not used)
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for home)
             
         Returns:
             True if successful, False otherwise
         """
         return await self._execute_input_command("home", "home")
     
-    async def handle_back(self, action_config: Dict[str, Any]):
+    async def handle_back(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
         """Handle back button action.
         
-        This method sends a back button press command to the TV using the
-        InputControl interface from the asyncwebostv library.
-        
         Args:
-            action_config: Configuration for the action (not used)
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for back)
             
         Returns:
             True if successful, False otherwise
         """
         return await self._execute_input_command("back", "back")
     
-    async def handle_up(self, action_config: Dict[str, Any]):
+    async def handle_up(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
         """Handle up button action.
         
-        This method sends an up button press command to the TV using the
-        InputControl interface from the asyncwebostv library.
-        
         Args:
-            action_config: Configuration for the action (not used)
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for up)
             
         Returns:
             True if successful, False otherwise
         """
         return await self._execute_input_command("up", "up")
     
-    async def handle_down(self, action_config: Dict[str, Any]):
+    async def handle_down(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
         """Handle down button action.
         
-        This method sends a down button press command to the TV using the
-        InputControl interface from the asyncwebostv library.
-        
         Args:
-            action_config: Configuration for the action (not used)
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for down)
             
         Returns:
             True if successful, False otherwise
         """
         return await self._execute_input_command("down", "down")
     
-    async def handle_left(self, action_config: Dict[str, Any]):
+    async def handle_left(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
         """Handle left button action.
         
-        This method sends a left button press command to the TV using the
-        InputControl interface from the asyncwebostv library.
-        
         Args:
-            action_config: Configuration for the action (not used)
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for left)
             
         Returns:
             True if successful, False otherwise
         """
         return await self._execute_input_command("left", "left")
     
-    async def handle_right(self, action_config: Dict[str, Any]):
+    async def handle_right(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
         """Handle right button action.
         
-        This method sends a right button press command to the TV using the
-        InputControl interface from the asyncwebostv library.
-        
         Args:
-            action_config: Configuration for the action (not used)
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for right)
             
         Returns:
             True if successful, False otherwise
         """
         return await self._execute_input_command("right", "right")
     
-    async def handle_enter(self, action_config: Dict[str, Any]):
-        """Handle enter/ok button action.
-        
-        This method sends an OK button press command to the TV using the
-        InputControl interface from the asyncwebostv library.
+    async def handle_enter(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        """Handle enter/OK button action.
         
         Args:
-            action_config: Configuration for the action (not used)
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for enter)
             
         Returns:
             True if successful, False otherwise
         """
         return await self._execute_input_command("enter", "enter")
     
-    async def handle_exit(self, action_config: Dict[str, Any]):
+    async def handle_exit(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
         """Handle exit button action.
         
-        This method sends an exit button press command to the TV using the
-        InputControl interface from the asyncwebostv library.
-        
         Args:
-            action_config: Configuration for the action (not used)
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for exit)
             
         Returns:
             True if successful, False otherwise
         """
         return await self._execute_input_command("exit", "exit")
     
-    async def handle_menu(self, action_config: Dict[str, Any]):
+    async def handle_menu(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
         """Handle menu button action.
         
-        This method sends a menu button press command to the TV using the
-        InputControl interface from the asyncwebostv library.
-        
         Args:
-            action_config: Configuration for the action (not used)
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for menu)
             
         Returns:
             True if successful, False otherwise
         """
         return await self._execute_input_command("menu", "menu")
     
-    async def handle_settings(self, action_config: Dict[str, Any]):
+    async def handle_settings(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
         """Handle settings button action.
         
-        This method sends a settings button press command to the TV using the
-        InputControl interface from the asyncwebostv library.
-        
         Args:
-            action_config: Configuration for the action (not used)
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for settings)
             
         Returns:
             True if successful, False otherwise
         """
         return await self._execute_input_command("settings", "settings")
     
-    async def handle_volume_up(self, action_config: Dict[str, Any]):
+    async def handle_volume_up(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
         """Handle volume up action.
         
-        This method increases the volume level of the TV using MediaControl.
-        
         Args:
-            action_config: Configuration for the action (not used)
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for volume_up)
             
         Returns:
             True if successful, False otherwise
@@ -1198,16 +1224,17 @@ class LgTv(BaseDevice):
         return await self._execute_media_command(
             action_name="volume_up",
             media_method_name="volume_up",
+            cmd_config=cmd_config,
+            state_key_to_update="volume",
             update_volume_after=True
         )
         
-    async def handle_volume_down(self, action_config: Dict[str, Any]):
+    async def handle_volume_down(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
         """Handle volume down action.
         
-        This method decreases the volume level of the TV using MediaControl.
-        
         Args:
-            action_config: Configuration for the action (not used)
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for volume_down)
             
         Returns:
             True if successful, False otherwise
@@ -1215,150 +1242,132 @@ class LgTv(BaseDevice):
         return await self._execute_media_command(
             action_name="volume_down",
             media_method_name="volume_down",
+            cmd_config=cmd_config,
+            state_key_to_update="volume",
             update_volume_after=True
         )
         
-    async def handle_set_volume(self, action_config: Dict[str, Any]):
+    async def handle_set_volume(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
         """Handle set volume action.
         
-        This method sets the volume level of the TV using MediaControl.
+        Args:
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing level parameter for volume level
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        # Extract volume level from params
+        if "level" not in params:
+            logger.error("Missing required 'level' parameter")
+            return False
+        
+        try:
+            level = int(params["level"])
+        except (ValueError, TypeError):
+            logger.error(f"Invalid volume level: {params.get('level')}")
+            return False
+        
+        return await self._execute_media_command(
+            action_name="set_volume",
+            media_method_name="set_volume",
+            cmd_config=cmd_config,
+            state_key_to_update="volume",
+            requires_level=True,
+            params=params
+        )
+            
+    async def handle_play(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        """Handle play action.
         
         Args:
-            action_config: Configuration for the action, must contain 'level' for volume level
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for play)
             
         Returns:
             True if successful, False otherwise
         """
         return await self._execute_media_command(
-            action_name="set_volume",
-            media_method_name="set_volume",
-            action_config=action_config,
-            state_key_to_update="volume",
-            requires_level=True
+            action_name="play",
+            media_method_name="play",
+            cmd_config=cmd_config
         )
+        
+    async def handle_pause(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        """Handle pause action.
+        
+        Args:
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for pause)
             
-    async def handle_play(self, action_config: Dict[str, Any]):
-        """Handle play button action."""
-        return await self._execute_media_command("play", "play")
-        
-    async def handle_pause(self, action_config: Dict[str, Any]):
-        """Handle pause button action."""
-        return await self._execute_media_command("pause", "pause")
-        
-    async def handle_stop(self, action_config: Dict[str, Any]):
-        """Handle stop button action."""
-        return await self._execute_media_command("stop", "stop")
-        
-    async def handle_rewind_forward(self, action_config: Dict[str, Any]):
-        """Handle fast forward action."""
-        return await self._execute_media_command("fast_forward", "fastForward")
-        
-    async def handle_rewind_backward(self, action_config: Dict[str, Any]):
-        """Handle rewind action."""
-        return await self._execute_media_command("rewind", "rewind")
-
-    async def handle_kinopoisk(self, action_config: Dict[str, Any]):
-        """Handle launching the Kinopoisk app using the configured appname."""
-        appname = action_config.get("appname")
-        if not appname:
-            logger.error(f"Missing 'appname' in action configuration for {self.get_name()}: kinopoisk")
-            return False
-        logger.info(f"Executing configured action 'kinopoisk' to launch app '{appname}'")
-        return await self.launch_app(appname)
-
-    async def handle_ivi(self, action_config: Dict[str, Any]):
-        """Handle launching the IVI app using the configured appname."""
-        appname = action_config.get("appname")
-        if not appname:
-            logger.error(f"Missing 'appname' in action configuration for {self.get_name()}: ivi")
-            return False
-        logger.info(f"Executing configured action 'ivi' to launch app '{appname}'")
-        return await self.launch_app(appname)
-
-    async def handle_hdmi1(self, action_config: Dict[str, Any]):
-        """Handle setting input source to HDMI1."""
-        logger.info(f"Executing action 'hdmi1' to set input source on {self.get_name()}")
-        return await self.set_input_source("hdmi1")
-        
-    async def handle_hdmi2(self, action_config: Dict[str, Any]):
-        """Handle setting input source to HDMI2."""
-        logger.info(f"Executing action 'hdmi2' to set input source on {self.get_name()}")
-        return await self.set_input_source("hdmi2")
-        
-    async def handle_hdmi3(self, action_config: Dict[str, Any]):
-        """Handle setting input source to HDMI3."""
-        logger.info(f"Executing action 'hdmi3' to set input source on {self.get_name()}")
-        return await self.set_input_source("hdmi3")
-
-    async def wake_on_lan(self) -> bool:
-        """Send a Wake-on-LAN packet to the TV using the configured MAC address.
-        
-        This method can be used independently of the power_on method when you
-        specifically want to use WOL without trying other power-on methods.
-        
         Returns:
-            bool: True if the WOL packet was sent successfully, False otherwise
+            True if successful, False otherwise
         """
-        try:
-            mac_address = self.state.get("mac_address")
-            if not mac_address:
-                logger.error("Cannot use Wake-on-LAN: No MAC address configured for TV")
-                self.state["last_command"] = LastCommand(
-                    action="wake_on_lan",
-                    source="api",
-                    timestamp=datetime.now(),
-                    params={"error": "No MAC address configured"}
-                ).dict()
-                return False
-                
-            logger.info(f"Sending Wake-on-LAN packet to TV {self.get_name()} (MAC: {mac_address})")
-            
-            # Use the send_wol_packet method from BaseDevice
-            wol_success = await self.send_wol_packet(mac_address)
-            
-            if wol_success:
-                logger.info("Wake-on-LAN packet sent successfully")
-                self.state["last_command"] = LastCommand(
-                    action="wake_on_lan",
-                    source="api",
-                    timestamp=datetime.now(),
-                    params={"mac_address": mac_address}
-                ).dict()
-                # We can't know for sure if the TV will turn on,
-                # but update the expected state for consistency
-                self.state["power"] = "on"
-                return True
-            else:
-                logger.error("Failed to send Wake-on-LAN packet")
-                self.state["last_command"] = LastCommand(
-                    action="wake_on_lan",
-                    source="api",
-                    timestamp=datetime.now(),
-                    params={"error": "Failed to send packet"}
-                ).dict()
-                return False
-                
-        except Exception as e:
-            logger.error(f"Error sending Wake-on-LAN packet: {str(e)}")
-            self.state["last_command"] = LastCommand(
-                action="wake_on_lan",
-                source="api",
-                timestamp=datetime.now(),
-                params={"error": str(e)}
-            ).dict()
-            return False
-
-    async def handle_wake_on_lan(self, action_config: Dict[str, Any]):
-        """Handle Wake-on-LAN action."""
-        result = await self.wake_on_lan()
+        return await self._execute_media_command(
+            action_name="pause",
+            media_method_name="pause",
+            cmd_config=cmd_config
+        )
         
-        # If the wake_on_lan was successful and the action config requests waiting
-        if result and action_config.get("wait_for_boot", False):
-            # Wait for the TV to boot using the configured timeout
-            boot_wait_time = getattr(self.tv_config, "timeout", 15) if self.tv_config else 15
-            logger.info(f"Wake-on-LAN sent. Waiting {boot_wait_time} seconds for TV to boot...")
-            await asyncio.sleep(boot_wait_time)
+    async def handle_stop(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        """Handle stop action.
+        
+        Args:
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for stop)
             
+        Returns:
+            True if successful, False otherwise
+        """
+        return await self._execute_media_command(
+            action_name="stop",
+            media_method_name="stop",
+            cmd_config=cmd_config
+        )
+        
+    async def handle_rewind_forward(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        """Handle fast forward action.
+        
+        Args:
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for rewind_forward)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        return await self._execute_media_command(
+            action_name="rewind_forward",
+            media_method_name="fast_forward",
+            cmd_config=cmd_config
+        )
+        
+    async def handle_rewind_backward(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        """Handle rewind action.
+        
+        Args:
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for rewind_backward)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        return await self._execute_media_command(
+            action_name="rewind_backward",
+            media_method_name="rewind",
+            cmd_config=cmd_config
+        )
+
+    async def handle_wake_on_lan(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        """Handle wake on LAN action.
+        
+        Args:
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for wake_on_lan)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        result = await self.wake_on_lan()
         return result
 
     async def extract_certificate(self, output_file=None) -> Tuple[bool, str]:
@@ -1483,60 +1492,59 @@ class LgTv(BaseDevice):
             logger.error(error_msg)
             return False, error_msg
     
-    async def set_input_source(self, input_source):
-        """Set the TV input source.
+    async def handle_set_input_source(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        """Handle setting input source.
         
         Args:
-            input_source: The name or ID of the input source
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing source parameter for input source
             
         Returns:
-            True if input source was successfully set, False otherwise
+            True if successful, False otherwise
         """
-        try:
-            logger.info(f"Setting input source to {input_source} on TV {self.get_name()}")
-            
-            if not self.client or not self.input_control or not self.state.get("connected", False):
-                logger.error("TV client or input control not initialized")
-                return False
-            
-            # First retrieve list of available sources
-            try:
-                sources = await self._get_available_inputs()
-                
-                if not sources:
-                    logger.error("No input sources available")
-                    return False
-                
-                # Try to find the source by name or ID
-                target_source = self._find_input_by_name_or_id(sources, input_source)
-                
-                if not target_source:
-                    logger.error(f"Input source {input_source} not found on TV")
-                    return False
-                
-                # Set the input source with monitoring for more reliable input switching
-                result = await self._execute_with_monitoring(
-                    self.input_control,
-                    "set_input_with_monitoring",
-                    target_source["id"],
-                    timeout=10.0
-                )
-                
-                if result.get("success", False):
-                    self.state["input_source"] = target_source["id"]
-                    await self._update_last_command(action=f"set_input_{input_source}", source="api")
-                    return True
-                else:
-                    logger.warning(f"Input source set failed: {result.get('error', 'Unknown error')}")
-                    return False
-                
-            except Exception as e:
-                logger.error(f"Error retrieving or setting input source: {str(e)}")
-                return False
-        except Exception as e:
-            logger.error(f"Error setting input source: {str(e)}")
+        # Extract input source from params
+        if "source" not in params:
+            logger.error("Missing required 'source' parameter")
             return False
+        
+        input_source = params["source"]
+        
+        try:
+            if not self.source_control or not self.client or not self.state.get("connected", False):
+                logger.error(f"Cannot set input source to {input_source}: Not connected to TV")
+                return False
             
+            # Get available input sources if not cached
+            if not self._cached_input_sources:
+                await self._refresh_input_sources_cache()
+            
+            # Find the input source by name or ID
+            input_to_set = self._find_input_by_name_or_id(self._cached_input_sources, input_source)
+            
+            if not input_to_set:
+                logger.error(f"Input source '{input_source}' not found on TV")
+                return False
+            
+            input_id = input_to_set.get("id")
+            input_name = input_to_set.get("label", input_source)
+            
+            logger.info(f"Setting input source to '{input_name}' (ID: {input_id})")
+            
+            # Switch to the input source
+            result = await self.source_control.set_source_input(input_id)
+            
+            if result.get("returnValue", False):
+                # Update state
+                self.state["input_source"] = input_name
+                await self._update_last_command("set_input_source", params, "api")
+                return True
+            
+            logger.error(f"Failed to set input source: {result}")
+            return False
+        except Exception as e:
+            logger.error(f"Error setting input source to {input_source}: {str(e)}")
+            return False
+
     async def _get_available_inputs(self):
         """Get available input sources from the TV.
         
@@ -1589,122 +1597,112 @@ class LgTv(BaseDevice):
         self,
         action_name: str,
         media_method_name: str,
-        action_config: Dict[str, Any] = None,
+        cmd_config: StandardCommandConfig = None,
         state_key_to_update: str = None,
         requires_level: bool = False,
         requires_state: bool = False,
-        update_volume_after: bool = False
+        update_volume_after: bool = False,
+        params: Dict[str, Any] = None
     ) -> bool:
-        """Executes a command using MediaControl.
-        
-        This unified helper works for both simple media commands (play, pause)
-        and complex ones with parameters (volume, mute).
+        """Execute a media control command.
         
         Args:
-            action_name: The name of the action (for logging and state updates)
-            media_method_name: The name of the method to call on MediaControl
-            action_config: Configuration for the action (optional for simple commands)
-            state_key_to_update: The state key to update after the action (optional)
-            requires_level: Whether the command requires a level parameter (e.g., volume)
-            requires_state: Whether the command requires a state parameter (e.g., mute)
-            update_volume_after: Whether to update volume state after the action
+            action_name: Name of the action (for logging and state updates)
+            media_method_name: Name of the method to call on MediaControl
+            cmd_config: Command configuration
+            state_key_to_update: Key in self.state to update with result
+            requires_level: If True, needs a level parameter
+            requires_state: If True, needs a state parameter
+            update_volume_after: If True, update volume state after command
+            params: Dictionary containing parameters for the command
             
         Returns:
             True if successful, False otherwise
         """
         try:
-            action_config = action_config or {}
-            logger.info(f"Handling media action '{action_name}' on TV {self.get_name()}")
-
-            if not self.client or not self.media or not self.state.get("connected", False):
-                logger.error(f"Cannot handle '{action_name}': Not connected or media control not available")
+            logger.info(f"Executing media command: {action_name}")
+            
+            if not self.media or not self.client or not self.state.get("connected", False):
+                logger.error(f"Cannot execute media command {action_name}: Not connected to TV")
                 return False
-                
-            # Check if the media method exists on MediaControl
-            if not hasattr(self.media, media_method_name) or not callable(getattr(self.media, media_method_name)):
-                logger.error(f"Media method '{media_method_name}' not found on MediaControl")
-                return False
-
-            params = {}
-            args_for_method = []
-
-            # Handle parameter validation and preparation for complex commands
+            
+            # Default params to empty dict if None
+            if params is None:
+                params = {}
+            
+            # Get level from params if required
+            level = None
             if requires_level:
-                if "level" not in action_config:
-                    logger.error(f"Missing 'level' parameter for {action_name}")
+                level = params.get("level")
+                if level is None:
+                    logger.error(f"{action_name} requires level parameter")
                     return False
-                level = action_config["level"]
                 try:
                     level = int(level)
-                except (ValueError, TypeError):
-                    logger.error(f"Invalid volume level for {action_name}: {level}")
+                except ValueError:
+                    logger.error(f"Invalid level value: {level}")
                     return False
-                level = max(0, min(100, level)) # Clamp to 0-100
-                args_for_method.append(level)
-                params["level"] = level
             
-            elif requires_state: # e.g., for mute
-                if "state" in action_config:
-                    state = action_config["state"]
-                    if isinstance(state, str):
-                        state = state.lower() in ["true", "1", "yes", "on"]
+            # Get state from params if required
+            state = None
+            if requires_state:
+                state = params.get("state")
+                if state is None:
+                    # Toggle state if not provided
+                    if state_key_to_update == "mute":
+                        current_status = await self.media.get_volume()
+                        state = not current_status.get("muted", False)
+                    else:
+                        logger.error(f"{action_name} requires state parameter")
+                        return False
+            
+            # Execute the appropriate method based on parameters
+            media_control_method = getattr(self.media, media_method_name)
+            if media_control_method:
+                if requires_level:
+                    result = await media_control_method(level)
+                elif requires_state:
+                    result = await media_control_method(state)
                 else:
-                    # Toggle if state not specified
-                    current_state = self.state.get(state_key_to_update, False)
-                    state = not current_state
-                args_for_method.append(state)
-                params["state"] = state
-            
-            # Get the method from MediaControl
-            method = getattr(self.media, media_method_name)
-            
-            # Call the method with any necessary arguments
-            if args_for_method:
-                result = await method(*args_for_method)
-            else:
-                result = await method()
-
-            # Process result
-            success = False
-            if isinstance(result, dict):
-                success = result.get("returnValue", False)
-            elif result is not None:
-                success = bool(result)
-            else:
-                success = True  # Assume success if no result returned
-            
-            if success:
-                # Update the specific state key if provided
-                if state_key_to_update:
-                    if requires_level:
-                        self.state[state_key_to_update] = level
-                    elif requires_state:
-                        self.state[state_key_to_update] = state
+                    result = await media_control_method()
                 
-                # Optionally update volume state after the action
-                if update_volume_after:
-                    try:
-                        volume_info = await self.media.get_volume()
-                        if volume_info and "volume" in volume_info:
-                            self.state["volume"] = volume_info["volume"]
-                    except Exception as vol_err:
-                        logger.debug(f"Could not update volume after {action_name}: {vol_err}")
-                
-                # Update last command
-                await self._update_last_command(action=action_name, params=params, source="api")
-                return True
+                # Check result
+                if result.get("returnValue", False):
+                    # Update state if needed
+                    if state_key_to_update:
+                        if requires_level:
+                            self.state[state_key_to_update] = level
+                        elif requires_state:
+                            self.state[state_key_to_update] = state
+                        
+                    # Update volume state if requested
+                    if update_volume_after:
+                        await self._update_volume_state()
+                    
+                    # Update last command in state
+                    await self._update_last_command(action_name, params, "api")
+                    
+                    return True
+                else:
+                    logger.error(f"Command {action_name} failed: {result}")
+                    return False
             else:
-                logger.warning(f"Media action {action_name} failed")
+                logger.error(f"Media control method not found: {media_method_name}")
                 return False
-
         except Exception as e:
-            logger.error(f"Error handling media action {action_name}: {str(e)}")
+            logger.error(f"Error executing media command {action_name}: {str(e)}")
             return False
 
-    async def handle_power_off(self, params: Dict[str, Any] = None, **kwargs):
-        """Handle power off action."""
-        # Backward compatibility - params can come either as a named parameter or as kwargs['action_config'] 
-        action_config = kwargs.get('action_config', params or {})
+    async def handle_power_off(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        """Handle power off action.
+        
+        Args:
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for power_off)
+            
+        Returns:
+            True if successful, False otherwise
+        """
         result = await self.power_off()
         return result
 
@@ -1767,11 +1765,175 @@ class LgTv(BaseDevice):
         return await self._refresh_input_sources_cache()
         
     # Add action handlers for these refresh methods
-    async def handle_refresh_app_list(self, action_config: Dict[str, Any]) -> bool:
-        """Handle refresh_app_list action."""
-        return await self.refresh_app_list()
+    async def handle_refresh_app_list(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        """Handle refresh app list action.
         
-    async def handle_refresh_input_sources(self, action_config: Dict[str, Any]) -> bool:
-        """Handle refresh_input_sources action."""
-        return await self.refresh_input_sources()
+        Args:
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for refresh_app_list)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        result = await self.refresh_app_list()
+        return result
+        
+    async def handle_refresh_input_sources(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        """Handle refresh input sources action.
+        
+        Args:
+            cmd_config: Command configuration from the device configuration
+            params: Dictionary containing optional parameters (not used for refresh_input_sources)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        result = await self.refresh_input_sources()
+        return result
+        
+    async def wake_on_lan(self) -> bool:
+        """Send a Wake-on-LAN packet to the TV using the configured MAC address.
+        
+        This method can be used independently of the power_on method when you
+        specifically want to use WOL without trying other power-on methods.
+        
+        Returns:
+            bool: True if the WOL packet was sent successfully, False otherwise
+        """
+        try:
+            mac_address = self.state.get("mac_address")
+            if not mac_address:
+                logger.error("Cannot use Wake-on-LAN: No MAC address configured for TV")
+                self.state["last_command"] = LastCommand(
+                    action="wake_on_lan",
+                    source="api",
+                    timestamp=datetime.now(),
+                    params={"error": "No MAC address configured"}
+                ).dict()
+                return False
+                
+            logger.info(f"Sending Wake-on-LAN packet to TV {self.get_name()} (MAC: {mac_address})")
+            
+            # Use the send_wol_packet method from BaseDevice
+            wol_success = await self.send_wol_packet(mac_address)
+            
+            if wol_success:
+                logger.info("Wake-on-LAN packet sent successfully")
+                self.state["last_command"] = LastCommand(
+                    action="wake_on_lan",
+                    source="api",
+                    timestamp=datetime.now(),
+                    params={"mac_address": mac_address}
+                ).dict()
+                # We can't know for sure if the TV will turn on,
+                # but update the expected state for consistency
+                self.state["power"] = "on"
+                return True
+            else:
+                logger.error("Failed to send Wake-on-LAN packet")
+                self.state["last_command"] = LastCommand(
+                    action="wake_on_lan",
+                    source="api",
+                    timestamp=datetime.now(),
+                    params={"error": "Failed to send packet"}
+                ).dict()
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error sending Wake-on-LAN packet: {str(e)}")
+            self.state["last_command"] = LastCommand(
+                action="wake_on_lan",
+                source="api",
+                timestamp=datetime.now(),
+                params={"error": str(e)}
+            ).dict()
+            return False
+    
+    async def _execute_pointer_command(
+        self,
+        action_name: str,
+        required_params: bool,
+        use_ws_send: bool,
+        params: Dict[str, Any]
+    ) -> bool:
+        """Execute a pointer control command.
+        
+        Args:
+            action_name: Name of the action (for logging and state updates)
+            required_params: Whether parameters are required (x,y or dx,dy)
+            use_ws_send: Whether to use direct WebSocket send
+            params: Dictionary containing parameters for the command
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            logger.info(f"Executing pointer command: {action_name}")
+            
+            if not self.client or not self.state.get("connected", False):
+                logger.error(f"Cannot execute pointer command {action_name}: Not connected to TV")
+                return False
+                
+            # Execute the appropriate pointer command based on action name
+            if action_name == "move_cursor":
+                # Absolute cursor movement (x,y)
+                x = params.get("x")
+                y = params.get("y")
+                
+                logger.debug(f"Moving cursor to position: x={x}, y={y}")
+                
+                # Construct WebOS command payload
+                payload = {
+                    "type": "move",
+                    "payload": {
+                        "x": float(x) / 100.0,  # Convert from 0-100 to 0-1 scale
+                        "y": float(y) / 100.0
+                    }
+                }
+                
+                # Send command directly via WebSocket
+                result = await self.client.send_message("ssap://com.webos.service.pointer/move", payload)
+                
+            elif action_name == "move_cursor_relative":
+                # Relative cursor movement (dx,dy)
+                dx = params.get("dx")
+                dy = params.get("dy")
+                
+                logger.debug(f"Moving cursor by relative amount: dx={dx}, dy={dy}")
+                
+                # Construct WebOS command payload
+                payload = {
+                    "type": "moveBy",
+                    "payload": {
+                        "dx": float(dx) / 10.0,  # Convert to appropriate scale
+                        "dy": float(dy) / 10.0
+                    }
+                }
+                
+                # Send command directly via WebSocket
+                result = await self.client.send_message("ssap://com.webos.service.pointer/move", payload)
+                
+            elif action_name == "click":
+                logger.debug("Sending click at current cursor position")
+                
+                # Send click command
+                result = await self.client.send_message("ssap://com.webos.service.pointer/click", {})
+                
+            else:
+                logger.error(f"Unknown pointer command: {action_name}")
+                return False
+            
+            # Update last command
+            await self._update_last_command(action_name, params, "api")
+            
+            # Check result
+            if result and isinstance(result, dict) and result.get("returnValue", False):
+                return True
+            else:
+                logger.error(f"Pointer command {action_name} failed: {result}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error executing pointer command {action_name}: {str(e)}")
+            return False
     

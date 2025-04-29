@@ -73,15 +73,20 @@
     "set_volume": {
       "action": "set_volume",
       "topic": "/devices/appletv_children/controls/set_volume",
-      "description": "Set Volume (Payload: 0-100)",
-      "group": "volume"
+      "description": "Set Volume",
+      "group": "volume",
+      "params": [
+        { "name": "level", "type": "range", "min": 0, "max": 100, "required": true, "description": "Volume level (0-100)" }
+      ]
     },
-    "youtube": {
+    "launch_app": {
       "action": "launch_app",
-      "topic": "/devices/appletv_children/controls/youtube",
-      "description": "Launch YouTube",
-      "appname": "YouTube",
-      "group": "apps"
+      "topic": "/devices/appletv_children/controls/launch_app",
+      "description": "Launch App",
+      "group": "apps",
+      "params": [
+        { "name": "app", "type": "string", "required": true, "default": "YouTube", "description": "App name to launch" }
+      ]
     },
     "refresh_status": {
       "action": "refresh_status",

@@ -17,17 +17,87 @@
     "power_on": {
       "action": "power_on",
       "topic": "home/example/command/power",
-      "description": "Turn the device on"
+      "description": "Turn the device on",
+      "params": [
+        {
+          "name": "delay",
+          "type": "integer",
+          "required": false,
+          "default": 0,
+          "description": "Delay in seconds before turning on"
+        }
+      ]
     },
     "power_off": {
       "action": "power_off",
       "topic": "home/example/command/power",
-      "description": "Turn the device off"
+      "description": "Turn the device off",
+      "params": [
+        {
+          "name": "delay",
+          "type": "integer",
+          "required": false,
+          "default": 0,
+          "description": "Delay in seconds before turning off"
+        }
+      ]
+    },
+    "set_temperature": {
+      "action": "set_temperature",
+      "topic": "home/example/command/temperature",
+      "description": "Set the device temperature",
+      "params": [
+        {
+          "name": "temperature",
+          "type": "range",
+          "min": 10,
+          "max": 30,
+          "required": true,
+          "description": "Target temperature in Celsius"
+        },
+        {
+          "name": "mode",
+          "type": "string",
+          "required": false,
+          "default": "auto",
+          "description": "Operating mode (auto, heat, cool)"
+        }
+      ]
+    },
+    "set_brightness": {
+      "action": "set_brightness",
+      "topic": "home/example/command/brightness",
+      "description": "Set the device brightness",
+      "params": [
+        {
+          "name": "level",
+          "type": "range",
+          "min": 0,
+          "max": 100,
+          "required": true,
+          "description": "Brightness level (0-100)"
+        },
+        {
+          "name": "transition",
+          "type": "integer",
+          "required": false,
+          "default": 0,
+          "description": "Transition time in seconds"
+        }
+      ]
     },
     "get_data": {
       "action": "getData",
       "topic": "home/example/command/getData",
-      "description": "Get device data"
+      "description": "Get device data",
+      "params": [
+        {
+          "name": "filter",
+          "type": "string",
+          "required": false,
+          "description": "Optional data filter"
+        }
+      ]
     }
   }
 }

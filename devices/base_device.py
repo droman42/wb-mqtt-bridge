@@ -190,50 +190,93 @@ class BaseDevice(ABC):
                     # If condition exists and evaluates to true based on payload
                     if condition and self._evaluate_condition(condition, payload):
                         logger.debug(f"Condition '{condition}' met for action '{action.get('name')}' with payload '{payload}'")
-                        await self._execute_single_action(action["name"], action, payload)
+                        
+                        # Process parameters
+                        params = {}
+                        param_defs = action.get("params", [])
+                        if param_defs:
+                            try:
+                                # Try to parse payload as JSON for parameter-based processing
+                                params = self._process_mqtt_payload(payload, param_defs)
+                            except ValueError as e:
+                                logger.warning(f"Parameter validation failed for {action.get('name')}: {str(e)}")
+                                continue  # Skip this action if parameters failed validation
+                        
+                        # Execute the action with parameters
+                        await self._execute_single_action(action["name"], action, params)
                         processed_action = True
-                        # Decide if we should break after first match or allow multiple? Assuming first match for now.
-                        break 
+                        break  # Process only the first matching action
+                
                 if not processed_action:
                      logger.debug(f"No condition met for configured actions on topic {topic} with payload '{payload}'")
             else:
                 # No specific actions array, treat the command config itself as the action
-                # The base class previously checked payload == "1" or "true" here,
-                # but we now pass the raw payload to the handler for more flexibility.
-                logger.debug(f"Executing single action '{cmd_name}' based on topic match.")
-                await self._execute_single_action(cmd_name, cmd_config, payload)
-    
-    async def _execute_single_action(self, action_name: str, action_config: Dict[str, Any], payload: str):
-        """Execute a single action based on its configuration, passing the payload."""
-        try:
-            # Get the action handler method from the instance
-            handler = self._get_action_handler(action_name)
-            if not handler:
-                 logger.warning(f"No action handler found for action: {action_name} in device {self.get_name()}")
-                 return None
-
-            logger.debug(f"Executing action: {action_name} with handler: {handler} and config: {action_config}")
-            
-            # Call the handler, passing both the config dict for this action and the raw payload
-            # Handlers need to be defined like: async def my_handler(self, action_config: Dict[str, Any], payload: str)
-            result = await handler(action_config=action_config, payload=payload)
-            
-            # Update state with information about the last command executed
-            self.update_state({
-                "last_command": LastCommand(
-                    action=action_name,
-                    source="mqtt",
-                    timestamp=datetime.now(),
-                    params=action_config.get("params")
-                ).dict()
-            })
-            
-            # Return any result from the handler
-            return result
                 
-        except Exception as e:
-            logger.error(f"Error executing action {action_name}: {str(e)}")
-            return None
+                # Process parameters
+                params = {}
+                param_defs = cmd_config.get("params", [])
+                if param_defs:
+                    try:
+                        # Try to parse payload as JSON for parameter-based processing
+                        params = self._process_mqtt_payload(payload, param_defs)
+                    except ValueError as e:
+                        logger.warning(f"Parameter validation failed for {cmd_name}: {str(e)}")
+                        continue  # Skip this command if parameters failed validation
+                
+                logger.debug(f"Executing single action '{cmd_name}' based on topic match.")
+                await self._execute_single_action(cmd_name, cmd_config, params)
+    
+    def _process_mqtt_payload(self, payload: str, param_defs: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Process an MQTT payload into a parameters dictionary based on parameter definitions.
+        
+        Args:
+            payload: The MQTT payload string
+            param_defs: List of parameter definitions
+            
+        Returns:
+            Dict[str, Any]: Processed parameters dictionary
+            
+        Raises:
+            ValueError: If parameter validation fails
+        """
+        # Default empty parameters
+        provided_params = {}
+        
+        # Try to parse as JSON first
+        try:
+            json_params = json.loads(payload)
+            if isinstance(json_params, dict):
+                provided_params = json_params
+            else:
+                logger.debug(f"Payload parsed as JSON but is not an object: {payload}")
+        except json.JSONDecodeError:
+            # Handle single parameter commands with non-JSON payload
+            if len(param_defs) == 1:
+                param_def = param_defs[0]
+                param_name = param_def["name"]
+                param_type = param_def["type"]
+                
+                # Convert raw payload based on parameter type
+                try:
+                    if param_type == "integer":
+                        provided_params = {param_name: int(payload)}
+                    elif param_type == "float":
+                        provided_params = {param_name: float(payload)}
+                    elif param_type == "boolean":
+                        provided_params = {param_name: payload.lower() in ("1", "true", "yes", "on")}
+                    else:  # string or any other type
+                        provided_params = {param_name: payload}
+                except (ValueError, TypeError):
+                    logger.error(f"Failed to convert payload '{payload}' to type {param_type}")
+                    raise ValueError(f"Failed to convert payload '{payload}' to type {param_type}")
+            else:
+                logger.error(f"Payload is not valid JSON and command expects multiple parameters: {payload}")
+                raise ValueError(f"Payload is not valid JSON and command expects multiple parameters")
+        
+        # Create and validate full parameter dictionary
+        cmd_config = {"params": param_defs}
+        return self._resolve_and_validate_params(cmd_config, provided_params)
     
     def _get_action_handler(self, action: str) -> Optional[Callable[..., Any]]:
         """Get the handler function for the specified action."""
@@ -267,6 +310,58 @@ class BaseDevice(ABC):
                 
         logger.debug(f"[{self.device_name}] No handler found for action '{action}'")
         return None
+    
+    async def _execute_single_action(self, action_name: str, cmd_config: Dict[str, Any], 
+                                     params: Dict[str, Any] = None):
+        """
+        Execute a single action based on its configuration.
+        
+        Args:
+            action_name: The name of the action to execute
+            cmd_config: The command configuration
+            params: Optional dictionary of parameters (will be validated)
+            
+        Returns:
+            Any: The result from the handler
+        """
+        try:
+            # Get the action handler method from the instance
+            handler = self._get_action_handler(action_name)
+            if not handler:
+                 logger.warning(f"No action handler found for action: {action_name} in device {self.get_name()}")
+                 return None
+
+            # Process parameters if not already provided
+            if params is None:
+                # Try to resolve parameters from cmd_config
+                try:
+                    params = self._resolve_and_validate_params(cmd_config, {})
+                except ValueError as e:
+                    # Parameter validation failed
+                    logger.error(f"Parameter validation failed for {action_name}: {str(e)}")
+                    raise
+            
+            logger.debug(f"Executing action: {action_name} with handler: {handler}, params: {params}")
+            
+            # Call the handler with the new parameter-based approach
+            result = await handler(cmd_config=cmd_config, params=params)
+            
+            # Update state with information about the last command executed
+            self.update_state({
+                "last_command": LastCommand(
+                    action=action_name,
+                    source="mqtt" if "topic" in cmd_config else "api",
+                    timestamp=datetime.now(),
+                    params=params
+                ).dict()
+            })
+            
+            # Return any result from the handler
+            return result
+                
+        except Exception as e:
+            logger.error(f"Error executing action {action_name}: {str(e)}")
+            return None
     
     def get_current_state(self) -> Dict[str, Any]:
         """Get the current state of the device."""
@@ -311,8 +406,21 @@ class BaseDevice(ABC):
             if not cmd_config:
                 raise ValueError(f"Action {action} not found in device configuration")
             
-            # Execute the action
-            result = await self._execute_single_action(action, cmd_config, "")
+            # Validate parameters
+            validated_params = {}
+            if cmd_config.get("params"):
+                try:
+                    # Validate and process parameters
+                    validated_params = self._resolve_and_validate_params(cmd_config, params or {})
+                except ValueError as e:
+                    # Re-raise with more specific message
+                    raise ValueError(f"Parameter validation failed for action '{action}': {str(e)}")
+            elif params:
+                # No parameters defined in config but params were provided
+                validated_params = params
+            
+            # Execute the action with validated parameters
+            result = await self._execute_single_action(action, cmd_config, validated_params)
             
             response = {
                 "success": True,
@@ -408,3 +516,82 @@ class BaseDevice(ABC):
         except Exception as e:
             logger.error(f"Failed to publish progress message: {str(e)}")
             return False
+    
+    def _resolve_and_validate_params(self, cmd_config: Dict[str, Any], provided_params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Resolves and validates command parameters against their definitions.
+        
+        Args:
+            cmd_config: The command configuration containing parameter definitions
+            provided_params: The parameters provided for this command execution
+            
+        Returns:
+            Dict[str, Any]: The validated and resolved parameter dictionary
+            
+        Raises:
+            ValueError: If required parameters are missing or validation fails
+        """
+        # Start with an empty result
+        result = {}
+        
+        # Get parameter definitions from command config
+        param_defs = cmd_config.get("params", [])
+        if not param_defs:
+            # No parameters defined for this command, return provided params as is
+            return provided_params
+            
+        # Process each parameter definition
+        for param_def in param_defs:
+            param_name = param_def.get("name")
+            param_type = param_def.get("type")
+            required = param_def.get("required", False)
+            default = param_def.get("default")
+            min_val = param_def.get("min")
+            max_val = param_def.get("max")
+            
+            # Check if parameter is provided
+            if param_name in provided_params:
+                # Parameter is provided, validate it
+                value = provided_params[param_name]
+                
+                # Type validation
+                try:
+                    if param_type == "integer":
+                        value = int(value)
+                    elif param_type == "float":
+                        value = float(value)
+                    elif param_type == "boolean":
+                        if isinstance(value, str):
+                            value = value.lower() in ("1", "true", "yes", "on")
+                        else:
+                            value = bool(value)
+                    elif param_type == "range":
+                        # Convert to float for range validation
+                        value = float(value)
+                        
+                        # Validate range
+                        if min_val is not None and value < min_val:
+                            raise ValueError(f"Parameter '{param_name}' value {value} is below minimum {min_val}")
+                        if max_val is not None and value > max_val:
+                            raise ValueError(f"Parameter '{param_name}' value {value} is above maximum {max_val}")
+                            
+                        # Convert back to int if both min and max are integers
+                        if (isinstance(min_val, int) or min_val is None) and (isinstance(max_val, int) or max_val is None):
+                            value = int(value)
+                    # String type doesn't need conversion
+                except (ValueError, TypeError) as e:
+                    raise ValueError(f"Parameter '{param_name}' has invalid type. Expected {param_type}: {str(e)}")
+                    
+                # Store validated value
+                result[param_name] = value
+                
+            # Parameter not provided, handle based on whether it's required
+            elif required:
+                # Required parameter is missing
+                raise ValueError(f"Required parameter '{param_name}' is missing")
+            else:
+                # Optional parameter, use default if available
+                if default is not None:
+                    result[param_name] = default
+                    
+        return result

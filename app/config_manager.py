@@ -1,10 +1,19 @@
 import json
 import os
 import logging
-from typing import Dict, Any, List, Optional
-from app.schemas import SystemConfig, DeviceConfig, MQTTBrokerConfig
+from typing import Dict, Any, List, Optional, Type, Union, cast
+from app.schemas import (
+    SystemConfig, 
+    DeviceConfig,
+    MQTTBrokerConfig,
+    BaseDeviceConfig
+)
+from app.device_config_factory import DeviceConfigFactory
 
 logger = logging.getLogger(__name__)
+
+# Legacy device class to config class mapping - will be replaced by DeviceConfigFactory
+DEVICE_CONFIG_MAPPING = {}
 
 class ConfigManager:
     """Manages configuration for the MQTT web service and devices."""
@@ -27,7 +36,9 @@ class ConfigManager:
             log_file="logs/service.log",
             devices={}
         )
-        self.device_configs: Dict[str, DeviceConfig] = {}
+        # Store both legacy and typed configurations
+        self.device_configs: Dict[str, Union[DeviceConfig, BaseDeviceConfig]] = {}
+        self.typed_configs: Dict[str, BaseDeviceConfig] = {}
         
         # Ensure config directories exist
         os.makedirs(self.devices_dir, exist_ok=True)
@@ -70,6 +81,7 @@ class ConfigManager:
     def _load_device_configs(self):
         """Load all device configurations based on system config."""
         self.device_configs = {}
+        self.typed_configs = {}
         
         devices_config = self.system_config.devices
         
@@ -81,16 +93,37 @@ class ConfigManager:
                 
             config_path = os.path.join(self.devices_dir, config_file)
             try:
+                # Load device configuration data
                 with open(config_path, 'r') as f:
-                    device_config = json.load(f)
-                    # Add device_id to the config
-                    device_config['device_id'] = device_id
-                    # Add class information
-                    device_config['device_class'] = device_info.get('class')
-                    self.device_configs[device_id] = DeviceConfig(**device_config)
-                    logger.info(f"Loaded config for device: {device_id}")
+                    device_config_dict = json.load(f)
+                    
+                # Add device_id to the config
+                device_config_dict['device_id'] = device_id
+                
+                # Add class information
+                device_class = device_info.get('class')
+                device_config_dict['device_class'] = device_class
+                
+                # Attempt to create typed config first using the factory
+                typed_config = DeviceConfigFactory.create_from_dict(device_config_dict)
+                
+                if typed_config:
+                    logger.info(f"Created typed configuration for device: {device_id} ({device_class})")
+                    self.typed_configs[device_id] = typed_config
+                    self.device_configs[device_id] = typed_config
+                else:
+                    # Fall back to legacy config if typed config creation fails
+                    logger.warning(f"Using legacy configuration for device: {device_id} ({device_class})")
+                    
+                    # Choose the appropriate config class based on device class (legacy approach)
+                    config_class = DEVICE_CONFIG_MAPPING.get(device_class, DeviceConfig)
+                    logger.debug(f"Using legacy config class {config_class.__name__} for device {device_id}")
+                    
+                    # Create device config instance with the legacy class
+                    self.device_configs[device_id] = config_class(**device_config_dict)
             except Exception as e:
                 logger.error(f"Error loading device config {config_file}: {str(e)}")
+                logger.exception(e)
     
     def get_device_class_name(self, device_id: str) -> Optional[str]:
         """Get the class name for a device."""
@@ -102,13 +135,21 @@ class ConfigManager:
         """Get the system configuration."""
         return self.system_config
     
-    def get_device_config(self, device_name: str) -> Optional[DeviceConfig]:
+    def get_device_config(self, device_id: str) -> Optional[Union[DeviceConfig, BaseDeviceConfig]]:
         """Get the configuration for a specific device."""
-        return self.device_configs.get(device_name)
+        return self.device_configs.get(device_id)
     
-    def get_all_device_configs(self) -> Dict[str, DeviceConfig]:
+    def get_typed_config(self, device_id: str) -> Optional[BaseDeviceConfig]:
+        """Get the typed configuration for a specific device if available."""
+        return self.typed_configs.get(device_id)
+    
+    def get_all_device_configs(self) -> Dict[str, Union[DeviceConfig, BaseDeviceConfig]]:
         """Get configurations for all devices."""
         return self.device_configs
+    
+    def get_all_typed_configs(self) -> Dict[str, BaseDeviceConfig]:
+        """Get typed configurations for all devices that have them."""
+        return self.typed_configs
     
     def get_mqtt_broker_config(self) -> MQTTBrokerConfig:
         """Get the MQTT broker configuration."""
@@ -117,8 +158,8 @@ class ConfigManager:
     def get_all_progress_topics(self) -> Dict[str, str]:
         """Get all progress topics for all devices."""
         topics = {}
-        for device_name, config in self.device_configs.items():
-            topics[device_name] = config.mqtt_progress_topic
+        for device_id, config in self.device_configs.items():
+            topics[device_id] = config.mqtt_progress_topic
         return topics
     
     def reload_configs(self):
@@ -170,4 +211,17 @@ class ConfigManager:
             return True
         
         groups = self.get_groups()
-        return group_id in groups 
+        return group_id in groups
+
+    @staticmethod
+    def register_device_config_class(device_class_name: str, config_class: Type[DeviceConfig]) -> None:
+        """Register a legacy device-specific configuration class.
+        This method is deprecated. Use DeviceConfigFactory.register_config_model instead.
+        
+        Args:
+            device_class_name: Name of the device class (e.g., 'BroadlinkKitchenHood')
+            config_class: The configuration class to use for this device type
+        """
+        logger.warning("register_device_config_class is deprecated. Use DeviceConfigFactory.register_config_model instead.")
+        DEVICE_CONFIG_MAPPING[device_class_name] = config_class
+        logger.info(f"Registered legacy config class {config_class.__name__} for device type {device_class_name}") 

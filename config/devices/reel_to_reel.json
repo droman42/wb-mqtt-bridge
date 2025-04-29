@@ -4,7 +4,7 @@
   "device_id": "reel_to_reel",
   "alias": "reel_to_reel",
   "mqtt_progress_topic": "/devices/reel_to_reel/controls/progress",
-  "parameters": {
+  "reel_to_reel": {
     "sequence_delay": 5
   },
   "commands": {
