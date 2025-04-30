@@ -344,12 +344,12 @@ async def test_lg_tv(config_path: str) -> None:
         logger.info("\n--- Available Commands ---")
         for cmd_name, cmd_config in tv.get_available_commands().items():
             logger.info(f"Command: {cmd_name}")
-            if "description" in cmd_config:
-                logger.info(f"  Description: {cmd_config['description']}")
-            if "topic" in cmd_config:
-                logger.info(f"  Topic: {cmd_config['topic']}")
-            if "group" in cmd_config:
-                logger.info(f"  Group: {cmd_config['group']}")
+            if hasattr(cmd_config, "description") and cmd_config.description:
+                logger.info(f"  Description: {cmd_config.description}")
+            if hasattr(cmd_config, "topic") and cmd_config.topic:
+                logger.info(f"  Topic: {cmd_config.topic}")
+            if hasattr(cmd_config, "group") and cmd_config.group:
+                logger.info(f"  Group: {cmd_config.group}")
             logger.info("---")
         
         # Test power functions if TV is connected

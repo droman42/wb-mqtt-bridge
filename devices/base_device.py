@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from socket import socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_BROADCAST
 
-from app.schemas import BaseDeviceState, LastCommand, BaseDeviceConfig
+from app.schemas import BaseDeviceState, LastCommand, BaseDeviceConfig, BaseCommandConfig, CommandParameterDefinition
 from app.mqtt_client import MQTTClient
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ class BaseDevice(ABC):
             device_name=self.device_name
         )
         self._action_handlers: Dict[str, Callable[..., Awaitable[Any]]] = {}  # Cache for action handlers
-        self._action_groups: Dict[str, List[str]] = {}  # Index of actions by group
+        self._action_groups: Dict[str, List[Dict[str, Any]]] = {}  # Index of actions by group
         self.mqtt_client = mqtt_client
         
         # Build action group index
@@ -36,9 +36,9 @@ class BaseDevice(ABC):
         """Build an index of actions organized by group."""
         self._action_groups = {"default": []}  # Default group for actions with no group specified
         
-        for cmd_name, cmd_config in self.get_available_commands().items():
+        for cmd_name, cmd in self.get_available_commands().items():
             # Get the group for this command
-            group = cmd_config.get("group", "default")
+            group = cmd.group or "default"
             
             # Add group to index if it doesn't exist
             if group not in self._action_groups:
@@ -47,28 +47,12 @@ class BaseDevice(ABC):
             # Add command to the group
             action_info = {
                 "name": cmd_name,
-                "description": cmd_config.get("description", ""),
-                **{k: v for k, v in cmd_config.items() if k not in ["group", "description"]}
+                "description": cmd.description or "",
+                # Add other relevant properties from the command config
+                # (excluding group and description which we've already handled)
+                "params": cmd.params
             }
             self._action_groups[group].append(action_info)
-            
-            # Handle multiple actions within a command if present
-            actions = cmd_config.get("actions", [])
-            for action in actions:
-                # Get action group or inherit from parent command if not specified
-                action_group = action.get("group", group)  # Inherit group from parent command if not specified
-                
-                # Add group to index if it doesn't exist
-                if action_group not in self._action_groups:
-                    self._action_groups[action_group] = []
-                
-                # Add action to the group
-                action_info = {
-                    "name": action.get("name", ""),
-                    "description": action.get("description", ""),
-                    **{k: v for k, v in action.items() if k not in ["group", "description"]}
-                }
-                self._action_groups[action_group].append(action_info)
     
     def get_available_groups(self) -> List[str]:
         """Get a list of all available action groups for this device."""
@@ -116,10 +100,9 @@ class BaseDevice(ABC):
     def subscribe_topics(self) -> List[str]:
         """Define the MQTT topics this device should subscribe to."""
         topics = []
-        for command in self.get_available_commands().values():
-            topic = command.get("topic")
-            if topic:
-                topics.append(topic)
+        for cmd in self.get_available_commands().values():
+            if cmd.topic:
+                topics.append(cmd.topic)
         return topics
     
     def _evaluate_condition(self, condition: str, payload: str) -> bool:
@@ -172,66 +155,40 @@ class BaseDevice(ABC):
         """Handle incoming MQTT messages for this device."""
         logger.debug(f"Device {self.get_name()} received message on {topic}: {payload}")
         
-        # Find matching command configuration
+        # Find matching command configuration based on topic
         matching_commands = []
-        for cmd_name, cmd_config in self.get_available_commands().items():
-            # Ensure topic exists and matches
-            if cmd_config.get("topic") == topic:
-                matching_commands.append((cmd_name, cmd_config))
+        for cmd_name, cmd in self.get_available_commands().items():
+            if cmd.topic == topic:
+                # For each command with a matching topic
+                if cmd.condition:
+                    # If command has a condition, evaluate it
+                    if self._evaluate_condition(cmd.condition, payload):
+                        matching_commands.append((cmd_name, cmd))
+                else:
+                    # Command has no condition, add it to matches
+                    matching_commands.append((cmd_name, cmd))
         
         if not matching_commands:
             logger.warning(f"No command configuration found for topic: {topic}")
             return
         
         # Process each matching command configuration found for the topic
-        for cmd_name, cmd_config in matching_commands:
-            # Check if there are multiple specific actions defined under this command config
-            actions = cmd_config.get("actions", [])
-            if actions:
-                # Process multiple actions, checking conditions against payload
-                processed_action = False
-                for action in actions:
-                    condition = action.get("condition")
-                    # If condition exists and evaluates to true based on payload
-                    if condition and self._evaluate_condition(condition, payload):
-                        logger.debug(f"Condition '{condition}' met for action '{action.get('name')}' with payload '{payload}'")
-                        
-                        # Process parameters
-                        params = {}
-                        param_defs = action.get("params", [])
-                        if param_defs:
-                            try:
-                                # Try to parse payload as JSON for parameter-based processing
-                                params = self._process_mqtt_payload(payload, param_defs)
-                            except ValueError as e:
-                                logger.warning(f"Parameter validation failed for {action.get('name')}: {str(e)}")
-                                continue  # Skip this action if parameters failed validation
-                        
-                        # Execute the action with parameters
-                        await self._execute_single_action(action["name"], action, params)
-                        processed_action = True
-                        break  # Process only the first matching action
-                
-                if not processed_action:
-                     logger.debug(f"No condition met for configured actions on topic {topic} with payload '{payload}'")
-            else:
-                # No specific actions array, treat the command config itself as the action
-                
-                # Process parameters
-                params = {}
-                param_defs = cmd_config.get("params", [])
-                if param_defs:
-                    try:
-                        # Try to parse payload as JSON for parameter-based processing
-                        params = self._process_mqtt_payload(payload, param_defs)
-                    except ValueError as e:
-                        logger.warning(f"Parameter validation failed for {cmd_name}: {str(e)}")
-                        continue  # Skip this command if parameters failed validation
-                
-                logger.debug(f"Executing single action '{cmd_name}' based on topic match.")
-                await self._execute_single_action(cmd_name, cmd_config, params)
+        for cmd_name, cmd in matching_commands:
+            # Process parameters if defined for this command
+            params = {}
+            if cmd.params:
+                try:
+                    # Try to parse payload for parameter processing
+                    params = self._process_mqtt_payload(payload, cmd.params)
+                except ValueError as e:
+                    logger.warning(f"Parameter validation failed for {cmd_name}: {str(e)}")
+                    continue  # Skip this command if parameters failed validation
+            
+            # Execute the command with parameters
+            logger.debug(f"Executing command '{cmd_name}' based on topic match.")
+            await self._execute_single_action(cmd_name, cmd, params)
     
-    def _process_mqtt_payload(self, payload: str, param_defs: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _process_mqtt_payload(self, payload: str, param_defs: List[CommandParameterDefinition]) -> Dict[str, Any]:
         """
         Process an MQTT payload into a parameters dictionary based on parameter definitions.
         
@@ -259,8 +216,8 @@ class BaseDevice(ABC):
             # Handle single parameter commands with non-JSON payload
             if len(param_defs) == 1:
                 param_def = param_defs[0]
-                param_name = param_def["name"]
-                param_type = param_def["type"]
+                param_name = param_def.name
+                param_type = param_def.type
                 
                 # Convert raw payload based on parameter type
                 try:
@@ -280,8 +237,7 @@ class BaseDevice(ABC):
                 raise ValueError(f"Payload is not valid JSON and command expects multiple parameters")
         
         # Create and validate full parameter dictionary
-        cmd_config = {"params": param_defs}
-        return self._resolve_and_validate_params(cmd_config, provided_params)
+        return self._resolve_and_validate_params(param_defs, provided_params)
     
     def _get_action_handler(self, action: str) -> Optional[Callable[..., Any]]:
         """Get the handler function for the specified action."""
@@ -316,7 +272,7 @@ class BaseDevice(ABC):
         logger.debug(f"[{self.device_name}] No handler found for action '{action}'")
         return None
     
-    async def _execute_single_action(self, action_name: str, cmd_config: Dict[str, Any], 
+    async def _execute_single_action(self, action_name: str, cmd_config: BaseCommandConfig, 
                                      params: Dict[str, Any] = None):
         """
         Execute a single action based on its configuration.
@@ -340,7 +296,7 @@ class BaseDevice(ABC):
             if params is None:
                 # Try to resolve parameters from cmd_config
                 try:
-                    params = self._resolve_and_validate_params(cmd_config, {})
+                    params = self._resolve_and_validate_params(cmd_config.params or [], {})
                 except ValueError as e:
                     # Parameter validation failed
                     logger.error(f"Parameter validation failed for {action_name}: {str(e)}")
@@ -354,7 +310,7 @@ class BaseDevice(ABC):
             # Update state with information about the last command executed
             self.update_state(last_command=LastCommand(
                 action=action_name,
-                source="mqtt" if "topic" in cmd_config else "api",
+                source="mqtt" if cmd_config.topic else "api",
                 timestamp=datetime.now(),
                 params=params
             ))
@@ -386,26 +342,21 @@ class BaseDevice(ABC):
         """Execute an action identified by action name."""
         try:
             # Find the command configuration for this action
-            cmd_config = None
-            for cmd_name, config in self.get_available_commands().items():
+            cmd = None
+            for cmd_name, command_config in self.get_available_commands().items():
                 if cmd_name == action:
-                    cmd_config = config
+                    cmd = command_config
                     break
-                # Check in multiple actions if present
-                for act in config.get("actions", []):
-                    if act.get("name") == action:
-                        cmd_config = act
-                        break
             
-            if not cmd_config:
+            if not cmd:
                 raise ValueError(f"Action {action} not found in device configuration")
             
             # Validate parameters
             validated_params = {}
-            if cmd_config.get("params"):
+            if cmd.params:
                 try:
                     # Validate and process parameters
-                    validated_params = self._resolve_and_validate_params(cmd_config, params or {})
+                    validated_params = self._resolve_and_validate_params(cmd.params, params or {})
                 except ValueError as e:
                     # Re-raise with more specific message
                     raise ValueError(f"Parameter validation failed for action '{action}': {str(e)}")
@@ -414,7 +365,7 @@ class BaseDevice(ABC):
                 validated_params = params
             
             # Execute the action with validated parameters
-            result = await self._execute_single_action(action, cmd_config, validated_params)
+            result = await self._execute_single_action(action, cmd, validated_params)
             
             response = {
                 "success": True,
@@ -476,7 +427,7 @@ class BaseDevice(ABC):
             logger.error(f"Failed to send WOL packet: {str(e)}")
             return False
     
-    def get_available_commands(self) -> Dict[str, Any]:
+    def get_available_commands(self) -> Dict[str, BaseCommandConfig]:
         """Return the list of available commands for this device."""
         return self.config.commands
     
@@ -511,12 +462,13 @@ class BaseDevice(ABC):
             logger.error(f"Failed to publish progress message: {str(e)}")
             return False
     
-    def _resolve_and_validate_params(self, cmd_config: Dict[str, Any], provided_params: Dict[str, Any]) -> Dict[str, Any]:
+    def _resolve_and_validate_params(self, param_defs: List[CommandParameterDefinition], 
+                                   provided_params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Resolves and validates command parameters against their definitions.
         
         Args:
-            cmd_config: The command configuration containing parameter definitions
+            param_defs: List of parameter definitions
             provided_params: The parameters provided for this command execution
             
         Returns:
@@ -528,20 +480,18 @@ class BaseDevice(ABC):
         # Start with an empty result
         result = {}
         
-        # Get parameter definitions from command config
-        param_defs = cmd_config.get("params", [])
+        # If no parameters defined, return provided params as is
         if not param_defs:
-            # No parameters defined for this command, return provided params as is
             return provided_params
             
         # Process each parameter definition
         for param_def in param_defs:
-            param_name = param_def.get("name")
-            param_type = param_def.get("type")
-            required = param_def.get("required", False)
-            default = param_def.get("default")
-            min_val = param_def.get("min")
-            max_val = param_def.get("max")
+            param_name = param_def.name
+            param_type = param_def.type
+            required = param_def.required
+            default = param_def.default
+            min_val = param_def.min
+            max_val = param_def.max
             
             # Check if parameter is provided
             if param_name in provided_params:

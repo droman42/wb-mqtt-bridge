@@ -1,18 +1,27 @@
 import logging
 import json
-from typing import Dict, Any, List, Optional, Union, Callable, Awaitable, Tuple, TypeVar, cast, Coroutine
+from typing import Dict, Any, List, Optional, Union, Callable, Awaitable, Tuple, TypeVar, cast, Coroutine, Literal, Protocol
 from pymotivaxmc2 import Emotiva, EmotivaConfig as PyEmotivaConfig
 from datetime import datetime
 import asyncio
+from enum import Enum, auto
 
 from devices.base_device import BaseDevice
-from app.schemas import EmotivaXMC2State, LastCommand, EmotivaConfig, EmotivaXMC2DeviceConfig, StandardCommandConfig
+from app.schemas import EmotivaXMC2State, LastCommand, EmotivaConfig, EmotivaXMC2DeviceConfig, StandardCommandConfig, CommandParameterDefinition
 
 logger = logging.getLogger(__name__)
 
+# Define enums for strongly typed states
+class PowerState(str, Enum):
+    """Power state enum for eMotiva device."""
+    ON = "on"
+    OFF = "off"
+    UNKNOWN = "unknown"
+
 # Type hint for device command functions
-T = TypeVar('T')
-DeviceCommandFunc = Callable[..., Awaitable[Dict[str, Any]]]
+CommandResult = Dict[str, Any]
+DeviceCommandFunc = Callable[[], Awaitable[CommandResult]]
+ActionHandler = Callable[[StandardCommandConfig, Dict[str, Any]], Awaitable[CommandResult]]
 
 class EMotivaXMC2(BaseDevice):
     """eMotiva XMC2 processor device implementation."""
@@ -23,10 +32,10 @@ class EMotivaXMC2(BaseDevice):
         # Store the config directly as it's already properly typed
         self.typed_config = config
         
-        self.client = None
+        self.client: Optional[Emotiva] = None
         
         # Initialize device state with Pydantic model
-        self.state = EmotivaXMC2State(
+        self.state: EmotivaXMC2State = EmotivaXMC2State(
             device_id=self.typed_config.device_id,
             device_name=self.typed_config.device_name,
             power=None,
@@ -47,8 +56,8 @@ class EMotivaXMC2(BaseDevice):
             error=None
         )
         
-        # Register action handlers
-        self._action_handlers = {
+        # Register action handlers with proper type annotation
+        self._action_handlers: Dict[str, ActionHandler] = {
             "power_on": self.handle_power_on,
             "power_off": self.handle_power_off,
             "zone2_on": self.handle_zone2_on,
@@ -63,7 +72,7 @@ class EMotivaXMC2(BaseDevice):
         """Initialize the device."""
         try:
             # Get emotiva configuration directly from typed config
-            emotiva_config = self.typed_config.emotiva
+            emotiva_config: EmotivaConfig = self.typed_config.emotiva
             
             # Get the host IP address
             host = emotiva_config.host
@@ -369,7 +378,7 @@ class EMotivaXMC2(BaseDevice):
                         action: str, 
                         message: Optional[str] = None, 
                         error: Optional[str] = None,
-                        **extra_fields) -> Dict[str, Any]:
+                        **extra_fields) -> CommandResult:
         """Create a standardized response dictionary.
         
         Args:
@@ -382,7 +391,7 @@ class EMotivaXMC2(BaseDevice):
         Returns:
             A standardized response dictionary
         """
-        response = {
+        response: CommandResult = {
             "success": success,
             "action": action,
             "device_id": self.device_id
@@ -404,7 +413,7 @@ class EMotivaXMC2(BaseDevice):
                                      command_func: DeviceCommandFunc,
                                      params: Dict[str, Any],
                                      notification_topics: List[str] = None,
-                                     state_updates: Dict[str, Any] = None) -> Dict[str, Any]:
+                                     state_updates: Dict[str, Any] = None) -> CommandResult:
         """Execute a device command with standardized error handling and response creation.
         
         Args:
@@ -466,61 +475,73 @@ class EMotivaXMC2(BaseDevice):
             
             return self._create_response(False, action, error=error_message)
     
-    async def handle_power_on(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]):
+    async def handle_power_on(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Handle power on command.
         
         Args:
             cmd_config: Command configuration
             params: Parameters (unused)
+            
+        Returns:
+            Command execution result
         """
         return await self._execute_device_command(
             "power_on",
             self.client.power_on,
             params,
             notification_topics=["power"],
-            state_updates={"power": "on"}
+            state_updates={"power": PowerState.ON}
         )
     
-    async def handle_power_off(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]):
+    async def handle_power_off(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Handle power off command.
         
         Args:
             cmd_config: Command configuration
             params: Parameters (unused)
+            
+        Returns:
+            Command execution result
         """
         return await self._execute_device_command(
             "power_off",
             self.client.power_off,
             params,
             notification_topics=["power"],
-            state_updates={"power": "off"}
+            state_updates={"power": PowerState.OFF}
         )
     
-    async def handle_zone2_on(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]):
+    async def handle_zone2_on(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Handle zone 2 power on command.
         
         Args:
             cmd_config: Command configuration
             params: Parameters (unused)
+            
+        Returns:
+            Command execution result
         """
         return await self._execute_device_command(
             "zone2_on",
             self.client.zone2_power_on,
             params,
             notification_topics=["zone2_power"],
-            state_updates={"zone2_power": "on"}
+            state_updates={"zone2_power": PowerState.ON}
         )
     
-    async def handle_set_volume(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]):
+    async def handle_set_volume(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Handle volume setting command.
         
         Args:
             cmd_config: Command configuration
             params: Must contain 'level' parameter with a valid volume level
+            
+        Returns:
+            Command execution result
         """
         # Validate the level parameter
         is_valid, volume_level, error_message = self._validate_parameter(
@@ -539,7 +560,7 @@ class EMotivaXMC2(BaseDevice):
         logger.info(f"Setting volume to {volume_level} dB on eMotiva XMC2: {self.get_name()}")
         
         # Create a function that captures the volume level
-        async def set_volume_with_level():
+        async def set_volume_with_level() -> CommandResult:
             return await self.client.set_volume(volume_level)
         
         # Execute the command
@@ -558,13 +579,16 @@ class EMotivaXMC2(BaseDevice):
             
         return result
     
-    async def handle_set_mute(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]):
+    async def handle_set_mute(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Handle mute setting command.
         
         Args:
             cmd_config: Command configuration
-            params: Must contain 'mute' parameter with a boolean value
+            params: Must contain 'state' parameter with a boolean value
+            
+        Returns:
+            Command execution result
         """
         # Validate the state parameter
         is_valid, mute_state, error_message = self._validate_parameter(
@@ -599,19 +623,46 @@ class EMotivaXMC2(BaseDevice):
             
         return result
     
-    async def handle_zappiti(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]):
-        """Switch to Zappiti input."""
+    async def handle_zappiti(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
+        """
+        Switch to Zappiti input.
+        
+        Args:
+            cmd_config: Command configuration
+            params: Parameters (unused)
+            
+        Returns:
+            Command execution result
+        """
         return await self._switch_input_source("Zappiti", "2")
         
-    async def handle_apple_tv(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]):
-        """Switch to Apple TV input."""
+    async def handle_apple_tv(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
+        """
+        Switch to Apple TV input.
+        
+        Args:
+            cmd_config: Command configuration
+            params: Parameters (unused)
+            
+        Returns:
+            Command execution result
+        """
         return await self._switch_input_source("Apple TV", "3")
         
-    async def handle_dvdo(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]):
-        """Switch to DVDO input."""
+    async def handle_dvdo(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
+        """
+        Switch to DVDO input.
+        
+        Args:
+            cmd_config: Command configuration
+            params: Parameters (unused)
+            
+        Returns:
+            Command execution result
+        """
         return await self._switch_input_source("DVDO", "1")
     
-    async def _switch_input_source(self, source_name: str, source_id: str):
+    async def _switch_input_source(self, source_name: str, source_id: str) -> CommandResult:
         """
         Helper function to switch input sources.
         
@@ -626,7 +677,7 @@ class EMotivaXMC2(BaseDevice):
         logger.info(f"Switching input source to {source_name} ({source_id}) on eMotiva XMC2: {self.get_name()}")
         
         # Create a function that captures the source_id
-        async def set_input_with_id():
+        async def set_input_with_id() -> CommandResult:
             return await self.client.set_input(source_id)
         
         # Create a params dictionary for the record_last_command
@@ -651,8 +702,14 @@ class EMotivaXMC2(BaseDevice):
             
         return result
     
-    def record_last_command(self, command: str, params: Dict[str, Any] = None):
-        """Record the last command executed with its parameters."""
+    def record_last_command(self, command: str, params: Dict[str, Any] = None) -> None:
+        """
+        Record the last command executed with its parameters.
+        
+        Args:
+            command: The command name
+            params: Command parameters
+        """
         last_command = LastCommand(
             action=command,
             source=self.device_name,
@@ -663,12 +720,25 @@ class EMotivaXMC2(BaseDevice):
         self.update_state(last_command=last_command)
     
     def get_current_state(self) -> EmotivaXMC2State:
-        """Get the current state of the device."""
+        """
+        Get the current state of the device.
+        
+        Returns:
+            The current device state as a Pydantic model
+        """
         # The state is already a Pydantic model, so we can return it directly
         return self.state
     
     def _get_source_display_name(self, source_id: Optional[str]) -> Optional[str]:
-        """Convert numeric source IDs to their display names."""
+        """
+        Convert numeric source IDs to their display names.
+        
+        Args:
+            source_id: The source ID to convert
+            
+        Returns:
+            The display name for the source ID, or the original source ID if no mapping exists
+        """
         if not source_id:
             return None
             
@@ -694,8 +764,9 @@ class EMotivaXMC2(BaseDevice):
         # Return the original value if no mapping found
         return source_id
     
-    def _handle_notification(self, notification_data: Dict[str, Any]):
-        """Process notifications from the eMotiva device.
+    def _handle_notification(self, notification_data: Dict[str, Any]) -> None:
+        """
+        Process notifications from the eMotiva device.
         
         Args:
             notification_data: Dictionary containing the notification data
@@ -704,19 +775,23 @@ class EMotivaXMC2(BaseDevice):
         # Create a background task for the async call
         asyncio.create_task(self.publish_progress(json.dumps(notification_data)))
         
-        updates = {}
+        updates: Dict[str, Any] = {}
         
         # Process power state
         if "power" in notification_data:
             power_data = notification_data["power"]
-            power_state = power_data.get("value", "unknown")
+            power_state_value = power_data.get("value", "unknown")
+            # Convert string value to enum
+            power_state = PowerState.ON if power_state_value == "on" else PowerState.OFF if power_state_value == "off" else PowerState.UNKNOWN
             updates["power"] = power_state
             logger.info(f"Power state updated: {power_state}")
             
         # Process zone2 power state
         if "zone2_power" in notification_data:
             zone2_data = notification_data["zone2_power"]
-            zone2_state = zone2_data.get("value", "unknown")
+            zone2_state_value = zone2_data.get("value", "unknown")
+            # Convert string value to enum
+            zone2_state = PowerState.ON if zone2_state_value == "on" else PowerState.OFF if zone2_state_value == "off" else PowerState.UNKNOWN
             updates["zone2_power"] = zone2_state
             logger.info(f"Zone 2 power state updated: {zone2_state}")
             
@@ -778,18 +853,25 @@ class EMotivaXMC2(BaseDevice):
         if updates:
             self.update_state(**updates)
 
-    async def handle_message(self, topic: str, payload: str):
-        """Handle incoming MQTT messages for this device."""
+    async def handle_message(self, topic: str, payload: str) -> Optional[CommandResult]:
+        """
+        Handle incoming MQTT messages for this device.
+        
+        Args:
+            topic: MQTT topic
+            payload: Message payload
+            
+        Returns:
+            Command execution result or None if no handler was found
+        """
         logger.debug(f"Device {self.get_name()} received message on {topic}: {payload}")
         
         # Find matching command configuration
-        matching_commands = []
+        matching_commands: List[Tuple[str, StandardCommandConfig]] = []
+        
         for cmd_name, cmd_config in self.get_available_commands().items():
-            # Use attribute access for StandardCommandConfig
+            # Only use properly typed StandardCommandConfig objects
             if isinstance(cmd_config, StandardCommandConfig) and cmd_config.topic == topic:
-                matching_commands.append((cmd_name, cmd_config))
-            # Fallback for dictionary config (should not be needed with proper typing)
-            elif isinstance(cmd_config, dict) and cmd_config.get("topic") == topic:
                 matching_commands.append((cmd_name, cmd_config))
         
         if not matching_commands:
@@ -799,14 +881,10 @@ class EMotivaXMC2(BaseDevice):
         # Process each matching command configuration found for the topic
         for cmd_name, cmd_config in matching_commands:
             # Process parameters if defined
-            params = {}
+            params: Dict[str, Any] = {}
             
-            # Get parameters definitions based on config type
-            if isinstance(cmd_config, StandardCommandConfig):
-                param_definitions = cmd_config.params or []
-            else:
-                # Fallback for dictionary config
-                param_definitions = cmd_config.get("params", [])
+            # Get parameters definitions
+            param_definitions: List[CommandParameterDefinition] = cmd_config.params or []
             
             if param_definitions:
                 # Try to parse payload as JSON
@@ -816,20 +894,11 @@ class EMotivaXMC2(BaseDevice):
                     # For single parameter commands, try to map raw payload to the first parameter
                     if len(param_definitions) == 1:
                         param_def = param_definitions[0]
-                        # Handle both dictionary and Pydantic model parameter definitions
-                        if isinstance(param_def, dict):
-                            param_name = param_def["name"]
-                            param_type = param_def["type"]
-                            required = param_def.get("required", True)
-                            min_value = param_def.get("min")
-                            max_value = param_def.get("max")
-                        else:
-                            # Pydantic model
-                            param_name = param_def.name
-                            param_type = param_def.type
-                            required = param_def.required
-                            min_value = getattr(param_def, 'min', None)
-                            max_value = getattr(param_def, 'max', None)
+                        param_name = param_def.name
+                        param_type = param_def.type
+                        required = param_def.required
+                        min_value = getattr(param_def, 'min', None)
+                        max_value = getattr(param_def, 'max', None)
                         
                         # Use the validation helper to convert and validate the parameter
                         is_valid, converted_value, error_message = self._validate_parameter(

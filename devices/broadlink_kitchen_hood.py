@@ -112,7 +112,8 @@ class BroadlinkKitchenHood(BaseDevice):
         logger.debug(f"[{self.device_name}] Available commands: {list(commands.keys())}")
         
         for cmd_name, command in commands.items():
-            topic = command.get("topic")
+            # Use attribute access instead of dictionary access
+            topic = command.topic
             if topic:
                 topics.append(topic)
                 logger.debug(f"[{self.device_name}] Subscribing to topic '{topic}' for command '{cmd_name}'")
@@ -130,6 +131,7 @@ class BroadlinkKitchenHood(BaseDevice):
             cmd_config: The command configuration
             params: The parameters dictionary with 'state' key
         """
+        # Extract state parameter from params - keeping the original logic since params is still a dict
         state = params.get("state", "off")
         
         # Convert numeric values (0/1) to string values (off/on)
@@ -150,7 +152,9 @@ class BroadlinkKitchenHood(BaseDevice):
             logger.error("No RF codes map found for 'light' category")
             await self.publish_progress("No RF codes map found for lights")
             return
-            
+        
+        # Access RF code using proper typed structure
+        # Note: We keep this as dict access since rf_codes is defined as Dict[str, Dict[str, str]] in the schema
         rf_code = self.rf_codes.get("light", {}).get(state)
         if not rf_code:
             logger.error(f"No RF code found for light state: {state}")
@@ -199,6 +203,8 @@ class BroadlinkKitchenHood(BaseDevice):
             await self.publish_progress("No RF codes map found for speed control")
             return
             
+        # Access RF code using proper typed structure
+        # Note: We keep this as dict access since rf_codes is defined as Dict[str, Dict[str, str]] in the schema
         rf_code = self.rf_codes.get("speed", {}).get(level_str)
         if not rf_code:
             logger.error(f"No RF code found for speed level: {level}")
@@ -241,9 +247,16 @@ class BroadlinkKitchenHood(BaseDevice):
         """Return the current state of the kitchen hood."""
         return self.state
 
-    def get_available_commands(self) -> Dict[str, Any]:
-        """Override to include custom command formatting."""
+    def get_available_commands(self) -> Dict[str, StandardCommandConfig]:
+        """
+        Return available commands for this device.
+        
+        Returns:
+            Dict[str, StandardCommandConfig]: Dictionary of command name to command config objects
+        """
+        # Call parent method which now returns StandardCommandConfig objects
         commands = super().get_available_commands()
+        
         # Log commands to help with debugging
         logger.debug(f"[{self.device_name}] get_available_commands returning: {list(commands.keys())}")
         return commands 

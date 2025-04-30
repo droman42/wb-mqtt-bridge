@@ -67,7 +67,7 @@ class RevoxA77ReelToReel(BaseDevice):
         
         # Add command topics
         for command in self.get_available_commands().values():
-            topic = command.get("topic")
+            topic = command.topic
             if topic:
                 topics.append(topic)
         
@@ -227,8 +227,8 @@ class RevoxA77ReelToReel(BaseDevice):
             return self._create_response(False, command_name, error=error_msg)
         
         try:
-            # Convert the stop command to IRCommandConfig
-            stop_config = IRCommandConfig(**stop_cmd)
+            # No need to convert to IRCommandConfig as it should already be typed
+            stop_config = stop_cmd
             
             # Send the stop command
             stop_result = await self._send_ir_command(stop_config, "stop")
@@ -317,7 +317,7 @@ class RevoxA77ReelToReel(BaseDevice):
             matching_cmd_config = None
             
             for cmd_name, cmd_config in self.get_available_commands().items():
-                if topic == cmd_config["topic"]:
+                if topic == cmd_config.topic:
                     matching_cmd_name = cmd_name
                     matching_cmd_config = cmd_config
                     break
@@ -331,10 +331,9 @@ class RevoxA77ReelToReel(BaseDevice):
                 # Get the handler from our registered handlers
                 handler = self._action_handlers.get(matching_cmd_name)
                 if handler:
-                    # Convert to IRCommandConfig for typed handling
-                    typed_config = IRCommandConfig(**matching_cmd_config)
-                    # Call the handler
-                    return await handler(cmd_config=typed_config)
+                    # No need to convert to IRCommandConfig, it should already be properly typed
+                    # Call the handler with the typed config
+                    return await handler(cmd_config=matching_cmd_config)
                 else:
                     logger.warning(f"No handler found for command: {matching_cmd_name}")
                     return self._create_response(False, matching_cmd_name, error="No handler found")

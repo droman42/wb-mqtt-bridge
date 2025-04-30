@@ -1,30 +1,44 @@
 import json
 import logging
-from typing import Dict, Any, List, Optional, Callable, Awaitable, Tuple, cast, Union
+from typing import Dict, Any, List, Optional, Callable, Awaitable, Tuple, cast, Union, TypedDict
 from datetime import datetime
 from devices.base_device import BaseDevice
-from app.schemas import WirenboardIRState, LastCommand, WirenboardIRDeviceConfig, IRCommandConfig
+from app.schemas import WirenboardIRState, LastCommand, WirenboardIRDeviceConfig, IRCommandConfig, BaseCommandConfig
 from app.mqtt_client import MQTTClient
 
 logger = logging.getLogger(__name__)
 
+# Type definition for MQTT message response
+class MQTTMessageResponse(TypedDict, total=False):
+    topic: str
+    payload: Union[str, int, float, bool, Dict[str, Any], List[Any]]
+
+# Type definition for response dictionary
+class ResponseDict(TypedDict, total=False):
+    success: bool
+    action: str
+    device_id: str
+    message: Optional[str]
+    error: Optional[str]
+
 class WirenboardIRDevice(BaseDevice):
     """Implementation of an IR device controlled through Wirenboard."""
     
-    def __init__(self, config: WirenboardIRDeviceConfig, mqtt_client: Optional[MQTTClient] = None):
+    def __init__(self, config: WirenboardIRDeviceConfig, mqtt_client: Optional[MQTTClient] = None) -> None:
         super().__init__(config, mqtt_client)
         
-        # Store the typed config directly - no casting
-        self.typed_config = config
+        # Store the typed config directly
+        self.typed_config: WirenboardIRDeviceConfig = cast(WirenboardIRDeviceConfig, config)
         
         # Initialize state with typed Pydantic model
-        self.state = WirenboardIRState(
+        self.state: WirenboardIRState = WirenboardIRState(
             device_id=self.device_id,
             device_name=self.device_name,
             alias=self.typed_config.device_name
         )
         
         # Pre-initialize handlers for all commands
+        self._action_handlers: Dict[str, Callable[..., Awaitable[ResponseDict]]] = {}
         self._initialize_action_handlers()
     
     async def setup(self) -> bool:
@@ -60,7 +74,7 @@ class WirenboardIRDevice(BaseDevice):
         commands = self.get_available_commands()
         
         # Create subscription topics for each command action
-        topics = []
+        topics: List[str] = []
         for command in commands.values():
             topic = command.topic
             if topic:
@@ -155,7 +169,7 @@ class WirenboardIRDevice(BaseDevice):
                         action: str, 
                         message: Optional[str] = None, 
                         error: Optional[str] = None,
-                        **extra_fields) -> Dict[str, Any]:
+                        **extra_fields) -> ResponseDict:
         """Create a standardized response dictionary.
         
         Args:
@@ -168,7 +182,7 @@ class WirenboardIRDevice(BaseDevice):
         Returns:
             A standardized response dictionary
         """
-        response = {
+        response: ResponseDict = {
             "success": success,
             "action": action,
             "device_id": self.device_id
@@ -185,9 +199,11 @@ class WirenboardIRDevice(BaseDevice):
         
         return response
     
-    def record_last_command(self, action: str, params: Dict[str, Any] = None, 
+    def record_last_command(self, 
+                           action: str, 
+                           params: Optional[Dict[str, Any]] = None, 
                            command_topic: Optional[str] = None,
-                           command_payload: Any = None):
+                           command_payload: Any = None) -> None:
         """Record the last command executed with its parameters.
         
         Args:
@@ -197,44 +213,44 @@ class WirenboardIRDevice(BaseDevice):
             command_payload: The payload sent with the command (IR-specific)
         """
         # Store MQTT-specific details in params to maintain compatibility
+        effective_params: Dict[str, Any] = params or {}
+        
         if command_topic or command_payload is not None:
-            if params is None:
-                params = {}
             if command_topic:
-                params["command_topic"] = command_topic
+                effective_params["command_topic"] = command_topic
             if command_payload is not None:
-                params["command_payload"] = command_payload
+                effective_params["command_payload"] = command_payload
                 
         # Create a standard LastCommand object and update state
         last_command = LastCommand(
             action=action,
             source=self.device_name,
             timestamp=datetime.now(),
-            params=params
+            params=effective_params
         )
         
         self.update_state(last_command=last_command)
     
-    async def handle_message(self, topic: str, payload: str):
+    async def handle_message(self, topic: str, payload: str) -> Optional[MQTTMessageResponse]:
         """Handle incoming MQTT messages for this device."""
         logger.debug(f"Wirenboard IR device received message on {topic}: {payload}")
         try:
             # Find matching command configuration by comparing full topic
-            matching_cmd_name = None
-            matching_cmd_config = None
+            matching_cmd_name: Optional[str] = None
+            matching_cmd_config: Optional[IRCommandConfig] = None
             
             for cmd_name, cmd_config in self.get_available_commands().items():
                 if cmd_config.topic == topic:
                     matching_cmd_name = cmd_name
-                    matching_cmd_config = cmd_config
+                    matching_cmd_config = cast(IRCommandConfig, cmd_config)
                     break
             
             if not matching_cmd_name or not matching_cmd_config:
                 logger.warning(f"No command configuration found for topic: {topic}")
-                return
+                return None
             
             # Process parameters if defined in the command
-            params = {}
+            params: Dict[str, Any] = {}
             param_definitions = matching_cmd_config.params if hasattr(matching_cmd_config, 'params') else []
             
             if param_definitions:
@@ -262,12 +278,12 @@ class WirenboardIRDevice(BaseDevice):
                             params = {param_name: converted_value}
                         else:
                             logger.error(f"Failed to convert payload '{payload}': {error_message}")
-                            return self._create_response(False, matching_cmd_name, 
-                                                      error=f"Invalid payload format: {payload}")
+                            return cast(MQTTMessageResponse, self._create_response(False, matching_cmd_name, 
+                                                      error=f"Invalid payload format: {payload}"))
                     else:
                         logger.error(f"Payload is not valid JSON and command expects multiple parameters: {payload}")
-                        return self._create_response(False, matching_cmd_name, 
-                                                  error="Invalid JSON format for multi-parameter command")
+                        return cast(MQTTMessageResponse, self._create_response(False, matching_cmd_name, 
+                                                  error="Invalid JSON format for multi-parameter command"))
             
             # Check if the payload indicates command should be executed
             # For IR device, we typically expect "1" or "true" to trigger the action
@@ -277,9 +293,7 @@ class WirenboardIRDevice(BaseDevice):
                 if not command_topic:
                     error_msg = f"Could not determine command topic for topic: {topic}"
                     logger.error(error_msg)
-                    return self._create_response(False, matching_cmd_name, error=error_msg)
-                
-                # Command payload is typically 1 for IR commands 
+                    return cast(MQTTMessageResponse, self._create_response(False, matching_cmd_name, error=error_msg))
                 
                 # Record this as the last command sent
                 self.record_last_command(
@@ -296,9 +310,11 @@ class WirenboardIRDevice(BaseDevice):
                     "payload": 1
                 }
             
+            return None
+            
         except Exception as e:
             logger.error(f"Error handling message for {self.get_name()}: {str(e)}")
-            return self._create_response(False, "unknown", error=str(e))
+            return cast(MQTTMessageResponse, self._create_response(False, "unknown", error=str(e)))
     
     def get_last_command(self) -> Optional[LastCommand]:
         """Return information about the last executed command."""
@@ -306,7 +322,7 @@ class WirenboardIRDevice(BaseDevice):
             return self.state.last_command
         return None
     
-    def _initialize_action_handlers(self):
+    def _initialize_action_handlers(self) -> None:
         """Initialize action handlers for all commands."""
         self._action_handlers = {}
         
@@ -317,16 +333,32 @@ class WirenboardIRDevice(BaseDevice):
             self._action_handlers[action_name] = self._create_generic_handler(action_name, cmd_config)
             logger.debug(f"Registered handler for action '{action_name}'")
     
-    def _create_generic_handler(self, action_name: str, cmd_config: IRCommandConfig):
+    def _create_generic_handler(self, action_name: str, cmd_config: IRCommandConfig) -> Callable[[Optional[Dict[str, Any]], Optional[Dict[str, Any]]], Awaitable[ResponseDict]]:
         """Create a generic handler for a command."""
         
-        async def generic_handler(cmd_config: Dict[str, Any] = None, params: Dict[str, Any] = None):
+        # Capture the original command config in closure
+        original_cmd_config = cmd_config
+        
+        async def generic_handler(cmd_config: Optional[Dict[str, Any]] = None, params: Optional[Dict[str, Any]] = None) -> ResponseDict:
             """Generic action handler for IR commands."""
             logger.debug(f"Executing generic IR action: {action_name}")
             
             try:
+                # Type check for cmd_config - convert dict to IRCommandConfig if needed
+                effective_cmd_config: IRCommandConfig
+                if cmd_config is None:
+                    # Use the command config from the closure
+                    effective_cmd_config = original_cmd_config
+                else:
+                    # Convert dict to IRCommandConfig if needed
+                    if isinstance(cmd_config, dict):
+                        # This is a simplified conversion - in reality, you might need more logic
+                        effective_cmd_config = IRCommandConfig(**cmd_config)
+                    else:
+                        effective_cmd_config = cast(IRCommandConfig, cmd_config)
+                
                 # Get the topic for this command
-                topic = self._get_command_topic(cmd_config)
+                topic = self._get_command_topic(effective_cmd_config)
                 if not topic:
                     error_msg = f"Failed to construct topic for {action_name}"
                     logger.error(error_msg)
@@ -336,10 +368,9 @@ class WirenboardIRDevice(BaseDevice):
                 payload = "1"
                 
                 # Record this command as the last executed
-                if params is None:
-                    params = {}
+                effective_params: Dict[str, Any] = params or {}
                 
-                self.record_last_command(action_name, params, topic, payload)
+                self.record_last_command(action_name, effective_params, topic, payload)
                 
                 # If MQTT client is available, publish the command
                 if self.mqtt_client:
@@ -369,7 +400,7 @@ class WirenboardIRDevice(BaseDevice):
         
         return generic_handler
 
-    def _get_action_handler(self, action_name: str) -> Optional[Callable[..., Any]]:
+    def _get_action_handler(self, action_name: str) -> Optional[Callable[..., Awaitable[ResponseDict]]]:
         """Get the handler for the specified action from pre-initialized handlers."""
         # Convert to lower case for case-insensitive lookup
         action_name = action_name.lower()
@@ -390,4 +421,8 @@ class WirenboardIRDevice(BaseDevice):
         # No handler found
         logger.warning(f"No action handler found for action: {action_name}")
         return None
+    
+    def get_available_commands(self) -> Dict[str, IRCommandConfig]:
+        """Return the list of available commands for this device."""
+        return cast(Dict[str, IRCommandConfig], super().get_available_commands())
     
