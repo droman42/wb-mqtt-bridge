@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 import os
-from typing import Dict, List, Any, Optional, cast
+from typing import Dict, List, Any, Optional, cast, TypeVar
 from functools import partial # Added for potential future use if needed
 from datetime import datetime
 
@@ -15,22 +15,25 @@ from pyatv.exceptions import AuthenticationError, ConnectionFailedError
 from devices.base_device import BaseDevice
 from app.schemas import AppleTVState, AppleTVDeviceConfig, StandardCommandConfig, LastCommand
 from app.mqtt_client import MQTTClient
+from app.types import CommandResult, CommandResponse
 
 logger = logging.getLogger(__name__) # Define logger for the module
 
-class AppleTVDevice(BaseDevice):
-    """Apple TV device integration for wb-mqtt-bridge, compliant with BaseDevice."""
+class AppleTVDevice(BaseDevice[AppleTVState]):
+    """
+    Apple TV device integration for wb-mqtt-bridge.
+    
+    This class provides a standardized interface to control Apple TV devices through
+    the BaseDevice framework using PyATV for the actual communication.
+    """
     
     def __init__(self, config: AppleTVDeviceConfig, mqtt_client: Optional[MQTTClient] = None):
         """Initialize the Apple TV device."""
         # Call BaseDevice init first with proper Pydantic config
         super().__init__(config, mqtt_client)
         
-        # Store the config directly as it's already a Pydantic model
-        self.typed_config = config
-        
-        # Get Apple TV configuration directly from the typed config
-        self.apple_tv_config = self.typed_config.apple_tv
+        # Get Apple TV configuration directly from the config
+        self.apple_tv_config = self.config.apple_tv
         
         self.loop = None
         self.atv = None  # pyatv device instance (renamed from self.device)
@@ -62,35 +65,32 @@ class AppleTVDevice(BaseDevice):
             )
         )
         
-        # Populate action handlers expected by BaseDevice
-        # Action names (keys) should match the 'action' field in the device config JSON
-        self._action_handlers = {
-            "power_on": self.turn_on,
-            "power_off": self.turn_off,
-            "play": self.play,
-            "pause": self.pause,
-            "stop": self.stop,
-            "next": self.next_track,
-            "previous": self.previous_track,
-            "set_volume": self.set_volume,
-            "volume_up": self.volume_up,
-            "volume_down": self.volume_down,
-            "launch_app": self.launch_app,
-            "refresh_status": self.refresh_status,
-            "menu": self.menu, # Adding common remote buttons
-            "home": self.home,
-            "select": self.select,
-            "up": self.up,
-            "down": self.down,
-            "left": self.left,
-            "right": self.right
-        }
-
-        # Action groups (optional, but can be useful for organization)
-        # self.action_groups remains available from BaseDevice via get_available_commands() in config
-        
         # Log instance creation
         logger.info(f"Initialized AppleTVDevice: {self.device_id} ({self.device_name})") # Use the module logger
+
+    def _register_handlers(self) -> None:
+        """Register all action handlers for the Apple TV device."""
+        self._action_handlers = {
+            "power_on": self.handle_power_on,
+            "power_off": self.handle_power_off,
+            "play": self.handle_play,
+            "pause": self.handle_pause,
+            "stop": self.handle_stop,
+            "next": self.handle_next_track,
+            "previous": self.handle_previous_track,
+            "set_volume": self.handle_set_volume,
+            "volume_up": self.handle_volume_up,
+            "volume_down": self.handle_volume_down,
+            "launch_app": self.handle_launch_app,
+            "refresh_status": self.handle_refresh_status,
+            "menu": self.handle_menu,
+            "home": self.handle_home,
+            "select": self.handle_select,
+            "up": self.handle_up,
+            "down": self.handle_down,
+            "left": self.handle_left,
+            "right": self.handle_right
+        }
 
     async def setup(self) -> bool:
         """Set up the Apple TV device connection."""
@@ -105,8 +105,8 @@ class AppleTVDevice(BaseDevice):
             
             if not atvs:
                 logger.error(f"[{self.device_id}] No Apple TV found at {ip_address}")
-                self.state.error = f"No Apple TV found at {ip_address}"
-                await self.publish_state() # Publish initial error state
+                self.update_state(error=f"No Apple TV found at {ip_address}")
+                await self._publish_state() # Publish initial error state
                 return False
             
             self.atv_config = atvs[0]
@@ -136,76 +136,29 @@ class AppleTVDevice(BaseDevice):
             
         except ConnectionRefusedError:
              logger.error(f"[{self.device_id}] Connection refused by Apple TV at {ip_address}. Ensure it's powered on and network remote control is enabled.")
-             self.state.error = "Connection refused"
-             await self.publish_state()
+             self.update_state(error="Connection refused")
+             await self._publish_state()
              return False
         except AuthenticationError as e:
              logger.error(f"[{self.device_id}] Authentication failed: {e}. Check credentials or pairing.")
-             self.state.error = f"Authentication failed: {e}"
-             await self.publish_state()
+             self.update_state(error=f"Authentication failed: {e}")
+             await self._publish_state()
              return False
         except ConnectionFailedError as e:
             logger.error(f"[{self.device_id}] Connection failed: {e}")
-            self.state.error = f"Connection failed: {e}"
-            await self.publish_state()
+            self.update_state(error=f"Connection failed: {e}")
+            await self._publish_state()
             return False
         except Exception as e:
             logger.error(f"[{self.device_id}] Unexpected error during setup: {e}", exc_info=True)
-            self.state.error = f"Setup error: {str(e)}"
-            await self.publish_state()
+            self.update_state(error=f"Setup error: {str(e)}")
+            await self._publish_state()
             return False
     
     async def shutdown(self) -> bool:
         """Shut down the Apple TV device connection."""
         logger.info(f"[{self.device_id}] Shutting down connection.")
         return await self.disconnect_from_device()
-
-    async def publish_state(self):
-        """Publish the current device state to MQTT."""
-        if not self.mqtt_client:
-            logger.warning(f"[{self.device_id}] MQTT client not available, cannot publish state.")
-            return
-
-        try:
-            # Publish full state to base topic
-            state_topic = f"{self.base_topic}/state"
-            # Use Pydantic's json() method to serialize the state model to JSON
-            state_payload = self.state.model_dump_json()
-            await self.mqtt_client.publish(state_topic, state_payload, retain=True) 
-            logger.debug(f"[{self.device_id}] Published full state to {state_topic}")
-
-            # Publish individual state components if configured/needed (Optional)
-            # Example: Power state
-            power_topic = f"{self.base_topic}/power_state"
-            if self.state.power is not None:
-                await self.mqtt_client.publish(power_topic, self.state.power, retain=True)
-
-            # Example: Volume level
-            volume_topic = f"{self.base_topic}/volume_level"
-            if self.state.volume is not None:
-                 await self.mqtt_client.publish(volume_topic, str(self.state.volume), retain=True)
-                 
-            # Example: Current App
-            app_topic = f"{self.base_topic}/current_app"
-            if self.state.app is not None:
-                 await self.mqtt_client.publish(app_topic, self.state.app, retain=True)
-
-            # Example: Playback details (as JSON)
-            playback_topic = f"{self.base_topic}/playback_details"
-            playback_state = {
-                "state": self.state.playback_state,
-                "media_type": self.state.media_type,
-                "title": self.state.title,
-                "artist": self.state.artist,
-                "album": self.state.album,
-                "position": self.state.position,
-                "total_time": self.state.total_time
-            }
-            if playback_state["state"]: # Only publish if playback state is known
-                await self.mqtt_client.publish(playback_topic, json.dumps(playback_state), retain=True)
-
-        except Exception as e:
-            logger.error(f"[{self.device_id}] Error publishing state: {e}", exc_info=True)
 
     async def connect_to_device(self) -> bool:
         """Establish connection to the Apple TV."""
@@ -224,41 +177,77 @@ class AppleTVDevice(BaseDevice):
             device_name = getattr(self.atv_config, 'name', 'Unknown')
             logger.info(f"[{self.device_id}] Successfully connected to {device_name}")
             
-            self.state.connected = True
-            self.state.ip_address = self.atv_config.address # Update IP just in case
-            self.state.error = None # Clear previous errors
+            # Use update_state instead of directly modifying state
+            self.update_state(
+                connected=True,
+                ip_address=self.atv_config.address,  # Update IP just in case
+                error=None,  # Clear previous errors
+                last_command=LastCommand(
+                    action="connect",
+                    source="system",
+                    timestamp=datetime.now(),
+                    params={"device_name": device_name}
+                )
+            )
             
             # Assign listener for connection events and updates
             self.atv.listener = PyATVDeviceListener(self) 
             
             # Perform initial status refresh and app list update
-            await self.refresh_status(publish=False) # Don't publish yet, wait for app list
+            await self.handle_refresh_status(
+                StandardCommandConfig(id="refresh_status", action="refresh_status"),
+                {"publish": False}
+            ) # Don't publish yet, wait for app list
             await self._update_app_list()
             
             # Now publish the full initial state
-            await self.publish_state()
+            await self._publish_state()
             return True
             
         except AuthenticationError as e:
              logger.error(f"[{self.device_id}] Authentication failed during connect: {e}. Check credentials/pairing.")
-             self.state.connected = False
-             self.state.error = f"Authentication failed: {e}"
+             self.update_state(
+                 connected=False,
+                 error=f"Authentication failed: {e}",
+                 last_command=LastCommand(
+                     action="connect_error",
+                     source="system",
+                     timestamp=datetime.now(),
+                     params={"error": str(e)}
+                 )
+             )
              self.atv = None
-             await self.publish_state()
+             await self._publish_state()
              return False
         except ConnectionFailedError as e:
             logger.error(f"[{self.device_id}] Connection failed: {e}")
-            self.state.connected = False
-            self.state.error = f"Connection failed: {e}"
+            self.update_state(
+                connected=False,
+                error=f"Connection failed: {e}",
+                last_command=LastCommand(
+                    action="connect_error",
+                    source="system",
+                    timestamp=datetime.now(),
+                    params={"error": str(e)}
+                )
+            )
             self.atv = None
-            await self.publish_state()
+            await self._publish_state()
             return False
         except Exception as e:
             logger.error(f"[{self.device_id}] Unexpected error connecting: {e}", exc_info=True)
-            self.state.connected = False
-            self.state.error = f"Connection error: {str(e)}"
+            self.update_state(
+                connected=False,
+                error=f"Connection error: {str(e)}",
+                last_command=LastCommand(
+                    action="connect_error",
+                    source="system",
+                    timestamp=datetime.now(),
+                    params={"error": str(e)}
+                )
+            )
             self.atv = None
-            await self.publish_state()
+            await self._publish_state()
             return False
 
     async def disconnect_from_device(self) -> bool:
@@ -275,206 +264,256 @@ class AppleTVDevice(BaseDevice):
             finally:
                 # Update state even if close fails
                 self.atv = None
-                self.state.connected = False
-                self.state.power = "off" # Assume off if disconnected
-                self.state.playback_state = None # Reset playback
-                self.state.app = None # Reset app
+                self.update_state(
+                    connected=False,
+                    power="off", # Assume off if disconnected
+                    playback_state=None, # Reset playback
+                    app=None, # Reset app
+                    last_command=LastCommand(
+                        action="disconnect",
+                        source="system",
+                        timestamp=datetime.now(),
+                        params=None
+                    )
+                )
                 # Don't clear error here, might be reason for disconnect
-                await self.publish_state()
+                await self._publish_state()
         else:
              logger.info(f"[{self.device_id}] Already disconnected.")
              return True # Indicate success as it's already in desired state
 
     async def _update_app_list(self):
-        """Fetch and store the list of installed applications."""
+        """
+        Fetch and store the list of installed applications.
+        
+        This updates the internal dictionary mapping app names to app identifiers.
+        """
         if not self.atv or not self.state.connected:
             logger.debug(f"[{self.device_id}] Cannot update app list: not connected.")
             return
             
         try:
-             logger.info(f"[{self.device_id}] Fetching application list...")
-             app_list_result = await self.atv.apps.app_list()
-             new_app_list = {}
-             for app in app_list_result:
-                 if app.name and app.identifier:
+            logger.info(f"[{self.device_id}] Fetching application list...")
+            app_list_result = await self.atv.apps.app_list()
+            new_app_list = {}
+            for app in app_list_result:
+                if app.name and app.identifier:
                     new_app_list[app.name.lower()] = app.identifier
-             self._app_list = new_app_list
-             logger.info(f"[{self.device_id}] Updated app list: {len(self._app_list)} apps found.")
-             logger.debug(f"[{self.device_id}] App list: {self._app_list}")
+            self._app_list = new_app_list
+            logger.info(f"[{self.device_id}] Updated app list: {len(self._app_list)} apps found.")
+            logger.debug(f"[{self.device_id}] App list: {self._app_list}")
         except Exception as e:
             logger.error(f"[{self.device_id}] Failed to fetch app list: {e}", exc_info=True)
-            # Keep the old list? Or clear it? Let's keep it for now.
+            # Keep the old list
+            self.update_state(
+                error=f"Failed to update app list: {str(e)}",
+                last_command=LastCommand(
+                    action="update_app_list",
+                    source="system",
+                    timestamp=datetime.now(),
+                    params={"error": str(e)}
+                )
+            )
 
-    async def refresh_status(self, cmd_config: Optional[StandardCommandConfig] = None, params: Dict[str, Any] = None, *, publish: bool = True) -> bool:
+    async def handle_refresh_status(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Refresh the Apple TV status.
         
         Args:
-            cmd_config: Command configuration (optional)
-            params: Parameters (unused)
-            publish: Whether to publish the state after refresh
+            cmd_config: Command configuration
+            params: Parameters with optional 'publish' key to control state publishing
             
         Returns:
-            bool: True if successfully refreshed, False otherwise
+            CommandResult: Result of the command execution
         """
+        # Extract publish parameter if available, default to True
+        publish = params.get('publish', True) if params else True
+        
         if not self.atv or not self.state.connected:
             logger.warning(f"[{self.device_id}] Cannot refresh status: not connected.")
-            # Try to reconnect if requested via command? Maybe too aggressive.
-            # Let's just update state to disconnected if possible.
-            if self.state.connected:
-                 self.state.connected = False
-                 self.state.power = "off"
-                 
-                 # Record this status change
-                 self.update_state(last_command=LastCommand(
-                     action="refresh_status",
-                     source="system",
-                     timestamp=datetime.now(),
-                     params={"status": "disconnected"}
-                 ))
-                 
-                 if publish: await self.publish_state()
-            return False
+            # Try to reconnect
+            if not await self._ensure_connected():
+                error_msg = "Cannot refresh status: device disconnected and reconnection failed"
+                self.update_state(
+                    connected=False,
+                    power="off",
+                    last_command=LastCommand(
+                        action="refresh_status",
+                        source="system",
+                        timestamp=datetime.now(),
+                        params={"status": "disconnected"}
+                    )
+                )
+                
+                if publish:
+                    await self._publish_state()
+                    
+                return self.create_command_result(
+                    success=False,
+                    error=error_msg
+                )
         
         logger.info(f"[{self.device_id}] Refreshing status...")
         try:
             # Power State (more reliable than just checking connection)
             power_info = self.atv.power.power_state
-            self.state.power = power_info.name.lower() # Should be 'on' or 'off'
+            power_state = power_info.name.lower() # Should be 'on' or 'off'
             
             # If power is off, no point checking media etc.
-            if self.state.power != PowerState.On.name.lower():
-                 logger.info(f"[{self.device_id}] Device is not powered on ({self.state.power}), skipping detailed status.")
-                 # Reset media/app state if device turned off
-                 self.state.app = None
-                 self.state.playback_state = None 
-                 self.state.title = None
-                 self.state.artist = None
-                 self.state.album = None
-                 self.state.position = None
-                 self.state.total_time = None
-                 # Keep volume? Let's reset it for now.
-                 # self.state.volume = None 
-                 
-                 # Record status refresh
-                 self.update_state(last_command=LastCommand(
-                     action="refresh_status",
-                     source="system",
-                     timestamp=datetime.now(),
-                     params={"power": self.state.power}
-                 ))
-                 
-                 if publish: await self.publish_state()
-                 return True
+            if power_state != PowerState.On.name.lower():
+                logger.info(f"[{self.device_id}] Device is not powered on ({power_state}), skipping detailed status.")
+                # Reset media/app state if device turned off
+                self.update_state(
+                    power=power_state,
+                    app=None,
+                    playback_state=None,
+                    title=None,
+                    artist=None,
+                    album=None,
+                    position=None,
+                    total_time=None,
+                    last_command=LastCommand(
+                        action="refresh_status",
+                        source="system",
+                        timestamp=datetime.now(),
+                        params={"power": power_state}
+                    )
+                )
+                
+                if publish:
+                    await self._publish_state()
+                    
+                return self.create_command_result(
+                    success=True,
+                    message=f"Status refreshed: Device is {power_state}"
+                )
 
             # Get current app (only if powered on)
             app_info = await self.atv.apps.current_app()
-            self.state.app = app_info.name if app_info else None
+            current_app = app_info.name if app_info else None
             
             # Get playback state (only if powered on)
             playing_info = await self.atv.metadata.playing()
-            self._update_playing_state(playing_info) # Use helper method
-
+            
+            # Store the current values before calling _update_playing_state which modifies state
             # Get volume if available (only if powered on)
+            volume_level = None
             if hasattr(self.atv, "audio") and hasattr(self.atv.audio, "volume"):
                 try:
-                    volume_level = await self.atv.audio.volume() # 0.0 to 1.0
-                    if volume_level is not None:
-                        self.state.volume = int(volume_level * 100)
-                    else:
-                         self.state.volume = None # Explicitly set to None if unavailable
-                except NotImplementedError:
-                    logger.debug(f"[{self.device_id}] Volume control not implemented by device/protocol.")
-                    self.state.volume = None
-                except Exception as e:
-                    logger.warning(f"[{self.device_id}] Could not get volume: {e}")
-                    self.state.volume = None # Ensure state reflects uncertainty
-            else:
-                 logger.debug(f"[{self.device_id}] Volume control not available via pyatv for this connection.")
-                 self.state.volume = None
-
-            self.state.error = None # Clear error on successful refresh
+                    vol = await self.atv.audio.volume() # 0.0 to 1.0
+                    if vol is not None:
+                        volume_level = int(vol * 100)
+                except (NotImplementedError, Exception) as e:
+                    logger.debug(f"[{self.device_id}] Could not get volume: {e}")
             
-            # Record status refresh with result summary
+            # Update playing state via the helper method (which now uses update_state)
+            self._update_playing_state(playing_info)
+            
+            # Now update the app, power, and volume
             status_params = {
-                "power": self.state.power,
-                "app": self.state.app,
+                "power": power_state,
+                "app": current_app,
                 "playback_state": self.state.playback_state,
             }
             
-            self.update_state(last_command=LastCommand(
-                action="refresh_status",
-                source="system",
-                timestamp=datetime.now(),
-                params=status_params
-            ))
+            self.update_state(
+                power=power_state,
+                app=current_app,
+                volume=volume_level,
+                error=None, # Clear error on successful refresh
+                last_command=LastCommand(
+                    action="refresh_status",
+                    source="system",
+                    timestamp=datetime.now(),
+                    params=status_params
+                )
+            )
             
             logger.info(f"[{self.device_id}] Status refresh complete.")
             
             # Publish updated state if requested
             if publish:
-                await self.publish_state()
+                await self._publish_state()
                 
-            return True
+            return self.create_command_result(
+                success=True,
+                message="Status refreshed successfully",
+                data=status_params
+            )
 
         except Exception as e:
-            logger.error(f"[{self.device_id}] Error refreshing status: {e}", exc_info=True)
-            self.state.error = f"Status refresh error: {str(e)}"
+            error_msg = f"Error refreshing status: {str(e)}"
+            logger.error(f"[{self.device_id}] {error_msg}", exc_info=True)
             
-            # Record error in last_command
-            self.update_state(last_command=LastCommand(
-                action="refresh_status",
-                source="system",
-                timestamp=datetime.now(),
-                params={"error": str(e)}
-            ))
-            
-            # Should we assume disconnected on error? Maybe too drastic. Keep connected state.
+            self.update_state(
+                error=error_msg,
+                last_command=LastCommand(
+                    action="refresh_status",
+                    source="system",
+                    timestamp=datetime.now(),
+                    params={"error": str(e)}
+                )
+            )
             
             # Publish updated state if requested
             if publish:
-                await self.publish_state()
+                await self._publish_state()
                 
-            return False
+            return self.create_command_result(
+                success=False,
+                error=error_msg
+            )
 
     def _update_playing_state(self, playing: Optional[Playing]):
         """Helper to update state dictionary from pyatv Playing object."""
         if playing and playing.device_state:
-            self.state.playback_state = playing.device_state.name.lower() # idle, paused, playing, stopped, seeking, loading
-            self.state.media_type = playing.media_type.name.lower() if playing.media_type else None # music, video, tv, unknown
-            self.state.title = playing.title
-            self.state.artist = playing.artist
-            self.state.album = playing.album
-            # Ensure position/total_time are ints or None
-            self.state.position = int(playing.position) if playing.position is not None else None
-            self.state.total_time = int(playing.total_time) if playing.total_time is not None else None
+            # Use update_state to modify multiple state attributes at once
+            updates = {
+                'playback_state': playing.device_state.name.lower(),
+                'media_type': playing.media_type.name.lower() if playing.media_type else None,
+                'title': playing.title,
+                'artist': playing.artist,
+                'album': playing.album,
+                'position': int(playing.position) if playing.position is not None else None,
+                'total_time': int(playing.total_time) if playing.total_time is not None else None
+            }
+            self.update_state(**updates)
         else:
             # If nothing is playing or info is unavailable
-            self.state.playback_state = "idle" # Assume idle if not explicitly known
-            self.state.media_type = None
-            self.state.title = None
-            self.state.artist = None
-            self.state.album = None
-            self.state.position = None
-            self.state.total_time = None
+            self.update_state(
+                playback_state="idle", # Assume idle if not explicitly known
+                media_type=None,
+                title=None,
+                artist=None,
+                album=None,
+                position=None,
+                total_time=None
+            )
 
     # --- Action Handlers (called by BaseDevice._execute_single_action) ---
     # Signature: async def handler(self, action_config: Dict[str, Any], payload: str)
 
     async def _ensure_connected(self) -> bool:
-        """Ensure device is connected, attempting to connect if not."""
+        """
+        Ensure device is connected, attempting to connect if not.
+        
+        Returns:
+            bool: True if connected or successfully reconnected, False otherwise
+        """
         if self.atv and self.state.connected:
             return True
         
         logger.warning(f"[{self.device_id}] Not connected. Attempting to reconnect...")
         
-        # Record connection attempt in last_command
-        self.update_state(last_command=LastCommand(
-            action="reconnect",
-            source="system",
-            timestamp=datetime.now(),
-            params={"ip_address": self.state.ip_address}
-        ))
+        # Record connection attempt
+        self.update_state(
+            last_command=LastCommand(
+                action="reconnect",
+                source="system",
+                timestamp=datetime.now(),
+                params={"ip_address": self.state.ip_address}
+            )
+        )
         
         if await self.connect_to_device():
             # Brief pause to allow connection to stabilize before command
@@ -484,10 +523,22 @@ class AppleTVDevice(BaseDevice):
             logger.error(f"[{self.device_id}] Reconnect failed. Cannot execute command.")
             return False
             
-    async def _execute_remote_command(self, command_name: str):
-        """Helper to execute a remote control command safely."""
+    async def _execute_remote_command(self, command_name: str) -> CommandResult:
+        """
+        Helper to execute a remote control command safely.
+        
+        Args:
+            command_name: Name of the remote command to execute
+            
+        Returns:
+            CommandResult: Result of the command execution
+        """
         if not await self._ensure_connected():
-             return False
+            return self.create_command_result(
+                success=False,
+                error="Failed to connect to Apple TV"
+            )
+            
         try:
             command_func = getattr(self.atv.remote_control, command_name)
             await command_func()
@@ -501,24 +552,28 @@ class AppleTVDevice(BaseDevice):
                 params=None
             ))
             
-            # Optional: Trigger a status refresh after a short delay
-            # asyncio.create_task(self._delayed_refresh()) 
-            return True
+            return self.create_command_result(
+                success=True,
+                message=f"Remote command {command_name} executed successfully"
+            )
         except AttributeError:
-             logger.error(f"[{self.device_id}] Remote command '{command_name}' not found in pyatv.")
-             return False
+            error_msg = f"Remote command '{command_name}' not found in pyatv."
+            logger.error(f"[{self.device_id}] {error_msg}")
+            return self.create_command_result(
+                success=False, 
+                error=error_msg
+            )
         except Exception as e:
-            logger.error(f"[{self.device_id}] Error executing remote command {command_name}: {e}", exc_info=True)
-            self.state.error = f"Command error: {str(e)}"
-            await self.publish_state() # Publish error state
-            return False
+            error_msg = f"Error executing remote command {command_name}: {str(e)}"
+            logger.error(f"[{self.device_id}] {error_msg}", exc_info=True)
+            self.update_state(error=error_msg)
+            await self._publish_state() # Publish error state
+            return self.create_command_result(
+                success=False,
+                error=error_msg
+            )
             
-    async def _delayed_refresh(self, delay: float = 1.0):
-         """Schedule a status refresh after a delay."""
-         await asyncio.sleep(delay)
-         await self.refresh_status()
-
-    async def turn_on(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+    async def handle_power_on(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Turn on the Apple TV.
         
@@ -527,7 +582,7 @@ class AppleTVDevice(BaseDevice):
             params: Parameters (unused)
             
         Returns:
-            bool: True if successful, False otherwise
+            CommandResult: Result of the command execution
         """
         logger.info(f"[{self.device_id}] Attempting to turn ON (wake)...")
         if await self._ensure_connected():
@@ -535,23 +590,34 @@ class AppleTVDevice(BaseDevice):
                 await self.atv.power.turn_on()
                 logger.info(f"[{self.device_id}] Executed power on command.")
                 
-                # Don't need to update last_command here as BaseDevice._execute_single_action will do it
-                
-                # State should update via listener, but schedule refresh just in case
+                # Schedule refresh after command
                 asyncio.create_task(self._delayed_refresh(delay=2.0))
-                return True
+                
+                return self.create_command_result(
+                    success=True,
+                    message="Power on command executed successfully"
+                )
             except NotImplementedError:
-                 logger.warning(f"[{self.device_id}] Direct power on not supported, trying to send key instead...")
-                 # Fallback to sending a key press to wake
-                 return await self._execute_remote_command("select") # Menu/select often works
+                logger.warning(f"[{self.device_id}] Direct power on not supported, trying to send key instead...")
+                # Fallback to sending a key press to wake
+                # Use the CommandResult returned by _execute_remote_command
+                return await self._execute_remote_command("select")
             except Exception as e:
-                logger.error(f"[{self.device_id}] Error turning on: {e}", exc_info=True)
-                self.state.error = f"Turn on error: {str(e)}"
-                await self.publish_state()
-                return False
-        return False
+                error_msg = f"Error turning on: {str(e)}"
+                logger.error(f"[{self.device_id}] {error_msg}", exc_info=True)
+                self.update_state(error=error_msg)
+                await self._publish_state()
+                return self.create_command_result(
+                    success=False,
+                    error=error_msg
+                )
+        
+        return self.create_command_result(
+            success=False,
+            error="Failed to connect to Apple TV"
+        )
 
-    async def turn_off(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+    async def handle_power_off(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Turn off the Apple TV (put to sleep).
         
@@ -560,7 +626,7 @@ class AppleTVDevice(BaseDevice):
             params: Parameters (unused)
             
         Returns:
-            bool: True if successful, False otherwise
+            CommandResult: Result of the command execution
         """
         logger.info(f"[{self.device_id}] Attempting to turn OFF (sleep)...")
         # Use power off command if available, otherwise fallback to long home press?
@@ -570,19 +636,32 @@ class AppleTVDevice(BaseDevice):
                 logger.info(f"[{self.device_id}] Executed power off command.")
                 # State should update via listener, but schedule refresh just in case
                 asyncio.create_task(self._delayed_refresh(delay=2.0))
-                return True
+                
+                return self.create_command_result(
+                    success=True,
+                    message="Power off command executed successfully"
+                )
             except NotImplementedError:
-                 logger.warning(f"[{self.device_id}] Direct power off not supported, trying long home press...")
-                 # Fallback: Press and hold home button (might bring up power menu on some tvOS versions)
-                 return await self._execute_remote_command("home_hold") 
+                logger.warning(f"[{self.device_id}] Direct power off not supported, trying long home press...")
+                # Fallback: Press and hold home button (might bring up power menu on some tvOS versions)
+                # Use the CommandResult returned by _execute_remote_command
+                return await self._execute_remote_command("home_hold")
             except Exception as e:
-                logger.error(f"[{self.device_id}] Error turning off: {e}", exc_info=True)
-                self.state.error = f"Turn off error: {str(e)}"
-                await self.publish_state()
-                return False
-        return False
+                error_msg = f"Error turning off: {str(e)}"
+                logger.error(f"[{self.device_id}] {error_msg}", exc_info=True)
+                self.update_state(error=error_msg)
+                await self._publish_state()
+                return self.create_command_result(
+                    success=False,
+                    error=error_msg
+                )
+                
+        return self.create_command_result(
+            success=False,
+            error="Failed to connect to Apple TV"
+        )
 
-    async def play(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+    async def handle_play(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Send Play command.
         
@@ -591,14 +670,22 @@ class AppleTVDevice(BaseDevice):
             params: Parameters (unused)
             
         Returns:
-            bool: True if successful, False otherwise
+            CommandResult: Result of the command execution
         """
-        if await self._execute_remote_command("play"):
-             asyncio.create_task(self._delayed_refresh()) # Refresh after action
-             return True
-        return False
+        remote_cmd_result = await self._execute_remote_command("play")
+        if remote_cmd_result:
+            asyncio.create_task(self._delayed_refresh()) # Refresh after action
+            return self.create_command_result(
+                success=True,
+                message="Play command executed successfully"
+            )
+        else:
+            return self.create_command_result(
+                success=False,
+                error="Failed to send play command"
+            )
 
-    async def pause(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+    async def handle_pause(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Send Pause command.
         
@@ -607,14 +694,22 @@ class AppleTVDevice(BaseDevice):
             params: Parameters (unused)
             
         Returns:
-            bool: True if successful, False otherwise
+            CommandResult: Result of the command execution
         """
-        if await self._execute_remote_command("pause"):
-             asyncio.create_task(self._delayed_refresh()) # Refresh after action
-             return True
-        return False
+        remote_cmd_result = await self._execute_remote_command("pause")
+        if remote_cmd_result:
+            asyncio.create_task(self._delayed_refresh()) # Refresh after action
+            return self.create_command_result(
+                success=True,
+                message="Pause command executed successfully"
+            )
+        else:
+            return self.create_command_result(
+                success=False,
+                error="Failed to send pause command"
+            )
 
-    async def stop(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+    async def handle_stop(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Send Stop command.
         
@@ -623,14 +718,22 @@ class AppleTVDevice(BaseDevice):
             params: Parameters (unused)
             
         Returns:
-            bool: True if successful, False otherwise
+            CommandResult: Result of the command execution
         """
-        if await self._execute_remote_command("stop"):
-             asyncio.create_task(self._delayed_refresh()) # Refresh after action
-             return True
-        return False
+        remote_cmd_result = await self._execute_remote_command("stop")
+        if remote_cmd_result:
+            asyncio.create_task(self._delayed_refresh()) # Refresh after action
+            return self.create_command_result(
+                success=True,
+                message="Stop command executed successfully" 
+            )
+        else:
+            return self.create_command_result(
+                success=False,
+                error="Failed to send stop command"
+            )
 
-    async def next_track(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+    async def handle_next_track(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Send Next command.
         
@@ -639,14 +742,22 @@ class AppleTVDevice(BaseDevice):
             params: Parameters (unused)
             
         Returns:
-            bool: True if successful, False otherwise
+            CommandResult: Result of the command execution
         """
-        if await self._execute_remote_command("next"):
-             asyncio.create_task(self._delayed_refresh()) # Refresh after action
-             return True
-        return False
+        remote_cmd_result = await self._execute_remote_command("next")
+        if remote_cmd_result:
+            asyncio.create_task(self._delayed_refresh()) # Refresh after action
+            return self.create_command_result(
+                success=True,
+                message="Next track command executed successfully"
+            )
+        else:
+            return self.create_command_result(
+                success=False,
+                error="Failed to send next track command"
+            )
 
-    async def previous_track(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+    async def handle_previous_track(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Send Previous command.
         
@@ -655,14 +766,22 @@ class AppleTVDevice(BaseDevice):
             params: Parameters (unused)
             
         Returns:
-            bool: True if successful, False otherwise
+            CommandResult: Result of the command execution
         """
-        if await self._execute_remote_command("previous"):
-             asyncio.create_task(self._delayed_refresh()) # Refresh after action
-             return True
-        return False
-             
-    async def menu(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        remote_cmd_result = await self._execute_remote_command("previous")
+        if remote_cmd_result:
+            asyncio.create_task(self._delayed_refresh()) # Refresh after action
+            return self.create_command_result(
+                success=True,
+                message="Previous track command executed successfully"
+            )
+        else:
+            return self.create_command_result(
+                success=False,
+                error="Failed to send previous track command"
+            )
+
+    async def handle_menu(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Send Menu command.
         
@@ -671,11 +790,21 @@ class AppleTVDevice(BaseDevice):
             params: Parameters (unused)
             
         Returns:
-            bool: True if successful, False otherwise
+            CommandResult: Result of the command execution
         """
-        return await self._execute_remote_command("menu")
+        remote_cmd_result = await self._execute_remote_command("menu")
+        if remote_cmd_result:
+            return self.create_command_result(
+                success=True,
+                message="Menu command executed successfully"
+            )
+        else:
+            return self.create_command_result(
+                success=False,
+                error="Failed to send menu command"
+            )
 
-    async def home(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+    async def handle_home(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Send Home command.
         
@@ -684,11 +813,21 @@ class AppleTVDevice(BaseDevice):
             params: Parameters (unused)
             
         Returns:
-            bool: True if successful, False otherwise
+            CommandResult: Result of the command execution
         """
-        return await self._execute_remote_command("home")
-        
-    async def select(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        remote_cmd_result = await self._execute_remote_command("home")
+        if remote_cmd_result:
+            return self.create_command_result(
+                success=True,
+                message="Home command executed successfully"
+            )
+        else:
+            return self.create_command_result(
+                success=False,
+                error="Failed to send home command"
+            )
+
+    async def handle_select(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Send Select command.
         
@@ -697,11 +836,21 @@ class AppleTVDevice(BaseDevice):
             params: Parameters (unused)
             
         Returns:
-            bool: True if successful, False otherwise
+            CommandResult: Result of the command execution
         """
-        return await self._execute_remote_command("select")
-        
-    async def up(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        remote_cmd_result = await self._execute_remote_command("select")
+        if remote_cmd_result:
+            return self.create_command_result(
+                success=True,
+                message="Select command executed successfully"
+            )
+        else:
+            return self.create_command_result(
+                success=False,
+                error="Failed to send select command"
+            )
+
+    async def handle_up(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Send Up command.
         
@@ -710,11 +859,21 @@ class AppleTVDevice(BaseDevice):
             params: Parameters (unused)
             
         Returns:
-            bool: True if successful, False otherwise
+            CommandResult: Result of the command execution
         """
-        return await self._execute_remote_command("up")
-        
-    async def down(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        remote_cmd_result = await self._execute_remote_command("up")
+        if remote_cmd_result:
+            return self.create_command_result(
+                success=True,
+                message="Up command executed successfully"
+            )
+        else:
+            return self.create_command_result(
+                success=False,
+                error="Failed to send up command"
+            )
+
+    async def handle_down(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Send Down command.
         
@@ -723,11 +882,21 @@ class AppleTVDevice(BaseDevice):
             params: Parameters (unused)
             
         Returns:
-            bool: True if successful, False otherwise
+            CommandResult: Result of the command execution
         """
-        return await self._execute_remote_command("down")
-        
-    async def left(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        remote_cmd_result = await self._execute_remote_command("down")
+        if remote_cmd_result:
+            return self.create_command_result(
+                success=True,
+                message="Down command executed successfully"
+            )
+        else:
+            return self.create_command_result(
+                success=False,
+                error="Failed to send down command"
+            )
+
+    async def handle_left(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Send Left command.
         
@@ -736,11 +905,21 @@ class AppleTVDevice(BaseDevice):
             params: Parameters (unused)
             
         Returns:
-            bool: True if successful, False otherwise
+            CommandResult: Result of the command execution
         """
-        return await self._execute_remote_command("left")
-        
-    async def right(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+        remote_cmd_result = await self._execute_remote_command("left")
+        if remote_cmd_result:
+            return self.create_command_result(
+                success=True,
+                message="Left command executed successfully"
+            )
+        else:
+            return self.create_command_result(
+                success=False,
+                error="Failed to send left command"
+            )
+
+    async def handle_right(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Send Right command.
         
@@ -749,11 +928,21 @@ class AppleTVDevice(BaseDevice):
             params: Parameters (unused)
             
         Returns:
-            bool: True if successful, False otherwise
+            CommandResult: Result of the command execution
         """
-        return await self._execute_remote_command("right")
+        remote_cmd_result = await self._execute_remote_command("right")
+        if remote_cmd_result:
+            return self.create_command_result(
+                success=True,
+                message="Right command executed successfully"
+            )
+        else:
+            return self.create_command_result(
+                success=False,
+                error="Failed to send right command"
+            )
 
-    async def set_volume(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+    async def handle_set_volume(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Set the volume level (0-100).
         
@@ -762,14 +951,21 @@ class AppleTVDevice(BaseDevice):
             params: Parameters with 'level' key for volume level (0-100)
             
         Returns:
-            bool: True if successful, False otherwise
+            CommandResult: Result of the command execution
         """
         if not await self._ensure_connected():
-             return False
+            return self.create_command_result(
+                success=False,
+                error="Failed to connect to Apple TV"
+            )
              
         if not hasattr(self.atv, "audio") or not hasattr(self.atv.audio, "set_volume"):
-             logger.warning(f"[{self.device_id}] Volume control not available.")
-             return False
+            error_msg = "Volume control not available on this device"
+            logger.warning(f"[{self.device_id}] {error_msg}")
+            return self.create_command_result(
+                success=False,
+                error=error_msg
+            )
 
         try:
             # Get the level from params
@@ -777,41 +973,60 @@ class AppleTVDevice(BaseDevice):
                 level = params["level"]
                 level = max(0, min(100, level))  # Clamp value to valid range
             else:
-                logger.error(f"[{self.device_id}] No volume level provided in params")
-                return False
+                error_msg = "No volume level provided in params"
+                logger.error(f"[{self.device_id}] {error_msg}")
+                return self.create_command_result(
+                    success=False,
+                    error=error_msg
+                )
                 
             normalized_level = level / 100.0
             
             logger.info(f"[{self.device_id}] Setting volume to {level}% ({normalized_level})...")
             await self.atv.audio.set_volume(normalized_level)
             
-            # Update state immediately (optimistic) and schedule refresh
-            self.state.volume = level
-            
-            # Record this command in last_command (BaseDevice will update this anyway, but we include details)
-            self.update_state(last_command=LastCommand(
-                action="set_volume",
-                source="api",
-                timestamp=datetime.now(),
-                params={"level": level}
-            ))
+            # Update state immediately (optimistic)
+            self.update_state(
+                volume=level,
+                last_command=LastCommand(
+                    action="set_volume",
+                    source="api",
+                    timestamp=datetime.now(),
+                    params={"level": level}
+                )
+            )
             
             asyncio.create_task(self._delayed_refresh()) 
-            return True
+            return self.create_command_result(
+                success=True,
+                message=f"Volume set to {level}%"
+            )
             
         except ValueError:
-             logger.error(f"[{self.device_id}] Invalid volume level: Must be integer 0-100.")
-             return False
+            error_msg = "Invalid volume level: Must be integer 0-100."
+            logger.error(f"[{self.device_id}] {error_msg}")
+            return self.create_command_result(
+                success=False,
+                error=error_msg
+            )
         except NotImplementedError:
-             logger.warning(f"[{self.device_id}] Set volume not implemented by device/protocol.")
-             return False
+            error_msg = "Set volume not implemented by this device/protocol."
+            logger.warning(f"[{self.device_id}] {error_msg}")
+            return self.create_command_result(
+                success=False,
+                error=error_msg
+            )
         except Exception as e:
-            logger.error(f"[{self.device_id}] Error setting volume: {e}", exc_info=True)
-            self.state.error = f"Set volume error: {str(e)}"
-            await self.publish_state()
-            return False
+            error_msg = f"Error setting volume: {str(e)}"
+            logger.error(f"[{self.device_id}] {error_msg}", exc_info=True)
+            self.update_state(error=error_msg)
+            await self._publish_state()
+            return self.create_command_result(
+                success=False,
+                error=error_msg
+            )
 
-    async def volume_up(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+    async def handle_volume_up(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Increase the volume.
         
@@ -820,14 +1035,22 @@ class AppleTVDevice(BaseDevice):
             params: Parameters (unused)
             
         Returns:
-            bool: True if successful, False otherwise
+            CommandResult: Result of the command execution
         """
-        if await self._execute_remote_command("volume_up"):
-             asyncio.create_task(self._delayed_refresh())
-             return True
-        return False
+        remote_cmd_result = await self._execute_remote_command("volume_up")
+        if remote_cmd_result:
+            asyncio.create_task(self._delayed_refresh())
+            return self.create_command_result(
+                success=True,
+                message="Volume up command executed successfully"
+            )
+        else:
+            return self.create_command_result(
+                success=False,
+                error="Failed to send volume up command"
+            )
 
-    async def volume_down(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+    async def handle_volume_down(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Decrease the volume.
         
@@ -836,14 +1059,22 @@ class AppleTVDevice(BaseDevice):
             params: Parameters (unused)
             
         Returns:
-            bool: True if successful, False otherwise
+            CommandResult: Result of the command execution
         """
-        if await self._execute_remote_command("volume_down"):
-             asyncio.create_task(self._delayed_refresh())
-             return True
-        return False
+        remote_cmd_result = await self._execute_remote_command("volume_down")
+        if remote_cmd_result:
+            asyncio.create_task(self._delayed_refresh())
+            return self.create_command_result(
+                success=True,
+                message="Volume down command executed successfully"
+            )
+        else:
+            return self.create_command_result(
+                success=False,
+                error="Failed to send volume down command"
+            )
 
-    async def launch_app(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
+    async def handle_launch_app(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Launch an app on the Apple TV.
         
@@ -852,10 +1083,13 @@ class AppleTVDevice(BaseDevice):
             params: Parameters with app_name key
             
         Returns:
-            bool: True if successful, False otherwise
+            CommandResult: Result of the command execution
         """
         if not await self._ensure_connected():
-            return False
+            return self.create_command_result(
+                success=False,
+                error="Failed to connect to Apple TV"
+            )
 
         app_id_to_launch = None
         app_name = None
@@ -874,8 +1108,12 @@ class AppleTVDevice(BaseDevice):
                 if hasattr(cmd_config, "appname") and cmd_config.appname:
                     app_name = cmd_config.appname
                 else:
-                    logger.error(f"[{self.device_id}] Cannot launch app: No app specified in params or config")
-                    return False
+                    error_msg = "Cannot launch app: No app specified in params or config"
+                    logger.error(f"[{self.device_id}] {error_msg}")
+                    return self.create_command_result(
+                        success=False,
+                        error=error_msg
+                    )
                 logger.info(f"[{self.device_id}] Using app name from config: '{app_name}'")
 
         # If we have an app name but not an ID, look up the ID
@@ -884,23 +1122,31 @@ class AppleTVDevice(BaseDevice):
             
             # Ensure app list is populated
             if not self._app_list:
-                 await self._update_app_list() # Try to fetch if empty
-                 if not self._app_list:
-                      logger.error(f"[{self.device_id}] App list is empty, cannot find app '{app_name}'.")
-                      self.state.error = "App list unavailable"
-                      await self.publish_state()
-                      return False
+                await self._update_app_list() # Try to fetch if empty
+                if not self._app_list:
+                    error_msg = f"App list is empty, cannot find app '{app_name}'."
+                    logger.error(f"[{self.device_id}] {error_msg}")
+                    self.update_state(error="App list unavailable")
+                    await self._publish_state()
+                    return self.create_command_result(
+                        success=False,
+                        error=error_msg
+                    )
 
             # Perform case-insensitive lookup
             app_id_to_launch = self._app_list.get(app_name.lower())
 
             if not app_id_to_launch:
-                 logger.error(f"[{self.device_id}] App '{app_name}' not found in the installed apps list.")
-                 self.state.error = f"App not found: {app_name}"
-                 await self.publish_state()
-                 return False
+                error_msg = f"App '{app_name}' not found in the installed apps list."
+                logger.error(f"[{self.device_id}] {error_msg}")
+                self.update_state(error=f"App not found: {app_name}")
+                await self._publish_state()
+                return self.create_command_result(
+                    success=False,
+                    error=error_msg
+                )
             else:
-                 logger.info(f"[{self.device_id}] Found app ID: {app_id_to_launch} for name '{app_name}'")
+                logger.info(f"[{self.device_id}] Found app ID: {app_id_to_launch} for name '{app_name}'")
 
         # Create the params for LastCommand
         command_params = {"app_id": app_id_to_launch}
@@ -914,21 +1160,48 @@ class AppleTVDevice(BaseDevice):
             logger.info(f"[{self.device_id}] Launch command sent for {app_id_to_launch}.")
             
             # Update last_command with app launch details
-            self.update_state(last_command=LastCommand(
-                action="launch_app",
-                source="api",
-                timestamp=datetime.now(),
-                params=command_params
-            ))
+            self.update_state(
+                last_command=LastCommand(
+                    action="launch_app",
+                    source="api",
+                    timestamp=datetime.now(),
+                    params=command_params
+                )
+            )
             
             # Schedule refresh to see if app changed
             asyncio.create_task(self._delayed_refresh(delay=2.0)) 
-            return True
+            return self.create_command_result(
+                success=True,
+                message=f"App launch command sent for {app_name or app_id_to_launch}"
+            )
         except Exception as e:
-            logger.error(f"[{self.device_id}] Error launching app {app_id_to_launch}: {e}", exc_info=True)
-            self.state.error = f"Launch app error: {str(e)}"
-            await self.publish_state()
-            return False
+            error_msg = f"Error launching app {app_id_to_launch}: {str(e)}"
+            logger.error(f"[{self.device_id}] {error_msg}", exc_info=True)
+            self.update_state(error=error_msg)
+            await self._publish_state()
+            return self.create_command_result(
+                success=False,
+                error=error_msg
+            )
+
+    async def _delayed_refresh(self, delay: float = 1.0):
+        """
+        Schedule a status refresh after a delay.
+        
+        Args:
+            delay: Delay in seconds before refreshing status
+        """
+        await asyncio.sleep(delay)
+        
+        # Create a minimal config for the handler
+        config = StandardCommandConfig(
+            id="refresh_status",
+            action="refresh_status"
+        )
+        
+        # Call the handler directly
+        await self.handle_refresh_status(config, {})
 
 
 # === PyATV Listener ===
@@ -937,51 +1210,66 @@ class PyATVDeviceListener(DeviceListener):
     """Listener for pyatv events (connection status, updates)."""
     
     def __init__(self, device: AppleTVDevice):
-        self.device = device # Reference to the main AppleTVDevice instance
+        """Initialize the listener with a reference to the AppleTVDevice."""
+        self.device = device  # Reference to the main AppleTVDevice instance
         self.loop = asyncio.get_event_loop()
 
     def connection_lost(self, exception):
-        """Called by pyatv when connection is lost unexpectedly."""
-        logger.warning(f"[{self.device.device_id}] Connection lost: {exception}")
-        self.device.state.connected = False
-        self.device.state.power = "off" # Assume off
-        self.device.state.error = str(exception) if exception else "Connection lost"
-        self.device.atv = None # Clear device instance
+        """
+        Called by pyatv when connection is lost unexpectedly.
         
-        # Record connection lost event in last_command
-        self.device.update_state(last_command=LastCommand(
-            action="connection_lost",
-            source="system",
-            timestamp=datetime.now(),
-            params={"error": str(exception) if exception else "Connection lost"}
-        ))
+        Args:
+            exception: The exception that caused the connection loss, if any
+        """
+        logger.warning(f"[{self.device.device_id}] Connection lost: {exception}")
+        
+        self.device.update_state(
+            connected=False,
+            power="off",  # Assume off
+            error=str(exception) if exception else "Connection lost",
+            last_command=LastCommand(
+                action="connection_lost",
+                source="system",
+                timestamp=datetime.now(),
+                params={"error": str(exception) if exception else "Connection lost"}
+            )
+        )
+        
+        self.device.atv = None  # Clear device instance
         
         # Schedule state publish in the event loop
-        self.loop.call_soon_threadsafe(asyncio.create_task, self.device.publish_state())
+        self.loop.call_soon_threadsafe(asyncio.create_task, self.device._publish_state())
     
     def connection_closed(self):
         """Called by pyatv when connection is closed intentionally (by self.atv.close())."""
         # This might be redundant if disconnect_from_device already handles state update,
         # but good to have as a fallback.
-        if self.device.state.connected: # Only log/update if we thought we were connected
-             logger.info(f"[{self.device.device_id}] Connection closed.")
-             self.device.state.connected = False
-             self.device.state.power = "off"
-             self.device.atv = None
-             
-             # Record connection closed event in last_command
-             self.device.update_state(last_command=LastCommand(
-                 action="connection_closed",
-                 source="system",
-                 timestamp=datetime.now(),
-                 params=None
-             ))
-             
-             # Schedule state publish in the event loop
-             self.loop.call_soon_threadsafe(asyncio.create_task, self.device.publish_state())
+        if self.device.state.connected:  # Only log/update if we thought we were connected
+            logger.info(f"[{self.device.device_id}] Connection closed.")
+            
+            self.device.update_state(
+                connected=False,
+                power="off",
+                last_command=LastCommand(
+                    action="connection_closed",
+                    source="system",
+                    timestamp=datetime.now(),
+                    params=None
+                )
+            )
+            
+            self.device.atv = None
+            
+            # Schedule state publish in the event loop
+            self.loop.call_soon_threadsafe(asyncio.create_task, self.device._publish_state())
 
     def device_update(self, playing: Playing):
-        """Called by pyatv when media playback state changes."""
+        """
+        Called by pyatv when media playback state changes.
+        
+        Args:
+            playing: Object containing the current playback information
+        """
         logger.debug(f"[{self.device.device_id}] Received device update (playing): {playing}")
         
         # Update state using helper
@@ -995,29 +1283,35 @@ class PyATVDeviceListener(DeviceListener):
                 "artist": playing.artist,
             }
             
-            self.device.update_state(last_command=LastCommand(
-                action="playback_update",
-                source="device",
-                timestamp=datetime.now(),
-                params=playback_info
-            ))
+            self.device.update_state(
+                last_command=LastCommand(
+                    action="playback_update",
+                    source="device",
+                    timestamp=datetime.now(),
+                    params=playback_info
+                )
+            )
         
         # Schedule state publish
-        self.loop.call_soon_threadsafe(asyncio.create_task, self.device.publish_state())
+        self.loop.call_soon_threadsafe(asyncio.create_task, self.device._publish_state())
 
     def device_error(self, error: Exception):
-         """Called by pyatv on certain device errors (less common)."""
-         logger.error(f"[{self.device.device_id}] Received device error from listener: {error}")
-         self.device.state.error = f"Listener error: {str(error)}"
-         
-         # Record device error in last_command
-         self.device.update_state(last_command=LastCommand(
-             action="device_error",
-             source="device",
-             timestamp=datetime.now(),
-             params={"error": str(error)}
-         ))
-         
-         # Potentially mark as disconnected? Depends on error type.
-         # self.device.state.connected = False 
-         self.loop.call_soon_threadsafe(asyncio.create_task, self.device.publish_state()) 
+        """
+        Called by pyatv on certain device errors (less common).
+        
+        Args:
+            error: The exception that occurred
+        """
+        logger.error(f"[{self.device.device_id}] Received device error from listener: {error}")
+        
+        self.device.update_state(
+            error=f"Listener error: {str(error)}",
+            last_command=LastCommand(
+                action="device_error",
+                source="device",
+                timestamp=datetime.now(),
+                params={"error": str(error)}
+            )
+        )
+        
+        self.loop.call_soon_threadsafe(asyncio.create_task, self.device._publish_state()) 

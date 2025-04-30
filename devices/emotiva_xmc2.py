@@ -8,6 +8,7 @@ from enum import Enum, auto
 
 from devices.base_device import BaseDevice
 from app.schemas import EmotivaXMC2State, LastCommand, EmotivaConfig, EmotivaXMC2DeviceConfig, StandardCommandConfig, CommandParameterDefinition
+from app.types import StateT, CommandResult, CommandResponse, ActionHandler
 
 logger = logging.getLogger(__name__)
 
@@ -19,25 +20,20 @@ class PowerState(str, Enum):
     UNKNOWN = "unknown"
 
 # Type hint for device command functions
-CommandResult = Dict[str, Any]
-DeviceCommandFunc = Callable[[], Awaitable[CommandResult]]
-ActionHandler = Callable[[StandardCommandConfig, Dict[str, Any]], Awaitable[CommandResult]]
+DeviceCommandFunc = Callable[[], Awaitable[Dict[str, Any]]]
 
-class EMotivaXMC2(BaseDevice):
+class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
     """eMotiva XMC2 processor device implementation."""
     
     def __init__(self, config: EmotivaXMC2DeviceConfig, mqtt_client=None):
         super().__init__(config, mqtt_client)
         
-        # Store the config directly as it's already properly typed
-        self.typed_config = config
-        
         self.client: Optional[Emotiva] = None
         
         # Initialize device state with Pydantic model
         self.state: EmotivaXMC2State = EmotivaXMC2State(
-            device_id=self.typed_config.device_id,
-            device_name=self.typed_config.device_name,
+            device_id=self.config.device_id,
+            device_name=self.config.device_name,
             power=None,
             zone2_power=None,
             source_status=None,
@@ -56,8 +52,15 @@ class EMotivaXMC2(BaseDevice):
             error=None
         )
         
-        # Register action handlers with proper type annotation
-        self._action_handlers: Dict[str, ActionHandler] = {
+        # Register action handlers will be done in _register_handlers method
+    
+    def _register_handlers(self) -> None:
+        """Register action handlers for the eMotiva XMC2 device.
+        
+        All handlers follow the standardized signature:
+        async def handle_x(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult
+        """
+        self._action_handlers.update({
             "power_on": self.handle_power_on,
             "power_off": self.handle_power_off,
             "zone2_on": self.handle_zone2_on,
@@ -66,19 +69,19 @@ class EMotivaXMC2(BaseDevice):
             "dvdo": self.handle_dvdo,
             "set_volume": self.handle_set_volume,
             "set_mute": self.handle_set_mute
-        }
+        })
     
     async def setup(self) -> bool:
         """Initialize the device."""
         try:
-            # Get emotiva configuration directly from typed config
-            emotiva_config: EmotivaConfig = self.typed_config.emotiva
+            # Get emotiva configuration directly from config
+            emotiva_config: EmotivaConfig = self.config.emotiva
             
             # Get the host IP address
             host = emotiva_config.host
             if not host:
                 logger.error(f"Missing 'host' in emotiva configuration for device: {self.get_name()}")
-                self.update_state(error="Missing host configuration")
+                self.set_error("Missing host configuration")
                 return False
             
             # Store MAC address if available in config
@@ -123,6 +126,7 @@ class EMotivaXMC2(BaseDevice):
                 logger.info(f"Notification subscription result: {subscription_result}")
                 
                 # Update state with successful connection
+                self.clear_error()  # Clear any previous errors
                 self.update_state(
                     connected=True,
                     ip_address=host,
@@ -148,26 +152,28 @@ class EMotivaXMC2(BaseDevice):
                         connected=True,
                         ip_address=host,
                         startup_complete=True,
-                        notifications=False,
-                        error=f"Discovery failed, using forced connection: {error_message}"
+                        notifications=False
                     )
+                    
+                    # Set error but don't fail setup
+                    self.set_error(f"Discovery failed, using forced connection: {error_message}")
                     
                     return True
                 else:
-                    self.update_state(error=error_message)
+                    self.set_error(error_message)
                     return False
 
         except ConnectionError as e:
             logger.error(f"Connection error initializing eMotiva XMC2 device {self.get_name()}: {str(e)}")
-            self.update_state(error=f"Connection error: {str(e)}")
+            self.set_error(f"Connection error: {str(e)}")
             return False
         except TimeoutError as e:
             logger.error(f"Timeout error initializing eMotiva XMC2 device {self.get_name()}: {str(e)}")
-            self.update_state(error=f"Timeout error: {str(e)}")
+            self.set_error(f"Timeout error: {str(e)}")
             return False
         except Exception as e:
             logger.error(f"Failed to initialize eMotiva XMC2 device {self.get_name()}: {str(e)}")
-            self.update_state(error=str(e))
+            self.set_error(str(e))
             return False
     
     async def shutdown(self) -> bool:
@@ -264,10 +270,14 @@ class EMotivaXMC2(BaseDevice):
                 all_cleanup_successful = False
             
             # Final cleanup - update the state regardless of success
+            if all_cleanup_successful:
+                self.clear_error()
+            else:
+                self.set_error("Partial shutdown completed with errors")
+                
             self.update_state(
                 connected=False,
-                notifications=False,
-                error=None if all_cleanup_successful else "Partial shutdown completed with errors"
+                notifications=False
             )
             
             # Release client reference
@@ -279,10 +289,10 @@ class EMotivaXMC2(BaseDevice):
             logger.error(f"Unexpected error during {self.get_name()} shutdown: {str(e)}")
             
             # Still update the state as disconnected even after errors
+            self.set_error(f"Shutdown error: {str(e)}")
             self.update_state(
                 connected=False,
-                notifications=False,
-                error=f"Shutdown error: {str(e)}"
+                notifications=False
             )
             
             # Release client reference
@@ -373,41 +383,6 @@ class EMotivaXMC2(BaseDevice):
             # For mocks that don't return expected dict structure
             return True
     
-    def _create_response(self, 
-                        success: bool, 
-                        action: str, 
-                        message: Optional[str] = None, 
-                        error: Optional[str] = None,
-                        **extra_fields) -> CommandResult:
-        """Create a standardized response dictionary.
-        
-        Args:
-            success: Whether the action was successful
-            action: The name of the action
-            message: Optional success message
-            error: Optional error message
-            **extra_fields: Additional fields to include in the response
-            
-        Returns:
-            A standardized response dictionary
-        """
-        response: CommandResult = {
-            "success": success,
-            "action": action,
-            "device_id": self.device_id
-        }
-        
-        if success and message:
-            response["message"] = message
-            
-        if not success and error:
-            response["error"] = error
-            
-        # Add any extra fields
-        response.update(extra_fields)
-        
-        return response
-    
     async def _execute_device_command(self, 
                                      action: str,
                                      command_func: DeviceCommandFunc,
@@ -424,56 +399,63 @@ class EMotivaXMC2(BaseDevice):
             state_updates: Dictionary of state updates to apply on success
             
         Returns:
-            A standardized response dictionary
+            CommandResult: A standardized response dictionary
         """
-        if not self.client:
-            logger.error(f"Client not initialized for action: {action}")
-            return self._create_response(False, action, error="Client not initialized")
-        
-        # Subscribe to notifications if provided
-        if notification_topics:
-            try:
-                await self.client.subscribe_to_notifications(notification_topics)
-            except Exception as e:
-                logger.warning(f"Could not subscribe to notifications for {action}: {str(e)}")
-        
-        # Execute the command
         try:
-            result = await command_func()
-        except asyncio.TimeoutError:
-            logger.error(f"Timeout waiting for {action} response from {self.get_name()}")
-            self.update_state(error="Command timeout")
-            return self._create_response(False, action, error="Command timeout")
+            if not self.client:
+                logger.error(f"Client not initialized for action: {action}")
+                return self.create_command_result(success=False, error="Client not initialized")
+            
+            # Subscribe to notifications if provided
+            if notification_topics:
+                try:
+                    await self.client.subscribe_to_notifications(notification_topics)
+                except Exception as e:
+                    logger.warning(f"Could not subscribe to notifications for {action}: {str(e)}")
+            
+            # Execute the command
+            try:
+                result = await command_func()
+            except asyncio.TimeoutError:
+                logger.error(f"Timeout waiting for {action} response from {self.get_name()}")
+                self.set_error("Command timeout")
+                return self.create_command_result(success=False, error="Command timeout")
+            except Exception as e:
+                logger.error(f"Error executing {action} on eMotiva XMC2: {str(e)}")
+                self.set_error(str(e))
+                return self.create_command_result(success=False, error=str(e))
+            
+            # Check if command was successful
+            if self._is_command_successful(result):
+                # Update state with provided updates
+                if state_updates:
+                    # Clear any previous errors
+                    self.clear_error()
+                    self.update_state(**state_updates)
+                
+                # Record last command
+                self.record_last_command(action, params)
+                
+                # Create success message if not provided
+                message = f"{action} command executed successfully"
+                
+                logger.info(f"Successfully executed {action} on eMotiva XMC2: {self.get_name()}")
+                return self.create_command_result(success=True, message=message)
+            else:
+                # Parse the error message from the result
+                error_message = result.get('message', f'Unknown error during {action}') if result else "No response from device"
+                logger.error(f"Failed to execute {action} on eMotiva XMC2: {error_message}")
+                
+                # Update the state with the error
+                self.set_error(error_message)
+                
+                return self.create_command_result(success=False, error=error_message)
         except Exception as e:
-            logger.error(f"Error executing {action} on eMotiva XMC2: {str(e)}")
-            self.update_state(error=str(e))
-            return self._create_response(False, action, error=str(e))
-        
-        # Check if command was successful
-        if self._is_command_successful(result):
-            # Update state with provided updates
-            if state_updates:
-                # Clear any previous errors
-                state_updates["error"] = None
-                self.update_state(**state_updates)
-            
-            # Record last command
-            self.record_last_command(action, params)
-            
-            # Create success message if not provided
-            message = f"{action} command executed successfully"
-            
-            logger.info(f"Successfully executed {action} on eMotiva XMC2: {self.get_name()}")
-            return self._create_response(True, action, message=message)
-        else:
-            # Parse the error message from the result
-            error_message = result.get('message', f'Unknown error during {action}') if result else "No response from device"
-            logger.error(f"Failed to execute {action} on eMotiva XMC2: {error_message}")
-            
-            # Update the state with the error
-            self.update_state(error=error_message)
-            
-            return self._create_response(False, action, error=error_message)
+            # Catch any unexpected exceptions in the command execution process
+            error_message = f"Unexpected error executing {action}: {str(e)}"
+            logger.error(error_message)
+            self.set_error(error_message)
+            return self.create_command_result(success=False, error=error_message)
     
     async def handle_power_on(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
@@ -541,43 +523,57 @@ class EMotivaXMC2(BaseDevice):
             params: Must contain 'level' parameter with a valid volume level
             
         Returns:
-            Command execution result
+            CommandResult: Result of volume setting command
         """
-        # Validate the level parameter
-        is_valid, volume_level, error_message = self._validate_parameter(
-            param_name="level",
-            param_value=params.get("level"),
-            param_type="range",
-            min_value=-96.0,
-            max_value=0.0,
-            action="set_volume"
-        )
-        
-        if not is_valid:
-            logger.error(error_message)
-            return self._create_response(False, "set_volume", error=error_message)
-        
-        logger.info(f"Setting volume to {volume_level} dB on eMotiva XMC2: {self.get_name()}")
-        
-        # Create a function that captures the volume level
-        async def set_volume_with_level() -> CommandResult:
-            return await self.client.set_volume(volume_level)
-        
-        # Execute the command
-        result = await self._execute_device_command(
-            action="set_volume",
-            command_func=set_volume_with_level,
-            params=params,
-            notification_topics=["volume"],
-            state_updates={"volume": volume_level}
-        )
-        
-        # Add volume to the response if successful
-        if result["success"]:
-            result["message"] = f"Volume set to {volume_level} dB successfully"
-            result["volume"] = volume_level
+        try:
+            # Validate the level parameter
+            is_valid, volume_level, error_message = self._validate_parameter(
+                param_name="level",
+                param_value=params.get("level"),
+                param_type="range",
+                min_value=-96.0,
+                max_value=0.0,
+                action="set_volume"
+            )
             
-        return result
+            if not is_valid:
+                logger.error(error_message)
+                return self.create_command_result(success=False, error=error_message)
+            
+            if not self.client:
+                return self.create_command_result(success=False, error="Device not initialized")
+            
+            logger.info(f"Setting volume to {volume_level} dB on eMotiva XMC2: {self.get_name()}")
+            
+            # Create a function that captures the volume level
+            async def set_volume_with_level() -> Dict[str, Any]:
+                return await self.client.set_volume(volume_level)
+            
+            # Execute the command
+            result = await self._execute_device_command(
+                action="set_volume",
+                command_func=set_volume_with_level,
+                params=params,
+                notification_topics=["volume"],
+                state_updates={"volume": volume_level}
+            )
+            
+            # Create success result with volume info if successful
+            if result.get("success", False):
+                # Since we can't modify the result directly due to TypedDict constraints,
+                # create a new result with additional information
+                return self.create_command_result(
+                    success=True,
+                    message=f"Volume set to {volume_level} dB successfully",
+                    volume=volume_level
+                )
+                
+            return result
+        except Exception as e:
+            error_message = f"Error setting volume: {str(e)}"
+            logger.error(error_message)
+            self.set_error(error_message)
+            return self.create_command_result(success=False, error=error_message)
     
     async def handle_set_mute(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
@@ -588,40 +584,54 @@ class EMotivaXMC2(BaseDevice):
             params: Must contain 'state' parameter with a boolean value
             
         Returns:
-            Command execution result
+            CommandResult: Result of mute setting command
         """
-        # Validate the state parameter
-        is_valid, mute_state, error_message = self._validate_parameter(
-            param_name="state",
-            param_value=params.get("state"),
-            param_type="boolean",
-            action="set_mute"
-        )
-        
-        if not is_valid:
-            logger.error(error_message)
-            return self._create_response(False, "set_mute", error=error_message)
-        
-        logger.info(f"Setting mute to {mute_state} on eMotiva XMC2: {self.get_name()}")
-        
-        # Select the appropriate mute function based on state
-        mute_func = self.client.set_mute_on if mute_state else self.client.set_mute_off
-        
-        # Execute the command
-        result = await self._execute_device_command(
-            action="set_mute",
-            command_func=mute_func,
-            params=params,
-            notification_topics=["mute"],
-            state_updates={"mute": mute_state}
-        )
-        
-        # Add mute state to the response if successful
-        if result["success"]:
-            result["message"] = f"Mute set to {mute_state} successfully"
-            result["mute"] = mute_state
+        try:
+            # Validate the state parameter
+            is_valid, mute_state, error_message = self._validate_parameter(
+                param_name="state",
+                param_value=params.get("state"),
+                param_type="boolean",
+                action="set_mute"
+            )
             
-        return result
+            if not is_valid:
+                logger.error(error_message)
+                return self.create_command_result(success=False, error=error_message)
+            
+            if not self.client:
+                return self.create_command_result(success=False, error="Device not initialized")
+            
+            logger.info(f"Setting mute to {mute_state} on eMotiva XMC2: {self.get_name()}")
+            
+            # Select the appropriate mute function based on state
+            mute_func = self.client.set_mute_on if mute_state else self.client.set_mute_off
+            
+            # Execute the command
+            result = await self._execute_device_command(
+                action="set_mute",
+                command_func=mute_func,
+                params=params,
+                notification_topics=["mute"],
+                state_updates={"mute": mute_state}
+            )
+            
+            # Create success result with mute info if successful
+            if result.get("success", False):
+                # Since we can't modify the result directly due to TypedDict constraints,
+                # create a new result with additional information
+                return self.create_command_result(
+                    success=True,
+                    message=f"Mute set to {mute_state} successfully",
+                    mute=mute_state
+                )
+                
+            return result
+        except Exception as e:
+            error_message = f"Error setting mute state: {str(e)}"
+            logger.error(error_message)
+            self.set_error(error_message)
+            return self.create_command_result(success=False, error=error_message)
     
     async def handle_zappiti(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
@@ -634,7 +644,7 @@ class EMotivaXMC2(BaseDevice):
         Returns:
             Command execution result
         """
-        return await self._switch_input_source("Zappiti", "2")
+        return await self._switch_input_source("Zappiti", "1")
         
     async def handle_apple_tv(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
@@ -647,7 +657,7 @@ class EMotivaXMC2(BaseDevice):
         Returns:
             Command execution result
         """
-        return await self._switch_input_source("Apple TV", "3")
+        return await self._switch_input_source("Apple TV", "2")
         
     async def handle_dvdo(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
@@ -660,7 +670,7 @@ class EMotivaXMC2(BaseDevice):
         Returns:
             Command execution result
         """
-        return await self._switch_input_source("DVDO", "1")
+        return await self._switch_input_source("DVDO", "3")
     
     async def _switch_input_source(self, source_name: str, source_id: str) -> CommandResult:
         """
@@ -671,36 +681,50 @@ class EMotivaXMC2(BaseDevice):
             source_id: Input source identifier (e.g., "HDMI 1")
             
         Returns:
-            Dictionary with command result
+            CommandResult: Result of the command execution
         """
-        command_name = f"switch_to_{source_name.lower().replace(' ', '_')}"
-        logger.info(f"Switching input source to {source_name} ({source_id}) on eMotiva XMC2: {self.get_name()}")
-        
-        # Create a function that captures the source_id
-        async def set_input_with_id() -> CommandResult:
-            return await self.client.set_input(source_id)
-        
-        # Create a params dictionary for the record_last_command
-        source_params = {"source_name": source_name, "source_id": source_id}
-        
-        # Execute the command
-        result = await self._execute_device_command(
-            action=command_name,
-            command_func=set_input_with_id,
-            params=source_params,
-            notification_topics=["input"],
-            state_updates={
-                "input_source": source_id,
-                "source_status": source_name  # Set the display name directly
-            }
-        )
-        
-        # Add source info to the response if successful
-        if result["success"]:
-            result["message"] = f"Input switched to {source_name} successfully"
-            result["input"] = source_id
+        try:
+            if not self.client:
+                return self.create_command_result(success=False, error="Device not initialized")
+                
+            command_name = f"switch_to_{source_name.lower().replace(' ', '_')}"
+            logger.info(f"Switching input source to {source_name} ({source_id}) on eMotiva XMC2: {self.get_name()}")
             
-        return result
+            # Create a function that captures the source_id
+            async def set_input_with_id() -> Dict[str, Any]:
+                return await self.client.set_input(source_id)
+            
+            # Create a params dictionary for the record_last_command
+            source_params = {"source_name": source_name, "source_id": source_id}
+            
+            # Execute the command
+            result = await self._execute_device_command(
+                action=command_name,
+                command_func=set_input_with_id,
+                params=source_params,
+                notification_topics=["input"],
+                state_updates={
+                    "input_source": source_id,
+                    "source_status": source_name  # Set the display name directly
+                }
+            )
+            
+            # Create success result with source info if successful
+            if result.get("success", False):
+                # Since we can't modify the result directly due to TypedDict constraints,
+                # create a new result with additional information
+                return self.create_command_result(
+                    success=True,
+                    message=f"Input switched to {source_name} successfully",
+                    input=source_id
+                )
+                
+            return result
+        except Exception as e:
+            error_message = f"Error switching input source: {str(e)}"
+            logger.error(error_message)
+            self.set_error(error_message)
+            return self.create_command_result(success=False, error=error_message)
     
     def record_last_command(self, command: str, params: Dict[str, Any] = None) -> None:
         """
@@ -726,7 +750,7 @@ class EMotivaXMC2(BaseDevice):
         Returns:
             The current device state as a Pydantic model
         """
-        # The state is already a Pydantic model, so we can return it directly
+        # The state is already typed as EmotivaXMC2State, so we can return it directly
         return self.state
     
     def _get_source_display_name(self, source_id: Optional[str]) -> Optional[str]:
@@ -775,84 +799,91 @@ class EMotivaXMC2(BaseDevice):
         # Create a background task for the async call
         asyncio.create_task(self.publish_progress(json.dumps(notification_data)))
         
-        updates: Dict[str, Any] = {}
-        
-        # Process power state
-        if "power" in notification_data:
-            power_data = notification_data["power"]
-            power_state_value = power_data.get("value", "unknown")
-            # Convert string value to enum
-            power_state = PowerState.ON if power_state_value == "on" else PowerState.OFF if power_state_value == "off" else PowerState.UNKNOWN
-            updates["power"] = power_state
-            logger.info(f"Power state updated: {power_state}")
+        try:
+            updates: Dict[str, Any] = {}
             
-        # Process zone2 power state
-        if "zone2_power" in notification_data:
-            zone2_data = notification_data["zone2_power"]
-            zone2_state_value = zone2_data.get("value", "unknown")
-            # Convert string value to enum
-            zone2_state = PowerState.ON if zone2_state_value == "on" else PowerState.OFF if zone2_state_value == "off" else PowerState.UNKNOWN
-            updates["zone2_power"] = zone2_state
-            logger.info(f"Zone 2 power state updated: {zone2_state}")
+            # Process power state
+            if "power" in notification_data:
+                power_data = notification_data["power"]
+                power_state_value = power_data.get("value", "unknown")
+                # Convert string value to enum
+                power_state = PowerState.ON if power_state_value == "on" else PowerState.OFF if power_state_value == "off" else PowerState.UNKNOWN
+                updates["power"] = power_state
+                logger.info(f"Power state updated: {power_state}")
+                
+            # Process zone2 power state
+            if "zone2_power" in notification_data:
+                zone2_data = notification_data["zone2_power"]
+                zone2_state_value = zone2_data.get("value", "unknown")
+                # Convert string value to enum
+                zone2_state = PowerState.ON if zone2_state_value == "on" else PowerState.OFF if zone2_state_value == "off" else PowerState.UNKNOWN
+                updates["zone2_power"] = zone2_state
+                logger.info(f"Zone 2 power state updated: {zone2_state}")
+                
+            # Process volume
+            if "volume" in notification_data:
+                volume_data = notification_data["volume"]
+                volume_value = volume_data.get("value", 0)
+                updates["volume"] = float(volume_value) if volume_value else 0
+                logger.debug(f"Volume updated: {volume_value}")
+                
+            # Process mute state
+            if "mute" in notification_data:
+                mute_data = notification_data["mute"]
+                mute_state = mute_data.get("value", False)
+                # Convert string "true"/"false" to boolean if needed
+                if isinstance(mute_state, str):
+                    mute_state = mute_state.lower() == "true"
+                updates["mute"] = bool(mute_state)
+                logger.debug(f"Mute state updated: {mute_state}")
+                
+            # Process input source
+            if "input" in notification_data:
+                input_data = notification_data["input"]
+                input_value = input_data.get("value", "unknown")
+                updates["input_source"] = input_value
+                # Also set the source_status with the display name
+                updates["source_status"] = self._get_source_display_name(input_value)
+                logger.info(f"Input source updated: {input_value} (display name: {updates['source_status']})")
+                
+            # Process video input
+            if "video_input" in notification_data:
+                video_data = notification_data["video_input"]
+                video_value = video_data.get("value", "unknown")
+                updates["video_input"] = video_value
+                logger.debug(f"Video input updated: {video_value}")
+                
+            # Process audio input
+            if "audio_input" in notification_data:
+                audio_data = notification_data["audio_input"]
+                audio_value = audio_data.get("value", "unknown")
+                updates["audio_input"] = audio_value
+                logger.debug(f"Audio input updated: {audio_value}")
+                
+            # Process audio bitstream
+            if "audio_bitstream" in notification_data:
+                bitstream_data = notification_data["audio_bitstream"]
+                bitstream_value = bitstream_data.get("value", "unknown")
+                updates["audio_bitstream"] = bitstream_value
+                logger.debug(f"Audio bitstream updated: {bitstream_value}")
+                
+            # Process mode (audio mode)
+            if "mode" in notification_data:
+                mode_data = notification_data["mode"]
+                mode_value = mode_data.get("value", "unknown")
+                updates["audio_mode"] = mode_value
+                logger.debug(f"Audio mode updated: {mode_value}")
             
-        # Process volume
-        if "volume" in notification_data:
-            volume_data = notification_data["volume"]
-            volume_value = volume_data.get("value", 0)
-            updates["volume"] = float(volume_value) if volume_value else 0
-            logger.debug(f"Volume updated: {volume_value}")
-            
-        # Process mute state
-        if "mute" in notification_data:
-            mute_data = notification_data["mute"]
-            mute_state = mute_data.get("value", False)
-            # Convert string "true"/"false" to boolean if needed
-            if isinstance(mute_state, str):
-                mute_state = mute_state.lower() == "true"
-            updates["mute"] = bool(mute_state)
-            logger.debug(f"Mute state updated: {mute_state}")
-            
-        # Process input source
-        if "input" in notification_data:
-            input_data = notification_data["input"]
-            input_value = input_data.get("value", "unknown")
-            updates["input_source"] = input_value
-            # Also set the source_status with the display name
-            updates["source_status"] = self._get_source_display_name(input_value)
-            logger.info(f"Input source updated: {input_value} (display name: {updates['source_status']})")
-            
-        # Process video input
-        if "video_input" in notification_data:
-            video_data = notification_data["video_input"]
-            video_value = video_data.get("value", "unknown")
-            updates["video_input"] = video_value
-            logger.debug(f"Video input updated: {video_value}")
-            
-        # Process audio input
-        if "audio_input" in notification_data:
-            audio_data = notification_data["audio_input"]
-            audio_value = audio_data.get("value", "unknown")
-            updates["audio_input"] = audio_value
-            logger.debug(f"Audio input updated: {audio_value}")
-            
-        # Process audio bitstream
-        if "audio_bitstream" in notification_data:
-            bitstream_data = notification_data["audio_bitstream"]
-            bitstream_value = bitstream_data.get("value", "unknown")
-            updates["audio_bitstream"] = bitstream_value
-            logger.debug(f"Audio bitstream updated: {bitstream_value}")
-            
-        # Process mode (audio mode)
-        if "mode" in notification_data:
-            mode_data = notification_data["mode"]
-            mode_value = mode_data.get("value", "unknown")
-            updates["audio_mode"] = mode_value
-            logger.debug(f"Audio mode updated: {mode_value}")
-        
-        # Update device state with notification data
-        if updates:
-            self.update_state(**updates)
-
+            # Update device state with notification data and clear any errors
+            # since successful notifications indicate the device is responsive
+            if updates:
+                self.clear_error()
+                self.update_state(**updates)
+        except Exception as e:
+            logger.error(f"Error processing notification: {str(e)}")
+            # Don't set error state for notification processing issues
+            # as they might be transient
+    
     async def handle_message(self, topic: str, payload: str) -> Optional[CommandResult]:
         """
         Handle incoming MQTT messages for this device.
@@ -866,67 +897,122 @@ class EMotivaXMC2(BaseDevice):
         """
         logger.debug(f"Device {self.get_name()} received message on {topic}: {payload}")
         
-        # Find matching command configuration
-        matching_commands: List[Tuple[str, StandardCommandConfig]] = []
-        
-        for cmd_name, cmd_config in self.get_available_commands().items():
-            # Only use properly typed StandardCommandConfig objects
-            if isinstance(cmd_config, StandardCommandConfig) and cmd_config.topic == topic:
-                matching_commands.append((cmd_name, cmd_config))
-        
-        if not matching_commands:
-            logger.warning(f"No command configuration found for topic: {topic}")
-            return None
-        
-        # Process each matching command configuration found for the topic
-        for cmd_name, cmd_config in matching_commands:
-            # Process parameters if defined
-            params: Dict[str, Any] = {}
+        try:
+            # Find matching command configuration
+            matching_commands: List[Tuple[str, StandardCommandConfig]] = []
             
-            # Get parameters definitions
-            param_definitions: List[CommandParameterDefinition] = cmd_config.params or []
+            for cmd_name, cmd_config in self.get_available_commands().items():
+                # Only use properly typed StandardCommandConfig objects
+                if isinstance(cmd_config, StandardCommandConfig) and cmd_config.topic == topic:
+                    matching_commands.append((cmd_name, cmd_config))
             
-            if param_definitions:
-                # Try to parse payload as JSON
-                try:
-                    params = json.loads(payload)
-                except json.JSONDecodeError:
-                    # For single parameter commands, try to map raw payload to the first parameter
-                    if len(param_definitions) == 1:
-                        param_def = param_definitions[0]
-                        param_name = param_def.name
-                        param_type = param_def.type
-                        required = param_def.required
-                        min_value = getattr(param_def, 'min', None)
-                        max_value = getattr(param_def, 'max', None)
-                        
-                        # Use the validation helper to convert and validate the parameter
-                        is_valid, converted_value, error_message = self._validate_parameter(
-                            param_name=param_name,
-                            param_value=payload,
-                            param_type=param_type,
-                            required=required,
-                            min_value=min_value,
-                            max_value=max_value,
-                            action=cmd_name
-                        )
-                        
-                        if is_valid:
-                            params = {param_name: converted_value}
-                        else:
-                            logger.error(f"Failed to convert payload '{payload}': {error_message}")
-                            return self._create_response(False, cmd_name, error=f"Invalid payload format: {payload}")
-                    else:
-                        logger.error(f"Payload is not valid JSON and command expects multiple parameters: {payload}")
-                        return self._create_response(False, cmd_name, error="Invalid JSON format for multi-parameter command")
+            if not matching_commands:
+                logger.warning(f"No command configuration found for topic: {topic}")
+                return None
             
-            # Get the handler method from registered handlers
-            handler = self._action_handlers.get(cmd_name)
-            if handler:
-                logger.debug(f"Found handler for command {cmd_name}")
-                return await handler(cmd_config=cmd_config, params=params)
-            else:
-                logger.warning(f"No handler found for command: {cmd_name}")
+            # Process each matching command configuration found for the topic
+            for cmd_name, cmd_config in matching_commands:
+                # Process parameters if defined
+                params: Dict[str, Any] = {}
                 
-        return None
+                # Get parameters definitions
+                param_definitions: List[CommandParameterDefinition] = cmd_config.params or []
+                
+                if param_definitions:
+                    # Try to parse payload as JSON
+                    try:
+                        params = json.loads(payload)
+                    except json.JSONDecodeError:
+                        # For single parameter commands, try to map raw payload to the first parameter
+                        if len(param_definitions) == 1:
+                            param_def = param_definitions[0]
+                            param_name = param_def.name
+                            param_type = param_def.type
+                            required = param_def.required
+                            min_value = getattr(param_def, 'min', None)
+                            max_value = getattr(param_def, 'max', None)
+                            
+                            # Use the validation helper to convert and validate the parameter
+                            is_valid, converted_value, error_message = self._validate_parameter(
+                                param_name=param_name,
+                                param_value=payload,
+                                param_type=param_type,
+                                required=required,
+                                min_value=min_value,
+                                max_value=max_value,
+                                action=cmd_name
+                            )
+                            
+                            if is_valid:
+                                params = {param_name: converted_value}
+                            else:
+                                logger.error(f"Failed to convert payload '{payload}': {error_message}")
+                                return self.create_command_result(
+                                    success=False, 
+                                    error=f"Invalid payload format: {payload}"
+                                )
+                        else:
+                            logger.error(f"Payload is not valid JSON and command expects multiple parameters: {payload}")
+                            return self.create_command_result(
+                                success=False, 
+                                error="Invalid JSON format for multi-parameter command"
+                            )
+                
+                # Get the handler method from registered handlers
+                handler = self._action_handlers.get(cmd_name)
+                if handler:
+                    logger.debug(f"Found handler for command {cmd_name}")
+                    try:
+                        return await handler(cmd_config=cmd_config, params=params)
+                    except Exception as e:
+                        error_message = f"Error executing handler for {cmd_name}: {str(e)}"
+                        logger.error(error_message)
+                        self.set_error(error_message)
+                        return self.create_command_result(success=False, error=error_message)
+                else:
+                    logger.warning(f"No handler found for command: {cmd_name}")
+            
+            # If we got here, no matching handler was found or executed            
+            return self.create_command_result(
+                success=False, 
+                error=f"No valid handler found for topic: {topic}"
+            )
+            
+        except Exception as e:
+            error_message = f"Unexpected error handling message on topic {topic}: {str(e)}"
+            logger.error(error_message)
+            self.set_error(error_message)
+            return self.create_command_result(success=False, error=error_message)
+
+    async def publish_progress(self, message: str) -> None:
+        """
+        Publish a progress message to the MQTT progress topic for this device.
+        
+        Args:
+            message: The message to publish
+        """
+        if not self.mqtt_client or not self.mqtt_progress_topic:
+            return
+            
+        try:
+            # Ensure the topic has proper prefix/suffix
+            topic = self.mqtt_progress_topic
+            if not topic.startswith('/'):
+                topic = f'/{topic}'
+                
+            # Include device info in the progress message
+            progress_data = {
+                "device_id": self.device_id,
+                "device_name": self.device_name,
+                "timestamp": datetime.now().isoformat(),
+                "message": message
+            }
+            
+            # Publish to MQTT
+            await self.mqtt_client.publish(topic, json.dumps(progress_data))
+            logger.debug(f"Published progress message to {topic}: {message}")
+        except Exception as e:
+            logger.error(f"Error publishing progress message: {str(e)}")
+            # Don't set error state for publishing issues as they might be transient
+            # and not related to the device itself
 

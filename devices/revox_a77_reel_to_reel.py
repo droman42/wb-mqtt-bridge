@@ -5,19 +5,16 @@ from datetime import datetime
 from devices.base_device import BaseDevice
 from app.schemas import RevoxA77ReelToReelState, LastCommand, RevoxA77ReelToReelConfig, IRCommandConfig
 from app.mqtt_client import MQTTClient
+from app.types import CommandResult, CommandResponse, ActionHandler
 import asyncio
 
 logger = logging.getLogger(__name__)
 
-class RevoxA77ReelToReel(BaseDevice):
+class RevoxA77ReelToReel(BaseDevice[RevoxA77ReelToReelState]):
     """Implementation of a Revox A77 reel-to-reel controlled through Wirenboard IR."""
     
     def __init__(self, config: RevoxA77ReelToReelConfig, mqtt_client: Optional[MQTTClient] = None):
         super().__init__(config, mqtt_client)
-        self._state_schema = RevoxA77ReelToReelState
-        
-        # Use the config directly, no need for casting
-        self.typed_config = config
         
         # Initialize state as a proper Pydantic model
         self.state = RevoxA77ReelToReelState(
@@ -26,30 +23,39 @@ class RevoxA77ReelToReel(BaseDevice):
             connection_status="connected"
         )
         
-        # Register action handlers
-        self._action_handlers = {
+    def _register_handlers(self) -> None:
+        """
+        Register action handlers for the Revox A77 reel-to-reel device.
+        
+        This method maps action names to their corresponding handler methods
+        following the standardized approach.
+        """
+        self._action_handlers.update({
             "play": self.handle_play,
             "stop": self.handle_stop,
             "rewind_forward": self.handle_rewind_forward,
             "rewind_backward": self.handle_rewind_backward
-        }
+        })
 
     async def setup(self) -> bool:
         """Initialize the device."""
         try:
             # Load and validate commands configuration
-            commands = self.typed_config.commands
+            commands = self.config.commands
             if not commands:
-                logger.error(f"No commands defined for device {self.get_name()}")
-                self.update_state(error="No commands defined")
+                error_msg = f"No commands defined for device {self.get_name()}"
+                logger.error(error_msg)
+                self.set_error(error_msg)  # Use standard error method
                 return True  # Return True to allow device to be initialized even without commands
             
             logger.info(f"Revox A77 reel-to-reel {self.get_name()} initialized with {len(commands)} commands")
             return True
             
         except Exception as e:
-            logger.error(f"Failed to initialize device {self.get_name()}: {str(e)}")
-            self.update_state(connection_status="error", error=str(e))
+            error_msg = f"Failed to initialize device {self.get_name()}: {str(e)}"
+            logger.error(error_msg)
+            self.set_error(error_msg)  # Use standard error method
+            self.update_state(connection_status="error")
             return True  # Return True to allow device to be initialized even with errors
 
     async def shutdown(self) -> bool:
@@ -95,42 +101,7 @@ class RevoxA77ReelToReel(BaseDevice):
         # Use the original format with /on suffix
         return f"/devices/{location}/controls/Play from ROM{rom_position}/on"
 
-    def _create_response(self, 
-                        success: bool, 
-                        action: str, 
-                        message: Optional[str] = None, 
-                        error: Optional[str] = None,
-                        **extra_fields) -> Dict[str, Any]:
-        """Create a standardized response dictionary.
-        
-        Args:
-            success: Whether the action was successful
-            action: The name of the action
-            message: Optional success message
-            error: Optional error message
-            **extra_fields: Additional fields to include in the response
-            
-        Returns:
-            A standardized response dictionary
-        """
-        response = {
-            "success": success,
-            "action": action,
-            "device_id": self.device_id
-        }
-        
-        if success and message:
-            response["message"] = message
-            
-        if not success and error:
-            response["error"] = error
-            
-        # Add any extra fields
-        response.update(extra_fields)
-        
-        return response
-
-    async def _send_ir_command(self, cmd_config: IRCommandConfig, command_name: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
+    async def _send_ir_command(self, cmd_config: IRCommandConfig, command_name: str, params: Dict[str, Any] = None) -> CommandResult:
         """
         Send an IR command via MQTT.
         
@@ -140,16 +111,16 @@ class RevoxA77ReelToReel(BaseDevice):
             params: Optional parameters for the command
             
         Returns:
-            Dict with status information
+            CommandResult: Result of the command execution
         """
-        # Get location and ROM position from the typed config
+        # Get location and ROM position from the config
         location = cmd_config.location
         rom_position = cmd_config.rom_position
         
         if not location or not rom_position:
             error_msg = f"Missing location or rom_position for {command_name} command"
             logger.error(error_msg)
-            return self._create_response(False, command_name, error=error_msg)
+            return self.create_command_result(success=False, error=error_msg)
             
         # Construct the MQTT topic
         topic = self._get_command_topic(cmd_config)
@@ -158,7 +129,7 @@ class RevoxA77ReelToReel(BaseDevice):
         if not topic:
             error_msg = f"Failed to create topic for {command_name} command"
             logger.error(error_msg)
-            return self._create_response(False, command_name, error=error_msg)
+            return self.create_command_result(success=False, error=error_msg)
         
         # Record this as the last command sent 
         if params is None:
@@ -185,29 +156,27 @@ class RevoxA77ReelToReel(BaseDevice):
         if self.mqtt_client:
             try:
                 await self.mqtt_client.publish(topic, payload)
-                return self._create_response(
-                    True, 
-                    command_name, 
+                return self.create_command_result(
+                    success=True, 
                     message=f"Sent {command_name} command to {location} at position {rom_position}",
-                    topic=topic,
-                    payload=payload
+                    mqtt_topic=topic,
+                    mqtt_payload=payload
                 )
             except Exception as e:
                 error_msg = f"Failed to send {command_name} command: {str(e)}"
                 logger.error(error_msg)
-                return self._create_response(False, command_name, error=error_msg)
+                return self.create_command_result(success=False, error=error_msg)
         else:
             # For testing without MQTT client
             logger.info(f"MQTT client not available, would send to {topic}: {payload}")
-            return self._create_response(
-                True, 
-                command_name, 
+            return self.create_command_result(
+                success=True, 
                 message=f"Would send {command_name} command to {location} at position {rom_position}",
-                topic=topic,
-                payload=payload
+                mqtt_topic=topic,
+                mqtt_payload=payload
             )
 
-    async def _execute_sequence(self, cmd_config: IRCommandConfig, command_name: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
+    async def _execute_sequence(self, cmd_config: IRCommandConfig, command_name: str, params: Dict[str, Any] = None) -> CommandResult:
         """
         Execute a command sequence: stop -> wait -> requested command.
         
@@ -217,14 +186,14 @@ class RevoxA77ReelToReel(BaseDevice):
             params: Optional parameters for the command
             
         Returns:
-            Dict with status information from the requested command
+            CommandResult: Result of the command execution
         """
         # 1. Find and execute the stop command first
         stop_cmd = self.get_available_commands().get("stop")
         if not stop_cmd:
             error_msg = "Stop command not found in available commands"
             logger.error(error_msg)
-            return self._create_response(False, command_name, error=error_msg)
+            return self.create_command_result(success=False, error=error_msg)
         
         try:
             # No need to convert to IRCommandConfig as it should already be typed
@@ -237,10 +206,10 @@ class RevoxA77ReelToReel(BaseDevice):
             if not stop_result.get("success", False):
                 error_msg = stop_result.get("error", "Failed to execute stop command")
                 logger.error(error_msg)
-                return self._create_response(False, command_name, error=error_msg)
+                return self.create_command_result(success=False, error=error_msg)
             
-            # 2. Get the delay from the typed config
-            sequence_delay = self.typed_config.reel_to_reel.sequence_delay
+            # 2. Get the delay from the config
+            sequence_delay = self.config.reel_to_reel.sequence_delay
             
             # 3. Wait for the configured delay
             await self.publish_progress(f"Waiting {sequence_delay}s before executing {command_name}")
@@ -255,9 +224,9 @@ class RevoxA77ReelToReel(BaseDevice):
         except Exception as e:
             error_msg = f"Error in sequence execution: {str(e)}"
             logger.error(error_msg)
-            return self._create_response(False, command_name, error=error_msg)
+            return self.create_command_result(success=False, error=error_msg)
             
-    async def handle_play(self, cmd_config: IRCommandConfig, params: Dict[str, Any] = None) -> Dict[str, Any]:
+    async def handle_play(self, cmd_config: IRCommandConfig, params: Dict[str, Any] = None) -> CommandResult:
         """
         Handle play command by sending the IR signal.
         
@@ -266,11 +235,11 @@ class RevoxA77ReelToReel(BaseDevice):
             params: Optional parameters for the command
             
         Returns:
-            Dict with status information
+            CommandResult: Result of the command execution
         """
         return await self._execute_sequence(cmd_config, "play", params)
         
-    async def handle_stop(self, cmd_config: IRCommandConfig, params: Dict[str, Any] = None) -> Dict[str, Any]:
+    async def handle_stop(self, cmd_config: IRCommandConfig, params: Dict[str, Any] = None) -> CommandResult:
         """
         Handle stop command by sending the IR signal.
         
@@ -279,11 +248,11 @@ class RevoxA77ReelToReel(BaseDevice):
             params: Optional parameters for the command
             
         Returns:
-            Dict with status information
+            CommandResult: Result of the command execution
         """
         return await self._send_ir_command(cmd_config, "stop", params)
         
-    async def handle_rewind_forward(self, cmd_config: IRCommandConfig, params: Dict[str, Any] = None) -> Dict[str, Any]:
+    async def handle_rewind_forward(self, cmd_config: IRCommandConfig, params: Dict[str, Any] = None) -> CommandResult:
         """
         Handle rewind forward command by sending the IR signal.
         
@@ -292,11 +261,11 @@ class RevoxA77ReelToReel(BaseDevice):
             params: Optional parameters for the command
             
         Returns:
-            Dict with status information
+            CommandResult: Result of the command execution
         """
         return await self._execute_sequence(cmd_config, "rewind_forward", params)
         
-    async def handle_rewind_backward(self, cmd_config: IRCommandConfig, params: Dict[str, Any] = None) -> Dict[str, Any]:
+    async def handle_rewind_backward(self, cmd_config: IRCommandConfig, params: Dict[str, Any] = None) -> CommandResult:
         """
         Handle rewind backward command by sending the IR signal.
         
@@ -305,12 +274,21 @@ class RevoxA77ReelToReel(BaseDevice):
             params: Optional parameters for the command
             
         Returns:
-            Dict with status information
+            CommandResult: Result of the command execution
         """
         return await self._execute_sequence(cmd_config, "rewind_backward", params)
 
-    async def handle_message(self, topic: str, payload: str):
-        """Handle incoming MQTT messages for this device."""
+    async def handle_message(self, topic: str, payload: str) -> Optional[CommandResult]:
+        """
+        Handle incoming MQTT messages for this device.
+        
+        Args:
+            topic: The MQTT topic
+            payload: The message payload
+            
+        Returns:
+            Optional[CommandResult]: Result of handling the message or None
+        """
         try:
             # Find matching command
             matching_cmd_name = None
@@ -324,7 +302,7 @@ class RevoxA77ReelToReel(BaseDevice):
             
             if not matching_cmd_name or not matching_cmd_config:
                 logger.warning(f"No command configuration found for topic: {topic}")
-                return
+                return None
             
             # Check if the payload indicates command should be executed
             if payload.lower() in ["1", "true", "on"]:
@@ -332,17 +310,18 @@ class RevoxA77ReelToReel(BaseDevice):
                 handler = self._action_handlers.get(matching_cmd_name)
                 if handler:
                     # No need to convert to IRCommandConfig, it should already be properly typed
-                    # Call the handler with the typed config
-                    return await handler(cmd_config=matching_cmd_config)
+                    # Call the handler with the typed config and empty params
+                    return await handler(cmd_config=matching_cmd_config, params={})
                 else:
                     logger.warning(f"No handler found for command: {matching_cmd_name}")
-                    return self._create_response(False, matching_cmd_name, error="No handler found")
+                    return self.create_command_result(
+                        success=False, 
+                        error=f"No handler found for command: {matching_cmd_name}"
+                    )
+            
+            return None
             
         except Exception as e:
             error_msg = f"Error handling message for {self.get_name()}: {str(e)}"
             logger.error(error_msg)
-            return self._create_response(False, "unknown", error=error_msg)
-
-    def get_current_state(self) -> RevoxA77ReelToReelState:
-        """Return the current state of the device."""
-        return self.state 
+            return self.create_command_result(success=False, error=error_msg) 

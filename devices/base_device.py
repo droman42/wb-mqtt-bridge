@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional, Type, Callable, TYPE_CHECKING, Awaitable, Coroutine, TypeVar, cast, Union
+from typing import Dict, Any, List, Optional, Type, Callable, TYPE_CHECKING, Awaitable, Coroutine, TypeVar, cast, Union, Generic
 import logging
 import json
 from datetime import datetime
@@ -7,10 +7,11 @@ from socket import socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_BROADCAST
 
 from app.schemas import BaseDeviceState, LastCommand, BaseDeviceConfig, BaseCommandConfig, CommandParameterDefinition
 from app.mqtt_client import MQTTClient
+from app.types import StateT, CommandResult, CommandResponse, ActionHandler
 
 logger = logging.getLogger(__name__)
 
-class BaseDevice(ABC):
+class BaseDevice(ABC, Generic[StateT]):
     """Base class for all device implementations."""
     
     def __init__(self, config: BaseDeviceConfig, mqtt_client: Optional["MQTTClient"] = None):
@@ -25,12 +26,78 @@ class BaseDevice(ABC):
             device_id=self.device_id,
             device_name=self.device_name
         )
-        self._action_handlers: Dict[str, Callable[..., Awaitable[Any]]] = {}  # Cache for action handlers
+        self._action_handlers: Dict[str, ActionHandler] = {}  # Cache for action handlers
         self._action_groups: Dict[str, List[Dict[str, Any]]] = {}  # Index of actions by group
         self.mqtt_client = mqtt_client
         
+        # Register action handlers
+        self._register_handlers()
+        
         # Build action group index
         self._build_action_groups_index()
+    
+    def _register_handlers(self) -> None:
+        """
+        Register all action handlers for this device.
+        
+        This method should be overridden by all device subclasses to register
+        their action handlers in a standardized way.
+        
+        Example:
+            self._action_handlers.update({
+                'power_on': self.handle_power_on,
+                'power_off': self.handle_power_off,
+            })
+        """
+        pass  # To be implemented by subclasses
+    
+    def create_command_result(
+        self, 
+        success: bool, 
+        message: Optional[str] = None, 
+        error: Optional[str] = None, 
+        **extra_fields
+    ) -> CommandResult:
+        """
+        Create a standardized CommandResult.
+        
+        Args:
+            success: Whether the command was successful
+            message: Optional success message
+            error: Optional error message (only if success is False)
+            **extra_fields: Additional fields to include in the result
+            
+        Returns:
+            CommandResult: A standardized result dictionary
+        """
+        result: CommandResult = {
+            "success": success
+        }
+        
+        if message:
+            result["message"] = message
+            
+        if not success and error:
+            result["error"] = error
+            
+        # Add any additional fields
+        for key, value in extra_fields.items():
+            result[key] = value
+            
+        return result
+        
+    def set_error(self, error_message: str) -> None:
+        """
+        Set an error message in the device state.
+        
+        Args:
+            error_message: The error message to set
+        """
+        self.update_state(error=error_message)
+        
+    def clear_error(self) -> None:
+        """Clear any error message from the device state."""
+        self.update_state(error=None)
     
     def _build_action_groups_index(self):
         """Build an index of actions organized by group."""
@@ -239,7 +306,7 @@ class BaseDevice(ABC):
         # Create and validate full parameter dictionary
         return self._resolve_and_validate_params(param_defs, provided_params)
     
-    def _get_action_handler(self, action: str) -> Optional[Callable[..., Any]]:
+    def _get_action_handler(self, action: str) -> Optional[ActionHandler]:
         """Get the handler function for the specified action."""
         # Convert to lower case for case-insensitive lookup
         action = action.lower()
@@ -272,8 +339,12 @@ class BaseDevice(ABC):
         logger.debug(f"[{self.device_name}] No handler found for action '{action}'")
         return None
     
-    async def _execute_single_action(self, action_name: str, cmd_config: BaseCommandConfig, 
-                                     params: Dict[str, Any] = None):
+    async def _execute_single_action(
+        self, 
+        action_name: str, 
+        cmd_config: BaseCommandConfig, 
+        params: Dict[str, Any] = None
+    ) -> Optional[CommandResult]:
         """
         Execute a single action based on its configuration.
         
@@ -283,14 +354,17 @@ class BaseDevice(ABC):
             params: Optional dictionary of parameters (will be validated)
             
         Returns:
-            Any: The result from the handler
+            CommandResult: The result from the handler or None if execution failed
         """
         try:
             # Get the action handler method from the instance
             handler = self._get_action_handler(action_name)
             if not handler:
-                 logger.warning(f"No action handler found for action: {action_name} in device {self.get_name()}")
-                 return None
+                logger.warning(f"No action handler found for action: {action_name} in device {self.get_name()}")
+                return self.create_command_result(
+                    success=False, 
+                    error=f"No handler found for action: {action_name}"
+                )
 
             # Process parameters if not already provided
             if params is None:
@@ -299,8 +373,9 @@ class BaseDevice(ABC):
                     params = self._resolve_and_validate_params(cmd_config.params or [], {})
                 except ValueError as e:
                     # Parameter validation failed
-                    logger.error(f"Parameter validation failed for {action_name}: {str(e)}")
-                    raise
+                    error_msg = f"Parameter validation failed for {action_name}: {str(e)}"
+                    logger.error(error_msg)
+                    return self.create_command_result(success=False, error=error_msg)
             
             logger.debug(f"Executing action: {action_name} with handler: {handler}, params: {params}")
             
@@ -315,12 +390,13 @@ class BaseDevice(ABC):
                 params=params
             ))
             
-            # Return any result from the handler
+            # Return the result
             return result
                 
         except Exception as e:
-            logger.error(f"Error executing action {action_name}: {str(e)}")
-            return None
+            error_msg = f"Error executing action {action_name}: {str(e)}"
+            logger.error(error_msg)
+            return self.create_command_result(success=False, error=error_msg)
     
     def get_current_state(self) -> BaseDeviceState:
         """Get the current state of the device."""
@@ -338,7 +414,11 @@ class BaseDevice(ABC):
         
         logger.debug(f"Updated state for {self.device_name}: {updates}")
     
-    async def execute_action(self, action: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def execute_action(
+        self, 
+        action: str, 
+        params: Optional[Dict[str, Any]] = None
+    ) -> CommandResponse:
         """Execute an action identified by action name."""
         try:
             # Find the command configuration for this action
@@ -349,7 +429,14 @@ class BaseDevice(ABC):
                     break
             
             if not cmd:
-                raise ValueError(f"Action {action} not found in device configuration")
+                error_msg = f"Action {action} not found in device configuration"
+                return CommandResponse(
+                    success=False,
+                    device_id=self.device_id,
+                    action=action,
+                    state=self.state.dict(),
+                    error=error_msg
+                )
             
             # Validate parameters
             validated_params = {}
@@ -359,7 +446,14 @@ class BaseDevice(ABC):
                     validated_params = self._resolve_and_validate_params(cmd.params, params or {})
                 except ValueError as e:
                     # Re-raise with more specific message
-                    raise ValueError(f"Parameter validation failed for action '{action}': {str(e)}")
+                    error_msg = f"Parameter validation failed for action '{action}': {str(e)}"
+                    return CommandResponse(
+                        success=False,
+                        device_id=self.device_id,
+                        action=action,
+                        state=self.state.dict(),
+                        error=error_msg
+                    )
             elif params:
                 # No parameters defined in config but params were provided
                 validated_params = params
@@ -367,28 +461,38 @@ class BaseDevice(ABC):
             # Execute the action with validated parameters
             result = await self._execute_single_action(action, cmd, validated_params)
             
-            response = {
-                "success": True,
-                "device_id": self.device_id,
-                "action": action,
-                "state": self.state.dict()
-            }
+            # Create the response based on the result
+            success = result.get("success", True) if result else True
+            response = CommandResponse(
+                success=success,
+                device_id=self.device_id,
+                action=action,
+                state=self.state.dict()
+            )
             
-            # If the action handler returned a result with mqtt_command, include it in the response
-            if result and isinstance(result, dict) and "mqtt_command" in result:
+            # Add error if present in result
+            if not success and result and "error" in result:
+                response["error"] = result["error"]
+                
+            # Add mqtt_command if present in result
+            if result and "mqtt_command" in result:
                 response["mqtt_command"] = result["mqtt_command"]
             
-            await self.publish_progress(f"Action {action} executed successfully")
+            if success:
+                await self.publish_progress(f"Action {action} executed successfully")
+                
             return response
-            
+                
         except Exception as e:
-            logger.error(f"Error executing action {action} for device {self.device_id}: {str(e)}")
-            return {
-                "success": False,
-                "device_id": self.device_id,
-                "action": action,
-                "error": str(e)
-            }
+            error_msg = f"Error executing action {action} for device {self.device_id}: {str(e)}"
+            logger.error(error_msg)
+            return CommandResponse(
+                success=False,
+                device_id=self.device_id,
+                action=action,
+                state=self.state.dict(),
+                error=error_msg
+            )
     
     async def send_wol_packet(self, mac_address: str, ip_address: str = '255.255.255.255', port: int = 9) -> bool:
         """
