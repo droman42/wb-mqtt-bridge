@@ -14,14 +14,14 @@ class CommandResult(TypedDict, total=False):
     # Other optional fields
 
 # Standard return type for execute_action
-class CommandResponse(TypedDict):
+class CommandResponse(TypedDict, Generic[StateT]):
     """Return type for BaseDevice.execute_action."""
     success: bool
     device_id: str
     action: str
-    state: Dict[str, Any]
+    state: StateT  # Now properly typed with specific state class
     error: Optional[str]
     mqtt_command: Optional[Dict[str, Any]]
 
 # Type definition for action handlers
-ActionHandler = Callable[[BaseCommandConfig, Dict[str, Any]], Awaitable[CommandResult]] 
+ActionHandler = Callable[[BaseCommandConfig, Dict[str, Any]], Awaitable[CommandResult]]

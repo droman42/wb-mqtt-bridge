@@ -274,4 +274,40 @@ class MQTTClient:
             if sub_segments[i] != topic_segments[i]:
                 return False
                 
-        return True 
+        return True
+    
+    async def connect(self):
+        """
+        Connect to MQTT broker without subscribing to any topics.
+        
+        Returns:
+            bool: True if connection was successful, False otherwise
+        """
+        try:
+            # Create client with or without authentication
+            client_args = {
+                'hostname': self.host,
+                'port': self.port,
+                'keepalive': self.keepalive
+            }
+            
+            # Add authentication only if BOTH username AND password are provided and non-empty
+            if self.username and self.password and len(self.username) > 0 and len(self.password) > 0:
+                client_args.update({
+                    'username': self.username,
+                    'password': self.password
+                })
+                logger.info("Using MQTT authentication with provided credentials")
+            else:
+                logger.info("Using anonymous MQTT connection (no credentials provided)")
+            
+            # Start the MQTT client task with no topics
+            listener_task = asyncio.create_task(self._run_mqtt_client(client_args, []))
+            self.tasks.append(listener_task)
+            
+            logger.info(f"MQTT client connecting to broker at {self.host}:{self.port}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to start MQTT client: {str(e)}")
+            return False 

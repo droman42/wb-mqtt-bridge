@@ -434,7 +434,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                     self.update_state(**state_updates)
                 
                 # Record last command
-                self.record_last_command(action, params)
+                self._update_last_command(action, params)
                 
                 # Create success message if not provided
                 message = f"{action} command executed successfully"
@@ -726,32 +726,17 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             self.set_error(error_message)
             return self.create_command_result(success=False, error=error_message)
     
-    def record_last_command(self, command: str, params: Dict[str, Any] = None) -> None:
-        """
-        Record the last command executed with its parameters.
-        
-        Args:
-            command: The command name
-            params: Command parameters
-        """
+    def _update_last_command(self, action: str, params: Dict[str, Any] = None):
+        """Update last command in the device state."""
+        # Create a LastCommand model with current information
         last_command = LastCommand(
-            action=command,
-            source=self.device_name,
+            action=action,
+            source="api",
             timestamp=datetime.now(),
             params=params
         )
         # Store the LastCommand model directly in the state
         self.update_state(last_command=last_command)
-    
-    def get_current_state(self) -> EmotivaXMC2State:
-        """
-        Get the current state of the device.
-        
-        Returns:
-            The current device state as a Pydantic model
-        """
-        # The state is already typed as EmotivaXMC2State, so we can return it directly
-        return self.state
     
     def _get_source_display_name(self, source_id: Optional[str]) -> Optional[str]:
         """

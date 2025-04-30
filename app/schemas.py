@@ -218,7 +218,11 @@ class AppleTVState(BaseDeviceState):
     ip_address: Optional[str] = None
 
 class DeviceState(BaseModel):
-    """Schema for device state."""
+    """
+    Schema for device state.
+    
+    @deprecated: This schema is deprecated. Use specific device state models like KitchenHoodState, LgTvState, etc.
+    """
     device_id: str
     device_name: str
     state: Dict[str, Any]
@@ -226,7 +230,11 @@ class DeviceState(BaseModel):
     error: Optional[str] = None
 
 class DeviceActionResponse(BaseModel):
-    """Schema for device action response."""
+    """
+    Schema for device action response.
+    
+    @deprecated: This schema is deprecated. Use CommandResponse from app.types instead.
+    """
     success: bool
     device_id: str
     action: str

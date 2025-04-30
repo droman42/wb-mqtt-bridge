@@ -33,7 +33,9 @@ from app.schemas import (
     Group,
     ActionGroup,
     GroupedActionsResponse,
-    GroupActionsResponse
+    GroupActionsResponse,
+    BaseDeviceState,
+    CommandResponse
 )
 
 # Setup logging
@@ -137,18 +139,13 @@ async def lifespan(app: FastAPI):
     if typed_configs:
         logger.info(f"Using {len(typed_configs)} typed device configurations")
     
-    # Initialize devices using all available configurations
+    # Initialize devices using typed configurations only
     await device_manager.initialize_devices(config_manager.get_all_device_configs())
     
     # Now set the MQTT client for each initialized device
     for device_id, device in device_manager.devices.items():
         device.mqtt_client = mqtt_client
-        
-        # Log whether this device is using a typed config
-        if device_id in typed_configs:
-            logger.info(f"Device {device_id} initialized with typed configuration")
-        else:
-            logger.info(f"Device {device_id} initialized with legacy configuration")
+        logger.info(f"Device {device_id} initialized with typed configuration")
     
     # Get topics for all devices
     device_topics = {}
@@ -219,7 +216,7 @@ async def get_system_config():
         logger.error(f"Error retrieving system config: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@app.get("/config/device/{device_id}", tags=["Devices"], response_model=DeviceConfig)
+@app.get("/config/device/{device_id}", tags=["Devices"], response_model=BaseDeviceConfig)
 async def get_device_config(device_id: str):
     """Get full configuration for a specific device."""
     if not config_manager:
@@ -238,7 +235,7 @@ async def get_device_config(device_id: str):
         logger.error(f"Error retrieving device config for {device_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@app.get("/config/devices", tags=["Devices"], response_model=Dict[str, DeviceConfig])
+@app.get("/config/devices", tags=["Devices"], response_model=Dict[str, BaseDeviceConfig])
 async def get_all_device_configs():
     """Get configurations for all devices."""
     if not config_manager:
@@ -297,33 +294,45 @@ async def reload_system_task():
                 'auth': mqtt_broker_config.auth
             })
             
-            # Get topics for all devices
-            device_topics = {}
-            if device_manager and config_manager:
-                for device_name, device_config in config_manager.get_all_device_configs().items():
-                    # Register message handler
-                    handler = device_manager.get_message_handler(device_name)
-                    if handler:
-                        new_mqtt_client.register_handler(device_name, handler)
-                    
-                    # Get topics
-                    topics = device_manager.get_device_topics(device_name)
-                    if topics:
-                        device_topics[device_name] = topics
-            
-            # Start new MQTT client
+            # Start the MQTT client first, then initialize devices
             mqtt_client = new_mqtt_client
-            await mqtt_client.start(device_topics)  # using start instead of connect
             
-            # Initialize devices
+            # Initialize devices with clean start
             if device_manager and config_manager:
+                # Shutdown any existing devices
+                await device_manager.shutdown_devices()
+                
+                # Initialize devices with typed configs
                 await device_manager.initialize_devices(config_manager.get_all_device_configs())
-            
+                
+                # Update MQTT client for each device
+                for device_id, device in device_manager.devices.items():
+                    device.mqtt_client = mqtt_client
+                
+                # Create topic to handler mapping
+                topic_handlers = {}
+                for device_id, device in device_manager.devices.items():
+                    # Get message handler for this device
+                    handler = device_manager.get_message_handler(device_id)
+                    if handler:
+                        # Add topic-handler mappings for this device's topics
+                        for topic in device.subscribe_topics():
+                            topic_handlers[topic] = handler
+                
+                # Connect to MQTT broker with topics and handlers
+                if topic_handlers:
+                    await mqtt_client.connect_and_subscribe(topic_handlers)
+                else:
+                    # Connect without topics if no handlers available
+                    await mqtt_client.connect()
+                
             logger.info("System reload completed successfully")
     except Exception as e:
         logger.error(f"Error during system reload: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
 
-@app.get("/devices/{device_id}", tags=["Devices"], response_model=DeviceState)
+@app.get("/devices/{device_id}", tags=["Devices"], response_model=BaseDeviceState)
 async def get_device(device_id: str):
     """Get information about a specific device.
     
@@ -331,7 +340,7 @@ async def get_device(device_id: str):
         device_id: The ID of the device to retrieve
         
     Returns:
-        DeviceState: The device state
+        BaseDeviceState: The device state with proper typing
         
     Raises:
         HTTPException: If device is not found or an error occurs
@@ -346,34 +355,23 @@ async def get_device(device_id: str):
             raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
             
         try:
-            device_name = device.get_name()
+            # Return the properly typed state directly
+            return device.get_current_state()
         except Exception as e:
-            logger.warning(f"Error getting device name for {device_id}: {str(e)}")
-            device_name = device_id
-            
-        try:
-            device_state = device.get_current_state()
-        except Exception as e:
-            logger.warning(f"Error getting device state for {device_id}: {str(e)}")
-            device_state = {"error": str(e)}
-        
-        # Get last command from device state
-        last_command = device_state.get("last_command")
-            
-        return DeviceState(
-            device_id=device_id,
-            device_name=device_name,
-            state=device_state,
-            last_command=last_command,
-            error=device_state.get("error")
-        )
+            logger.error(f"Error getting device state for {device_id}: {str(e)}")
+            # Create a minimal BaseDeviceState with error information
+            return BaseDeviceState(
+                device_id=device_id,
+                device_name=device.get_name(),
+                error=str(e)
+            )
     except Exception as e:
         logger.error(f"Error getting device {device_id}: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@app.post("/devices/{device_id}/action", tags=["Devices"], response_model=DeviceActionResponse)
+@app.post("/devices/{device_id}/action", tags=["Devices"], response_model=CommandResponse)
 async def execute_device_action(
     device_id: str, 
     action: DeviceAction,
@@ -458,10 +456,10 @@ async def execute_device_action(
     result = await device.execute_action(action.action, action.params or {})
     
     if not result["success"]:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise HTTPException(status_code=400, detail=result.get("error", "Unknown error"))
     
     # If there's an MQTT command to be published, do it in the background
-    if result.get("mqtt_command") and mqtt_client is not None:
+    if "mqtt_command" in result and result["mqtt_command"] is not None and mqtt_client is not None:
         mqtt_cmd = result["mqtt_command"]
         background_tasks.add_task(
             mqtt_client.publish,
@@ -469,13 +467,8 @@ async def execute_device_action(
             mqtt_cmd["payload"]
         )
     
-    return DeviceActionResponse(
-        success=True,
-        device_id=device_id,
-        action=action.action,
-        state=result["state"],
-        message="Action executed successfully"
-    )
+    # Return the properly typed CommandResponse directly
+    return result
 
 @app.post("/publish", tags=["MQTT"], response_model=MQTTPublishResponse, responses={
     503: {"model": ErrorResponse, "description": "Service not fully initialized"},

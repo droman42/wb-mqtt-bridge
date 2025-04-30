@@ -398,8 +398,8 @@ class BaseDevice(ABC, Generic[StateT]):
             logger.error(error_msg)
             return self.create_command_result(success=False, error=error_msg)
     
-    def get_current_state(self) -> BaseDeviceState:
-        """Get the current state of the device."""
+    def get_current_state(self) -> StateT:
+        """Get the current state of the device with proper typing."""
         return self.state
     
     def update_state(self, **updates):
@@ -410,7 +410,10 @@ class BaseDevice(ABC, Generic[StateT]):
         # Create a new state object with updated values
         updated_data = self.state.dict(exclude_unset=True)
         updated_data.update(updates)
-        self.state = BaseDeviceState(**updated_data)
+        
+        # Preserve the concrete state type when updating
+        state_cls = type(self.state)  # Get the actual class of the current state
+        self.state = state_cls(**updated_data)  # Create a new instance of the same class
         
         logger.debug(f"Updated state for {self.device_name}: {updates}")
     
@@ -418,7 +421,7 @@ class BaseDevice(ABC, Generic[StateT]):
         self, 
         action: str, 
         params: Optional[Dict[str, Any]] = None
-    ) -> CommandResponse:
+    ) -> CommandResponse[StateT]:
         """Execute an action identified by action name."""
         try:
             # Find the command configuration for this action
@@ -434,7 +437,7 @@ class BaseDevice(ABC, Generic[StateT]):
                     success=False,
                     device_id=self.device_id,
                     action=action,
-                    state=self.state.dict(),
+                    state=self.state,  # Now properly typed
                     error=error_msg
                 )
             
@@ -451,7 +454,7 @@ class BaseDevice(ABC, Generic[StateT]):
                         success=False,
                         device_id=self.device_id,
                         action=action,
-                        state=self.state.dict(),
+                        state=self.state,  # Now properly typed
                         error=error_msg
                     )
             elif params:
@@ -463,11 +466,11 @@ class BaseDevice(ABC, Generic[StateT]):
             
             # Create the response based on the result
             success = result.get("success", True) if result else True
-            response = CommandResponse(
+            response: CommandResponse[StateT] = CommandResponse(
                 success=success,
                 device_id=self.device_id,
                 action=action,
-                state=self.state.dict()
+                state=self.state  # Now properly typed
             )
             
             # Add error if present in result
@@ -490,7 +493,7 @@ class BaseDevice(ABC, Generic[StateT]):
                 success=False,
                 device_id=self.device_id,
                 action=action,
-                state=self.state.dict(),
+                state=self.state,  # Now properly typed
                 error=error_msg
             )
     
@@ -642,4 +645,50 @@ class BaseDevice(ABC, Generic[StateT]):
                 if default is not None:
                     result[param_name] = default
                     
+        return result
+    
+    def create_mqtt_command_result(
+        self, 
+        success: bool, 
+        mqtt_topic: str, 
+        mqtt_payload: Any, 
+        message: Optional[str] = None, 
+        error: Optional[str] = None, 
+        **extra_fields
+    ) -> CommandResult:
+        """
+        Create a standardized CommandResult with MQTT command.
+        
+        Args:
+            success: Whether the command was successful
+            mqtt_topic: The MQTT topic to publish to
+            mqtt_payload: The MQTT payload to publish (will be converted to string if not already)
+            message: Optional success message
+            error: Optional error message (only if success is False)
+            **extra_fields: Additional fields to include in the result
+            
+        Returns:
+            CommandResult: A standardized result dictionary with MQTT command
+        """
+        # Convert the payload to JSON string if it's a dict or list
+        if isinstance(mqtt_payload, (dict, list)):
+            mqtt_payload_str = json.dumps(mqtt_payload)
+        else:
+            mqtt_payload_str = str(mqtt_payload)
+            
+        # Create the MQTT command structure
+        mqtt_command = {
+            "topic": mqtt_topic,
+            "payload": mqtt_payload_str
+        }
+        
+        # Create the command result with the MQTT command
+        result = self.create_command_result(
+            success=success, 
+            message=message, 
+            error=error, 
+            mqtt_command=mqtt_command,
+            **extra_fields
+        )
+        
         return result

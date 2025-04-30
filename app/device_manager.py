@@ -1,5 +1,5 @@
 import os
-import importlib.util
+import importlib
 import logging
 import inspect
 import sys
@@ -60,22 +60,55 @@ class DeviceManager:
         
         logger.info(f"Loaded device classes: {list(self.device_classes.keys())}")
     
-    async def initialize_devices(self, configs: Dict[str, Union[DeviceConfig, BaseDeviceConfig]]):
-        """Initialize devices from their configurations."""
+    async def initialize_devices(self, configs: Dict[str, BaseDeviceConfig]):
+        """
+        Initialize devices from typed configurations using dynamic imports.
+        
+        This method instantiates device objects based on their class name from the config,
+        dynamically loading the modules as needed rather than relying on a factory pattern.
+        
+        Args:
+            configs: Dictionary of device configurations mapped by device_id
+        """
         for device_id, config in configs.items():
             try:
-                device_type = config.device_class
-                device_class = self.device_classes.get(device_type)
+                device_class_name = config.device_class
+                
+                # First try to get the class from already loaded classes
+                device_class = self.device_classes.get(device_class_name)
+                
+                # If not found, attempt to dynamically import it
+                if not device_class:
+                    try:
+                        # Convert class name to module name (e.g., LgTv -> lg_tv)
+                        module_name = ''.join(['_'+c.lower() if c.isupper() else c for c in device_class_name]).lstrip('_')
+                        logger.info(f"Attempting to dynamically import device class {device_class_name} from module devices.{module_name}")
+                        
+                        # Import the module and get the class
+                        module = importlib.import_module(f"devices.{module_name}")
+                        device_class = getattr(module, device_class_name)
+                        
+                        # Cache the class for future use
+                        self.device_classes[device_class_name] = device_class
+                        logger.info(f"Successfully imported device class {device_class_name}")
+                    except (ImportError, AttributeError) as e:
+                        logger.error(f"Failed to dynamically load device class '{device_class_name}': {str(e)}")
+                        continue
                 
                 if not device_class:
-                    logger.error(f"Device type {device_type} not found for device {device_id}")
+                    logger.error(f"Device class {device_class_name} not found for device {device_id}")
                     continue
                 
-                # Pass the typed configuration object directly to the device constructor
+                # Instantiate the device with typed configuration
                 device = device_class(config, self.mqtt_client)
-                await device.setup()
+                success = await device.setup()
+                
+                if not success:
+                    logger.error(f"Failed to set up device {device_id} of type {device_class_name}")
+                    continue
+                    
                 self.devices[device_id] = device
-                logger.info(f"Initialized device {device_id} of type {device_type}")
+                logger.info(f"Initialized device {device_id} of type {device_class_name}")
                 
             except Exception as e:
                 logger.error(f"Failed to initialize device {device_id}: {str(e)}")

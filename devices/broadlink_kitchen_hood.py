@@ -202,8 +202,12 @@ class BroadlinkKitchenHood(BaseDevice[KitchenHoodState]):
             # Update state using update_state method
             self.update_state(light=state)
             await self.publish_progress(f"Light turned {state}")
-            return self.create_command_result(
+            
+            # Create a standardized result with MQTT command information
+            return self.create_mqtt_command_result(
                 success=True,
+                mqtt_topic=f"kitchen_hood/light/state",
+                mqtt_payload=state,
                 message=f"Light turned {state}"
             )
         else:
@@ -249,20 +253,16 @@ class BroadlinkKitchenHood(BaseDevice[KitchenHoodState]):
             logger.error(error_msg)
             await self.publish_progress(f"Invalid speed level value")
             return self.create_command_result(success=False, error=error_msg)
-        
-        # Convert level to string for lookup in the RF codes map
-        level_str = str(level)
-        
-        # Get RF code from the rf_codes map
+            
+        # Get RF code from the rf_codes map - the key is the level as string
         if "speed" not in self.rf_codes:
             error_msg = "No RF codes map found for 'speed' category"
             logger.error(error_msg)
-            await self.publish_progress("No RF codes map found for speed control")
+            await self.publish_progress("No RF codes map found for speed")
             return self.create_command_result(success=False, error=error_msg)
             
-        # Access RF code using proper typed structure
-        # Note: We keep this as dict access since rf_codes is defined as Dict[str, Dict[str, str]] in the schema
-        rf_code = self.rf_codes.get("speed", {}).get(level_str)
+        level_key = str(level)
+        rf_code = self.rf_codes.get("speed", {}).get(level_key)
         if not rf_code:
             error_msg = f"No RF code found for speed level: {level}"
             logger.error(error_msg)
@@ -273,8 +273,12 @@ class BroadlinkKitchenHood(BaseDevice[KitchenHoodState]):
             # Update state using update_state method
             self.update_state(speed=level)
             await self.publish_progress(f"Speed set to {level}")
-            return self.create_command_result(
+            
+            # Create a standardized result with MQTT command information
+            return self.create_mqtt_command_result(
                 success=True,
+                mqtt_topic=f"kitchen_hood/speed/state",
+                mqtt_payload=level,
                 message=f"Speed set to {level}"
             )
         else:
