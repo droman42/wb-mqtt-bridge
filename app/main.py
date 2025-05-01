@@ -17,7 +17,6 @@ from app.device_manager import DeviceManager
 from app.mqtt_client import MQTTClient
 from app.schemas import (
     MQTTBrokerConfig,
-    DeviceConfig,
     BaseDeviceConfig,
     DeviceState,
     DeviceActionResponse,
@@ -131,7 +130,7 @@ async def lifespan(app: FastAPI):
     })
     
     # Initialize device manager with null MQTT client initially
-    device_manager = DeviceManager(mqtt_client=None)
+    device_manager = DeviceManager(mqtt_client=None, config_manager=config_manager)
     await device_manager.load_device_modules()
     
     # Log the number of typed configurations
@@ -303,6 +302,7 @@ async def reload_system_task():
                 await device_manager.shutdown_devices()
                 
                 # Initialize devices with typed configs
+                device_manager.config_manager = config_manager
                 await device_manager.initialize_devices(config_manager.get_all_device_configs())
                 
                 # Update MQTT client for each device

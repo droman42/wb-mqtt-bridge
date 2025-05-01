@@ -1,13 +1,12 @@
 {
   "device_name": "Kitchen Hood",
-  "device_type": "broadlink_kitchen_hood",
   "device_id": "kitchen_hood",
   "alias": "kitchen_hood",
   "mqtt_progress_topic": "/devices/kitchen_hood/controls/progress",
   "broadlink": {
     "host": "192.168.110.131",
     "mac": "EC:0B:AE:EE:21:66",
-    "device_class": "0x520b"
+    "device_code": "0x520b"
   },
   "rf_codes": {
     "light": {

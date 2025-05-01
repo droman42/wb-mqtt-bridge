@@ -2,8 +2,8 @@ import os
 import json
 import pytest
 from typing import Dict, Any
-from app.config_manager import ConfigManager, DEVICE_CONFIG_MAPPING
-from app.schemas import BroadlinkKitchenHoodConfig, DeviceConfig
+from app.config_manager import ConfigManager
+from app.schemas import BroadlinkKitchenHoodConfig, BaseDeviceConfig
 
 @pytest.fixture
 def config_manager(tmpdir):
@@ -49,7 +49,7 @@ def config_manager(tmpdir):
         "broadlink": {
             "host": "192.168.1.100",
             "mac": "AA:BB:CC:DD:EE:FF",
-            "device_class": "0x520b"
+            "device_code": "0x520b"
         },
         "rf_codes": {
             "light": {
@@ -89,10 +89,12 @@ def config_manager(tmpdir):
     # Create and return the config manager
     return ConfigManager(config_dir=str(config_dir))
 
-def test_device_config_mapping():
-    """Test that the device config mapping is set up correctly."""
-    assert "BroadlinkKitchenHood" in DEVICE_CONFIG_MAPPING
-    assert DEVICE_CONFIG_MAPPING["BroadlinkKitchenHood"] == BroadlinkKitchenHoodConfig
+def test_config_models():
+    """Test that the config models mapping is set up correctly."""
+    # Get the models from the ConfigManager
+    models = ConfigManager._config_models
+    assert "BroadlinkKitchenHood" in models
+    assert models["BroadlinkKitchenHood"] == BroadlinkKitchenHoodConfig
 
 def test_load_kitchen_hood_config(config_manager):
     """Test that a kitchen hood config is loaded with the correct class."""
@@ -118,26 +120,22 @@ def test_load_kitchen_hood_config(config_manager):
     assert commands["set_light"].action == "set_light"
 
 def test_standard_device_config(config_manager):
-    """Test that a standard device config uses the default DeviceConfig class."""
-    # Get the standard device config
+    """Test that standard device config fails to load without a specific model."""
+    # This device should not be loaded because there's no StandardDevice config model
     standard_config = config_manager.get_device_config("test_standard_device")
     
-    # Check that it's loaded with the default class
-    assert isinstance(standard_config, DeviceConfig)
-    assert not isinstance(standard_config, BroadlinkKitchenHoodConfig)
-    
-    # Check that fields are preserved
-    assert standard_config.device_name == "Test Standard Device"
+    # The config should not be loaded
+    assert standard_config is None
 
-def test_register_config_class():
-    """Test registering a new config class."""
+def test_register_config_model():
+    """Test registering a new config model."""
     # Create a test config class
-    class TestDeviceConfig(DeviceConfig):
+    class TestDeviceConfig(BaseDeviceConfig):
         test_field: str = "test"
     
     # Register it
-    ConfigManager.register_device_config_class("TestDevice", TestDeviceConfig)
+    ConfigManager.register_config_model("TestDevice", TestDeviceConfig)
     
     # Check it was registered
-    assert "TestDevice" in DEVICE_CONFIG_MAPPING
-    assert DEVICE_CONFIG_MAPPING["TestDevice"] == TestDeviceConfig 
+    assert "TestDevice" in ConfigManager._config_models
+    assert ConfigManager._config_models["TestDevice"] == TestDeviceConfig 

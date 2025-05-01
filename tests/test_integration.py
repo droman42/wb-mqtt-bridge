@@ -53,7 +53,7 @@ class TestStateTypePreservation(unittest.TestCase):
         self.hood_config.broadlink = MagicMock()
         self.hood_config.broadlink.host = "192.168.1.100"
         self.hood_config.broadlink.mac = "00:11:22:33:44:55"
-        self.hood_config.broadlink.device_class = "0x5213"
+        self.hood_config.broadlink.device_code = "0x5213"
         
         # Create a mock config for WirenboardIR
         self.ir_config = MagicMock(spec=WirenboardIRDeviceConfig)
@@ -123,7 +123,7 @@ class TestMQTTCommandPropagation(unittest.TestCase):
         self.hood_config.broadlink = MagicMock()
         self.hood_config.broadlink.host = "192.168.1.100"
         self.hood_config.broadlink.mac = "00:11:22:33:44:55"
-        self.hood_config.broadlink.device_class = "0x5213"
+        self.hood_config.broadlink.device_code = "0x5213"
         
         # Create a mock config for WirenboardIR
         self.ir_config = MagicMock(spec=WirenboardIRDeviceConfig)

@@ -5,6 +5,10 @@ from enum import Enum
 import os
 from typing_extensions import Protocol
 
+# NOTE: This module is transitioning away from using 'device_class' in device configurations.
+# The proper way to specify the device class is to use the 'class' field in the system configuration.
+# The 'device_class' field in device configurations is deprecated and will be removed in a future version.
+
 class MQTTBrokerConfig(BaseModel):
     """Schema for MQTT broker configuration."""
     host: str
@@ -57,7 +61,7 @@ class BroadlinkConfig(BaseModel):
     """Schema for Broadlink device configuration."""
     host: str
     mac: str
-    device_class: str
+    device_code: str
     timeout: Optional[int] = None
     retry_count: Optional[int] = None
 
@@ -106,7 +110,6 @@ class BaseDeviceConfig(BaseModel):
     """Base schema for device configuration."""
     device_id: str
     device_name: str
-    device_class: str
     mqtt_progress_topic: str = ""
 
 # Device-specific configuration models
@@ -142,25 +145,6 @@ class EmotivaXMC2DeviceConfig(BaseDeviceConfig):
     """Configuration for Emotiva XMC2 device."""
     commands: Dict[str, StandardCommandConfig]
     emotiva: EmotivaConfig
-
-# For backward compatibility during transition
-T = TypeVar('T', bound=BaseDeviceConfig)
-class DeviceConfig(BaseModel):
-    """Legacy schema for device configuration with mixed command types.
-    This will be deprecated once all devices are migrated to typed configs.
-    """
-    device_id: str
-    device_name: str
-    device_class: str
-    mqtt_progress_topic: str = ""
-    parameters: Dict[str, Any] = {}
-    commands: Dict[str, Union[Dict[str, Any], BaseCommandConfig]] = {}
-    
-    # Device-specific configurations
-    broadlink: Optional[BroadlinkConfig] = None
-    tv: Optional[LgTvConfig] = None
-    emotiva: Optional[EmotivaConfig] = None
-    apple_tv: Optional[AppleTVConfig] = None
 
 # The rest of the state models remain unchanged
 class LastCommand(BaseModel):

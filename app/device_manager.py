@@ -5,19 +5,26 @@ import inspect
 import sys
 from typing import Dict, Any, Callable, List, Optional, Union
 from devices.base_device import BaseDevice
-from app.schemas import DeviceConfig, BaseDeviceConfig
+from app.schemas import BaseDeviceConfig
 from app.mqtt_client import MQTTClient
+from app.config_manager import ConfigManager
+
+# NOTE: This module uses the 'class' field from system configuration
+# to determine the device class for instantiation.
+# The ConfigManager.get_device_class_name method is used to get class names.
 
 logger = logging.getLogger(__name__)
 
 class DeviceManager:
     """Manages device modules and their message handlers."""
     
-    def __init__(self, devices_dir: str = "devices", mqtt_client: Optional[MQTTClient] = None):
+    def __init__(self, devices_dir: str = "devices", mqtt_client: Optional[MQTTClient] = None, 
+                 config_manager: Optional[ConfigManager] = None):
         self.devices_dir = devices_dir
         self.device_classes: Dict[str, type] = {}  # Stores class definitions
         self.devices: Dict[str, BaseDevice] = {}  # Stores device instances
         self.mqtt_client = mqtt_client
+        self.config_manager = config_manager  # Store reference to ConfigManager
     
     async def load_device_modules(self):
         """Dynamically load all device modules from the devices directory."""
@@ -64,7 +71,7 @@ class DeviceManager:
         """
         Initialize devices from typed configurations using dynamic imports.
         
-        This method instantiates device objects based on their class name from the config,
+        This method instantiates device objects based on their class name from the system config,
         dynamically loading the modules as needed rather than relying on a factory pattern.
         
         Args:
@@ -72,7 +79,15 @@ class DeviceManager:
         """
         for device_id, config in configs.items():
             try:
-                device_class_name = config.device_class
+                # Get the device class name from ConfigManager
+                device_class_name = None
+                if self.config_manager:
+                    device_class_name = self.config_manager.get_device_class_name(device_id)
+                
+                if not device_class_name:
+                    logger.error(f"No class name found for device '{device_id}'. "
+                                f"Make sure 'class' is set in system config.")
+                    continue
                 
                 # First try to get the class from already loaded classes
                 device_class = self.device_classes.get(device_class_name)

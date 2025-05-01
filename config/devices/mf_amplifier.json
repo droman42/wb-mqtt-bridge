@@ -1,6 +1,5 @@
 {
   "device_name": "Musical Fidelity M6si",
-  "device_type": "wirenboard_ir",
   "device_id": "mf_amplifier",
   "alias": "amplifier",
   "mqtt_progress_topic": "/devices/amplifier/controls/progress",

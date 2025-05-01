@@ -338,6 +338,16 @@ LOG_LEVEL=INFO
     "volume": "Sound Volume",
     "screen": "Screen Control",
     "playback": "Playback"
+  },
+  "devices": {
+    "kitchen_hood": {
+      "class": "BroadlinkKitchenHood",
+      "config_file": "kitchen_hood.json"
+    },
+    "lg_tv": {
+      "class": "LgTv",
+      "config_file": "lg_tv.json"
+    }
   }
 }
 ```
@@ -346,33 +356,18 @@ LOG_LEVEL=INFO
 
 ```json
 {
-  "device_id": "example_device",
-  "device_name": "Example Device",
-  "device_type": "example",
+  "device_id": "lg_tv",
+  "device_name": "Living Room TV",
+  "mqtt_progress_topic": "home/tv/progress",
   "commands": {
     "power_on": {
-      "topic": "home/example/power",
-      "rf_code": "base64_encoded_rf_code_here",
       "action": "power_on",
-      "group": "power"
-    },
-    "volume_up": {
-      "topic": "home/example/volume",
-      "rf_code": "base64_encoded_rf_code_here", 
-      "action": "volume_up",
-      "group": "volume"
-    },
-    "play": {
-      "topic": "home/example/playback",
-      "rf_code": "base64_encoded_rf_code_here", 
-      "action": "play",
-      "group": "playback"
-    },
-    "unassigned_action": {
-      "topic": "home/example/misc",
-      "rf_code": "base64_encoded_rf_code_here", 
-      "action": "misc_action"
+      "description": "Turn TV on"
     }
+  },
+  "tv": {
+    "ip_address": "192.168.1.100",
+    "mac_address": "AA:BB:CC:DD:EE:FF"
   }
 }
 ```
@@ -662,4 +657,51 @@ if __name__ == "__main__":
 
 ## License
 
-This project is open source and available under the MIT License. 
+This project is open source and available under the MIT License.
+
+# Configuration Structure Updates
+
+## System Configuration
+
+The system configuration now fully defines device class information using the `class` field. This is the only way to specify device class names.
+
+Example:
+
+```json
+{
+  "devices": {
+    "kitchen_hood": {
+      "class": "BroadlinkKitchenHood",
+      "config_file": "kitchen_hood.json"
+    },
+    "lg_tv": {
+      "class": "LgTv",
+      "config_file": "lg_tv.json"
+    }
+  }
+}
+```
+
+## Device Configuration
+
+Device configuration files no longer include a `device_class` field. The system configuration's `class` field is used instead.
+
+Example device configuration:
+
+```json
+{
+  "device_id": "lg_tv",
+  "device_name": "Living Room TV",
+  "mqtt_progress_topic": "home/tv/progress",
+  "commands": {
+    "power_on": {
+      "action": "power_on",
+      "description": "Turn TV on"
+    }
+  },
+  "tv": {
+    "ip_address": "192.168.1.100",
+    "mac_address": "AA:BB:CC:DD:EE:FF"
+  }
+}
+``` 

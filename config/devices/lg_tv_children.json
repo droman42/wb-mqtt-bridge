@@ -1,6 +1,5 @@
 {
   "device_name": "LG OLED55C6D",
-  "device_type": "lg_tv",
   "device_id": "children_room_tv",
   "alias": "children_room_tv",
   "mqtt_progress_topic": "/devices/children_room_tv/controls/progress",

@@ -60,11 +60,19 @@ class BroadlinkKitchenHood(BaseDevice[KitchenHoodState]):
             
             logger.info(f"Initializing Broadlink device: {self.get_name()} at {broadlink_config.host}")
             
+            # Handle device_code
+            if not broadlink_config.device_code:
+                logger.warning(f"device_code not specified for {self.get_name()}, "
+                              f"using default 0x520b (RM4 Pro)")
+                devtype = 0x520b  # Default for RM4 Pro
+            else:
+                devtype = int(broadlink_config.device_code, 16)
+            
             # Initialize the Broadlink device
             self.broadlink_device = broadlink.rm4pro(
                 host=(broadlink_config.host, 80),
                 mac=bytes.fromhex(broadlink_config.mac.replace(':', '')),
-                devtype=int(broadlink_config.device_class, 16)
+                devtype=devtype
             )
             
             # Authenticate with the device

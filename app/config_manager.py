@@ -4,7 +4,6 @@ import logging
 from typing import Dict, Any, List, Optional, Type, Union, cast
 from app.schemas import (
     SystemConfig, 
-    DeviceConfig,
     MQTTBrokerConfig,
     BaseDeviceConfig,
     WirenboardIRDeviceConfig,
@@ -18,6 +17,9 @@ from app.schemas import (
     BroadlinkCommandConfig,
     BaseCommandConfig
 )
+
+# NOTE: This module uses 'class' field from system configuration
+# to determine the device class type for each device.
 
 logger = logging.getLogger(__name__)
 
@@ -91,12 +93,13 @@ class ConfigManager:
             logger.error(f"Failed to save system config: {str(e)}")
             raise
     
-    def _create_typed_config(self, config_data: Dict[str, Any]) -> BaseDeviceConfig:
+    def _create_typed_config(self, config_data: Dict[str, Any], device_class: str) -> BaseDeviceConfig:
         """
         Create a typed device configuration from a dictionary.
         
         Args:
             config_data: Dictionary containing the device configuration
+            device_class: Device class name from system config
             
         Returns:
             Typed device configuration object
@@ -104,11 +107,6 @@ class ConfigManager:
         Raises:
             RuntimeError: If creation fails for any reason
         """
-        # Get the device class from the config
-        device_class = config_data.get("device_class")
-        if not device_class:
-            raise RuntimeError(f"Missing device_class in device configuration: {config_data.get('device_id', 'unknown')}")
-            
         # Get the config model for this device class
         config_model = self._config_models.get(device_class)
         if not config_model:
@@ -117,7 +115,7 @@ class ConfigManager:
                 f"No typed config model found for device class: {device_class}. "
                 f"Available models: {available_models}"
             )
-            
+        
         # Process commands to ensure they're properly typed
         if "commands" in config_data:
             processed_commands = {}
@@ -178,15 +176,13 @@ class ConfigManager:
                     
                 device_config_dict["device_id"] = device_id
                 
-                # Add class information
+                # Get class information from system config
                 device_class = device_info.get("class")
                 if not device_class:
                     raise RuntimeError(f"Missing 'class' field in system config for device_id '{device_id}'")
                     
-                device_config_dict["device_class"] = device_class
-                
                 # Create typed config with no fallbacks - let failures raise errors
-                self.typed_configs[device_id] = self._create_typed_config(device_config_dict)
+                self.typed_configs[device_id] = self._create_typed_config(device_config_dict, device_class)
                 logger.info(f"Created typed configuration for device: {device_id} ({device_class})")
                 
             except Exception as e:
@@ -195,7 +191,18 @@ class ConfigManager:
                 raise RuntimeError(f"Failed to load config for device '{device_id}': {str(e)}")
     
     def get_device_class_name(self, device_id: str) -> Optional[str]:
-        """Get the class name for a device."""
+        """
+        Get the class name for a device from the system configuration.
+        
+        This method returns the 'class' field from the system config for this device,
+        which should be used for device instantiation and type determination.
+        
+        Args:
+            device_id: The device ID to look up
+            
+        Returns:
+            The class name string or None if not found
+        """
         devices_config = self.system_config.devices
         device_info = devices_config.get(device_id, {})
         return device_info.get('class')
@@ -291,5 +298,8 @@ class ConfigManager:
             device_class: Device class name (e.g., "WirenboardIRDevice")
             config_model: Configuration model class
         """
+        # The device_class here is used as a key in the config_models dictionary
+        # This should match the 'class' field in system config, not the 'device_class' field
+        # in individual device config files which is being deprecated
         cls._config_models[device_class] = config_model
         logger.info(f"Registered config model for device class: {device_class}") 
