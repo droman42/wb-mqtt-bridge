@@ -16,7 +16,10 @@
   "log_level": "DEBUG",
   "log_file": "logs/service.log",
   "loggers": {
-    "websockets.client": "INFO"
+    "websockets.client": "INFO",
+    "pyatv": "WARNING",
+    "pyatv.support.knock": "ERROR",
+    "pyatv.core.scan": "ERROR"
   },
   "groups": {
     "volume": "Volume Control",

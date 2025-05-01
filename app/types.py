@@ -1,4 +1,5 @@
-from typing import Dict, Any, List, Optional, TypeVar, Generic, Union, Callable, Awaitable, TypedDict
+from typing import Dict, Any, List, Optional, TypeVar, Generic, Union, Callable, Awaitable
+from typing_extensions import TypedDict
 from app.schemas import BaseDeviceState, BaseCommandConfig
 
 # Define state type variable for generic typing

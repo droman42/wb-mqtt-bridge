@@ -18,8 +18,6 @@ from app.mqtt_client import MQTTClient
 from app.schemas import (
     MQTTBrokerConfig,
     BaseDeviceConfig,
-    DeviceState,
-    DeviceActionResponse,
     DeviceActionsResponse,
     SystemConfig,
     ErrorResponse,
@@ -33,9 +31,9 @@ from app.schemas import (
     ActionGroup,
     GroupedActionsResponse,
     GroupActionsResponse,
-    BaseDeviceState,
-    CommandResponse
+    BaseDeviceState
 )
+from app.types import CommandResponse
 
 # Setup logging
 def setup_logging(log_file: str, log_level: str):

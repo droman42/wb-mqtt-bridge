@@ -172,52 +172,6 @@ class BaseDevice(ABC, Generic[StateT]):
                 topics.append(cmd.topic)
         return topics
     
-    def _evaluate_condition(self, condition: str, payload: str) -> bool:
-        """Evaluate a condition string against the payload."""
-        try:
-            # Simple equality check
-            if condition.startswith("payload == "):
-                expected_value = condition.split("==")[1].strip().strip("'\"")
-                return payload == expected_value
-            
-            # Numeric comparison
-            if any(op in condition for op in ["<=", ">=", "<", ">"]):
-                try:
-                    payload_num = float(payload)
-                    condition_num = float(condition.split()[-1])
-                    if "<=" in condition:
-                        return payload_num <= condition_num
-                    elif ">=" in condition:
-                        return payload_num >= condition_num
-                    elif "<" in condition:
-                        return payload_num < condition_num
-                    elif ">" in condition:
-                        return payload_num > condition_num
-                except ValueError:
-                    return False
-            
-            # JSON path evaluation
-            if condition.startswith("json:"):
-                try:
-                    payload_data = json.loads(payload)
-                    path = condition[5:].strip()
-                    # Simple path evaluation (can be enhanced with a proper JSON path library)
-                    parts = path.split(".")
-                    current = payload_data
-                    for part in parts:
-                        if isinstance(current, dict):
-                            current = current.get(part)
-                        else:
-                            return False
-                    return bool(current)
-                except (json.JSONDecodeError, AttributeError):
-                    return False
-            
-            return False
-        except Exception as e:
-            logger.error(f"Error evaluating condition '{condition}': {str(e)}")
-            return False
-    
     async def handle_message(self, topic: str, payload: str):
         """Handle incoming MQTT messages for this device."""
         logger.debug(f"Device {self.get_name()} received message on {topic}: {payload}")
@@ -226,14 +180,8 @@ class BaseDevice(ABC, Generic[StateT]):
         matching_commands = []
         for cmd_name, cmd in self.get_available_commands().items():
             if cmd.topic == topic:
-                # For each command with a matching topic
-                if cmd.condition:
-                    # If command has a condition, evaluate it
-                    if self._evaluate_condition(cmd.condition, payload):
-                        matching_commands.append((cmd_name, cmd))
-                else:
-                    # Command has no condition, add it to matches
-                    matching_commands.append((cmd_name, cmd))
+                # Add command to matches when topic matches
+                matching_commands.append((cmd_name, cmd))
         
         if not matching_commands:
             logger.warning(f"No command configuration found for topic: {topic}")
@@ -279,6 +227,34 @@ class BaseDevice(ABC, Generic[StateT]):
                 provided_params = json_params
             else:
                 logger.debug(f"Payload parsed as JSON but is not an object: {payload}")
+                # Handle simple JSON values (numbers, strings, booleans) when only one parameter is defined
+                if len(param_defs) == 1:
+                    param_def = param_defs[0]
+                    param_name = param_def.name
+                    param_type = param_def.type
+                    
+                    # Process the simple JSON value based on parameter type
+                    try:
+                        if param_type == "integer":
+                            provided_params = {param_name: int(json_params)}
+                        elif param_type == "float":
+                            provided_params = {param_name: float(json_params)}
+                        elif param_type == "boolean":
+                            # Convert numeric values to boolean
+                            if isinstance(json_params, (int, float)):
+                                provided_params = {param_name: bool(json_params)}
+                            elif isinstance(json_params, str):
+                                provided_params = {param_name: json_params.lower() in ("1", "true", "yes", "on")}
+                            else:
+                                provided_params = {param_name: bool(json_params)}
+                        else:  # string or any other type
+                            provided_params = {param_name: str(json_params)}
+                    except (ValueError, TypeError):
+                        logger.error(f"Failed to convert JSON value '{json_params}' to type {param_type}")
+                        raise ValueError(f"Failed to convert JSON value '{json_params}' to type {param_type}")
+                else:
+                    logger.error(f"Payload is a simple JSON value but command expects multiple parameters: {payload}")
+                    raise ValueError(f"Simple value cannot be used with multiple parameters")
         except json.JSONDecodeError:
             # Handle single parameter commands with non-JSON payload
             if len(param_defs) == 1:
