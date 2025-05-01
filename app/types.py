@@ -15,14 +15,27 @@ class CommandResult(TypedDict, total=False):
     # Other optional fields
 
 # Standard return type for execute_action
-class CommandResponse(TypedDict, Generic[StateT]):
-    """Return type for BaseDevice.execute_action."""
+# Split into required and optional components
+class CommandResponseRequired(TypedDict, Generic[StateT]):
+    """Required fields for CommandResponse."""
     success: bool
     device_id: str
     action: str
     state: StateT  # Now properly typed with specific state class
+
+class CommandResponseOptional(TypedDict, total=False):
+    """Optional fields for CommandResponse."""
     error: Optional[str]
     mqtt_command: Optional[Dict[str, Any]]
+
+class CommandResponse(CommandResponseRequired[StateT], CommandResponseOptional, Generic[StateT]):
+    """Return type for BaseDevice.execute_action.
+    
+    This combines required fields (success, device_id, action, state)
+    with optional fields (error, mqtt_command) to match FastAPI validation
+    requirements while maintaining proper typing.
+    """
+    pass
 
 # Type definition for action handlers
 ActionHandler = Callable[[BaseCommandConfig, Dict[str, Any]], Awaitable[CommandResult]]

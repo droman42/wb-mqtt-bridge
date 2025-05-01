@@ -213,34 +213,39 @@ async def get_system_config():
         logger.error(f"Error retrieving system config: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@app.get("/config/device/{device_id}", tags=["Devices"], response_model=BaseDeviceConfig)
+@app.get("/config/device/{device_id}", tags=["Devices"])
 async def get_device_config(device_id: str):
     """Get full configuration for a specific device."""
     if not config_manager:
         raise HTTPException(status_code=503, detail="Service not fully initialized")
     
     try:
-        device_config = config_manager.get_device_config(device_id)
-        if not device_config:
-            logger = logging.getLogger(__name__)
-            logger.error(f"Configuration for device {device_id} not found")
-            raise HTTPException(status_code=404, detail=f"Device configuration for {device_id} not found")
+        # Get the typed configuration for this device
+        typed_configs = config_manager.get_all_typed_configs()
+        if device_id in typed_configs:
+            return typed_configs[device_id]
         
-        return device_config
+        # No typed config found - return 404
+        logger = logging.getLogger(__name__)
+        logger.error(f"Typed configuration for device {device_id} not found")
+        raise HTTPException(status_code=404, detail=f"Typed device configuration for {device_id} not found")
     except Exception as e:
         logger = logging.getLogger(__name__)
         logger.error(f"Error retrieving device config for {device_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@app.get("/config/devices", tags=["Devices"], response_model=Dict[str, BaseDeviceConfig])
+@app.get("/config/devices", tags=["Devices"])
 async def get_all_device_configs():
     """Get configurations for all devices."""
     if not config_manager:
         raise HTTPException(status_code=503, detail="Service not fully initialized")
     
     try:
-        all_device_configs = config_manager.get_all_device_configs()
-        return all_device_configs
+        # Get all typed configurations
+        typed_configs = config_manager.get_all_typed_configs()
+        
+        # Return typed configs (may be empty dict if none exist)
+        return typed_configs
     except Exception as e:
         logger = logging.getLogger(__name__)
         logger.error(f"Error retrieving all device configs: {str(e)}")

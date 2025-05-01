@@ -127,12 +127,6 @@
       "description": "Menu Button",
       "group": "menu"
     },
-    "settings": {
-      "action": "settings",
-      "topic": "/devices/living_room_tv/controls/settings",
-      "description": "Settings Button",
-      "group": "menu"
-    },
     "set_volume": {
       "action": "set_volume",
       "topic": "/devices/living_room_tv/controls/set",
@@ -183,7 +177,8 @@
       "description": "Launch App",
       "group": "apps",
       "params": [
-        {"name": "app_id", "type": "string", "required": true, "description": "App name or ID to launch"}
+        {"name": "app_name", "type": "string", "required": false, "description": "App name to launch (preferred, at least one of app_name or app_id must be provided)"},
+        {"name": "app_id", "type": "string", "required": false, "description": "App ID to launch (alternative, at least one of app_name or app_id must be provided)"}
       ]
     }
   }

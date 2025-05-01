@@ -1,32 +1,16 @@
 # Scenario System Specification
 
-## 1. Device Configuration Changes
+## 1. Device Configuration
 
-### Command Role Attribution
+Commands already have a 'group' attribute which is used for organizing related functions. No configuration changes are needed - device configurations should be used as-is.
+
+Example command structure:
 ```json
 {
-  "device_id": "living_room_tv",
-  "device_type": "lg_tv",
-  "commands": {
-    "power": {
-      "action": "POWER",
-      "topic": "/devices/living_room_tv/controls/buttons/power",
-      "description": "Power Button",
-      "roles": ["power_control"]
-    },
-    "input_source": {
-      "action": "INPUT_SOURCE",
-      "topic": "/devices/living_room_tv/controls/input_source",
-      "description": "Input Source Selection",
-      "roles": ["source_control"]
-    },
-    "volume": {
-      "action": "VOLUME",
-      "topic": "/devices/living_room_tv/controls/volume",
-      "description": "Volume Control",
-      "roles": ["volume_control"]
-    }
-  }
+  "action": "POWER",
+  "topic": "/devices/living_room_tv/controls/buttons/power",
+  "description": "Power Button",
+  "group": "power_control"
 }
 ```
 
@@ -39,10 +23,10 @@
   "description": "Setup for watching movies with optimal audio and video settings",
   "devices": {
     "living_room_tv": {
-      "roles": ["screen", "volume_control"]
+      "groups": ["screen", "volume_control"]
     },
     "audio_receiver": {
-      "roles": ["audio_control", "source_control"]
+      "groups": ["audio_control", "source_control"]
     }
   },
   "startup_sequence": [
@@ -235,7 +219,7 @@ async def get_current_scenario():
 1. **Device Validation**
    - All referenced devices must exist
    - All referenced commands must exist in device configuration
-   - All referenced roles must be supported by device commands
+   - All referenced groups must be supported by device commands
 
 2. **Dependency Validation**
    - No circular dependencies allowed
@@ -247,10 +231,10 @@ async def get_current_scenario():
    - All functions must reference valid commands
    - Conditions must be valid expressions
 
-4. **Role Validation**
-   - Each device must have at least one role
-   - Roles must be unique within a device
-   - Roles must be supported by device commands
+4. **Group Validation**
+   - Each device must have at least one group
+   - Groups must be unique within a device
+   - Groups must be supported by device commands
 
 ## Open Questions
 

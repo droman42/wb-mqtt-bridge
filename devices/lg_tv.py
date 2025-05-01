@@ -113,7 +113,6 @@ class LgTv(BaseDevice[LgTvState]):
             'enter': self.handle_enter,
             'exit': self.handle_exit,
             'menu': self.handle_menu,
-            'settings': self.handle_settings,
             'volume_up': self.handle_volume_up,
             'volume_down': self.handle_volume_down,
             'set_volume': self.handle_set_volume,
@@ -262,6 +261,14 @@ class LgTv(BaseDevice[LgTvState]):
             if apps is not None:
                 self._cached_apps = apps
                 logger.info(f"App cache refreshed: {len(apps)} apps available")
+                
+                # Log all available apps in a simplified format for easier debugging
+                app_list = []
+                for app in apps:
+                    app_id, app_name = self._get_app_info(app, "Unknown")
+                    app_list.append({"id": app_id, "name": app_name})
+                
+                logger.debug(f"Available apps: {json.dumps(app_list, indent=2, ensure_ascii=False)}")
                 return True
             else:
                 logger.warning("Failed to get app list from TV")
@@ -291,6 +298,15 @@ class LgTv(BaseDevice[LgTvState]):
             if sources is not None:
                 self._cached_input_sources = sources
                 logger.info(f"Input sources cache refreshed: {len(sources)} sources available")
+                
+                # Log all available input sources in a simplified format for easier debugging
+                source_list = []
+                for source in sources:
+                    source_id = source.get("id", "unknown")
+                    source_name = source.get("label", "Unknown")
+                    source_list.append({"id": source_id, "name": source_name})
+                
+                logger.debug(f"Available input sources: {json.dumps(source_list, indent=2, ensure_ascii=False)}")
                 return True
             else:
                 logger.warning("Failed to get input sources list from TV")
@@ -868,27 +884,21 @@ class LgTv(BaseDevice[LgTvState]):
             error="Failed to power off TV" if not success else None
         )
     
-    async def handle_menu(self, params: Dict[str, Any] = None) -> bool:
+    async def handle_menu(
+        self, 
+        cmd_config: StandardCommandConfig, 
+        params: Dict[str, Any]
+    ) -> CommandResult:
         """Handle menu button action.
         
         Args:
+            cmd_config: Command configuration
             params: Dictionary containing optional parameters (not used for menu)
             
         Returns:
-            True if successful, False otherwise
+            CommandResult: Result of the command execution
         """
         return await self._execute_input_command("menu", "menu")
-    
-    async def handle_settings(self, params: Dict[str, Any] = None) -> bool:
-        """Handle settings button action.
-        
-        Args:
-            params: Dictionary containing optional parameters (not used for settings)
-            
-        Returns:
-            True if successful, False otherwise
-        """
-        return await self._execute_input_command("settings", "settings")
     
     async def handle_volume_up(
         self, 
@@ -953,6 +963,59 @@ class LgTv(BaseDevice[LgTvState]):
             requires_state=True
         )
 
+    def _get_app_info(self, app_obj: Any, fallback_name: str = "") -> Tuple[Optional[str], str]:
+        """Extract app ID and title from an app object.
+        
+        Args:
+            app_obj: The app object (either Application object or dictionary)
+            fallback_name: Fallback name to use if title cannot be determined
+            
+        Returns:
+            Tuple of (app_id, app_title) - app_id may be None if not found
+        """
+        app_id = None
+        app_title = fallback_name
+        
+        try:
+            # First, check if the app object has a data attribute (asyncwebostv.model.Application)
+            if hasattr(app_obj, "data") and isinstance(app_obj.data, dict):
+                # Application objects store properties in the data dictionary
+                app_id = app_obj.data.get("id")
+                app_title = app_obj.data.get("title", fallback_name)
+                
+                # If title is not found, try other common keys
+                if not app_title or app_title == fallback_name:
+                    app_title = app_obj.data.get("name", app_obj.data.get("label", fallback_name))
+            
+            # Dictionary-style access for direct dictionaries
+            elif isinstance(app_obj, dict):
+                app_id = app_obj.get("id")
+                app_title = app_obj.get("title", fallback_name)
+                
+                # If title is not found, try other common keys
+                if not app_title or app_title == fallback_name:
+                    app_title = app_obj.get("name", app_obj.get("label", fallback_name))
+            
+            # Direct attribute access (legacy approach)
+            elif hasattr(app_obj, "id"):
+                app_id = app_obj.id
+                # Try various possible title attribute names
+                if hasattr(app_obj, "title"):
+                    app_title = app_obj.title
+                elif hasattr(app_obj, "name"):
+                    app_title = app_obj.name
+                elif hasattr(app_obj, "label"):
+                    app_title = app_obj.label
+            
+            # Convert None to empty string for title to ensure we always have a string
+            if app_title is None:
+                app_title = fallback_name
+                
+        except Exception as e:
+            logger.debug(f"Error extracting app info: {str(e)}")
+            
+        return app_id, app_title
+
     async def handle_launch_app(
         self, 
         cmd_config: StandardCommandConfig, 
@@ -962,22 +1025,29 @@ class LgTv(BaseDevice[LgTvState]):
         
         Args:
             cmd_config: Command configuration
-            params: Dictionary containing app_id parameter
+            params: Dictionary containing either app_id or app_name parameter
             
         Returns:
             CommandResult: Result of the command execution
         """
-        # Get app ID or name from params
-        if not params or "app_id" not in params:
-            error_msg = "Missing required 'app_id' parameter"
+        # Get app ID or name from params - support both app_id and app_name for compatibility
+        app_identifier = None
+        
+        # Check for app_name parameter first (preferred)
+        if params and "app_name" in params:
+            app_identifier = params["app_name"]
+        # Fall back to app_id for backward compatibility
+        elif params and "app_id" in params:
+            app_identifier = params["app_id"]
+        
+        if not app_identifier:
+            error_msg = "Missing required parameter: at least one of 'app_name' or 'app_id' must be provided"
             logger.error(error_msg)
             return self.create_command_result(success=False, error=error_msg)
         
-        app_id = params["app_id"]
-        
         try:
             if not self.app or not self.client or not self.state.connected:
-                error_msg = f"Cannot launch app {app_id}: Not connected to TV"
+                error_msg = f"Cannot launch app {app_identifier}: Not connected to TV"
                 logger.error(error_msg)
                 return self.create_command_result(success=False, error=error_msg)
             
@@ -986,28 +1056,62 @@ class LgTv(BaseDevice[LgTvState]):
                 await self._refresh_app_cache()
             
             # Find the app by name or ID
-            app_to_launch = self._find_app_by_name_or_id(self._cached_apps, app_id)
+            app_to_launch = self._find_app_by_name_or_id(self._cached_apps, app_identifier)
             
             if not app_to_launch:
-                error_msg = f"App '{app_id}' not found on TV"
+                error_msg = f"App '{app_identifier}' not found on TV"
                 logger.error(error_msg)
                 return self.create_command_result(success=False, error=error_msg)
             
-            actual_app_id = app_to_launch.get("id")
-            app_name = app_to_launch.get("title", app_id)
+            # Get app ID and title
+            actual_app_id, app_title = self._get_app_info(app_to_launch, app_identifier)
             
-            logger.info(f"Launching app '{app_name}' (ID: {actual_app_id})")
+            if not actual_app_id:
+                error_msg = f"Could not determine app ID for '{app_identifier}'"
+                logger.error(error_msg)
+                return self.create_command_result(success=False, error=error_msg)
+            
+            logger.info(f"Launching app '{app_title}' (ID: {actual_app_id})")
             
             # Launch the app
             result = await self.app.launch(actual_app_id)
             
-            if result.get("returnValue", False):
+            # Add detailed logging of the result structure
+            logger.debug(f"Launch app result type: {type(result)}, value: {result}")
+            if isinstance(result, dict):
+                logger.debug(f"Result keys: {result.keys()}")
+                if "returnValue" in result:
+                    logger.debug(f"returnValue: {result['returnValue']}")
+            
+            # WebOS API responses can vary:
+            # 1. {'returnValue': True} - Direct response
+            # 2. {'payload': {'returnValue': True}} - Nested response
+            # 3. Empty dict but operation succeeded
+            success = False
+            
+            if isinstance(result, dict):
+                # Check for direct returnValue
+                if "returnValue" in result and result["returnValue"] == True:
+                    success = True
+                # Check for nested returnValue in payload
+                elif "payload" in result and isinstance(result["payload"], dict):
+                    if "returnValue" in result["payload"] and result["payload"]["returnValue"] == True:
+                        success = True
+                # Empty dict with no error could also be a success
+                elif not result:
+                    # If result is empty and we received no error, assume success
+                    # since the WebOS API sometimes returns empty responses for successful operations
+                    success = True
+                    logger.debug("Empty result dict received, assuming success")
+            
+            if success:
+                logger.info(f"Successfully launched app '{app_title}'")
                 # Update state
                 await self._update_current_app()
                 await self._update_last_command("launch_app", params, "api")
                 return self.create_command_result(
                     success=True, 
-                    message=f"Successfully launched app '{app_name}'"
+                    message=f"Successfully launched app '{app_title}'"
                 )
             
             error_msg = f"Failed to launch app: {result}"
@@ -1015,24 +1119,61 @@ class LgTv(BaseDevice[LgTvState]):
             return self.create_command_result(success=False, error=error_msg)
             
         except Exception as e:
-            error_msg = f"Error launching app {app_id}: {str(e)}"
+            error_msg = f"Error launching app {app_identifier}: {str(e)}"
             logger.error(error_msg)
             return self.create_command_result(success=False, error=error_msg)
 
-    def _find_app_by_name_or_id(self, apps: List[Dict[str, Any]], app_name: str) -> Optional[Dict[str, Any]]:
+    def _find_app_by_name_or_id(self, apps: List[Any], app_name: str) -> Optional[Any]:
         """Find an app by name or ID from a list of apps.
         
         Args:
-            apps: List of app dictionaries from the TV
+            apps: List of app objects from the TV (either Application objects or dictionaries)
             app_name: The name or ID to search for
             
         Returns:
-            The found app dictionary or None if not found
+            The found app object or None if not found
         """
+        if not apps:
+            logger.debug("No apps available to search")
+            return None
+
+        # For improved debugging, log number of apps available
+        logger.debug(f"Searching for app '{app_name}' among {len(apps)} available apps")
+            
         for app in apps:
-            # Match by ID (exact) or title (case-insensitive contains)
-            if app_name == app.get("id") or app_name.lower() in app.get("title", "").lower():
-                return app
+            try:
+                # Use _get_app_info to extract app ID and title consistently
+                app_id, app_title = self._get_app_info(app, "")
+                
+                # Match by ID (exact) or title (case-insensitive contains)
+                if app_id and app_name == app_id:
+                    logger.debug(f"Found app by exact ID match: {app_id} - {app_title}")
+                    return app
+                elif app_title and app_name.lower() in app_title.lower():
+                    logger.debug(f"Found app by name match: {app_id} - {app_title}")
+                    return app
+                
+            except Exception as e:
+                # Log any errors but continue checking other apps
+                logger.debug(f"Error matching app: {str(e)}")
+                continue
+                
+        # If we got this far, no match was found
+        logger.debug(f"No matching app found for '{app_name}'")
+        
+        # For diagnostic purposes, log some app names to help the user
+        try:
+            sample_size = min(5, len(apps))
+            if sample_size > 0:
+                sample_apps = []
+                for i in range(sample_size):
+                    app_id, app_title = self._get_app_info(apps[i], "Unknown")
+                    sample_apps.append(f"{app_title} (ID: {app_id})")
+                    
+                logger.debug(f"Sample of available apps: {', '.join(sample_apps)}")
+        except Exception as e:
+            logger.debug(f"Error creating app sample: {str(e)}")
+            
         return None
         
     async def _get_available_apps_internal(self) -> List[Dict[str, Any]]:
@@ -1751,8 +1892,39 @@ class LgTv(BaseDevice[LgTvState]):
                 else:
                     result = await media_control_method()
                 
+                # Add detailed debug logging to see the exact structure
+                logger.debug(f"Raw result from {media_method_name}: {type(result)} {result}")
+                
                 # Check result
-                if result.get("returnValue", False):
+                # Handle the nested payload structure in the response
+                success = False
+                if isinstance(result, dict):
+                    logger.debug(f"Result is dict with keys: {result.keys()}")
+                    # Check for returnValue in the payload (most common case)
+                    if "payload" in result and isinstance(result["payload"], dict):
+                        logger.debug(f"Found payload with content: {result['payload']}")
+                        # Treat empty dict as success (library validation already confirmed it)
+                        if not result["payload"]:
+                            success = True
+                            logger.debug("Empty payload dict treated as success")
+                        else:
+                            success = result["payload"].get("returnValue", False)
+                        logger.debug(f"Payload returnValue: {success}")
+                    # Fallback to checking at the top level
+                    else:
+                        # Treat empty dict as success (library validation already confirmed it)
+                        if not result:
+                            success = True
+                            logger.debug("Empty result dict treated as success")
+                        else:
+                            success = result.get("returnValue", False)
+                        logger.debug(f"Top level returnValue: {success}")
+                else:
+                    logger.debug(f"Result is not a dict, it's a {type(result)}")
+                
+                logger.debug(f"Final success determination: {success}")
+                
+                if success:
                     # Update state if needed
                     if state_key_to_update:
                         if requires_level:

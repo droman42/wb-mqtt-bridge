@@ -9,12 +9,12 @@
 - [x] Сделать AppleTV
 - [x] Разобраться с warnings по вытяжке
 - [x] Для катушечника - проверить, нужна ли своя handle_message, сделать mqtt_client глобально доступным?
-- [ ] Проверить execute_action, если передаются параметры (см. [optional_params.md](optional_params.md))
+- [x] Проверить execute_action, если передаются параметры (см. [optional_params.md](optional_params.md))
 - [x] Придумать как пускать вытяжку через FastAPI
 - [ ] Запуск приложений на AppleTV
 - [x] MQTT через FastAPI с payload
 - [ ] Проверить катушечник после рефакторинга Варенборда
-- [ ] LgTv - проверить статусы и тд при вкл.выкл, работают пока не все функции
+- [ ] LgTv - запуск приложений и переключение входов. Не работает range по mqtt. MQTT через FastAPI не работает вообще
 - [ ] Сделать remote logging перед установкой контейнера docker на контроллер
 - [ ] Проыерить необходимость WOL для eMotiva XMC-2 + set_volume и set_mute для zone2
 
