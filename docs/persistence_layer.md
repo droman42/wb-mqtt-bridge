@@ -87,6 +87,8 @@ This document specifies the design and implementation details for a universal St
 +     async def initialize(self) -> None:
 +         """
 +         Placeholder for recovery logic: reload persisted state on startup.
++         Note: Full implementation will be provided in a later phase
++         once scenario management is implemented.
 +         """
 +         # for each device in config:
 +         #   stored = await self.store.get(f"device:{device_id}")
@@ -115,74 +117,102 @@ This document specifies the design and implementation details for a universal St
 
 * Replace any ad-hoc Redis usage with `self.store.get/set(...)`.
 * Ensure `switch_scenario()` persists new `ScenarioState` under key `"scenario:last"` after transition.
-* Provide placeholder `initialize()` for recovery similar to DeviceManager.
+* Provide placeholder `initialize()` for recovery similar to DeviceManager (to be fully implemented in a later phase).
+* All persistence operations must strictly adhere to the Pydantic models defined in the scenario system specification.
 
 ### 3.3 `app/main.py`
 
-* Replace hard-coded database path with value read from the system configuration loaded by `ConfigurationManager`.
+* Integrate with the existing lifespan context manager by initializing the StateStore at the right point in the startup/shutdown sequence.
 
-````python
-from pathlib import Path
-from fastapi import FastAPI
+```python
+# Add import
 from .state_store import SQLiteStateStore
-from .config_manager import ConfigurationManager
-from .device_manager import DeviceManager
-from .scenario_manager import ScenarioManager
 
-app = FastAPI()
+# Add to global instances
+config_manager = None
+device_manager = None
+mqtt_client = None
+state_store = None  # Add state store to globals
 
-# Load system-wide configuration (including persistence settings)
-config_manager = ConfigurationManager(config_file_path="config.json")
-system_config = config_manager.system_config
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for FastAPI application."""
+    # Startup
+    global config_manager, device_manager, mqtt_client, state_store
+    
+    # Initialize config manager
+    config_manager = ConfigManager()
+    
+    # Setup logging with system config
+    system_config = config_manager.get_system_config()
+    log_file = system_config.log_file or 'logs/service.log'
+    log_level = system_config.log_level
+    setup_logging(log_file, log_level)
+    
+    # Apply logger-specific configuration
+    # ... existing code ...
+    
+    logger = logging.getLogger(__name__)
+    logger.info("Starting MQTT Web Service")
+    
+    # Initialize state store after config but before device manager
+    db_path = Path(system_config.persistence.db_path)
+    state_store = SQLiteStateStore(db_path=str(db_path))
+    await state_store.initialize()
+    logger.info(f"State persistence initialized with SQLite at {db_path}")
+    
+    # Initialize MQTT client
+    # ... existing MQTT client initialization ...
+    
+    # Initialize device manager with MQTT client and state store
+    device_manager = DeviceManager(
+        mqtt_client=None,
+        config_manager=config_manager,
+        store=state_store  # Inject state store here
+    )
+    
+    # ... rest of existing initialization ...
+    
+    yield  # Service is running
+    
+    # Shutdown
+    logger.info("System shutting down...")
+    await mqtt_client.disconnect()
+    await device_manager.shutdown_devices()
+    
+    # Close state store after device shutdown but before final log
+    await state_store.close()
+    logger.info("State persistence connection closed")
+    
+    logger.info("System shutdown complete")
+```
 
-# Read database filename from system configuration
-# Expects: system_config.persistence.db_path is defined in your config schema
-db_path = Path(system_config.persistence.db_path)
-store = SQLiteStateStore(db_path=str(db_path))
+* Update `SystemConfig` schema to include persistence configuration:
 
-# Inject shared state store into managers
-# Note: pass the same system_config (or relevant sub-config) into each manager
-device_manager = DeviceManager(system_config, store=store)
-scenario_manager = ScenarioManager(system_config, store=store)
-
-@app.on_event("startup")
-async def startup_event():
-    await device_manager.initialize()
-    await scenario_manager.initialize()
-
-@app.get("/devices/{device_id}/state")
-async def get_device_state(device_id: str):
-    return await store.get(f"device:{device_id}") or {}
-
-@app.get("/scenario/state")
-async def get_scenario_state():
-    return await store.get("scenario:last") or {}
 ```python
--from .device_manager import DeviceManager
--from .scenario_manager import ScenarioManager
-+from .state_store import SQLiteStateStore
-+from .device_manager import DeviceManager
-+from .scenario_manager import ScenarioManager
+# In app/schemas.py
+class PersistenceConfig(BaseModel):
+    db_path: str = "data/state_store.db"
+    
+class SystemConfig(BaseModel):
+    # ... existing fields ...
+    persistence: PersistenceConfig = PersistenceConfig()
+```
 
-db_path = Path("state_store.db")
-store = SQLiteStateStore(db_path=str(db_path))
-
-device_manager = DeviceManager(config, store=store)
-scenario_manager = ScenarioManager(config, store=store)
-````
-
-* Call both `initialize()` methods during FastAPI startup.
-
-* Add HTTP endpoints to expose persisted state:
+* Add the HTTP endpoints to the appropriate router file (likely `app/routers/system.py`):
 
 ```python
-@app.get("/devices/{device_id}/state")
-async def get_device_state(device_id: str):
-    return await store.get(f"device:{device_id}") or {}
+# In app/routers/system.py
 
-@app.get("/scenario/state")
+@router.get("/devices/{device_id}/state")
+async def get_device_state(device_id: str):
+    """Get the persisted state of a specific device."""
+    return await state_store.get(f"device:{device_id}") or {}
+
+@router.get("/scenario/state")
 async def get_scenario_state():
-    return await store.get("scenario:last") or {}
+    """Get the persisted state of the last active scenario."""
+    return await state_store.get("scenario:last") or {}
 ```
 
 ---
@@ -195,10 +225,18 @@ async def get_scenario_state():
 from typing import Protocol, Optional, Dict, Any
 
 class StateStore(Protocol):
+    async def initialize(self) -> None:
+        """Initialize database connection and create necessary tables."""
+        
+    async def close(self) -> None:
+        """Close database connection and release resources."""
+        
     async def get(self, key: str) -> Optional[Dict[str, Any]]:
         """Return the JSON-loaded dict for `key`, or None if missing."""
+        
     async def set(self, key: str, value: Dict[str, Any]) -> None:
         """Persist `value` as JSON under `key`. Overwrite if exists."""
+        
     async def delete(self, key: str) -> None:
         """Remove the persisted entry for `key`, if any."""
 ```
@@ -208,6 +246,8 @@ class StateStore(Protocol):
 ```python
 import json
 import aiosqlite
+import asyncio
+import sys
 from typing import Optional, Dict, Any
 
 class SQLiteStateStore:
@@ -219,12 +259,13 @@ class SQLiteStateStore:
     """
     def __init__(self, db_path: str):
         self.db_path = db_path
-        # asynchronously create table
-        asyncio.create_task(self._init_db())
+        self.connection = None
 
-    async def _init_db(self) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
-            await db.execute(
+    async def initialize(self) -> None:
+        """Open database connection and create table if needed."""
+        try:
+            self.connection = await aiosqlite.connect(self.db_path)
+            await self.connection.execute(
                 '''
                 CREATE TABLE IF NOT EXISTS state_store (
                   key TEXT PRIMARY KEY,
@@ -232,21 +273,33 @@ class SQLiteStateStore:
                 )
                 '''
             )
-            await db.commit()
+            await self.connection.commit()
+        except aiosqlite.Error as e:
+            print(f"Critical SQLite error during initialization: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    async def close(self) -> None:
+        """Close database connection."""
+        if self.connection:
+            await self.connection.close()
+            self.connection = None
 
     async def get(self, key: str) -> Optional[Dict[str, Any]]:
-        async with aiosqlite.connect(self.db_path) as db:
-            cursor = await db.execute(
+        try:
+            cursor = await self.connection.execute(
                 'SELECT value FROM state_store WHERE key = ?', (key,)
             )
             row = await cursor.fetchone()
             await cursor.close()
-        return json.loads(row[0]) if row else None
+            return json.loads(row[0]) if row else None
+        except aiosqlite.Error as e:
+            print(f"Critical SQLite error during get operation: {e}", file=sys.stderr)
+            sys.exit(1)
 
     async def set(self, key: str, value: Dict[str, Any]) -> None:
-        text = json.dumps(value)
-        async with aiosqlite.connect(self.db_path) as db:
-            await db.execute(
+        try:
+            text = json.dumps(value)
+            await self.connection.execute(
                 '''
                 INSERT INTO state_store (key, value)
                 VALUES (?, ?)
@@ -254,12 +307,18 @@ class SQLiteStateStore:
                 ''',
                 (key, text)
             )
-            await db.commit()
+            await self.connection.commit()
+        except aiosqlite.Error as e:
+            print(f"Critical SQLite error during set operation: {e}", file=sys.stderr)
+            sys.exit(1)
 
     async def delete(self, key: str) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
-            await db.execute('DELETE FROM state_store WHERE key = ?', (key,))
-            await db.commit()
+        try:
+            await self.connection.execute('DELETE FROM state_store WHERE key = ?', (key,))
+            await self.connection.commit()
+        except aiosqlite.Error as e:
+            print(f"Critical SQLite error during delete operation: {e}", file=sys.stderr)
+            sys.exit(1)
 ```
 
 ---
@@ -267,8 +326,10 @@ class SQLiteStateStore:
 ## 5. Integration & Dependency Injection
 
 1. **Instantiate** `SQLiteStateStore` once in `main.py`.
-2. **Pass** the same `store` into every manager’s constructor.
-3. **Remove** any direct Redis calls in services; replace with `store.get/set/delete`.
+2. **Initialize** the store at application startup and close it at shutdown.
+3. **Pass** the same `store` into every manager's constructor.
+4. **Remove** any direct Redis calls in services; replace with `store.get/set/delete`.
+5. **Enforce** that all stored values strictly adhere to the Pydantic models defined in the scenario system specification.
 
 ---
 
@@ -279,10 +340,12 @@ class SQLiteStateStore:
   * `get()` returns `None` for missing keys.
   * `set()` followed by `get()` returns original dict.
   * `delete()` removes key.
+  * Error handling correctly terminates the application on SQLite failures.
 * **Integration Tests**:
 
   * Simulate `DeviceManager.perform_action` and verify state persists to DB.
   * Simulate `ScenarioManager.switch_scenario` and verify scenario snapshot persists.
+  * Verify Pydantic models are correctly serialized and deserialized.
 
 ---
 
@@ -292,6 +355,7 @@ class SQLiteStateStore:
 * Support **configurable backends** by loading implementation class from settings.
 * Add **batch persistence** or **throttling** if write-rate concerns arise.
 * Extend protocol with **query** methods for partial reads (e.g. JSON1 queries).
+* Implement full recovery logic for `initialize()` methods in each manager class.
 
 ---
 

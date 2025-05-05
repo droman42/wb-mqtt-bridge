@@ -3,8 +3,8 @@
 
 ---
 
-## 1  Scope
-This document **fully replaces** all earlier scenario‑system specifications. It merges the change‑set introduced in *Scenario System – Updated Specification* (2025‑05‑03) with the restored **Scenario Definition** section from the original 2024 spec **and** incorporates the refined definition agreed on 2025‑05‑03 (virtual device façade, donated roles, delegated execution).
+## 1  Scope
+This document **fully replaces** all earlier scenario‑system specifications. It merges the change‑set introduced in *Scenario System – Updated Specification* (2025‑05‑03) with the restored **Scenario Definition** section from the original 2024 spec **and** incorporates the refined definition agreed on 2025‑05‑03 (virtual device façade, donated roles, delegated execution).
 
 **Goals**
 1. Provide a single source‑of‑truth for declaring, validating and executing *Scenarios*.
@@ -13,11 +13,11 @@ This document **fully replaces** all earlier scenario‑system specifications. I
 
 ---
 
-## 2  Key Terminology
+## 2  Key Terminology
 | Term | Meaning |
 |------|---------|
 | **Scenario** | A *virtual device façade* that aggregates a named collection of desired device states **and** exposes high‑level roles. Each role (e.g. `volume_control`, `screen`) is provided by one or more member devices; at runtime the scenario delegates role actions to a selected device. |
-| **Role** | A logical capability (a.k.a. *action group*) such as `volume_control`, `screen`, `lighting`, etc. Advertised by devices, consumed by scenarios. |
+| **Role** | A logical capability (a.k.a. *action group*) such as `volume_control`, `screen`, `lighting`, etc. Advertised by devices, consumed by scenarios. |
 | **Scenario Definition** | The *declarative JSON* that describes roles, delegated devices, desired end‑state and orchestration sequences. |
 | **Scenario State** | A *runtime snapshot* of all devices while the scenario is active (persistable). |
 | **Device** | A concrete driver derived from `BaseDevice`. |
@@ -89,10 +89,10 @@ classDiagram
 
 ---
 
-## 3  Scenario Definition
+## 3  Scenario Definition
 This section re‑introduces the declarative structure that tools & UIs use to **author** scenarios. It is *orthogonal* to the runtime `ScenarioState` model (see §4).
 
-### 3.1  Declarative JSON Structure
+### 3.1  Declarative JSON Structure
 ```json
 {
   "scenario_id": "movie_night",
@@ -174,7 +174,7 @@ This section re‑introduces the declarative structure that tools & UIs use to *
 }
 ```
 
-### 3.2  `ScenarioDefinition` (Pydantic)
+### 3.2  `ScenarioDefinition` (Pydantic)
 ```python
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field, validator
@@ -204,16 +204,16 @@ class ScenarioDefinition(BaseModel):
 ```
 *Authors MAY omit the model and provide raw JSON; the back‑end will coerce it via `model_validate()`.*
 
-### 3.3  Semantics
+### 3.3  Semantics
 * A **Scenario** behaves like a **virtual device** exposing the union of roles defined in `roles`.  
   Clients issue commands **to the scenario**, which delegates each command to the device bound to the corresponding role.
 * **Startup** runs *sequentially* (honouring `delay_after_ms`).
 * **Shutdown** has two flavours: `complete` (full power‑off) and `transition` (prepare for next scenario). The diff‑aware algorithm (§6.2) chooses which one to use on a per‑device basis.
-* Devices may provide *overlapping* roles; the assignment in `roles` decides which device receives each role’s commands for the lifetime of the scenario.
+* Devices may provide *overlapping* roles; the assignment in `roles` decides which device receives each role's commands for the lifetime of the scenario.
 
 ---
 
-## 4  Pydantic **Runtime** Models
+## 4  Pydantic **Runtime** Models
 ```python
 from typing import Any, Dict, Optional
 from pydantic import BaseModel, Field, validator
@@ -234,45 +234,20 @@ class ScenarioState(BaseModel):
             raise ValueError("scenario_id must be non‑empty")
         return v
 ```
-These models are **100 % JSON‑serialisable** (`model_dump_json`) and therefore trivial to persist or publish via MQTT/HTTP.
+These models are **100 % JSON‑serialisable** (`model_dump_json`) and therefore trivial to persist or publish via MQTT/HTTP.
 
 ---
 
-## 5  Enhancements to `BaseDevice`
-### 5.1  Implicit `handle_<action>` discovery
-```python
-def _get_action_handler(self, action: str):
-    if handler := self._action_handlers.get(action):
-        return handler
-    name = f"handle_{action}"
-    if hasattr(self, name) and callable(getattr(self, name)):
-        logger.debug("Using implicit handler %s on %s", name, self.device_id)
-        return getattr(self, name)
-    return None
-```
+## 6  Scenario Manager & Execution Flow
 
-### 5.2  Optional auto‑registration helper
-```python
-def _auto_register_handlers(self):
-    for attr in dir(self):
-        if attr.startswith("handle_"):
-            action = attr.removeprefix("handle_").lower()
-            self._action_handlers.setdefault(action, getattr(self, attr))
-```
-Call `_auto_register_handlers()` at the end of `__init__` to eliminate boiler‑plate in new drivers.
-
----
-
-## 6  Scenario Manager & Execution Flow
-
-### 6.1  Core Attributes
+### 6.1  Core Attributes
 ```python
 class ScenarioManager:
     current_scenario: Optional[Scenario] = None
     scenario_state: Optional[ScenarioState] = None
 ```
 
-### 6.2  Diff‑Aware `switch_scenario()`
+### 6.2  Diff‑Aware `switch_scenario()`
 ```python
 async def switch_scenario(self, target_id: str, *, graceful: bool = True):
     outgoing = self.current_scenario
@@ -283,7 +258,7 @@ async def switch_scenario(self, target_id: str, *, graceful: bool = True):
 
     plan: list[Callable[[], Awaitable[None]]] = []
 
-    # 1  Remove / update shared devices
+    # 1  Remove / update shared devices
     if outgoing:
         for dev_id, dev_cfg in outgoing.definition.devices.items():
             if dev_id not in incoming.definition.devices:            # removed
@@ -296,7 +271,7 @@ async def switch_scenario(self, target_id: str, *, graceful: bool = True):
                     if delta.requires_io_switch:
                         plan.append(lambda d=self.device_manager.get_device(dev_id), dl=delta: d.switch_io(**dl.io_args))
 
-    # 2  Add new devices
+    # 2  Add new devices
     for dev_id, dev_cfg in incoming.definition.devices.items():
         if not outgoing or dev_id not in outgoing.definition.devices:
             plan.extend([
@@ -304,11 +279,11 @@ async def switch_scenario(self, target_id: str, *, graceful: bool = True):
                 lambda d=self.device_manager.get_device(dev_id): d.configure(**dev_cfg["config"])
             ])
 
-    # 3  Execute sequentially (or `asyncio.gather` where safe)
+    # 3  Execute sequentially (or `asyncio.gather` where safe)
     for step in plan:
         await step()
 
-    # 4  Refresh snapshot
+    # 4  Refresh snapshot
     self.scenario_state = ScenarioState(
         scenario_id=incoming.definition.scenario_id,
         devices={
@@ -320,7 +295,7 @@ async def switch_scenario(self, target_id: str, *, graceful: bool = True):
     self.current_scenario = incoming
 ```
 
-### 6.3  `Scenario` Class Responsibilities
+### 6.3  `Scenario` Class Responsibilities
 ```python
 class Scenario:
     def __init__(self, definition: ScenarioDefinition, device_manager: DeviceManager):
@@ -358,16 +333,16 @@ class Scenario:
 
 ---
 
-## 7  Validation Rules
+## 7  Validation Rules
 1. **Device Validation** – every referenced device & command must exist in the driver registry.
-2. **Role Validation** – every role in `roles` must map to an existing device that advertises the role’s action group.
+2. **Role Validation** – every role in `roles` must map to an existing device that advertises the role's action group.
 3. **Group Validation** – each device must list at least one valid command group.
 4. **Dependency Validation** – scenario must be acyclic; no circular command dependencies.
 5. **Function Validation** – no duplicate commands within the same sequence; conditions must parse.
 
 ---
 
-## 8  Error Handling Strategy
+## 8  Error Handling Strategy
 ```python
 class ScenarioError(Exception):
     def __init__(self, msg: str, error_type: str, critical: bool = False):
@@ -386,7 +361,7 @@ class ScenarioExecutionError(ScenarioError):
 
 ---
 
-## 9  Device‑Config Diff Contract
+## 9  Device‑Config Diff Contract
 ```python
 class DeviceConfig(BaseModel):
     input: str
@@ -400,7 +375,7 @@ class DeviceConfig(BaseModel):
 
 ---
 
-## 10  Concurrency Guidelines
+## 10  Concurrency Guidelines
 | Transition stage | `asyncio.gather()` safe? |
 |------------------|-------------------------|
 | **Remove** (power‑offs) | ✔ Yes |
@@ -409,18 +384,21 @@ class DeviceConfig(BaseModel):
 
 ---
 
-## 11  Persistence
-Because `ScenarioState` is JSON‑serialisable:
+## 11  Persistence
+The `ScenarioState` is JSON‑serialisable and will use the existing `StateStore` persistence layer:
 ```python
-redis.set("last_scenario", scenario_state.model_dump_json())
+# Persist scenario state
+await self.store.set("scenario:last", scenario_state.model_dump())
 ...
-state = ScenarioState.model_validate_json(redis.get("last_scenario"))
+# Retrieve scenario state
+state_dict = await self.store.get("scenario:last")
+state = ScenarioState.model_validate(state_dict)
 ```
-No dedicated ORM layer is required.
+The StateStore interface abstracts the storage backend (SQLite implementation) and handles serialization/deserialization of JSON data. This aligns with the tsState Persistence Layer specification that has been implemented separately.
 
 ---
 
-## 12  REST / MQTT Exposure
+## 12  REST  /  MQTT Exposure
 | Method | Path | Body | Notes |
 |--------|------|------|-------|
 | `GET`  | `/scenario/state` | – | returns `ScenarioState.model_dump()` |
@@ -430,19 +408,19 @@ No dedicated ORM layer is required.
 
 ---
 
-## 13  Migration Steps
+## 13  Migration Steps
 1. Patch `wb_mqtt_bridge/base.py` – add implicit handler discovery & `_auto_register_handlers()`.
 2. Add `scenarios/models.py` – with `ScenarioDefinition`, `DeviceState`, `ScenarioState`.
 3. Refactor `ScenarioManager` to use diff‑aware algorithm, role delegation, and populate runtime state.
-4. *(Optional)* Persist `ScenarioState` in `bridge.py` start‑up/shutdown hooks.
+4. Integrate with existing `StateStore` persistence layer by accepting it as a dependency in `ScenarioManager`.
 5. Update unit tests to expect Pydantic models and role delegation logic.
 
 ---
 
-## 14  Open Questions
+## 14  Open Questions
 1. Preferred persistence backend (Redis vs file).
 2. Parallelism thresholds per device type.
 3. Handling dynamic role re‑binding while scenario is active.
 
 ---
-© 2025 – droman42 / contributors
+© 2025 – droman42 / contributors
