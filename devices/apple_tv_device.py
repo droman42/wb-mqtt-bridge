@@ -68,30 +68,6 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
         # Log instance creation
         logger.info(f"Initialized AppleTVDevice: {self.device_id} ({self.device_name})") # Use the module logger
 
-    def _register_handlers(self) -> None:
-        """Register all action handlers for the Apple TV device."""
-        self._action_handlers = {
-            "power_on": self.handle_power_on,
-            "power_off": self.handle_power_off,
-            "play": self.handle_play,
-            "pause": self.handle_pause,
-            "stop": self.handle_stop,
-            "next": self.handle_next_track,
-            "previous": self.handle_previous_track,
-            "set_volume": self.handle_set_volume,
-            "volume_up": self.handle_volume_up,
-            "volume_down": self.handle_volume_down,
-            "launch_app": self.handle_launch_app,
-            "refresh_status": self.handle_refresh_status,
-            "menu": self.handle_menu,
-            "home": self.handle_home,
-            "select": self.handle_select,
-            "up": self.handle_up,
-            "down": self.handle_down,
-            "left": self.handle_left,
-            "right": self.handle_right
-        }
-
     async def setup(self) -> bool:
         """Set up the Apple TV device connection."""
         self.loop = asyncio.get_event_loop()

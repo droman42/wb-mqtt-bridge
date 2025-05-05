@@ -52,25 +52,6 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             error=None
         )
         
-        # Register action handlers will be done in _register_handlers method
-    
-    def _register_handlers(self) -> None:
-        """Register action handlers for the eMotiva XMC2 device.
-        
-        All handlers follow the standardized signature:
-        async def handle_x(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult
-        """
-        self._action_handlers.update({
-            "power_on": self.handle_power_on,
-            "power_off": self.handle_power_off,
-            "zone2_on": self.handle_zone2_on,
-            "zappiti": self.handle_zappiti,
-            "apple_tv": self.handle_apple_tv,
-            "dvdo": self.handle_dvdo,
-            "set_volume": self.handle_set_volume,
-            "set_mute": self.handle_set_mute
-        })
-    
     async def setup(self) -> bool:
         """Initialize the device."""
         try:

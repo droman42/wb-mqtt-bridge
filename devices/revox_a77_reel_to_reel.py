@@ -23,20 +23,6 @@ class RevoxA77ReelToReel(BaseDevice[RevoxA77ReelToReelState]):
             connection_status="connected"
         )
         
-    def _register_handlers(self) -> None:
-        """
-        Register action handlers for the Revox A77 reel-to-reel device.
-        
-        This method maps action names to their corresponding handler methods
-        following the standardized approach.
-        """
-        self._action_handlers.update({
-            "play": self.handle_play,
-            "stop": self.handle_stop,
-            "rewind_forward": self.handle_rewind_forward,
-            "rewind_backward": self.handle_rewind_backward
-        })
-
     async def setup(self) -> bool:
         """Initialize the device."""
         try:

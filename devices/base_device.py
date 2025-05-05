@@ -35,6 +35,9 @@ class BaseDevice(ABC, Generic[StateT]):
         
         # Build action group index
         self._build_action_groups_index()
+        
+        # Auto-register handlers based on naming convention
+        self._auto_register_handlers()
     
     def _register_handlers(self) -> None:
         """
@@ -292,28 +295,47 @@ class BaseDevice(ABC, Generic[StateT]):
         logger.debug(f"[{self.device_name}] Available handlers: {list(self._action_handlers.keys())}")
         
         # Check if we have a handler for this action
-        handler = self._action_handlers.get(action)
-        if handler:
+        if handler := self._action_handlers.get(action):
             logger.debug(f"[{self.device_name}] Found direct handler for '{action}'")
             return handler
+            
+        # If no direct handler, look for handle_<action> method
+        name = f"handle_{action}"
+        if hasattr(self, name) and callable(getattr(self, name)):
+            logger.debug(f"[{self.device_name}] Using implicit handler {name}")
+            return getattr(self, name)
             
         # If not found, check if maybe it's in camelCase and we have a handler for snake_case
         if '_' not in action:
             # Convert camelCase to snake_case and try again
             snake_case = ''.join(['_' + c.lower() if c.isupper() else c for c in action]).lstrip('_')
             logger.debug(f"[{self.device_name}] Trying snake_case variant: '{snake_case}'")
-            handler = self._action_handlers.get(snake_case)
-            if handler:
+            if handler := self._action_handlers.get(snake_case):
                 logger.debug(f"[{self.device_name}] Found handler for snake_case variant '{snake_case}'")
                 return handler
+            
+            # Try the implicit handler with snake_case
+            name = f"handle_{snake_case}"
+            if hasattr(self, name) and callable(getattr(self, name)):
+                logger.debug(f"[{self.device_name}] Using implicit handler {name} for camelCase action")
+                return getattr(self, name)
         
-        # DEBUG: Check if we have a method named handle_X directly
-        method_name = f"handle_{action}"
-        if hasattr(self, method_name) and callable(getattr(self, method_name)):
-            logger.debug(f"[{self.device_name}] Found method {method_name} but it's not in _action_handlers")
-                
         logger.debug(f"[{self.device_name}] No handler found for action '{action}'")
         return None
+    
+    def _auto_register_handlers(self) -> None:
+        """
+        Automatically register handler methods based on naming convention.
+        
+        This method discovers all methods named handle_<action> and registers them 
+        as action handlers for <action>. It will not override existing handlers.
+        """
+        for attr in dir(self):
+            if attr.startswith("handle_"):
+                action = attr.removeprefix("handle_").lower()
+                # Only register if not already registered
+                self._action_handlers.setdefault(action, getattr(self, attr))
+                logger.debug(f"[{self.device_name}] Auto-registered handler for action '{action}'")
     
     async def _execute_single_action(
         self, 

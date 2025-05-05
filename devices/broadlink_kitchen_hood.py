@@ -36,22 +36,6 @@ class BroadlinkKitchenHood(BaseDevice[KitchenHoodState]):
         for category, codes in self.rf_codes.items():
             logger.debug(f"[{self.device_name}] RF codes category '{category}' contains {len(codes)} codes: {list(codes.keys())}")
         
-        # _register_handlers is now called by the BaseDevice constructor
-        # No need to call it explicitly here
-
-    def _register_handlers(self) -> None:
-        """
-        Register action handlers for the kitchen hood.
-        
-        This method maps action names to their corresponding handler methods
-        following the standardized approach.
-        """
-        self._action_handlers = {
-            "set_light": self.handle_set_light,
-            "set_speed": self.handle_set_speed
-        }
-        logger.debug(f"[{self.device_name}] Registered action handlers: {list(self._action_handlers.keys())}")
-
     async def setup(self) -> bool:
         """Initialize the Broadlink device for the kitchen hood."""
         try:

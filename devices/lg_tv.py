@@ -93,53 +93,6 @@ class LgTv(BaseDevice[LgTvState]):
         has_power_on = hasattr(self, "handle_power_on") and callable(getattr(self, "handle_power_on"))
         logger.debug(f"Has handle_power_on method: {has_power_on}")
     
-    def _register_handlers(self) -> None:
-        """Register all action handlers for the LG TV.
-        
-        This method maps action names to their corresponding handler methods.
-        All handlers follow the standardized signature:
-        async def handle_X(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult
-        """
-        # Register handlers for media control actions
-        self._action_handlers.update({
-            'power_on': self.handle_power_on,
-            'power_off': self.handle_power_off,
-            'home': self.handle_home,
-            'back': self.handle_back,
-            'up': self.handle_up,
-            'down': self.handle_down,
-            'left': self.handle_left,
-            'right': self.handle_right,
-            'enter': self.handle_enter,
-            'exit': self.handle_exit,
-            'menu': self.handle_menu,
-            'volume_up': self.handle_volume_up,
-            'volume_down': self.handle_volume_down,
-            'set_volume': self.handle_set_volume,
-            'mute': self.handle_mute,
-            'play': self.handle_play,
-            'pause': self.handle_pause,
-            'stop': self.handle_stop,
-            'rewind_forward': self.handle_rewind_forward,
-            'rewind_backward': self.handle_rewind_backward,
-            
-            # Pointer control
-            'move_cursor': self.handle_move_cursor,
-            'move_cursor_relative': self.handle_move_cursor_relative,
-            'click': self.handle_click,
-            
-            # Input and apps
-            'set_input_source': self.handle_set_input_source,
-            'launch_app': self.handle_launch_app,
-            
-            # Network
-            'wake_on_lan': self.handle_wake_on_lan,
-            
-            # Cache management
-            'refresh_app_list': self.handle_refresh_app_list,
-            'refresh_input_sources': self.handle_refresh_input_sources,
-        })
-    
     def _create_webos_tv(self, secure: bool = False) -> Optional[Union[WebOSTV, SecureWebOSTV]]:
         """Create a WebOSTV client based on configuration.
         
