@@ -118,15 +118,16 @@ class DeviceManager:
                 
                 # Instantiate the device with typed configuration
                 device = device_class(config, self.mqtt_client)
+                
+                # Register state change callback if device supports it
+                if hasattr(device, 'register_state_change_callback') and self.store:
+                    device.register_state_change_callback(self._persist_state_callback)
+                
                 success = await device.setup()
                 
                 if not success:
                     logger.error(f"Failed to set up device {device_id} of type {device_class_name}")
                     continue
-                    
-                # Register state change callback if device supports it
-                if hasattr(device, 'register_state_change_callback') and self.store:
-                    device.register_state_change_callback(self._persist_state_callback)
                     
                 self.devices[device_id] = device
                 logger.info(f"Initialized device {device_id} of type {device_class_name}")

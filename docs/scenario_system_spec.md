@@ -20,10 +20,11 @@ This document **fully replaces** all earlier scenario‑system specifications. I
 | **Scenario** | A *virtual device façade* that aggregates a named collection of desired device states **and** exposes high‑level roles. Each role (e.g. `volume_control`, `screen`) is provided by one or more member devices; at runtime the scenario delegates role actions to a selected device. |
 | **Role** | A logical capability (a.k.a. *action group*) such as `volume_control`, `screen`, `lighting`, etc. Advertised by devices, consumed by scenarios. |
 | **Room** *(new)* | A **static grouping of devices** that gives spatial context to scenarios and voice/UX commands (e.g. `kitchen`, `living_room`). Rooms are **metadata only** – the runtime engine never looks at them. |
+| **RoomManager** | Service that loads and validates rooms.json, keeps the canonical room map in memory, and answers queries like `contains_device()` or `default_scenario()`. |
 | **Scenario Definition** | The *declarative JSON* that describes roles, delegated devices, desired end‑state and orchestration sequences. |
 | **Scenario State** | A *runtime snapshot* of all devices while the scenario is active (persistable). |
 | **Device** | A concrete driver derived from `BaseDevice`. |
-| **Scenario Manager** | Service component that performs scenario transitions and maintains global state. |
+| **Scenario Manager** | Service component that performs scenario transitions and maintains global state. Depends on `RoomManager` and `DeviceManager`. |
 
 ```mermaid
 %% Scenario System – High‑Level Architecture (rev2 with Rooms)
@@ -62,6 +63,14 @@ classDiagram
         + defaultScenario : str
     }
 
+    class RoomManager {
+        + reload()
+        + get(room_id): RoomDefinition
+        + contains_device(room_id, device_id): bool
+        + default_scenario(room_id): str|None
+        + list(): list[RoomDefinition]
+    }
+
     class DeviceManager {
         + devices : dict
         + getDevice(deviceId)
@@ -89,6 +98,7 @@ classDiagram
     }
 
     ScenarioManager --> Scenario : manages
+    ScenarioManager --> RoomManager : uses
     ScenarioManager --> DeviceManager : uses
     ScenarioManager --> ScenarioState : updates
     Scenario --> ScenarioDefinition : uses
@@ -97,6 +107,7 @@ classDiagram
     ScenarioState --> DeviceState : contains
     ScenarioDefinition --> RoomDefinition : references
     RoomDefinition --> BaseDevice : groups
+    RoomManager --> RoomDefinition : contains
 ```
 
 ---
@@ -384,12 +395,114 @@ class Scenario:
 ```python
 class RoomDefinition(BaseModel):
     room_id: str
-    name: str
+    names: Dict[str, str]              # NEW – locale-code → string
     description: str = ""
     devices: list[str]
     default_scenario: Optional[str] = None
 ```
 Stored in `rooms.json` alongside `devices.json` & `scenarios.json`.
+* Keys in the `names` dict must be BCP 47 language tags ("en", "ru", "de-CH", …).
+* At least one entry is required (typically the project’s primary locale).
+* UI picks the best match for the current user language and falls back to the first entry if none match.
+
+Example room config:
+```json
+{
+  "living_room": {
+    "room_id": "living_room",
+    "names": {
+      "en": "Living-room",
+      "ru": "Гостиная",
+      "de": "Wohnzimmer"
+    },
+    "description": "Main lounge with TV, AVR and floor lamp",
+    "devices": [
+      "living_room_tv",
+      "audio_receiver",
+      "floor_lamp",
+      "media_stick"
+    ],
+    "default_scenario": "movie_night"
+  },
+
+  "kitchen": {
+    "room_id": "kitchen",
+    "names": {
+      "en": "Kitchen",
+      "ru": "Кухня"
+    },
+    "description": "Cooking & dining area",
+    "devices": [
+      "kitchen_ceiling_light",
+      "kitchen_led_strip",
+      "coffee_machine",
+      "oven"
+    ],
+    "default_scenario": "cooking_mode"
+  },
+
+  "bedroom": {
+    "room_id": "bedroom",
+    "names": {
+      "en": "Master bedroom",
+      "ru": "Спальня"
+    },
+    "description": "",
+    "devices": [
+      "bedside_lamp_left",
+      "bedside_lamp_right",
+      "climate_split_ac",
+      "air_purifier"
+    ],
+    "default_scenario": null
+  }
+}
+```
+
+RoomManager skeleton implementation:
+```python
+from pathlib import Path
+import json
+from typing import Dict, Optional
+
+class RoomManager:
+    def __init__(self, cfg_dir: Path, device_manager: "DeviceManager"):
+        self._dir = cfg_dir
+        self._device_mgr = device_manager
+        self.rooms: Dict[str, RoomDefinition] = {}
+        self.reload()
+
+    # ------------- Public -------------
+    def reload(self) -> None:
+        raw = json.loads(Path(self._dir / "rooms.json").read_text(encoding="utf-8"))
+        self.rooms.clear()
+        for rid, spec in raw.items():
+            room = RoomDefinition(**spec)
+            self._validate_devices_exist(room)
+            self.rooms[rid] = room
+
+    def list(self) -> list[RoomDefinition]:
+        return list(self.rooms.values())
+
+    def get(self, room_id: str) -> Optional[RoomDefinition]:
+        return self.rooms.get(room_id)
+
+    def contains_device(self, room_id: str, device_id: str) -> bool:
+        room = self.rooms.get(room_id)
+        return room and device_id in room.devices
+
+    def default_scenario(self, room_id: str) -> Optional[str]:
+        room = self.rooms.get(room_id)
+        return room.default_scenario if room else None
+
+    # ------------- Internal -------------
+    def _validate_devices_exist(self, room: RoomDefinition) -> None:
+        unknown = [d for d in room.devices if d not in self._device_mgr.devices]
+        if unknown:
+            raise ValueError(
+                f"Room '{room.room_id}' references unknown devices {unknown}"
+            )
+```
 
 ---
 

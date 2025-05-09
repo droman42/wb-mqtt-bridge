@@ -106,6 +106,33 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 subscription_result = await self.client.subscribe_to_notifications(default_notifications)
                 logger.info(f"Notification subscription result: {subscription_result}")
                 
+                # Query initial device status for power and zone2_power
+                try:
+                    logger.info(f"Querying initial power status for {self.get_name()}")
+                    power_status = await self.client.get_power()
+                    if self._is_command_successful(power_status):
+                        power_value = power_status.get('value', 'unknown') if isinstance(power_status, dict) else 'unknown'
+                        power_state = PowerState.ON if power_value == "on" else PowerState.OFF if power_value == "off" else PowerState.UNKNOWN
+                        self.update_state(power=power_state)
+                        logger.info(f"Initial power state: {power_state}")
+                    else:
+                        logger.warning(f"Failed to get initial power state: {power_status}")
+                except Exception as e:
+                    logger.warning(f"Error getting power status: {str(e)}")
+                
+                try:
+                    logger.info(f"Querying initial zone2 power status for {self.get_name()}")
+                    zone2_status = await self.client.get_zone2_power()
+                    if self._is_command_successful(zone2_status):
+                        zone2_value = zone2_status.get('value', 'unknown') if isinstance(zone2_status, dict) else 'unknown'
+                        zone2_state = PowerState.ON if zone2_value == "on" else PowerState.OFF if zone2_value == "off" else PowerState.UNKNOWN
+                        self.update_state(zone2_power=zone2_state)
+                        logger.info(f"Initial zone2 power state: {zone2_state}")
+                    else:
+                        logger.warning(f"Failed to get initial zone2 power state: {zone2_status}")
+                except Exception as e:
+                    logger.warning(f"Error getting zone2 power status: {str(e)}")
+                
                 # Update state with successful connection
                 self.clear_error()  # Clear any previous errors
                 self.update_state(
