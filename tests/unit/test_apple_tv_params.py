@@ -14,6 +14,10 @@ from devices.base_device import BaseDevice
 from app.schemas import LastCommand
 from pyatv.const import PowerState
 from pyatv.interface import Playing
+from tests.test_helpers import wrap_device_init
+
+# Wrap the AppleTVDevice class to handle dictionary configs
+wrap_device_init(AppleTVDevice)
 
 class TestAppleTVParameters(unittest.IsolatedAsyncioTestCase):
     """Test suite for AppleTV device parameter handling."""

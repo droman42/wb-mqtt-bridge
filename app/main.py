@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from app.config_manager import ConfigManager
 from app.device_manager import DeviceManager
 from app.mqtt_client import MQTTClient
+from app.state_store import SQLiteStateStore
 from app.schemas import (
     MQTTBrokerConfig,
     BaseDeviceConfig,
@@ -93,12 +94,13 @@ def setup_logging(log_file: str, log_level: str):
 config_manager = None
 device_manager = None
 mqtt_client = None
+state_store = None  # Add state store to globals
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for FastAPI application."""
     # Startup
-    global config_manager, device_manager, mqtt_client
+    global config_manager, device_manager, mqtt_client, state_store
     
     # Initialize config manager
     config_manager = ConfigManager()
@@ -120,6 +122,13 @@ async def lifespan(app: FastAPI):
     logger = logging.getLogger(__name__)
     logger.info("Starting MQTT Web Service")
     
+    # Initialize state store after config but before device manager
+    db_path = Path(system_config.persistence.db_path)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    state_store = SQLiteStateStore(db_path=str(db_path))
+    await state_store.initialize()
+    logger.info(f"State persistence initialized with SQLite at {db_path}")
+    
     # Initialize MQTT client first
     mqtt_broker_config = system_config.mqtt_broker
     mqtt_client = MQTTClient({
@@ -130,8 +139,12 @@ async def lifespan(app: FastAPI):
         'auth': mqtt_broker_config.auth
     })
     
-    # Initialize device manager with null MQTT client initially
-    device_manager = DeviceManager(mqtt_client=None, config_manager=config_manager)
+    # Initialize device manager with MQTT client and state store
+    device_manager = DeviceManager(
+        mqtt_client=None, 
+        config_manager=config_manager,
+        store=state_store  # Inject state store here
+    )
     await device_manager.load_device_modules()
     
     # Log the number of typed configurations
@@ -146,6 +159,10 @@ async def lifespan(app: FastAPI):
     for device_id, device in device_manager.devices.items():
         device.mqtt_client = mqtt_client
         logger.info(f"Device {device_id} initialized with typed configuration")
+    
+    # Initialize state from persistence layer
+    await device_manager.initialize()
+    logger.info("Device states initialized from persistence layer")
     
     # Get topics for all devices
     device_topics = {}
@@ -163,7 +180,7 @@ async def lifespan(app: FastAPI):
     })
     
     # Initialize routers with dependencies
-    system.initialize(config_manager, device_manager, mqtt_client)
+    system.initialize(config_manager, device_manager, mqtt_client, state_store)
     devices.initialize(config_manager, device_manager, mqtt_client)
     mqtt.initialize(mqtt_client)
     groups.initialize(config_manager, device_manager)
@@ -176,6 +193,11 @@ async def lifespan(app: FastAPI):
     logger.info("System shutting down...")
     await mqtt_client.disconnect()
     await device_manager.shutdown_devices()
+    
+    # Close state store after device shutdown but before final log
+    await state_store.close()
+    logger.info("State persistence connection closed")
+    
     logger.info("System shutdown complete")
 
 # Create the FastAPI app with lifespan

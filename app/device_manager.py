@@ -3,6 +3,7 @@ import importlib
 import logging
 import inspect
 import sys
+import asyncio
 from typing import Dict, Any, Callable, List, Optional, Union
 from devices.base_device import BaseDevice
 from app.schemas import BaseDeviceConfig
@@ -19,12 +20,13 @@ class DeviceManager:
     """Manages device modules and their message handlers."""
     
     def __init__(self, devices_dir: str = "devices", mqtt_client: Optional[MQTTClient] = None, 
-                 config_manager: Optional[ConfigManager] = None):
+                 config_manager: Optional[ConfigManager] = None, store = None):
         self.devices_dir = devices_dir
         self.device_classes: Dict[str, type] = {}  # Stores class definitions
         self.devices: Dict[str, BaseDevice] = {}  # Stores device instances
         self.mqtt_client = mqtt_client
         self.config_manager = config_manager  # Store reference to ConfigManager
+        self.store = store  # State persistence store
     
     async def load_device_modules(self):
         """Dynamically load all device modules from the devices directory."""
@@ -122,6 +124,10 @@ class DeviceManager:
                     logger.error(f"Failed to set up device {device_id} of type {device_class_name}")
                     continue
                     
+                # Register state change callback if device supports it
+                if hasattr(device, 'register_state_change_callback') and self.store:
+                    device.register_state_change_callback(self._persist_state_callback)
+                    
                 self.devices[device_id] = device
                 logger.info(f"Initialized device {device_id} of type {device_class_name}")
                 
@@ -158,7 +164,7 @@ class DeviceManager:
             return None
         return device.handle_message
     
-    def get_device_state(self, device_name: str) -> Dict[str, Any]:
+    async def get_device_state(self, device_name: str) -> Dict[str, Any]:
         """Get the current state of a device."""
         device = self.devices.get(device_name)
         if not device:
@@ -168,4 +174,81 @@ class DeviceManager:
     
     def get_all_devices(self) -> List[str]:
         """Get a list of all device IDs."""
-        return list(self.devices.keys()) 
+        return list(self.devices.keys())
+        
+    async def _persist_state(self, device_id: str):
+        """
+        Persist full device.state dict under key "device:{device_id}".
+        """
+        if not self.store:
+            logger.debug(f"State store not available, skipping persistence for device: {device_id}")
+            return
+            
+        device = self.devices.get(device_id)
+        if not device:
+            logger.warning(f"Cannot persist state for unknown device: {device_id}")
+            return
+            
+        try:
+            state_dict = device.get_current_state()
+            await self.store.set(f"device:{device_id}", state_dict)
+            logger.debug(f"Persisted state for device: {device_id}")
+        except Exception as e:
+            logger.error(f"Failed to persist state for device {device_id}: {str(e)}")
+            
+    async def perform_action(self, device_id: str, action: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Perform an action on a device and persist its state."""
+        device = self.get_device(device_id)
+        if not device:
+            logger.warning(f"Cannot perform action on unknown device: {device_id}")
+            return {"success": False, "error": f"Device not found: {device_id}"}
+            
+        try:
+            result = await device.handle_action(action, params)
+            # Persist state after action
+            await self._persist_state(device_id)
+            return result
+        except Exception as e:
+            logger.error(f"Error performing action '{action}' on device {device_id}: {str(e)}")
+            return {"success": False, "error": str(e)}
+            
+    async def initialize(self) -> None:
+        """
+        Initialize each device by loading persisted state.
+        This should be called after devices are loaded but before application startup completes.
+        """
+        if not self.store:
+            logger.info("State store not available, skipping state recovery")
+            return
+            
+        logger.info("Initializing device states from persistence layer")
+        for device_id in self.devices:
+            try:
+                stored_state = await self.store.get(f"device:{device_id}")
+                if stored_state:
+                    logger.info(f"Recovered state for device: {device_id}")
+                    # Note: Full implementation of state recovery will be provided in a later phase
+                    # This placeholder just logs that we found state
+                else:
+                    logger.info(f"No persisted state found for device: {device_id}")
+            except Exception as e:
+                logger.error(f"Error recovering state for device {device_id}: {str(e)}") 
+    
+    def _persist_state_callback(self, device_id: str):
+        """
+        Callback to handle device state changes. Schedules the state to be persisted.
+        This method is designed to be called from device instances when their state changes.
+        
+        Args:
+            device_id: The ID of the device whose state changed
+        """
+        if not self.store:
+            logger.debug(f"State store not available, skipping persistence callback for device: {device_id}")
+            return
+            
+        # Use asyncio.create_task to persist state asynchronously without blocking
+        try:
+            asyncio.create_task(self._persist_state(device_id))
+        except RuntimeError:
+            # We're not in an event loop, log a warning
+            logger.warning(f"Cannot persist state for {device_id}: not in an event loop") 

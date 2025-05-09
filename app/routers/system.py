@@ -1,6 +1,6 @@
 import logging
 import asyncio
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
@@ -23,13 +23,15 @@ router = APIRouter(
 config_manager = None
 device_manager = None
 mqtt_client = None
+state_store = None  # Add reference to state_store
 
-def initialize(cfg_manager, dev_manager, mqt_client):
+def initialize(cfg_manager, dev_manager, mqt_client, state_st=None):
     """Initialize global references needed by router endpoints."""
-    global config_manager, device_manager, mqtt_client
+    global config_manager, device_manager, mqtt_client, state_store
     config_manager = cfg_manager
     device_manager = dev_manager
     mqtt_client = mqt_client
+    state_store = state_st  # Set the state_store reference
 
 @router.get("/", response_model=ServiceInfo)
 async def root():
@@ -148,4 +150,20 @@ async def reload_system_task():
     except Exception as e:
         logger.error(f"Error during system reload: {str(e)}")
         import traceback
-        logger.error(traceback.format_exc()) 
+        logger.error(traceback.format_exc())
+
+@router.get("/devices/{device_id}/state")
+async def get_device_state(device_id: str):
+    """Get the persisted state of a specific device."""
+    if not state_store:
+        raise HTTPException(status_code=503, detail="State persistence not available")
+    
+    try:
+        state = await state_store.get(f"device:{device_id}")
+        if state is None:
+            raise HTTPException(status_code=404, detail=f"No persisted state found for device: {device_id}")
+        return state
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error retrieving device state: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}") 

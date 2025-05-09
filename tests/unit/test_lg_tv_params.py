@@ -12,6 +12,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 from devices.lg_tv import LgTv
 from devices.base_device import BaseDevice
 from app.schemas import LastCommand
+from tests.test_helpers import wrap_device_init
+
+# Wrap the LgTv class to handle dictionary configs
+wrap_device_init(LgTv)
 
 class TestLgTvParameters(unittest.IsolatedAsyncioTestCase):
     """Test suite for LG TV device parameter handling."""

@@ -10,6 +10,7 @@ This document **fully replaces** all earlier scenario‑system specifications. I
 1. Provide a single source‑of‑truth for declaring, validating and executing *Scenarios*.
 2. Detail runtime state models, transition algorithms and persistence contracts.
 3. Define driver requirements, REST/MQTT APIs and concurrency guidelines.
+4. Offer a spatial model (*Rooms*) required by end‑user UX without impacting core execution.
 
 ---
 
@@ -18,13 +19,14 @@ This document **fully replaces** all earlier scenario‑system specifications. I
 |------|---------|
 | **Scenario** | A *virtual device façade* that aggregates a named collection of desired device states **and** exposes high‑level roles. Each role (e.g. `volume_control`, `screen`) is provided by one or more member devices; at runtime the scenario delegates role actions to a selected device. |
 | **Role** | A logical capability (a.k.a. *action group*) such as `volume_control`, `screen`, `lighting`, etc. Advertised by devices, consumed by scenarios. |
+| **Room** *(new)* | A **static grouping of devices** that gives spatial context to scenarios and voice/UX commands (e.g. `kitchen`, `living_room`). Rooms are **metadata only** – the runtime engine never looks at them. |
 | **Scenario Definition** | The *declarative JSON* that describes roles, delegated devices, desired end‑state and orchestration sequences. |
 | **Scenario State** | A *runtime snapshot* of all devices while the scenario is active (persistable). |
 | **Device** | A concrete driver derived from `BaseDevice`. |
 | **Scenario Manager** | Service component that performs scenario transitions and maintains global state. |
 
 ```mermaid
-%% Scenario System – High‑Level Architecture
+%% Scenario System – High‑Level Architecture (rev2 with Rooms)
 classDiagram
     direction LR
 
@@ -50,6 +52,14 @@ classDiagram
         + devices : dict
         + startupSequence : list
         + shutdownSequence : dict
+        + roomId : str
+        + manualInstructions : list
+    }
+
+    class RoomDefinition {
+        + roomId : str
+        + devices : list
+        + defaultScenario : str
     }
 
     class DeviceManager {
@@ -85,6 +95,8 @@ classDiagram
     Scenario --> DeviceManager : uses
     DeviceManager --> BaseDevice : manages
     ScenarioState --> DeviceState : contains
+    ScenarioDefinition --> RoomDefinition : references
+    RoomDefinition --> BaseDevice : groups
 ```
 
 ---
@@ -98,6 +110,7 @@ This section re‑introduces the declarative structure that tools & UIs use to *
   "scenario_id": "movie_night",
   "name": "Movie Night",
   "description": "Setup for watching movies with optimal audio and video settings",
+  "room_id": "living_room",
   "roles": {
     "screen": "living_room_tv",
     "volume_control": "audio_receiver",
@@ -170,7 +183,17 @@ This section re‑introduces the declarative structure that tools & UIs use to *
         "condition": "device.input != 'tv'"
       }
     ]
-  }
+  },
+  "manual_instructions": {
+    "startup": [
+      "💿  Turn ON the turntable’s AC switch (rear left).",
+      "🪄  Lift the tone‑arm rest lever.",
+      "🔈  Set amplifier to PHONO input."
+    ],
+    "shutdown": [
+      "💿  Return tone‑arm to rest and power OFF the turntable."
+    ]
+  }  
 }
 ```
 
@@ -178,6 +201,10 @@ This section re‑introduces the declarative structure that tools & UIs use to *
 ```python
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field, validator
+
+class ManualInstructions(BaseModel):
+    startup: list[str] = Field(default_factory=list)
+    shutdown: list[str] = Field(default_factory=list)
 
 class CommandStep(BaseModel):
     device: str
@@ -190,10 +217,15 @@ class ScenarioDefinition(BaseModel):
     scenario_id: str = Field(..., min_length=1)
     name: str
     description: str = ""
+    room_id: Optional[str] = Field(  # NEW
+        None,
+        description="If set, declares the primary room this scenario runs in."
+    )
     roles: Dict[str, str]  # role_name → device_id
     devices: Dict[str, Dict[str, List[str]]]
     startup_sequence: List[CommandStep]
     shutdown_sequence: Dict[str, List[CommandStep]]  # keys: "complete", "transition"
+    manual_instructions: Optional[ManualInstructions] = None  # NEW
 
     @validator("shutdown_sequence")
     def _validate_shutdown(cls, v):
@@ -202,6 +234,10 @@ class ScenarioDefinition(BaseModel):
             raise ValueError(f"shutdown_sequence missing keys: {missing}")
         return v
 ```
+Guidelines:
+* If room_id is set, all devices referenced in roles and devices must belong to that room (§7 R7).
+* Leave room_id unset for multi‑room or whole‑house scenarios.
+
 *Authors MAY omit the model and provide raw JSON; the back‑end will coerce it via `model_validate()`.*
 
 ### 3.3  Semantics
@@ -339,10 +375,25 @@ class Scenario:
 3. **Group Validation** – each device must list at least one valid command group.
 4. **Dependency Validation** – scenario must be acyclic; no circular command dependencies.
 5. **Function Validation** – no duplicate commands within the same sequence; conditions must parse.
+6. **Room Validation** – every device listed in a `RoomDefinition` must exist in the system.
+7. **Scenario‑Room Containment** – if a scenario declares `room_id`, every referenced device must belong to that room.
+8. **Manual Instructions** – if `manual_instructions` is present, `startup` and `shutdown` must be lists of strings (may be empty).
+---
+
+## 8  Room Model
+```python
+class RoomDefinition(BaseModel):
+    room_id: str
+    name: str
+    description: str = ""
+    devices: list[str]
+    default_scenario: Optional[str] = None
+```
+Stored in `rooms.json` alongside `devices.json` & `scenarios.json`.
 
 ---
 
-## 8  Error Handling Strategy
+## 9  Error Handling Strategy
 ```python
 class ScenarioError(Exception):
     def __init__(self, msg: str, error_type: str, critical: bool = False):
@@ -361,7 +412,7 @@ class ScenarioExecutionError(ScenarioError):
 
 ---
 
-## 9  Device‑Config Diff Contract
+## 10  Device‑Config Diff Contract
 ```python
 class DeviceConfig(BaseModel):
     input: str
@@ -375,7 +426,7 @@ class DeviceConfig(BaseModel):
 
 ---
 
-## 10  Concurrency Guidelines
+## 11  Concurrency Guidelines
 | Transition stage | `asyncio.gather()` safe? |
 |------------------|-------------------------|
 | **Remove** (power‑offs) | ✔ Yes |
@@ -384,7 +435,7 @@ class DeviceConfig(BaseModel):
 
 ---
 
-## 11  Persistence
+## 12  Persistence
 The `ScenarioState` is JSON‑serialisable and will use the existing `StateStore` persistence layer:
 ```python
 # Persist scenario state
@@ -398,26 +449,31 @@ The StateStore interface abstracts the storage backend (SQLite implementation) a
 
 ---
 
-## 12  REST  /  MQTT Exposure
+## 13  REST  /  MQTT Exposure
 | Method | Path | Body | Notes |
 |--------|------|------|-------|
 | `GET`  | `/scenario/state` | – | returns `ScenarioState.model_dump()` |
 | `GET`  | `/scenario/definition/{id}` | – | returns stored `ScenarioDefinition` JSON |
 | `POST` | `/scenario/switch` | `{ "id": "movie", "graceful": true }` | triggers transition |
 | `POST` | `/scenario/role_action` | `{ "role": "volume_control", "command`: "set_volume", "params": {"level": 25} }` | scenario‑level API that delegates to bound device |
+| `GET`  | `/room/list` | – | list all rooms |
+| `GET`  | `/room/{room_id}` | – | fetch a RoomDefinition |
+| `POST` | `/room` | `RoomDefinition` JSON | create/replace a room |
+| `GET`  | `/scenario/definition?room={id}` | – | filter scenarios by room |
 
 ---
 
-## 13  Migration Steps
+## 14  Migration Steps
 1. Patch `wb_mqtt_bridge/base.py` – add implicit handler discovery & `_auto_register_handlers()`.
 2. Add `scenarios/models.py` – with `ScenarioDefinition`, `DeviceState`, `ScenarioState`.
 3. Refactor `ScenarioManager` to use diff‑aware algorithm, role delegation, and populate runtime state.
 4. Integrate with existing `StateStore` persistence layer by accepting it as a dependency in `ScenarioManager`.
 5. Update unit tests to expect Pydantic models and role delegation logic.
+6. Generate `rooms.json`.
 
 ---
 
-## 14  Open Questions
+## 15  Open Questions
 1. Preferred persistence backend (Redis vs file).
 2. Parallelism thresholds per device type.
 3. Handling dynamic role re‑binding while scenario is active.

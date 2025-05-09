@@ -29,6 +29,7 @@ class BaseDevice(ABC, Generic[StateT]):
         self._action_handlers: Dict[str, ActionHandler] = {}  # Cache for action handlers
         self._action_groups: Dict[str, List[Dict[str, Any]]] = {}  # Index of actions by group
         self.mqtt_client = mqtt_client
+        self._state_change_callback = None  # Callback for state changes
         
         # Register action handlers
         self._register_handlers()
@@ -397,8 +398,8 @@ class BaseDevice(ABC, Generic[StateT]):
             return self.create_command_result(success=False, error=error_msg)
     
     def get_current_state(self) -> StateT:
-        """Get the current state of the device with proper typing."""
-        return self.state
+        """Return a copy of the current device state."""
+        return cast(StateT, self.state)
     
     def update_state(self, **updates):
         """
@@ -414,6 +415,21 @@ class BaseDevice(ABC, Generic[StateT]):
         self.state = state_cls(**updated_data)  # Create a new instance of the same class
         
         logger.debug(f"Updated state for {self.device_name}: {updates}")
+        
+        # Notify about state change
+        self._notify_state_change()
+    
+    def _notify_state_change(self):
+        """Notify the registered callback about state changes."""
+        if self._state_change_callback:
+            try:
+                self._state_change_callback(self.device_id)
+            except Exception as e:
+                logger.error(f"Error notifying state change for device {self.device_id}: {str(e)}")
+                
+    def register_state_change_callback(self, callback):
+        """Register a callback to be notified when state changes."""
+        self._state_change_callback = callback
     
     async def execute_action(
         self, 

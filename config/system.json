@@ -9,6 +9,9 @@
       "password": "t6uxESDN"
     }
   },
+  "persistence": {
+    "db_path": "data/state_store.sqlite"
+  },
   "web_service": {
     "host": "0.0.0.0",
     "port": 8000

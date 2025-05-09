@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libffi-dev \
     libssl-dev \
     pkg-config \
+    libsqlite3-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Configure pip to use PiWheels for ARM

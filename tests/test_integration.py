@@ -19,6 +19,9 @@ from typing import Dict, Any, cast
 # Add parent directory to path to allow importing from app
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+# Import the mock_sqlite module first to handle SQLite issues
+from tests import mock_sqlite
+
 # Import required modules
 from devices.base_device import BaseDevice
 from devices.broadlink_kitchen_hood import BroadlinkKitchenHood

@@ -7,9 +7,9 @@ from pydantic import BaseModel
 from app.schemas import (
     BaseDeviceConfig,
     DeviceAction,
-    BaseDeviceState,
-    CommandResponse
+    BaseDeviceState
 )
+from app.types import CommandResponse
 
 # Create router with appropriate prefix and tags
 router = APIRouter(
@@ -181,13 +181,9 @@ async def execute_device_action(
     if not device_manager:
         raise HTTPException(status_code=503, detail="Service not fully initialized")
     
-    device = device_manager.get_device(device_id)
-    if not device:
-        raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
-    
-    # Execute the action
+    # Use the device_manager's perform_action method, which handles persistence
     logger.info(f"Executing action {action.action} for device {device_id} with params {action.params}")
-    result = await device.execute_action(action.action, action.params or {})
+    result = await device_manager.perform_action(device_id, action.action, action.params)
     
     if not result["success"]:
         raise HTTPException(status_code=400, detail=result.get("error", "Unknown error"))

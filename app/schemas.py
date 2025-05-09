@@ -201,6 +201,10 @@ class AppleTVState(BaseDeviceState):
     volume: Optional[int] = None
     ip_address: Optional[str] = None
 
+class PersistenceConfig(BaseModel):
+    """Configuration for the persistence layer."""
+    db_path: str = Field(default="data/state_store.db", description="Path to the SQLite database file")
+
 class DeviceActionsResponse(BaseModel):
     """Schema for device actions list response."""
     device_id: str
@@ -215,6 +219,7 @@ class SystemConfig(BaseModel):
     loggers: Optional[Dict[str, str]] = None
     devices: Dict[str, Dict[str, Any]]
     groups: Dict[str, str] = Field(default_factory=dict)  # Internal name -> Display name
+    persistence: PersistenceConfig = Field(default_factory=PersistenceConfig)
 
 class ErrorResponse(BaseModel):
     """Schema for error responses."""
