@@ -1,0 +1,105 @@
+{
+  "scenario_id": "movie_night",
+  "name": "Movie Night",
+  "description": "Setup for watching movies with optimal audio and video settings",
+  "room_id": "living_room",
+  "roles": {
+    "screen": "living_room_tv",
+    "volume_control": "processor",
+    "source_control": "processor"
+  },
+  "devices": {
+    "living_room_tv": {
+      "groups": ["screen", "volume_control"]
+    },
+    "processor": {
+      "groups": ["audio_control", "source_control", "volume_control"]
+    },
+    "appletv_living": {
+      "groups": ["source", "playback"]
+    }
+  },
+  "startup_sequence": [
+    {
+      "device": "processor",
+      "command": "power_on",
+      "params": {},
+      "condition": "device.power != True",
+      "delay_after_ms": 2000
+    },
+    {
+      "device": "processor",
+      "command": "set_input",
+      "params": {"input": "hdmi1"},
+      "condition": "device.input != 'hdmi1'",
+      "delay_after_ms": 1000
+    },
+    {
+      "device": "living_room_tv",
+      "command": "power_on",
+      "params": {},
+      "condition": "device.power != True",
+      "delay_after_ms": 2000
+    },
+    {
+      "device": "living_room_tv",
+      "command": "set_input_source",
+      "params": {"input_source": "hdmi1"},
+      "condition": "device.input_source != 'hdmi1'"
+    },
+    {
+      "device": "appletv_living",
+      "command": "power_on",
+      "params": {},
+      "condition": "device.power != 'on'"
+    }
+  ],
+  "shutdown_sequence": {
+    "complete": [
+      {
+        "device": "appletv_living",
+        "command": "power_off",
+        "params": {},
+        "condition": "device.power == 'on'",
+        "delay_after_ms": 1000
+      },
+      {
+        "device": "living_room_tv",
+        "command": "power_off",
+        "params": {},
+        "condition": "device.power == True",
+        "delay_after_ms": 1000
+      },
+      {
+        "device": "processor",
+        "command": "power_off",
+        "params": {},
+        "condition": "device.power == True"
+      }
+    ],
+    "transition": [
+      {
+        "device": "living_room_tv",
+        "command": "set_input_source",
+        "params": {"input_source": "tv"},
+        "condition": "device.input_source != 'tv'"
+      },
+      {
+        "device": "processor",
+        "command": "set_input",
+        "params": {"input": "tv"},
+        "condition": "device.input != 'tv'"
+      }
+    ]
+  },
+  "manual_instructions": {
+    "startup": [
+      "💡 Dim the living room lights if needed",
+      "🎬 Make sure the projector screen is down"
+    ],
+    "shutdown": [
+      "💡 Don't forget to turn the lights back on",
+      "🎬 Raise the projector screen if you're done watching"
+    ]
+  }
+} 

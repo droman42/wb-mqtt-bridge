@@ -1,0 +1,43 @@
+{
+  "living_room": {
+    "room_id": "living_room",
+    "names": {
+      "en": "Living Room",
+      "ru": "Гостиная",
+      "de": "Wohnzimmer"
+    },
+    "description": "Main lounge with TV, processor and media devices",
+    "devices": [
+      "living_room_tv",
+      "processor",
+      "appletv_living"
+    ],
+    "default_scenario": "movie_night"
+  },
+  
+  "bedroom": {
+    "room_id": "bedroom",
+    "names": {
+      "en": "Master Bedroom",
+      "ru": "Спальня"
+    },
+    "description": "Master bedroom with entertainment system",
+    "devices": [
+      "children_room_tv",
+      "appletv_children"
+    ],
+    "default_scenario": null
+  },
+  
+  "kitchen": {
+    "room_id": "kitchen",
+    "names": {
+      "en": "Kitchen"
+    },
+    "description": "Kitchen area with smart appliances",
+    "devices": [
+      "kitchen_hood"
+    ],
+    "default_scenario": null
+  }
+} 

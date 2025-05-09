@@ -11,11 +11,14 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.config_manager import ConfigManager
 from app.device_manager import DeviceManager
 from app.mqtt_client import MQTTClient
 from app.state_store import SQLiteStateStore
+from app.room_manager import RoomManager
+from app.scenario_manager import ScenarioManager
 from app.schemas import (
     MQTTBrokerConfig,
     BaseDeviceConfig,
@@ -37,7 +40,7 @@ from app.schemas import (
 from app.types import CommandResponse
 
 # Import routers
-from app.routers import system, devices, mqtt, groups
+from app.routers import system, devices, mqtt, groups, scenarios, rooms
 
 # Setup logging
 def setup_logging(log_file: str, log_level: str):
@@ -179,11 +182,26 @@ async def lifespan(app: FastAPI):
            for topic in topics}
     })
     
+    # Initialize room manager
+    room_manager = RoomManager(Path(system_config.config_dir), device_manager)
+    
+    # Initialize scenario manager
+    scenario_manager = ScenarioManager(
+        device_manager=device_manager,
+        room_manager=room_manager,
+        store=state_store,
+        scenario_dir=Path(system_config.config_dir) / "scenarios"
+    )
+    await scenario_manager.initialize()
+    logger.info("Scenario manager initialized")
+    
     # Initialize routers with dependencies
     system.initialize(config_manager, device_manager, mqtt_client, state_store)
     devices.initialize(config_manager, device_manager, mqtt_client)
     mqtt.initialize(mqtt_client)
     groups.initialize(config_manager, device_manager)
+    scenarios.initialize(scenario_manager, room_manager, mqtt_client)
+    rooms.initialize(room_manager)
     
     logger.info("System startup complete")
     
@@ -191,6 +209,16 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("System shutting down...")
+    
+    # Shutdown scenario manager first
+    logger.info("Shutting down scenario manager...")
+    await scenario_manager.shutdown()
+    
+    # Shutdown room manager
+    logger.info("Shutting down room manager...")
+    await room_manager.shutdown()
+    
+    # Disconnect MQTT and shutdown devices
     await mqtt_client.disconnect()
     await device_manager.shutdown_devices()
     
@@ -213,3 +241,5 @@ app.include_router(system.router)
 app.include_router(devices.router)
 app.include_router(mqtt.router)
 app.include_router(groups.router)
+app.include_router(scenarios.router)
+app.include_router(rooms.router)
