@@ -27,47 +27,38 @@ class ScenarioDefinition(BaseModel):
         description="If set, declares the primary room this scenario runs in. All devices must be in this room."
     )
     roles: Dict[str, str] = Field(..., description="Mapping of role name to device ID")
-    devices: Dict[str, Dict[str, List[str]]] = Field(..., description="Devices used in the scenario with their groups")
+    devices: List[str] = Field(..., description="List of device IDs used in the scenario")
     startup_sequence: List[CommandStep] = Field(..., description="Sequence of commands to run when starting")
-    shutdown_sequence: Dict[str, List[CommandStep]] = Field(
+    shutdown_sequence: List[CommandStep] = Field(
         ..., 
-        description="Sequences for shutdown: 'complete' (full power-off) and 'transition' (for switching to another scenario)"
+        description="Sequence of commands to run when shutting down"
     )
     manual_instructions: Optional[ManualInstructions] = Field(
         None, 
         description="Instructions requiring human intervention"
     )
 
-    @field_validator("shutdown_sequence")
-    @classmethod
-    def _validate_shutdown(cls, v):
-        missing = {"complete", "transition"} - v.keys()
-        if missing:
-            raise ValueError(f"shutdown_sequence missing keys: {missing}")
-        return v
-
     @model_validator(mode="after")
     def validate_references(self):
         """Validates internal references but not system device existence (done at runtime)."""
-        # Validate that roles reference devices in the devices dict
+        # Validate that roles reference devices in the devices list
         for role, device_id in self.roles.items():
             if device_id not in self.devices:
-                raise ValueError(f"Role '{role}' references device '{device_id}' which is not in devices dict")
+                raise ValueError(f"Role '{role}' references device '{device_id}' which is not in devices list")
         
         # Validate references in startup sequence
         for i, step in enumerate(self.startup_sequence):
             if step.device not in self.devices:
                 raise ValueError(
-                    f"Device '{step.device}' in startup sequence (step {i+1}) is not in devices dict"
+                    f"Device '{step.device}' in startup sequence (step {i+1}) is not in devices list"
                 )
         
-        # Validate references in shutdown sequences
-        for key in ["complete", "transition"]:
-            for i, step in enumerate(self.shutdown_sequence[key]):
-                if step.device not in self.devices:
-                    raise ValueError(
-                        f"Device '{step.device}' in shutdown sequence '{key}' (step {i+1}) is not in devices dict"
-                    )
+        # Validate references in shutdown sequence
+        for i, step in enumerate(self.shutdown_sequence):
+            if step.device not in self.devices:
+                raise ValueError(
+                    f"Device '{step.device}' in shutdown sequence (step {i+1}) is not in devices list"
+                )
         
         return self
 

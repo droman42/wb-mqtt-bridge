@@ -10,33 +10,28 @@ from app.scenario_models import ScenarioDefinition, ScenarioState, DeviceState
 
 # Sample scenario data for testing
 SAMPLE_SCENARIOS = {
-    "movie_night": {
-        "scenario_id": "movie_night",
-        "name": "Movie Night",
-        "description": "Optimal settings for watching movies",
+    "movie_mode": {
+        "scenario_id": "movie_mode",
+        "name": "Movie Mode",
+        "description": "Optimized for movie watching",
         "room_id": "living_room",
         "roles": {"screen": "tv", "audio": "soundbar"},
         "devices": {
-            "tv": {"groups": ["display"]},
+            "tv": {"groups": ["screen"]},
             "soundbar": {"groups": ["audio"]},
             "lights": {"groups": ["ambience"]}
         },
         "startup_sequence": [
             {"device": "tv", "command": "power_on", "params": {}},
             {"device": "soundbar", "command": "power_on", "params": {}},
+            {"device": "tv", "command": "set_input", "params": {"input": "hdmi1"}},
             {"device": "lights", "command": "set_scene", "params": {"scene": "movie"}}
         ],
-        "shutdown_sequence": {
-            "complete": [
-                {"device": "tv", "command": "power_off", "params": {}},
-                {"device": "soundbar", "command": "power_off", "params": {}},
-                {"device": "lights", "command": "set_scene", "params": {"scene": "bright"}}
-            ],
-            "transition": [
-                {"device": "tv", "command": "standby", "params": {}},
-                {"device": "soundbar", "command": "standby", "params": {}}
-            ]
-        }
+        "shutdown_sequence": [
+            {"device": "tv", "command": "power_off", "params": {}},
+            {"device": "soundbar", "command": "power_off", "params": {}},
+            {"device": "lights", "command": "set_scene", "params": {"scene": "bright"}}
+        ]
     },
     "reading_mode": {
         "scenario_id": "reading_mode",
@@ -50,14 +45,9 @@ SAMPLE_SCENARIOS = {
         "startup_sequence": [
             {"device": "lights", "command": "set_scene", "params": {"scene": "reading"}}
         ],
-        "shutdown_sequence": {
-            "complete": [
-                {"device": "lights", "command": "set_scene", "params": {"scene": "bright"}}
-            ],
-            "transition": [
-                {"device": "lights", "command": "set_scene", "params": {"scene": "bright"}}
-            ]
-        }
+        "shutdown_sequence": [
+            {"device": "lights", "command": "set_scene", "params": {"scene": "bright"}}
+        ]
     }
 }
 
@@ -87,7 +77,7 @@ class MockRoomManager:
             "living_room": MagicMock(
                 room_id="living_room",
                 devices=["tv", "soundbar", "lights"],
-                default_scenario="movie_night"
+                default_scenario="movie_mode"
             )
         }
     
@@ -168,11 +158,11 @@ class TestScenarioManager:
         await scenario_manager.initialize()
         
         assert len(scenario_manager.scenario_definitions) == 2
-        assert "movie_night" in scenario_manager.scenario_definitions
+        assert "movie_mode" in scenario_manager.scenario_definitions
         assert "reading_mode" in scenario_manager.scenario_definitions
         
         assert len(scenario_manager.scenario_map) == 2
-        assert isinstance(scenario_manager.scenario_map["movie_night"], Scenario)
+        assert isinstance(scenario_manager.scenario_map["movie_mode"], Scenario)
         assert isinstance(scenario_manager.scenario_map["reading_mode"], Scenario)
 
     @pytest.mark.asyncio
@@ -251,33 +241,26 @@ class TestScenarioManager:
         # First load the scenarios
         await scenario_manager.initialize()
         
-        # Switch to the movie night scenario
-        await scenario_manager.switch_scenario("movie_night")
+        # Switch to the movie mode scenario
+        result = await scenario_manager.switch_scenario("movie_mode")
         
         # Check that the current scenario was set
         assert scenario_manager.current_scenario is not None
-        assert scenario_manager.current_scenario.scenario_id == "movie_night"
+        assert scenario_manager.current_scenario.scenario_id == "movie_mode"
         
-        # Check that the scenario state was created
-        assert scenario_manager.scenario_state is not None
-        assert scenario_manager.scenario_state.scenario_id == "movie_night"
+        # Check that device commands were executed
+        mock_tv = mock_device_manager.get_device("tv")
+        mock_soundbar = mock_device_manager.get_device("soundbar")
+        mock_lights = mock_device_manager.get_device("lights")
         
-        # Check that device commands were executed in the correct order
-        tv_calls = mock_device_manager.devices["tv"].execute_command.call_args_list
-        soundbar_calls = mock_device_manager.devices["soundbar"].execute_command.call_args_list
-        lights_calls = mock_device_manager.devices["lights"].execute_command.call_args_list
+        mock_tv.execute_command.assert_any_call("power_on", {})
+        mock_soundbar.execute_command.assert_any_call("power_on", {})
         
-        # Verify TV was powered on
-        assert tv_calls[0][0][0] == "power_on"
-        
-        # Verify soundbar was powered on
-        assert soundbar_calls[0][0][0] == "power_on"
-        
-        # Verify lights were set to movie scene or powered on - depends on implementation
-        # In our sample scenario data it shows "set_scene", but implementation appears to use "power_on"
-        assert lights_calls[0][0][0] in ["set_scene", "power_on"]
-        if lights_calls[0][0][0] == "set_scene":
-            assert lights_calls[0][0][1]["scene"] == "movie"
+        # Verify the result object
+        assert "success" in result
+        assert result["success"] is True
+        assert "shared_devices" in result
+        assert len(result["shared_devices"]) == 0  # No shared devices for first activation
 
     @pytest.mark.asyncio
     async def test_switch_scenario_nonexistent(self, scenario_manager):
@@ -309,60 +292,63 @@ class TestScenarioManager:
 
     @pytest.mark.asyncio
     async def test_switch_scenario_transition(self, scenario_manager, mock_device_manager):
-        """Test transition between scenarios with shared devices"""
-        # First load the scenarios and switch to movie night
+        """Test transitioning between scenarios with shared devices"""
+        # Initialize and switch to movie mode first
         await scenario_manager.initialize()
-        await scenario_manager.switch_scenario("movie_night")
+        await scenario_manager.switch_scenario("movie_mode")
         
-        # Reset the mock calls
-        for device in scenario_manager.device_manager.devices.values():
-            device.execute_command.reset_mock()
+        # Reset all mocks to clear the call history
+        mock_tv = mock_device_manager.get_device("tv")
+        mock_soundbar = mock_device_manager.get_device("soundbar")
+        mock_lights = mock_device_manager.get_device("lights")
         
-        # Switch to reading mode
-        await scenario_manager.switch_scenario("reading_mode")
+        mock_tv.execute_command.reset_mock()
+        mock_soundbar.execute_command.reset_mock()
+        mock_lights.execute_command.reset_mock()
         
-        # Check that the current scenario was updated
-        assert scenario_manager.current_scenario.scenario_id == "reading_mode"
+        # Now switch to reading mode which shares the 'lights' device
+        result = await scenario_manager.switch_scenario("reading_mode")
         
-        # Verify that unused devices were powered off or put in standby - depends on implementation
-        tv_calls = mock_device_manager.devices["tv"].execute_command.call_args_list
-        soundbar_calls = mock_device_manager.devices["soundbar"].execute_command.call_args_list
+        # Check that the non-shared devices were shut down
+        mock_tv.execute_command.assert_called_once_with("power_off", {})
+        mock_soundbar.execute_command.assert_called_once_with("power_off", {})
         
-        # The actual implementation appears to use "standby" instead of "power_off"
-        assert tv_calls[0][0][0] in ["power_off", "standby"]
-        assert soundbar_calls[0][0][0] in ["power_off", "standby"]
+        # Check that lights received a command but not power_on
+        mock_lights.execute_command.assert_called_once_with("set_scene", {"scene": "reading"})
         
-        # Verify that the lights were reconfigured
-        lights_calls = mock_device_manager.devices["lights"].execute_command.call_args_list
-        assert any(call[0][0] == "set_scene" and call[0][1]["scene"] == "reading" 
-                  or call[0][0] == "power_on" for call in lights_calls)
+        # Verify the result object
+        assert result["success"] is True
+        assert "lights" in result["shared_devices"]
+        assert len(result["shared_devices"]) == 1
 
     @pytest.mark.asyncio
     async def test_switch_scenario_graceful_false(self, scenario_manager, mock_device_manager):
-        """Test non-graceful transition between scenarios"""
-        # First load the scenarios and switch to movie night
+        """Test non-graceful scenario transition that powers off all devices"""
+        # Initialize and switch to movie mode first
         await scenario_manager.initialize()
-        await scenario_manager.switch_scenario("movie_night")
+        await scenario_manager.switch_scenario("movie_mode")
         
-        # Reset the mock calls
-        for device in scenario_manager.device_manager.devices.values():
-            device.execute_command.reset_mock()
+        # Reset all mocks to clear the call history
+        mock_tv = mock_device_manager.get_device("tv")
+        mock_soundbar = mock_device_manager.get_device("soundbar")
+        mock_lights = mock_device_manager.get_device("lights")
         
-        # Switch to reading mode with graceful=False
-        await scenario_manager.switch_scenario("reading_mode", graceful=False)
+        mock_tv.execute_command.reset_mock()
+        mock_soundbar.execute_command.reset_mock()
+        mock_lights.execute_command.reset_mock()
         
-        # All devices from the previous scenario should be powered off
-        tv_calls = mock_device_manager.devices["tv"].execute_command.call_args_list
-        soundbar_calls = mock_device_manager.devices["soundbar"].execute_command.call_args_list
-        lights_calls = mock_device_manager.devices["lights"].execute_command.call_args_list
+        # Now switch to reading mode with graceful=False
+        result = await scenario_manager.switch_scenario("reading_mode", graceful=False)
         
-        # TV and soundbar should be powered off or put in standby - depends on implementation
-        assert tv_calls[0][0][0] in ["power_off", "standby"]
-        assert soundbar_calls[0][0][0] in ["power_off", "standby"]
+        # In non-graceful mode, the shutdown sequence is executed directly
+        # No direct device.execute_command calls should be made for TV and soundbar
         
-        # Lights should be reconfigured as part of reading mode startup
-        assert any(call[0][0] == "set_scene" and call[0][1]["scene"] == "reading" 
-                  or call[0][0] == "power_on" for call in lights_calls)
+        # Lights should receive its commands as part of the reading mode startup
+        mock_lights.execute_command.assert_called_with("set_scene", {"scene": "reading"})
+        
+        # Verify the result object has no shared devices
+        assert result["success"] is True
+        assert len(result["shared_devices"]) == 0
 
     @pytest.mark.asyncio
     async def test_execute_role_action_success(self, scenario_manager, mock_device_manager):

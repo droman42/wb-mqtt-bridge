@@ -70,87 +70,118 @@ class TestScenarioDefinition:
             scenario_id="test_scenario",
             name="Test Scenario",
             description="A test scenario",
-            roles={"screen": "device1", "audio": "device2"},
-            devices={
-                "device1": {"groups": ["screen"]},
-                "device2": {"groups": ["audio"]}
-            },
+            room_id="living_room",
+            roles={"screen": "device1"},
+            devices=["device1", "device2"],
             startup_sequence=[
-                CommandStep(device="device1", command="power_on"),
-                CommandStep(device="device2", command="power_on")
+                CommandStep(
+                    device="device1",
+                    command="power_on"
+                )
             ],
-            shutdown_sequence={
-                "complete": [
-                    CommandStep(device="device1", command="power_off"),
-                    CommandStep(device="device2", command="power_off")
-                ],
-                "transition": [
-                    CommandStep(device="device1", command="standby"),
-                    CommandStep(device="device2", command="standby")
-                ]
-            }
+            shutdown_sequence=[
+                CommandStep(
+                    device="device1",
+                    command="power_off"
+                )
+            ]
         )
         
         assert scenario.scenario_id == "test_scenario"
         assert scenario.name == "Test Scenario"
-        assert len(scenario.startup_sequence) == 2
-        assert len(scenario.shutdown_sequence["complete"]) == 2
-        assert len(scenario.shutdown_sequence["transition"]) == 2
-    
-    def test_shutdown_sequence_validation(self):
-        with pytest.raises(ValueError, match="shutdown_sequence missing keys"):
-            ScenarioDefinition(
-                scenario_id="test_scenario",
-                name="Test Scenario",
-                roles={"screen": "device1"},
-                devices={"device1": {"groups": ["screen"]}},
-                startup_sequence=[],
-                shutdown_sequence={
-                    # Missing "transition" key
-                    "complete": []
-                }
-            )
+        assert scenario.description == "A test scenario"
+        assert scenario.room_id == "living_room"
+        assert scenario.roles == {"screen": "device1"}
+        assert "device1" in scenario.devices
+        assert "device2" in scenario.devices
+        assert len(scenario.startup_sequence) == 1
+        assert scenario.startup_sequence[0].device == "device1"
+        assert scenario.startup_sequence[0].command == "power_on"
+        assert len(scenario.shutdown_sequence) == 1
+        assert scenario.shutdown_sequence[0].device == "device1"
+        assert scenario.shutdown_sequence[0].command == "power_off"
     
     def test_device_references_validation(self):
         # Role references non-existent device
-        with pytest.raises(ValueError, match="Role 'screen' references device 'device1'"):
-            ScenarioDefinition(
+        with pytest.raises(ValueError, match="Role 'screen' references device 'device2' which is not in devices"):
+            valid_def = ScenarioDefinition(
                 scenario_id="test_scenario",
                 name="Test Scenario",
-                roles={"screen": "device1"},
-                devices={"device2": {"groups": ["screen"]}},  # device1 not in devices
-                startup_sequence=[],
-                shutdown_sequence={"complete": [], "transition": []}
+                roles={"screen": "device2"},  # device2 not in devices
+                devices=["device1"],
+                startup_sequence=[
+                    CommandStep(
+                        device="device1",
+                        command="power_on"
+                    )
+                ],
+                shutdown_sequence=[
+                    CommandStep(
+                        device="device1",
+                        command="power_off"
+                    )
+                ]
             )
+            valid_def.validate_references()  # Trigger validation
         
         # Startup sequence references non-existent device
-        with pytest.raises(ValueError, match="Device 'device3' in startup sequence"):
-            ScenarioDefinition(
+        with pytest.raises(ValueError, match="Device 'device2' in startup sequence"):
+            valid_def = ScenarioDefinition(
                 scenario_id="test_scenario",
                 name="Test Scenario",
                 roles={"screen": "device1"},
-                devices={"device1": {"groups": ["screen"]}},
+                devices=["device1"],
                 startup_sequence=[
-                    CommandStep(device="device3", command="power_on")  # device3 not in devices
+                    CommandStep(
+                        device="device2",  # device2 not in devices
+                        command="power_on"
+                    )
                 ],
-                shutdown_sequence={"complete": [], "transition": []}
+                shutdown_sequence=[
+                    CommandStep(
+                        device="device1",
+                        command="power_off"
+                    )
+                ]
             )
+            valid_def.validate_references()  # Trigger validation
         
         # Shutdown sequence references non-existent device
-        with pytest.raises(ValueError, match="Device 'device3' in shutdown sequence 'complete'"):
-            ScenarioDefinition(
+        with pytest.raises(ValueError, match="Device 'device2' in shutdown sequence"):
+            valid_def = ScenarioDefinition(
                 scenario_id="test_scenario",
                 name="Test Scenario",
                 roles={"screen": "device1"},
-                devices={"device1": {"groups": ["screen"]}},
-                startup_sequence=[],
-                shutdown_sequence={
-                    "complete": [
-                        CommandStep(device="device3", command="power_off")  # device3 not in devices
-                    ],
-                    "transition": []
-                }
+                devices=["device1"],
+                startup_sequence=[
+                    CommandStep(
+                        device="device1",
+                        command="power_on"
+                    )
+                ],
+                shutdown_sequence=[
+                    CommandStep(
+                        device="device2",  # device2 not in devices
+                        command="power_off"
+                    )
+                ]
             )
+            valid_def.validate_references()  # Trigger validation
+        
+        # Test with valid references
+        valid = ScenarioDefinition(
+            scenario_id="test_scenario",
+            name="Test Scenario",
+            roles={"screen": "device1"},
+            devices=["device1"],
+            startup_sequence=[
+                CommandStep(device="device1", command="power_on")
+            ],
+            shutdown_sequence=[
+                CommandStep(device="device1", command="power_off")
+            ]
+        )
+        assert valid is not None
 
 class TestDeviceState:
     def test_default_values(self):

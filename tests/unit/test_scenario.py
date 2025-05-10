@@ -28,32 +28,18 @@ SAMPLE_SCENARIO = {
             "params": {"volume": 50}
         }
     ],
-    "shutdown_sequence": {
-        "complete": [
-            {
-                "device": "tv",
-                "command": "power_off",
-                "params": {}
-            },
-            {
-                "device": "soundbar",
-                "command": "power_off",
-                "params": {}
-            }
-        ],
-        "transition": [
-            {
-                "device": "tv",
-                "command": "standby",
-                "params": {}
-            },
-            {
-                "device": "soundbar",
-                "command": "standby",
-                "params": {}
-            }
-        ]
-    },
+    "shutdown_sequence": [
+        {
+            "device": "tv",
+            "command": "power_off",
+            "params": {}
+        },
+        {
+            "device": "soundbar",
+            "command": "power_off",
+            "params": {}
+        }
+    ],
     "manual_instructions": {
         "startup": ["Turn on the lights"],
         "shutdown": ["Turn off the lights"]
@@ -204,22 +190,13 @@ class TestScenario:
         mock_device_manager.devices["soundbar"].execute_command.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_execute_shutdown_sequence_complete(self, scenario, mock_device_manager):
-        """Test execution of complete shutdown sequence"""
-        await scenario.execute_shutdown_sequence(complete=True)
+    async def test_execute_shutdown_sequence(self, scenario, mock_device_manager):
+        """Test execution of shutdown sequence"""
+        await scenario.execute_shutdown_sequence()
         
         # Both devices should be powered off
         mock_device_manager.devices["tv"].execute_command.assert_called_once_with("power_off", {})
         mock_device_manager.devices["soundbar"].execute_command.assert_called_once_with("power_off", {})
-
-    @pytest.mark.asyncio
-    async def test_execute_shutdown_sequence_transition(self, scenario, mock_device_manager):
-        """Test execution of transition shutdown sequence"""
-        await scenario.execute_shutdown_sequence(complete=False)
-        
-        # Both devices should be put in standby
-        mock_device_manager.devices["tv"].execute_command.assert_called_once_with("standby", {})
-        mock_device_manager.devices["soundbar"].execute_command.assert_called_once_with("standby", {})
 
     @pytest.mark.asyncio
     async def test_execute_shutdown_sequence_error(self, scenario, mock_device_manager):
@@ -229,7 +206,7 @@ class TestScenario:
         
         # Should not raise the exception, but log it
         with patch('logging.Logger.error') as mock_error:
-            await scenario.execute_shutdown_sequence(complete=True)
+            await scenario.execute_shutdown_sequence()
             
             # Verify error was logged
             assert any("Error executing shutdown step" in call.args[0] for call in mock_error.call_args_list)
@@ -237,6 +214,35 @@ class TestScenario:
             # Second device should still be shut down
             mock_device_manager.devices["soundbar"].execute_command.assert_called_once()
 
+    def test_is_power_command(self, scenario):
+        """Test power command detection"""
+        # Standard power commands
+        assert scenario._is_power_command("power_on") is True
+        assert scenario._is_power_command("power_off") is True
+        assert scenario._is_power_command("turn_on") is True
+        assert scenario._is_power_command("turn_off") is True
+        
+        # Case insensitive
+        assert scenario._is_power_command("POWER_ON") is True
+        assert scenario._is_power_command("Power_Off") is True
+        
+        # Joined words
+        assert scenario._is_power_command("poweron") is True
+        assert scenario._is_power_command("poweroff") is True
+        
+        # Other power-related commands
+        assert scenario._is_power_command("standby") is True
+        assert scenario._is_power_command("wake") is True
+        
+        # Power with verbs
+        assert scenario._is_power_command("power_toggle") is True
+        
+        # Non-power commands
+        assert scenario._is_power_command("set_input") is False
+        assert scenario._is_power_command("increase_volume") is False
+        assert scenario._is_power_command("play") is False
+        assert scenario._is_power_command("pause") is False
+    
     @pytest.mark.asyncio
     async def test_evaluate_condition_true(self, scenario):
         """Test condition evaluation with a true condition"""
@@ -305,6 +311,34 @@ class TestScenario:
         
         assert any("Device 'tv' is not in room 'living_room'" in error for error in errors)
         assert any("Device 'soundbar' is not in room 'living_room'" in error for error in errors)
+
+    @pytest.mark.asyncio
+    async def test_execute_startup_sequence_with_power_skipping(self, scenario, mock_device_manager):
+        """Test execution of startup sequence with power command skipping"""
+        # Call startup sequence with skip_power_for_devices parameter
+        await scenario.execute_startup_sequence(skip_power_for_devices=["tv"])
+        
+        # The TV power_on command should be skipped
+        mock_device_manager.devices["tv"].execute_command.assert_not_called()
+        
+        # The soundbar command should still be executed
+        mock_device_manager.devices["soundbar"].execute_command.assert_called_once_with(
+            "power_on", {"volume": 50}
+        )
+
+    @pytest.mark.asyncio
+    async def test_initialize_with_power_skipping(self, scenario, mock_device_manager):
+        """Test initialize with power command skipping"""
+        # Call initialize with skip_power_for_devices parameter
+        await scenario.initialize(skip_power_for_devices=["tv"])
+        
+        # The TV power_on command should be skipped
+        mock_device_manager.devices["tv"].execute_command.assert_not_called()
+        
+        # The soundbar command should still be executed
+        mock_device_manager.devices["soundbar"].execute_command.assert_called_once_with(
+            "power_on", {"volume": 50}
+        )
 
 @pytest.fixture
 def scenario_with_conditions(sample_scenario_definition, mock_device_manager):

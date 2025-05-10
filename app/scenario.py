@@ -77,27 +77,41 @@ class Scenario:
             logger.error(msg)
             raise ScenarioExecutionError(msg, role, device_id, command)
 
-    async def initialize(self):
+    async def initialize(self, skip_power_for_devices: Optional[List[str]] = None):
         """
         Initialize the scenario by running the startup sequence.
         
         This method is typically called when switching to this scenario.
+        
+        Args:
+            skip_power_for_devices: Optional list of device IDs for which power commands should be skipped
         """
         logger.info(f"Initializing scenario '{self.scenario_id}'")
-        await self.execute_startup_sequence()
+        await self.execute_startup_sequence(skip_power_for_devices=skip_power_for_devices)
 
-    async def execute_startup_sequence(self):
+    async def execute_startup_sequence(self, skip_power_for_devices: Optional[List[str]] = None):
         """
         Execute the startup sequence for this scenario.
         
         This runs each command in the startup sequence in order, with any
         specified delays between steps.
+        
+        Args:
+            skip_power_for_devices: Optional list of device IDs for which power commands should be skipped
+                                   (used for shared devices during scenario transitions)
         """
         logger.info(f"Executing startup sequence for scenario '{self.scenario_id}'")
+        skip_power_for_devices = skip_power_for_devices or []
+        
         for step in self.definition.startup_sequence:
             dev = self.device_manager.get_device(step.device)
             if not dev:
                 logger.error(f"Device '{step.device}' not found, skipping step")
+                continue
+                
+            # Skip power commands for shared devices
+            if step.device in skip_power_for_devices and self._is_power_command(step.command):
+                logger.info(f"Skipping power command {step.command} on shared device {step.device}")
                 continue
                 
             try:
@@ -112,18 +126,13 @@ class Scenario:
                 logger.error(f"Error executing startup step for {step.device}: {str(e)}")
                 logger.debug(traceback.format_exc())
 
-    async def execute_shutdown_sequence(self, complete: bool = True):
+    async def execute_shutdown_sequence(self):
         """
         Execute the shutdown sequence for this scenario.
-        
-        Args:
-            complete: If True, use the 'complete' sequence for full shutdown.
-                     If False, use the 'transition' sequence for switching to another scenario.
         """
-        key = "complete" if complete else "transition"
-        logger.info(f"Executing {key} shutdown sequence for scenario '{self.scenario_id}'")
+        logger.info(f"Executing shutdown sequence for scenario '{self.scenario_id}'")
         
-        for step in self.definition.shutdown_sequence[key]:
+        for step in self.definition.shutdown_sequence:
             dev = self.device_manager.get_device(step.device)
             if not dev:
                 logger.error(f"Device '{step.device}' not found, skipping step")
@@ -140,6 +149,38 @@ class Scenario:
             except Exception as e:
                 logger.error(f"Error executing shutdown step for {step.device}: {str(e)}")
                 logger.debug(traceback.format_exc())
+
+    def _is_power_command(self, command: str) -> bool:
+        """
+        Check if a command is related to power control.
+        
+        This helper method identifies commands that control device power state,
+        which is useful for intelligent scenario transitions.
+        
+        Args:
+            command: The command name to check
+            
+        Returns:
+            bool: True if the command is power-related, False otherwise
+        """
+        # Simple implementation based on command name pattern matching
+        power_commands = [
+            "power_on", "power_off", "poweron", "poweroff",
+            "turn_on", "turn_off", "turnon", "turnoff",
+            "on", "off", "standby", "wake"
+        ]
+        
+        command_lower = command.lower()
+        
+        # Direct match against our list of known power commands
+        if command_lower in power_commands:
+            return True
+            
+        # Check for commands that contain 'power' + action verbs
+        if "power" in command_lower and any(action in command_lower for action in ["up", "down", "toggle", "cycle"]):
+            return True
+            
+        return False
 
     async def _evaluate_condition(self, condition: Optional[str], device: BaseDevice) -> bool:
         """
@@ -193,10 +234,9 @@ class Scenario:
             if not self.device_manager.get_device(step.device):
                 errors.append(f"Device '{step.device}' referenced in startup sequence does not exist")
         
-        for key in ["complete", "transition"]:
-            for step in self.definition.shutdown_sequence[key]:
-                if not self.device_manager.get_device(step.device):
-                    errors.append(f"Device '{step.device}' referenced in shutdown sequence does not exist")
+        for step in self.definition.shutdown_sequence:
+            if not self.device_manager.get_device(step.device):
+                errors.append(f"Device '{step.device}' referenced in shutdown sequence does not exist")
         
         # 2. Role Validation
         for role, device_id in self.definition.roles.items():

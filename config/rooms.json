@@ -10,18 +10,26 @@
     "devices": [
       "living_room_tv",
       "processor",
-      "appletv_living"
+      "appletv_living",
+      "streamer",
+      "upscaler",
+      "video",
+      "mf_amplifier",
+      "ld_player",
+      "vhs_player",
+      "reel_to_reel"
     ],
-    "default_scenario": "movie_night"
+    "default_scenario": null
   },
   
-  "bedroom": {
-    "room_id": "bedroom",
+  "children_room": {
+    "room_id": "children_room",
     "names": {
-      "en": "Master Bedroom",
-      "ru": "Спальня"
+      "en": "Children Room",
+      "ru": "Детская",
+      "de": "Kinderzimmer"
     },
-    "description": "Master bedroom with entertainment system",
+    "description": "Children room with TV and Apple TV",
     "devices": [
       "children_room_tv",
       "appletv_children"
@@ -32,7 +40,9 @@
   "kitchen": {
     "room_id": "kitchen",
     "names": {
-      "en": "Kitchen"
+      "en": "Kitchen",
+      "ru": "Кухня",
+      "de": "Küche"
     },
     "description": "Kitchen area with smart appliances",
     "devices": [
