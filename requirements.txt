@@ -36,3 +36,6 @@ git+https://github.com/postlund/pyatv.git@f75e718bc0bdaf0a3ff06eb00086f781b3f063
 
 # Added dependency
 httpx
+
+# New dependency
+openhomedevice==1.2.0

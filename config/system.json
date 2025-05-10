@@ -32,7 +32,8 @@
     "inputs": "Inputs",
     "menu": "Menu",
     "tracks": "Audio & Subtitles",
-    "apps": "Applications"
+    "apps": "Applications",
+    "media": "Media"
   },
   "devices": {
     "mf_amplifier": {
@@ -44,7 +45,7 @@
       "config_file": "ld_player.json"
     },
     "streamer": {
-      "class": "WirenboardIRDevice",
+      "class": "AuralicDevice",
       "config_file": "streamer.json"
     },
     "upscaler": {

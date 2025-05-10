@@ -32,6 +32,5 @@
 - [x] Миграция на SVG Icons на веб интерфейсе
 - [ ] Сделать страничку для обучения IR кодам с пультов
 - [x] Продумать, как изолировать конфигурацию интерфейса от конфигурации устройств
-- [ ] Сделать интеграцию с [Auralic Altair G1](auralic_stragery.md)
-- [ ] Сделать интеграцию с [Zappiti Neo](pyzappiti_implementation_plan.md)
+- [x] Сделать интеграцию с [Auralic Altair G1](auralic_stragery.md)
 

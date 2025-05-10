@@ -3,22 +3,101 @@
   "device_id": "streamer",
   "alias": "streamer",
   "mqtt_progress_topic": "/devices/streamer/controls/progress",
+  "auralic": {
+    "ip_address": "192.168.110.142",
+    "update_interval": 5,
+    "discovery_mode": false
+  },
   "commands": {
-    "power": {
-      "action": "power",
-      "topic": "/devices/streamer/controls/power",
-      "location": "wb-msw-v3_207",
-      "rom_position": "62",
+    "power_on": {
+      "action": "power_on",
+      "topic": "/devices/streamer/controls/power_on",
+      "group": "power",
+      "description": "Power On"
+    },
+    "power_off": {
+      "action": "power_off",
+      "topic": "/devices/streamer/controls/power_off",
+      "group": "power",
+      "description": "Power Off"
+    },
+    "power_toggle": {
+      "action": "power_toggle",
+      "topic": "/devices/streamer/controls/power_toggle",
       "group": "power",
       "description": "Power On/Off"
     },
-    "stream": {
-      "action": "stream",
-      "topic": "/devices/streamer/controls/stream",
-      "location": "wb-msw-v3_218",
-      "rom_position": "17",
+    "play": {
+      "action": "play",
+      "topic": "/devices/streamer/controls/play",
+      "group":"playback",
+      "description": "Play"
+    },
+    "pause": {
+      "action": "pause",
+      "topic": "/devices/streamer/controls/pause",
+      "group": "playback",
+      "description": "Pause"
+    },
+    "stop": {
+      "action": "stop",
+      "topic": "/devices/streamer/controls/stop",
+      "group": "playback",
+      "description": "Stop"
+    },
+    "next": {
+      "action": "next",
+      "topic": "/devices/streamer/controls/next",
+      "group": "playback",
+      "description": "Next Track"
+    },
+    "previous": {
+      "action": "previous",
+      "topic": "/devices/streamer/controls/previous",
+      "group": "playback",
+      "description": "Previous Track"
+    },
+    "set_volume": {
+      "action": "set_volume",
+      "topic": "/devices/streamer/controls/set_volume",
+      "group": "volume",
+      "description": "Set Volume",
+      "params": [
+        {"name": "level", "type": "range", "min": 0, "max": 100, "required": true, "description": "Volume level (0-100)"}
+      ]
+    },
+    "volume_up": {
+      "action": "volume_up",
+      "topic": "/devices/streamer/controls/volume_up",
+      "group": "volume",
+      "description": "Increase Volume"
+    },
+    "volume_down": {
+      "action": "volume_down",
+      "topic": "/devices/streamer/controls/volume_down",
+      "group": "volume",
+      "description": "Decrease Volume"
+    },
+    "mute": {
+      "action": "mute",
+      "topic": "/devices/streamer/controls/mute",
+      "group": "volume",
+      "description": "Toggle Mute"
+    },
+    "set_source": {
+      "action": "set_source",
+      "topic": "/devices/streamer/controls/set_source",
       "group": "inputs",
-      "description": "Streaming"
+      "description": "Set Source",
+      "params": [
+        {"name": "source", "type": "string", "required": true, "description": "Source name or index"}
+      ]
+    },
+    "track_info": {
+      "action": "track_info",
+      "topic": "/devices/streamer/controls/track_info",
+      "group": "media",
+      "description": "Get Current Track Information"
     }
   }
 }

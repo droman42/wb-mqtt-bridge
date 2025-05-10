@@ -12,6 +12,7 @@ from app.schemas import (
     LgTvDeviceConfig,
     AppleTVDeviceConfig,
     EmotivaXMC2DeviceConfig,
+    AuralicDeviceConfig,
     StandardCommandConfig,
     IRCommandConfig,
     BroadlinkCommandConfig,
@@ -33,7 +34,8 @@ class ConfigManager:
         "BroadlinkKitchenHood": BroadlinkKitchenHoodConfig,
         "LgTv": LgTvDeviceConfig,
         "AppleTVDevice": AppleTVDeviceConfig,
-        "EMotivaXMC2": EmotivaXMC2DeviceConfig
+        "EMotivaXMC2": EmotivaXMC2DeviceConfig,
+        "AuralicDevice": AuralicDeviceConfig
     }
     
     def __init__(self, config_dir: str = "config"):

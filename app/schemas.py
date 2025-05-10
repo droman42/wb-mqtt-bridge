@@ -147,6 +147,18 @@ class EmotivaXMC2DeviceConfig(BaseDeviceConfig):
     commands: Dict[str, StandardCommandConfig]
     emotiva: EmotivaConfig
 
+class AuralicConfig(BaseModel):
+    """Configuration for Auralic device."""
+    ip_address: str
+    update_interval: int = 10  # seconds
+    discovery_mode: bool = False
+    device_url: Optional[str] = None
+
+class AuralicDeviceConfig(BaseDeviceConfig):
+    """Configuration for Auralic device."""
+    commands: Dict[str, StandardCommandConfig]
+    auralic: AuralicConfig
+
 # The rest of the state models remain unchanged
 class LastCommand(BaseModel):
     """Schema for last executed command."""
@@ -512,6 +524,19 @@ class AppleTVState(BaseDeviceState):
             data["media_type"] = str(self.media_type)
         
         return data
+
+class AuralicDeviceState(BaseDeviceState):
+    """Schema for Auralic device state."""
+    power: str = "unknown"  # on/off/unknown
+    volume: int = 0
+    mute: bool = False
+    source: Optional[str] = None
+    connected: bool = False
+    ip_address: Optional[str] = None
+    track_title: Optional[str] = None
+    track_artist: Optional[str] = None
+    track_album: Optional[str] = None
+    transport_state: Optional[str] = None  # Playing, Paused, Stopped, Buffering, etc.
 
 class PersistenceConfig(BaseModel):
     """Configuration for the persistence layer."""
