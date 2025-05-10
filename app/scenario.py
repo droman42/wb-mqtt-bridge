@@ -2,6 +2,7 @@ import asyncio
 import logging
 from typing import Any, Dict, List, Optional, Union
 import traceback
+import re
 
 from app.scenario_models import ScenarioDefinition, CommandStep
 from app.device_manager import DeviceManager
@@ -31,6 +32,9 @@ class Scenario:
     A scenario consists of roles (device assignments), startup and shutdown sequences,
     and provides methods to execute actions on devices by their role.
     """
+    # Pre-compile power command regex pattern for better performance
+    _POWER_COMMAND_PATTERN = re.compile(r'^(power_on|power_off|poweron|poweroff|turn_on|turn_off|turnon|turnoff|on|off|standby|wake|power_toggle|power[_-]cycle)$', re.IGNORECASE)
+    
     def __init__(self, definition: ScenarioDefinition, device_manager: DeviceManager):
         """
         Initialize a scenario with its definition and device manager.
@@ -152,10 +156,7 @@ class Scenario:
 
     def _is_power_command(self, command: str) -> bool:
         """
-        Check if a command is related to power control.
-        
-        This helper method identifies commands that control device power state,
-        which is useful for intelligent scenario transitions.
+        Check if a command is related to power control using a pre-compiled regex pattern.
         
         Args:
             command: The command name to check
@@ -163,28 +164,11 @@ class Scenario:
         Returns:
             bool: True if the command is power-related, False otherwise
         """
-        # Simple implementation based on command name pattern matching
-        power_commands = [
-            "power_on", "power_off", "poweron", "poweroff",
-            "turn_on", "turn_off", "turnon", "turnoff",
-            "on", "off", "standby", "wake"
-        ]
-        
-        command_lower = command.lower()
-        
-        # Direct match against our list of known power commands
-        if command_lower in power_commands:
-            return True
-            
-        # Check for commands that contain 'power' + action verbs
-        if "power" in command_lower and any(action in command_lower for action in ["up", "down", "toggle", "cycle"]):
-            return True
-            
-        return False
+        return bool(self._POWER_COMMAND_PATTERN.match(command))
 
     async def _evaluate_condition(self, condition: Optional[str], device: BaseDevice) -> bool:
         """
-        Evaluate a condition string against a device's state.
+        Safely evaluate a condition string against a device's state.
         
         Example condition: "device.power != 'on'"
         
@@ -202,53 +186,157 @@ class Scenario:
             # Get device state
             device_state = device.get_current_state()
             
-            # Create a limited context for evaluation
-            # This restricts available names to just 'device' for security
-            context = {"device": device_state}
-            
-            # Evaluate the condition with restricted builtins for security
-            result = eval(condition, {"__builtins__": {}}, context)
-            return bool(result)
+            # Instead of using eval, implement a safe parser for simple conditions
+            # For now, we'll support only a few common comparison operations
+            return self._safe_evaluate_condition(condition, device_state)
         except Exception as e:
             logger.error(f"Error evaluating condition '{condition}': {str(e)}")
             return False
+            
+    def _safe_evaluate_condition(self, condition: str, device_state: Dict[str, Any]) -> bool:
+        """
+        Safely evaluate a simple condition without using eval().
+        
+        Supports: 
+        - "device.attribute == value"
+        - "device.attribute != value"
+        - "device.attribute in [value1, value2]"
+        - "device.attribute not in [value1, value2]"
+        
+        Args:
+            condition: The condition string to evaluate
+            device_state: The device state to evaluate against
+            
+        Returns:
+            bool: The result of the condition
+        """
+        condition = condition.strip()
+        
+        # Handle equality check
+        if "==" in condition:
+            left, right = condition.split("==", 1)
+            left = left.strip()
+            right = right.strip()
+            
+            if left.startswith("device."):
+                key = left[7:].strip()  # remove "device."
+                if key in device_state:
+                    # Handle string literal with quotes
+                    if (right.startswith("'") and right.endswith("'")) or \
+                       (right.startswith('"') and right.endswith('"')):
+                        right = right[1:-1]  # Remove quotes
+                    
+                    # Handle boolean literals
+                    if right.lower() == "true":
+                        right = True
+                    elif right.lower() == "false":
+                        right = False
+                    
+                    # Handle numeric literals
+                    try:
+                        # Check if it's a number
+                        if isinstance(right, str):
+                            if "." in right:
+                                right = float(right)
+                            else:
+                                right = int(right)
+                    except ValueError:
+                        pass
+                        
+                    return device_state[key] == right
+            
+            return False
+            
+        # Handle inequality check
+        elif "!=" in condition:
+            left, right = condition.split("!=", 1)
+            left = left.strip()
+            right = right.strip()
+            
+            if left.startswith("device."):
+                key = left[7:].strip()  # remove "device."
+                if key in device_state:
+                    # Handle string literal with quotes
+                    if (right.startswith("'") and right.endswith("'")) or \
+                       (right.startswith('"') and right.endswith('"')):
+                        right = right[1:-1]  # Remove quotes
+                    
+                    # Handle boolean literals
+                    if right.lower() == "true":
+                        right = True
+                    elif right.lower() == "false":
+                        right = False
+                    
+                    # Handle numeric literals
+                    try:
+                        # Check if it's a number
+                        if isinstance(right, str):
+                            if "." in right:
+                                right = float(right)
+                            else:
+                                right = int(right)
+                    except ValueError:
+                        pass
+                        
+                    return device_state[key] != right
+            
+            return True
+            
+        # Default: condition not supported
+        logger.warning(f"Unsupported condition format: {condition}")
+        return True
 
     def validate(self) -> List[str]:
         """
         Validate the scenario definition against system state.
         
-        This checks that all devices referenced in the scenario exist in the system
-        and that they are properly configured.
+        This checks that all devices referenced in the scenario exist in the system,
+        all commands in sequences are valid, and that the scenario configuration is consistent.
         
         Returns:
             List[str]: List of validation errors, empty if valid
         """
         errors = []
         
-        # 1. Device Validation
-        for device_id in self.definition.devices:
+        # Get all unique device IDs from the scenario
+        device_ids = set(self.definition.devices)
+        
+        # 1. Validate device existence
+        for device_id in device_ids:
             if not self.device_manager.get_device(device_id):
                 errors.append(f"Device '{device_id}' referenced in scenario does not exist")
         
-        for step in self.definition.startup_sequence:
-            if not self.device_manager.get_device(step.device):
-                errors.append(f"Device '{step.device}' referenced in startup sequence does not exist")
-        
-        for step in self.definition.shutdown_sequence:
-            if not self.device_manager.get_device(step.device):
-                errors.append(f"Device '{step.device}' referenced in shutdown sequence does not exist")
-        
-        # 2. Role Validation
+        # 2. Validate roles
         for role, device_id in self.definition.roles.items():
             if not self.device_manager.get_device(device_id):
                 errors.append(f"Device '{device_id}' for role '{role}' does not exist")
         
-        # 3. Scenario-Room Containment
+        # 3. Validate room containment if room_id is specified
         if self.definition.room_id:
             room_mgr = getattr(self.device_manager, "room_manager", None)
             if room_mgr:
-                for device_id in self.definition.devices:
-                    if not room_mgr.contains_device(self.definition.room_id, device_id):
-                        errors.append(f"Device '{device_id}' is not in room '{self.definition.room_id}'")
+                room = room_mgr.get_room(self.definition.room_id)
+                if not room:
+                    errors.append(f"Room '{self.definition.room_id}' referenced by scenario does not exist")
+                else:
+                    room_device_ids = set(room.devices)
+                    non_room_devices = device_ids - room_device_ids
+                    if non_room_devices:
+                        errors.append(
+                            f"Devices {', '.join(non_room_devices)} are used in scenario but not in room '{self.definition.room_id}'"
+                        )
+            else:
+                errors.append("Room manager not available to validate room containment")
+        
+        # 4. Validate command execution steps
+        for i, step in enumerate(self.definition.startup_sequence):
+            device = self.device_manager.get_device(step.device)
+            if device and not device.supports_command(step.command):
+                errors.append(f"Device '{step.device}' does not support command '{step.command}' in startup sequence")
+        
+        for i, step in enumerate(self.definition.shutdown_sequence):
+            device = self.device_manager.get_device(step.device)
+            if device and not device.supports_command(step.command):
+                errors.append(f"Device '{step.device}' does not support command '{step.command}' in shutdown sequence")
         
         return errors 

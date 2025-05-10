@@ -166,7 +166,7 @@ class ScenarioManager:
         
         # 3. Update manager state
         self.current_scenario = incoming
-        self.scenario_state = await self._build_scenario_state(incoming)
+        await self._refresh_state()
         
         # 4. Persist state
         await self._persist_state()
@@ -209,124 +209,66 @@ class ScenarioManager:
             logger.error(f"Error executing role action {role}.{command}: {str(e)}")
             raise
     
-    async def get_scenario_for_room(self, room_id: str) -> List[str]:
-        """
-        Get scenarios configured for a specific room.
-        
-        Args:
-            room_id: The room ID to find scenarios for
-            
-        Returns:
-            List[str]: List of scenario IDs that target this room
-        """
-        result = []
-        for scenario_id, definition in self.scenario_definitions.items():
-            if definition.room_id == room_id:
-                result.append(scenario_id)
-        return result
-    
-    async def _build_scenario_state(self, scenario: Scenario) -> ScenarioState:
-        """
-        Build a ScenarioState object from the current device states.
-        
-        Args:
-            scenario: The scenario to build state for
-            
-        Returns:
-            ScenarioState: The current state of all devices in the scenario
-        """
-        device_states = {}
-        
-        for dev_id in scenario.definition.devices:
-            device = self.device_manager.get_device(dev_id)
-            if device:
-                try:
-                    state = device.get_current_state()
-                    device_states[dev_id] = DeviceState(
-                        power=state.get("power"),
-                        input=state.get("input"),
-                        output=state.get("output"),
-                        extra={k: v for k, v in state.items() 
-                              if k not in ("power", "input", "output")}
-                    )
-                except Exception as e:
-                    logger.error(f"Error getting state for device {dev_id}: {str(e)}")
-        
-        return ScenarioState(scenario_id=scenario.scenario_id, devices=device_states)
-    
     async def _refresh_state(self) -> None:
         """
-        Refresh the scenario state from current device states.
-        
-        This updates self.scenario_state with the latest device states
-        and persists the updated state.
+        Refresh the scenario state based on current device states.
         """
         if not self.current_scenario:
+            self.scenario_state = None
             return
-            
-        self.scenario_state = await self._build_scenario_state(self.current_scenario)
-        await self._persist_state()
+        
+        # Create a new state object
+        device_states = {}
+        
+        for dev_id in self.current_scenario.definition.devices:
+            device = self.device_manager.get_device(dev_id)
+            if device:
+                state = device.get_current_state()
+                device_states[dev_id] = DeviceState(
+                    power=state.get("power"),
+                    input=state.get("input"),
+                    output=state.get("output"),
+                    extra={k: v for k, v in state.items() 
+                          if k not in ("power", "input", "output")}
+                )
+        
+        self.scenario_state = ScenarioState(
+            scenario_id=self.current_scenario.scenario_id,
+            devices=device_states
+        )
     
     async def _persist_state(self) -> None:
         """
-        Persist current scenario state to the state store.
-        
-        This saves the current scenario state under the key "scenario:last".
+        Persist the current scenario state.
         """
-        if self.store and self.scenario_state:
-            await self.store.set("scenario:last", self.scenario_state.model_dump())
-            logger.debug("Persisted scenario state")
+        if self.current_scenario:
+            await self.store.save("active_scenario", self.current_scenario.scenario_id)
     
     async def _restore_state(self) -> None:
         """
-        Restore scenario state from the state store.
-        
-        This attempts to restore the previously active scenario and its state.
+        Restore the previously active scenario, if any.
         """
-        if not self.store:
-            logger.warning("No state store available for restoring scenario state")
-            return
-            
         try:
-            state_dict = await self.store.get("scenario:last")
-            if state_dict:
-                state = ScenarioState.model_validate(state_dict)
-                self.scenario_state = state
-                
-                # Try to restore the active scenario
-                if state.scenario_id in self.scenario_map:
-                    self.current_scenario = self.scenario_map[state.scenario_id]
-                    logger.info(f"Restored active scenario: {state.scenario_id}")
-                else:
-                    logger.warning(f"Could not restore scenario {state.scenario_id}: not found")
+            scenario_id = await self.store.load("active_scenario")
+            if scenario_id and scenario_id in self.scenario_map:
+                logger.info(f"Restoring previously active scenario: {scenario_id}")
+                try:
+                    await self.switch_scenario(scenario_id)
+                except Exception as e:
+                    logger.error(f"Error restoring scenario {scenario_id}: {str(e)}")
         except Exception as e:
-            logger.error(f"Error restoring scenario state: {str(e)}")
-
+            logger.error(f"Error loading active scenario from store: {str(e)}")
+    
     async def shutdown(self) -> None:
         """
-        Clean up resources and perform shutdown operations.
-        
-        This method:
-        1. Cancels any active timers or scheduled tasks
-        2. Persists current state before shutdown
-        3. Releases any held resources
-        4. Performs any necessary cleanup operations
+        Gracefully shut down the current scenario, if any.
         """
-        logger = logging.getLogger(__name__)
-        logger.info("Shutting down ScenarioManager")
-        
-        # Persist current state if there is an active scenario
         if self.current_scenario:
-            await self._persist_state()
-            logger.info(f"Persisted state for scenario '{self.current_scenario.scenario_id}'")
-            
-            # Execute shutdown sequence for current scenario
+            logger.info(f"Shutting down scenario '{self.current_scenario.scenario_id}'")
             try:
                 await self.current_scenario.execute_shutdown_sequence()
-                logger.info(f"Executed shutdown sequence for scenario '{self.current_scenario.scenario_id}'")
             except Exception as e:
-                logger.error(f"Error during scenario shutdown sequence: {e}")
-        
-        # TODO: Cancel any background tasks or timers
-        
-        logger.info("ScenarioManager shutdown complete") 
+                logger.error(f"Error shutting down scenario: {str(e)}")
+            finally:
+                self.current_scenario = None
+                self.scenario_state = None 

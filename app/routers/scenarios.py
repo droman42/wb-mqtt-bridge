@@ -5,7 +5,10 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
 
 from app.scenario_models import ScenarioDefinition, ScenarioState
-from app.scenario import ScenarioError
+from app.scenario import ScenarioError, ScenarioExecutionError
+
+# Create logger for this module
+logger = logging.getLogger(__name__)
 
 # Create router with appropriate prefix and tags
 router = APIRouter(
@@ -41,6 +44,14 @@ class ScenarioResponse(BaseModel):
     status: str
     message: str
 
+def check_initialized():
+    """Check if the router is properly initialized with required dependencies."""
+    if not scenario_manager:
+        raise HTTPException(
+            status_code=503, 
+            detail="Scenario service not fully initialized"
+        )
+
 @router.get("/scenario/definition/{id}", response_model=ScenarioDefinition)
 async def get_scenario_definition(id: str):
     """
@@ -52,8 +63,7 @@ async def get_scenario_definition(id: str):
     Raises:
         HTTPException: If scenario not found or service not initialized
     """
-    if not scenario_manager:
-        raise HTTPException(status_code=503, detail="Service not fully initialized")
+    check_initialized()
     
     if id not in scenario_manager.scenario_definitions:
         raise HTTPException(status_code=404, detail=f"Scenario '{id}' not found")
@@ -77,11 +87,10 @@ async def switch_scenario(data: SwitchScenarioRequest):
     Raises:
         HTTPException: If scenario not found or an error occurs
     """
-    if not scenario_manager:
-        raise HTTPException(status_code=503, detail="Service not fully initialized")
+    check_initialized()
     
     try:
-        await scenario_manager.switch_scenario(data.id, graceful=data.graceful)
+        result = await scenario_manager.switch_scenario(data.id, graceful=data.graceful)
         
         # Publish state change on MQTT if a client is available
         if mqtt_client and scenario_manager.scenario_state:
@@ -94,11 +103,12 @@ async def switch_scenario(data: SwitchScenarioRequest):
             message=f"Successfully switched to scenario '{data.id}'"
         )
     except ValueError as e:
+        # Scenario not found
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger = logging.getLogger(__name__)
-        logger.error(f"Error switching to scenario {data.id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Log the full error with traceback for server logs
+        logger.error(f"Error switching to scenario {data.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to switch scenario: {str(e)}")
 
 @router.post("/scenario/role_action", response_model=Dict[str, Any])
 async def execute_role_action(data: ActionRequest):
@@ -114,8 +124,7 @@ async def execute_role_action(data: ActionRequest):
     Raises:
         HTTPException: If no active scenario or an error occurs
     """
-    if not scenario_manager:
-        raise HTTPException(status_code=503, detail="Service not fully initialized")
+    check_initialized()
     
     try:
         result = await scenario_manager.execute_role_action(data.role, data.command, data.params)
@@ -127,13 +136,30 @@ async def execute_role_action(data: ActionRequest):
             await mqtt_client.publish(topic, payload)
             
         return {"status": "success", "result": result}
+    except ScenarioExecutionError as e:
+        # Specifically handle execution errors
+        logger.error(
+            f"Execution error for role {data.role}, command {data.command}: {str(e)}",
+            exc_info=True
+        )
+        raise HTTPException(status_code=500, detail=f"Command execution failed: {str(e)}")
     except ScenarioError as e:
-        status_code = 400 if e.error_type in ["invalid_role", "no_active_scenario"] else 500
+        # Map error types to appropriate HTTP status codes
+        error_status_map = {
+            "invalid_role": 400,
+            "missing_device": 404,
+            "no_active_scenario": 400,
+            "execution": 500
+        }
+        status_code = error_status_map.get(e.error_type, 500)
         raise HTTPException(status_code=status_code, detail=str(e))
     except Exception as e:
-        logger = logging.getLogger(__name__)
-        logger.error(f"Error executing role action {data.role}.{data.command}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Log any other exceptions
+        logger.error(
+            f"Error executing role action {data.role}.{data.command}: {str(e)}",
+            exc_info=True
+        )
+        raise HTTPException(status_code=500, detail=f"Failed to execute action: {str(e)}")
 
 @router.get("/scenario/definition", response_model=List[ScenarioDefinition])
 async def get_scenarios_for_room(room: Optional[str] = Query(None, description="Filter scenarios by room ID")):
@@ -149,14 +175,17 @@ async def get_scenarios_for_room(room: Optional[str] = Query(None, description="
     Raises:
         HTTPException: If service not initialized
     """
-    if not scenario_manager:
-        raise HTTPException(status_code=503, detail="Service not fully initialized")
+    check_initialized()
     
-    if room:
-        scenarios = []
-        for scenario_id, definition in scenario_manager.scenario_definitions.items():
-            if definition.room_id == room:
-                scenarios.append(definition)
-        return scenarios
-    else:
-        return list(scenario_manager.scenario_definitions.values()) 
+    try:
+        if room:
+            scenarios = []
+            for scenario_id, definition in scenario_manager.scenario_definitions.items():
+                if definition.room_id == room:
+                    scenarios.append(definition)
+            return scenarios
+        else:
+            return list(scenario_manager.scenario_definitions.values())
+    except Exception as e:
+        logger.error(f"Error retrieving scenario definitions: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve scenarios: {str(e)}") 

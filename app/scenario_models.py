@@ -95,37 +95,3 @@ class RoomDefinition(BaseModel):
         if not self.names:
             raise ValueError("At least one locale name must be defined for the room")
         return self
-
-class ConfigDelta(BaseModel):
-    """Represents the difference between two device configurations."""
-    requires_io_switch: bool = Field(False, description="Whether I/O settings need to be changed")
-    io_args: Dict[str, Any] = Field(default_factory=dict, description="Arguments for I/O switching")
-    power_args: Dict[str, Any] = Field(default_factory=dict, description="Arguments for power state changes")
-
-class DeviceConfig(BaseModel):
-    """Configuration for a device that can be compared to detect needed changes."""
-    input: str = Field(..., description="Input configuration")
-    output: str = Field(..., description="Output configuration")
-    power_on_delay: int = Field(0, description="Delay in ms after powering on before further commands", ge=0)
-
-    def diff(self, other: "DeviceConfig") -> ConfigDelta:
-        """
-        Compare two device configs and produce a delta for efficient transitions.
-        
-        Args:
-            other: The other device configuration to compare against
-            
-        Returns:
-            ConfigDelta: An object describing the required changes
-        """
-        delta = ConfigDelta()
-        
-        # Check if I/O settings have changed
-        if self.input != other.input or self.output != other.output:
-            delta.requires_io_switch = True
-            delta.io_args = {
-                "input": self.input,
-                "output": self.output
-            }
-            
-        return delta
