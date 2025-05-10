@@ -40,7 +40,7 @@ from app.schemas import (
 from app.types import CommandResponse
 
 # Import routers
-from app.routers import system, devices, mqtt, groups, scenarios, rooms
+from app.routers import system, devices, mqtt, groups, scenarios, rooms, state
 
 # Setup logging
 def setup_logging(log_file: str, log_level: str):
@@ -183,14 +183,14 @@ async def lifespan(app: FastAPI):
     })
     
     # Initialize room manager
-    room_manager = RoomManager(Path(system_config.config_dir), device_manager)
+    room_manager = RoomManager(Path(config_manager.config_dir), device_manager)
     
     # Initialize scenario manager
     scenario_manager = ScenarioManager(
         device_manager=device_manager,
         room_manager=room_manager,
         store=state_store,
-        scenario_dir=Path(system_config.config_dir) / "scenarios"
+        scenario_dir=Path(config_manager.config_dir) / "scenarios"
     )
     await scenario_manager.initialize()
     logger.info("Scenario manager initialized")
@@ -202,6 +202,7 @@ async def lifespan(app: FastAPI):
     groups.initialize(config_manager, device_manager)
     scenarios.initialize(scenario_manager, room_manager, mqtt_client)
     rooms.initialize(room_manager)
+    state.initialize(config_manager, device_manager, state_store, scenario_manager)
     
     logger.info("System startup complete")
     
@@ -209,6 +210,10 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("System shutting down...")
+    
+    # Prepare the device manager for shutdown 
+    logger.info("Preparing device manager for shutdown...")
+    await device_manager.prepare_for_shutdown()
     
     # Shutdown scenario manager first
     logger.info("Shutting down scenario manager...")
@@ -218,13 +223,25 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down room manager...")
     await room_manager.shutdown()
     
-    # Disconnect MQTT and shutdown devices
+    # Disconnect MQTT to prevent incoming messages during shutdown
+    logger.info("Disconnecting MQTT client...")
     await mqtt_client.disconnect()
+    
+    # Shutdown devices
+    logger.info("Shutting down devices...")
     await device_manager.shutdown_devices()
     
-    # Close state store after device shutdown but before final log
+    # Wait for any in-flight persistence tasks to complete
+    logger.info("Waiting for persistence tasks to complete...")
+    await device_manager.wait_for_persistence_tasks(timeout=10.0)
+    
+    # Perform final state persistence for all devices
+    logger.info("Performing final state persistence...")
+    await device_manager.persist_all_device_states()
+    
+    # Close state store after all persistence is done
+    logger.info("Closing state persistence connection...")
     await state_store.close()
-    logger.info("State persistence connection closed")
     
     logger.info("System shutdown complete")
 
@@ -243,3 +260,4 @@ app.include_router(mqtt.router)
 app.include_router(groups.router)
 app.include_router(scenarios.router)
 app.include_router(rooms.router)
+app.include_router(state.router)

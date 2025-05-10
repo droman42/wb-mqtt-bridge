@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional, Type, Callable, TYPE_CHECKING, Awaitable, Coroutine, TypeVar, cast, Union, Generic
+from typing import Dict, Any, List, Optional, Type, Callable, TYPE_CHECKING, Awaitable, Coroutine, TypeVar, cast, Union, Generic, Tuple
 import logging
 import json
 from datetime import datetime
+from enum import Enum
 from socket import socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_BROADCAST
 
 from app.schemas import BaseDeviceState, LastCommand, BaseDeviceConfig, BaseCommandConfig, CommandParameterDefinition
@@ -401,11 +402,63 @@ class BaseDevice(ABC, Generic[StateT]):
         """Return a copy of the current device state."""
         return cast(StateT, self.state)
     
+    def _validate_state_updates(self, updates: Dict[str, Any]) -> Tuple[bool, List[str]]:
+        """
+        Validate that state updates contain only JSON serializable values.
+        
+        This validation helps catch serialization issues early, before they cause 
+        problems when attempting to persist state.
+        
+        Args:
+            updates: Dictionary of state updates to validate
+            
+        Returns:
+            Tuple[bool, List[str]]: (is_valid, error_messages)
+            Where is_valid is True if all updates are serializable
+        """
+        errors = []
+        
+        # Check each field being updated
+        for field_name, field_value in updates.items():
+            try:
+                # Handle simple primitives that are always serializable
+                if field_value is None or isinstance(field_value, (str, int, float, bool)):
+                    continue
+                    
+                # Handle special types we know how to serialize
+                if hasattr(field_value, 'model_dump') or hasattr(field_value, 'dict'):
+                    continue
+                    
+                if isinstance(field_value, (datetime, Enum)):
+                    continue
+                    
+                # For other types, test JSON serialization
+                try:
+                    json.dumps({field_name: field_value})
+                except (TypeError, OverflowError) as e:
+                    errors.append(f"Field '{field_name}' with type '{type(field_value).__name__}' is not JSON serializable: {str(e)}")
+            except Exception as e:
+                errors.append(f"Error validating field '{field_name}': {str(e)}")
+                
+        return len(errors) == 0, errors
+    
     def update_state(self, **updates):
         """
         Update the device state using keyword arguments.
         Each keyword argument will update the corresponding attribute in the state.
+        
+        This method now includes validation to detect non-serializable fields early.
         """
+        # Validate updates for serializability
+        is_valid, errors = self._validate_state_updates(updates)
+        if not is_valid:
+            # Log warnings for non-serializable fields
+            for error in errors:
+                logger.warning(f"Device {self.device_id}: {error}")
+                
+            # Log a summary warning
+            logger.warning(f"Device {self.device_id}: Updating state with {len(errors)} potentially non-serializable fields")
+        
         # Create a new state object with updated values
         updated_data = self.state.dict(exclude_unset=True)
         updated_data.update(updates)
@@ -413,6 +466,12 @@ class BaseDevice(ABC, Generic[StateT]):
         # Preserve the concrete state type when updating
         state_cls = type(self.state)  # Get the actual class of the current state
         self.state = state_cls(**updated_data)  # Create a new instance of the same class
+        
+        # Validate complete state after update
+        if hasattr(self.state, 'validate_serializable'):
+            is_state_valid, state_errors = self.state.validate_serializable()
+            if not is_state_valid:
+                logger.warning(f"Device {self.device_id}: State contains non-serializable fields after update: {', '.join(state_errors)}")
         
         logger.debug(f"Updated state for {self.device_name}: {updates}")
         

@@ -41,28 +41,6 @@ class ScenarioResponse(BaseModel):
     status: str
     message: str
 
-@router.get("/scenario/state", response_model=ScenarioState)
-async def get_scenario_state():
-    """
-    Get the current scenario state.
-    
-    Returns information about the active scenario and the state of all
-    devices that are part of it.
-    
-    Returns:
-        ScenarioState: Current scenario state
-        
-    Raises:
-        HTTPException: If no active scenario or service not initialized
-    """
-    if not scenario_manager:
-        raise HTTPException(status_code=503, detail="Service not fully initialized")
-    
-    if not scenario_manager.scenario_state:
-        raise HTTPException(status_code=404, detail="No active scenario")
-    
-    return scenario_manager.scenario_state
-
 @router.get("/scenario/definition/{id}", response_model=ScenarioDefinition)
 async def get_scenario_definition(id: str):
     """

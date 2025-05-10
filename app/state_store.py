@@ -2,9 +2,12 @@ from typing import Protocol, Optional, Dict, Any
 import json
 import aiosqlite
 import asyncio
+import logging
 import sys
 from pathlib import Path
+from datetime import datetime
 
+logger = logging.getLogger(__name__)
 
 class StateStore(Protocol):
     """Protocol defining the interface for state persistence."""
@@ -35,11 +38,13 @@ class SQLiteStateStore:
     Implements StateStore using an SQLite database for JSON blobs.
     Table schema:
       - key TEXT PRIMARY KEY
+      - timestamp TEXT NOT NULL (format: 'DD-MM-YYYY HH:MM:SS')
       - value TEXT NOT NULL (JSON-encoded)
     """
     def __init__(self, db_path: str):
         self.db_path = db_path
         self.connection = None
+        self._closing = False  # Flag to indicate the connection is being closed
 
     async def initialize(self) -> None:
         """Open database connection and create table if needed."""
@@ -52,65 +57,132 @@ class SQLiteStateStore:
                 '''
                 CREATE TABLE IF NOT EXISTS state_store (
                   key TEXT PRIMARY KEY,
+                  timestamp TEXT NOT NULL,
                   value TEXT NOT NULL
                 )
                 '''
             )
             await self.connection.commit()
+            logger.info(f"SQLite state store initialized at {self.db_path}")
         except aiosqlite.Error as e:
-            print(f"Critical SQLite error during initialization: {e}", file=sys.stderr)
-            sys.exit(1)
+            logger.critical(f"SQLite error during initialization: {e}")
+            raise RuntimeError(f"Failed to initialize database: {e}")
 
     async def close(self) -> None:
         """Close database connection."""
         if self.connection:
-            await self.connection.close()
-            self.connection = None
+            self._closing = True
+            logger.info("Closing SQLite state store connection")
+            try:
+                await self.connection.close()
+            except Exception as e:
+                logger.error(f"Error closing database connection: {e}")
+            finally:
+                self.connection = None
+                self._closing = False
 
     async def get(self, key: str) -> Optional[Dict[str, Any]]:
         """Return the JSON-loaded dict for `key`, or None if missing."""
         if not self.connection:
-            raise RuntimeError("Database connection not initialized")
+            logger.error("Database connection not initialized during get operation")
+            return None
+            
+        if self._closing:
+            logger.warning(f"Attempted to get key '{key}' while database is closing")
+            return None
             
         try:
             cursor = await self.connection.execute(
-                'SELECT value FROM state_store WHERE key = ?', (key,)
+                'SELECT value, timestamp FROM state_store WHERE key = ?', (key,)
             )
             row = await cursor.fetchone()
             await cursor.close()
-            return json.loads(row[0]) if row else None
+            
+            if not row:
+                return None
+                
+            value_data = json.loads(row[0])
+            timestamp = row[1]
+            
+            # Add timestamp to the returned data
+            if isinstance(value_data, dict):
+                value_data['_timestamp'] = timestamp
+                
+            return value_data
         except aiosqlite.Error as e:
-            print(f"Critical SQLite error during get operation: {e}", file=sys.stderr)
-            sys.exit(1)
+            logger.error(f"SQLite error during get operation for key '{key}': {e}")
+            return None
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error for key '{key}': {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error during get operation for key '{key}': {e}")
+            return None
 
-    async def set(self, key: str, value: Dict[str, Any]) -> None:
-        """Persist `value` as JSON under `key`. Overwrite if exists."""
+    async def set(self, key: str, value: Dict[str, Any]) -> bool:
+        """
+        Persist `value` as JSON under `key`. Overwrite if exists.
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
         if not self.connection:
-            raise RuntimeError("Database connection not initialized")
+            logger.error("Database connection not initialized during set operation")
+            return False
+            
+        if self._closing:
+            logger.warning(f"Attempted to set key '{key}' while database is closing")
+            return False
             
         try:
+            # Generate current timestamp in 'DD-MM-YYYY HH:MM:SS' format
+            timestamp = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
+            
             text = json.dumps(value)
             await self.connection.execute(
                 '''
-                INSERT INTO state_store (key, value)
-                VALUES (?, ?)
-                ON CONFLICT(key) DO UPDATE SET value = excluded.value
+                INSERT INTO state_store (key, timestamp, value)
+                VALUES (?, ?, ?)
+                ON CONFLICT(key) DO UPDATE SET 
+                    timestamp = excluded.timestamp,
+                    value = excluded.value
                 ''',
-                (key, text)
+                (key, timestamp, text)
             )
             await self.connection.commit()
+            return True
         except aiosqlite.Error as e:
-            print(f"Critical SQLite error during set operation: {e}", file=sys.stderr)
-            sys.exit(1)
+            logger.error(f"SQLite error during set operation for key '{key}': {e}")
+            return False
+        except json.JSONEncodeError as e:
+            logger.error(f"JSON encode error for key '{key}': {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error during set operation for key '{key}': {e}")
+            return False
 
-    async def delete(self, key: str) -> None:
-        """Remove the persisted entry for `key`, if any."""
+    async def delete(self, key: str) -> bool:
+        """
+        Remove the persisted entry for `key`, if any.
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
         if not self.connection:
-            raise RuntimeError("Database connection not initialized")
+            logger.error("Database connection not initialized during delete operation")
+            return False
+            
+        if self._closing:
+            logger.warning(f"Attempted to delete key '{key}' while database is closing")
+            return False
             
         try:
             await self.connection.execute('DELETE FROM state_store WHERE key = ?', (key,))
             await self.connection.commit()
+            return True
         except aiosqlite.Error as e:
-            print(f"Critical SQLite error during delete operation: {e}", file=sys.stderr)
-            sys.exit(1) 
+            logger.error(f"SQLite error during delete operation for key '{key}': {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error during delete operation for key '{key}': {e}")
+            return False 

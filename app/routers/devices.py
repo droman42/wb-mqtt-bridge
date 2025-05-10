@@ -66,45 +66,6 @@ async def get_all_device_configs():
         logger.error(f"Error retrieving all device configs: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@router.get("/devices/{device_id}", response_model=BaseDeviceState)
-async def get_device(device_id: str):
-    """Get information about a specific device.
-    
-    Args:
-        device_id: The ID of the device to retrieve
-        
-    Returns:
-        BaseDeviceState: The device state with proper typing
-        
-    Raises:
-        HTTPException: If device is not found or an error occurs
-    """
-    logger = logging.getLogger(__name__)
-    if not device_manager:
-        raise HTTPException(status_code=503, detail="Service not fully initialized")
-    
-    try:
-        device = device_manager.get_device(device_id)
-        if not device:
-            raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
-            
-        try:
-            # Return the properly typed state directly
-            return device.get_current_state()
-        except Exception as e:
-            logger.error(f"Error getting device state for {device_id}: {str(e)}")
-            # Create a minimal BaseDeviceState with error information
-            return BaseDeviceState(
-                device_id=device_id,
-                device_name=device.get_name(),
-                error=str(e)
-            )
-    except Exception as e:
-        logger.error(f"Error getting device {device_id}: {str(e)}")
-        import traceback
-        logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
 @router.post("/devices/{device_id}/action", response_model=CommandResponse)
 async def execute_device_action(
     device_id: str, 
