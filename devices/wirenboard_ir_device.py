@@ -298,12 +298,12 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
         # Capture the original command config in closure
         original_cmd_config = cmd_config
         
-        async def generic_handler(command_config: BaseCommandConfig, params: Dict[str, Any]) -> CommandResult:
+        async def generic_handler(cmd_config: BaseCommandConfig, params: Dict[str, Any]) -> CommandResult:
             """
             Generic action handler for IR commands.
             
             Args:
-                command_config: Command configuration
+                cmd_config: Command configuration
                 params: Dictionary of parameters
                 
             Returns:
@@ -314,8 +314,8 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
             try:
                 # Type check for command_config - convert to IRCommandConfig if needed
                 effective_cmd_config: IRCommandConfig
-                if isinstance(command_config, IRCommandConfig):
-                    effective_cmd_config = command_config
+                if isinstance(cmd_config, IRCommandConfig):
+                    effective_cmd_config = cmd_config
                 else:
                     # For backward compatibility or if command_config is of a different type,
                     # fall back to the original_cmd_config from closure

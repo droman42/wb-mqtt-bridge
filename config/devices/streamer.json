@@ -4,9 +4,13 @@
   "alias": "streamer",
   "mqtt_progress_topic": "/devices/streamer/controls/progress",
   "auralic": {
-    "ip_address": "192.168.110.142",
+    "ip_address": "192.168.110.16",
     "update_interval": 5,
-    "discovery_mode": false
+    "discovery_mode": true,
+    "device_url": "http://192.168.110.16:47216/lightningRender-bc-34-00-a0-67-ba/Upnp/device.xml",
+    "ir_power_on_topic": "/devices/wb-msw-v3_207/controls/Play from ROM62/on",
+    "ir_power_off_topic": "/devices/wb-msw-v3_207/controls/Play from ROM62/on",
+    "device_boot_time": 20
   },
   "commands": {
     "power_on": {
@@ -19,13 +23,10 @@
       "action": "power_off",
       "topic": "/devices/streamer/controls/power_off",
       "group": "power",
-      "description": "Power Off"
-    },
-    "power_toggle": {
-      "action": "power_toggle",
-      "topic": "/devices/streamer/controls/power_toggle",
-      "group": "power",
-      "description": "Power On/Off"
+      "description": "Power Off",
+      "params": [
+        {"name": "standby_only", "type": "boolean", "required": false, "default": false, "description": "If true, only put the device in standby mode instead of true power off"}
+      ]
     },
     "play": {
       "action": "play",
@@ -51,19 +52,13 @@
       "group": "playback",
       "description": "Next Track"
     },
-    "previous": {
-      "action": "previous",
-      "topic": "/devices/streamer/controls/previous",
-      "group": "playback",
-      "description": "Previous Track"
-    },
     "set_volume": {
       "action": "set_volume",
       "topic": "/devices/streamer/controls/set_volume",
       "group": "volume",
       "description": "Set Volume",
       "params": [
-        {"name": "level", "type": "range", "min": 0, "max": 100, "required": true, "description": "Volume level (0-100)"}
+        {"name": "volume", "type": "range", "min": 0, "max": 100, "required": true, "description": "Volume level (0-100)"}
       ]
     },
     "volume_up": {

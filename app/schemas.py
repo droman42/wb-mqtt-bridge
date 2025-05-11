@@ -153,6 +153,21 @@ class AuralicConfig(BaseModel):
     update_interval: int = 10  # seconds
     discovery_mode: bool = False
     device_url: Optional[str] = None
+    # IR control parameters
+    ir_power_on_topic: Optional[str] = Field(
+        None,
+        description="MQTT topic to send IR power on command (required for true power on from deep sleep)"
+    )
+    ir_power_off_topic: Optional[str] = Field(
+        None,
+        description="MQTT topic to send IR power off command (required for true power off)"
+    )
+    device_boot_time: int = Field(
+        15,
+        description="Time in seconds to wait for device to boot after IR power on",
+        ge=5,  # At least 5 seconds
+        le=60  # At most 60 seconds
+    )
 
 class AuralicDeviceConfig(BaseDeviceConfig):
     """Configuration for Auralic device."""
@@ -526,8 +541,18 @@ class AppleTVState(BaseDeviceState):
         return data
 
 class AuralicDeviceState(BaseDeviceState):
-    """Schema for Auralic device state."""
-    power: str = "unknown"  # on/off/unknown
+    """
+    Schema for Auralic device state.
+    
+    The power state can have the following values:
+    - "on": Device is powered on and operational
+    - "off": Device is in standby mode (UPnP control) or deep sleep mode (IR control)
+    - "booting": Device is in the process of booting up after IR power on
+    - "unknown": Device state is unknown
+    
+    When the device is in deep sleep mode, connected will be False and power will be "off".
+    """
+    power: str = "unknown"  # on/off/booting/unknown
     volume: int = 0
     mute: bool = False
     source: Optional[str] = None
@@ -537,6 +562,9 @@ class AuralicDeviceState(BaseDeviceState):
     track_artist: Optional[str] = None
     track_album: Optional[str] = None
     transport_state: Optional[str] = None  # Playing, Paused, Stopped, Buffering, etc.
+    deep_sleep: bool = False  # True when device is in deep sleep mode (true power off)
+    message: Optional[str] = None  # User-friendly message about current state
+    warning: Optional[str] = None  # Warning message if relevant
 
 class PersistenceConfig(BaseModel):
     """Configuration for the persistence layer."""
