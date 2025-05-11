@@ -1179,6 +1179,77 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
         # Call the handler directly
         await self.handle_refresh_status(config, {})
 
+    async def handle_get_app_list(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
+        """
+        Retrieve list of installed apps on the Apple TV.
+        
+        Args:
+            cmd_config: Command configuration
+            params: Parameters (unused)
+            
+        Returns:
+            CommandResult: Result containing list of app_id and app_name pairs
+        """
+        logger.info(f"[{self.device_id}] Retrieving app list...")
+        
+        if not await self._ensure_connected():
+            return self.create_command_result(
+                success=False,
+                error="Failed to connect to Apple TV"
+            )
+        
+        try:
+            # Update the app list to ensure it's current
+            await self._update_app_list()
+            
+            if not self._app_list:
+                error_msg = "Failed to retrieve app list or no apps found"
+                logger.warning(f"[{self.device_id}] {error_msg}")
+                return self.create_command_result(
+                    success=False,
+                    error=error_msg
+                )
+            
+            # Transform the app list from {app_name_lowercase: app_id} format
+            # to a list of {app_id, app_name} pairs
+            app_list_result = []
+            for app_name, app_id in self._app_list.items():
+                app_list_result.append({
+                    "app_id": app_id,
+                    "app_name": app_name.title()  # Convert back to title case for display
+                })
+            
+            # Sort by app name for easier browsing
+            app_list_result.sort(key=lambda x: x["app_name"])
+            
+            # Update last_command state
+            self.update_state(
+                last_command=LastCommand(
+                    action="get_app_list",
+                    source="api",
+                    timestamp=datetime.now(),
+                    params={"count": len(app_list_result)}
+                )
+            )
+            
+            logger.info(f"[{self.device_id}] Retrieved {len(app_list_result)} apps")
+            
+            return self.create_command_result(
+                success=True,
+                message=f"Retrieved {len(app_list_result)} apps",
+                data={"apps": app_list_result}
+            )
+            
+        except Exception as e:
+            error_msg = f"Error retrieving app list: {str(e)}"
+            logger.error(f"[{self.device_id}] {error_msg}", exc_info=True)
+            self.update_state(error=error_msg)
+            await self.publish_progress(error_msg)
+            return self.create_command_result(
+                success=False,
+                error=error_msg
+            )
+
 
 # === PyATV Listener ===
 

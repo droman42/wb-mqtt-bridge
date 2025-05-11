@@ -115,16 +115,79 @@ class DeviceTestCLI:
             logger.info(f"Executing command '{command}' on device '{self.device_id}'")
             response = await self.current_device.execute_action(command, params)
             
-            # Print response
-            logger.info(f"Command result: {'Success' if response['success'] else 'Failed'}")
-            if 'error' in response and response['error']:
-                logger.error(f"Error: {response['error']}")
+            # Print basic command result
+            print("\n" + "="*50)
+            print(f"COMMAND EXECUTION RESULT: {command}")
+            print(f"Status: {'SUCCESS' if response.get('success', False) else 'FAILED'}")
+            
+            # Print error if any
+            error = response.get('error')
+            if error:
+                print(f"Error: {error}")
+                logger.error(f"Error: {error}")
+            
+            # Safely print result components with improved debugging
+            print("\nRESULT DETAILS:")
+            
+            # Debug - print raw response structure first (to see what we're working with)
+            print(f"Raw response keys: {list(response.keys())}")
+            
+            # First check for data directly in the response (top level by design)
+            if 'data' in response:
+                data_list = response['data']
+                if isinstance(data_list, list):
+                    print(f"Found {len(data_list)} items:")
+                    for i, item in enumerate(data_list):
+                        if isinstance(item, dict):
+                            # Format dictionary items nicely
+                            item_desc = []
+                            for k, v in item.items():
+                                item_desc.append(f"{k}={v}")
+                            print(f"  {i+1}. {' | '.join(item_desc)}")
+                        else:
+                            print(f"  {i+1}. {item}")
+                elif data_list:
+                    print(f"Data: {data_list}")
+            
+            # For backward compatibility, still check result (though per design, data is always top-level)
+            elif 'result' in response:
+                result = response['result']
+                if isinstance(result, dict):
+                    print(f"Result contains keys: {list(result.keys())}")
+                
+                    # Handle result structure
+                    if isinstance(result, dict):
+                        # Print message if available
+                        if 'message' in result:
+                            print(f"Message: {result['message']}")
+                        
+                        # Check for data field in result (legacy format)
+                        if 'data' in result:
+                            data_list = result['data']
+                            if isinstance(data_list, list):
+                                print(f"Found {len(data_list)} items:")
+                                for i, item in enumerate(data_list):
+                                    if isinstance(item, dict):
+                                        # Format dictionary items nicely
+                                        item_desc = []
+                                        for k, v in item.items():
+                                            item_desc.append(f"{k}={v}")
+                                        print(f"  {i+1}. {' | '.join(item_desc)}")
+                                    else:
+                                        print(f"  {i+1}. {item}")
+                            elif data_list:
+                                print(f"Data: {data_list}")
+                
+                    # If not a dict with expected fields, print the raw result
+                    elif result is not None:
+                        print(f"Raw result: {result}")
             
             # Print current device state
             state = self.current_device.get_current_state()
-            logger.info("Current device state:")
+            print("\n" + "="*50)
+            print("CURRENT DEVICE STATE:")
             
-            # Convert state to dictionary if it has model_dump or dict method
+            # Convert state to dictionary
             state_dict = {}
             if hasattr(state, 'model_dump'):
                 state_dict = state.model_dump()
@@ -137,18 +200,20 @@ class DeviceTestCLI:
                     if not attr_name.startswith('_') and not callable(getattr(state, attr_name)):
                         state_dict[attr_name] = getattr(state, attr_name)
             
-            # Display the state
+            # Print state
             for key, value in state_dict.items():
-                # Skip complex objects, just print their type
-                if isinstance(value, (dict, list)) and key != 'last_command':
-                    logger.info(f"  {key}: {type(value).__name__}")
-                else:
-                    logger.info(f"  {key}: {value}")
+                print(f"  {key}: {value}")
             
-            return response['success']
+            print("="*50 + "\n")
+            
+            # Log completion
+            logger.info(f"Command completed: {command}")
+            
+            return response.get('success', False)
             
         except Exception as e:
             logger.error(f"Error executing command '{command}': {str(e)}")
+            print(f"\nError executing command '{command}': {str(e)}")
             return False
     
     def get_available_commands(self) -> List[Tuple[str, List[CommandParameterDefinition]]]:

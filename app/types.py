@@ -27,12 +27,13 @@ class CommandResponseOptional(TypedDict, total=False):
     """Optional fields for CommandResponse."""
     error: Optional[str]
     mqtt_command: Optional[Dict[str, Any]]
+    data: Optional[Any]  # For any additional data returned by handlers
 
 class CommandResponse(CommandResponseRequired[StateT], CommandResponseOptional, Generic[StateT]):
     """Return type for BaseDevice.execute_action.
     
     This combines required fields (success, device_id, action, state)
-    with optional fields (error, mqtt_command) to match FastAPI validation
+    with optional fields (error, mqtt_command, data) to match FastAPI validation
     requirements while maintaining proper typing.
     """
     pass

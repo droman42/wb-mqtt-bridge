@@ -134,6 +134,12 @@
       "topic": "/devices/appletv_living/controls/right",
       "description": "Remote: Right",
       "group": "menu"
+    },
+    "get_app_list": {
+      "action": "get_app_list",
+      "topic": "/devices/appletv_living/controls/get_app_list",
+      "description": "List installed apps",
+      "group": "apps"
     }
   }
 }

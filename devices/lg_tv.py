@@ -231,6 +231,38 @@ class LgTv(BaseDevice[LgTvState]):
             logger.error(f"Error refreshing app cache: {str(e)}")
             return False
             
+    def _process_input_source(self, source) -> Optional[Dict[str, str]]:
+        """Process a single input source into a standardized format.
+        
+        Args:
+            source: The input source (dict, string, or other type)
+            
+        Returns:
+            Standardized input source dict with id and name, or None if invalid
+        """
+        try:
+            # Handle different source types (dict or string)
+            if isinstance(source, dict):
+                source_id = source.get("id", "unknown")
+                source_name = source.get("label", source.get("title", "Unknown"))
+            elif isinstance(source, str):
+                # For string sources, use the string as both ID and name
+                source_id = source
+                source_name = source
+            else:
+                # Skip non-dict, non-string sources
+                logger.debug(f"Skipping unsupported source type: {type(source)}")
+                return None
+            
+            # Only include sources with valid IDs
+            if not source_id or source_id == "unknown":
+                return None
+                
+            return {"id": source_id, "name": source_name}
+        except Exception as e:
+            logger.debug(f"Error processing source {source}: {str(e)}")
+            return None
+
     async def _refresh_input_sources_cache(self) -> bool:
         """Refresh the cached list of available input sources from the TV.
         
@@ -238,37 +270,122 @@ class LgTv(BaseDevice[LgTvState]):
             True if refresh was successful, False otherwise
         """
         try:
-            if not self.input_control or not self.client or not self.state.connected:
-                logger.debug("Cannot refresh input sources cache: Not connected to TV or input control not available")
+            if not self.input_control and not self.source_control:
+                logger.debug("Cannot refresh input sources cache: neither input_control nor source_control available")
+                return False
+            if not self.client:
+                logger.debug("Cannot refresh input sources cache: client not available")
+                return False
+            if not self.state.connected:
+                logger.debug("Cannot refresh input sources cache: TV not connected")
                 return False
                 
             from typing import cast, Any
+            raw_sources = None
             
-            # Cast to Any to avoid type checking issues
-            input_control = cast(Any, self.input_control)
-            sources = await input_control.list_inputs()
-            
-            if sources is not None:
-                self._cached_input_sources = sources
-                logger.info(f"Input sources cache refreshed: {len(sources)} sources available")
+            # First try using input_control.list_inputs() if available
+            if self.input_control:
+                # Cast to Any to avoid type checking issues
+                input_control = cast(Any, self.input_control)
+                logger.debug(f"Calling list_inputs() on input control of type: {type(input_control)}")
                 
-                # Log all available input sources in a simplified format for easier debugging
-                source_list = []
+                try:
+                    raw_sources = await input_control.list_inputs()
+                    logger.debug(f"list_inputs() returned: {type(raw_sources)} {raw_sources}")
+                except Exception as input_error:
+                    logger.error(f"Exception in list_inputs(): {str(input_error)}")
+                    raw_sources = None
+            
+            # If input_control failed or isn't available, try source_control
+            if raw_sources is None and self.source_control:
+                logger.debug("Trying source_control to get input sources")
+                try:
+                    # Cast to Any to avoid type checking issues
+                    source_control = cast(Any, self.source_control)
+                    
+                    # Try list_sources method if it exists
+                    if hasattr(source_control, "list_sources") and callable(getattr(source_control, "list_sources")):
+                        raw_sources = await source_control.list_sources()
+                        logger.debug(f"source_control.list_sources() returned: {type(raw_sources)} {raw_sources}")
+                except Exception as source_error:
+                    logger.error(f"Exception in source_control.list_sources(): {str(source_error)}")
+                    raw_sources = None
+            
+            # Process the raw sources to get the actual input list
+            sources = []
+            if raw_sources:
+                # Extract the actual input list, handling different response formats
+                if isinstance(raw_sources, dict):
+                    # Handle response with nested 'devices' key
+                    if "devices" in raw_sources and isinstance(raw_sources["devices"], list):
+                        logger.debug("Found 'devices' list in response")
+                        sources = raw_sources["devices"]
+                    # Handle response with nested 'inputs' key
+                    elif "inputs" in raw_sources and isinstance(raw_sources["inputs"], list):
+                        logger.debug("Found 'inputs' list in response")
+                        sources = raw_sources["inputs"]
+                    # Special case for other formats - object itself might be an input
+                    elif "id" in raw_sources or "label" in raw_sources:
+                        logger.debug("Response itself appears to be a single input")
+                        sources = [raw_sources]
+                    else:
+                        # Last resort - it might be a dict of inputs
+                        logger.debug("Treating response keys as potential inputs list")
+                        # Filter out common non-input keys
+                        non_input_keys = ["returnValue", "status", "message", "error"]
+                        sources = []
+                        for key, value in raw_sources.items():
+                            if key not in non_input_keys:
+                                # If value is a dict, it might be the actual input
+                                if isinstance(value, dict) and ("id" in value or "label" in value):
+                                    sources.append(value)
+                                # Otherwise, use the key/value as basic input info
+                                else:
+                                    sources.append({"id": key, "label": str(value)})
+                elif isinstance(raw_sources, list):
+                    # Already a list, use it directly
+                    sources = raw_sources
+                else:
+                    # Single item (string or other type)
+                    sources = [raw_sources]
+                
+                # Make sure we're not using keys from a response object as inputs
+                # Check if the first items look like API response keys
+                if len(sources) > 0 and isinstance(sources, list):
+                    common_api_keys = ["returnValue", "devices", "inputs", "status", "message"]
+                    if all(item in common_api_keys for item in sources[:2]):
+                        logger.warning("Sources list appears to be API response keys, not actual inputs")
+                        sources = []
+            
+            if sources:
+                # Process and standardize each source
+                processed_sources = []
+                source_list = []  # For logging only
+                
+                # Debug entire sources structure before processing
+                logger.debug(f"Raw source data structure: {type(sources)}")
+                if isinstance(sources, list) and len(sources) > 0:
+                    logger.debug(f"First source item type: {type(sources[0])}")
+                
                 for source in sources:
-                    source_id = source.get("id", "unknown")
-                    source_name = source.get("label", "Unknown")
-                    source_list.append({"id": source_id, "name": source_name})
+                    processed_source = self._process_input_source(source)
+                    if processed_source:
+                        processed_sources.append(source)  # Keep original source objects in cache
+                        source_list.append(processed_source)  # Simplified version for logging
                 
-                logger.debug(f"Available input sources: {json.dumps(source_list, indent=2, ensure_ascii=False)}")
-                return True
-            else:
-                logger.warning("Failed to get input sources list from TV")
-                return False
+                if processed_sources:
+                    self._cached_input_sources = processed_sources
+                    logger.info(f"Input sources cache refreshed: {len(processed_sources)} sources available")
+                    logger.debug(f"Processed input sources: {json.dumps(source_list, indent=2, ensure_ascii=False)}")
+                    return True
+                
+            logger.warning("Failed to get input sources list from TV - all methods returned None or invalid format")
+            return False
                 
         except Exception as e:
             logger.error(f"Error refreshing input sources cache: {str(e)}")
             return False
-    
+            
     async def setup(self) -> bool:
         """Initialize the device and establish connection to TV.
         
@@ -1693,8 +1810,13 @@ class LgTv(BaseDevice[LgTvState]):
                 logger.error(error_msg)
                 return self.create_command_result(success=False, error=error_msg)
             
-            input_id = input_to_set.get("id")
-            input_name = input_to_set.get("label", input_source)
+            # Extract input ID and name based on the type of input_to_set
+            if isinstance(input_to_set, dict):
+                input_id = input_to_set.get("id")
+                input_name = input_to_set.get("label", input_source)
+            else:  # String type
+                input_id = input_to_set
+                input_name = input_to_set
             
             logger.info(f"Setting input source to '{input_name}' (ID: {input_id})")
             
@@ -1735,19 +1857,19 @@ class LgTv(BaseDevice[LgTvState]):
         # If refresh failed, return empty list
         return []
             
-    def _find_input_by_name_or_id(self, sources: List[Dict[str, Any]], input_source: str) -> Optional[Dict[str, Any]]:
+    def _find_input_by_name_or_id(self, sources: List[Union[Dict[str, Any], str]], input_source: str) -> Optional[Union[Dict[str, Any], str]]:
         """Find an input source by name or ID.
         
         Args:
-            sources: List of input source dictionaries from the TV
+            sources: List of input source dictionaries or strings from the TV
             input_source: The name or ID to search for
             
         Returns:
-            The found input source dictionary or None if not found
+            The found input source (dict or string) or None if not found
         """
         for source in sources:
-            # Match by ID (exact) or label (case-insensitive contains)
-            if input_source == source.get("id") or input_source.lower() in source.get("label", "").lower():
+            processed = self._process_input_source(source)
+            if processed and (input_source.lower() == processed["id"].lower() or input_source.lower() in processed["name"].lower()):
                 return source
         return None
     
@@ -2028,15 +2150,6 @@ class LgTv(BaseDevice[LgTvState]):
         logger.info(f"Manually refreshing app list for TV {self.get_name()}")
         return await self._refresh_app_cache()
         
-    async def refresh_input_sources(self) -> bool:
-        """Public method to manually refresh the input sources cache.
-        
-        Returns:
-            True if refresh was successful, False otherwise
-        """
-        logger.info(f"Manually refreshing input sources for TV {self.get_name()}")
-        return await self._refresh_input_sources_cache()
-        
     async def handle_refresh_app_list(
         self, 
         cmd_config: StandardCommandConfig, 
@@ -2239,6 +2352,174 @@ class LgTv(BaseDevice[LgTvState]):
             logger.error(error_msg)
             self.set_error(error_msg)
             return self.create_command_result(success=False, error=error_msg)
+
+    async def handle_get_public_apps(
+        self, 
+        cmd_config: StandardCommandConfig, 
+        params: Dict[str, Any]
+    ) -> CommandResult:
+        """Handle retrieving non-system apps from the TV.
+        
+        Returns a list of non-system apps as pairs of app_id and app_name.
+        System apps are identified by the systemApp property in the app data.
+        
+        Args:
+            cmd_config: Command configuration
+            params: Dictionary containing optional parameters
+            
+        Returns:
+            CommandResult: Result of the command execution with a list of non-system apps
+        """
+        try:
+            logger.info("Retrieving non-system apps from TV")
+            
+            if not self.app or not self.client or not self.state.connected:
+                error_msg = "Cannot retrieve apps: Not connected to TV"
+                logger.error(error_msg)
+                return self.create_command_result(success=False, error=error_msg)
+            
+            # Get all available apps
+            all_apps = await self._get_available_apps_internal()
+            
+            if not all_apps:
+                logger.warning("No apps found on TV")
+                return self.create_command_result(
+                    success=True,
+                    message="No apps found on TV",
+                    data=[]
+                )
+            
+            # Filter out system apps and extract id and name
+            non_system_apps = []
+            
+            for app in all_apps:
+                try:
+                    # Check if the app is a system app
+                    is_system_app = False
+                    
+                    # Check the systemApp property in different possible locations
+                    if hasattr(app, "data") and isinstance(app.data, dict):
+                        is_system_app = app.data.get("systemApp", False)
+                    elif isinstance(app, dict):
+                        is_system_app = app.get("systemApp", False)
+                    elif hasattr(app, "systemApp"):
+                        is_system_app = app.systemApp
+                    
+                    # Skip system apps
+                    if is_system_app:
+                        continue
+                    
+                    # Get app ID and name using the existing helper method
+                    app_id, app_name = self._get_app_info(app, "Unknown")
+                    
+                    # Only include apps with valid IDs
+                    if app_id:
+                        non_system_apps.append({
+                            "app_id": app_id,
+                            "app_name": app_name
+                        })
+                    
+                except Exception as app_error:
+                    logger.debug(f"Error processing app: {str(app_error)}")
+                    continue
+            
+            logger.info(f"Found {len(non_system_apps)} non-system apps")
+            
+            # Update last command
+            await self._update_last_command("get_public_apps", {}, "api")
+            
+            return self.create_command_result(
+                success=True,
+                message=f"Retrieved {len(non_system_apps)} non-system apps",
+                data=non_system_apps
+            )
+            
+        except Exception as e:
+            error_msg = f"Error retrieving non-system apps: {str(e)}"
+            logger.error(error_msg)
+            return self.create_command_result(success=False, error=error_msg)
+
+    async def handle_get_available_inputs(
+        self, 
+        cmd_config: StandardCommandConfig, 
+        params: Dict[str, Any]
+    ) -> CommandResult:
+        """Handle retrieving available input sources from the TV.
+        
+        Returns a list of available input sources as pairs of input_id and input_name.
+        
+        Args:
+            cmd_config: Command configuration
+            params: Dictionary containing optional parameters
+            
+        Returns:
+            CommandResult: Result of the command execution with a list of available inputs
+        """
+        try:
+            logger.info("Retrieving available input sources from TV")
+            
+            if not (self.input_control or self.source_control) or not self.client or not self.state.connected:
+                error_msg = "Cannot retrieve input sources: Not connected to TV or missing required controls"
+                logger.error(error_msg)
+                return self.create_command_result(success=False, error=error_msg)
+            
+            # Force a refresh of the cache to ensure we have the latest data
+            await self._refresh_input_sources_cache()
+            
+            # Get all available input sources using the existing method
+            input_sources = await self._get_available_inputs()
+            
+            if not input_sources:
+                logger.warning("No input sources found on TV")
+                return self.create_command_result(
+                    success=True,
+                    message="No input sources found on TV",
+                    data=[]
+                )
+            
+            # Format the input sources as pairs of input_id and input_name
+            formatted_inputs = []
+            
+            for input_source in input_sources:
+                processed_source = self._process_input_source(input_source)
+                if processed_source:
+                    formatted_inputs.append({
+                        "input_id": processed_source["id"],
+                        "input_name": processed_source["name"]
+                    })
+            
+            logger.info(f"Found {len(formatted_inputs)} input sources")
+            
+            # Update last command
+            await self._update_last_command("get_available_inputs", {}, "api")
+            
+            # Check if we found any valid inputs
+            if not formatted_inputs:
+                return self.create_command_result(
+                    success=True,
+                    message="No valid input sources found after processing",
+                    data=[]
+                )
+            
+            return self.create_command_result(
+                success=True,
+                message=f"Retrieved {len(formatted_inputs)} input sources",
+                data=formatted_inputs
+            )
+            
+        except Exception as e:
+            error_msg = f"Error retrieving input sources: {str(e)}"
+            logger.error(error_msg)
+            return self.create_command_result(success=False, error=error_msg)
+
+    async def refresh_input_sources(self) -> bool:
+        """Public method to manually refresh the input sources cache.
+        
+        Returns:
+            True if refresh was successful, False otherwise
+        """
+        logger.info(f"Manually refreshing input sources for TV {self.get_name()}")
+        return await self._refresh_input_sources_cache()
 
 
 

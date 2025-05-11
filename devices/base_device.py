@@ -553,6 +553,10 @@ class BaseDevice(ABC, Generic[StateT]):
             # Add mqtt_command if present in result
             if result and "mqtt_command" in result:
                 response["mqtt_command"] = result["mqtt_command"]
+                
+            # Add data if present in result
+            if result and "data" in result:
+                response["data"] = result["data"]
             
             if success:
                 await self.publish_progress(f"Action {action} executed successfully")
