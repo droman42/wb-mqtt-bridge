@@ -6,9 +6,7 @@ from app.scenario_models import (
     ScenarioDefinition,
     DeviceState,
     ScenarioState,
-    RoomDefinition,
-    ConfigDelta,
-    DeviceConfig
+    RoomDefinition
 )
 
 class TestManualInstructions:
@@ -256,37 +254,4 @@ class TestRoomDefinition:
                 room_id="living_room",
                 names={},  # Empty names dict
                 devices=["tv"]
-            )
-
-class TestDeviceConfig:
-    def test_required_fields(self):
-        with pytest.raises(ValidationError):
-            DeviceConfig()  # Missing required fields
-    
-    def test_valid_config(self):
-        config = DeviceConfig(
-            input="hdmi1",
-            output="display"
-        )
-        
-        assert config.input == "hdmi1"
-        assert config.output == "display"
-        assert config.power_on_delay == 0
-    
-    def test_diff_with_changes(self):
-        config1 = DeviceConfig(input="hdmi1", output="display")
-        config2 = DeviceConfig(input="hdmi2", output="display")
-        
-        delta = config1.diff(config2)
-        
-        assert delta.requires_io_switch is True
-        assert delta.io_args == {"input": "hdmi1", "output": "display"}
-    
-    def test_diff_without_changes(self):
-        config1 = DeviceConfig(input="hdmi1", output="display")
-        config2 = DeviceConfig(input="hdmi1", output="display")
-        
-        delta = config1.diff(config2)
-        
-        assert delta.requires_io_switch is False
-        assert delta.io_args == {} 
+            ) 

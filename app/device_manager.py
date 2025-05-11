@@ -359,7 +359,7 @@ class DeviceManager:
             return {"success": False, "error": f"Device not found: {device_id}"}
             
         try:
-            result = await device.handle_action(action, params)
+            result = await device.execute_action(action, params)
             # Persist state after action
             await self._persist_state(device_id)
             return result

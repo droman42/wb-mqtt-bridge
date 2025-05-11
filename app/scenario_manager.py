@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Callable, Awaitable, Union, Any, Set
 
-from app.scenario_models import ScenarioDefinition, ScenarioState, DeviceState, DeviceConfig, ConfigDelta
+from app.scenario_models import ScenarioDefinition, ScenarioState, DeviceState
 from app.scenario import Scenario, ScenarioError, ScenarioExecutionError
 from app.device_manager import DeviceManager
 from app.room_manager import RoomManager
