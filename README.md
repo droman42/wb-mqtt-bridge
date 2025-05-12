@@ -1,6 +1,6 @@
 # MQTT Web Service
 
-A Python-based web service that acts as an MQTT client to manage multiple devices using an object-oriented plugin-based architecture.
+A Python-based web service that integrates as an MQTT client with Wirenboard wb-rules engineto manage multiple devices using an object-oriented plugin-based architecture.
 
 ## Features
 
@@ -16,7 +16,7 @@ A Python-based web service that acts as an MQTT client to manage multiple device
 - Support for various device types:
   - LG TV - multiple models using [asyncwebostv](https://github.com/droman42/asyncwebostv) library
   - Apple TV - multiple models using [pyatv](https://github.com/postlund/pyatv) library
-  - RF devices - Kitchen Hood via Broadlink hub
+  - RF devices - Kitchen Hood via Broadlink hub using [broadlink](https://github.com/mjg59/python-broadlink) library
   - Multiple AV devices - via Wirenboard MSW V3 IR interface
   - Revox A77 Reel-to-Reel tape recorder
   - eMotiva XMC2 Device - using [pymotivaxmc2](https://github.com/droman42/pymotivaxmc2) library
