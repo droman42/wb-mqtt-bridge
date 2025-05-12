@@ -1,6 +1,6 @@
-# MQTT Web Service
+# Wirenboard MQTT Bridge as Web Service
 
-A Python-based web service that integrates as an MQTT client with Wirenboard wb-rules engineto manage multiple devices using an object-oriented plugin-based architecture.
+A Python-based web service that integrates as an MQTT client with Wirenboard wb-rules engine to manage multiple devices using an object-oriented plugin-based architecture.
 
 ## Features
 
