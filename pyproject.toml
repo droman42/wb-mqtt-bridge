@@ -38,6 +38,9 @@ dependencies = [
     "paho-mqtt>=1.6.1",
     "pyatv @ git+https://github.com/postlund/pyatv.git@f75e718bc0bdaf0a3ff06eb00086f781b3f06347",
     "openhomedevice>=1.2.0",
+    "upnpclient",
+    "httpx",
+    "requests",
     # Local dependencies are installed in editable mode with pip install -e
     # "asyncwebostv @ file:///home/droman42/development/asyncwebostv"
     # "pymotivaxmc2 @ file:///home/droman42/development/pymotivaxmc2"

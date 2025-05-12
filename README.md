@@ -9,20 +9,20 @@ A Python-based web service that acts as an MQTT client to manage multiple device
 - Object-oriented device class architecture
 - Plugin-based architecture for device modules
 - JSON configuration files with typed Pydantic models
-- **Optional parameters for device commands**
+- Optional parameters for device commands
 - Logging system
 - Action Groups for organizing device functions
+- Scenario system for AV devices, inspired by Logitech Harmony universal remotes
 - Support for various device types:
-  - LG TV control
-  - Broadlink RF devices (Kitchen Hood)
-  - Wirenboard IR devices
+  - LG TV - multiple models using [asyncwebostv](https://github.com/droman42/asyncwebostv) library
+  - Apple TV - multiple models using [pyatv](https://github.com/postlund/pyatv) library
+  - RF devices - Kitchen Hood via Broadlink hub
+  - Multiple AV devices - via Wirenboard MSW V3 IR interface
   - Revox A77 Reel-to-Reel tape recorder
-  - **eMotiva XMC2 Device (emotiva_xmc2.py)**
-    - Manages eMotiva XMC2 processor device
-    - Supports power on/off and Zone 2 power management
-    - Handles notifications for power, volume, input, and more
-    - Maintains device state including power and source status
-    - Logs errors and updates state with error messages
+  - eMotiva XMC2 Device - using [pymotivaxmc2](https://github.com/droman42/pymotivaxmc2) library
+  - Auralic Altair G1 - using [openhomedevice](https://github.com/bazwilliams/openhomedevice) library in combination with Wirenboard MSW V3 IR interface
+  - Miele home appliances - using [asyncmiele](https://github.com/droman42/asyncmiele) library
+  - Roborock S8 vacuum cleaner - using [python-roborock](https://github.com/Python-roborock/python-roborock) library
 
 ## Architecture
 
