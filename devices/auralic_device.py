@@ -58,16 +58,28 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
     """
     
     def __init__(self, config: AuralicDeviceConfig, mqtt_client: Optional[MQTTClient] = None) -> None:
-        # Initialize state with typed Pydantic model before super().__init__
+        # Call the base class constructor first
+        super().__init__(config, mqtt_client)
+        
+        # Initialize state with typed Pydantic model AFTER super().__init__
         self.state = AuralicDeviceState(
             device_id=config.device_id,
             device_name=config.device_name,
-            ip_address=config.auralic.ip_address
+            ip_address=config.auralic.ip_address,
+            # Initialize all remaining fields from the schema
+            power="unknown",
+            volume=0,
+            mute=False,
+            source=None,
+            connected=False,
+            track_title=None,
+            track_artist=None,
+            track_album=None,
+            transport_state=None,
+            deep_sleep=False,
+            message=None,
+            warning=None
         )
-        
-        # Call the base class constructor - this will call _register_handlers() 
-        # and _auto_register_handlers() automatically
-        super().__init__(config, mqtt_client)
         
         # Store configuration and initialize instance variables
         self.config = cast(AuralicDeviceConfig, config)
@@ -114,6 +126,11 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             if not (self.ir_power_on_topic and self.ir_power_off_topic):
                 logger.warning("IR control not properly configured - true power off will not be available")
                 self.update_state(warning="IR control not configured - only standby mode available")
+            
+            # Force a state persistence to ensure the database has all fields
+            # This solves the issue of AuralicDeviceState not being fully serialized
+            if self._state_change_callback:
+                self._state_change_callback(self.device_id)
             
             logger.info(f"Auralic device {self.get_name()} initialized")
             return True

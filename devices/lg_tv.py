@@ -178,12 +178,15 @@ class LgTv(BaseDevice[LgTvState]):
             # Verify we can access at least one control to confirm initialization is working
             try:
                 # Use a simple non-state-changing call to check connection is working
-                await self.system.info()
-                logger.info(f"Control interfaces successfully initialized for {self.get_name()}")
-                
-                # After successful initialization, cache the list of apps and input sources
-                await self._refresh_app_cache()
-                await self._refresh_input_sources_cache()
+                if self.system:
+                    await self.system.info()
+                    logger.info(f"Control interfaces successfully initialized for {self.get_name()}")
+                    
+                    # After successful initialization, cache the list of apps and input sources
+                    await self._refresh_app_cache()
+                    await self._refresh_input_sources_cache()
+                else:
+                    logger.warning("System control is not available, cannot verify connection")
                 
             except Exception as control_err:
                 logger.warning(f"Controls initialized but test call failed: {str(control_err)}")
@@ -727,10 +730,11 @@ class LgTv(BaseDevice[LgTvState]):
         
         try:
             # Use ApplicationControl's foreground_app method
-            foreground_app = await self.app.foreground_app()
-            if foreground_app and isinstance(foreground_app, dict):
-                self.state.current_app = foreground_app.get("appId")
-                return True
+            if self.app:
+                foreground_app = await self.app.foreground_app()
+                if foreground_app and isinstance(foreground_app, dict):
+                    self.state.current_app = foreground_app.get("appId")
+                    return True
             return False
         except Exception as e:
             logger.debug(f"Could not get current app info: {str(e)}")
@@ -1144,14 +1148,15 @@ class LgTv(BaseDevice[LgTvState]):
             logger.info(f"Launching app '{app_title}' (ID: {actual_app_id})")
             
             # Launch the app
-            result = await self.app.launch(actual_app_id)
-            
-            # Add detailed logging of the result structure
-            logger.debug(f"Launch app result type: {type(result)}, value: {result}")
-            if isinstance(result, dict):
-                logger.debug(f"Result keys: {result.keys()}")
-                if "returnValue" in result:
-                    logger.debug(f"returnValue: {result['returnValue']}")
+            if self.app:
+                result = await self.app.launch(actual_app_id)
+                
+                # Add detailed logging of the result structure
+                logger.debug(f"Launch app result type: {type(result)}, value: {result}")
+                if isinstance(result, dict):
+                    logger.debug(f"Result keys: {result.keys()}")
+                    if "returnValue" in result:
+                        logger.debug(f"returnValue: {result['returnValue']}")
             
             # WebOS API responses can vary:
             # 1. {'returnValue': True} - Direct response
@@ -1821,20 +1826,25 @@ class LgTv(BaseDevice[LgTvState]):
             logger.info(f"Setting input source to '{input_name}' (ID: {input_id})")
             
             # Switch to the input source
-            result = await self.source_control.set_source_input(input_id)
-            
-            if result.get("returnValue", False):
-                # Update state
-                self.state.input_source = input_name
-                await self._update_last_command("set_input_source", params, "api")
-                return self.create_command_result(
-                    success=True,
-                    message=f"Input source set to '{input_name}' successfully"
-                )
-            
-            error_msg = f"Failed to set input source: {result}"
-            logger.error(error_msg)
-            return self.create_command_result(success=False, error=error_msg)
+            if self.source_control:
+                result = await self.source_control.set_source_input(input_id)
+                
+                if result.get("returnValue", False):
+                    # Update state
+                    self.state.input_source = input_name
+                    await self._update_last_command("set_input_source", params, "api")
+                    return self.create_command_result(
+                        success=True,
+                        message=f"Input source set to '{input_name}' successfully"
+                    )
+                
+                error_msg = f"Failed to set input source: {result}"
+                logger.error(error_msg)
+                return self.create_command_result(success=False, error=error_msg)
+            else:
+                error_msg = "Source control is not available"
+                logger.error(error_msg)
+                return self.create_command_result(success=False, error=error_msg)
         except Exception as e:
             error_msg = f"Error setting input source to {input_source}: {str(e)}"
             logger.error(error_msg)
@@ -1950,8 +1960,13 @@ class LgTv(BaseDevice[LgTvState]):
                 if state is None:
                     # Toggle state if not provided
                     if state_key_to_update == "mute":
-                        current_status = await self.media.get_volume()
-                        state = not current_status.get("muted", False)
+                        if self.media:
+                            current_status = await self.media.get_volume()
+                            state = not current_status.get("muted", False)
+                        else:
+                            error_msg = f"{action_name} requires state parameter and media control is not available"
+                            logger.error(error_msg)
+                            return self.create_command_result(success=False, error=error_msg)
                     else:
                         error_msg = f"{action_name} requires state parameter"
                         logger.error(error_msg)

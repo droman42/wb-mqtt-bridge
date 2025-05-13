@@ -11,6 +11,7 @@ from app.device_manager import DeviceManager
 from app.config_manager import ConfigManager
 from app.schemas import BaseDeviceConfig, CommandParameterDefinition
 from app.types import CommandResponse, StateT
+from app.mqtt_client import MQTTClient
 
 # Configure logging
 logging.basicConfig(
@@ -28,6 +29,7 @@ class DeviceTestCLI:
         self.device_manager = None
         self.current_device = None
         self.device_id = None
+        self.mqtt_client = None
     
     async def initialize(self, device_id: str) -> bool:
         """
@@ -45,9 +47,27 @@ class DeviceTestCLI:
             self.config_manager = ConfigManager()
             # Config is loaded automatically in the constructor
             
-            # Initialize device manager with the configuration manager
+            # Get system config to initialize MQTT client
+            system_config = self.config_manager.get_system_config()
+            
+            # Initialize MQTT client first
+            mqtt_broker_config = system_config.mqtt_broker
+            logger.info(f"Initializing MQTT client with broker at {mqtt_broker_config.host}:{mqtt_broker_config.port}...")
+            self.mqtt_client = MQTTClient({
+                'host': mqtt_broker_config.host,
+                'port': mqtt_broker_config.port,
+                'client_id': mqtt_broker_config.client_id + "_cli",  # Add suffix to avoid ID conflicts
+                'keepalive': mqtt_broker_config.keepalive,
+                'auth': mqtt_broker_config.auth
+            })
+            
+            # Improved MQTT connection handling
+            connection_success = await self._connect_mqtt()
+            
+            # Initialize device manager with the configuration manager and MQTT client
             logger.info(f"Initializing device manager...")
             self.device_manager = DeviceManager(
+                mqtt_client=self.mqtt_client,
                 config_manager=self.config_manager
             )
             
@@ -66,11 +86,35 @@ class DeviceTestCLI:
             filtered_configs = {device_id: device_configs[device_id]}
             await self.device_manager.initialize_devices(filtered_configs)
             
+            # Set MQTT client for the device
+            for d_id, device in self.device_manager.devices.items():
+                device.mqtt_client = self.mqtt_client
+                logger.info(f"Device {d_id} initialized with MQTT client")
+            
+            # Only subscribe to topics if we have a working connection
+            if connection_success:
+                # Add device-specific subscriptions
+                device_topics = {}
+                for d_id, device in self.device_manager.devices.items():
+                    topics = device.subscribe_topics()
+                    if topics:
+                        device_topics[d_id] = topics
+                        logger.info(f"Device {d_id} will subscribe to topics: {topics}")
+                
+                # Set up subscriptions if needed
+                if device_topics:
+                    success = await self._setup_mqtt_subscriptions(device_topics)
+                    if not success:
+                        logger.warning("Failed to set up MQTT subscriptions. Device state updates may not work.")
+            
             # Get the device instance
             self.current_device = self.device_manager.get_device(device_id)
             if not self.current_device:
                 logger.error(f"Failed to initialize device '{device_id}'")
                 return False
+            
+            # Final connection validation to ensure everything is ready
+            await self._validate_mqtt_connection()
             
             self.device_id = device_id
             logger.info(f"Successfully initialized device '{device_id}'")
@@ -78,7 +122,108 @@ class DeviceTestCLI:
             
         except Exception as e:
             logger.error(f"Error initializing device test CLI: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return False
+    
+    async def _connect_mqtt(self) -> bool:
+        """
+        Establish MQTT connection with proper validation.
+        
+        Returns:
+            bool: True if connection was successful
+        """
+        logger.info("Establishing MQTT connection...")
+        
+        # First start the connection process
+        connect_success = await self.mqtt_client.connect()
+        if not connect_success:
+            logger.error("Failed to start MQTT connection process")
+            return False
+            
+        # Wait for connection to establish
+        max_attempts = 5
+        for attempt in range(max_attempts):
+            if self.mqtt_client.connected:
+                logger.info(f"MQTT connection established successfully on attempt {attempt+1}")
+                return True
+                
+            logger.info(f"Waiting for MQTT connection to establish (attempt {attempt+1}/{max_attempts})...")
+            await asyncio.sleep(1)  # Wait a second between checks
+            
+        logger.error("Failed to establish MQTT connection after multiple attempts")
+        return False
+        
+    async def _setup_mqtt_subscriptions(self, device_topics: Dict[str, List[str]]) -> bool:
+        """
+        Set up MQTT subscriptions for devices.
+        
+        Args:
+            device_topics: Dictionary mapping device IDs to topic lists
+            
+        Returns:
+            bool: True if subscriptions were set up successfully
+        """
+        if not self.mqtt_client.connected:
+            logger.error("Cannot set up subscriptions: MQTT client not connected")
+            return False
+            
+        try:
+            # Create topic handlers mapping
+            topic_handlers = {
+                topic: self.device_manager.get_message_handler(d_id) 
+                for d_id, topics in device_topics.items()
+                for topic in topics
+            }
+            
+            if not topic_handlers:
+                logger.info("No topics to subscribe to")
+                return True
+                
+            logger.info(f"Setting up {len(topic_handlers)} topic subscriptions...")
+            
+            # Disconnect and reconnect with subscriptions
+            await self.mqtt_client.disconnect()
+            await asyncio.sleep(0.5)  # Brief pause before reconnecting
+            
+            sub_success = await self.mqtt_client.connect_and_subscribe(topic_handlers)
+            if not sub_success:
+                logger.error("Failed to set up MQTT subscriptions")
+                return False
+                
+            # Give time for subscriptions to take effect
+            await asyncio.sleep(1)
+            
+            logger.info("MQTT subscriptions set up successfully")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error setting up MQTT subscriptions: {str(e)}")
+            return False
+            
+    async def _validate_mqtt_connection(self) -> None:
+        """Validate MQTT connection and provide informative messages."""
+        if not self.mqtt_client:
+            logger.warning("MQTT client not initialized")
+            return
+            
+        if not self.mqtt_client.connected:
+            logger.warning("MQTT connection is not established - IR commands and state updates will fail")
+            return
+            
+        # Test connection with a simple operation if possible
+        try:
+            # Try to publish to a test topic to validate connection
+            test_topic = "/device_test_cli/connection_test"
+            publish_success = await self.mqtt_client.publish(test_topic, "test")
+            
+            if publish_success:
+                logger.info("MQTT connection validated with successful test publish")
+            else:
+                logger.warning("MQTT connection test failed - commands may not work properly")
+                
+        except Exception as e:
+            logger.error(f"Error validating MQTT connection: {str(e)}")
     
     async def shutdown(self) -> bool:
         """
@@ -88,6 +233,11 @@ class DeviceTestCLI:
             bool: True if shutdown was successful, False otherwise
         """
         try:
+            # First disconnect MQTT client if it exists
+            if hasattr(self, 'mqtt_client') and self.mqtt_client:
+                logger.info(f"Disconnecting MQTT client...")
+                await self.mqtt_client.disconnect()
+            
             if self.device_manager:
                 logger.info(f"Shutting down devices...")
                 await self.device_manager.shutdown_devices()

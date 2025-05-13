@@ -448,20 +448,40 @@ class BaseDevice(ABC, Generic[StateT]):
         Each keyword argument will update the corresponding attribute in the state.
         
         This method now includes validation to detect non-serializable fields early.
+        Only triggers state change notification if the state actually changes.
         """
+        # Skip empty updates
+        if not updates:
+            return
+        
         # Validate updates for serializability
         is_valid, errors = self._validate_state_updates(updates)
         if not is_valid:
             # Log warnings for non-serializable fields
             for error in errors:
                 logger.warning(f"Device {self.device_id}: {error}")
-                
+            
             # Log a summary warning
             logger.warning(f"Device {self.device_id}: Updating state with {len(errors)} potentially non-serializable fields")
+        
+        # Store current state for comparison
+        previous_state = self.state.dict(exclude_unset=True)
         
         # Create a new state object with updated values
         updated_data = self.state.dict(exclude_unset=True)
         updated_data.update(updates)
+        
+        # Check if there are actual changes
+        has_changes = False
+        for key, value in updates.items():
+            if key not in previous_state or previous_state[key] != value:
+                has_changes = True
+                break
+        
+        # If no changes, exit early
+        if not has_changes:
+            logger.debug(f"No actual state changes for {self.device_name}")
+            return
         
         # Preserve the concrete state type when updating
         state_cls = type(self.state)  # Get the actual class of the current state
@@ -475,7 +495,7 @@ class BaseDevice(ABC, Generic[StateT]):
         
         logger.debug(f"Updated state for {self.device_name}: {updates}")
         
-        # Notify about state change
+        # Notify about state change only if there were actual changes
         self._notify_state_change()
     
     def _notify_state_change(self):

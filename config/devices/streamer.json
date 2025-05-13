@@ -5,7 +5,7 @@
   "mqtt_progress_topic": "/devices/streamer/controls/progress",
   "auralic": {
     "ip_address": "192.168.110.16",
-    "update_interval": 5,
+    "update_interval": 15,
     "discovery_mode": true,
     "device_url": "http://192.168.110.16:47216/lightningRender-bc-34-00-a0-67-ba/Upnp/device.xml",
     "ir_power_on_topic": "/devices/wb-msw-v3_207/controls/Play from ROM62/on",

@@ -22,7 +22,12 @@
     "websockets.client": "INFO",
     "pyatv": "WARNING",
     "pyatv.support.knock": "ERROR",
-    "pyatv.core.scan": "ERROR"
+    "pyatv.core.scan": "ERROR",
+    "async_upnp_client": "INFO",
+    "async_upnp_client.client": "INFO",
+    "async_upnp_client.traffic.upnp": "INFO",
+    "openhomedevice": "INFO",
+    "aiosqlite": "INFO"    
   },
   "groups": {
     "volume": "Volume Control",

@@ -2,11 +2,16 @@ import logging
 from typing import Dict, Any, Optional, List
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
-from pydantic import BaseModel
+from pydantic import BaseModel, RootModel
 
 from app.schemas import BaseDeviceState
 from app.types import CommandResponse
 from app.scenario_models import ScenarioState
+
+# Create a model for the persisted states dictionary
+class PersistedStatesResponse(RootModel):
+    """Model for the collection of persisted device states."""
+    root: Dict[str, Dict[str, Any]]
 
 # Create router with appropriate prefix and tags
 router = APIRouter(
@@ -66,7 +71,7 @@ async def get_device_state(device_id: str):
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@router.get("/devices/{device_id}/persisted_state")
+@router.get("/devices/{device_id}/persisted_state", response_model=Dict[str, Any])
 async def get_device_persisted_state(device_id: str):
     """Get the persisted state of a specific device from the state store.
     
@@ -92,7 +97,7 @@ async def get_device_persisted_state(device_id: str):
         logger.error(f"Error retrieving device persisted state: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@router.get("/devices/persisted_states")
+@router.get("/devices/persisted_states", response_model=PersistedStatesResponse)
 async def get_all_persisted_states():
     """Get the persisted states of all devices from the state store.
     

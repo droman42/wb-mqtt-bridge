@@ -565,6 +565,53 @@ class AuralicDeviceState(BaseDeviceState):
     deep_sleep: bool = False  # True when device is in deep sleep mode (true power off)
     message: Optional[str] = None  # User-friendly message about current state
     warning: Optional[str] = None  # Warning message if relevant
+    
+    # Override model_dump to ensure all fields are properly serialized
+    def model_dump(self, **kwargs) -> Dict[str, Any]:
+        """
+        Generate a dictionary representation of AuralicDeviceState with complete field serialization.
+        
+        This override ensures that all AuralicDeviceState fields are properly included in
+        the serialized state, addressing a serialization issue where some fields might
+        be missing from the database record.
+        
+        Returns:
+            Dict[str, Any]: Dictionary representation of the state.
+        """
+        # Get basic serialization from parent class
+        data = super().model_dump(**kwargs)
+        
+        # Explicitly ensure all fields are included in the serialized output
+        # This is the key fix - explicitly listing all fields ensures they're all included
+        data.update({
+            "device_id": self.device_id,
+            "device_name": self.device_name,
+            "power": self.power,
+            "volume": self.volume,
+            "mute": self.mute,
+            "source": self.source,
+            "connected": self.connected,
+            "ip_address": self.ip_address,
+            "track_title": self.track_title,
+            "track_artist": self.track_artist,
+            "track_album": self.track_album,
+            "transport_state": self.transport_state,
+            "deep_sleep": self.deep_sleep,
+            "message": self.message,
+            "warning": self.warning
+        })
+        
+        # Include error and last_command fields from parent state
+        if hasattr(self, "error") and self.error is not None:
+            data["error"] = self.error
+            
+        if hasattr(self, "last_command") and self.last_command is not None:
+            if hasattr(self.last_command, "model_dump"):
+                data["last_command"] = self.last_command.model_dump()
+            else:
+                data["last_command"] = self.last_command
+        
+        return data
 
 class PersistenceConfig(BaseModel):
     """Configuration for the persistence layer."""

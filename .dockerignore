@@ -81,6 +81,7 @@ wb-rules/
 broadlink_cli.py
 broadlink_discovery.py
 mqtt_sniffer.py
+device_test_cli.py
 debug.py
 setup.py
 *.ipynb
@@ -88,6 +89,8 @@ TODO.md
 info/
 share/
 test_*.py
+nginx/
+tests/
 
 # Include essential files
 !app/
