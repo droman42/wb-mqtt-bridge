@@ -3,6 +3,8 @@
   "device_id": "streamer",
   "alias": "streamer",
   "mqtt_progress_topic": "/devices/streamer/controls/progress",
+  "device_class": "AuralicDevice",
+  "config_class": "AuralicDeviceConfig",
   "auralic": {
     "ip_address": "192.168.110.16",
     "update_interval": 15,
@@ -25,13 +27,19 @@
       "group": "power",
       "description": "Power Off",
       "params": [
-        {"name": "standby_only", "type": "boolean", "required": false, "default": false, "description": "If true, only put the device in standby mode instead of true power off"}
+        {
+          "name": "standby_only",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "description": "If true, only put the device in standby mode instead of true power off"
+        }
       ]
     },
     "play": {
       "action": "play",
       "topic": "/devices/streamer/controls/play",
-      "group":"playback",
+      "group": "playback",
       "description": "Play"
     },
     "pause": {
@@ -58,7 +66,14 @@
       "group": "volume",
       "description": "Set Volume",
       "params": [
-        {"name": "volume", "type": "range", "min": 0, "max": 100, "required": true, "description": "Volume level (0-100)"}
+        {
+          "name": "volume",
+          "type": "range",
+          "min": 0,
+          "max": 100,
+          "required": true,
+          "description": "Volume level (0-100)"
+        }
       ]
     },
     "volume_up": {
@@ -85,7 +100,12 @@
       "group": "inputs",
       "description": "Set Source",
       "params": [
-        {"name": "source", "type": "string", "required": true, "description": "Source name or index"}
+        {
+          "name": "source",
+          "type": "string",
+          "required": true,
+          "description": "Source name or index"
+        }
       ]
     },
     "track_info": {

@@ -3,6 +3,8 @@
   "device_id": "appletv_children",
   "device_name": "Apple TV Children Room",
   "mqtt_progress_topic": "/devices/appletv_children/controls/progress",
+  "device_class": "AppleTVDevice",
+  "config_class": "AppleTVDeviceConfig",
   "apple_tv": {
     "ip_address": "192.168.110.169",
     "name": "\u0414\u0435\u0442\u0441\u043a\u0430\u044f (2939)",
@@ -75,7 +77,14 @@
       "description": "Set Volume",
       "group": "volume",
       "params": [
-        { "name": "level", "type": "range", "min": 0, "max": 100, "required": true, "description": "Volume level (0-100)" }
+        {
+          "name": "level",
+          "type": "range",
+          "min": 0,
+          "max": 100,
+          "required": true,
+          "description": "Volume level (0-100)"
+        }
       ]
     },
     "launch_app": {
@@ -84,7 +93,13 @@
       "description": "Launch App",
       "group": "apps",
       "params": [
-        { "name": "app", "type": "string", "required": true, "default": "YouTube", "description": "App name to launch" }
+        {
+          "name": "app",
+          "type": "string",
+          "required": true,
+          "default": "YouTube",
+          "description": "App name to launch"
+        }
       ]
     },
     "refresh_status": {

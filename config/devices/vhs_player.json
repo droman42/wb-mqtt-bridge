@@ -3,6 +3,8 @@
   "device_id": "vhs_player",
   "alias": "vhs_player",
   "mqtt_progress_topic": "/devices/vhs_player/controls/progress",
+  "device_class": "WirenboardIRDevice",
+  "config_class": "WirenboardIRDeviceConfig",
   "commands": {
     "power": {
       "action": "power",

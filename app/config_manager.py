@@ -1,42 +1,32 @@
 import json
 import os
 import logging
-from typing import Dict, Any, List, Optional, Type, Union, cast
+import importlib
+from typing import Dict, Any, List, Optional, Type, Union, cast, Set, Tuple
+from pathlib import Path
+
 from app.schemas import (
     SystemConfig, 
     MQTTBrokerConfig,
     BaseDeviceConfig,
-    WirenboardIRDeviceConfig,
-    RevoxA77ReelToReelConfig,
-    BroadlinkKitchenHoodConfig,
-    LgTvDeviceConfig,
-    AppleTVDeviceConfig,
-    EmotivaXMC2DeviceConfig,
-    AuralicDeviceConfig,
     StandardCommandConfig,
     IRCommandConfig,
-    BroadlinkCommandConfig,
     BaseCommandConfig
 )
+from app.class_loader import load_class_by_name
+from app.validation import (
+    validate_device_configs,
+    validate_config_file_structure,
+    discover_config_files
+)
 
-# NOTE: This module uses 'class' field from system configuration
-# to determine the device class type for each device.
+# NOTE: This module now uses the 'device_class' and 'config_class' fields 
+# from individual device configurations rather than a centralized mapping.
 
 logger = logging.getLogger(__name__)
 
 class ConfigManager:
     """Manages configuration for the MQTT web service and devices."""
-    
-    # Mapping of device class names to their specific config model classes
-    _config_models: Dict[str, Type[BaseDeviceConfig]] = {
-        "WirenboardIRDevice": WirenboardIRDeviceConfig,
-        "RevoxA77ReelToReel": RevoxA77ReelToReelConfig,
-        "BroadlinkKitchenHood": BroadlinkKitchenHoodConfig,
-        "LgTv": LgTvDeviceConfig,
-        "AppleTVDevice": AppleTVDeviceConfig,
-        "EMotivaXMC2": EmotivaXMC2DeviceConfig,
-        "AuralicDevice": AuralicDeviceConfig
-    }
     
     def __init__(self, config_dir: str = "config"):
         self.config_dir = config_dir
@@ -54,7 +44,7 @@ class ConfigManager:
             },
             log_level="INFO",
             log_file="logs/service.log",
-            devices={}
+            device_directory="devices"
         )
         # Store only typed configurations
         self.typed_configs: Dict[str, BaseDeviceConfig] = {}
@@ -64,7 +54,7 @@ class ConfigManager:
         
         # Load configurations
         self._load_system_config()
-        self._load_device_configs()
+        self._discover_and_load_device_configs()
         
         # Extract group definitions
         self._groups = self.system_config.groups or {}
@@ -83,6 +73,18 @@ class ConfigManager:
         except json.JSONDecodeError:
             logger.error(f"Invalid JSON in system config file {self.system_config_file}")
             raise
+        
+        # Set devices_dir based on system_config if specified
+        if hasattr(self.system_config, 'device_directory') and self.system_config.device_directory:
+            custom_devices_dir = os.path.join(self.config_dir, self.system_config.device_directory)
+            if os.path.exists(custom_devices_dir) or os.path.isdir(custom_devices_dir):
+                self.devices_dir = custom_devices_dir
+                logger.info(f"Using custom device directory: {self.devices_dir}")
+            else:
+                logger.warning(
+                    f"Custom device directory '{custom_devices_dir}' not found, using default: {self.devices_dir}"
+                )
+        
         return self.system_config
     
     def _save_system_config(self):
@@ -95,13 +97,70 @@ class ConfigManager:
             logger.error(f"Failed to save system config: {str(e)}")
             raise
     
-    def _create_typed_config(self, config_data: Dict[str, Any], device_class: str) -> BaseDeviceConfig:
+    def _load_config_class(self, config_class_name: str) -> Optional[Type[BaseDeviceConfig]]:
         """
-        Create a typed device configuration from a dictionary.
+        Dynamically load a configuration class by name.
         
         Args:
-            config_data: Dictionary containing the device configuration
-            device_class: Device class name from system config
+            config_class_name: Name of the configuration class
+            
+        Returns:
+            The configuration class if found, None otherwise
+        """
+        return load_class_by_name(config_class_name, BaseDeviceConfig, "app.schemas.")
+    
+    def _process_commands(self, commands_data: Dict[str, Dict[str, Any]], config_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Process commands from raw dictionary to typed command objects.
+        This delegates to the specific config class's process_commands method if available.
+        
+        Args:
+            commands_data: Raw dictionary of commands
+            config_data: Device configuration data containing context information
+            
+        Returns:
+            Dictionary of processed typed commands
+        """
+        # Get config_class from the data
+        config_class_name = config_data.get("config_class")
+        if not config_class_name:
+            raise RuntimeError(f"Missing 'config_class' field in config data for device '{config_data.get('device_id')}'")
+        
+        # Load the configuration class
+        config_class = self._load_config_class(config_class_name)
+        if not config_class:
+            raise RuntimeError(f"Config class '{config_class_name}' not found or invalid")
+        
+        # Use the config class's process_commands method if available
+        try:
+            return config_class.process_commands(commands_data)
+        except Exception as e:
+            logger.error(f"Error processing commands with {config_class_name}.process_commands: {str(e)}")
+            logger.info("Falling back to general command processing")
+            
+            # Fall back to generic command processing if custom method fails
+            processed_commands = {}
+            
+            for cmd_name, cmd_config in commands_data.items():
+                # Skip if not a dictionary
+                if not isinstance(cmd_config, dict):
+                    raise RuntimeError(f"Command {cmd_name} has invalid format, must be a dictionary")
+                    
+                # Choose the appropriate command model based on command structure
+                if "location" in cmd_config and "rom_position" in cmd_config:
+                    processed_commands[cmd_name] = IRCommandConfig(**cmd_config)
+                else:
+                    # Use standard command for all other commands
+                    processed_commands[cmd_name] = StandardCommandConfig(**cmd_config)
+                    
+            return processed_commands
+    
+    def _create_device_config(self, config_data: Dict[str, Any]) -> BaseDeviceConfig:
+        """
+        Create a typed device configuration using the config_class specified in the data.
+        
+        Args:
+            config_data: Dictionary containing device configuration
             
         Returns:
             Typed device configuration object
@@ -109,95 +168,74 @@ class ConfigManager:
         Raises:
             RuntimeError: If creation fails for any reason
         """
-        # Get the config model for this device class
-        config_model = self._config_models.get(device_class)
-        if not config_model:
-            available_models = list(self._config_models.keys())
-            raise RuntimeError(
-                f"No typed config model found for device class: {device_class}. "
-                f"Available models: {available_models}"
+        # Get config_class from the data
+        config_class_name = config_data.get("config_class")
+        if not config_class_name:
+            raise RuntimeError(f"Missing 'config_class' field in config data for device '{config_data.get('device_id')}'")
+        
+        # Load the configuration class
+        config_class = self._load_config_class(config_class_name)
+        if not config_class:
+            raise RuntimeError(f"Config class '{config_class_name}' not found or invalid")
+        
+        # Process commands if present
+        if "commands" in config_data and isinstance(config_data["commands"], dict):
+            config_data["commands"] = self._process_commands(config_data["commands"], config_data)
+        
+        # Create instance of the config class
+        try:
+            return config_class(**config_data)
+        except Exception as e:
+            raise RuntimeError(f"Failed to create {config_class_name} instance: {str(e)}")
+    
+    def _discover_and_load_device_configs(self):
+        """
+        Discover and load all device configurations from the devices directory.
+        
+        This method replaces the old _load_device_configs method, implementing 
+        file-based discovery instead of using the system.devices mapping.
+        """
+        self.typed_configs = {}
+        validation_errors = []
+        
+        # Run validation on all device configs in the directory
+        valid_configs, errors = validate_device_configs(self.devices_dir)
+        
+        if errors:
+            for error in errors:
+                logger.error(f"Device config validation error: {error}")
+            
+            # If there are validation errors, we should still continue with valid configs
+            logger.warning(
+                f"Found {len(errors)} validation errors in device configurations. "
+                f"See log for details. Continuing with {len(valid_configs)} valid configs."
             )
         
-        # Process commands to ensure they're properly typed
-        if "commands" in config_data:
-            processed_commands = {}
-            commands = config_data["commands"]
-            
-            for cmd_name, cmd_config in commands.items():
-                # Skip if not a dictionary
-                if not isinstance(cmd_config, dict):
-                    raise RuntimeError(f"Command {cmd_name} has invalid format, must be a dictionary")
-                    
-                # Choose the appropriate command model based on device class
-                if device_class == "WirenboardIRDevice" or device_class == "RevoxA77ReelToReel":
-                    if "location" in cmd_config and "rom_position" in cmd_config:
-                        processed_commands[cmd_name] = IRCommandConfig(**cmd_config)
-                    else:
-                        raise RuntimeError(f"IR Command {cmd_name} missing required fields: location and rom_position")
-                elif device_class == "BroadlinkKitchenHood" and "rf_code" in cmd_config:
-                    processed_commands[cmd_name] = BroadlinkCommandConfig(**cmd_config)
-                else:
-                    # Use standard command for all other devices
-                    processed_commands[cmd_name] = StandardCommandConfig(**cmd_config)
-                    
-            config_data["commands"] = processed_commands
-            
-        # Create and return the typed configuration
-        try:
-            return config_model(**config_data)
-        except Exception as e:
-            raise RuntimeError(f"Failed to create {device_class} config: {str(e)}")
-    
-    def _load_device_configs(self):
-        """Load all device configurations based on system config, with strict validation."""
-        self.typed_configs = {}
-        
-        for device_id, device_info in self.system_config.devices.items():
-            config_file = device_info.get("config_file")
-            if not config_file:
-                logger.error(f"Missing config_file in system config for device_id '{device_id}'")
-                continue
-                
-            config_path = os.path.join(self.devices_dir, config_file)
-            if not os.path.exists(config_path):
-                logger.error(f"Config file '{config_path}' not found for device_id '{device_id}'")
-                continue
-            
+        # Process the valid configurations
+        for device_id, config_data in valid_configs.items():
             try:
-                # Load device configuration data
-                with open(config_path, 'r') as f:
-                    device_config_dict = json.load(f)
-                    
-                # Add device_id to the config
-                if "device_id" in device_config_dict and device_config_dict["device_id"] != device_id:
-                    # Raise error if device_id in file doesn't match expected from system config
-                    raise RuntimeError(
-                        f"Config file '{config_file}' has device_id '{device_config_dict.get('device_id')}' "
-                        f"but expected '{device_id}'"
-                    )
-                    
-                device_config_dict["device_id"] = device_id
-                
-                # Get class information from system config
-                device_class = device_info.get("class")
-                if not device_class:
-                    raise RuntimeError(f"Missing 'class' field in system config for device_id '{device_id}'")
-                    
-                # Create typed config with no fallbacks - let failures raise errors
-                self.typed_configs[device_id] = self._create_typed_config(device_config_dict, device_class)
-                logger.info(f"Created typed configuration for device: {device_id} ({device_class})")
-                
+                # Create typed configuration
+                self.typed_configs[device_id] = self._create_device_config(config_data)
+                logger.info(
+                    f"Created typed configuration for device: {device_id} "
+                    f"(class: {config_data.get('device_class')})"
+                )
             except Exception as e:
-                # Log error and re-raise to prevent loading this device
-                logger.error(f"Error loading device config {config_file}: {str(e)}")
-                raise RuntimeError(f"Failed to load config for device '{device_id}': {str(e)}")
+                logger.error(f"Error creating typed config for device '{device_id}': {str(e)}")
+                validation_errors.append(str(e))
+        
+        # Log summary
+        if validation_errors:
+            logger.warning(
+                f"Skipped {len(validation_errors)} devices due to configuration errors. "
+                f"Successfully loaded {len(self.typed_configs)} device configurations."
+            )
+        else:
+            logger.info(f"Successfully loaded all {len(self.typed_configs)} device configurations")
     
     def get_device_class_name(self, device_id: str) -> Optional[str]:
         """
-        Get the class name for a device from the system configuration.
-        
-        This method returns the 'class' field from the system config for this device,
-        which should be used for device instantiation and type determination.
+        Get the class name for a device from its configuration.
         
         Args:
             device_id: The device ID to look up
@@ -205,9 +243,10 @@ class ConfigManager:
         Returns:
             The class name string or None if not found
         """
-        devices_config = self.system_config.devices
-        device_info = devices_config.get(device_id, {})
-        return device_info.get('class')
+        device_config = self.typed_configs.get(device_id)
+        if device_config and hasattr(device_config, 'device_class'):
+            return device_config.device_class
+        return None
     
     def get_system_config(self) -> SystemConfig:
         """Get the system configuration."""
@@ -243,7 +282,7 @@ class ConfigManager:
     def reload_configs(self):
         """Reload all configurations from disk."""
         self._load_system_config()
-        self._load_device_configs()
+        self._discover_and_load_device_configs()
         logger.info("All configurations reloaded")
         return True
     
@@ -276,7 +315,8 @@ class ConfigManager:
         return groups
 
     def is_valid_group(self, group_id: str) -> bool:
-        """Check if a group is defined in the system configuration.
+        """
+        Check if a group is defined in the system configuration.
         The 'default' group is always considered valid.
         
         Args:
@@ -289,19 +329,4 @@ class ConfigManager:
             return True
         
         groups = self.get_groups()
-        return group_id in groups
-
-    @classmethod
-    def register_config_model(cls, device_class: str, config_model: Type[BaseDeviceConfig]):
-        """
-        Register a new configuration model for a device class.
-        
-        Args:
-            device_class: Device class name (e.g., "WirenboardIRDevice")
-            config_model: Configuration model class
-        """
-        # The device_class here is used as a key in the config_models dictionary
-        # This should match the 'class' field in system config, not the 'device_class' field
-        # in individual device config files which is being deprecated
-        cls._config_models[device_class] = config_model
-        logger.info(f"Registered config model for device class: {device_class}") 
+        return group_id in groups 

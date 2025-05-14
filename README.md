@@ -13,6 +13,7 @@ A Python-based web service that integrates as an MQTT client with Wirenboard wb-
 - Logging system
 - Action Groups for organizing device functions
 - Scenario system for AV devices, inspired by Logitech Harmony universal remotes
+- Dynamic device configuration system with validation and migration tools
 - Support for various device types:
   - LG TV - multiple models using [asyncwebostv](https://github.com/droman42/asyncwebostv) library
   - Apple TV - multiple models using [pyatv](https://github.com/postlund/pyatv) library
@@ -34,6 +35,10 @@ A Python-based web service that integrates as an MQTT client with Wirenboard wb-
   - Standardized parameter handling for device commands
 - **Configuration**: Strongly-typed JSON files for system and device settings
 - **Logging**: File-based logging
+- **Dynamic Configuration System**:
+  - Validation and error reporting for configuration files
+  - Automatic device class detection for migration
+  - Command processing specific to device types
 
 ## Installation
 
@@ -358,6 +363,8 @@ LOG_LEVEL=INFO
 {
   "device_id": "lg_tv",
   "device_name": "Living Room TV",
+  "device_class": "LgTv",
+  "config_class": "LgTvDeviceConfig",
   "mqtt_progress_topic": "home/tv/progress",
   "commands": {
     "power_on": {
@@ -507,7 +514,8 @@ python extract_lg_tv_cert.py 192.168.1.100 --output tv_cert.pem
 {
   "device_id": "living_room_tv",
   "device_name": "Living Room TV",
-  "device_class": "lg_tv",
+  "device_class": "LgTv",
+  "config_class": "LgTvDeviceConfig",
   "tv": {
     "ip_address": "192.168.1.100",
     "mac_address": "AA:BB:CC:DD:EE:FF",
@@ -663,28 +671,7 @@ This project is open source and available under the MIT License.
 
 ## System Configuration
 
-The system configuration now fully defines device class information using the `class` field. This is the only way to specify device class names.
-
-Example:
-
-```json
-{
-  "devices": {
-    "kitchen_hood": {
-      "class": "BroadlinkKitchenHood",
-      "config_file": "kitchen_hood.json"
-    },
-    "lg_tv": {
-      "class": "LgTv",
-      "config_file": "lg_tv.json"
-    }
-  }
-}
-```
-
-## Device Configuration
-
-Device configuration files no longer include a `device_class` field. The system configuration's `class` field is used instead.
+Device configuration files now include both `device_class` and `config_class` fields to support dynamic loading.
 
 Example device configuration:
 
@@ -692,6 +679,8 @@ Example device configuration:
 {
   "device_id": "lg_tv",
   "device_name": "Living Room TV",
+  "device_class": "LgTv",
+  "config_class": "LgTvDeviceConfig",
   "mqtt_progress_topic": "home/tv/progress",
   "commands": {
     "power_on": {

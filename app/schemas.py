@@ -97,10 +97,6 @@ class IRCommandConfig(BaseCommandConfig):
     location: str = Field(..., description="IR blaster location identifier")
     rom_position: str = Field(..., description="ROM position for the IR code")
 
-class BroadlinkCommandConfig(BaseCommandConfig):
-    """Command configuration for Broadlink devices."""
-    rf_code: str = Field(..., description="Base64-encoded RF code to transmit")
-
 # Device-specific parameter models
 class RevoxA77ReelToReelParams(BaseModel):
     """Parameters specific to Revox A77 Reel-to-Reel device."""
@@ -112,39 +108,169 @@ class BaseDeviceConfig(BaseModel):
     device_id: str
     device_name: str
     mqtt_progress_topic: str = ""
+    # New required fields for dynamic class loading
+    device_class: str = Field(..., description="The device implementation class name (e.g., 'LgTv')")
+    config_class: str = Field(..., description="The configuration model class name (e.g., 'LgTvDeviceConfig')")
+    commands: Dict[str, BaseCommandConfig] = Field(default_factory=dict)
+
+    @validator('device_class')
+    def validate_device_class(cls, v):
+        """Validate that device_class is not empty."""
+        if not v or not v.strip():
+            raise ValueError("device_class must not be empty")
+        return v
+
+    @validator('config_class')
+    def validate_config_class(cls, v):
+        """Validate that config_class is not empty."""
+        if not v or not v.strip():
+            raise ValueError("config_class must not be empty")
+        return v
+    
+    @classmethod
+    def process_commands(cls, commands_data: Dict[str, Dict[str, Any]]) -> Dict[str, BaseCommandConfig]:
+        """
+        Process raw command definitions into properly typed command objects.
+        Each device config subclass can override this for custom command processing.
+        
+        Args:
+            commands_data: Raw command data dictionary
+            
+        Returns:
+            Dictionary of processed command objects
+        """
+        processed_commands = {}
+        
+        for cmd_name, cmd_config in commands_data.items():
+            # Skip if not a dictionary
+            if not isinstance(cmd_config, dict):
+                raise ValueError(f"Command {cmd_name} has invalid format, must be a dictionary")
+            
+            # Use standard command for base implementation
+            processed_commands[cmd_name] = StandardCommandConfig(**cmd_config)
+                
+        return processed_commands
+    
+    @classmethod
+    def create_from_dict(cls, config_data: Dict[str, Any]) -> 'BaseDeviceConfig':
+        """
+        Create a configuration instance from a dictionary, processing commands appropriately.
+        
+        Args:
+            config_data: Raw configuration dictionary
+            
+        Returns:
+            Initialized configuration object
+            
+        Raises:
+            ValueError: If the configuration is invalid
+        """
+        # Create a copy to avoid modifying the original
+        config = dict(config_data)
+        
+        # Process commands if present
+        if "commands" in config and isinstance(config["commands"], dict):
+            config["commands"] = cls.process_commands(config["commands"])
+            
+        # Create and return the instance
+        return cls(**config)
 
 # Device-specific configuration models
 class WirenboardIRDeviceConfig(BaseDeviceConfig):
     """Configuration for Wirenboard IR devices."""
-    commands: Dict[str, IRCommandConfig]
+    commands: Dict[str, IRCommandConfig] = Field(default_factory=dict)
+    
+    @classmethod
+    def process_commands(cls, commands_data: Dict[str, Dict[str, Any]]) -> Dict[str, IRCommandConfig]:
+        """
+        Process commands specifically for Wirenboard IR devices.
+        
+        Args:
+            commands_data: Raw command data
+            
+        Returns:
+            Dictionary of processed IR commands
+        """
+        processed_commands = {}
+        
+        for cmd_name, cmd_config in commands_data.items():
+            if not isinstance(cmd_config, dict):
+                raise ValueError(f"Command {cmd_name} has invalid format, must be a dictionary")
+                
+            # Validate IR command structure
+            if "location" not in cmd_config or "rom_position" not in cmd_config:
+                raise ValueError(
+                    f"IR Command {cmd_name} missing required fields: location and rom_position"
+                )
+                
+            # Create IR command
+            processed_commands[cmd_name] = IRCommandConfig(**cmd_config)
+                
+        return processed_commands
 
 class RevoxA77ReelToReelConfig(BaseDeviceConfig):
     """Configuration for Revox A77 Reel-to-Reel device."""
-    commands: Dict[str, IRCommandConfig]
+    commands: Dict[str, IRCommandConfig] = Field(default_factory=dict)
     reel_to_reel: RevoxA77ReelToReelParams
+    
+    @classmethod
+    def process_commands(cls, commands_data: Dict[str, Dict[str, Any]]) -> Dict[str, IRCommandConfig]:
+        """
+        Process commands specifically for Revox A77 Reel-to-Reel devices.
+        Uses the same IR command processing as Wirenboard.
+        
+        Args:
+            commands_data: Raw command data
+            
+        Returns:
+            Dictionary of processed IR commands
+        """
+        return WirenboardIRDeviceConfig.process_commands(commands_data)
 
 class BroadlinkKitchenHoodConfig(BaseDeviceConfig):
     """Configuration for Broadlink kitchen hood device."""
-    commands: Dict[str, StandardCommandConfig]
+    commands: Dict[str, BaseCommandConfig] = Field(default_factory=dict)
     broadlink: BroadlinkConfig
     rf_codes: Dict[str, Dict[str, str]] = Field(
         ...,
         description="RF codes mapped by category (light, speed) and state"
     )
+    
+    @classmethod
+    def process_commands(cls, commands_data: Dict[str, Dict[str, Any]]) -> Dict[str, BaseCommandConfig]:
+        """
+        Process commands specifically for Broadlink kitchen hood devices.
+        
+        Args:
+            commands_data: Raw command data
+            
+        Returns:
+            Dictionary of processed commands
+        """
+        processed_commands = {}
+        
+        for cmd_name, cmd_config in commands_data.items():
+            if not isinstance(cmd_config, dict):
+                raise ValueError(f"Command {cmd_name} has invalid format, must be a dictionary")
+                
+            # Use StandardCommandConfig for all commands
+            processed_commands[cmd_name] = StandardCommandConfig(**cmd_config)
+                
+        return processed_commands
 
 class LgTvDeviceConfig(BaseDeviceConfig):
     """Configuration for LG TV device."""
-    commands: Dict[str, StandardCommandConfig]
+    commands: Dict[str, StandardCommandConfig] = Field(default_factory=dict)
     tv: LgTvConfig
 
 class AppleTVDeviceConfig(BaseDeviceConfig):
     """Configuration for Apple TV device."""
-    commands: Dict[str, StandardCommandConfig]
+    commands: Dict[str, StandardCommandConfig] = Field(default_factory=dict)
     apple_tv: AppleTVConfig
 
 class EmotivaXMC2DeviceConfig(BaseDeviceConfig):
     """Configuration for Emotiva XMC2 device."""
-    commands: Dict[str, StandardCommandConfig]
+    commands: Dict[str, StandardCommandConfig] = Field(default_factory=dict)
     emotiva: EmotivaConfig
 
 class AuralicConfig(BaseModel):
@@ -171,8 +297,30 @@ class AuralicConfig(BaseModel):
 
 class AuralicDeviceConfig(BaseDeviceConfig):
     """Configuration for Auralic device."""
-    commands: Dict[str, StandardCommandConfig]
+    commands: Dict[str, StandardCommandConfig] = Field(default_factory=dict)
     auralic: AuralicConfig
+    
+    @classmethod
+    def process_commands(cls, commands_data: Dict[str, Dict[str, Any]]) -> Dict[str, StandardCommandConfig]:
+        """
+        Process commands specifically for Auralic devices.
+        
+        Args:
+            commands_data: Raw command data
+            
+        Returns:
+            Dictionary of processed standard commands
+        """
+        processed_commands = {}
+        
+        for cmd_name, cmd_config in commands_data.items():
+            if not isinstance(cmd_config, dict):
+                raise ValueError(f"Command {cmd_name} has invalid format, must be a dictionary")
+                
+            # Create standard command
+            processed_commands[cmd_name] = StandardCommandConfig(**cmd_config)
+                
+        return processed_commands
 
 # The rest of the state models remain unchanged
 class LastCommand(BaseModel):
@@ -629,9 +777,12 @@ class SystemConfig(BaseModel):
     log_level: str
     log_file: str
     loggers: Optional[Dict[str, str]] = None
-    devices: Dict[str, Dict[str, Any]]
+    # Remove devices dictionary from required fields and make it optional
+    devices: Optional[Dict[str, Dict[str, Any]]] = None
     groups: Dict[str, str] = Field(default_factory=dict)  # Internal name -> Display name
     persistence: PersistenceConfig = Field(default_factory=PersistenceConfig)
+    # Add explicit device directory configuration
+    device_directory: str = Field(default="devices", description="Directory containing device configuration files")
 
 class ErrorResponse(BaseModel):
     """Schema for error responses."""

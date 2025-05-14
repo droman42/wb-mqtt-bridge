@@ -140,21 +140,17 @@ class DeviceTester:
         else:
             self.device_id = self.device_config['device_id']
         
-        # Load system configuration to verify device ID exists
-        system_config = self.config_manager.get_system_config()
-        
-        # Find device info from system config
-        device_found = False
-        for dev_id, info in system_config.devices.items():
-            config_file = info.get('config_file', '')
-            if os.path.basename(self.config_path) == config_file or self.device_id == dev_id:
-                device_found = True
-                # Use the ID from system.json if found
-                self.device_id = dev_id
-                break
-        
-        if not device_found:
-            logger.warning(f"Device with config {self.config_path} not found in system configuration")
+        # Verify device exists via API endpoint
+        try:
+            device_url = f"/devices/{self.device_id}"
+            response = await self.http_client.get(device_url)
+            if response.status_code == 200:
+                logger.info(f"Verified device exists: {self.device_id}")
+            else:
+                logger.warning(f"Device {self.device_id} not found via API. Status code: {response.status_code}")
+        except Exception as e:
+            logger.warning(f"Error checking device existence: {e}")
+            logger.warning(f"Will attempt to continue with tests for device {self.device_id}")
         
         # Verify device commands from config
         commands = self.device_config.get('commands', {})
@@ -272,29 +268,22 @@ class DeviceTester:
         return param_values
     
     def _fix_state_fields(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Add missing required fields to device state to avoid validation errors.
-        
-        Args:
-            state: The device state dictionary
-            
-        Returns:
-            Dict[str, Any]: State with required fields added
-        """
+        """Add missing required fields to state."""
         if not state:
-            return state
-            
-        # Add required fields if missing
+            state = {}
+        
+        # Ensure device_id is present
         if 'device_id' not in state:
             state['device_id'] = self.device_id
             logger.info(f"Added missing device_id={self.device_id} to state")
-            
+        
+        # Ensure device_name is present
         if 'device_name' not in state:
-            # Extract device name directly from the config
+            # Try to get device name from device config
             device_name = ''
             
-            # Check for device name in config if config exists
-            if self.device_config:
+            if isinstance(self.device_config, dict):
+                # First check direct name field
                 device_name = self.device_config.get('name', '')
                 
                 # If not in the top level, check device_info section
@@ -303,20 +292,15 @@ class DeviceTester:
                     if isinstance(device_info, dict):
                         device_name = device_info.get('name', '')
             
-            # Fallback to a system config check
+            # Fallback to extracting name from device_id
             if not device_name:
+                # Convert device_id like "living_room_tv" to "Living Room TV"
                 try:
-                    system_config = self.config_manager.get_system_config()
-                    if hasattr(system_config, 'devices') and self.device_id in system_config.devices:
-                        device_info = system_config.devices[self.device_id]
-                        if isinstance(device_info, dict):
-                            device_name = device_info.get('name', '')
+                    device_name = ' '.join(word.capitalize() for word in self.device_id.split('_'))
+                    logger.info(f"Generated device name '{device_name}' from device_id")
                 except Exception as e:
-                    logger.warning(f"Error accessing system config: {e}")
-            
-            # Last resort fallback
-            if not device_name:
-                device_name = self.device_id
+                    logger.warning(f"Error generating name from device_id: {e}")
+                    device_name = self.device_id
                 
             state['device_name'] = device_name
             logger.info(f"Added missing device_name={device_name} to state")

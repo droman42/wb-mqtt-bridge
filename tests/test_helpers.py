@@ -22,11 +22,7 @@ T = TypeVar('T')
 
 def dict_to_command_config(config_dict: Dict[str, Any]) -> BaseCommandConfig:
     """Convert a dictionary to the appropriate CommandConfig model."""
-    if "rf_code" in config_dict:
-        # Convert to BroadlinkCommandConfig
-        from app.schemas import BroadlinkCommandConfig
-        return BroadlinkCommandConfig(**config_dict)
-    elif "location" in config_dict and "rom_position" in config_dict:
+    if "location" in config_dict and "rom_position" in config_dict:
         # Convert to IRCommandConfig
         return IRCommandConfig(**config_dict)
     else:

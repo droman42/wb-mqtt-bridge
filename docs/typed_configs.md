@@ -25,11 +25,6 @@ Create a clean hierarchy of command configuration models:
   rom_position: str
   ```
 
-- **`BroadlinkCommandConfig`**: For Broadlink devices:
-  ```python
-  rf_code: str
-  ```
-
 ### 1.2 Device-Specific Parameter Models
 
 Create models for device-specific parameters:
@@ -66,7 +61,7 @@ Create a complete device configuration hierarchy:
 
 - **`BroadlinkKitchenHoodConfig`**:
   ```python
-  commands: Dict[str, BroadlinkCommandConfig]
+  commands: Dict[str, StandardCommandConfig]
   rf_codes: Dict[str, Dict[str, str]]
   ```
 
@@ -129,7 +124,7 @@ Update each device implementation to work with the new typed configurations:
    - Update to expect properly typed IR commands
 
 4. **BroadlinkKitchenHood**:
-   - Update to use typed Broadlink commands
+   - Update to use typed Standard commands and separate rf_codes structure
 
 5. **Other Device Classes**:
    - Update all implementations to use the appropriate typed models

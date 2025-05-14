@@ -5,17 +5,17 @@ import inspect
 import sys
 import asyncio
 import json
-from typing import Dict, Any, Callable, List, Optional, Union
+from typing import Dict, Any, Callable, List, Optional, Union, Type
 from devices.base_device import BaseDevice
 from app.schemas import BaseDeviceState
 from app.schemas import BaseDeviceConfig
 from app.mqtt_client import MQTTClient
 from app.config_manager import ConfigManager
 from app.serialization_utils import safely_serialize, describe_serialization_issues
+from app.class_loader import load_class_by_name
 
-# NOTE: This module uses the 'class' field from system configuration
-# to determine the device class for instantiation.
-# The ConfigManager.get_device_class_name method is used to get class names.
+# NOTE: This module now uses the 'device_class' field directly from device configurations
+# rather than looking up class names in the system config.
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class DeviceManager:
     def __init__(self, devices_dir: str = "devices", mqtt_client: Optional[MQTTClient] = None, 
                  config_manager: Optional[ConfigManager] = None, store = None):
         self.devices_dir = devices_dir
-        self.device_classes: Dict[str, type] = {}  # Stores class definitions
+        self.device_classes: Dict[str, Type[BaseDevice]] = {}  # Stores class definitions
         self.devices: Dict[str, BaseDevice] = {}  # Stores device instances
         self.mqtt_client = mqtt_client
         self.config_manager = config_manager  # Store reference to ConfigManager
@@ -74,55 +74,76 @@ class DeviceManager:
         
         logger.info(f"Loaded device classes: {list(self.device_classes.keys())}")
     
+    def _load_device_class(self, device_class_name: str) -> Optional[Type[BaseDevice]]:
+        """
+        Load a device implementation class either from loaded classes or by dynamic import.
+        
+        Args:
+            device_class_name: Name of the device class to load
+            
+        Returns:
+            Device class if found, None otherwise
+        """
+        # First try to get the class from already loaded classes
+        if device_class_name in self.device_classes:
+            return self.device_classes[device_class_name]
+        
+        # If not found, attempt to dynamically import it
+        # Note: We pass 'object' as base class since we just want to import,
+        # we'll check if it's a valid BaseDevice in the initialization
+        cls = load_class_by_name(device_class_name, object, "devices.")
+        
+        if cls is not None:
+            # Verify the class is a subclass of BaseDevice
+            if issubclass(cls, BaseDevice):
+                # Cache the class for future use
+                self.device_classes[device_class_name] = cls
+                logger.info(f"Successfully loaded device class {device_class_name} via class_loader")
+                return cls
+            else:
+                logger.error(
+                    f"Loaded class {device_class_name} is not a subclass of BaseDevice"
+                )
+        
+        return None
+    
     async def initialize_devices(self, configs: Dict[str, BaseDeviceConfig]):
         """
-        Initialize devices from typed configurations using dynamic imports.
+        Initialize devices from typed configurations using dynamic class loading.
         
-        This method instantiates device objects based on their class name from the system config,
-        dynamically loading the modules as needed rather than relying on a factory pattern.
+        This method instantiates device objects based on their device_class field
+        in the configuration, dynamically loading the classes as needed.
         
         Args:
             configs: Dictionary of device configurations mapped by device_id
         """
         for device_id, config in configs.items():
             try:
-                # Get the device class name from ConfigManager
-                device_class_name = None
-                if self.config_manager:
-                    device_class_name = self.config_manager.get_device_class_name(device_id)
+                # Get the device class name directly from the config
+                device_class_name = getattr(config, 'device_class', None)
                 
                 if not device_class_name:
-                    logger.error(f"No class name found for device '{device_id}'. "
-                                f"Make sure 'class' is set in system config.")
+                    logger.error(f"No device_class field found in configuration for device '{device_id}'")
                     continue
                 
-                # First try to get the class from already loaded classes
-                device_class = self.device_classes.get(device_class_name)
-                
-                # If not found, attempt to dynamically import it
-                if not device_class:
-                    try:
-                        # Convert class name to module name (e.g., LgTv -> lg_tv)
-                        module_name = ''.join(['_'+c.lower() if c.isupper() else c for c in device_class_name]).lstrip('_')
-                        logger.info(f"Attempting to dynamically import device class {device_class_name} from module devices.{module_name}")
-                        
-                        # Import the module and get the class
-                        module = importlib.import_module(f"devices.{module_name}")
-                        device_class = getattr(module, device_class_name)
-                        
-                        # Cache the class for future use
-                        self.device_classes[device_class_name] = device_class
-                        logger.info(f"Successfully imported device class {device_class_name}")
-                    except (ImportError, AttributeError) as e:
-                        logger.error(f"Failed to dynamically load device class '{device_class_name}': {str(e)}")
-                        continue
+                # Load the device class
+                device_class = self._load_device_class(device_class_name)
                 
                 if not device_class:
                     logger.error(f"Device class {device_class_name} not found for device {device_id}")
                     continue
                 
+                # Verify that the class is concrete (not abstract) before instantiation
+                if inspect.isabstract(device_class):
+                    logger.error(f"Cannot instantiate abstract class {device_class_name} for device {device_id}")
+                    continue
+                
                 # Instantiate the device with typed configuration
-                device = device_class(config, self.mqtt_client)
+                try:
+                    device = device_class(config, self.mqtt_client)
+                except Exception as e:
+                    logger.error(f"Failed to instantiate device {device_id} of type {device_class_name}: {str(e)}")
+                    continue
                 
                 # Register state change callback if device supports it
                 if hasattr(device, 'register_state_change_callback') and self.store:

@@ -39,59 +39,5 @@
     "tracks": "Audio & Subtitles",
     "apps": "Applications",
     "media": "Media"
-  },
-  "devices": {
-    "mf_amplifier": {
-      "class": "WirenboardIRDevice",
-      "config_file": "mf_amplifier.json"
-    },
-    "ld_player": {
-      "class": "WirenboardIRDevice",
-      "config_file": "ld_player.json"
-    },
-    "streamer": {
-      "class": "AuralicDevice",
-      "config_file": "streamer.json"
-    },
-    "upscaler": {
-      "class": "WirenboardIRDevice",
-      "config_file": "upscaler.json"
-    },
-    "video": {
-      "class": "WirenboardIRDevice",
-      "config_file": "video.json"
-    },
-    "kitchen_hood": {
-      "class": "BroadlinkKitchenHood",
-      "config_file": "kitchen_hood.json"
-    },
-    "vhs_player": {
-      "class": "WirenboardIRDevice",
-      "config_file": "vhs_player.json"
-    },
-    "living_room_tv": {
-      "class": "LgTv",
-      "config_file": "lg_tv_living.json"
-    },
-    "children_room_tv": {
-      "class": "LgTv",
-      "config_file": "lg_tv_children.json"
-    },
-    "reel_to_reel": {
-      "class": "RevoxA77ReelToReel",
-      "config_file": "reel_to_reel.json"
-    },
-    "processor": {
-      "class": "EMotivaXMC2",
-      "config_file": "emotiva_xmc2.json"
-    },
-    "appletv_living": {
-      "class": "AppleTVDevice",
-      "config_file": "appletv_living.json"
-    },
-    "appletv_children": {
-      "class": "AppleTVDevice",
-      "config_file": "appletv_children.json"
-    }
   }
 } 

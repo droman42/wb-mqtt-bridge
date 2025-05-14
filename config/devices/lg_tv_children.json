@@ -3,6 +3,8 @@
   "device_id": "children_room_tv",
   "alias": "children_room_tv",
   "mqtt_progress_topic": "/devices/children_room_tv/controls/progress",
+  "device_class": "LgTv",
+  "config_class": "LgTvDeviceConfig",
   "tv": {
     "ip_address": "192.168.110.220",
     "mac_address": "14:C9:13:ED:23:BB",
@@ -133,7 +135,14 @@
       "description": "Set Volume Level",
       "group": "volume",
       "params": [
-        {"name": "level", "type": "range", "min": 0, "max": 100, "required": true, "description": "Volume level (0-100)"}
+        {
+          "name": "level",
+          "type": "range",
+          "min": 0,
+          "max": 100,
+          "required": true,
+          "description": "Volume level (0-100)"
+        }
       ]
     },
     "move_cursor": {
@@ -142,8 +151,22 @@
       "description": "Move Cursor to Position",
       "group": "pointer",
       "params": [
-        {"name": "x", "type": "range", "min": 0, "max": 100, "required": true, "description": "X coordinate (0-100)"},
-        {"name": "y", "type": "range", "min": 0, "max": 100, "required": true, "description": "Y coordinate (0-100)"}
+        {
+          "name": "x",
+          "type": "range",
+          "min": 0,
+          "max": 100,
+          "required": true,
+          "description": "X coordinate (0-100)"
+        },
+        {
+          "name": "y",
+          "type": "range",
+          "min": 0,
+          "max": 100,
+          "required": true,
+          "description": "Y coordinate (0-100)"
+        }
       ]
     },
     "move_cursor_relative": {
@@ -152,8 +175,22 @@
       "description": "Move Cursor Relative",
       "group": "pointer",
       "params": [
-        {"name": "dx", "type": "range", "min": -50, "max": 50, "required": true, "description": "X displacement (-50 to 50)"},
-        {"name": "dy", "type": "range", "min": -50, "max": 50, "required": true, "description": "Y displacement (-50 to 50)"}
+        {
+          "name": "dx",
+          "type": "range",
+          "min": -50,
+          "max": 50,
+          "required": true,
+          "description": "X displacement (-50 to 50)"
+        },
+        {
+          "name": "dy",
+          "type": "range",
+          "min": -50,
+          "max": 50,
+          "required": true,
+          "description": "Y displacement (-50 to 50)"
+        }
       ]
     },
     "click": {
@@ -168,7 +205,12 @@
       "description": "Set Input Source",
       "group": "inputs",
       "params": [
-        {"name": "source", "type": "string", "required": true, "description": "Input source name or ID (e.g., 'hdmi1', 'hdmi2')"}
+        {
+          "name": "source",
+          "type": "string",
+          "required": true,
+          "description": "Input source name or ID (e.g., 'hdmi1', 'hdmi2')"
+        }
       ]
     },
     "launch_app": {
@@ -177,8 +219,18 @@
       "description": "Launch App",
       "group": "apps",
       "params": [
-        {"name": "app_name", "type": "string", "required": false, "description": "App name to launch (preferred, at least one of app_name or app_id must be provided)"},
-        {"name": "app_id", "type": "string", "required": false, "description": "App ID to launch (alternative, at least one of app_name or app_id must be provided)"}
+        {
+          "name": "app_name",
+          "type": "string",
+          "required": false,
+          "description": "App name to launch (preferred, at least one of app_name or app_id must be provided)"
+        },
+        {
+          "name": "app_id",
+          "type": "string",
+          "required": false,
+          "description": "App ID to launch (alternative, at least one of app_name or app_id must be provided)"
+        }
       ]
     },
     "get_public_apps": {

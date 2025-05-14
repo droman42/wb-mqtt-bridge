@@ -3,6 +3,8 @@
   "device_id": "mf_amplifier",
   "alias": "amplifier",
   "mqtt_progress_topic": "/devices/amplifier/controls/progress",
+  "device_class": "WirenboardIRDevice",
+  "config_class": "WirenboardIRDeviceConfig",
   "commands": {
     "power": {
       "action": "power",
