@@ -129,7 +129,7 @@
     },
     "set_volume": {
       "action": "set_volume",
-      "topic": "/devices/children_room_tv/controls/set",
+      "topic": "/devices/children_room_tv/controls/set_volume",
       "description": "Set Volume Level",
       "group": "volume",
       "params": [
@@ -164,7 +164,7 @@
     },
     "set_input_source": {
       "action": "set_input_source",
-      "topic": "/devices/children_room_tv/controls/set_input",
+      "topic": "/devices/children_room_tv/controls/set_input_source",
       "description": "Set Input Source",
       "group": "inputs",
       "params": [
