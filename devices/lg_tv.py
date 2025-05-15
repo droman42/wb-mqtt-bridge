@@ -47,7 +47,7 @@ class LgTv(BaseDevice[LgTvState]):
             device_id=self.config.device_id,
             device_name=self.config.device_name,
             power="unknown",
-            volume=0,
+            volume=None,  # Changed from 0 to None to indicate unknown initial volume
             mute=False,
             current_app=None,
             input_source=None,
@@ -421,6 +421,8 @@ class LgTv(BaseDevice[LgTvState]):
             
             if connection_success:
                 logger.info(f"Successfully connected to LG TV {self.device_name}")
+                # Explicitly ensure we update the volume state
+                await self._update_volume_state()
             else:
                 logger.warning(f"Could not connect to LG TV {self.device_name}. Will try again later.")
                 
@@ -711,9 +713,12 @@ class LgTv(BaseDevice[LgTvState]):
             media_control = cast(Any, self.media)
             volume_info = await media_control.get_volume()
             if volume_info:
+                # Use a default value of 0 only if nothing is returned from the TV
                 self.state.volume = volume_info.get("volume", 0)
                 self.state.mute = volume_info.get("muted", False)
+                logger.debug(f"Updated volume state: volume={self.state.volume}, mute={self.state.mute}")
                 return True
+            logger.debug("Could not get volume info: empty response")
             return False
         except Exception as e:
             logger.debug(f"Could not get volume info: {str(e)}")

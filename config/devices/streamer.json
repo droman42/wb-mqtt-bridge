@@ -113,6 +113,18 @@
       "topic": "/devices/streamer/controls/track_info",
       "group": "media",
       "description": "Get Current Track Information"
+    },
+    "get_available_sources": {
+      "action": "get_available_sources",
+      "topic": "/devices/streamer/controls/get_available_sources",
+      "description": "List available sources",
+      "group": "inputs"
+    },
+    "refresh_sources": {
+      "action": "refresh_sources",
+      "topic": "/devices/streamer/controls/refresh_sources",
+      "description": "Refresh sources list",
+      "group": "inputs"
     }
   }
 }

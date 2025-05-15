@@ -325,10 +325,16 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
         try:
             # Power State (more reliable than just checking connection)
             power_info = self.atv.power.power_state
-            power_state = power_info.name.lower() # Should be 'on' or 'off'
+            # Fix: Properly handle PowerState enum values
+            if power_info == PowerState.On:
+                power_state = "on"
+            elif power_info == PowerState.Off:
+                power_state = "off"
+            else:
+                power_state = "unknown"
             
             # If power is off, no point checking media etc.
-            if power_state != PowerState.On.name.lower():
+            if power_state != "on":
                 logger.info(f"[{self.device_id}] Device is not powered on ({power_state}), skipping detailed status.")
                 # Reset media/app state if device turned off
                 self.update_state(
@@ -360,8 +366,14 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
                 )
 
             # Get current app (only if powered on)
-            app_info = await self.atv.apps.current_app()
-            current_app = app_info.name if app_info else None
+            # FIX: Use metadata.app instead of apps.current_app which doesn't exist anymore
+            current_app = None
+            try:
+                app_info = self.atv.metadata.app
+                current_app = app_info.name if app_info else None
+                logger.info(f"[{self.device_id}] Current app from metadata: {current_app}")
+            except Exception as e:
+                logger.warning(f"[{self.device_id}] Could not get current app: {e}")
             
             # Get playback state (only if powered on)
             playing_info = await self.atv.metadata.playing()
@@ -568,7 +580,18 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
                 await self.atv.power.turn_on()
                 logger.info(f"[{self.device_id}] Executed power on command.")
                 
-                # Schedule refresh after command
+                # Immediately update state to reflect power on
+                self.update_state(
+                    power="on",
+                    last_command=LastCommand(
+                        action="power_on",
+                        source="api",
+                        timestamp=datetime.now(),
+                        params=None
+                    )
+                )
+                
+                # Schedule refresh after command to update other state
                 asyncio.create_task(self._delayed_refresh(delay=2.0))
                 
                 return self.create_command_result(
@@ -577,6 +600,16 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
                 )
             except NotImplementedError:
                 logger.warning(f"[{self.device_id}] Direct power on not supported, trying to send key instead...")
+                # Set power state to on even when using fallback method
+                self.update_state(
+                    power="on",
+                    last_command=LastCommand(
+                        action="power_on",
+                        source="api",
+                        timestamp=datetime.now(),
+                        params={"method": "select"}
+                    )
+                )
                 # Fallback to sending a key press to wake
                 # Use the CommandResult returned by _execute_remote_command
                 return await self._execute_remote_command("select")
@@ -612,7 +645,19 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             try:
                 await self.atv.power.turn_off()
                 logger.info(f"[{self.device_id}] Executed power off command.")
-                # State should update via listener, but schedule refresh just in case
+                
+                # Immediately update state to reflect power off
+                self.update_state(
+                    power="off",
+                    last_command=LastCommand(
+                        action="power_off",
+                        source="api",
+                        timestamp=datetime.now(),
+                        params=None
+                    )
+                )
+                
+                # Still schedule a refresh to update other state attributes
                 asyncio.create_task(self._delayed_refresh(delay=2.0))
                 
                 return self.create_command_result(
@@ -622,6 +667,16 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             except NotImplementedError:
                 logger.warning(f"[{self.device_id}] Direct power off not supported, trying long home press...")
                 # Fallback: Press and hold home button (might bring up power menu on some tvOS versions)
+                # Set power state to off even when using fallback method
+                self.update_state(
+                    power="off",
+                    last_command=LastCommand(
+                        action="power_off",
+                        source="api",
+                        timestamp=datetime.now(),
+                        params={"method": "home_hold"}
+                    )
+                )
                 # Use the CommandResult returned by _execute_remote_command
                 return await self._execute_remote_command("home_hold")
             except Exception as e:

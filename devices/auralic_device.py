@@ -97,6 +97,11 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
         self.device_boot_time = getattr(self.config.auralic, 'device_boot_time', 15)  # Default 15 seconds
         self._discovery_task = None
         
+        # Source caching variables
+        self._sources_cache = []  # Cache for available sources
+        self._sources_cache_timestamp = None  # When the cache was last updated
+        self.sources_cache_ttl = 300  # Cache validity in seconds (5 minutes)
+        
         # Validate IR control configuration
         if not (self.ir_power_on_topic and self.ir_power_off_topic):
             logger.warning("IR control topics not configured. Full power control will not be available.")
@@ -368,18 +373,7 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
         
         while True:
             try:
-                # If device is marked as in deep sleep mode, check if we should try discovery
-                if self._deep_sleep_mode and self.discovery_mode:
-                    # Every 5 cycles, try discovery in case the device was powered on manually
-                    if consecutive_errors % 5 == 0:
-                        logger.debug("Attempting rediscovery in case device was powered on manually")
-                        self.openhome_device = await self._create_openhome_device()
-                        if self.openhome_device:
-                            logger.info("Device discovered after being in deep sleep - device was powered on externally")
-                            self._deep_sleep_mode = False
-                            consecutive_errors = 0
-                
-                # If device is in deep sleep mode, update state accordingly
+                # If device is marked as in deep sleep mode, update state accordingly
                 if self._deep_sleep_mode:
                     logger.debug("Device in deep sleep mode, skipping state update")
                     self.update_state(connected=False, power="off", deep_sleep=True)
@@ -456,6 +450,69 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             logger.error(f"Error updating device state: {str(e)}")
             self.update_state(connected=False, error=str(e), deep_sleep=self._deep_sleep_mode)
 
+    async def _refresh_sources_cache(self) -> bool:
+        """Refresh the internal cache of available sources.
+        
+        This method queries the device for available sources and stores 
+        them in the internal cache for future use.
+        
+        Returns:
+            bool: True if refresh was successful, False otherwise
+        """
+        if not self.openhome_device or not self.state.connected:
+            logger.debug("Cannot refresh sources: device not connected")
+            return False
+            
+        try:
+            # Get sources from OpenHome API
+            sources = await self.openhome_device.sources()
+            
+            # Process sources into a consistent format
+            formatted_sources = []
+            for idx, source in enumerate(sources):
+                formatted_sources.append({
+                    "source_id": str(idx),
+                    "source_name": source.get("name", f"Unknown Source {idx}"),
+                    "type": source.get("type", "unknown"),
+                    "visible": source.get("visible", True)
+                })
+            
+            # Store in cache
+            self._sources_cache = formatted_sources
+            self._sources_cache_timestamp = datetime.now()
+            
+            logger.debug(f"Refreshed sources cache, found {len(formatted_sources)} sources")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to refresh sources cache: {str(e)}")
+            # Clear cache on error
+            self._sources_cache = []
+            self._sources_cache_timestamp = None
+            return False
+    
+    async def _get_available_sources(self) -> List[Dict[str, Any]]:
+        """Get available sources, using cache if available and valid.
+        
+        This method returns the list of available input sources from the
+        cache if it's valid, or refreshes the cache if needed.
+        
+        Returns:
+            List[Dict[str, Any]]: List of available sources
+        """
+        # Check if cache is valid
+        cache_valid = (
+            self._sources_cache and
+            self._sources_cache_timestamp and
+            (datetime.now() - self._sources_cache_timestamp).total_seconds() < self.sources_cache_ttl
+        )
+        
+        # Refresh cache if necessary
+        if not cache_valid:
+            logger.debug("Sources cache invalid or expired, refreshing")
+            await self._refresh_sources_cache()
+            
+        return self._sources_cache
+
     # Handler methods
 
     async def handle_power_on(self, cmd_config: BaseCommandConfig, params: Dict[str, Any]) -> CommandResult:
@@ -472,63 +529,64 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
         Returns:
             CommandResult: Result of the command
         """
-        try:
-            # Use MQTT topic from config (no override in params)
-            mqtt_topic = self.ir_power_on_topic
+        # Use MQTT topic from config (no override in params)
+        mqtt_topic = self.ir_power_on_topic
+        
+        # CASE 1: Device is in deep sleep mode, use IR control
+        if self._deep_sleep_mode:
+            logger.info("Device in deep sleep mode, using IR control to power on")
             
-            # If device is in deep sleep mode, use IR control
-            if self._deep_sleep_mode:
-                logger.info("Device in deep sleep mode, using IR control to power on")
-                
-                if not mqtt_topic:
-                    return self.create_command_result(
-                        success=False,
-                        error="IR control not configured - cannot power on from deep sleep"
-                    )
-                
-                # Send IR command via MQTT
-                success = await self._send_ir_command(mqtt_topic)
-                if not success:
-                    return self.create_command_result(
-                        success=False,
-                        error="Failed to send IR power on command"
-                    )
-                
-                # Update state to indicate we're waiting for the device to boot
-                self.update_state(
-                    connected=False,
-                    power="booting",
-                    message="Device is powering on via IR command",
-                    deep_sleep=False  # No longer in deep sleep, now booting
-                )
-                
-                # Start delayed discovery to connect to the device once it's booted
-                self._start_delayed_discovery()
-                
+            if not mqtt_topic:
                 return self.create_command_result(
-                    success=True,
-                    message="IR power on command sent. Device is booting...",
-                    info=f"Device discovery will be attempted in {self.device_boot_time} seconds"
+                    success=False,
+                    error="IR control not configured - cannot power on from deep sleep"
                 )
             
-            # If device is connected but in standby, use OpenHome API
-            if self.openhome_device:
-                logger.info("Device in standby mode, using OpenHome API to wake")
-                
+            # Send IR command via MQTT
+            success = await self._send_ir_command(mqtt_topic)
+            if not success:
+                return self.create_command_result(
+                    success=False,
+                    error="Failed to send IR power on command"
+                )
+            
+            # Update state to indicate we're waiting for the device to boot
+            self.update_state(
+                connected=False,
+                power="booting",
+                message="Device is powering on via IR command",
+                deep_sleep=False  # No longer in deep sleep, now booting
+            )
+            
+            # Start delayed discovery to connect to the device once it's booted
+            self._start_delayed_discovery()
+            
+            return self.create_command_result(
+                success=True,
+                message="IR power on command sent. Device is booting...",
+                info=f"Device discovery will be attempted in {self.device_boot_time} seconds"
+            )
+        
+        # CASE 2: Device is connected but in standby, use OpenHome API
+        elif self.openhome_device is not None:
+            logger.info("Device in standby mode, using OpenHome API to wake")
+            
+            try:
                 # Get current standby state to check if we need to do anything
-                try:
-                    in_standby = await self.openhome_device.is_in_standby()
-                    if not in_standby:
-                        logger.info("Device already powered on")
-                        return self.create_command_result(
-                            success=True,
-                            message="Device is already powered on"
-                        )
-                except Exception as e:
-                    logger.warning(f"Error checking standby state: {e}")
-                
+                in_standby = await self.openhome_device.is_in_standby()
+                if not in_standby:
+                    logger.info("Device already powered on")
+                    return self.create_command_result(
+                        success=True,
+                        message="Device is already powered on"
+                    )
+                    
                 # Wake the device from standby
                 await self.openhome_device.set_standby(False)
+                
+                # Refresh sources cache after waking from standby
+                logger.debug("Refreshing sources cache after waking from standby")
+                await self._refresh_sources_cache()
                 
                 # Update state
                 await self._update_device_state()
@@ -537,15 +595,22 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                     success=True,
                     message="Device woken from standby mode"
                 )
+            except Exception as e:
+                logger.error(f"Error using OpenHome API to wake device: {str(e)}")
+                # Continue to fallback IR control path below
+                logger.warning("OpenHome control failed, falling back to IR control")
             
-            # If we get here, device is not connected and not in deep sleep mode
-            # This is an error state - try IR control as a fallback
-            logger.warning("Device not connected but not marked as in deep sleep - trying IR control")
+        # CASE 3: Fallback to IR control for any other case
+        # - Device not connected 
+        # - OpenHome API failed
+        # - Inconsistent state
+        else:
+            logger.warning("Using IR control as fallback power on method")
             
             if not mqtt_topic:
                 return self.create_command_result(
                     success=False,
-                    error="IR control not configured and device not connected"
+                    error="IR control not configured and cannot use OpenHome API"
                 )
             
             # Send IR command via MQTT
@@ -569,15 +634,8 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             
             return self.create_command_result(
                 success=True,
-                message="IR power on command sent as fallback",
-                warning="Device state was inconsistent - attempting recovery"
-            )
-                
-        except Exception as e:
-            logger.error(f"Error executing power on: {str(e)}")
-            return self.create_command_result(
-                success=False,
-                error=f"Failed to power on: {str(e)}"
+                message="IR power on command sent",
+                info=f"Device discovery will be attempted in {self.device_boot_time} seconds"
             )
 
     async def handle_power_off(self, cmd_config: BaseCommandConfig, params: Dict[str, Any]) -> CommandResult:
@@ -607,47 +665,74 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                     message="Device already appears to be powered off"
                 )
             
-            # Use MQTT topic from config (no override in params)
+            # Get MQTT topic from config for IR control
             mqtt_topic = self.ir_power_off_topic
             
-            # If device is connected, first put it in standby
-            if self.openhome_device:
-                logger.info("Device is connected, putting in standby mode first")
+            # CASE 1: Standby only mode requested and device is connected
+            if standby_only and self.openhome_device:
+                logger.info("Standby-only mode requested, putting device in standby mode")
                 
-                # First try to stop playback if it's running
                 try:
-                    transport_state = await self.openhome_device.transport_state()
-                    if transport_state != "Stopped":
-                        logger.info("Stopping playback before standby")
-                        await self.openhome_device.stop()
-                        await asyncio.sleep(0.5)  # Short delay after stopping playback
-                except Exception as e:
-                    logger.warning(f"Error stopping playback: {e}")
-                
-                # Put the device in standby mode
-                try:
+                    # First try to stop playback if it's running
+                    try:
+                        transport_state = await self.openhome_device.transport_state()
+                        if transport_state != "Stopped":
+                            logger.info("Stopping playback before standby")
+                            await self.openhome_device.stop()
+                            await asyncio.sleep(0.5)  # Short delay after stopping playback
+                    except Exception as e:
+                        logger.warning(f"Error stopping playback: {e}")
+                    
+                    # Put the device in standby mode
                     await self.openhome_device.set_standby(True)
                     logger.info("Device put in standby mode")
                     
-                    # If we only want standby mode, we're done
-                    if standby_only:
-                        await self._update_device_state()
-                        return self.create_command_result(
-                            success=True,
-                            message="Device put into standby mode as requested",
-                            info="Use power_off without standby_only=true for full power off"
-                        )
+                    # Update state
+                    await self._update_device_state()
+                    
+                    return self.create_command_result(
+                        success=True,
+                        message="Device put into standby mode as requested",
+                        info="Use power_off without standby_only=true for full power off"
+                    )
                 except Exception as e:
                     logger.error(f"Error putting device in standby: {e}")
-                    # Continue to IR power off even if standby fails
+                    return self.create_command_result(
+                        success=False,
+                        error=f"Failed to put device in standby mode: {str(e)}"
+                    )
             
-            # If we get here, we need to power off via IR
+            # CASE 2: Full power off requested (deep sleep via IR)
+            
+            # If IR control is not configured, we can't do true power off
             if not mqtt_topic:
-                return self.create_command_result(
-                    success=False,
-                    error="IR control not configured - cannot perform true power off"
-                )
-                
+                # If device is connected, try putting it in standby as a fallback
+                if self.openhome_device:
+                    logger.warning("IR control not configured - falling back to standby mode")
+                    
+                    try:
+                        await self.openhome_device.set_standby(True)
+                        logger.info("Device put in standby mode as fallback")
+                        await self._update_device_state()
+                        
+                        return self.create_command_result(
+                            success=True,
+                            message="Device put into standby mode (IR control not available)",
+                            warning="True power off not possible without IR control configuration"
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to put device in standby: {e}")
+                        return self.create_command_result(
+                            success=False,
+                            error=f"Failed to power off: {str(e)}"
+                        )
+                else:
+                    return self.create_command_result(
+                        success=False,
+                        error="IR control not configured - cannot perform true power off"
+                    )
+            
+            # Send IR command for true power off directly without standby step
             logger.info("Sending IR command for true power off")
             
             # Send IR command via MQTT
@@ -927,15 +1012,17 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                     error="Source parameter is required"
                 )
             
-            # Get list of sources
-            sources = await self.openhome_device.sources()
+            # Get list of sources from cache or refresh if needed
+            sources = await self._get_available_sources()
             
             # If source is numeric, use as index
             if isinstance(source, (int, str)) and str(source).isdigit():
                 source_index = int(source)
-                if 0 <= source_index < len(sources):
+                # We need raw sources for actual setting
+                raw_sources = await self.openhome_device.sources()
+                if 0 <= source_index < len(raw_sources):
                     await self.openhome_device.set_source(source_index)
-                    source_name = sources[source_index]["name"]
+                    source_name = raw_sources[source_index]["name"]
                 else:
                     return self.create_command_result(
                         success=False,
@@ -945,7 +1032,9 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             else:
                 source_name = str(source)
                 source_index = None
-                for i, s in enumerate(sources):
+                raw_sources = await self.openhome_device.sources()
+                
+                for i, s in enumerate(raw_sources):
                     if source_name.lower() == s["name"].lower():
                         source_index = i
                         break
@@ -997,6 +1086,120 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             return self.create_command_result(
                 success=False,
                 error=f"Failed to get track info: {str(e)}"
+            )
+
+    async def handle_get_available_sources(self, cmd_config: BaseCommandConfig, params: Dict[str, Any]) -> CommandResult:
+        """
+        Handle retrieving available sources from the device.
+        
+        Returns a list of available sources as pairs of source_id and source_name.
+        
+        Args:
+            cmd_config: Command configuration
+            params: Command parameters
+                refresh_cache: If True, force a cache refresh
+                
+        Returns:
+            CommandResult: Result with list of available sources
+        """
+        try:
+            logger.info("Retrieving available sources from device")
+            
+            # Check if device is connected
+            if not self.openhome_device or not self.state.connected:
+                # Check if we're in deep sleep mode
+                if self._deep_sleep_mode:
+                    return self.create_command_result(
+                        success=False,
+                        error="Device is powered off (deep sleep mode)"
+                    )
+                else:
+                    return self.create_command_result(
+                        success=False,
+                        error="Device not connected"
+                    )
+            
+            # Check if we should force a refresh
+            force_refresh = params.get("refresh_cache", False)
+            if force_refresh:
+                logger.info("Forcing refresh of sources cache")
+                await self._refresh_sources_cache()
+            
+            # Get available sources
+            sources = await self._get_available_sources()
+            
+            if not sources:
+                logger.warning("No sources found on device")
+                return self.create_command_result(
+                    success=True,
+                    message="No sources found on device",
+                    data=[]
+                )
+            
+            logger.info(f"Found {len(sources)} sources")
+            
+            return self.create_command_result(
+                success=True,
+                message=f"Retrieved {len(sources)} sources",
+                data=sources
+            )
+                
+        except Exception as e:
+            error_msg = f"Error retrieving sources: {str(e)}"
+            logger.error(error_msg)
+            return self.create_command_result(
+                success=False, 
+                error=error_msg
+            )
+    
+    async def handle_refresh_sources(self, cmd_config: BaseCommandConfig, params: Dict[str, Any]) -> CommandResult:
+        """
+        Handle manual refresh of sources cache.
+        
+        Args:
+            cmd_config: Command configuration
+            params: Command parameters
+                
+        Returns:
+            CommandResult: Result of refresh operation
+        """
+        try:
+            logger.info("Manually refreshing sources cache")
+            
+            # Check if device is connected
+            if not self.openhome_device or not self.state.connected:
+                if self._deep_sleep_mode:
+                    return self.create_command_result(
+                        success=False,
+                        error="Device is powered off (deep sleep mode)"
+                    )
+                else:
+                    return self.create_command_result(
+                        success=False,
+                        error="Device not connected"
+                    )
+            
+            # Perform the refresh
+            success = await self._refresh_sources_cache()
+            
+            if success:
+                sources_count = len(self._sources_cache)
+                return self.create_command_result(
+                    success=True,
+                    message=f"Successfully refreshed sources cache, found {sources_count} sources"
+                )
+            else:
+                return self.create_command_result(
+                    success=False,
+                    error="Failed to refresh sources cache"
+                )
+                
+        except Exception as e:
+            error_msg = f"Error refreshing sources: {str(e)}"
+            logger.error(error_msg)
+            return self.create_command_result(
+                success=False, 
+                error=error_msg
             )
 
     async def _send_ir_command(self, mqtt_topic: str) -> bool:
@@ -1051,6 +1254,11 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             if self.openhome_device:
                 logger.info("Device successfully discovered after power on")
                 self._deep_sleep_mode = False
+                
+                # Refresh sources cache after power on
+                logger.debug("Refreshing sources cache after power on")
+                await self._refresh_sources_cache()
+                
                 await self._update_device_state()
             else:
                 logger.error("Failed to discover device after power on")
@@ -1074,3 +1282,14 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             
         # Create new task
         self._discovery_task = asyncio.create_task(self._delayed_discovery(delay)) 
+        
+    async def refresh_sources(self) -> bool:
+        """Public method to manually refresh the sources cache.
+        
+        This can be called from external code to update the cache.
+        
+        Returns:
+            bool: True if refresh was successful, False otherwise
+        """
+        logger.info(f"Manually refreshing sources for device {self.get_name()}")
+        return await self._refresh_sources_cache() 
