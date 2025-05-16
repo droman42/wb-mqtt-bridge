@@ -208,6 +208,15 @@ if [ "$CLONE_DEPS" = true ]; then
         git -C "$PARENT_DIR/asyncwebostv" pull
     fi
     
+    # Check for asyncmiele
+    if [ ! -d "$PARENT_DIR/asyncmiele" ]; then
+        echo "Cloning asyncmiele..."
+        git -C "$PARENT_DIR" clone https://github.com/droman42/asyncmiele.git
+    else
+        echo "Updating asyncmiele..."
+        git -C "$PARENT_DIR/asyncmiele" pull
+    fi
+    
     echo "Dependencies updated."
 fi
 

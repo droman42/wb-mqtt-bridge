@@ -31,8 +31,9 @@ git+https://github.com/postlund/pyatv.git@f75e718bc0bdaf0a3ff06eb00086f781b3f063
 
 # Local dependencies are mounted as volumes in docker-compose.yml
 # commented out to avoid install errors
-# pymotivaxmc2
-# asyncwebostv
+-e ../pymotivaxmc2
+-e ../asyncwebostv
+-e ../asyncmiele
 
 # Added dependency
 httpx

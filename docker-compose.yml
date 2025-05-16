@@ -17,13 +17,14 @@ services:
       # Mount local dependency directories if they exist
       - ${PYMOTIVAXMC2_PATH:-../pymotivaxmc2}:/app/pymotivaxmc2:ro
       - ${ASYNCWEBOSTV_PATH:-../asyncwebostv}:/app/asyncwebostv:ro
+      - ${ASYNCMIELE_PATH:-../asyncmiele}:/app/asyncmiele:ro
     environment:
       - MQTT_BROKER_HOST=${MQTT_BROKER_HOST:-localhost}
       - MQTT_BROKER_PORT=${MQTT_BROKER_PORT:-1883}
       - MQTT_USERNAME
       - MQTT_PASSWORD
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - PYTHONPATH=/app:/app/pymotivaxmc2:/app/asyncwebostv
+      - PYTHONPATH=/app:/app/pymotivaxmc2:/app/asyncwebostv:/app/asyncmiele
     networks:
       - mqtt-network
     healthcheck:
