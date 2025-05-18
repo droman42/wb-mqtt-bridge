@@ -91,6 +91,7 @@ share/
 test_*.py
 nginx/
 tests/
+requirements_dev.txt
 
 # Include essential files
 !app/

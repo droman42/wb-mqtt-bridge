@@ -621,7 +621,7 @@ class KitchenHoodState(BaseDeviceState):
 class LgTvState(BaseDeviceState):
     """Schema for LG TV state."""
     power: str
-    volume: int
+    volume: Optional[int] = None
     mute: bool
     current_app: Optional[str]
     input_source: Optional[str]
@@ -897,6 +897,8 @@ class EmotivaXMC2State(BaseDeviceState):
     audio_input: Optional[str] = None
     volume: Optional[int] = None
     mute: Optional[bool] = None
+    zone2_volume: Optional[int] = None
+    zone2_mute: Optional[bool] = None
     audio_mode: Optional[str] = None
     audio_bitstream: Optional[str] = None
     connected: bool = False
@@ -1007,6 +1009,23 @@ class PowerOffParams(BaseModel):
     """Parameters for power_off action."""
     force: bool = Field(False, description="Whether to force power off even if already off")
     delay: Optional[int] = Field(None, description="Optional delay in seconds before powering off")
+
+class EmotivaVolumeParams(BaseModel):
+    """Parameters for Emotiva set_volume action."""
+    level: float = Field(..., description="Volume level to set in dB (-96.0 to 0.0)")
+    zone: int = Field(1, description="Zone ID: 1 for main zone, 2 for zone2")
+
+class EmotivaMuteParams(BaseModel):
+    """Parameters for Emotiva mute_toggle action."""
+    zone: int = Field(1, description="Zone ID: 1 for main zone, 2 for zone2")
+
+class EmotivaPowerParams(BaseModel):
+    """Parameters for Emotiva power_on and power_off actions."""
+    zone: int = Field(1, description="Zone ID: 1 for main zone, 2 for zone2")
+
+class EmotivaInputParams(BaseModel):
+    """Parameters for Emotiva set_input action."""
+    input: str = Field(..., description="Input source name (e.g., hdmi1, hdmi2, optical1)")
 
 class TvActionType(str, Enum):
     POWER_ON = "power_on"

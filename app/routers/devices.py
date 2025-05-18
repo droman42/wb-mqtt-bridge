@@ -75,7 +75,8 @@ async def execute_device_action(
     """Execute an action on a specific device.
     
     This endpoint allows executing various actions on devices. The available actions depend on the device type.
-    For LG TVs, the following mouse control actions are supported:
+    
+    ## LG TV Actions:
     
     * **move_cursor** - Move cursor to absolute position x,y
       ```json
@@ -130,11 +131,64 @@ async def execute_device_action(
       }
       ```
     
-    Other common actions include:
-    * **power_on** - Turn the TV on
-    * **power_off** - Turn the TV off
-    * **set_volume** - Set TV volume (params: volume)
-    * **set_mute** - Set TV mute state (params: mute)
+    ## Emotiva XMC2 Actions:
+    
+    * **power_on** - Turn the device on (supports zones)
+      ```json
+      {
+        "action": "power_on",
+        "params": {
+          "zone": 1  # 1 for main zone, 2 for zone2
+        }
+      }
+      ```
+    
+    * **power_off** - Turn the device off (supports zones)
+      ```json
+      {
+        "action": "power_off",
+        "params": {
+          "zone": 2  # This powers off zone 2
+        }
+      }
+      ```
+      
+    * **set_volume** - Set volume level (supports zones)
+      ```json
+      {
+        "action": "set_volume",
+        "params": {
+          "level": -35.5,  # Volume in dB from -96.0 to 0.0
+          "zone": 1  # 1 for main zone, 2 for zone2
+        }
+      }
+      ```
+      
+    * **mute_toggle** - Toggle mute state (supports zones)
+      ```json
+      {
+        "action": "mute_toggle",
+        "params": {
+          "zone": 2  # This toggles mute for zone 2
+        }
+      }
+      ```
+      
+    * **set_input** - Change input source
+      ```json
+      {
+        "action": "set_input",
+        "params": {
+          "input": "hdmi1"  # Input name (hdmi1-hdmi8, optical1-optical4, etc.)
+        }
+      }
+      ```
+    
+    ## Common Actions for Other Devices:
+    * **power_on** - Turn the device on
+    * **power_off** - Turn the device off
+    * **set_volume** - Set device volume (params: volume)
+    * **set_mute** - Set device mute state (params: mute)
     * **set_input_source** - Change input source (params: input_source)
     * **send_action** - Send remote control command (params: command)
     """

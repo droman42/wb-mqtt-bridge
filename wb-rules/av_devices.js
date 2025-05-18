@@ -325,7 +325,7 @@ defineVirtualDevice("amplifier", {
     }
   });
 
-  // eMotiva XMC-2 AV Processor
+  // eMotiva XMC-2 AV Processor, FIX IT LATER!!!
   defineVirtualDevice("processor", {
     title: "eMotiva XMC-2",
     cells: {

@@ -3,7 +3,7 @@ import asyncio
 import json
 from unittest.mock import MagicMock, patch, AsyncMock
 
-from devices.emotiva_xmc2 import EMotivaXMC2
+from devices.emotiva_xmc2 import EMotivaXMC2, PowerState
 from app.mqtt_client import MQTTClient
 
 
@@ -26,28 +26,59 @@ def emotiva_config():
                 "topic": "/devices/test_processor/controls/power_on",
                 "group": "power",
                 "description": "Turn on the processor",
-                "params": []
+                "params": [
+                    {
+                        "name": "zone",
+                        "type": "integer",
+                        "required": False,
+                        "default": 1,
+                        "description": "Zone ID (1 for main, 2 for zone2)"
+                    }
+                ]
             },
             "power_off": {
                 "action": "power_off",
                 "topic": "/devices/test_processor/controls/power_off",
                 "group": "power",
                 "description": "Turn off the processor",
-                "params": []
+                "params": [
+                    {
+                        "name": "zone",
+                        "type": "integer",
+                        "required": False,
+                        "default": 1,
+                        "description": "Zone ID (1 for main, 2 for zone2)"
+                    }
+                ]
             },
             "zone2_on": {
-                "action": "zone2_on",
+                "action": "power_on",
                 "topic": "/devices/test_processor/controls/zone2_on",
                 "group": "power",
                 "description": "Turn on zone 2",
-                "params": []
+                "params": [
+                    {
+                        "name": "zone",
+                        "type": "integer",
+                        "required": False,
+                        "default": 2,
+                        "description": "Zone ID (2 for zone2)"
+                    }
+                ]
             },
-            "zappiti": {
-                "action": "zappiti",
-                "topic": "/devices/test_processor/controls/zappiti",
+            "set_input": {
+                "action": "set_input",
+                "topic": "/devices/test_processor/controls/set_input",
                 "group": "inputs",
-                "description": "Switch to Zappiti",
-                "params": []
+                "description": "Switch to input",
+                "params": [
+                    {
+                        "name": "input",
+                        "type": "string",
+                        "required": True,
+                        "description": "Input name (hdmi1, hdmi2, etc.)"
+                    }
+                ]
             },
             "set_volume": {
                 "action": "set_volume",
@@ -62,20 +93,28 @@ def emotiva_config():
                         "max": 0.0,
                         "required": True,
                         "description": "Volume level in dB (between -96.0 and 0.0)"
+                    },
+                    {
+                        "name": "zone",
+                        "type": "integer",
+                        "required": False,
+                        "default": 1,
+                        "description": "Zone ID (1 for main, 2 for zone2)"
                     }
                 ]
             },
-            "set_mute": {
-                "action": "set_mute",
-                "topic": "/devices/test_processor/controls/mute",
+            "mute_toggle": {
+                "action": "mute_toggle",
+                "topic": "/devices/test_processor/controls/mute_toggle",
                 "group": "volume",
-                "description": "Set mute state",
+                "description": "Toggle mute state",
                 "params": [
                     {
-                        "name": "state",
-                        "type": "boolean",
-                        "required": True,
-                        "description": "Mute state (true for muted, false for unmuted)"
+                        "name": "zone",
+                        "type": "integer",
+                        "required": False,
+                        "default": 1,
+                        "description": "Zone ID (1 for main, 2 for zone2)"
                     }
                 ]
             }
@@ -97,81 +136,204 @@ def emotiva_device(emotiva_config, mock_mqtt_client):
     # Mock client for testing
     device.client = MagicMock()
     
-    # Create properly connected futures for the event loop
-    power_on_future = asyncio.Future()
-    power_on_future.set_result({"status": "success"})
-    device.client.set_power_on = AsyncMock(return_value=power_on_future)
+    # Create the _power_zone method mock
+    device._power_zone = AsyncMock(return_value=True)
     
-    power_off_future = asyncio.Future()
-    power_off_future.set_result({"status": "success"})
-    device.client.set_power_off = AsyncMock(return_value=power_off_future)
+    # Create the _set_zone_volume method mock
+    device._set_zone_volume = AsyncMock(return_value=True)
     
-    volume_future = asyncio.Future()
-    volume_future.set_result({"status": "success"})
-    device.client.set_volume = AsyncMock(return_value=volume_future)
+    # Create the _toggle_zone_mute method mock
+    device._toggle_zone_mute = AsyncMock(return_value=(True, True))
     
-    mute_future = asyncio.Future()
-    mute_future.set_result({"status": "success"})
-    device.client.set_mute = AsyncMock(return_value=mute_future)
+    # Mock input selection
+    device.client.select_input = AsyncMock()
     
-    input_future = asyncio.Future()
-    input_future.set_result({"status": "success"})
-    device.client.set_input = AsyncMock(return_value=input_future)
+    # Mock notif subscription
+    device.client.subscribe = AsyncMock()
     
-    notif_future = asyncio.Future()
-    notif_future.set_result({"status": "success"})
-    device.client.subscribe_to_notifications = AsyncMock(return_value=notif_future)
+    # Mock state refresh
+    device._refresh_device_state = AsyncMock(return_value={})
     
     return device
 
 
 @pytest.mark.asyncio
-async def test_power_on_with_parameters(emotiva_device):
-    """Test the power_on handler with parameter-based approach."""
-    # Extract config for a command
+async def test_power_on_with_zone_parameter(emotiva_device):
+    """Test the power_on handler with zone parameter."""
+    # Extract config for power_on command
     power_on_config = emotiva_device.get_available_commands()["power_on"]
     
-    # Call using the parameter pattern
-    result = await emotiva_device.handle_power_on(
+    # Call with zone=1 (main zone)
+    result_main = await emotiva_device.handle_power_on(
         cmd_config=power_on_config,
-        params={}
+        params={"zone": 1}
     )
     
-    # Verify the client method was called
-    emotiva_device.client.set_power_on.assert_called_once()
+    # Verify _power_zone was called with correct parameters
+    emotiva_device._power_zone.assert_called_with(1, True)
     
-    # Verify the result is a valid response
-    assert isinstance(result, dict)
-    assert "success" in result
-    assert result["success"] is True
+    # Verify the result is successful
+    assert result_main["success"] is True
+    assert result_main["zone"] == 1
+    
+    # Reset mock for next test
+    emotiva_device._power_zone.reset_mock()
+    
+    # Call with zone=2 (zone 2)
+    result_zone2 = await emotiva_device.handle_power_on(
+        cmd_config=power_on_config,
+        params={"zone": 2}
+    )
+    
+    # Verify _power_zone was called with correct parameters
+    emotiva_device._power_zone.assert_called_with(2, True)
+    
+    # Verify the result is successful with zone 2
+    assert result_zone2["success"] is True
+    assert result_zone2["zone"] == 2
 
 
 @pytest.mark.asyncio
-async def test_parameter_pattern(emotiva_device):
-    """Test that the parameter pattern works."""
-    # Extract config for the set_volume command
-    volume_config = emotiva_device.get_available_commands()["set_volume"]
+async def test_power_off_with_zone_parameter(emotiva_device):
+    """Test the power_off handler with zone parameter."""
+    # Extract config for power_off command
+    power_off_config = emotiva_device.get_available_commands()["power_off"]
     
-    # Call using the parameter pattern
-    result = await emotiva_device.handle_set_volume(
-        cmd_config=volume_config, 
-        params={"level": -30.0}
+    # Set mock state for main zone
+    emotiva_device.state.power = PowerState.ON
+    
+    # Call with zone=1 (main zone)
+    result_main = await emotiva_device.handle_power_off(
+        cmd_config=power_off_config,
+        params={"zone": 1}
     )
     
-    # Verify the client method was called with the right parameters
-    emotiva_device.client.set_volume.assert_called_once()
-    call_args = emotiva_device.client.set_volume.call_args[0]
-    assert call_args[0] == -30.0
+    # Verify _power_zone was called with correct parameters
+    emotiva_device._power_zone.assert_called_with(1, False)
     
-    # Verify the result is a valid response
-    assert isinstance(result, dict)
-    assert "success" in result
+    # Verify the result is successful
+    assert result_main["success"] is True
+    assert result_main["zone"] == 1
+    
+    # Reset mock for next test
+    emotiva_device._power_zone.reset_mock()
+    
+    # Set mock state for zone 2
+    emotiva_device.state.zone2_power = PowerState.ON
+    
+    # Call with zone=2 (zone 2)
+    result_zone2 = await emotiva_device.handle_power_off(
+        cmd_config=power_off_config,
+        params={"zone": 2}
+    )
+    
+    # Verify _power_zone was called with correct parameters
+    emotiva_device._power_zone.assert_called_with(2, False)
+    
+    # Verify the result is successful with zone 2
+    assert result_zone2["success"] is True
+    assert result_zone2["zone"] == 2
+
+
+@pytest.mark.asyncio
+async def test_set_volume_with_zone_parameter(emotiva_device):
+    """Test the set_volume handler with zone parameter."""
+    # Extract config for set_volume command
+    volume_config = emotiva_device.get_available_commands()["set_volume"]
+    
+    # Call with zone=1 (main zone)
+    result_main = await emotiva_device.handle_set_volume(
+        cmd_config=volume_config, 
+        params={"level": -30.0, "zone": 1}
+    )
+    
+    # Verify _set_zone_volume was called with correct parameters
+    emotiva_device._set_zone_volume.assert_called_with(1, -30.0)
+    
+    # Verify the result is successful
+    assert result_main["success"] is True
+    assert result_main["zone"] == 1
+    assert result_main["volume"] == -30.0
+    
+    # Reset mock for next test
+    emotiva_device._set_zone_volume.reset_mock()
+    
+    # Call with zone=2 (zone 2)
+    result_zone2 = await emotiva_device.handle_set_volume(
+        cmd_config=volume_config, 
+        params={"level": -40.0, "zone": 2}
+    )
+    
+    # Verify _set_zone_volume was called with correct parameters
+    emotiva_device._set_zone_volume.assert_called_with(2, -40.0)
+    
+    # Verify the result is successful with zone 2
+    assert result_zone2["success"] is True
+    assert result_zone2["zone"] == 2
+    assert result_zone2["volume"] == -40.0
+
+
+@pytest.mark.asyncio
+async def test_mute_toggle_with_zone_parameter(emotiva_device):
+    """Test the mute_toggle handler with zone parameter."""
+    # Extract config for mute_toggle command
+    mute_config = emotiva_device.get_available_commands()["mute_toggle"]
+    
+    # Call with zone=1 (main zone)
+    result_main = await emotiva_device.handle_mute_toggle(
+        cmd_config=mute_config, 
+        params={"zone": 1}
+    )
+    
+    # Verify _toggle_zone_mute was called with correct parameters
+    emotiva_device._toggle_zone_mute.assert_called_with(1)
+    
+    # Verify the result is successful
+    assert result_main["success"] is True
+    assert result_main["zone"] == 1
+    assert result_main["mute"] is True  # Mock returns True
+    
+    # Reset mock for next test
+    emotiva_device._toggle_zone_mute.reset_mock()
+    
+    # Call with zone=2 (zone 2)
+    result_zone2 = await emotiva_device.handle_mute_toggle(
+        cmd_config=mute_config, 
+        params={"zone": 2}
+    )
+    
+    # Verify _toggle_zone_mute was called with correct parameters
+    emotiva_device._toggle_zone_mute.assert_called_with(2)
+    
+    # Verify the result is successful with zone 2
+    assert result_zone2["success"] is True
+    assert result_zone2["zone"] == 2
+    assert result_zone2["mute"] is True  # Mock returns True
+
+
+@pytest.mark.asyncio
+async def test_set_input(emotiva_device):
+    """Test the set_input handler."""
+    # Extract config for set_input command
+    input_config = emotiva_device.get_available_commands()["set_input"]
+    
+    # Call with input parameter
+    result = await emotiva_device.handle_set_input(
+        cmd_config=input_config, 
+        params={"input": "hdmi1"}
+    )
+    
+    # Verify the client.select_input was called with the correct input
+    emotiva_device.client.select_input.assert_called_once()
+    
+    # Verify the result is successful
     assert result["success"] is True
+    assert result["input"] == "hdmi1"
 
 
 @pytest.mark.asyncio
 async def test_mqtt_message_handling(emotiva_device):
-    """Test that MQTT messages trigger the correct handler."""
+    """Test that MQTT messages trigger the correct handler with zone parameters."""
     # Mock the handle_set_volume method
     original_handler = emotiva_device.handle_set_volume
     
@@ -183,17 +345,16 @@ async def test_mqtt_message_handling(emotiva_device):
             # Add a reference to the mock in the action handlers dictionary
             emotiva_device._action_handlers["set_volume"] = mock_handle
             
-            # Call handle_message with the volume topic and a valid JSON payload
+            # Call handle_message with the volume topic and a JSON payload including zone
             volume_topic = emotiva_device.get_available_commands()["set_volume"]["topic"]
-            payload = json.dumps({"level": -40.0})
+            payload = json.dumps({"level": -40.0, "zone": 2})
             result = await emotiva_device.handle_message(volume_topic, payload)
             
             # Verify handle_set_volume was called with the right parameters
             mock_handle.assert_called_once()
             
-            # Check that it was called with the cmd_config and params
-            assert mock_handle.call_args[1]["cmd_config"] is not None
-            assert mock_handle.call_args[1]["params"] == {"level": -40.0}
+            # Check that it was called with params including zone
+            assert mock_handle.call_args[1]["params"] == {"level": -40.0, "zone": 2}
             
         finally:
             # Restore the original handler
