@@ -1,19 +1,21 @@
 {
-  "scenario_id": "movie_zappiti",
-  "name": "Watch movies on Zappiti",
+  "scenario_id": "movie_ld",
+  "name": "Watch movies on LD",
   "description": "Setup for watching movies with optimal audio and video settings",
   "room_id": "living_room",
   "roles": {
     "volume": "mf_amplifier",
-    "playback": "video",
-    "tracks": "video",
-    "menu": "video",
+    "playback": "ld_player",
+    "tracks": "ld_player",
+    "menu": "upscaler",
+    "screen": "upscaler",
     "inputs": "processor"
   },
   "devices": [
     "living_room_tv",
     "processor",
-    "video",
+    "ld_player",
+    "upscaler",
     "mf_amplifier"
   ],
   "startup_sequence": [
@@ -32,7 +34,14 @@
       "delay_after_ms": 3000
     },
     {
-      "device": "video",
+      "device": "ld_player",
+      "command": "power_on",
+      "params": {},
+      "condition": "device.power != True",
+      "delay_after_ms": 1000
+    },
+    {
+      "device": "upscaler",
       "command": "power_on",
       "params": {},
       "condition": "device.power != True",
@@ -62,13 +71,20 @@
     {
       "device": "processor",
       "command": "set_input",
-      "params": {"input": "hdmi1"},
-      "condition": "device.input != 'hdmi1'",
+      "params": {"input": "hdmi3"},
+      "condition": "device.input != 'hdmi3'",
+      "delay_after_ms": 1000
+    },
+    {
+      "device": "upscaler",
+      "command": "input_video",
+      "params": {},
+      "condition": "device.input != 'video'",
       "delay_after_ms": 1000
     },
     {
       "device": "mf_amplifier",
-      "command": "input_aux2",
+      "command": "input_cd",
       "params": {},
       "condition": "device.input != 'aux2'",
       "delay_after_ms": 1000
@@ -76,18 +92,22 @@
   ],
   "shutdown_sequence": [
     {
-      "device": "video",
+      "device": "ld_player",
       "command": "power_off",
       "params": {},
-      "condition": "device.power == 'on'",
-      "delay_after_ms": 1000
+      "condition": "device.power == 'on'"
+    },
+    {
+      "device": "upscaler",
+      "command": "power_off",
+      "params": {},
+      "condition": "device.power == 'on'"
     },
     {
       "device": "living_room_tv",
       "command": "power_off",
       "params": {},
-      "condition": "device.power == True",
-      "delay_after_ms": 1000
+      "condition": "device.power == True"
     },
     {
       "device": "processor",
@@ -105,11 +125,10 @@
   "manual_instructions": {
     "startup": [
       "💡 Dim the living room lights if needed",
-      "🎬 Make sure the projector screen is down"
+      "🎬 Turn Dodocus device to LD position, ensure AMP mode is selected"
     ],
     "shutdown": [
-      "💡 Don't forget to turn the lights back on",
-      "🎬 Raise the projector screen if you're done watching"
+      "💡 Don't forget to turn the lights back on"
     ]
   }
 } 

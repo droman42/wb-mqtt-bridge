@@ -16,7 +16,7 @@
 - [ ] Проверить катушечник после рефакторинга Варенборда
 - [x] LgTv - запуск приложений и переключение входов. Не работает range по mqtt. MQTT через FastAPI не работает вообще
 - [ ] Сделать remote logging перед установкой контейнера docker на контроллер
-- [ ] Проверить необходимость WOL для eMotiva XMC-2 + set_volume и set_mute для zone2
+- [x] Проверить необходимость WOL для eMotiva XMC-2 + set_volume и set_mute для zone2
 
 ## PHASE 2
 - [x] Сделать сценарии управления AV-системой в стиле [Logitech Harmony](scenario_system_spec.md)
