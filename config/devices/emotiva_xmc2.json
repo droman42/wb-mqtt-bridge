@@ -18,7 +18,7 @@
       "group": "power",
       "description": "Turn on the processor",
       "params": [
-        { "name": "zone", "type": "integer", "required": false, "default": 1, "description": "Zone ID (1 for main, 2 for zone2)" }
+        { "name": "zone", "type": "integer", "required": true, "default": 1, "description": "Zone ID (1 for main, 2 for zone2)" }
       ]
     },
     "power_off": {
@@ -27,7 +27,7 @@
       "group": "power",
       "description": "Turn off the processor",
       "params": [
-        { "name": "zone", "type": "integer", "required": false, "default": 1, "description": "Zone ID (1 for main, 2 for zone2)" }
+        { "name": "zone", "type": "integer", "required": true, "default": 1, "description": "Zone ID (1 for main, 2 for zone2)" }
       ]
     },
     "set_input": {
@@ -36,7 +36,7 @@
       "group": "inputs",
       "description": "Switch to input",
       "params": [
-        { "name": "input", "type": "string", "required": false, "default": "hdmi1", "description": "HDMI input name" }
+        { "name": "input", "type": "string", "required": true, "default": "hdmi1", "description": "HDMI input name" }
       ]
     },
     "set_volume": {
@@ -46,7 +46,7 @@
       "description": "Set the volume level",
       "params": [
         { "name": "level", "type": "range", "min": -96.0, "max": 0.0, "required": true, "description": "Volume level in dB (-96.0 to 0.0)" },
-        { "name": "zone", "type": "integer", "required": false, "default": 1, "description": "Zone ID (1 for main, 2 for zone2)" }
+        { "name": "zone", "type": "integer", "required": true, "default": 1, "description": "Zone ID (1 for main, 2 for zone2)" }
       ]
     },
     "mute_toggle": {
@@ -55,7 +55,7 @@
       "group": "volume",
       "description": "Toggle mute state",
       "params": [
-        { "name": "zone", "type": "integer", "required": false, "default": 1, "description": "Zone ID (1 for main, 2 for zone2)" }
+        { "name": "zone", "type": "integer", "required": true, "default": 1, "description": "Zone ID (1 for main, 2 for zone2)" }
       ]
     }
   }

@@ -64,6 +64,68 @@ async def publish_message(message: MQTTMessage, background_tasks: BackgroundTask
         "mode": "heat"
       }
       ```
+      
+    ### Device-Specific Command Examples
+    
+    #### LG TV Commands
+    
+    - **Move cursor to position**:
+      ```json
+      {
+        "x": 500,
+        "y": 300,
+        "drag": false
+      }
+      ```
+    
+    - **Click at position**:
+      ```json
+      {
+        "x": 500,
+        "y": 300
+      }
+      ```
+    
+    #### Audio/Video Receiver Commands
+    
+    - **Set volume with zone selection**:
+      ```json
+      {
+        "level": -35.5,
+        "zone": 1
+      }
+      ```
+    
+    - **Change input source**:
+      ```json
+      {
+        "input": "hdmi1"
+      }
+      ```
+    
+    #### Wirenboard IR Commands
+    
+    - **Send IR command with parameters**:
+      ```json
+      {
+        "code": "POWER_ON",
+        "repeat": 2
+      }
+      ```
+    
+    ### Alternative Format
+    
+    Some implementations may use a format that includes both action name and parameters:
+    
+    ```json
+    {
+      "action": "set_volume",
+      "params": {
+        "level": -35.5,
+        "zone": 1
+      }
+    }
+    ```
     
     The parameters will be validated according to their definitions in the device configuration.
     

@@ -1,26 +1,56 @@
 {
-  "scenario_id": "movie_night",
-  "name": "Movie Night",
+  "scenario_id": "movie_zappiti",
+  "name": "Watch movies on Zappiti",
   "description": "Setup for watching movies with optimal audio and video settings",
   "room_id": "living_room",
   "roles": {
-    "volume": "processor",
-    "playback": "appletv_living",
-    "tracks": "appletv_living",
-    "menu": "appletv_living"
+    "volume": "mf_amplifier",
+    "playback": "video",
+    "tracks": "video",
+    "menu": "video",
+    "inputs": "processor"
   },
   "devices": [
     "living_room_tv",
     "processor",
-    "appletv_living"
+    "video",
+    "mf_amplifier"
   ],
   "startup_sequence": [
     {
-      "device": "processor",
+      "device": "living_room_tv",
       "command": "power_on",
       "params": {},
       "condition": "device.power != True",
-      "delay_after_ms": 2000
+      "delay_after_ms": 5000
+    },
+    {
+      "device": "processor",
+      "command": "power_on",
+      "params": {"zone": 1},
+      "condition": "device.power != True",
+      "delay_after_ms": 3000
+    },
+    {
+      "device": "video",
+      "command": "power_on",
+      "params": {},
+      "condition": "device.power != True",
+      "delay_after_ms": 1000
+    },
+    {
+      "device": "mf_amplifier",
+      "command": "power_on",
+      "params": {},
+      "condition": "device.power != True",
+      "delay_after_ms": 1000
+    },
+    {
+      "device": "living_room_tv",
+      "command": "set_input_source",
+      "params": {"input_source": "hdmi2"},
+      "condition": "device.input_source != 'hdmi2'",
+      "delay_after_ms": 1000
     },
     {
       "device": "processor",
@@ -30,28 +60,16 @@
       "delay_after_ms": 1000
     },
     {
-      "device": "living_room_tv",
-      "command": "power_on",
+      "device": "mf_amplifier",
+      "command": "input_aux2",
       "params": {},
-      "condition": "device.power != True",
-      "delay_after_ms": 2000
-    },
-    {
-      "device": "living_room_tv",
-      "command": "set_input_source",
-      "params": {"input_source": "hdmi1"},
-      "condition": "device.input_source != 'hdmi1'"
-    },
-    {
-      "device": "appletv_living",
-      "command": "power_on",
-      "params": {},
-      "condition": "device.power != 'on'"
+      "condition": "device.input != 'aux2'",
+      "delay_after_ms": 1000
     }
   ],
   "shutdown_sequence": [
     {
-      "device": "appletv_living",
+      "device": "video",
       "command": "power_off",
       "params": {},
       "condition": "device.power == 'on'",
@@ -66,6 +84,12 @@
     },
     {
       "device": "processor",
+      "command": "power_off",
+      "params": {},
+      "condition": "device.power == True"
+    },
+    {
+      "device": "mf_amplifier",
       "command": "power_off",
       "params": {},
       "condition": "device.power == True"

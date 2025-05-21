@@ -42,14 +42,20 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         Property.ZONE2_POWER,        # Zone 2 power
         Property.VOLUME,             # Main volume
         Property.MUTE,               # Mute status
-        Property.INPUT,              # Current input
+        Property.SOURCE,             # Current input
         Property.AUDIO_INPUT,        # Audio input
         Property.VIDEO_INPUT,        # Video input
         Property.AUDIO_BITSTREAM,    # Audio bitstream format
-        Property.AUDIO_MODE          # Audio processing mode
+        Property.SELECTED_MODE       # Audio processing mode
     ]
     
     def __init__(self, config: EmotivaXMC2DeviceConfig, mqtt_client=None):
+        """Initialize the EMotivaXMC2 device.
+        
+        Args:
+            config: Device configuration
+            mqtt_client: MQTT client for publishing messages
+        """
         super().__init__(config, mqtt_client)
         
         self.client: Optional[EmotivaController] = None
@@ -77,7 +83,11 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         )
         
     async def setup(self) -> bool:
-        """Initialize the device."""
+        """Initialize the device.
+        
+        Returns:
+            bool: True if setup was successful, False otherwise
+        """
         try:
             # Get emotiva configuration directly from config
             emotiva_config: AppEmotivaConfig = self.config.emotiva
@@ -96,23 +106,37 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             logger.info(f"Initializing eMotiva XMC2 device: {self.get_name()} at {host}")
             
             # Create and initialize controller with simplified constructor
-            self.client = EmotivaController(
-                host=host,
-                timeout=emotiva_config.timeout or 5.0,
-                protocol_max="3.1"  # Use the most recent protocol version
-            )
-            
-            # Update state with IP address at this point
-            self.update_state(ip_address=host)
-            
-            # Connect to the device
             try:
-                await self.client.connect()
-                logger.info(f"Connected to device at {host}")
+                self.client = EmotivaController(
+                    host=host,
+                    timeout=emotiva_config.timeout or 5.0,
+                    protocol_max="3.1"  # Use the most recent protocol version
+                )
+                
+                # Update state with IP address at this point
+                self.update_state(ip_address=host)
             except Exception as e:
-                logger.error(f"Failed to connect to device at {host}: {str(e)}")
-                self.set_error(f"Connection error: {str(e)}")
+                logger.error(f"Failed to create controller for {self.get_name()}: {str(e)}")
+                self.set_error(f"Controller initialization error: {str(e)}")
                 return False
+            
+            # Connect to the device with retry logic
+            max_retries = emotiva_config.max_retries or 3
+            retry_delay = emotiva_config.retry_delay or 2.0
+            
+            for attempt in range(1, max_retries + 1):
+                try:
+                    await self.client.connect()
+                    logger.info(f"Connected to device at {host} on attempt {attempt}")
+                    break
+                except Exception as e:
+                    if attempt < max_retries:
+                        logger.warning(f"Connection attempt {attempt} failed: {str(e)}. Retrying in {retry_delay} seconds...")
+                        await asyncio.sleep(retry_delay)
+                    else:
+                        logger.error(f"Failed to connect to device at {host} after {max_retries} attempts: {str(e)}")
+                        self.set_error(f"Connection error: {str(e)}")
+                        return False
             
             # Set up callbacks for property changes
             for prop in self.PROPERTIES_TO_MONITOR:
@@ -123,17 +147,38 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 await self.client.subscribe(self.PROPERTIES_TO_MONITOR)
                 logger.info(f"Successfully subscribed to properties for {self.get_name()}")
                 
-                # Query initial device state
-                await self._refresh_device_state()
+                # Query initial state for key properties using _refresh_device_state
+                try:
+                    # Refresh all properties at once
+                    updated_properties = await self._refresh_device_state()
+                    
+                    # Log the initial power state which is most critical
+                    if "power" in updated_properties:
+                        logger.debug(f"Initial power state: {updated_properties['power']}")
+                    
+                    # Log other important properties if power is on
+                    if self.state.power == PowerState.ON:
+                        if "volume" in updated_properties:
+                            logger.debug(f"Initial volume: {updated_properties['volume']}")
+                        if "mute" in updated_properties:
+                            logger.debug(f"Initial mute state: {updated_properties['mute']}")
+                        if "source" in updated_properties:
+                            logger.debug(f"Initial input source: {updated_properties['source']}")
+                except Exception as e:
+                    logger.warning(f"Failed to query initial state: {str(e)}")
+                    # Continue setup even if initial state query fails
                 
                 # Update state with successful connection
-                self.clear_error()  # Clear any previous errors
+                self.clear_error()
                 self.update_state(
                     connected=True,
                     ip_address=host,
                     startup_complete=True,
                     notifications=True
                 )
+                
+                # Publish connection status
+                await self.publish_progress(f"Connected to {self.get_name()} at {host}")
                 
                 return True
             except Exception as e:
@@ -158,6 +203,9 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                     # Set error but don't fail setup
                     self.set_error(f"Subscription failed, using forced connection: {error_message}")
                     
+                    # Publish connection status with warning
+                    await self.publish_progress(f"Connected to {self.get_name()} at {host} in force connect mode (limited functionality)")
+                    
                     return True
                 else:
                     self.set_error(error_message)
@@ -169,7 +217,11 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             return False
 
     async def shutdown(self) -> bool:
-        """Cleanup device resources and properly shut down connections."""
+        """Cleanup device resources and properly shut down connections.
+        
+        Returns:
+            bool: True if shutdown was successful, False otherwise
+        """
         if not self.client:
             logger.info(f"No client initialized for {self.get_name()}, nothing to shut down")
             return True
@@ -177,9 +229,21 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         logger.info(f"Starting shutdown for eMotiva XMC2 device: {self.get_name()}")
         
         try:
-            # Let the library handle all connection cleanup
-            await self.client.disconnect()
-            logger.info(f"Successfully disconnected {self.get_name()}")
+            # Attempt to unsubscribe from notifications first
+            try:
+                await self.client.unsubscribe(self.PROPERTIES_TO_MONITOR)
+                logger.debug(f"Successfully unsubscribed from properties for {self.get_name()}")
+            except Exception as e:
+                # Log but continue with shutdown even if unsubscribe fails
+                logger.warning(f"Failed to unsubscribe from properties for {self.get_name()}: {str(e)}")
+            
+            # Let the library handle connection cleanup
+            try:
+                await self.client.disconnect()
+                logger.info(f"Successfully disconnected {self.get_name()}")
+            except Exception as e:
+                logger.warning(f"Error during disconnect for {self.get_name()}: {str(e)}")
+                # Continue with cleanup despite disconnect error
             
             # Update our state
             self.clear_error()
@@ -187,6 +251,9 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 connected=False,
                 notifications=False
             )
+            
+            # Publish shutdown status
+            await self.publish_progress(f"Disconnected from {self.get_name()}")
             
             # Release client reference
             self.client = None
@@ -197,7 +264,124 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             error_message = f"Failed to shutdown {self.get_name()}: {str(e)}"
             logger.error(error_message)
             self.set_error(str(e))
+            
+            # Still update state to reflect disconnection even if there was an error
+            self.update_state(
+                connected=False,
+                notifications=False
+            )
+            
+            # Release client reference even if there was an error
+            self.client = None
+            
             return False
+
+    def _register_property_callback(self, property: Property):
+        """Register a callback for a specific property change.
+        
+        Args:
+            property: The property to monitor for changes
+        """
+        if not self.client:
+            return
+            
+        # Use the new decorator pattern for callbacks
+        @self.client.on(property)
+        async def property_callback(value):
+            # Pass to our property change handler with property as enum
+            logger.debug(f"Callback triggered for {property.value} = {value}")
+            # Convert property enum value to lowercase for consistent handling
+            property_name = property.value.lower()
+            self._handle_property_change(property_name, None, value)
+            
+        logger.debug(f"Registered callback for property {property.value}")
+        
+    # Constants for valid properties
+    VALID_PROPERTIES = {
+        Property.POWER: "power",
+        Property.ZONE2_POWER: "zone2_power",
+        Property.VOLUME: "volume",
+        Property.ZONE2_VOLUME: "zone2_volume",
+        Property.MUTE: "mute",
+        Property.SOURCE: "source",
+        Property.AUDIO_INPUT: "audio_input",
+        Property.VIDEO_INPUT: "video_input",
+        Property.AUDIO_BITSTREAM: "audio_bitstream",
+        Property.SELECTED_MODE: "selected_mode"
+    }
+    
+    def _handle_property_change(self, property_name: str, old_value: Any, new_value: Any) -> None:
+        """Handle property change events from the device state.
+        
+        Args:
+            property_name: Name of the property that changed
+            old_value: Previous value of the property
+            new_value: New value of the property
+        """
+        logger.debug(f"Property change: {property_name} = {new_value}")
+        
+        # Process the value with our helper
+        processed_value = self._process_property_value(property_name, new_value)
+        
+        # Map property changes to our state model
+        updates = {}
+        
+        if property_name == "power":
+            updates["power"] = processed_value
+        elif property_name == "zone2_power":
+            updates["zone2_power"] = processed_value
+        elif property_name == "volume":
+            updates["volume"] = processed_value
+        elif property_name == "mute":
+            updates["mute"] = processed_value
+        elif property_name == "source":  # Changed from "input"
+            updates["input_source"] = new_value  # Use raw value for input_source
+        elif property_name == "video_input":
+            updates["video_input"] = new_value
+        elif property_name == "audio_input":
+            updates["audio_input"] = new_value
+        elif property_name == "audio_bitstream":
+            updates["audio_bitstream"] = new_value
+        elif property_name == "selected_mode":  # Changed from "audio_mode"
+            updates["audio_mode"] = new_value
+            
+        # Apply state updates if any
+        if updates:
+            self.update_state(**updates)
+    
+    def _process_property_value(self, property_name: str, value: Any) -> Any:
+        """
+        Process and convert property values to the correct type.
+        
+        Args:
+            property_name: Name of the property
+            value: Property value to convert
+            
+        Returns:
+            Converted property value
+        """
+        if value is None:
+            return None
+            
+        if property_name in ["power", "zone2_power"]:
+            # Convert power values to our PowerState enum
+            if isinstance(value, str):
+                return PowerState.ON if value.lower() == "on" else PowerState.OFF if value.lower() == "off" else PowerState.UNKNOWN
+            return value  # Already converted
+        elif property_name == "volume":
+            # Convert volume to float
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return 0.0
+        elif property_name == "mute":
+            # Convert mute to boolean
+            if isinstance(value, str):
+                return value.lower() in ("on", "true", "1", "yes")
+            return bool(value)
+        
+        # For other properties, return as is
+        return value
 
     async def publish_progress(self, message: str) -> None:
         """
@@ -231,510 +415,6 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             # Don't set error state for publishing issues as they might be transient
             # and not related to the device itself
 
-    async def handle_set_input(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
-        """
-        Handle setting input source by input ID.
-        
-        This method supports setting inputs using the format recognized by the Emotiva controller.
-        Supported inputs include: hdmi1-hdmi8, coax1-coax4, optical1-optical4, tuner
-        
-        Args:
-            cmd_config: Command configuration
-            params: Parameters containing input ID
-            
-        Returns:
-            Command execution result
-        """
-        # Validate parameters
-        if not params:
-            return self.create_command_result(success=False, error="Missing input parameters")
-        
-        # Get and validate input parameter
-        input_param = cmd_config.get_parameter("input")
-        is_valid, input_id, error_msg = self._validate_parameter(
-            param_name="input",
-            param_value=params.get("input"),
-            param_type=input_param.type if input_param else "string",
-            action="set_input"
-        )
-        
-        if not is_valid:
-            return self.create_command_result(success=False, error=error_msg)
-        
-        try:
-            # Normalize the input ID to lowercase
-            normalized_input = input_id.lower()
-            
-            # Try to find the matching Input enum
-            input_enum = None
-            try:
-                # First try to find the enum by name (uppercase, like HDMI1)
-                input_enum = getattr(Input, normalized_input.upper())
-            except (AttributeError, ValueError):
-                # If not a direct match, try to find a close match
-                for enum_value in Input:
-                    if enum_value.value.lower() == normalized_input:
-                        input_enum = enum_value
-                        break
-            
-            if input_enum:
-                # Use the enum directly
-                await self.client.select_input(input_enum)
-                logger.debug(f"Selected input using enum: {input_enum}")
-            else:
-                # Fall back to using string if enum not found
-                logger.debug(f"No matching enum found for input '{normalized_input}', using string value")
-                await self.client.select_input(normalized_input)
-            
-            # Update our internal state
-            self.update_state(input_source=normalized_input)
-            
-            # Clear any errors
-            self.clear_error()
-            
-            # Update the last command information
-            self._update_last_command("set_input", {"input": normalized_input})
-            
-            # Return success result
-            return self.create_command_result(
-                success=True,
-                message=f"Input set to {normalized_input} successfully",
-                input=normalized_input
-            )
-        except Exception as e:
-            error_message = f"Failed to set input to {input_id}: {str(e)}"
-            logger.error(error_message)
-            self.set_error(error_message)
-            return self.create_command_result(
-                success=False,
-                error=error_message
-            )
-    
-    async def _power_zone(self, zone_id: Union[int, str], power_on: bool) -> bool:
-        """Control power for a specific zone.
-        
-        Args:
-            zone_id: Zone ID (1 for main, 2 for zone2)
-            power_on: True to power on, False to power off
-            
-        Returns:
-            True if successful, False otherwise
-        """
-        if not self.client:
-            logger.warning("Cannot control power: client not initialized")
-            return False
-            
-        try:
-            # Get the zone enum
-            zone = self._get_zone(zone_id)
-            
-            # Control power for the specified zone
-            if zone == Zone.MAIN:
-                if power_on:
-                    await self.client.power_on()
-                    self.update_state(power=PowerState.ON)
-                else:
-                    await self.client.power_off()
-                    self.update_state(power=PowerState.OFF)
-            elif zone == Zone.ZONE2:
-                # Use zone-specific power methods
-                if power_on:
-                    if hasattr(self.client, "zone_power_on"):
-                        await self.client.zone_power_on(zone)
-                    else:
-                        await self.client.zone2_power_on()
-                    self.update_state(zone2_power=PowerState.ON)
-                else:
-                    if hasattr(self.client, "zone_power_off"):
-                        await self.client.zone_power_off(zone)
-                    else:
-                        await self.client.zone2_power_off()
-                    self.update_state(zone2_power=PowerState.OFF)
-            else:
-                logger.warning(f"Unsupported zone: {zone}")
-                return False
-                
-            logger.debug(f"Set power for zone {zone_id} to {'ON' if power_on else 'OFF'}")
-            return True
-        except Exception as e:
-            logger.error(f"Error controlling power for zone {zone_id}: {str(e)}")
-            return False
-
-    async def handle_power_on(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
-        """
-        Handle power on command.
-        
-        Args:
-            cmd_config: Command configuration
-            params: Parameters (may include zone)
-            
-        Returns:
-            Command execution result
-        """
-        # If client is not initialized or not connected, reconnect first
-        if not self.client or not self.state.connected:
-            logger.info(f"Device {self.get_name()} not connected, attempting reconnection before power on")
-            try:
-                await self.setup()
-            except Exception as e:
-                logger.error(f"Failed to reconnect device {self.get_name()} before power on: {str(e)}")
-                return self.create_command_result(
-                    success=False,
-                    error=f"Failed to connect to device: {str(e)}"
-                )
-        
-        # Get zone parameter if specified
-        zone_id = 1  # Default to main zone
-        
-        if params and "zone" in params:
-            zone_param = cmd_config.get_parameter("zone")
-            is_valid, zone_value, error_msg = self._validate_parameter(
-                param_name="zone",
-                param_value=params.get("zone"),
-                param_type=zone_param.type if zone_param else "integer",
-                required=False,
-                action="power_on"
-            )
-            
-            if not is_valid:
-                return self.create_command_result(success=False, error=error_msg)
-                
-            if zone_value is not None:
-                zone_id = zone_value
-                
-        # Get zone as enum
-        zone = self._get_zone(zone_id)
-        
-        # Check current power state
-        current_power = None
-        if zone == Zone.MAIN:
-            current_power = self.state.power
-        elif zone == Zone.ZONE2:
-            current_power = self.state.zone2_power
-                
-        if current_power == PowerState.ON:
-            logger.debug(f"Zone {zone_id} is already powered on, skipping command")
-            return self.create_command_result(
-                success=True,
-                message=f"Zone {zone_id} is already powered on",
-                zone=zone_id
-            )
-        
-        try:
-            # Use our zone-specific helper
-            success = await self._power_zone(zone_id, True)
-            
-            if not success:
-                return self.create_command_result(
-                    success=False,
-                    error=f"Failed to power on zone {zone_id}"
-                )
-            
-            # Clear any errors
-            self.clear_error()
-            
-            # Update the last command information
-            self._update_last_command("power_on", {"zone": zone_id})
-            
-            logger.info(f"Zone {zone_id} powered on successfully")
-            
-            # If main zone was powered on, refresh full device state
-            if zone == Zone.MAIN:
-                try:
-                    # Subscribe to all properties to ensure we get updates
-                    await self.client.subscribe(self.PROPERTIES_TO_MONITOR)
-                    
-                    # Query full device state to refresh all properties
-                    updated_properties = await self._refresh_device_state()
-                    
-                    # Update our connected and notification status
-                    self.update_state(
-                        connected=True,
-                        startup_complete=True,
-                        notifications=True
-                    )
-                    
-                    # Update the success message to include refreshed state info
-                    if updated_properties:
-                        return self.create_command_result(
-                            success=True,
-                            message=f"Zone {zone_id} powered on and state refreshed successfully",
-                            power=PowerState.ON.value,
-                            zone=zone_id,
-                            updated_properties=list(updated_properties.keys())
-                        )
-                    else:
-                        # Partial success
-                        return self.create_command_result(
-                            success=True,
-                            message=f"Zone {zone_id} powered on, but state refresh failed",
-                            power=PowerState.ON.value,
-                            zone=zone_id,
-                            warnings=["Failed to refresh device state"]
-                        )
-                except Exception as e:
-                    logger.error(f"Error during post-power-on state refresh: {str(e)}")
-                    # Still return success for the power-on, but include warning
-                    return self.create_command_result(
-                        success=True,
-                        message=f"Zone {zone_id} powered on, but state refresh had errors: {str(e)}",
-                        power=PowerState.ON.value,
-                        zone=zone_id,
-                        warnings=["State refresh incomplete, some state updates may be missing"]
-                    )
-            else:
-                # For non-main zones, just return success
-                return self.create_command_result(
-                    success=True,
-                    message=f"Zone {zone_id} powered on successfully",
-                    zone=zone_id,
-                    zone2_power=PowerState.ON.value if zone == Zone.ZONE2 else None
-                )
-                
-        except Exception as e:
-            error_message = f"Failed to power on zone {zone_id}: {str(e)}"
-            logger.error(error_message)
-            self.set_error(error_message)
-            return self.create_command_result(
-                success=False,
-                error=error_message
-            )
-        
-    async def handle_power_off(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
-        """
-        Handle power off command.
-        
-        Args:
-            cmd_config: Command configuration
-            params: Parameters (may include zone)
-            
-        Returns:
-            Command execution result
-        """
-        # Get zone parameter if specified
-        zone_id = 1  # Default to main zone
-        
-        if params and "zone" in params:
-            zone_param = cmd_config.get_parameter("zone")
-            is_valid, zone_value, error_msg = self._validate_parameter(
-                param_name="zone",
-                param_value=params.get("zone"),
-                param_type=zone_param.type if zone_param else "integer",
-                required=False,
-                action="power_off"
-            )
-            
-            if not is_valid:
-                return self.create_command_result(success=False, error=error_msg)
-                
-            if zone_value is not None:
-                zone_id = zone_value
-                
-        # Get zone as enum
-        zone = self._get_zone(zone_id)
-        
-        # Check current power state
-        current_power = None
-        if zone == Zone.MAIN:
-            current_power = self.state.power
-        elif zone == Zone.ZONE2:
-            current_power = self.state.zone2_power
-                
-        if current_power == PowerState.OFF:
-            logger.debug(f"Zone {zone_id} is already powered off, skipping command")
-            return self.create_command_result(
-                success=True,
-                message=f"Zone {zone_id} is already powered off",
-                zone=zone_id
-            )
-        
-        try:
-            # Use our zone-specific helper
-            success = await self._power_zone(zone_id, False)
-            
-            if not success:
-                return self.create_command_result(
-                    success=False,
-                    error=f"Failed to power off zone {zone_id}"
-                )
-            
-            # Clear any errors
-            self.clear_error()
-            
-            # Update the last command information
-            self._update_last_command("power_off", {"zone": zone_id})
-            
-            if zone == Zone.MAIN:
-                return self.create_command_result(
-                    success=True,
-                    message=f"Zone {zone_id} powered off successfully",
-                    power=PowerState.OFF.value,
-                    zone=zone_id
-                )
-            else:
-                return self.create_command_result(
-                    success=True,
-                    message=f"Zone {zone_id} powered off successfully",
-                    zone=zone_id,
-                    zone2_power=PowerState.OFF.value if zone == Zone.ZONE2 else None
-                )
-        except Exception as e:
-            error_message = f"Failed to power off zone {zone_id}: {str(e)}"
-            logger.error(error_message)
-            self.set_error(error_message)
-            return self.create_command_result(
-                success=False,
-                error=error_message
-            )
-        
-    async def handle_message(self, topic: str, payload: str) -> Optional[CommandResult]:
-        """
-        Handle incoming MQTT messages for this device.
-        
-        Args:
-            topic: MQTT topic
-            payload: Message payload
-            
-        Returns:
-            Command execution result or None if no handler was found
-        """
-        logger.debug(f"Device {self.get_name()} received message on {topic}: {payload}")
-        
-        try:
-            # Find matching command configuration
-            matching_commands: List[Tuple[str, StandardCommandConfig]] = []
-            
-            for cmd_name, cmd_config in self.get_available_commands().items():
-                # Only use properly typed StandardCommandConfig objects
-                if isinstance(cmd_config, StandardCommandConfig) and cmd_config.topic == topic:
-                    matching_commands.append((cmd_name, cmd_config))
-            
-            if not matching_commands:
-                logger.warning(f"No command configuration found for topic: {topic}")
-                return None
-            
-            # Process each matching command configuration found for the topic
-            for cmd_name, cmd_config in matching_commands:
-                # Process parameters if defined
-                params: Dict[str, Any] = {}
-                
-                # Get parameters definitions
-                param_definitions: List[CommandParameterDefinition] = cmd_config.params or []
-                
-                if param_definitions:
-                    # Try to parse payload as JSON
-                    try:
-                        params = json.loads(payload)
-                    except json.JSONDecodeError:
-                        # For single parameter commands, try to map raw payload to the first parameter
-                        if len(param_definitions) == 1:
-                            param_def = param_definitions[0]
-                            param_name = param_def.name
-                            param_type = param_def.type
-                            required = param_def.required
-                            min_value = getattr(param_def, 'min', None)
-                            max_value = getattr(param_def, 'max', None)
-                            
-                            # Use the validation helper to convert and validate the parameter
-                            is_valid, converted_value, error_message = self._validate_parameter(
-                                param_name=param_name,
-                                param_value=payload,
-                                param_type=param_type,
-                                required=required,
-                                min_value=min_value,
-                                max_value=max_value,
-                                action=cmd_name
-                            )
-                            
-                            if is_valid:
-                                params = {param_name: converted_value}
-                            else:
-                                logger.error(f"Failed to convert payload '{payload}': {error_message}")
-                                return self.create_command_result(
-                                    success=False, 
-                                    error=f"Invalid payload format: {payload}"
-                                )
-                        else:
-                            logger.error(f"Payload is not valid JSON and command expects multiple parameters: {payload}")
-                            return self.create_command_result(
-                                success=False, 
-                                error="Invalid JSON format for multi-parameter command"
-                            )
-                
-                # Get the handler method from registered handlers
-                handler = self._action_handlers.get(cmd_name)
-                if handler:
-                    logger.debug(f"Found handler for command {cmd_name}")
-                    try:
-                        return await handler(cmd_config=cmd_config, params=params)
-                    except Exception as e:
-                        error_message = f"Error executing handler for {cmd_name}: {str(e)}"
-                        logger.error(error_message)
-                        self.set_error(error_message)
-                        return self.create_command_result(success=False, error=error_message)
-                else:
-                    logger.warning(f"No handler found for command: {cmd_name}")
-            
-            # If we got here, no matching handler was found or executed            
-            return self.create_command_result(
-                success=False, 
-                error=f"No valid handler found for topic: {topic}"
-            )
-            
-        except Exception as e:
-            error_message = f"Unexpected error handling message on topic {topic}: {str(e)}"
-            logger.error(error_message)
-            self.set_error(error_message)
-            return self.create_command_result(success=False, error=error_message)
-    
-    async def handle_reconnect(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
-        """Handle reconnection request.
-        
-        Args:
-            cmd_config: Command configuration
-            params: Parameters (unused)
-            
-        Returns:
-            Command execution result
-        """
-        logger.info(f"Reconnection requested for device: {self.get_name()}")
-        
-        try:
-            # Disconnect if currently connected
-            if self.client and self.state.connected:
-                logger.info(f"Disconnecting before reconnection for: {self.get_name()}")
-                
-                # Let the library handle disconnection
-                await self.client.disconnect()
-                
-                # Update state to reflect disconnection
-                self.update_state(
-                    connected=False,
-                    notifications=False
-                )
-                
-                logger.info(f"Successfully disconnected {self.get_name()} for reconnection")
-            
-            # Re-initialize - setup creates a new client and connects
-            success = await self.setup()
-            
-            if success:
-                self.clear_error()
-                logger.info(f"Reconnection successful for: {self.get_name()}")
-                return self.create_command_result(
-                    success=True, 
-                    message=f"Successfully reconnected to {self.get_name()}"
-                )
-            else:
-                error_msg = f"Reconnection failed for: {self.get_name()}"
-                logger.error(error_msg)
-                return self.create_command_result(success=False, error=error_msg)
-        except Exception as e:
-            error_msg = f"Error during reconnection: {str(e)}"
-            logger.error(error_msg)
-            self.set_error(error_msg)
-            return self.create_command_result(success=False, error=error_msg)
-
     def update_state(self, **kwargs) -> None:
         """
         Update the device state with the provided values.
@@ -755,7 +435,12 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         super().update_state(**kwargs)
 
     def _update_last_command(self, action: str, params: Dict[str, Any] = None):
-        """Update last command in the device state."""
+        """Update last command in the device state.
+        
+        Args:
+            action: The action that was executed
+            params: Parameters used for the action
+        """
         # Create a LastCommand model with current information
         last_command = LastCommand(
             action=action,
@@ -831,24 +516,6 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             
         return True, converted_value, None
 
-    def _register_property_callback(self, property: Property):
-        """Register a callback for a specific property change.
-        
-        Args:
-            property: The property to monitor for changes
-        """
-        if not self.client:
-            return
-            
-        # Use the new decorator pattern for callbacks
-        @self.client.on(property)
-        async def property_callback(value):
-            # Pass to our property change handler with property as enum
-            logger.debug(f"Callback triggered for {property.value} = {value}")
-            self._handle_property_change(property.value, None, value)
-            
-        logger.debug(f"Registered callback for property {property.value}")
-
     # Add zone-specific helpers
     def _get_zone(self, zone_id: Union[int, str] = 1) -> Zone:
         """Get the Zone enum corresponding to the zone ID.
@@ -897,11 +564,11 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 Property.ZONE2_POWER,        # Zone 2 power
                 Property.VOLUME,             # Main volume
                 Property.MUTE,               # Mute status
-                Property.INPUT,              # Current input
+                Property.SOURCE,             # Current input
                 Property.AUDIO_INPUT,        # Audio input
                 Property.VIDEO_INPUT,        # Video input
                 Property.AUDIO_BITSTREAM,    # Audio bitstream format
-                Property.AUDIO_MODE          # Audio processing mode
+                Property.SELECTED_MODE       # Audio processing mode
             ]
             
             # Use the status method to get all properties at once
@@ -911,17 +578,17 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             updated_properties = {}
             for prop, value in result.items():
                 # Convert property enum to string for our internal handling
-                prop_name = prop.value
+                prop_name = prop.value.lower()
                 
                 # Process the value with our helper
                 processed_value = self._process_property_value(prop_name, value)
                 updated_properties[prop_name] = processed_value
                 
                 # Handle input property specially
-                if prop == Property.INPUT:
+                if prop == Property.SOURCE:
                     self.update_state(input_source=value)
                 else:
-                    self.update_state(**{prop_name: processed_value})
+                    self.update_state(**{self.VALID_PROPERTIES.get(prop, prop_name): processed_value})
                     
             logger.debug(f"Device state refresh completed for {self.get_name()} ({len(updated_properties)}/{len(properties_to_query)} properties)")
             return updated_properties
@@ -930,121 +597,482 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             logger.warning(f"Error refreshing device state: {str(e)}")
             return {}
 
-    def _handle_property_change(self, property_name: str, old_value: Any, new_value: Any) -> None:
-        """Handle property change events from the device state.
+    async def handle_power_on(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
+        """Handle power on command.
         
         Args:
-            property_name: Name of the property that changed
-            old_value: Previous value of the property
-            new_value: New value of the property
-        """
-        logger.debug(f"Property change: {property_name} = {new_value}")
-        
-        # Process the value with our helper
-        processed_value = self._process_property_value(property_name, new_value)
-        
-        # Map property changes to our state model
-        updates = {}
-        
-        if property_name == "power":
-            updates["power"] = processed_value
-        elif property_name == "zone2_power":
-            updates["zone2_power"] = processed_value
-        elif property_name == "volume":
-            updates["volume"] = processed_value
-        elif property_name == "mute":
-            updates["mute"] = processed_value
-        elif property_name == "input":
-            updates["input_source"] = new_value  # Use raw value for input_source
-        elif property_name == "video_input":
-            updates["video_input"] = new_value
-        elif property_name == "audio_input":
-            updates["audio_input"] = new_value
-        elif property_name == "audio_bitstream":
-            updates["audio_bitstream"] = new_value
-        elif property_name == "audio_mode":
-            updates["audio_mode"] = new_value
-            
-        # Apply state updates if any
-        if updates:
-            self.update_state(**updates)
-
-    def _process_property_value(self, property_name: str, value: Any) -> Any:
-        """
-        Process and convert property values to the correct type.
-        
-        Args:
-            property_name: Name of the property
-            value: Property value to convert
+            cmd_config: Command configuration
+            params: Parameters (may include zone)
             
         Returns:
-            Converted property value
+            Command execution result
         """
-        if value is None:
-            return None
-            
-        if property_name in ["power", "zone2_power"]:
-            # Convert power values to our PowerState enum
-            if isinstance(value, str):
-                return PowerState.ON if value.lower() == "on" else PowerState.OFF if value.lower() == "off" else PowerState.UNKNOWN
-            return value  # Already converted
-        elif property_name == "volume":
-            # Convert volume to float
+        # If client is not initialized or not connected, reconnect first
+        if not self.client or not self.state.connected:
+            logger.info(f"Device {self.get_name()} not connected, attempting reconnection before power on")
             try:
-                return float(value)
-            except (ValueError, TypeError):
-                return 0.0
-        elif property_name == "mute":
-            # Convert mute to boolean
-            if isinstance(value, str):
-                return value.lower() in ("on", "true", "1", "yes")
-            return bool(value)
+                await self.setup()
+            except Exception as e:
+                logger.error(f"Failed to reconnect device {self.get_name()} before power on: {str(e)}")
+                return self.create_command_result(
+                    success=False,
+                    error=f"Failed to connect to device: {str(e)}"
+                )
         
-        # For other properties, return as is
-        return value
-
-    async def _set_zone_volume(self, zone_id: Union[int, str], level: float) -> bool:
-        """Set volume for a specific zone.
+        # Get zone parameter if specified
+        zone_id = 1  # Default to main zone
         
-        Args:
-            zone_id: Zone ID (1 for main, 2 for zone2)
-            level: Volume level in dB (-96.0 to 0.0)
+        if params and "zone" in params:
+            zone_param = cmd_config.get_parameter("zone")
+            is_valid, zone_value, error_msg = self._validate_parameter(
+                param_name="zone",
+                param_value=params.get("zone"),
+                param_type=zone_param.type if zone_param else "integer",
+                required=False,
+                action="power_on"
+            )
             
-        Returns:
-            True if successful, False otherwise
-        """
-        if not self.client:
-            logger.warning("Cannot set volume: client not initialized")
-            return False
-            
+            if not is_valid:
+                return self.create_command_result(success=False, error=error_msg)
+                
+            if zone_value is not None:
+                zone_id = zone_value
+                
+        # Get zone as enum
+        zone = self._get_zone(zone_id)
+        
+        # Check current power state
+        current_power = None
+        if zone == Zone.MAIN:
+            current_power = self.state.power
+        elif zone == Zone.ZONE2:
+            current_power = self.state.zone2_power
+                
+        # If state is unknown or stale, synchronize it
+        if current_power is None or current_power == PowerState.UNKNOWN:
+            try:
+                # Synchronize state for this zone using _refresh_device_state for main zone
+                # or _synchronize_state for zone2
+                updated_properties = await self._synchronize_state(zone_id)
+                
+                # Get updated power state
+                if zone == Zone.MAIN:
+                    current_power = self.state.power
+                elif zone == Zone.ZONE2:
+                    current_power = self.state.zone2_power
+                    
+                logger.debug(f"Synchronized power state for zone {zone_id} before power on: {current_power}")
+            except Exception as e:
+                logger.warning(f"Failed to synchronize state for zone {zone_id}: {str(e)}")
+                # Continue with power on attempt even if we couldn't verify state
+        
+        # Check if already powered on
+        if current_power == PowerState.ON:
+            logger.debug(f"Zone {zone_id} is already powered on, skipping command")
+            return self.create_command_result(
+                success=True,
+                message=f"Zone {zone_id} is already powered on",
+                zone=zone_id
+            )
+        
         try:
-            # Get the zone enum
-            zone = self._get_zone(zone_id)
-            
-            # Set volume for the specified zone
+            # Power on the specified zone
             if zone == Zone.MAIN:
-                await self.client.set_volume(level)
-                self.update_state(volume=level)
+                await self.client.power_on(zone=zone)
+                self.update_state(power=PowerState.ON)
+                logger.info(f"Main zone powered on successfully")
             elif zone == Zone.ZONE2:
-                # Use the set_zone_volume method if available, otherwise fall back to zone2 setting
-                if hasattr(self.client, "set_zone_volume"):
-                    await self.client.set_zone_volume(zone, level)
-                else:
-                    await self.client.set_zone2_volume(level)
-                self.update_state(zone2_volume=level)
+                await self.client.power_on(zone=zone)
+                self.update_state(zone2_power=PowerState.ON)
+                logger.info(f"Zone 2 powered on successfully")
             else:
                 logger.warning(f"Unsupported zone: {zone}")
-                return False
+                return self.create_command_result(
+                    success=False,
+                    error=f"Unsupported zone: {zone_id}"
+                )
+            
+            # Clear any errors
+            self.clear_error()
+            
+            # Update the last command information
+            self._update_last_command("power_on", {"zone": zone_id})
+            
+            # If main zone was powered on, ensure we're subscribed to all properties
+            if zone == Zone.MAIN:
+                try:
+                    # Subscribe to all properties to ensure we get updates
+                    await self.client.subscribe(self.PROPERTIES_TO_MONITOR)
+                    
+                    # Update our connected and notification status
+                    self.update_state(
+                        connected=True,
+                        startup_complete=True,
+                        notifications=True
+                    )
+                    
+                    # Synchronize state after power on to get current values
+                    await asyncio.sleep(1.0)  # Brief delay to allow device to stabilize
+                    updated_properties = await self._refresh_device_state()
+                    
+                    # Publish progress message
+                    await self.publish_progress(f"Zone {zone_id} powered on successfully")
+                    
+                    # Return success result with updated properties
+                    return self.create_command_result(
+                        success=True,
+                        message=f"Zone {zone_id} powered on successfully",
+                        power=PowerState.ON.value,
+                        zone=zone_id,
+                        updated_properties=list(updated_properties.keys()) if updated_properties else []
+                    )
+                except Exception as e:
+                    logger.error(f"Error during post-power-on operations: {str(e)}")
+                    # Still return success for the power-on, but include warning
+                    return self.create_command_result(
+                        success=True,
+                        message=f"Zone {zone_id} powered on, but state synchronization had errors: {str(e)}",
+                        power=PowerState.ON.value,
+                        zone=zone_id,
+                        warnings=["State synchronization incomplete, some state updates may be missing"]
+                    )
+            else:
+                # For non-main zones, just return success
+                await self.publish_progress(f"Zone {zone_id} powered on successfully")
+                return self.create_command_result(
+                    success=True,
+                    message=f"Zone {zone_id} powered on successfully",
+                    zone=zone_id,
+                    zone2_power=PowerState.ON.value if zone == Zone.ZONE2 else None
+                )
                 
-            logger.debug(f"Set volume for zone {zone_id} to {level} dB")
-            return True
         except Exception as e:
-            logger.error(f"Error setting volume for zone {zone_id}: {str(e)}")
-            return False
+            error_message = f"Failed to power on zone {zone_id}: {str(e)}"
+            logger.error(error_message)
+            self.set_error(error_message)
+            await self.publish_progress(f"Failed to power on zone {zone_id}: {str(e)}")
+            return self.create_command_result(
+                success=False,
+                error=error_message
+            )
 
-    async def handle_set_volume(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
+    async def handle_power_off(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
+        """Handle power off command.
+        
+        Args:
+            cmd_config: Command configuration
+            params: Parameters (may include zone)
+            
+        Returns:
+            Command execution result
         """
-        Handle setting volume level.
+        # If client is not initialized or not connected, reconnect first
+        if not self.client or not self.state.connected:
+            logger.info(f"Device {self.get_name()} not connected, attempting reconnection before power off")
+            try:
+                await self.setup()
+            except Exception as e:
+                logger.error(f"Failed to reconnect device {self.get_name()} before power off: {str(e)}")
+                return self.create_command_result(
+                    success=False,
+                    error=f"Failed to connect to device: {str(e)}"
+                )
+        
+        # Get zone parameter if specified
+        zone_id = 1  # Default to main zone
+        
+        if params and "zone" in params:
+            zone_param = cmd_config.get_parameter("zone")
+            is_valid, zone_value, error_msg = self._validate_parameter(
+                param_name="zone",
+                param_value=params.get("zone"),
+                param_type=zone_param.type if zone_param else "integer",
+                required=False,
+                action="power_off"
+            )
+            
+            if not is_valid:
+                return self.create_command_result(success=False, error=error_msg)
+                
+            if zone_value is not None:
+                zone_id = zone_value
+                
+        # Get zone as enum
+        zone = self._get_zone(zone_id)
+        
+        # Check current power state
+        current_power = None
+        if zone == Zone.MAIN:
+            current_power = self.state.power
+        elif zone == Zone.ZONE2:
+            current_power = self.state.zone2_power
+                
+        if current_power == PowerState.OFF:
+            logger.debug(f"Zone {zone_id} is already powered off, skipping command")
+            return self.create_command_result(
+                success=True,
+                message=f"Zone {zone_id} is already powered off",
+                zone=zone_id
+            )
+            
+        # If state is unknown, request an update
+        if current_power is None or current_power == PowerState.UNKNOWN:
+            try:
+                # Synchronize state for this zone using _synchronize_state
+                updated_properties = await self._synchronize_state(zone_id)
+                
+                # Get updated power state
+                if zone == Zone.MAIN:
+                    current_power = self.state.power
+                elif zone == Zone.ZONE2:
+                    current_power = self.state.zone2_power
+                    
+                logger.debug(f"Synchronized power state for zone {zone_id} before power off: {current_power}")
+                    
+                # Check again if already off
+                if current_power == PowerState.OFF:
+                    logger.debug(f"Zone {zone_id} is already powered off (verified), skipping command")
+                    return self.create_command_result(
+                        success=True,
+                        message=f"Zone {zone_id} is already powered off (verified)",
+                        zone=zone_id
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to get current power state for zone {zone_id}: {str(e)}")
+                # Continue with power off attempt even if we couldn't verify state
+        
+        try:
+            # Power off the specified zone
+            if zone == Zone.MAIN:
+                await self.client.power_off(zone=zone)
+                self.update_state(power=PowerState.OFF)
+                logger.info(f"Main zone powered off successfully")
+            elif zone == Zone.ZONE2:
+                await self.client.power_off(zone=zone)
+                self.update_state(zone2_power=PowerState.OFF)
+                logger.info(f"Zone 2 powered off successfully")
+            else:
+                logger.warning(f"Unsupported zone: {zone}")
+                return self.create_command_result(
+                    success=False,
+                    error=f"Unsupported zone: {zone_id}"
+                )
+            
+            # Clear any errors
+            self.clear_error()
+            
+            # Update the last command information
+            self._update_last_command("power_off", {"zone": zone_id})
+            
+            if zone == Zone.MAIN:
+                return self.create_command_result(
+                    success=True,
+                    message=f"Zone {zone_id} powered off successfully",
+                    power=PowerState.OFF.value,
+                    zone=zone_id
+                )
+            else:
+                return self.create_command_result(
+                    success=True,
+                    message=f"Zone {zone_id} powered off successfully",
+                    zone=zone_id,
+                    zone2_power=PowerState.OFF.value if zone == Zone.ZONE2 else None
+                )
+                
+        except Exception as e:
+            error_message = f"Failed to power off zone {zone_id}: {str(e)}"
+            logger.error(error_message)
+            self.set_error(error_message)
+            return self.create_command_result(
+                success=False,
+                error=error_message
+            )
+            
+    async def _handle_command_error(self, action: str, error: Exception, context: Dict[str, Any] = None) -> CommandResult:
+        """Handle command errors in a consistent way.
+        
+        This centralizes error handling logic for commands to ensure consistent behavior.
+        
+        Args:
+            action: The action that was being performed
+            error: The exception that occurred
+            context: Additional context for the error
+            
+        Returns:
+            CommandResult: Error result
+        """
+        error_message = f"Failed to {action}: {str(error)}"
+        logger.error(error_message)
+        self.set_error(error_message)
+        
+        # Publish error message to MQTT
+        try:
+            error_context = f" ({', '.join([f'{k}={v}' for k, v in context.items()])})" if context else ""
+            await self.publish_progress(f"Error: {error_message}{error_context}")
+        except Exception as e:
+            logger.warning(f"Failed to publish error message: {str(e)}")
+        
+        # Create error result
+        result = self.create_command_result(
+            success=False,
+            error=error_message
+        )
+        
+        # Add context to result if provided
+        if context:
+            for key, value in context.items():
+                if key not in result:
+                    result[key] = value
+                    
+        return result
+        
+    async def handle_set_input(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
+        """Handle setting input source by input ID.
+        
+        This method supports setting inputs using the format recognized by the Emotiva controller.
+        Supported inputs include: hdmi1-hdmi8, coax1-coax4, optical1-optical4, tuner
+        
+        Args:
+            cmd_config: Command configuration
+            params: Parameters containing input ID
+            
+        Returns:
+            Command execution result
+        """
+        # If client is not initialized or not connected, reconnect first
+        if not self.client or not self.state.connected:
+            logger.info(f"Device {self.get_name()} not connected, attempting reconnection before setting input")
+            try:
+                await self.setup()
+            except Exception as e:
+                return await self._handle_command_error(
+                    "reconnect device",
+                    e,
+                    {"action": "set_input"}
+                )
+        
+        # Validate parameters
+        if not params:
+            return self.create_command_result(success=False, error="Missing input parameters")
+        
+        # Get and validate input parameter
+        input_param = cmd_config.get_parameter("input")
+        is_valid, input_id, error_msg = self._validate_parameter(
+            param_name="input",
+            param_value=params.get("input"),
+            param_type=input_param.type if input_param else "string",
+            action="set_input"
+        )
+        
+        if not is_valid:
+            return self.create_command_result(success=False, error=error_msg)
+        
+        try:
+            # Normalize the input ID to lowercase
+            normalized_input = input_id.lower()
+            
+            # Check if device is powered on - can't change input if off
+            if self.state.power != PowerState.ON:
+                # If power state is unknown, try to synchronize
+                if self.state.power is None or self.state.power == PowerState.UNKNOWN:
+                    try:
+                        # Use _refresh_device_state to update multiple properties at once
+                        await self._refresh_device_state()
+                        logger.debug(f"Refreshed device state before set input, power={self.state.power}")
+                    except Exception as e:
+                        logger.warning(f"Failed to refresh state before set input: {str(e)}")
+                
+                # Check again after synchronization
+                if self.state.power != PowerState.ON:
+                    error_message = "Cannot set input while device is powered off"
+                    logger.warning(error_message)
+                    await self.publish_progress(error_message)
+                    return self.create_command_result(
+                        success=False,
+                        error=error_message,
+                        power=self.state.power.value if self.state.power else "unknown",
+                        input=normalized_input
+                    )
+            
+            # Check if this is already the current input
+            if self.state.input_source == normalized_input:
+                logger.debug(f"Input already set to {normalized_input}, skipping command")
+                await self.publish_progress(f"Input already set to {normalized_input}")
+                return self.create_command_result(
+                    success=True,
+                    message=f"Input already set to {normalized_input}",
+                    input=normalized_input
+                )
+                
+            # If input state is unknown, synchronize state
+            if self.state.input_source is None:
+                try:
+                    # Use our _refresh_device_state method to efficiently query multiple properties
+                    updated_properties = await self._refresh_device_state()
+                    logger.debug(f"Refreshed device state before set input, current_input={self.state.input_source}")
+                    
+                    # Check again if already set to requested input
+                    if self.state.input_source == normalized_input:
+                        logger.debug(f"Input already set to {normalized_input} (verified), skipping command")
+                        await self.publish_progress(f"Input already set to {normalized_input} (verified)")
+                        return self.create_command_result(
+                            success=True,
+                            message=f"Input already set to {normalized_input} (verified)",
+                            input=normalized_input,
+                            updated_properties=list(updated_properties.keys()) if updated_properties else []
+                        )
+                except Exception as e:
+                    logger.warning(f"Failed to refresh state: {str(e)}")
+                    # Continue with input selection even if we couldn't verify state
+            
+            # Try to find the matching Input enum
+            input_enum = None
+            try:
+                # First try to find the enum by name (uppercase, like HDMI1)
+                input_enum = getattr(Input, normalized_input.upper())
+            except (AttributeError, ValueError):
+                # If not a direct match, try to find a close match
+                for enum_value in Input:
+                    if enum_value.value.lower() == normalized_input:
+                        input_enum = enum_value
+                        break
+            
+            if input_enum:
+                # Use the enum directly
+                await self.client.select_input(input_enum)
+                logger.debug(f"Selected input using enum: {input_enum}")
+            else:
+                # Fall back to using string if enum not found
+                logger.debug(f"No matching enum found for input '{normalized_input}', using string value")
+                await self.client.select_input(normalized_input)
+            
+            # Update our internal state
+            self.update_state(input_source=normalized_input)
+            
+            # Clear any errors
+            self.clear_error()
+            
+            # Update the last command information
+            self._update_last_command("set_input", {"input": normalized_input})
+            
+            # Publish success message
+            await self.publish_progress(f"Input set to {normalized_input}")
+            
+            # Return success result
+            return self.create_command_result(
+                success=True,
+                message=f"Input set to {normalized_input} successfully",
+                input=normalized_input
+            )
+        except Exception as e:
+            return await self._handle_command_error(
+                f"set input to {input_id}",
+                e,
+                {"input": normalized_input}
+            )
+            
+    async def handle_set_volume(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
+        """Handle setting volume level.
         
         Args:
             cmd_config: Command configuration
@@ -1053,6 +1081,18 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         Returns:
             Command execution result
         """
+        # If client is not initialized or not connected, reconnect first
+        if not self.client or not self.state.connected:
+            logger.info(f"Device {self.get_name()} not connected, attempting reconnection before setting volume")
+            try:
+                await self.setup()
+            except Exception as e:
+                logger.error(f"Failed to reconnect device {self.get_name()} before setting volume: {str(e)}")
+                return self.create_command_result(
+                    success=False,
+                    error=f"Failed to connect to device: {str(e)}"
+                )
+        
         # Validate parameters
         if not params:
             return self.create_command_result(success=False, error="Missing volume parameters")
@@ -1075,7 +1115,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         zone_param = cmd_config.get_parameter("zone")
         zone_id = 1  # Default to main zone
         
-        if zone_param:
+        if zone_param and "zone" in params:
             is_valid, zone_value, error_msg = self._validate_parameter(
                 param_name="zone",
                 param_value=params.get("zone"),
@@ -1090,14 +1130,59 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             if zone_value is not None:
                 zone_id = zone_value
         
+        # Get zone as enum
+        zone = self._get_zone(zone_id)
+        
+        # Check current volume state - if it's unknown, refresh it
+        current_volume = None
+        if zone == Zone.MAIN:
+            current_volume = self.state.volume
+            if current_volume is None:
+                try:
+                    # Use _refresh_device_state for main zone to efficiently get all properties
+                    await self._refresh_device_state()
+                    current_volume = self.state.volume
+                    logger.debug(f"Refreshed device state before set volume: volume={current_volume}")
+                except Exception as e:
+                    logger.warning(f"Failed to refresh volume state: {str(e)}")
+                    # Continue with volume setting even if we couldn't verify state
+        elif zone == Zone.ZONE2:
+            current_volume = getattr(self.state, "zone2_volume", None)
+            if current_volume is None:
+                try:
+                    # For Zone2, use _synchronize_state which is optimized for Zone2
+                    await self._synchronize_state(zone_id=2)
+                    current_volume = getattr(self.state, "zone2_volume", None)
+                    logger.debug(f"Synchronized Zone2 volume state: {current_volume}")
+                except Exception as e:
+                    logger.warning(f"Failed to synchronize Zone2 volume: {str(e)}")
+                    # Continue with volume setting even if we couldn't verify state
+                
+        # If volume is already at the requested level, skip setting it
+        if current_volume is not None and abs(current_volume - level) < 0.1:  # Small tolerance for float comparison
+            logger.debug(f"Volume for zone {zone_id} already at {level} dB, skipping command")
+            return self.create_command_result(
+                success=True,
+                message=f"Volume for zone {zone_id} already at {level} dB",
+                volume=level,
+                zone=zone_id
+            )
+        
         try:
-            # Use our zone-specific helper
-            success = await self._set_zone_volume(zone_id, level)
-            
-            if not success:
+            # Set volume for the specified zone
+            if zone == Zone.MAIN:
+                await self.client.set_volume(level, zone=zone)
+                self.update_state(volume=level)
+                logger.debug(f"Set main zone volume to {level} dB")
+            elif zone == Zone.ZONE2:
+                await self.client.set_volume(level, zone=zone)
+                self.update_state(zone2_volume=level)
+                logger.debug(f"Set zone 2 volume to {level} dB")
+            else:
+                logger.warning(f"Unsupported zone: {zone}")
                 return self.create_command_result(
                     success=False,
-                    error=f"Failed to set volume for zone {zone_id}"
+                    error=f"Unsupported zone: {zone_id}"
                 )
             
             # Clear any errors
@@ -1121,51 +1206,8 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 error=error_message
             )
             
-    async def _toggle_zone_mute(self, zone_id: Union[int, str]) -> Tuple[bool, bool]:
-        """Toggle mute state for a specific zone.
-        
-        Args:
-            zone_id: Zone ID (1 for main, 2 for zone2)
-            
-        Returns:
-            Tuple of (success status, new mute state)
-        """
-        if not self.client:
-            logger.warning("Cannot toggle mute: client not initialized")
-            return False, False
-            
-        try:
-            # Get the zone enum
-            zone = self._get_zone(zone_id)
-            
-            # Toggle mute for the specified zone
-            if zone == Zone.MAIN:
-                await self.client.mute()
-                current_mute = self.state.mute
-                new_mute = not current_mute if current_mute is not None else True
-                self.update_state(mute=new_mute)
-            elif zone == Zone.ZONE2:
-                # Use the zone_mute method if available, otherwise fall back
-                if hasattr(self.client, "zone_mute"):
-                    await self.client.zone_mute(zone)
-                else:
-                    await self.client.zone2_mute()
-                current_mute = getattr(self.state, "zone2_mute", None)
-                new_mute = not current_mute if current_mute is not None else True
-                self.update_state(zone2_mute=new_mute)
-            else:
-                logger.warning(f"Unsupported zone: {zone}")
-                return False, False
-                
-            logger.debug(f"Toggled mute for zone {zone_id} to {new_mute}")
-            return True, new_mute
-        except Exception as e:
-            logger.error(f"Error toggling mute for zone {zone_id}: {str(e)}")
-            return False, False
-
     async def handle_mute_toggle(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
-        """
-        Handle toggling mute state.
+        """Handle toggling mute state.
         
         Args:
             cmd_config: Command configuration
@@ -1174,6 +1216,18 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         Returns:
             Command execution result
         """
+        # If client is not initialized or not connected, reconnect first
+        if not self.client or not self.state.connected:
+            logger.info(f"Device {self.get_name()} not connected, attempting reconnection before toggling mute")
+            try:
+                await self.setup()
+            except Exception as e:
+                logger.error(f"Failed to reconnect device {self.get_name()} before toggling mute: {str(e)}")
+                return self.create_command_result(
+                    success=False,
+                    error=f"Failed to connect to device: {str(e)}"
+                )
+        
         # Get zone parameter if specified
         zone_id = 1  # Default to main zone
         
@@ -1193,14 +1247,54 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             if zone_value is not None:
                 zone_id = zone_value
         
+        # Get zone as enum
+        zone = self._get_zone(zone_id)
+        
         try:
-            # Use our zone-specific helper
-            success, new_mute = await self._toggle_zone_mute(zone_id)
-            
-            if not success:
+            # Toggle mute for the specified zone
+            if zone == Zone.MAIN:
+                # Get current mute state if unknown
+                if self.state.mute is None:
+                    try:
+                        # Use _refresh_device_state for more efficient state retrieval
+                        updated_properties = await self._refresh_device_state()
+                        logger.debug(f"Refreshed device state before mute toggle: mute={self.state.mute}")
+                    except Exception as e:
+                        logger.warning(f"Failed to refresh mute state: {str(e)}")
+                        # Continue with toggle even if we couldn't verify state
+                
+                # Toggle mute
+                await self.client.mute(zone=zone)
+                
+                # Update state with the new mute value (invert current state)
+                new_mute = not self.state.mute if self.state.mute is not None else True
+                self.update_state(mute=new_mute)
+                logger.debug(f"Toggled main zone mute to {new_mute}")
+            elif zone == Zone.ZONE2:
+                # Get current mute state if unknown
+                current_mute = getattr(self.state, "zone2_mute", None)
+                if current_mute is None:
+                    try:
+                        # Zone2 properties need to be queried individually
+                        zone2_updated = await self._synchronize_state(zone_id=2)
+                        current_mute = getattr(self.state, "zone2_mute", None)
+                        logger.debug(f"Synchronized Zone2 state before mute toggle: zone2_mute={current_mute}")
+                    except Exception as e:
+                        logger.warning(f"Failed to get current zone 2 mute state: {str(e)}")
+                        # Continue with toggle even if we couldn't verify state
+                
+                # Toggle mute
+                await self.client.mute(zone=zone)
+                
+                # Update state with the new mute value (invert current state)
+                new_mute = not current_mute if current_mute is not None else True
+                self.update_state(zone2_mute=new_mute)
+                logger.debug(f"Toggled zone 2 mute to {new_mute}")
+            else:
+                logger.warning(f"Unsupported zone: {zone}")
                 return self.create_command_result(
                     success=False,
-                    error=f"Failed to toggle mute for zone {zone_id}"
+                    error=f"Unsupported zone: {zone_id}"
                 )
             
             # Clear any errors
@@ -1211,7 +1305,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             
             return self.create_command_result(
                 success=True,
-                message=f"Mute for zone {zone_id} {'enabled' if new_mute else 'disabled'} successfully",
+                message=f"Mute for zone {zone_id} toggled successfully",
                 mute=new_mute,
                 zone=zone_id
             )
@@ -1223,4 +1317,122 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 success=False,
                 error=error_message
             )
+            
+    async def handle_reconnect(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
+        """Handle reconnection request.
+        
+        Args:
+            cmd_config: Command configuration
+            params: Parameters (unused)
+            
+        Returns:
+            Command execution result
+        """
+        logger.info(f"Reconnection requested for device: {self.get_name()}")
+        
+        try:
+            # Disconnect if currently connected
+            if self.client and self.state.connected:
+                logger.info(f"Disconnecting before reconnection for: {self.get_name()}")
+                
+                # Let the library handle disconnection
+                await self.client.disconnect()
+                
+                # Update state to reflect disconnection
+                self.update_state(
+                    connected=False,
+                    notifications=False
+                )
+                
+                logger.info(f"Successfully disconnected {self.get_name()} for reconnection")
+            
+            # Re-initialize - setup creates a new client and connects
+            success = await self.setup()
+            
+            if success:
+                self.clear_error()
+                logger.info(f"Reconnection successful for: {self.get_name()}")
+                return self.create_command_result(
+                    success=True, 
+                    message=f"Successfully reconnected to {self.get_name()}"
+                )
+            else:
+                error_msg = f"Reconnection failed for: {self.get_name()}"
+                logger.error(error_msg)
+                return self.create_command_result(success=False, error=error_msg)
+        except Exception as e:
+            error_msg = f"Error during reconnection: {str(e)}"
+            logger.error(error_msg)
+            self.set_error(error_msg)
+            return self.create_command_result(success=False, error=error_msg)
+
+    async def _synchronize_state(self, zone_id: int = 1) -> Dict[str, Any]:
+        """Synchronize device state by querying current values.
+        
+        This method queries the device for current state values and updates the local state.
+        It's useful when the state might be out of sync or when we need to ensure we have
+        the latest values.
+        
+        Args:
+            zone_id: Zone ID (1 for main, 2 for zone2)
+            
+        Returns:
+            Dict[str, Any]: Dictionary of updated properties
+        """
+        if not self.client or not self.state.connected:
+            logger.warning(f"Cannot synchronize state for {self.get_name()}: not connected")
+            return {}
+        
+        zone = self._get_zone(zone_id)
+        
+        # For main zone, use _refresh_device_state to get all properties at once
+        if zone == Zone.MAIN:
+            try:
+                logger.debug(f"Synchronizing all properties for main zone")
+                updated_properties = await self._refresh_device_state()
+                return updated_properties
+            except Exception as e:
+                logger.error(f"Error synchronizing main zone state: {str(e)}")
+                return {}
+                
+        # For Zone2, we need to handle it differently since _refresh_device_state focuses on main zone
+        else:
+            updated_properties = {}
+            try:
+                # Query zone2 power state
+                try:
+                    power_result = await self.client.status(Property.ZONE2_POWER)
+                    power_value = power_result.get(Property.ZONE2_POWER)
+                    self.update_state(zone2_power=power_value)
+                    updated_properties["zone2_power"] = power_value
+                    logger.debug(f"Synchronized Zone2 power state: {power_value}")
+                except Exception as e:
+                    logger.warning(f"Failed to synchronize Zone2 power state: {str(e)}")
+                
+                # Only query other Zone2 properties if powered on
+                if self.state.zone2_power == PowerState.ON:
+                    # Query Zone2 volume
+                    try:
+                        volume_result = await self.client.status(Property.ZONE2_VOLUME)
+                        volume = volume_result.get(Property.ZONE2_VOLUME)
+                        self.update_state(zone2_volume=volume)
+                        updated_properties["zone2_volume"] = volume
+                        logger.debug(f"Synchronized Zone2 volume: {volume}")
+                    except Exception as e:
+                        logger.warning(f"Failed to synchronize Zone2 volume: {str(e)}")
+                        
+                    # Query Zone2 mute state
+                    try:
+                        mute_result = await self.client.status(Property.ZONE2_MUTE)
+                        mute = mute_result.get(Property.ZONE2_MUTE)
+                        self.update_state(zone2_mute=mute)
+                        updated_properties["zone2_mute"] = mute
+                        logger.debug(f"Synchronized Zone2 mute state: {mute}")
+                    except Exception as e:
+                        logger.warning(f"Failed to synchronize Zone2 mute state: {str(e)}")
+                
+                return updated_properties
+            except Exception as e:
+                logger.error(f"Error synchronizing Zone2 state: {str(e)}")
+                return updated_properties
 
