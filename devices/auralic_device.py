@@ -375,7 +375,7 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             try:
                 # If device is marked as in deep sleep mode, update state accordingly
                 if self._deep_sleep_mode:
-                    logger.debug("Device in deep sleep mode, skipping state update")
+                    # logger.debug("Device in deep sleep mode, skipping state update")
                     self.update_state(connected=False, power="off", deep_sleep=True)
                     consecutive_errors += 1
                 else:

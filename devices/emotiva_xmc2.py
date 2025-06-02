@@ -41,7 +41,6 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         Property.POWER,              # Main zone power
         Property.ZONE2_POWER,        # Zone 2 power
         Property.VOLUME,             # Main volume
-        Property.MUTE,               # Mute status
         Property.SOURCE,             # Current input
         Property.AUDIO_INPUT,        # Audio input
         Property.VIDEO_INPUT,        # Video input
@@ -302,7 +301,6 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         Property.ZONE2_POWER: "zone2_power",
         Property.VOLUME: "volume",
         Property.ZONE2_VOLUME: "zone2_volume",
-        Property.MUTE: "mute",
         Property.SOURCE: "source",
         Property.AUDIO_INPUT: "audio_input",
         Property.VIDEO_INPUT: "video_input",
@@ -563,7 +561,6 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 Property.POWER,              # Main zone power
                 Property.ZONE2_POWER,        # Zone 2 power
                 Property.VOLUME,             # Main volume
-                Property.MUTE,               # Mute status
                 Property.SOURCE,             # Current input
                 Property.AUDIO_INPUT,        # Audio input
                 Property.VIDEO_INPUT,        # Video input

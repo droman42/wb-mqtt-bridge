@@ -253,6 +253,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Add this after creating the FastAPI app instance
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # For local network, allow all origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Include routers
 app.include_router(system.router)
 app.include_router(devices.router)

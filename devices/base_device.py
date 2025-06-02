@@ -480,7 +480,7 @@ class BaseDevice(ABC, Generic[StateT]):
         
         # If no changes, exit early
         if not has_changes:
-            logger.debug(f"No actual state changes for {self.device_name}")
+            # logger.debug(f"No actual state changes for {self.device_name}")
             return
         
         # Preserve the concrete state type when updating
