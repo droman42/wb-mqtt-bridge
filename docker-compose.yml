@@ -40,26 +40,6 @@ services:
           memory: 256M
           cpus: '0.5'
 
-  nginx:
-    # Specific ARM-compatible Nginx image based on Debian Bullseye for Wirenboard 7
-    image: arm32v7/nginx:1.22-bullseye
-    container_name: wb-mqtt-bridge-nginx
-    restart: unless-stopped
-    ports:
-      - "${NGINX_PORT:-8081}:80"
-    volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-    depends_on:
-      - wb-mqtt-bridge
-    networks:
-      - mqtt-network
-    # Limit resources on ARMv7 devices
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-          cpus: '0.2'
-
 networks:
   mqtt-network:
     driver: bridge 

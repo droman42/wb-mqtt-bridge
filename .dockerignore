@@ -89,7 +89,7 @@ TODO.md
 info/
 share/
 test_*.py
-nginx/
+
 tests/
 requirements_dev.txt
 

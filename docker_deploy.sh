@@ -1,42 +1,6 @@
 #!/bin/bash
 
-# Add this function at the beginning of the script, before the show_help function
-install_arm_packages() {
-    echo "Pre-installing ARM-compatible packages to ensure they're available..."
-    
-    # Create a secure temporary directory for downloading packages
-    TMP_DIR=$(mktemp -d)
-    
-    # Make sure to clean up on exit
-    trap 'rm -rf "$TMP_DIR"' EXIT
-    
-    cd "$TMP_DIR"
-    
-    # Try multiple versions of cryptography that are known to work well on ARM
-    echo "Trying to find a compatible cryptography wheel for ARMv7..."
-    
-    # List of versions to try, from most to least preferred
-    CRYPTO_VERSIONS=("36.0.2" "35.0.0" "3.4.8" "3.3.2")
-    FOUND_CRYPTO=false
-    
-    for VERSION in "${CRYPTO_VERSIONS[@]}"; do
-        echo "Trying cryptography version $VERSION..."
-        if pip download --platform=linux_armv7l --only-binary=:all: cryptography==$VERSION 2>/dev/null; then
-            echo "✓ Found compatible cryptography $VERSION for ARMv7"
-            FOUND_CRYPTO=true
-            # Update the Dockerfile to use this version
-            sed -i "s/ARG CRYPTO_VERSION=.*$/ARG CRYPTO_VERSION=$VERSION/g" Dockerfile
-            break
-        fi
-    done
-    
-    if [ "$FOUND_CRYPTO" = false ]; then
-        echo "⚠️ Could not find any compatible cryptography wheel for ARMv7"
-        echo "⚠️ Will use PiWheels repository during build (configured in Dockerfile)"
-    fi
-    
-    cd - > /dev/null
-}
+
 
 # Help message
 show_help() {
@@ -227,27 +191,7 @@ if [ ! -f .env ]; then
 fi
 
 # Create necessary directories
-mkdir -p logs config/devices nginx/conf.d
-
-# Check if nginx config exists
-if [ ! -f nginx/conf.d/default.conf ]; then
-    echo "Creating default nginx configuration..."
-    cat > nginx/conf.d/default.conf << 'EOL'
-server {
-    listen 80;  # This is the internal port (remains 80)
-    server_name localhost;
-
-    # The service will be available externally on port 8081 (or NGINX_PORT from .env)
-    location / {
-        proxy_pass http://wb-mqtt-bridge:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-EOL
-fi
+mkdir -p logs config/devices
 
 # Save Docker images as tar files for transfer to Wirenboard
 save_images() {
@@ -266,35 +210,16 @@ save_images() {
         echo "✓ Saved wb-mqtt-bridge:latest"
     fi
     
-    echo "Pulling and saving arm32v7/nginx image..."
-    # Pull the image first before trying to save it
-    if ! docker pull arm32v7/nginx:1.22-bullseye; then
-        echo "Error: Failed to pull arm32v7/nginx:1.22-bullseye"
-        echo "This may be because:"
-        echo "1. You don't have internet connection"
-        echo "2. The image doesn't exist or has been renamed"
-        echo "3. Docker buildx emulation isn't properly configured"
-        
-        # Create an empty file as a placeholder
-        touch "$save_dir/nginx-arm32v7.tar.gz"
-        echo "Created empty placeholder file. You will need to manually transfer the nginx image."
-    else
-        docker save arm32v7/nginx:1.22-bullseye | gzip > "$save_dir/nginx-arm32v7.tar.gz"
-        echo "✓ Saved arm32v7/nginx:1.22-bullseye"
-    fi
-    
     echo "Saving docker-compose.yml and related files..."
-    tar -czf "$save_dir/wb-mqtt-bridge-config.tar.gz" docker-compose.yml nginx/conf.d .env
+    tar -czf "$save_dir/wb-mqtt-bridge-config.tar.gz" docker-compose.yml .env
     echo "✓ Saved configuration files"
     
     echo "Images and configuration saved to:"
     echo "  $save_dir/wb-mqtt-bridge.tar.gz"
-    echo "  $save_dir/nginx-arm32v7.tar.gz"
     echo "  $save_dir/wb-mqtt-bridge-config.tar.gz"
     echo
     echo "Transfer these files to your Wirenboard 7 device and run:"
     echo "  docker load -i wb-mqtt-bridge.tar.gz"
-    echo "  docker load -i nginx-arm32v7.tar.gz"
     echo "  tar -xzf wb-mqtt-bridge-config.tar.gz"
     echo "  docker-compose up -d"
 }
@@ -334,13 +259,7 @@ transfer_images() {
         exit 1
     fi
     
-    # Check if nginx image exists and has content
-    if [ -f "$save_dir/nginx-arm32v7.tar.gz" ] && [ -s "$save_dir/nginx-arm32v7.tar.gz" ]; then
-        echo "Transferring nginx-arm32v7.tar.gz..."
-        scp "$save_dir/nginx-arm32v7.tar.gz" root@$wb_ip:"$target_dir/" || echo "Warning: Failed to transfer nginx image, will try to pull it directly on Wirenboard"
-    else
-        echo "Nginx image not found or is empty. Will try to pull it directly on Wirenboard."
-    fi
+
     
     # Transfer config files
     echo "Transferring configuration files..."
@@ -353,13 +272,6 @@ transfer_images() {
     SSH_COMMAND="cd $target_dir && \
         tar -xzf wb-mqtt-bridge-config.tar.gz && \
         docker load -i wb-mqtt-bridge.tar.gz"
-    
-    # Add nginx image loading if it exists
-    if [ -f "$save_dir/nginx-arm32v7.tar.gz" ] && [ -s "$save_dir/nginx-arm32v7.tar.gz" ]; then
-        SSH_COMMAND="$SSH_COMMAND && docker load -i nginx-arm32v7.tar.gz"
-    else
-        SSH_COMMAND="$SSH_COMMAND && docker pull arm32v7/nginx:1.22-bullseye || echo 'Warning: Failed to pull nginx image. You may need to transfer it manually.'"
-    fi
     
     # Start containers
     SSH_COMMAND="$SSH_COMMAND && docker-compose up -d"
@@ -385,7 +297,6 @@ fi
 # Build and start containers
 if [ "$BUILD" = true ]; then
     if [ "$CROSS_COMPILE" = true ]; then
-        install_arm_packages
         echo "Building with Docker Buildx for ARM architecture (Wirenboard 7)..."
         
         # Use buildx for cross-platform build of both services

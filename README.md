@@ -96,7 +96,7 @@ mkdir -p config/devices
 ./docker_deploy.sh --restart
 ```
 
-The web service will be available at http://localhost:8000 (API) and http://localhost:8081 (Nginx frontend).
+The web service will be available at http://localhost:8000.
 
 ### Wirenboard 7 Deployment
 

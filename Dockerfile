@@ -1,7 +1,6 @@
 # Define architecture argument with default
 ARG ARCH=
 ARG LEAN=false
-ARG CRYPTO_VERSION=3.4.8
 
 # ===== Build Stage =====
 FROM ${ARCH:+$ARCH/}python:3.11-slim-bullseye AS builder
@@ -21,6 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     pkg-config \
     libsqlite3-0 \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Configure pip to use PiWheels for ARM
@@ -42,25 +42,29 @@ COPY requirements.txt ./
 # Create a modified requirements file excluding cryptography and broadlink
 RUN grep -v "cryptography\|broadlink" requirements.txt > requirements_modified.txt || true
 
-# Install packages from modified requirements first
-RUN pip install --no-cache-dir -r requirements_modified.txt
-
-# Try to install cryptography from a specific version
-# If this fails, it will fall back to a compatible version
-RUN pip install --no-cache-dir cryptography==${CRYPTO_VERSION} || \
-    pip install --no-cache-dir cryptography
-
-# Install broadlink (depends on cryptography)
-RUN pip install --no-cache-dir broadlink==0.18.0 || \
-    pip install --no-cache-dir broadlink
-
-# Create a virtual environment
+# Create a virtual environment early and set PATH
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Install all packages in the virtual environment
-RUN pip install --no-cache-dir -r requirements_modified.txt && \
-    pip install --no-cache-dir cryptography==${CRYPTO_VERSION} || pip install --no-cache-dir cryptography && \
+# Install all packages directly in the virtual environment (no system Python installation)
+RUN echo "Installing packages in virtual environment..." && \
+    pip install --no-cache-dir -r requirements_modified.txt && \
+    echo "Installing cryptography with optimal version detection..." && \
+    CRYPTO_VERSIONS="36.0.2 35.0.0 3.4.8 3.3.2" && \
+    CRYPTO_INSTALLED=false && \
+    for VERSION in $CRYPTO_VERSIONS; do \
+        echo "Attempting cryptography version $VERSION..." && \
+        if pip install --no-cache-dir cryptography==$VERSION 2>/dev/null; then \
+            echo "✓ Successfully installed cryptography $VERSION" && \
+            CRYPTO_INSTALLED=true && \
+            break; \
+        fi; \
+    done && \
+    if [ "$CRYPTO_INSTALLED" = "false" ]; then \
+        echo "⚠️ All specific versions failed, trying latest compatible version..." && \
+        pip install --no-cache-dir cryptography; \
+    fi && \
+    echo "Installing broadlink (depends on cryptography)..." && \
     pip install --no-cache-dir broadlink==0.18.0
 
 # ===== Final Stage =====
@@ -88,9 +92,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy application code
 COPY app/ ./app/
 COPY devices/ ./devices/
+COPY config/ ./config/
 
 # Create necessary directories
-RUN mkdir -p logs config/devices
+RUN mkdir -p logs data
 
 # For lean builds, set additional optimizations
 ARG LEAN=false

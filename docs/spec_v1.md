@@ -6,7 +6,7 @@ This project is a Python-based web service that acts as an MQTT client to manage
 - Handle device-specific actions via individual Python modules.
 - Use a plugin-based architecture for extendability.
 - Store device configurations in JSON files.
-- Run as an asynchronous service behind an Nginx reverse proxy.
+- Run as an asynchronous web service.
 - Log events and errors to a file.
 
 ## Architecture
@@ -21,7 +21,7 @@ This project is a Python-based web service that acts as an MQTT client to manage
 ### 1. Web Service (FastAPI)
 - Serves a REST API to interact with the system (e.g., list devices, reload config).
 - Runs asynchronously with `uvicorn`.
-- Deployed behind an Nginx reverse proxy.
+- Deployed as a standalone web service.
 
 ### 2. MQTT Client
 - Uses `asyncio-mqtt` to:
@@ -58,7 +58,7 @@ This project is a Python-based web service that acts as an MQTT client to manage
 3. **Create plugin system** to dynamically load device modules.
 4. **Handle JSON-based configuration**.
 5. **Implement logging and error handling**.
-6. **Deploy behind Nginx**.
+6. **Deploy as a web service**.
 
 ## Future Enhancements
 - Add a web UI for device management.
