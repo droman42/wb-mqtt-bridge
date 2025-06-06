@@ -38,19 +38,50 @@ RUN grep -v -E "pytest|git\+|^#|^$" requirements.txt > requirements_modified.txt
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Install all packages directly in the virtual environment with optimizations
+# Install packages in steps for better ARM compatibility
 RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing packages in virtual environment with optimizations..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary --no-compile \
-        -r requirements_modified.txt \
-        cryptography>=40.0 \
-        broadlink==0.18.0 && \
-    echo "Installing Git dependencies..." && \
+    echo "Installing basic packages from requirements..." && \
     pip install --cache-dir=/tmp/pip-cache --prefer-binary \
-        git+https://github.com/postlund/pyatv.git@f75e718bc0bdaf0a3ff06eb00086f781b3f06347#egg=pyatv \
-        git+https://github.com/droman42/pymotivaxmc2.git \
-        git+https://github.com/droman42/asyncwebostv.git \
+        -r requirements_modified.txt
+
+# Install cryptography separately with ARM-specific handling
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/tmp/pip-cache \
+    echo "Installing cryptography for ARM..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary \
+        cryptography>=40.0
+
+# Install broadlink after cryptography
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/tmp/pip-cache \
+    echo "Installing broadlink..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary \
+        broadlink==0.18.0
+
+# Install Git dependencies one by one to isolate any failures
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/tmp/pip-cache \
+    echo "Installing pyatv..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary \
+        git+https://github.com/postlund/pyatv.git@f75e718bc0bdaf0a3ff06eb00086f781b3f06347#egg=pyatv
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/tmp/pip-cache \
+    echo "Installing pymotivaxmc2..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary \
+        git+https://github.com/droman42/pymotivaxmc2.git
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/tmp/pip-cache \
+    echo "Installing asyncwebostv..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary \
+        git+https://github.com/droman42/asyncwebostv.git
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/tmp/pip-cache \
+    echo "Installing asyncmiele..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary \
         git+https://github.com/droman42/asyncmiele.git
 
 # ===== Final Stage =====
