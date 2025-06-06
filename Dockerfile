@@ -31,19 +31,85 @@ RUN mkdir -p /etc/pip && \
 # Copy only requirements file
 COPY requirements.txt ./
 
-# Create a modified requirements file excluding dev dependencies and git packages
-RUN grep -v -E "pytest|git\+|^#|^$" requirements.txt > requirements_modified.txt || true
-
 # Create a virtual environment early and set PATH
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Install packages in steps for better ARM compatibility
+# Install core packages individually to isolate any failures
 RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing basic packages from requirements..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary \
-        -r requirements_modified.txt
+    echo "Installing fastapi..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary "fastapi>=0.103.0"
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/tmp/pip-cache \
+    echo "Installing uvicorn..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary "uvicorn>=0.23.2"
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/tmp/pip-cache \
+    echo "Installing pydantic..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary "pydantic>=2.11.0"
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/tmp/pip-cache \
+    echo "Installing python-dotenv..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary "python-dotenv>=1.0.0"
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/tmp/pip-cache \
+    echo "Installing typing_extensions..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary "typing_extensions>=4.7.0"
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/tmp/pip-cache \
+    echo "Installing aiomqtt..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary "aiomqtt>=1.0.0"
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/tmp/pip-cache \
+    echo "Installing paho-mqtt..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary "paho-mqtt>=1.6.1"
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/tmp/pip-cache \
+    echo "Installing aiohttp..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary "aiohttp>=3.8.1"
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/tmp/pip-cache \
+    echo "Installing pyyaml..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary "pyyaml>=6.0"
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/tmp/pip-cache \
+    echo "Installing jsonschema..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary "jsonschema>=4.4.0"
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/tmp/pip-cache \
+    echo "Installing httpx..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary httpx
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/tmp/pip-cache \
+    echo "Installing requests..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary requests
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/tmp/pip-cache \
+    echo "Installing websockets..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary "websockets>=10.2"
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/tmp/pip-cache \
+    echo "Installing openhomedevice..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary "openhomedevice>=1.2.0"
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/tmp/pip-cache \
+    echo "Installing pyOpenSSL..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary "pyOpenSSL>=23.2.0"
 
 # Install cryptography separately with ARM-specific handling
 RUN --mount=type=cache,target=/root/.cache/pip \
