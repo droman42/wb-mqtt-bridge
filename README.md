@@ -172,6 +172,16 @@ The application is optimized for deployment on Wirenboard 7 controllers, which u
 - **SSH access** to your Wirenboard device
 - **Docker with Buildx support** (for cross-platform builds)
 
+#### Quick Start - Choose Your Deployment Method
+
+| Method | Speed | Use Case | Prerequisites |
+|--------|-------|----------|--------------|
+| **GitHub Actions** ⚡ | ~15-20 min | Recommended for most users | GitHub account, git |
+| **Local Cross-Build** 🐌 | ~60+ min | Development/customization | Docker Buildx, powerful machine |
+| **Direct on WB7** 🏠 | ~45 min | Building directly on device | SSH access to Wirenboard |
+
+**👍 Recommended: Use GitHub Actions** for fastest builds and easier management.
+
 #### Option 1: Direct Build on Wirenboard 7
 
 If you're running the deployment directly on your Wirenboard 7:
@@ -192,7 +202,81 @@ mkdir -p config/devices
 ./docker_deploy.sh --build
 ```
 
-#### Option 2: Cross-Platform Build and Transfer (Recommended)
+#### Option 2: GitHub Actions Build (Recommended for Speed)
+
+For fast ARM builds using GitHub's infrastructure instead of local cross-compilation:
+
+1. **Setup and trigger build**:
+```bash
+git clone https://github.com/droman42/wb-mqtt-bridge.git
+cd wb-mqtt-bridge
+
+# Configure for your Wirenboard
+cp .env.example .env
+nano .env
+
+# Add device configurations
+mkdir -p config/devices
+# Copy your device configuration files to config/devices/
+
+# Push to GitHub to trigger ARM build (or use GitHub web interface)
+git add .
+git commit -m "Configure for Wirenboard deployment"
+git push
+```
+
+2. **Download build artifacts**:
+   - Go to your repository on GitHub
+   - Click **"Actions"** tab
+   - Click on the latest **"Build ARM Docker Image"** workflow run
+   - Scroll down to **"Artifacts"** section
+   - Download both files:
+     - **`wb-mqtt-bridge-image`** (contains `wb-mqtt-bridge.tar.gz`)
+     - **`wb-mqtt-bridge-config`** (contains `wb-mqtt-bridge-config.tar.gz`)
+
+3. **Extract artifacts**:
+```bash
+# Create a directory for deployment files
+mkdir -p ./deploy
+
+# Extract the Docker image archive
+unzip wb-mqtt-bridge-image.zip -d ./deploy
+# This creates: ./deploy/wb-mqtt-bridge.tar.gz
+
+# Extract the configuration archive  
+unzip wb-mqtt-bridge-config.zip -d ./deploy
+# This creates: ./deploy/wb-mqtt-bridge-config.tar.gz
+```
+
+4. **Transfer to Wirenboard**:
+```bash
+# Replace 192.168.1.100 with your Wirenboard's IP address
+scp ./deploy/wb-mqtt-bridge.tar.gz root@192.168.1.100:/tmp/
+scp ./deploy/wb-mqtt-bridge-config.tar.gz root@192.168.1.100:/tmp/
+
+# SSH into Wirenboard and deploy
+ssh root@192.168.1.100 '
+  cd /tmp
+  tar -xzf wb-mqtt-bridge-config.tar.gz
+  docker load -i wb-mqtt-bridge.tar.gz
+  docker stop wb-mqtt-bridge 2>/dev/null || true
+  docker rm wb-mqtt-bridge 2>/dev/null || true
+  docker run -d --name wb-mqtt-bridge --restart unless-stopped -p 8000:8000 \
+    -v $(pwd)/config:/app/config:ro \
+    -v $(pwd)/logs:/app/logs \
+    -v $(pwd)/data:/app/data \
+    --memory=256M --cpus=0.5 \
+    wb-mqtt-bridge:latest
+'
+```
+
+**Benefits of GitHub Actions approach:**
+- ⚡ **Much faster**: ~15-20 minutes vs 1+ hour for local ARM cross-compilation
+- 🔄 **Consistent builds**: Same environment every time
+- 💻 **Saves local resources**: No impact on your development machine
+- 🔒 **Cached builds**: Subsequent builds are even faster due to GitHub's cache
+
+#### Option 3: Local Cross-Platform Build and Transfer
 
 For building on a development machine and deploying to Wirenboard:
 

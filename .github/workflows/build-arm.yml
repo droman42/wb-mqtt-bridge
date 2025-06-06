@@ -1,0 +1,68 @@
+name: Build ARM Docker Image
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-arm:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      with:
+        driver-opts: |
+          network=host
+          
+    - name: Build ARM image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/arm/v7
+        tags: wb-mqtt-bridge:latest
+        outputs: type=docker,dest=/tmp/wb-mqtt-bridge-armv7.tar
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          ARCH=arm32v7
+          LEAN=true
+          
+    - name: Compress Docker image
+      run: |
+        gzip /tmp/wb-mqtt-bridge-armv7.tar
+        mv /tmp/wb-mqtt-bridge-armv7.tar.gz /tmp/wb-mqtt-bridge.tar.gz
+        
+    - name: Create configuration archive
+      run: |
+        # Create directories if they don't exist
+        mkdir -p config logs data
+        
+        # Create configuration tar.gz (matching docker_deploy.sh logic)
+        if [ -f .env ]; then
+          tar -czf /tmp/wb-mqtt-bridge-config.tar.gz config/ logs/ data/ .env
+        else
+          tar -czf /tmp/wb-mqtt-bridge-config.tar.gz config/ logs/ data/
+        fi
+        
+    - name: Upload Docker image
+      uses: actions/upload-artifact@v4
+      with:
+        name: wb-mqtt-bridge-image
+        path: /tmp/wb-mqtt-bridge.tar.gz
+        retention-days: 7
+        
+    - name: Upload configuration files
+      uses: actions/upload-artifact@v4
+      with:
+        name: wb-mqtt-bridge-config
+        path: /tmp/wb-mqtt-bridge-config.tar.gz
+        retention-days: 7 

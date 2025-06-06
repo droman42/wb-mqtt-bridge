@@ -39,13 +39,15 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Install all packages directly in the virtual environment with optimizations
-RUN echo "Installing packages in virtual environment with optimizations..." && \
-    pip install --no-cache-dir --prefer-binary --no-compile \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/tmp/pip-cache \
+    echo "Installing packages in virtual environment with optimizations..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary --no-compile \
         -r requirements_modified.txt \
         cryptography>=40.0 \
         broadlink==0.18.0 && \
     echo "Installing Git dependencies with minimal checkout..." && \
-    pip install --no-cache-dir --only-binary=:none: \
+    pip install --cache-dir=/tmp/pip-cache --only-binary=:none: \
         git+https://github.com/postlund/pyatv.git@f75e718bc0bdaf0a3ff06eb00086f781b3f06347#egg=pyatv \
         git+https://github.com/droman42/pymotivaxmc2.git \
         git+https://github.com/droman42/asyncwebostv.git \

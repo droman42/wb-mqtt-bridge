@@ -297,8 +297,11 @@ if [ "$BUILD" = true ]; then
             export DOCKER_BUILDKIT=1
         fi
         
+        # Build with cache mounts for speed
         docker buildx build \
             $BUILD_ARGS \
+            --cache-from type=local,src=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache \
             --tag wb-mqtt-bridge:latest \
             --load \
             .
