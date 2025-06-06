@@ -39,6 +39,5 @@ git+https://github.com/postlund/pyatv.git@f75e718bc0bdaf0a3ff06eb00086f781b3f063
 httpx
 requests
 
-# New dependency
+# Auralic device support
 openhomedevice>=1.2.0
-upnpclient

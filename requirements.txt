@@ -36,6 +36,5 @@ git+https://github.com/droman42/asyncmiele.git
 httpx
 requests
 
-# New dependency
+# Auralic device support
 openhomedevice>=1.2.0
-upnpclient

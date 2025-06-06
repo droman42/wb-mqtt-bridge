@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     pkg-config \
     libsqlite3-0 \
+    zlib1g-dev \
     git \
     && rm -rf /var/lib/apt/lists/*
 
@@ -30,8 +31,8 @@ RUN mkdir -p /etc/pip && \
 # Copy only requirements file
 COPY requirements.txt ./
 
-# Create a modified requirements file excluding problematic packages and dev dependencies
-RUN grep -v -E "cryptography|broadlink|pytest|git\+|^#|^$" requirements.txt > requirements_modified.txt || true
+# Create a modified requirements file excluding dev dependencies and git packages
+RUN grep -v -E "pytest|git\+|^#|^$" requirements.txt > requirements_modified.txt || true
 
 # Create a virtual environment early and set PATH
 RUN python -m venv /opt/venv
@@ -39,24 +40,10 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Install all packages directly in the virtual environment with optimizations
 RUN echo "Installing packages in virtual environment with optimizations..." && \
-    pip install --no-cache-dir --only-binary=all --no-compile -r requirements_modified.txt && \
-    echo "Installing cryptography with optimal version detection..." && \
-    CRYPTO_VERSIONS="36.0.2 35.0.0 3.4.8 3.3.2" && \
-    CRYPTO_INSTALLED=false && \
-    for VERSION in $CRYPTO_VERSIONS; do \
-        echo "Attempting cryptography version $VERSION..." && \
-        if pip install --no-cache-dir --only-binary=all --no-compile cryptography==$VERSION 2>/dev/null; then \
-            echo "✓ Successfully installed cryptography $VERSION" && \
-            CRYPTO_INSTALLED=true && \
-            break; \
-        fi; \
-    done && \
-    if [ "$CRYPTO_INSTALLED" = "false" ]; then \
-        echo "⚠️ All specific versions failed, trying latest compatible version..." && \
-        pip install --no-cache-dir --only-binary=all --no-compile cryptography; \
-    fi && \
-    echo "Installing broadlink (depends on cryptography)..." && \
-    pip install --no-cache-dir --only-binary=all --no-compile broadlink==0.18.0 && \
+    pip install --no-cache-dir --prefer-binary --no-compile \
+        -r requirements_modified.txt \
+        cryptography>=40.0 \
+        broadlink==0.18.0 && \
     echo "Installing Git dependencies with minimal checkout..." && \
     pip install --no-cache-dir --only-binary=:none: \
         git+https://github.com/postlund/pyatv.git@f75e718bc0bdaf0a3ff06eb00086f781b3f06347#egg=pyatv \

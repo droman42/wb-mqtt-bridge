@@ -1,6 +1,5 @@
 import logging
 import asyncio
-import upnpclient
 from typing import Dict, Any, List, Optional, cast, Tuple
 from datetime import datetime
 from urllib.parse import urlparse
@@ -11,6 +10,7 @@ import time
 import json
 
 from openhomedevice.device import Device as OpenHomeDevice
+from async_upnp_client.search import SsdpSearchListener
 
 from devices.base_device import BaseDevice
 from app.schemas import AuralicDeviceState, LastCommand, AuralicDeviceConfig, BaseCommandConfig
@@ -207,68 +207,81 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             logger.debug(f"Error extracting device properties: {str(e)}")
             return None, None, None
     
-    def _discover_device_url(self) -> Optional[str]:
-        """Discover Auralic device URL using upnpclient, filtered by IP address."""
+    async def _discover_device_url_async(self) -> Optional[str]:
+        """Discover Auralic device URL using async_upnp_client, filtered by IP address."""
         try:
             logger.info(f"Discovering UPnP devices at IP {self.ip_address}...")
             
-            # Perform general UPnP discovery
-            devices = upnpclient.discover()
-            if not devices:
-                logger.error("No UPnP devices found on network")
-                return None
-                
-            logger.debug(f"Found {len(devices)} UPnP devices, filtering by IP {self.ip_address}")
+            # Store discovered devices
+            discovered_devices = []
             
-            # Filter devices by IP address
-            matching_devices = []
-            for device in devices:
+            def device_discovered(response):
+                """Callback for when a device is discovered."""
                 try:
-                    # Extract IP from device.location URL
-                    parsed_url = urlparse(device.location)
+                    # Extract location URL from SSDP response
+                    location = response.get('LOCATION') or response.get('location')
+                    if not location:
+                        return
+                    
+                    # Extract IP from location URL  
+                    parsed_url = urlparse(location)
                     device_ip = parsed_url.hostname
                     
+                    # Only process devices at our target IP
                     if device_ip == self.ip_address:
-                        logger.debug(f"Found device at {self.ip_address}: {device.friendly_name}")
+                        logger.debug(f"Found device at {self.ip_address}: {location}")
+                        
+                        # Get device properties from XML description
+                        device_type, friendly_name, manufacturer = self._get_device_properties(location)
                         
                         # Check if this is an Auralic device by manufacturer or name
-                        is_auralic_by_manufacturer = (hasattr(device, 'manufacturer') and 
-                                                     "AURALIC" in str(device.manufacturer).upper())
-                        is_matching_name = (hasattr(device, 'friendly_name') and 
-                                           self.device_name.lower() in str(device.friendly_name).lower())
+                        is_auralic_by_manufacturer = (manufacturer and "AURALIC" in str(manufacturer).upper())
+                        is_matching_name = (friendly_name and self.device_name.lower() in str(friendly_name).lower())
                         
                         if is_auralic_by_manufacturer or is_matching_name:
                             device_info = {
-                                "location": device.location,
-                                "friendly_name": getattr(device, 'friendly_name', 'Unknown'),
-                                "manufacturer": getattr(device, 'manufacturer', 'Unknown')
+                                "location": location,
+                                "friendly_name": friendly_name or 'Unknown',
+                                "manufacturer": manufacturer or 'Unknown',
+                                "device_type": device_type
                             }
                             
-                            # Get device type from the XML
-                            device_type, xml_friendly_name, xml_manufacturer = self._get_device_properties(device.location)
-                            device_info["device_type"] = device_type
+                            logger.info(f"Found potential device: {device_info['friendly_name']} ({device_info['device_type']}) at {location}")
+                            discovered_devices.append(device_info)
                             
-                            # If we got additional info from XML, update device info
-                            if xml_friendly_name:
-                                device_info["friendly_name"] = xml_friendly_name
-                            if xml_manufacturer:
-                                device_info["manufacturer"] = xml_manufacturer
-                                
-                            logger.info(f"Found potential device: {device_info['friendly_name']} ({device_info['device_type']}) at {device.location}")
-                            matching_devices.append(device_info)
                 except Exception as e:
-                    logger.debug(f"Error processing device: {e}")
-                    continue
+                    logger.debug(f"Error processing discovered device: {e}")
             
-            if not matching_devices:
+            # Create SSDP search listener
+            search_listener = SsdpSearchListener(
+                callback=device_discovered,
+                timeout=4,  # 4 second timeout
+                search_target='ssdp:all'  # Search for all devices
+            )
+            
+            # Start discovery
+            await search_listener.async_start()
+            try:
+                # Perform the search
+                search_listener.async_search()  # This is not an async method either
+                
+                # Wait for responses (timeout is handled by the listener)
+                await asyncio.sleep(4.5)  # Slightly longer than timeout to catch late responses
+                
+            finally:
+                search_listener.async_stop()  # This is not an async method
+            
+            if not discovered_devices:
                 logger.error(f"No Auralic devices found at IP {self.ip_address}")
                 return None
                 
-            # Prioritize devices by device type and name match
+            logger.debug(f"Found {len(discovered_devices)} matching devices, applying prioritization")
+            
+            # Prioritize devices by device type and name match (same logic as before)
             media_renderer_devices = []
             name_matching_devices = []
             
-            for device in matching_devices:
+            for device in discovered_devices:
                 # Check if it's a MediaRenderer
                 if device.get("device_type") and "MediaRenderer" in device.get("device_type", ""):
                     media_renderer_devices.append(device)
@@ -294,11 +307,32 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                 return name_matching_devices[0]["location"]
             
             # Fallback: Use the first device
-            logger.info(f"Using first discovered device: {matching_devices[0]['friendly_name']} at {matching_devices[0]['location']}")
-            return matching_devices[0]["location"]
+            logger.info(f"Using first discovered device: {discovered_devices[0]['friendly_name']} at {discovered_devices[0]['location']}")
+            return discovered_devices[0]["location"]
             
         except Exception as e:
             logger.error(f"Error during device discovery: {str(e)}")
+            return None
+
+    def _discover_device_url(self) -> Optional[str]:
+        """Synchronous wrapper for async device discovery."""
+        # Since this is called from sync context, we need to run the async version
+        try:
+            # Try to use existing event loop
+            loop = asyncio.get_running_loop()
+            # If we're here, we're in an async context but being called synchronously
+            # This shouldn't happen in normal operation, but let's handle it gracefully
+            logger.warning("_discover_device_url called synchronously from async context")
+            # Create a new thread to avoid blocking the current loop
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(asyncio.run, self._discover_device_url_async())
+                return future.result(timeout=10)  # 10 second timeout
+        except RuntimeError:
+            # No running loop, safe to create a new one
+            return asyncio.run(self._discover_device_url_async())
+        except Exception as e:
+            logger.error(f"Error in sync wrapper for device discovery: {e}")
             return None
     
     async def _create_openhome_device(self) -> Optional[OpenHomeDevice]:
@@ -307,7 +341,7 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             device_url = None
             
             if self.discovery_mode:
-                # Use upnpclient to discover the device
+                # Use async_upnp_client to discover the device
                 logger.info(f"Using discovery mode to find Auralic device at {self.ip_address}")
                 device_url = self._discover_device_url()
                 
