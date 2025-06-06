@@ -66,60 +66,149 @@ The application can be deployed using Docker on various platforms including Wire
 
 ### Basic Docker Deployment
 
-1. Clone the repository and local dependencies:
+1. **Clone and setup**:
 ```bash
 git clone https://github.com/droman42/wb-mqtt-bridge.git
 cd wb-mqtt-bridge
-./docker_deploy.sh --deps
 ```
 
-2. Configure the application:
+2. **Configure the application**:
 ```bash
-# Edit .env file with your settings
+# Copy and edit environment variables
+cp .env.example .env
 nano .env
-# Create your device configurations
-mkdir -p config/devices
+
+# Create device configurations directory
+mkdir -p config/devices data logs
+# Add your device configuration files to config/devices/
 ```
 
-3. Build and start the Docker containers:
+3. **Build and start** (optimized build by default):
 ```bash
 ./docker_deploy.sh --build
 ```
 
-4. To stop the containers:
+4. **Management commands**:
 ```bash
+# Stop containers
 ./docker_deploy.sh --down
-```
 
-5. To restart the containers:
-```bash
+# Restart containers  
 ./docker_deploy.sh --restart
+
+# Build without optimizations (for debugging)
+./docker_deploy.sh --build --no-lean
 ```
 
 The web service will be available at http://localhost:8000.
 
+#### Dependency Optimization for Lean Images
+
+The Docker build includes comprehensive optimizations to minimize image size by excluding unnecessary code from dependencies:
+
+**1. Pip Installation Optimizations:**
+```dockerfile
+# Use binary wheels when possible to avoid compilation artifacts
+pip install --no-cache-dir --only-binary=all --no-compile
+
+# For Git dependencies, allow source installation but optimize later
+pip install --no-cache-dir --only-binary=:none: git+https://...
+```
+
+**2. Comprehensive File Removal (when LEAN=true):**
+- **Testing files**: `tests/`, `test/`, `testing/`, `*_test.py`
+- **Documentation**: `docs/`, `doc/`, `examples/`, `samples/`
+- **Development files**: `setup.py`, `*.egg-info/`, `.git*`, `.github/`
+- **Build artifacts**: `*.c`, `*.h`, `Makefile*`, `CMakeFiles/`
+- **Metadata**: `README*`, `LICENSE*`, `CHANGELOG*`, `AUTHORS*`
+- **CI/Testing config**: `tox.ini`, `pytest.ini`, `.coveragerc`
+
+**3. Requirements.txt Filtering:**
+```bash
+# Automatically excludes from Docker builds:
+grep -v -E "cryptography|broadlink|pytest|git\+|^#|^$" requirements.txt
+```
+
+**4. Custom Lean Requirements for Production:**
+
+Create a `requirements-lean.txt` for ultra-minimal builds:
+```txt
+# Core runtime dependencies only
+fastapi>=0.103.0
+uvicorn>=0.23.2  
+aiomqtt>=1.0.0
+pydantic>=2.11.0
+python-dotenv>=1.0.0
+# Exclude: pytest, examples, docs, development tools
+```
+
+**5. Measuring Optimization Impact:**
+```bash
+# Compare image sizes
+docker build -t wb-mqtt-bridge:full --build-arg LEAN=false .
+docker build -t wb-mqtt-bridge:lean --build-arg LEAN=true .
+docker images | grep wb-mqtt-bridge
+
+# Inspect what was removed
+docker run --rm wb-mqtt-bridge:lean find /opt/venv -name "test*" -o -name "doc*" | wc -l
+```
+
+#### Volume Mounts and Data Persistence
+
+The Docker deployment creates persistent volume mounts for:
+- **Configuration**: `./config` → `/app/config` (read-only)
+- **Logs**: `./logs` → `/app/logs` 
+- **Database**: `./data` → `/app/data` (SQLite database persistence)
+
+This ensures that device states, logs, and configurations survive container updates and restarts.
+
 ### Wirenboard 7 Deployment
 
-The application supports deployment to Wirenboard 7 controllers, which use ARMv7 architecture and Debian Bullseye.
+The application is optimized for deployment on Wirenboard 7 controllers, which use ARMv7 architecture and Debian Bullseye. The Docker images are built with lean optimizations by default to minimize resource usage on these constrained devices.
+
+#### Prerequisites
+
+- **Wirenboard 7** with Docker support
+- **SSH access** to your Wirenboard device
+- **Docker with Buildx support** (for cross-platform builds)
 
 #### Option 1: Direct Build on Wirenboard 7
 
-If you're running the script directly on your Wirenboard 7:
+If you're running the deployment directly on your Wirenboard 7:
 
 ```bash
 git clone https://github.com/droman42/wb-mqtt-bridge.git
 cd wb-mqtt-bridge
-./docker_deploy.sh --deps
+
+# Configure your deployment
+cp .env.example .env
+nano .env
+
+# Set up device configurations
+mkdir -p config/devices
+# Add your device configuration files to config/devices/
+
+# Build and deploy (optimized build by default)
 ./docker_deploy.sh --build
 ```
 
-#### Option 2: Cross-Platform Build and Transfer
+#### Option 2: Cross-Platform Build and Transfer (Recommended)
 
-If you're building on a different architecture (e.g., x86_64/amd64) and deploying to Wirenboard 7:
+For building on a development machine and deploying to Wirenboard:
 
-1. **Prerequisites**:
-   - Docker with Buildx support
-   - SSH access to your Wirenboard 7 device
+1. **Setup on development machine**:
+```bash
+git clone https://github.com/droman42/wb-mqtt-bridge.git
+cd wb-mqtt-bridge
+
+# Configure for your Wirenboard
+cp .env.example .env
+nano .env
+
+# Add device configurations
+mkdir -p config/devices
+# Copy your device configuration files to config/devices/
+```
 
 2. **Build, save, and transfer in one step**:
 ```bash
@@ -129,22 +218,232 @@ If you're building on a different architecture (e.g., x86_64/amd64) and deployin
 
 3. **Or build and save for later transfer**:
 ```bash
-# Build and save images to ./images directory
+# Build optimized images and save to ./images directory
 ./docker_deploy.sh -b --save ./images
 
-# Later transfer the saved images
+# Later transfer the saved images to Wirenboard
 ./docker_deploy.sh --transfer 192.168.1.100
 ```
 
-The script will:
-- Detect the need for cross-compilation
-- Set up ARM emulation using QEMU
-- Build ARM-compatible Docker images
-- Package the images and configuration files
-- Transfer everything to your Wirenboard device
-- Set up and start the containers on the remote device
+#### Advanced Deployment Options
 
-The web service will be available at http://wirenboard-ip:8081 after deployment.
+**Custom target directory on Wirenboard**:
+```bash
+./docker_deploy.sh -b --save --transfer 192.168.1.100 --target-dir /opt/mqtt-bridge
+```
+
+**Disable optimizations** (for debugging):
+```bash
+./docker_deploy.sh -b --no-lean --save --transfer 192.168.1.100
+```
+
+**Save to custom directory**:
+```bash
+./docker_deploy.sh -b --save /path/to/custom/directory
+```
+
+#### What Gets Deployed
+
+The deployment script transfers and sets up:
+
+1. **Docker Image** (`wb-mqtt-bridge.tar.gz`)
+   - Optimized ARM image with lean build optimizations
+   - Python application with all dependencies
+   - Multi-stage build for minimal image size
+
+2. **Configuration Archive** (`wb-mqtt-bridge-config.tar.gz`)
+   - Configuration files (`config/`)
+   - Log directory structure (`logs/`)
+   - Data directory for SQLite database (`data/`)
+   - Environment variables (`.env`)
+
+3. **Persistent Volume Mounts**:
+   - `config/` → `/app/config` (read-only)
+   - `logs/` → `/app/logs` (log files)
+   - `data/` → `/app/data` (SQLite database persistence)
+
+#### Resource Configuration
+
+The container is configured for Wirenboard's limited resources:
+- **Memory limit**: 256MB
+- **CPU limit**: 0.5 cores
+- **Optimized builds**: Lean images remove unnecessary files
+- **Health checks**: Monitor container status
+
+#### Post-Deployment
+
+After successful deployment:
+
+1. **Check container status**:
+```bash
+ssh root@192.168.1.100 'docker ps --filter name=wb-mqtt-bridge'
+```
+
+2. **View logs**:
+```bash
+ssh root@192.168.1.100 'docker logs wb-mqtt-bridge'
+```
+
+3. **Access the web interface**:
+   - http://your-wirenboard-ip:8000
+
+4. **Monitor resource usage**:
+```bash
+ssh root@192.168.1.100 'docker stats wb-mqtt-bridge'
+```
+
+#### Troubleshooting
+
+**Connection issues**:
+```bash
+# Verify SSH access
+ssh root@192.168.1.100 'echo "Connection successful"'
+
+# Check Docker service
+ssh root@192.168.1.100 'systemctl status docker'
+```
+
+**Container issues**:
+```bash
+# Restart container
+ssh root@192.168.1.100 'docker restart wb-mqtt-bridge'
+
+# Check container logs
+ssh root@192.168.1.100 'docker logs wb-mqtt-bridge --tail 50'
+```
+
+**Storage issues**:
+```bash
+# Check disk space on Wirenboard
+ssh root@192.168.1.100 'df -h'
+
+# Clean up old Docker images
+ssh root@192.168.1.100 'docker system prune -f'
+```
+
+The web service will be available at http://wirenboard-ip:8000 after successful deployment.
+
+#### Custom Volume Locations on Target Device
+
+The deployment script uses relative paths (`$(pwd)/config`, `$(pwd)/logs`, `$(pwd)/data`) which work from the transfer directory. For custom volume locations on your Wirenboard:
+
+**1. Create custom directories on Wirenboard:**
+```bash
+# SSH into your Wirenboard
+ssh root@192.168.1.100
+
+# Create persistent storage directories (recommended locations)
+mkdir -p /mnt/data/wb-mqtt-bridge/config
+mkdir -p /mnt/data/wb-mqtt-bridge/logs  
+mkdir -p /mnt/data/wb-mqtt-bridge/data
+mkdir -p /var/log/wb-mqtt-bridge  # Alternative for logs
+
+# Or create in any custom location
+mkdir -p /opt/mqtt-bridge/config
+mkdir -p /opt/mqtt-bridge/logs
+mkdir -p /opt/mqtt-bridge/data
+```
+
+**2. Transfer configuration files to custom location:**
+```bash
+# Transfer to custom directory
+./docker_deploy.sh --transfer 192.168.1.100 --target-dir /opt/mqtt-bridge
+
+# Then move configs to desired locations
+ssh root@192.168.1.100 '
+  cd /opt/mqtt-bridge
+  cp -r config/* /mnt/data/wb-mqtt-bridge/config/
+  # Keep logs and data directories where you want them
+'
+```
+
+**3. Modify the Docker run command:**
+
+After transfer, modify the container startup on the Wirenboard:
+
+```bash
+# SSH into Wirenboard
+ssh root@192.168.1.100
+
+# Stop the auto-started container
+docker stop wb-mqtt-bridge
+docker rm wb-mqtt-bridge
+
+# Start with custom volume locations
+docker run -d \
+  --name wb-mqtt-bridge \
+  --restart unless-stopped \
+  -p 8000:8000 \
+  -v /mnt/data/wb-mqtt-bridge/config:/app/config:ro \
+  -v /mnt/data/wb-mqtt-bridge/logs:/app/logs \
+  -v /mnt/data/wb-mqtt-bridge/data:/app/data \
+  --memory=256M \
+  --cpus=0.5 \
+  wb-mqtt-bridge:latest
+```
+
+**4. Alternative: Modify the deployment script:**
+
+Create a custom deployment script for your specific volume layout:
+
+```bash
+# Copy the original script
+cp docker_deploy.sh docker_deploy_custom.sh
+
+# Edit the SSH_COMMAND section in transfer_images function:
+nano docker_deploy_custom.sh
+
+# Change the docker run command to use your custom paths:
+SSH_COMMAND="cd $target_dir && \
+    tar -xzf wb-mqtt-bridge-config.tar.gz && \
+    docker load -i wb-mqtt-bridge.tar.gz && \
+    cp -r config/* /mnt/data/wb-mqtt-bridge/config/ && \
+    docker stop wb-mqtt-bridge 2>/dev/null || true && \
+    docker rm wb-mqtt-bridge 2>/dev/null || true && \
+    docker run -d --name wb-mqtt-bridge --restart unless-stopped -p 8000:8000 \
+    -v /mnt/data/wb-mqtt-bridge/config:/app/config:ro \
+    -v /mnt/data/wb-mqtt-bridge/logs:/app/logs \
+    -v /mnt/data/wb-mqtt-bridge/data:/app/data \
+    --memory=256M --cpus=0.5 wb-mqtt-bridge:latest"
+```
+
+**5. Recommended Wirenboard storage locations:**
+
+- **Persistent data**: `/mnt/data/` (survives firmware updates)
+- **Logs**: `/var/log/` or `/mnt/data/logs/`
+- **Temporary files**: `/tmp/` (cleared on reboot)
+- **Application files**: `/opt/` or `/usr/local/`
+
+**6. Verify volume mounts:**
+```bash
+ssh root@192.168.1.100 'docker inspect wb-mqtt-bridge | grep -A 10 "Mounts"'
+```
+
+#### Deployment Script Reference
+
+The `docker_deploy.sh` script supports the following options:
+
+```bash
+Usage: ./docker_deploy.sh [options]
+
+Options:
+  -b, --build               Rebuild containers (with lean optimizations by default)
+  -d, --down                Stop and remove containers
+  -r, --restart             Restart containers
+  --save [path]             After building, save images to tar files for transfer
+  --transfer [ip]           Transfer saved images to Wirenboard at specified IP
+  --target-dir [dir]        Specify target directory on Wirenboard (default: /mnt/data/docker_exchange)
+  --no-lean                 Disable lean optimizations (build larger, unoptimized images)
+  --help                    Show help message
+
+Examples:
+  ./docker_deploy.sh -b                                    # Build optimized containers locally
+  ./docker_deploy.sh -b --save                             # Build and save images to current directory
+  ./docker_deploy.sh --save ./images                       # Save images to ./images directory
+  ./docker_deploy.sh --transfer 192.168.1.100              # Transfer previously saved images
+  ./docker_deploy.sh -b --save --transfer 192.168.1.100    # Build, save, and transfer in one step
+  ./docker_deploy.sh -b --no-lean                          # Build larger, unoptimized images
+```
 
 ## Running the Application
 

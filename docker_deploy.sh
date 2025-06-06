@@ -12,11 +12,10 @@ show_help() {
     echo "  -b, --build       Rebuild containers"
     echo "  -d, --down        Stop and remove containers"
     echo "  -r, --restart     Restart containers"
-    echo "  --deps            Clone/update required local dependencies"
     echo "  --save [path]     After building, save images to tar files for transfer to Wirenboard"
     echo "  --transfer [ip]   Transfer saved images to Wirenboard at specified IP address"
     echo "  --target-dir [dir] Specify target directory on Wirenboard (default: /mnt/data/docker_exchange)"
-    echo "  --lean            Build optimized images for resource-constrained devices (Wirenboard)"
+    echo "  --no-lean         Disable lean optimizations (build larger, unoptimized images)"
     echo "  --help            Show this help message"
     echo
     echo "This script supports ARMv7 architecture for Wirenboard 7."
@@ -28,16 +27,15 @@ show_help() {
     echo "  $0 --transfer 192.168.1.100       # Transfer previously saved images to Wirenboard"
     echo "  $0 --transfer 192.168.1.100 --target-dir /opt/mqtt-bridge  # Transfer to custom directory"
     echo "  $0 -b --save --transfer 192.168.1.100  # Build, save, and transfer in one step"
-    echo "  $0 -b --lean                      # Build optimized images for Wirenboard"
+    echo "  $0 -b --no-lean                   # Build larger, unoptimized images"
 }
 
 # Parse command line arguments
-CLONE_DEPS=false
 SAVE_IMAGES=false
 TRANSFER_IMAGES=false
 SAVE_PATH="."
 WB_IP=""
-LEAN=false
+LEAN=true
 TARGET_DIR="/mnt/data/docker_exchange"
 
 while [[ $# -gt 0 ]]; do
@@ -54,10 +52,7 @@ while [[ $# -gt 0 ]]; do
             RESTART=true
             shift
             ;;
-        --deps)
-            CLONE_DEPS=true
-            shift
-            ;;
+
         --save)
             SAVE_IMAGES=true
             if [[ -n "$2" && ! "$2" =~ ^- ]]; then
@@ -87,8 +82,8 @@ while [[ $# -gt 0 ]]; do
             fi
             shift
             ;;
-        --lean)
-            LEAN=true
+        --no-lean)
+            LEAN=false
             shift
             ;;
         --help)
@@ -147,51 +142,37 @@ if [[ "$HOST_ARCHITECTURE" != "$TARGET_ARCHITECTURE" ]]; then
     echo "ARM build environment is ready"
 fi
 
-# Clone or update required dependencies
-if [ "$CLONE_DEPS" = true ]; then
-    echo "Checking for required dependencies..."
-    
-    # Define the parent directory (one level up)
-    PARENT_DIR="$(dirname $(pwd))"
-    
-    # Check for pymotivaxmc2
-    if [ ! -d "$PARENT_DIR/pymotivaxmc2" ]; then
-        echo "Cloning pymotivaxmc2..."
-        git -C "$PARENT_DIR" clone https://github.com/droman42/pymotivaxmc2.git
-    else
-        echo "Updating pymotivaxmc2..."
-        git -C "$PARENT_DIR/pymotivaxmc2" pull
-    fi
-    
-    # Check for asyncwebostv
-    if [ ! -d "$PARENT_DIR/asyncwebostv" ]; then
-        echo "Cloning asyncwebostv..."
-        git -C "$PARENT_DIR" clone https://github.com/droman42/asyncwebostv.git
-    else
-        echo "Updating asyncwebostv..."
-        git -C "$PARENT_DIR/asyncwebostv" pull
-    fi
-    
-    # Check for asyncmiele
-    if [ ! -d "$PARENT_DIR/asyncmiele" ]; then
-        echo "Cloning asyncmiele..."
-        git -C "$PARENT_DIR" clone https://github.com/droman42/asyncmiele.git
-    else
-        echo "Updating asyncmiele..."
-        git -C "$PARENT_DIR/asyncmiele" pull
-    fi
-    
-    echo "Dependencies updated."
-fi
 
-# Check if .env file exists
-if [ ! -f .env ]; then
-    echo "Creating default .env file..."
-    cp .env.example .env || echo "No .env.example found, please create .env manually."
-fi
+
+
 
 # Create necessary directories
-mkdir -p logs config/devices
+mkdir -p logs config/devices data
+
+# Function to start the container with direct docker run
+start_container() {
+    echo "Creating network if it doesn't exist..."
+    docker network create mqtt-network 2>/dev/null || true
+    
+    echo "Stopping existing container if running..."
+    docker stop wb-mqtt-bridge 2>/dev/null || true
+    docker rm wb-mqtt-bridge 2>/dev/null || true
+    
+    echo "Starting wb-mqtt-bridge container..."
+    docker run -d \
+        --name wb-mqtt-bridge \
+        --restart unless-stopped \
+        -p "${API_PORT:-8000}:8000" \
+        -v "$(pwd)/config:/app/config:ro" \
+        -v "$(pwd)/logs:/app/logs" \
+        -v "$(pwd)/data:/app/data" \
+        --memory=256M \
+        --cpus=0.5 \
+        --network mqtt-network \
+        wb-mqtt-bridge:latest
+    
+    echo "Container started successfully!"
+}
 
 # Save Docker images as tar files for transfer to Wirenboard
 save_images() {
@@ -210,8 +191,11 @@ save_images() {
         echo "✓ Saved wb-mqtt-bridge:latest"
     fi
     
-    echo "Saving docker-compose.yml and related files..."
-    tar -czf "$save_dir/wb-mqtt-bridge-config.tar.gz" docker-compose.yml .env
+    echo "Saving configuration files..."
+    tar -czf "$save_dir/wb-mqtt-bridge-config.tar.gz" config/ logs/ data/ .env 2>/dev/null || \
+    tar -czf "$save_dir/wb-mqtt-bridge-config.tar.gz" config/ logs/ data/ || \
+    tar -czf "$save_dir/wb-mqtt-bridge-config.tar.gz" config/ logs/ data/ 2>/dev/null || \
+    tar -czf "$save_dir/wb-mqtt-bridge-config.tar.gz" config/ data/
     echo "✓ Saved configuration files"
     
     echo "Images and configuration saved to:"
@@ -221,7 +205,7 @@ save_images() {
     echo "Transfer these files to your Wirenboard 7 device and run:"
     echo "  docker load -i wb-mqtt-bridge.tar.gz"
     echo "  tar -xzf wb-mqtt-bridge-config.tar.gz"
-    echo "  docker-compose up -d"
+    echo "  docker run -d --name wb-mqtt-bridge --restart unless-stopped -p 8000:8000 -v \$(pwd)/config:/app/config:ro -v \$(pwd)/logs:/app/logs -v \$(pwd)/data:/app/data wb-mqtt-bridge:latest"
 }
 
 # Transfer images to Wirenboard device
@@ -271,10 +255,10 @@ transfer_images() {
     echo "Setting up on Wirenboard..."
     SSH_COMMAND="cd $target_dir && \
         tar -xzf wb-mqtt-bridge-config.tar.gz && \
-        docker load -i wb-mqtt-bridge.tar.gz"
-    
-    # Start containers
-    SSH_COMMAND="$SSH_COMMAND && docker-compose up -d"
+        docker load -i wb-mqtt-bridge.tar.gz && \
+        docker stop wb-mqtt-bridge 2>/dev/null || true && \
+        docker rm wb-mqtt-bridge 2>/dev/null || true && \
+        docker run -d --name wb-mqtt-bridge --restart unless-stopped -p 8000:8000 -v \$(pwd)/config:/app/config:ro -v \$(pwd)/logs:/app/logs -v \$(pwd)/data:/app/data wb-mqtt-bridge:latest"
     
     # Execute the setup commands
     if ! ssh root@$wb_ip "$SSH_COMMAND"; then
@@ -284,13 +268,15 @@ transfer_images() {
     fi
     
     echo "Deployment to Wirenboard 7 complete."
-    echo "Check status with: ssh root@$wb_ip 'cd $target_dir && docker-compose ps'"
+    echo "Check status with: ssh root@$wb_ip 'docker ps --filter name=wb-mqtt-bridge'"
 }
 
 # Stop and remove containers if requested
 if [ "$DOWN" = true ]; then
     echo "Stopping and removing containers..."
-    docker-compose down
+    docker stop wb-mqtt-bridge 2>/dev/null || true
+    docker rm wb-mqtt-bridge 2>/dev/null || true
+    docker network rm mqtt-network 2>/dev/null || true
     exit 0
 fi
 
@@ -319,26 +305,26 @@ if [ "$BUILD" = true ]; then
         
         # Only start containers locally if not saving for transfer
         if [ "$SAVE_IMAGES" = false ] && [ "$TRANSFER_IMAGES" = false ]; then
-            echo "Starting containers with docker-compose..."
-            docker-compose up -d
+            echo "Starting container with docker run..."
+            start_container
         fi
     else
         echo "Building directly for native ARM architecture..."
         if [ "$LEAN" = true ]; then
             echo "Building optimized lean image for resource-constrained devices..."
             export DOCKER_BUILDKIT=1
-            docker-compose build --build-arg LEAN=true
-            docker-compose up -d
+            docker build --build-arg LEAN=true --build-arg ARCH=arm32v7 -t wb-mqtt-bridge:latest .
         else
-            docker-compose up -d --build
+            docker build --build-arg ARCH=arm32v7 -t wb-mqtt-bridge:latest .
         fi
+        start_container
     fi
 elif [ "$RESTART" = true ]; then
-    echo "Restarting containers..."
-    docker-compose restart
+    echo "Restarting container..."
+    docker restart wb-mqtt-bridge
 elif [ "$SAVE_IMAGES" = false ] && [ "$TRANSFER_IMAGES" = false ]; then
-    echo "Starting containers..."
-    docker-compose up -d
+    echo "Starting container..."
+    start_container
 fi
 
 # Save images if requested
@@ -358,5 +344,5 @@ fi
 # Check container status if we're running locally
 if [ "$SAVE_IMAGES" = false ] && [ "$TRANSFER_IMAGES" = false ]; then
     echo "Checking container status..."
-    docker-compose ps
+    docker ps --filter name=wb-mqtt-bridge
 fi 
