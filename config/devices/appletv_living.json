@@ -8,6 +8,9 @@
   "apple_tv": {
     "ip_address": "192.168.110.196",
     "name": "\u0413\u043e\u0441\u0442\u0438\u043d\u0430\u044f (2)",
+    "gesture_threshold": 12.0,
+    "touch_delay": 0.1,
+    "select_delay": 0.2,
     "protocols": {
       "Companion": {
         "identifier": null,
@@ -155,6 +158,54 @@
       "topic": "/devices/appletv_living/controls/get_app_list",
       "description": "List installed apps",
       "group": "apps"
+    },
+    "pointer_gesture": {
+      "action": "pointer_gesture",
+      "topic": "/devices/appletv_living/controls/pointer_gesture",
+      "description": "Pointer/Swipe Gesture",
+      "group": "gestures",
+      "params": [
+        {
+          "name": "deltaX",
+          "type": "range",
+          "min": -1000,
+          "max": 1000,
+          "required": true,
+          "description": "Horizontal movement delta (-1000 to 1000)"
+        },
+        {
+          "name": "deltaY", 
+          "type": "range",
+          "min": -1000,
+          "max": 1000,
+          "required": true,
+          "description": "Vertical movement delta (-1000 to 1000)"
+        }
+      ]
+    },
+    "touch_at_position": {
+      "action": "touch_at_position",
+      "topic": "/devices/appletv_living/controls/touch_at_position",
+      "description": "Touch at Position",
+      "group": "gestures",
+      "params": [
+        {
+          "name": "x",
+          "type": "range",
+          "min": 0,
+          "max": 1000,
+          "required": true,
+          "description": "X coordinate (0-1000)"
+        },
+        {
+          "name": "y",
+          "type": "range",
+          "min": 0,
+          "max": 1000,
+          "required": true,
+          "description": "Y coordinate (0-1000)"
+        }
+      ]
     }
   }
 }

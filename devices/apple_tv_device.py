@@ -975,6 +975,204 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
                 error="Failed to send right command"
             )
 
+    async def handle_pointer_gesture(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
+        """
+        Interpret pointer/gesture movement and delegate to directional handlers.
+        
+        Args:
+            cmd_config: Command configuration
+            params: Parameters with gesture data
+                   Expected format: {"deltaX": float, "deltaY": float}
+            
+        Returns:
+            CommandResult: Result of the command execution
+        """
+        logger.info(f"[{self.device_id}] Processing pointer gesture...")
+        
+        try:
+            # Parse gesture data from params (validated by parameter validation layer)
+            delta_x = int(params["deltaX"])
+            delta_y = int(params["deltaY"])
+            logger.debug(f"[{self.device_id}] Delta gesture: deltaX={delta_x}, deltaY={delta_y}")
+            
+            # Calculate gesture magnitude and direction
+            magnitude = (delta_x ** 2 + delta_y ** 2) ** 0.5
+            
+            # Apply minimum threshold to distinguish from accidental touches
+            min_threshold = self.apple_tv_config.gesture_threshold
+            if magnitude < min_threshold:
+                logger.debug(f"[{self.device_id}] Gesture magnitude {magnitude:.2f} below threshold {min_threshold}, ignoring")
+                return self.create_command_result(
+                    success=True,
+                    message="Gesture below threshold, no action taken"
+                )
+            
+            # Determine primary direction (favor stronger axis)
+            abs_delta_x = abs(delta_x)
+            abs_delta_y = abs(delta_y)
+            
+            gesture_params = {
+                "magnitude": magnitude,
+                "deltaX": delta_x,
+                "deltaY": delta_y
+            }
+            
+            # Delegate to appropriate directional handler
+            if abs_delta_x > abs_delta_y:
+                # Horizontal gesture
+                if delta_x > 0:
+                    logger.info(f"[{self.device_id}] Interpreted as RIGHT gesture (deltaX={delta_x:.2f})")
+                    result = await self.handle_right(cmd_config, {})
+                else:
+                    logger.info(f"[{self.device_id}] Interpreted as LEFT gesture (deltaX={delta_x:.2f})")
+                    result = await self.handle_left(cmd_config, {})
+            else:
+                # Vertical gesture  
+                if delta_y > 0:
+                    logger.info(f"[{self.device_id}] Interpreted as DOWN gesture (deltaY={delta_y:.2f})")
+                    result = await self.handle_down(cmd_config, {})
+                else:
+                    logger.info(f"[{self.device_id}] Interpreted as UP gesture (deltaY={delta_y:.2f})")
+                    result = await self.handle_up(cmd_config, {})
+            
+            # Update last_command to reflect the gesture interpretation
+            if result.success:
+                self.update_state(
+                    last_command=LastCommand(
+                        action="pointer_gesture",
+                        source="pointer",
+                        timestamp=datetime.now(),
+                        params=gesture_params
+                    )
+                )
+                
+            return result
+            
+
+        except Exception as e:
+            error_msg = f"Error processing pointer gesture: {str(e)}"
+            logger.error(f"[{self.device_id}] {error_msg}", exc_info=True)
+            return self.create_command_result(
+                success=False,
+                error=error_msg
+            )
+
+    async def handle_touch_at_position(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
+        """
+        Touch at specific position and execute select if successful.
+        
+        Args:
+            cmd_config: Command configuration
+            params: Parameters with position data
+                   Expected format: {"x": float, "y": float}
+                   Coordinates should be in Apple TV's 0-1000 range or will be mapped
+            
+        Returns:
+            CommandResult: Result of the command execution
+        """
+        if not await self._ensure_connected():
+            return self.create_command_result(
+                success=False,
+                error="Failed to connect to Apple TV"
+            )
+        
+        # Check if touch gestures are available (Companion protocol required)
+        if not hasattr(self.atv, "touch"):
+            error_msg = "Touch gestures not available on this device (requires Companion protocol)"
+            logger.warning(f"[{self.device_id}] {error_msg}")
+            return self.create_command_result(
+                success=False,
+                error=error_msg
+            )
+            
+        try:
+            # Extract coordinates from params
+            if "x" not in params or "y" not in params:
+                error_msg = "Touch position parameters missing. Expected 'x' and 'y' coordinates"
+                logger.error(f"[{self.device_id}] {error_msg}")
+                return self.create_command_result(
+                    success=False,
+                    error=error_msg
+                )
+                
+            x = int(params["x"])
+            y = int(params["y"])
+            
+            # Coordinates are validated by parameter validation layer based on range config
+            
+            logger.info(f"[{self.device_id}] Touching at position ({x}, {y})...")
+            
+            # Execute touch action at position (mode 1 = press)
+            await self.atv.touch.action(x, y, 1)  # Press
+            
+            # Brief delay to allow selection to register
+            await asyncio.sleep(self.apple_tv_config.touch_delay)
+            
+            # Release touch (mode 4 = release)
+            await self.atv.touch.action(x, y, 4)  # Release
+            
+            logger.info(f"[{self.device_id}] Touch completed at ({x}, {y})")
+            
+            # Small delay before select to allow UI to update
+            await asyncio.sleep(self.apple_tv_config.select_delay)
+            
+            # Execute select to activate the touched item
+            logger.info(f"[{self.device_id}] Executing select after touch...")
+            select_result = await self.handle_select(cmd_config, {})
+            
+            # Update last_command to reflect the touch action
+            touch_params = {
+                "x": x,
+                "y": y,
+                "select_executed": select_result.success
+            }
+            
+            self.update_state(
+                last_command=LastCommand(
+                    action="touch_at_position", 
+                    source="pointer",
+                    timestamp=datetime.now(),
+                    params=touch_params
+                )
+            )
+            
+            if select_result.success:
+                return self.create_command_result(
+                    success=True,
+                    message=f"Touch at position ({x}, {y}) and select executed successfully"
+                )
+            else:
+                # Touch succeeded but select failed
+                return self.create_command_result(
+                    success=True,  # Touch itself succeeded
+                    message=f"Touch at position ({x}, {y}) completed, but select failed: {select_result.error}",
+                    data={"touch_success": True, "select_success": False}
+                )
+                
+        except (ValueError, TypeError) as e:
+            error_msg = f"Invalid position parameter types: {str(e)}"
+            logger.error(f"[{self.device_id}] {error_msg}")
+            return self.create_command_result(
+                success=False,
+                error=error_msg
+            )
+        except NotImplementedError:
+            error_msg = "Touch actions not implemented by this device/protocol"
+            logger.warning(f"[{self.device_id}] {error_msg}")
+            return self.create_command_result(
+                success=False,
+                error=error_msg
+            )
+        except Exception as e:
+            error_msg = f"Error executing touch at position: {str(e)}"
+            logger.error(f"[{self.device_id}] {error_msg}", exc_info=True)
+            self.update_state(error=error_msg)
+            await self.publish_progress(error_msg)
+            return self.create_command_result(
+                success=False,
+                error=error_msg
+            )
+
     async def handle_set_volume(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Set the volume level (0-100).

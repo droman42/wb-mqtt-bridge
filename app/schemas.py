@@ -40,6 +40,9 @@ class AppleTVConfig(BaseModel):
     ip_address: str
     name: Optional[str] = None
     protocols: Dict[str, AppleTVProtocolConfig]
+    gesture_threshold: float = 10.0
+    touch_delay: float = 0.1
+    select_delay: float = 0.2
 
 class LgTvConfig(BaseModel):
     """Schema for LG WebOS TV device configuration."""
