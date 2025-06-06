@@ -46,8 +46,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         -r requirements_modified.txt \
         cryptography>=40.0 \
         broadlink==0.18.0 && \
-    echo "Installing Git dependencies with minimal checkout..." && \
-    pip install --cache-dir=/tmp/pip-cache --only-binary=:none: \
+    echo "Installing Git dependencies..." && \
+    pip install --cache-dir=/tmp/pip-cache --prefer-binary \
         git+https://github.com/postlund/pyatv.git@f75e718bc0bdaf0a3ff06eb00086f781b3f06347#egg=pyatv \
         git+https://github.com/droman42/pymotivaxmc2.git \
         git+https://github.com/droman42/asyncwebostv.git \
