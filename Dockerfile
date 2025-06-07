@@ -103,9 +103,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing openhomedevice from fork..." && \
+    echo "Installing openhomedevice from fork (remove-lxml-dependency branch)..." && \
     pip install --cache-dir=/tmp/pip-cache \
-        git+https://github.com/droman42/openhomedevice.git
+        git+https://github.com/droman42/openhomedevice.git@remove-lxml-dependency
 
 RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=cache,target=/tmp/pip-cache \
