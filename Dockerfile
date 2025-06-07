@@ -103,8 +103,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing openhomedevice..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary "openhomedevice>=1.2.0"
+    echo "Installing openhomedevice from fork..." && \
+    pip install --cache-dir=/tmp/pip-cache \
+        git+https://github.com/droman42/openhomedevice.git
 
 RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=cache,target=/tmp/pip-cache \
