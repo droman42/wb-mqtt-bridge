@@ -8,12 +8,7 @@ FROM ${ARCH:+$ARCH/}python:3.11-slim-bullseye AS builder
 # Set working directory
 WORKDIR /build
 
-# Set environment variables for pip
-ENV PIP_DEFAULT_TIMEOUT=100 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_NO_CACHE_DIR=1
-
-# Install build dependencies
+# Install system dependencies needed for building
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libffi-dev \
@@ -22,134 +17,33 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsqlite3-0 \
     zlib1g-dev \
     git \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Configure pip to use PiWheels for ARM
+# Install UV
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
+
+# Configure pip to use PiWheels for ARM (as fallback)
 RUN mkdir -p /etc/pip && \
     echo "[global]\nextra-index-url=https://www.piwheels.org/simple" > /etc/pip/pip.conf
 
-# Copy only requirements file
-COPY requirements.txt ./
+# Copy source code and UV project files
+COPY app/ ./app/
+COPY devices/ ./devices/
+COPY pyproject.toml uv.lock ./
 
-# Create a virtual environment early and set PATH
-RUN python -m venv /opt/venv
+# Create virtual environment and install dependencies with UV
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=cache,target=/tmp/uv-cache \
+    echo "Installing dependencies with UV..." && \
+    uv venv /opt/venv && \
+    . /opt/venv/bin/activate && \
+    uv export --no-dev > requirements.txt && \
+    uv pip install --cache-dir=/tmp/uv-cache --requirement requirements.txt
+
+# Set environment path for the virtual environment
 ENV PATH="/opt/venv/bin:$PATH"
-
-# Install core packages individually to isolate any failures
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing fastapi..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary "fastapi>=0.103.0"
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing uvicorn..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary "uvicorn>=0.23.2"
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing pydantic..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary "pydantic>=2.11.0"
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing python-dotenv..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary "python-dotenv>=1.0.0"
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing typing_extensions..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary "typing_extensions>=4.7.0"
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing aiomqtt..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary "aiomqtt>=1.0.0"
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing paho-mqtt..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary "paho-mqtt>=1.6.1"
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing aiohttp..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary "aiohttp>=3.8.1"
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing pyyaml..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary "pyyaml>=6.0"
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing jsonschema..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary "jsonschema>=4.4.0"
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing httpx..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary httpx
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing requests..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary requests
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing websockets..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary "websockets>=10.2"
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing openhomedevice from fork (remove-lxml-dependency branch)..." && \
-    pip install --cache-dir=/tmp/pip-cache \
-        git+https://github.com/droman42/openhomedevice.git@remove-lxml-dependency
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing pyOpenSSL..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary "pyOpenSSL>=23.2.0"
-
-# Install cryptography separately with ARM-specific handling
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing cryptography for ARM..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary \
-        cryptography>=40.0
-
-# Install broadlink after cryptography
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing broadlink..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary \
-        broadlink==0.18.0
-
-# Install Git dependencies one by one to isolate any failures
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing pyatv..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary \
-        git+https://github.com/postlund/pyatv.git@f75e718bc0bdaf0a3ff06eb00086f781b3f06347#egg=pyatv
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing pymotivaxmc2..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary \
-        git+https://github.com/droman42/pymotivaxmc2.git
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing asyncwebostv..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary \
-        git+https://github.com/droman42/asyncwebostv.git
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/tmp/pip-cache \
-    echo "Installing asyncmiele..." && \
-    pip install --cache-dir=/tmp/pip-cache --prefer-binary \
-        git+https://github.com/droman42/asyncmiele.git
 
 # ===== Final Stage =====
 FROM ${ARCH:+$ARCH/}python:3.11-slim-bullseye
@@ -163,14 +57,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app \
     PYTHONHASHSEED=1
 
-# Copy virtual environment from builder stage
-COPY --from=builder /opt/venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
-# Install runtime dependencies only
+# Install minimal runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libffi7 \
     && rm -rf /var/lib/apt/lists/*
+
+# Copy virtual environment from builder stage
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy application code
 COPY app/ ./app/
@@ -179,7 +73,7 @@ COPY devices/ ./devices/
 # Create necessary directories
 RUN mkdir -p logs data config
 
-# For lean builds, set additional optimizations
+# For lean builds, apply comprehensive optimizations
 ARG LEAN=true
 RUN if [ "$LEAN" = "true" ]; then \
     echo "Applying comprehensive lean optimizations for Wirenboard..." && \

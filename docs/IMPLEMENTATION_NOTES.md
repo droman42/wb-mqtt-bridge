@@ -79,7 +79,7 @@ Certificate verification:
 
 ## Dependencies
 
-- Added `pyOpenSSL>=23.2.0` to requirements.txt for certificate handling
+- Added `pyOpenSSL>=23.2.0` to pyproject.toml dependencies for certificate handling
 - Relies on the updated `asyncwebostv` library that includes `SecureWebOSClient`
 
 ## Compatibility Notes

@@ -50,9 +50,14 @@ cd wb-mqtt-bridge
 
 2. Create a virtual environment and install dependencies:
 ```bash
+# Using UV (recommended)
+uv venv
+uv sync
+
+# Or using traditional pip
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+pip install -e .
 ```
 
 3. Configure the application:
@@ -123,23 +128,22 @@ pip install --no-cache-dir --only-binary=:none: git+https://...
 - **Metadata**: `README*`, `LICENSE*`, `CHANGELOG*`, `AUTHORS*`
 - **CI/Testing config**: `tox.ini`, `pytest.ini`, `.coveragerc`
 
-**3. Requirements.txt Filtering:**
+**3. UV Dependency Management:**
 ```bash
-# Automatically excludes from Docker builds:
-grep -v -E "cryptography|broadlink|pytest|git\+|^#|^$" requirements.txt
+# Dependencies are now managed via pyproject.toml
+# Docker builds use UV for faster, more reliable dependency resolution
+uv sync --frozen  # Uses exact versions from uv.lock
 ```
 
-**4. Custom Lean Requirements for Production:**
+**4. Optimized Dependency Installation:**
 
-Create a `requirements-lean.txt` for ultra-minimal builds:
-```txt
-# Core runtime dependencies only
-fastapi>=0.103.0
-uvicorn>=0.23.2  
-aiomqtt>=1.0.0
-pydantic>=2.11.0
-python-dotenv>=1.0.0
-# Exclude: pytest, examples, docs, development tools
+UV provides better dependency resolution and faster installs:
+```bash
+# Production dependencies only (excludes dev dependencies)
+uv sync --no-dev --frozen
+
+# Development dependencies included
+uv sync --frozen
 ```
 
 **5. Measuring Optimization Impact:**

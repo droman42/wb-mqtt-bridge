@@ -91,9 +91,9 @@ share/
 test_*.py
 
 tests/
-requirements_dev.txt
 
-# Include essential files
+# Include essential files  
 !app/
 !devices/
-!requirements.txt
+!pyproject.toml
+!uv.lock

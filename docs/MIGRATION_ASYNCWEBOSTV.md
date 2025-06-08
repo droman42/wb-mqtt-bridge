@@ -114,7 +114,7 @@ await self.media.set_volume(volume)
 
 ## Dependencies
 
-Update requirements.txt to use the AsyncWebOSTV library:
+Update pyproject.toml to use the AsyncWebOSTV library:
 
 ```
 # Remove or comment out PyWebOSTV
