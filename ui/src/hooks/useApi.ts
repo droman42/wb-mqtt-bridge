@@ -16,10 +16,10 @@ import type {
   GroupedActionsResponse,
   GroupActionsResponse,
   CommandResponse,
-  BaseDeviceState,
   DeviceState,
   MQTTPublishResponse,
 } from '../types/api';
+import { BaseDeviceState } from '../types/BaseDeviceState';
 
 // Create axios instance with base configuration
 const api = axios.create({

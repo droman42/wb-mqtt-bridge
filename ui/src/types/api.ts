@@ -1,25 +1,16 @@
 // API Types - Extracted from OpenAPI generated models
 // Clean TypeScript interfaces for our backend API
 
+import { BaseDeviceState } from './BaseDeviceState';
+
 // Device Related Types
 export interface DeviceAction {
   action: string;
   params?: { [key: string]: any } | null;
 }
 
-export interface LastCommand {
-  action: string;
-  source: string;
-  timestamp: string;
-  params?: { [key: string]: any } | null;
-}
-
-export interface BaseDeviceState {
-  deviceId: string;
-  deviceName: string;
-  lastCommand?: LastCommand | null;
-  error?: string | null;
-}
+// Moved LastCommand and BaseDeviceState to src/types/BaseDeviceState.ts
+// Import them from there if needed: import { LastCommand, BaseDeviceState } from './BaseDeviceState';
 
 export interface DeviceState {
   power?: boolean | null;

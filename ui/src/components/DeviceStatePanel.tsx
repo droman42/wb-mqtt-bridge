@@ -2,7 +2,7 @@ import React from 'react';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 import { useRoomStore } from '../stores/useRoomStore';
 import { useSettingsStore } from '../stores/useSettingsStore';
-import { useDeviceState } from '../hooks/useApi';
+import { useDeviceState } from '../hooks/useDeviceState';
 import { Button } from './ui/button';
 
 interface DeviceStatePanelProps {
@@ -14,8 +14,8 @@ function DeviceStatePanel({ isOpen, className }: DeviceStatePanelProps) {
   const { selectedDeviceId } = useRoomStore();
   const { setStatePanelOpen } = useSettingsStore();
 
-  // Use the shared device state hook with polling
-  const { data: deviceState, isLoading, error } = useDeviceState(selectedDeviceId || '');
+  // Use the enhanced device state hook
+  const { state: deviceState, isLoading, error, isConnected } = useDeviceState(selectedDeviceId || '');
 
   if (!isOpen) return null;
 
@@ -45,8 +45,8 @@ function DeviceStatePanel({ isOpen, className }: DeviceStatePanelProps) {
           ) : deviceState ? (
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
-                <div className={`w-3 h-3 rounded-full bg-green-500`} />
-                <span className="font-medium">{deviceState.deviceName}</span>
+                <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+                <span className="font-medium">{deviceState.deviceName || deviceState.deviceId}</span>
               </div>
               
               {deviceState.lastCommand && (
@@ -70,8 +70,20 @@ function DeviceStatePanel({ isOpen, className }: DeviceStatePanelProps) {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Name:</span>
-                  <span>{deviceState.deviceName}</span>
+                  <span>{deviceState.deviceName || 'Unknown'}</span>
                 </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Connected:</span>
+                  <span className={isConnected ? 'text-green-600' : 'text-red-600'}>
+                    {isConnected ? 'Yes' : 'No'}
+                  </span>
+                </div>
+                {deviceState.lastUpdated && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Last Updated:</span>
+                    <span>{deviceState.lastUpdated.toLocaleTimeString()}</span>
+                  </div>
+                )}
               </div>
             </div>
           ) : null}

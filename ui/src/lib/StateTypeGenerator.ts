@@ -67,30 +67,8 @@ export class StateTypeGenerator {
       defaultValue: param.default
     }));
 
-    // Add common device state fields
-    fields.push(
-      {
-        name: 'isConnected',
-        type: 'boolean',
-        optional: false,
-        description: 'Device connection status',
-        defaultValue: false
-      },
-      {
-        name: 'lastUpdated',
-        type: 'Date | null',
-        optional: false,
-        description: 'Last state update timestamp',
-        defaultValue: null
-      },
-      {
-        name: 'deviceId',
-        type: 'string',
-        optional: false,
-        description: 'Device identifier',
-        defaultValue: config.device_id
-      }
-    );
+    // Note: Common device state fields (isConnected, lastUpdated, deviceId, deviceName, lastCommand, error) 
+    // are inherited from BaseDeviceState - no need to add them explicitly
 
     return {
       interfaceName: className,
@@ -115,12 +93,28 @@ export class StateTypeGenerator {
       `  ${field.name}${field.optional ? '?' : ''}: ${field.type}; // ${field.description}`
     ).join('\n');
 
+    // Generate default object with base fields + device-specific fields
+    const baseDefaults = [
+      '  deviceId: ""',
+      '  deviceName: ""',
+      '  lastCommand: null',
+      '  error: null',
+      '  isConnected: false',
+      '  lastUpdated: null'
+    ];
+    
+    const deviceSpecificDefaults = fields.map(field => 
+      `  ${field.name}: ${this.formatDefaultValue(field)}`
+    );
+    
+    const allDefaults = [...baseDefaults, ...deviceSpecificDefaults];
+
     return `${importStatements}export interface ${interfaceName}${extendsStatement} {
 ${fieldsCode}
 }
 
 export const default${interfaceName}: ${interfaceName} = {
-${fields.map(field => `  ${field.name}: ${this.formatDefaultValue(field)}`).join(',\n')}
+${allDefaults.join(',\n')}
 };`;
   }
 
@@ -135,7 +129,7 @@ ${fields.map(field => `  ${field.name}: ${this.formatDefaultValue(field)}`).join
 
     return `import { useState, useEffect } from 'react';
 import { ${interfaceName}, default${interfaceName} } from '${importPath}';
-import { useDeviceState } from '../../hooks/useDeviceState';
+import { useDeviceState } from '../hooks/useDeviceState';
 
 export function ${hookName}(deviceId: string = '${deviceId}') {
   const [state, setState] = useState<${interfaceName}>(default${interfaceName});
@@ -273,20 +267,7 @@ print(json.dumps(result))
     return {
       interfaceName: `${className}State`,
       fields: [
-        {
-          name: 'isConnected',
-          type: 'boolean',
-          optional: false,
-          description: 'Device connection status',
-          defaultValue: false
-        },
-        {
-          name: 'lastUpdated',
-          type: 'Date | null',
-          optional: false,
-          description: 'Last state update timestamp',
-          defaultValue: null
-        },
+        // Only device-specific fields - base fields inherited from BaseDeviceState
         {
           name: 'deviceStatus',
           type: 'string',

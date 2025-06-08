@@ -1,7 +1,17 @@
+export interface LastCommand {
+  action: string;
+  source: string;
+  timestamp: string;
+  params?: { [key: string]: any } | null;
+}
+
 export interface BaseDeviceState {
+  deviceId: string;
+  deviceName: string;
+  lastCommand?: LastCommand | null;
+  error?: string | null;
   isConnected: boolean;
   lastUpdated: Date | null;
-  deviceId: string;
 }
 
 export interface DeviceStateUpdate<T = any> {
