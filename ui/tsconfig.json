@@ -27,5 +27,6 @@
     }
   },
   "include": ["src/**/*"],
+  "exclude": ["src/scripts/**/*", "src/lib/**/*", "src/types/DeviceConfig.ts", "src/types/ProcessedDevice.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 } 

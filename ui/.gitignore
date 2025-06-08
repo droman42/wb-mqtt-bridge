@@ -14,11 +14,6 @@ node_modules/
 dist/
 build/
 
-# Generated files
-src/pages/*.gen.tsx
-src/pages/index.gen.ts
-src/pages/manifest.json
-
 # Environment variables
 .env
 .env.*
