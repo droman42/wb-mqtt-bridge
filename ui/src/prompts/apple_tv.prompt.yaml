@@ -1,0 +1,56 @@
+id: apple_tv
+title:
+  en: Apple TV Remote
+  ru: Пульт Apple TV
+
+menu:
+  up: navigate_up
+  down: navigate_down
+  left: navigate_left
+  right: navigate_right
+  ok: select
+  aux1: menu
+  aux2: home
+  aux3: play_pause
+  aux4: siri
+
+sliders:
+  - id: volume
+    min: 0
+    max: 100
+    step: 1
+    icon: SpeakerWaveIcon
+    transport: api
+    payload:
+      device: apple_tv
+      command: volume
+
+pointer:
+  mode: relative
+  sensitivity: 1.5
+  transport: api
+  hintIcon: "lucide:TouchpadOff"
+
+buttons:
+  - id: power
+    icon: PowerIcon
+    label:
+      en: Power
+      ru: Питание
+    transport: api
+    payload:
+      device: apple_tv
+      command: power
+
+  - id: netflix
+    icon: "lucide:Play"
+    label:
+      en: Netflix
+      ru: Netflix
+    transport: api
+    payload:
+      device: apple_tv
+      command: launch_app
+      app: netflix
+
+hideStatePanel: false 
