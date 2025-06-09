@@ -28,7 +28,7 @@ def initialize(cfg_manager, dev_manager, mqt_client):
     device_manager = dev_manager
     mqtt_client = mqt_client
 
-@router.get("/config/device/{device_id}")
+@router.get("/config/device/{device_id}", response_model=BaseDeviceConfig)
 async def get_device_config(device_id: str):
     """Get full configuration for a specific device."""
     if not config_manager:
@@ -49,9 +49,24 @@ async def get_device_config(device_id: str):
         logger.error(f"Error retrieving device config for {device_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@router.get("/config/devices")
+@router.get("/config/devices", response_model=Dict[str, BaseDeviceConfig])
 async def get_all_device_configs():
-    """Get configurations for all devices."""
+    """
+    Get configurations for all devices.
+    
+    Returns a dictionary where:
+    - Keys are device IDs (strings)
+    - Values are device configuration objects with all device-specific settings
+    
+    Each device configuration includes:
+    - Basic device information (device_id, device_name, device_class, config_class)
+    - MQTT topics and settings
+    - Available commands and their parameters
+    - Device-specific configuration sections (e.g., tv, emotiva, broadlink settings)
+    
+    Returns:
+        Dict[str, BaseDeviceConfig]: Dictionary mapping device IDs to their configurations
+    """
     if not config_manager:
         raise HTTPException(status_code=503, detail="Service not fully initialized")
     

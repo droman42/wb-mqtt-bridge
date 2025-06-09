@@ -196,7 +196,7 @@ async def lifespan(app: FastAPI):
     logger.info("Scenario manager initialized")
     
     # Initialize routers with dependencies
-    system.initialize(config_manager, device_manager, mqtt_client, state_store)
+    system.initialize(config_manager, device_manager, mqtt_client, state_store, scenario_manager, room_manager)
     devices.initialize(config_manager, device_manager, mqtt_client)
     mqtt.initialize(mqtt_client)
     groups.initialize(config_manager, device_manager)

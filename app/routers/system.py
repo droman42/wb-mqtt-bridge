@@ -24,14 +24,18 @@ config_manager = None
 device_manager = None
 mqtt_client = None
 state_store = None  # Keep reference to state_store
+scenario_manager = None
+room_manager = None
 
-def initialize(cfg_manager, dev_manager, mqt_client, state_st=None):
+def initialize(cfg_manager, dev_manager, mqt_client, state_st=None, scenario_mgr=None, room_mgr=None):
     """Initialize global references needed by router endpoints."""
-    global config_manager, device_manager, mqtt_client, state_store
+    global config_manager, device_manager, mqtt_client, state_store, scenario_manager, room_manager
     config_manager = cfg_manager
     device_manager = dev_manager
     mqtt_client = mqt_client
     state_store = state_st  # Set the state_store reference
+    scenario_manager = scenario_mgr
+    room_manager = room_mgr
 
 @router.get("/", response_model=ServiceInfo)
 async def root():
@@ -48,10 +52,23 @@ async def get_system_info():
     if not config_manager or not device_manager:
         raise HTTPException(status_code=503, detail="Service not fully initialized")
     
+    # Get scenarios list
+    scenarios = []
+    if scenario_manager:
+        scenarios = list(scenario_manager.scenario_definitions.keys())
+    
+    # Get rooms list  
+    rooms = []
+    if room_manager:
+        room_definitions = room_manager.list()
+        rooms = [room.room_id for room in room_definitions]
+    
     return SystemInfo(
         version="1.0.0",
         mqtt_broker=config_manager.get_mqtt_broker_config(),
-        devices=device_manager.get_all_devices()
+        devices=device_manager.get_all_devices(),
+        scenarios=scenarios,
+        rooms=rooms
     )
 
 @router.get("/config/system", response_model=SystemConfig)

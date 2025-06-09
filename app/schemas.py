@@ -845,7 +845,9 @@ class SystemInfo(BaseModel):
     """Schema for system information."""
     version: str = "1.0.0"
     mqtt_broker: MQTTBrokerConfig
-    devices: List[str]
+    devices: List[str] = Field(default_factory=list, description="List of available devices")
+    scenarios: List[str] = Field(default_factory=list, description="List of available scenarios")
+    rooms: List[str] = Field(default_factory=list, description="List of available rooms")
 
 class DeviceAction(BaseModel):
     """Schema for device action requests."""
