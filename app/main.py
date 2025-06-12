@@ -114,6 +114,21 @@ async def lifespan(app: FastAPI):
     log_level = system_config.log_level
     setup_logging(log_file, log_level)
     
+    # Diagnostic: Check what level was actually set
+    root_logger = logging.getLogger()
+    print(f"DEBUG: After setup_logging - Root logger level: {root_logger.level} (requested: {log_level})")
+    
+    # Check for log level override from environment
+    override_log_level = os.getenv('OVERRIDE_LOG_LEVEL')
+    if override_log_level:
+        override_numeric_level = getattr(logging, override_log_level.upper(), None)
+        if override_numeric_level is not None:
+            root_logger = logging.getLogger()
+            root_logger.setLevel(override_numeric_level)
+            print(f"Log level overridden by environment variable: {override_log_level}")
+        else:
+            print(f"Warning: Invalid log level override '{override_log_level}', ignoring")
+    
     # Apply logger-specific configuration
     if system_config.loggers:
         for logger_name, logger_level in system_config.loggers.items():

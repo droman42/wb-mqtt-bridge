@@ -412,6 +412,7 @@ start_container() {
     local port="${PORT:-$DEFAULT_PORT}"
     local memory="${MEMORY:-$DEFAULT_MEMORY}"
     local cpus="${CPUS:-$DEFAULT_CPUS}"
+    local log_level="${LOG_LEVEL:-}"  # Allow LOG_LEVEL override
     
     log "Starting container '$container_name' with resources from '$resource_dir'..."
     
@@ -444,17 +445,32 @@ start_container() {
     log "  Config: $resource_dir/config:/app/config:ro"
     log "  Logs: $resource_dir/logs:/app/logs"
     log "  Data: $resource_dir/data:/app/data"
+    if [[ -n "$log_level" ]]; then
+        log "  Log Level Override: $log_level"
+    fi
     
-    docker run -d \
-        --name "$container_name" \
-        --restart unless-stopped \
-        -p "$port" \
-        -v "$resource_dir/config:/app/config:ro" \
-        -v "$resource_dir/logs:/app/logs" \
-        -v "$resource_dir/data:/app/data" \
-        --memory="$memory" \
-        --cpus="$cpus" \
-        "$image_name"
+    # Build docker run command with optional log level
+    local docker_cmd=(
+        docker run -d
+        --name "$container_name"
+        --restart unless-stopped
+        -p "$port"
+        -v "$resource_dir/config:/app/config:ro"
+        -v "$resource_dir/logs:/app/logs"
+        -v "$resource_dir/data:/app/data"
+        --memory="$memory"
+        --cpus="$cpus"
+    )
+    
+    # Add log level environment variable if specified
+    if [[ -n "$log_level" ]]; then
+        docker_cmd+=(-e "OVERRIDE_LOG_LEVEL=$log_level")
+    fi
+    
+    docker_cmd+=("$image_name")
+    
+    # Execute the docker command
+    "${docker_cmd[@]}"
     
     # Verify container started
     sleep 2

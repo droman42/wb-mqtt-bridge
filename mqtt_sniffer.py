@@ -6,7 +6,8 @@ import logging
 from datetime import datetime
 import os
 import json
-from typing import Optional
+import re
+from typing import Optional, Set
 
 import paho.mqtt.client as mqtt
 
@@ -19,7 +20,9 @@ class MqttSniffer:
         password: Optional[str] = None,
         log_file: str = "mqtt_sniffer.log",
         topic_filter: str = "#",
-        filter_substring: Optional[str] = None
+        filter_substring: Optional[str] = None,
+        av_devices_only: bool = False,
+        av_devices_file: str = "wb-rules/av_devices.js"
     ):
         """
         Initialize the MQTT sniffer.
@@ -32,6 +35,8 @@ class MqttSniffer:
             log_file: Path to the log file
             topic_filter: MQTT topic filter (default "#" subscribes to all topics)
             filter_substring: Only report topics containing this substring (None = report all)
+            av_devices_only: If True, only report topics for devices configured in av_devices.js
+            av_devices_file: Path to the av_devices.js file
         """
         self.broker_host = broker_host
         self.broker_port = broker_port
@@ -40,9 +45,16 @@ class MqttSniffer:
         self.log_file = log_file
         self.topic_filter = topic_filter
         self.filter_substring = filter_substring
+        self.av_devices_only = av_devices_only
+        self.av_devices_file = av_devices_file
+        self.av_device_names: Set[str] = set()
         
-        # Set up logging
+        # Set up logging first
         self.setup_logging()
+        
+        # Load AV device names if filtering is enabled
+        if self.av_devices_only:
+            self.av_device_names = self.load_av_devices()
         
         # Initialize MQTT client
         self.client = mqtt.Client()
@@ -54,7 +66,9 @@ class MqttSniffer:
             self.client.username_pw_set(username, password)
             
         self.logger.info(f"MQTT Sniffer initialized - will connect to {broker_host}:{broker_port}")
-        if self.filter_substring:
+        if self.av_devices_only:
+            self.logger.info(f"Configured to only report AV devices: {', '.join(sorted(self.av_device_names))}")
+        elif self.filter_substring:
             self.logger.info(f"Configured to only report topics containing '{self.filter_substring}'")
         else:
             self.logger.info("Configured to report all topics")
@@ -97,7 +111,11 @@ class MqttSniffer:
             
     def on_message(self, client, userdata, msg):
         """Callback for when a message is received from the broker."""
-        # Apply filter if specified
+        # Apply AV devices filter if enabled
+        if self.av_devices_only and not self.is_av_device_topic(msg.topic):
+            return
+            
+        # Apply substring filter if specified
         if self.filter_substring and self.filter_substring not in msg.topic:
             return
             
@@ -125,6 +143,56 @@ class MqttSniffer:
         self.client.loop_stop()
         self.client.disconnect()
         self.logger.info("MQTT Sniffer stopped")
+
+    def load_av_devices(self) -> Set[str]:
+        """
+        Parse the av_devices.js file to extract device names.
+        
+        Returns:
+            Set of device names configured in the av_devices.js file
+        """
+        device_names = set()
+        
+        if not os.path.exists(self.av_devices_file):
+            self.logger.warning(f"AV devices file not found: {self.av_devices_file}")
+            return device_names
+        
+        try:
+            with open(self.av_devices_file, 'r') as f:
+                content = f.read()
+                
+            # Use regex to find defineVirtualDevice calls and extract device names
+            # Pattern: defineVirtualDevice("device_name", {
+            pattern = r'defineVirtualDevice\s*\(\s*["\']([^"\']+)["\']'
+            matches = re.findall(pattern, content)
+            
+            device_names = set(matches)
+            self.logger.info(f"Loaded {len(device_names)} AV devices from {self.av_devices_file}")
+            
+        except Exception as e:
+            self.logger.error(f"Error reading AV devices file: {str(e)}")
+            
+        return device_names
+
+    def is_av_device_topic(self, topic: str) -> bool:
+        """
+        Check if a topic belongs to one of the configured AV devices.
+        
+        Args:
+            topic: MQTT topic to check
+            
+        Returns:
+            True if topic belongs to a configured AV device, False otherwise
+        """
+        # Expected topic format: /devices/{device_name}/controls/{control_name}
+        # or similar variations
+        parts = topic.strip('/').split('/')
+        
+        if len(parts) >= 2 and parts[0] == 'devices':
+            device_name = parts[1]
+            return device_name in self.av_device_names
+            
+        return False
 
 def read_broker_config(config_path: str = "config/system.json") -> dict:
     """
@@ -169,6 +237,10 @@ def parse_args():
                         help="Only report topics containing this substring")
     parser.add_argument("-c", "--config", action="store_true",
                         help="Use broker parameters from config/system.json")
+    parser.add_argument("-d", "--av-devices-only", action="store_true",
+                        help="Only report topics for devices configured in av_devices.js")
+    parser.add_argument("-a", "--av-devices-file", default="wb-rules/av_devices.js",
+                        help="Path to the av_devices.js file")
     return parser.parse_args()
 
 async def main():
@@ -195,6 +267,8 @@ async def main():
         print(f"  Log file: {args.log_file}")
         print(f"  Topic filter: {args.topic}")
         print(f"  Filter substring: {args.filter_substring}")
+        print(f"  AV devices only: {args.av_devices_only}")
+        print(f"  AV devices file: {args.av_devices_file}")
     
     sniffer = MqttSniffer(
         broker_host=args.broker,
@@ -203,13 +277,17 @@ async def main():
         password=args.password,
         log_file=args.log_file,
         topic_filter=args.topic,
-        filter_substring=args.filter_substring
+        filter_substring=args.filter_substring,
+        av_devices_only=args.av_devices_only,
+        av_devices_file=args.av_devices_file
     )
     
     if sniffer.start():
         print(f"MQTT Sniffer running. Press Ctrl+C to stop. Logging to {args.log_file}")
         if args.filter_substring:
             print(f"Only topics containing '{args.filter_substring}' will be reported")
+        elif args.av_devices_only:
+            print(f"Only topics for devices: {', '.join(sorted(sniffer.av_device_names))}")
         else:
             print("All topics will be reported")
         try:
