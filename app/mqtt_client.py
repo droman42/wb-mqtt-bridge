@@ -130,10 +130,17 @@ class MQTTClient:
                         
                         logger.debug(f"Received message on {topic}: {payload}")
                         
+                        # DEBUG: Enhanced logging for control topics (broader filtering)
+                        if "controls" in topic or "processor" in topic or "tv" in topic or "soundbar" in topic:
+                            logger.debug(f"[MQTT_DEBUG] Processing message: topic={topic}, payload='{payload}', timestamp={asyncio.get_event_loop().time()}")
+                        
                         # Find handler for this exact topic
                         handler = self.message_handlers.get(topic)
                         if handler:
                             try:
+                                # DEBUG: Log handler execution for control topics
+                                if "controls" in topic or "processor" in topic or "tv" in topic or "soundbar" in topic:
+                                    logger.debug(f"[MQTT_DEBUG] Executing exact topic handler for {topic} (payload='{payload}')")
                                 await handler(topic, payload)
                             except Exception as e:
                                 logger.error(f"Error in message handler for topic {topic}: {str(e)}")
@@ -142,6 +149,9 @@ class MQTTClient:
                             for subscribed_topic, subscribed_handler in self.message_handlers.items():
                                 if self._topic_matches(subscribed_topic, topic):
                                     try:
+                                        # DEBUG: Log wildcard handler execution for control topics
+                                        if "controls" in topic or "processor" in topic or "tv" in topic or "soundbar" in topic:
+                                            logger.debug(f"[MQTT_DEBUG] Executing wildcard handler for {topic} (subscribed to {subscribed_topic}, payload='{payload}')")
                                         await subscribed_handler(topic, payload)
                                     except Exception as e:
                                         logger.error(f"Error in wildcard handler for topic {topic} (subscribed to {subscribed_topic}): {str(e)}")

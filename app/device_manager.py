@@ -288,6 +288,9 @@ class DeviceManager:
         Args:
             device_id: The ID of the device whose state changed
         """
+        # DEBUG: Log all state change callbacks
+        logger.debug(f"[STATE_DEBUG] _persist_state_callback triggered for {device_id}")
+        
         if not self.store:
             logger.debug(f"State store not available, skipping persistence callback for device: {device_id}")
             return
@@ -308,6 +311,9 @@ class DeviceManager:
             
         # Normal operation mode: use asyncio.create_task to persist state asynchronously without blocking
         try:
+            # DEBUG: Log task creation for all devices
+            logger.debug(f"[STATE_DEBUG] Creating persistence task for {device_id}")
+            
             task = asyncio.create_task(self._persist_state(device_id))
             # Track the task and automatically remove it when done
             self._persistence_tasks.add(task)
@@ -374,13 +380,23 @@ class DeviceManager:
             
     async def perform_action(self, device_id: str, action: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Perform an action on a device and persist its state."""
+        # DEBUG: Log all device action executions
+        logger.debug(f"[DEVICE_MGR_DEBUG] perform_action called: device_id={device_id}, action={action}, params={params}")
+        
         device = self.get_device(device_id)
         if not device:
             logger.warning(f"Cannot perform action on unknown device: {device_id}")
             return {"success": False, "error": f"Device not found: {device_id}"}
             
         try:
+            # DEBUG: Log before action execution
+            logger.debug(f"[DEVICE_MGR_DEBUG] Executing action on device: {device.get_name()}")
+            
             result = await device.execute_action(action, params)
+            
+            # DEBUG: Log action result
+            logger.debug(f"[DEVICE_MGR_DEBUG] Action result for {device_id}: {result}")
+            
             # Persist state after action
             await self._persist_state(device_id)
             return result

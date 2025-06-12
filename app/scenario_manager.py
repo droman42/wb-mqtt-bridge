@@ -57,8 +57,14 @@ class ScenarioManager:
         2. Creates Scenario instances for each definition
         3. Attempts to restore the previously active scenario
         """
+        # DEBUG: Log scenario manager initialization
+        logger.debug(f"[SCENARIO_DEBUG] ScenarioManager.initialize() called")
+        
         # Load all scenario definitions
         await self.load_scenarios()
+        
+        # DEBUG: Log loaded scenarios
+        logger.debug(f"[SCENARIO_DEBUG] Loaded scenarios: {list(self.scenario_map.keys())}")
         
         # Try to restore previous state
         await self._restore_state()
@@ -113,12 +119,18 @@ class ScenarioManager:
         Raises:
             ValueError: If the target scenario doesn't exist
         """
+        # DEBUG: Log scenario switch initiation
+        logger.debug(f"[SCENARIO_DEBUG] switch_scenario called: target_id={target_id}, graceful={graceful}")
+        
         # Validate target scenario exists
         if target_id not in self.scenario_map:
             raise ValueError(f"Scenario '{target_id}' not found")
             
         outgoing = self.current_scenario
         incoming = self.scenario_map[target_id]
+        
+        # DEBUG: Log scenario transition details
+        logger.debug(f"[SCENARIO_DEBUG] Transition: outgoing={outgoing.scenario_id if outgoing else 'None'}, incoming={incoming.scenario_id}")
         
         # If already active, do nothing
         if outgoing and outgoing.scenario_id == incoming.scenario_id:
@@ -138,16 +150,27 @@ class ScenarioManager:
             incoming_device_ids = set(incoming.definition.devices)
             shared_device_ids = outgoing_device_ids.intersection(incoming_device_ids)
             logger.info(f"Identified {len(shared_device_ids)} shared devices that will maintain power")
+            
+            # DEBUG: Log device analysis
+            logger.debug(f"[SCENARIO_DEBUG] Device analysis: outgoing_devices={outgoing_device_ids}, incoming_devices={incoming_device_ids}, shared_devices={shared_device_ids}")
         
         # 1. Handle shutdown of non-shared devices from outgoing scenario
         if outgoing:
+            # DEBUG: Log shutdown phase
+            logger.debug(f"[SCENARIO_DEBUG] Starting shutdown phase for outgoing scenario: {outgoing.scenario_id}")
+            
             # For non-graceful transitions, we'll run the full shutdown sequence
             if not graceful:
                 logger.info(f"Executing full shutdown sequence for scenario '{outgoing.scenario_id}'")
+                # DEBUG: Log full shutdown
+                logger.debug(f"[SCENARIO_DEBUG] Full shutdown sequence triggered for {outgoing.scenario_id}")
                 await outgoing.execute_shutdown_sequence()
             else:
                 # For graceful transitions, we need to manually handle each device
                 logger.info(f"Executing selective shutdown for scenario '{outgoing.scenario_id}'")
+                
+                # DEBUG: Log graceful shutdown process
+                logger.debug(f"[SCENARIO_DEBUG] Graceful shutdown: processing {len(outgoing.definition.devices)} devices")
                 
                 # Shutdown devices that aren't shared with the incoming scenario
                 for device_id in outgoing.definition.devices:
@@ -155,13 +178,20 @@ class ScenarioManager:
                         dev = self.device_manager.get_device(device_id)
                         if dev:
                             logger.info(f"Shutting down non-shared device: {device_id}")
+                            # DEBUG: Log individual device shutdown
+                            logger.debug(f"[SCENARIO_DEBUG] Shutting down non-shared device: {device_id}")
                             try:
                                 await dev.execute_command("power_off", {})
                             except Exception as e:
                                 logger.error(f"Error shutting down device {device_id}: {str(e)}")
+                    else:
+                        # DEBUG: Log skipped shutdown
+                        logger.debug(f"[SCENARIO_DEBUG] Skipping shutdown for shared device: {device_id}")
         
         # 2. Initialize the incoming scenario, skipping power commands for shared devices
         logger.info(f"Initializing scenario '{incoming.scenario_id}'")
+        # DEBUG: Log initialization phase
+        logger.debug(f"[SCENARIO_DEBUG] Starting initialization for scenario: {incoming.scenario_id}, skipping power for: {list(shared_device_ids)}")
         await incoming.execute_startup_sequence(skip_power_for_devices=list(shared_device_ids))
         
         # 3. Update manager state
@@ -195,11 +225,20 @@ class ScenarioManager:
         Raises:
             ScenarioError: If no scenario is active or the role is invalid
         """
+        # DEBUG: Log role action execution
+        logger.debug(f"[SCENARIO_DEBUG] execute_role_action called: role={role}, command={command}, params={params}, active_scenario={self.current_scenario.scenario_id if self.current_scenario else 'None'}")
+        
         if not self.current_scenario:
             raise ScenarioError("No scenario is currently active", "no_active_scenario", True)
             
         try:
+            # DEBUG: Log before executing role action
+            logger.debug(f"[SCENARIO_DEBUG] Executing role action on scenario {self.current_scenario.scenario_id}: {role}.{command}")
+            
             result = await self.current_scenario.execute_role_action(role, command, **params)
+            
+            # DEBUG: Log role action result
+            logger.debug(f"[SCENARIO_DEBUG] Role action result: {result}")
             
             # Update scenario state after action
             await self._refresh_state()
@@ -248,14 +287,28 @@ class ScenarioManager:
         """
         Restore the previously active scenario, if any.
         """
+        # DEBUG: Log state restoration attempt
+        logger.debug(f"[SCENARIO_DEBUG] _restore_state() called")
+        
         try:
             scenario_id = await self.store.load("active_scenario")
+            
+            # DEBUG: Log what was loaded from store
+            logger.debug(f"[SCENARIO_DEBUG] Loaded scenario_id from store: {scenario_id}")
+            
             if scenario_id and scenario_id in self.scenario_map:
                 logger.info(f"Restoring previously active scenario: {scenario_id}")
+                # DEBUG: Log restoration attempt
+                logger.debug(f"[SCENARIO_DEBUG] Attempting to restore scenario: {scenario_id}")
                 try:
                     await self.switch_scenario(scenario_id)
+                    # DEBUG: Log successful restoration
+                    logger.debug(f"[SCENARIO_DEBUG] Successfully restored scenario: {scenario_id}")
                 except Exception as e:
                     logger.error(f"Error restoring scenario {scenario_id}: {str(e)}")
+            else:
+                # DEBUG: Log why restoration was skipped
+                logger.debug(f"[SCENARIO_DEBUG] Restoration skipped: scenario_id={scenario_id}, exists_in_map={scenario_id in self.scenario_map if scenario_id else False}")
         except Exception as e:
             logger.error(f"Error loading active scenario from store: {str(e)}")
     

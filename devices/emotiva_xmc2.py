@@ -148,8 +148,14 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 
                 # Query initial state for key properties using _refresh_device_state
                 try:
+                    # DEBUG: Log state refresh attempt
+                    logger.debug(f"[EMOTIVA_DEBUG] Starting initial state refresh during setup (device={self.get_name()})")
+                    
                     # Refresh all properties at once
                     updated_properties = await self._refresh_device_state()
+                    
+                    # DEBUG: Enhanced state logging
+                    logger.debug(f"[EMOTIVA_DEBUG] Initial state refresh completed: {updated_properties} (device={self.get_name()})")
                     
                     # Log the initial power state which is most critical
                     if "power" in updated_properties:
@@ -164,6 +170,8 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                         if "source" in updated_properties:
                             logger.debug(f"Initial input source: {updated_properties['source']}")
                 except Exception as e:
+                    # DEBUG: Log state refresh failure
+                    logger.debug(f"[EMOTIVA_DEBUG] Initial state refresh failed: {str(e)} (device={self.get_name()})")
                     logger.warning(f"Failed to query initial state: {str(e)}")
                     # Continue setup even if initial state query fails
                 
@@ -287,13 +295,14 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         # Use the new decorator pattern for callbacks
         @self.client.on(property)
         async def property_callback(value):
-            # Pass to our property change handler with property as enum
-            logger.debug(f"Callback triggered for {property.value} = {value}")
+            # DEBUG: Enhanced callback logging
+            logger.debug(f"[EMOTIVA_DEBUG] Hardware callback triggered: {property.value} = {value} (device={self.get_name()}, timestamp={datetime.now().isoformat()})")
             # Convert property enum value to lowercase for consistent handling
             property_name = property.value.lower()
             self._handle_property_change(property_name, None, value)
             
-        logger.debug(f"Registered callback for property {property.value}")
+        # DEBUG: Log callback registration
+        logger.debug(f"[EMOTIVA_DEBUG] Registering property callback for {property.value} (device={self.get_name()})")
         
     # Constants for valid properties
     VALID_PROPERTIES = {
@@ -316,7 +325,8 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             old_value: Previous value of the property
             new_value: New value of the property
         """
-        logger.debug(f"Property change: {property_name} = {new_value}")
+        # DEBUG: Enhanced property change logging
+        logger.debug(f"[EMOTIVA_DEBUG] Property change callback: {property_name} = {old_value} -> {new_value} (device={self.get_name()}, connected={self.state.connected})")
         
         # Process the value with our helper
         processed_value = self._process_property_value(property_name, new_value)
@@ -345,6 +355,8 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             
         # Apply state updates if any
         if updates:
+            # DEBUG: Log state updates triggered by property changes
+            logger.debug(f"[EMOTIVA_DEBUG] Property change triggering state update: {updates} (device={self.get_name()})")
             self.update_state(**updates)
     
     def _process_property_value(self, property_name: str, value: Any) -> Any:
@@ -420,6 +432,9 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         Args:
             **kwargs: State values to update
         """
+        # DEBUG: Log all state updates with current state context
+        logger.debug(f"[EMOTIVA_DEBUG] State update requested: {kwargs} (device={self.get_name()}, current_power={self.state.power}, connected={self.state.connected})")
+        
         # Convert string power states to enum values if needed
         if 'power' in kwargs and isinstance(kwargs['power'], str):
             power_value = kwargs['power'].lower()
@@ -551,6 +566,9 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         Returns:
             Dict[str, Any]: Dictionary of updated properties and their values
         """
+        # DEBUG: Log state refresh start
+        logger.debug(f"[EMOTIVA_DEBUG] _refresh_device_state called (device={self.get_name()}, connected={self.state.connected})")
+        
         if not self.client:
             logger.warning("Cannot refresh device state: client not initialized")
             return {}
@@ -567,6 +585,9 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 Property.AUDIO_BITSTREAM,    # Audio bitstream format
                 Property.SELECTED_MODE       # Audio processing mode
             ]
+            
+            # DEBUG: Log properties being queried
+            logger.debug(f"[EMOTIVA_DEBUG] Querying properties: {[p.value for p in properties_to_query]} (device={self.get_name()})")
             
             # Use the status method to get all properties at once
             result = await self.client.status(*properties_to_query)
@@ -604,8 +625,13 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         Returns:
             Command execution result
         """
+        # DEBUG: Log command start with full context
+        logger.debug(f"[EMOTIVA_DEBUG] power_on command received: params={params}, connected={self.state.connected}, power={self.state.power} (device={self.get_name()})")
+        
         # If client is not initialized or not connected, reconnect first
         if not self.client or not self.state.connected:
+            # DEBUG: Log reconnection trigger
+            logger.debug(f"[EMOTIVA_DEBUG] Triggering reconnection: client={self.client is not None}, connected={self.state.connected} (device={self.get_name()})")
             logger.info(f"Device {self.get_name()} not connected, attempting reconnection before power on")
             try:
                 await self.setup()
@@ -763,8 +789,13 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         Returns:
             Command execution result
         """
+        # DEBUG: Log command start with full context
+        logger.debug(f"[EMOTIVA_DEBUG] power_off command received: params={params}, connected={self.state.connected}, power={self.state.power} (device={self.get_name()})")
+        
         # If client is not initialized or not connected, reconnect first
         if not self.client or not self.state.connected:
+            # DEBUG: Log reconnection trigger
+            logger.debug(f"[EMOTIVA_DEBUG] Triggering reconnection for power_off: client={self.client is not None}, connected={self.state.connected} (device={self.get_name()})")
             logger.info(f"Device {self.get_name()} not connected, attempting reconnection before power off")
             try:
                 await self.setup()
@@ -936,8 +967,13 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         Returns:
             Command execution result
         """
+        # DEBUG: Log command start with full context
+        logger.debug(f"[EMOTIVA_DEBUG] set_input command received: params={params}, connected={self.state.connected}, current_input={self.state.input_source} (device={self.get_name()})")
+        
         # If client is not initialized or not connected, reconnect first
         if not self.client or not self.state.connected:
+            # DEBUG: Log reconnection trigger
+            logger.debug(f"[EMOTIVA_DEBUG] Triggering reconnection for set_input: client={self.client is not None}, connected={self.state.connected} (device={self.get_name()})")
             logger.info(f"Device {self.get_name()} not connected, attempting reconnection before setting input")
             try:
                 await self.setup()
@@ -1078,8 +1114,13 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         Returns:
             Command execution result
         """
+        # DEBUG: Log command start with full context  
+        logger.debug(f"[EMOTIVA_DEBUG] set_volume command received: params={params}, connected={self.state.connected}, current_volume={self.state.volume} (device={self.get_name()})")
+        
         # If client is not initialized or not connected, reconnect first
         if not self.client or not self.state.connected:
+            # DEBUG: Log reconnection trigger
+            logger.debug(f"[EMOTIVA_DEBUG] Triggering reconnection for set_volume: client={self.client is not None}, connected={self.state.connected} (device={self.get_name()})")
             logger.info(f"Device {self.get_name()} not connected, attempting reconnection before setting volume")
             try:
                 await self.setup()
@@ -1213,8 +1254,13 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         Returns:
             Command execution result
         """
+        # DEBUG: Log command start with full context
+        logger.debug(f"[EMOTIVA_DEBUG] mute_toggle command received: params={params}, connected={self.state.connected}, current_mute={self.state.mute} (device={self.get_name()})")
+        
         # If client is not initialized or not connected, reconnect first
         if not self.client or not self.state.connected:
+            # DEBUG: Log reconnection trigger
+            logger.debug(f"[EMOTIVA_DEBUG] Triggering reconnection for mute_toggle: client={self.client is not None}, connected={self.state.connected} (device={self.get_name()})")
             logger.info(f"Device {self.get_name()} not connected, attempting reconnection before toggling mute")
             try:
                 await self.setup()

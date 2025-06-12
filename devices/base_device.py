@@ -181,6 +181,9 @@ class BaseDevice(ABC, Generic[StateT]):
         """Handle incoming MQTT messages for this device."""
         logger.debug(f"Device {self.get_name()} received message on {topic}: {payload}")
         
+        # DEBUG: Enhanced logging for all device messages
+        logger.debug(f"[BASE_DEVICE_DEBUG] handle_message for {self.device_id}: topic={topic}, payload='{payload}'")
+        
         # Find matching command configuration based on topic
         matching_commands = []
         for cmd_name, cmd in self.get_available_commands().items():
@@ -191,6 +194,9 @@ class BaseDevice(ABC, Generic[StateT]):
         if not matching_commands:
             logger.warning(f"No command configuration found for topic: {topic}")
             return
+        
+        # DEBUG: Log matching commands for all devices
+        logger.debug(f"[BASE_DEVICE_DEBUG] Found {len(matching_commands)} matching commands for {self.device_id}: {[cmd[0] for cmd in matching_commands]}")
         
         # Process each matching command configuration found for the topic
         for cmd_name, cmd in matching_commands:
@@ -205,6 +211,9 @@ class BaseDevice(ABC, Generic[StateT]):
                     continue  # Skip this command if parameters failed validation
             
             # Execute the command with parameters
+            # DEBUG: Log command execution for all devices
+            logger.debug(f"[BASE_DEVICE_DEBUG] Executing command '{cmd_name}' on {self.device_id} with params: {params}")
+            
             logger.debug(f"Executing command '{cmd_name}' based on topic match.")
             await self._execute_single_action(cmd_name, cmd, params)
     
@@ -379,8 +388,14 @@ class BaseDevice(ABC, Generic[StateT]):
             
             logger.debug(f"Executing action: {action_name} with handler: {handler}, params: {params}")
             
+            # DEBUG: Enhanced logging for all device action execution
+            logger.debug(f"[BASE_DEVICE_DEBUG] Calling handler for {action_name} on {self.device_id}: handler={handler.__name__ if hasattr(handler, '__name__') else str(handler)}")
+            
             # Call the handler with the new parameter-based approach
             result = await handler(cmd_config=cmd_config, params=params)
+            
+            # DEBUG: Log result for all devices
+            logger.debug(f"[BASE_DEVICE_DEBUG] Handler result for {action_name} on {self.device_id}: {result}")
             
             # Update state with information about the last command executed
             self.update_state(last_command=LastCommand(
@@ -502,6 +517,9 @@ class BaseDevice(ABC, Generic[StateT]):
         """Notify the registered callback about state changes."""
         if self._state_change_callback:
             try:
+                # DEBUG: Log all state change notifications
+                logger.debug(f"[BASE_DEVICE_DEBUG] _notify_state_change called for {self.device_id}")
+                
                 self._state_change_callback(self.device_id)
             except Exception as e:
                 logger.error(f"Error notifying state change for device {self.device_id}: {str(e)}")
