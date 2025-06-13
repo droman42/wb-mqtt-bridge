@@ -11,6 +11,7 @@ DEFAULT_IMAGE_NAME="wb-mqtt-bridge:latest"
 DEFAULT_PORT="8000:8000"
 DEFAULT_MEMORY="256M"
 DEFAULT_CPUS="0.5"
+DEFAULT_LOG_LEVEL="DEBUG"
 DEFAULT_GITHUB_USER="droman42"
 CONFIG_FILE="$HOME/docker_manager_config.json"
 ARTIFACTS_DIR="/mnt/sdcard/artifacts"
@@ -50,8 +51,9 @@ Options:
     --download <repo_name>            Download latest GitHub artifacts
     --install <directory>             Install downloaded artifacts to directory
     --start <container> <resource_dir> Start container with specified name and resource directory
-    --info                            Show running containers with stats
     --stop <container>                Stop a running container
+    --redeploy <container> <resource_dir> Full redeploy: stop, clean, download, install, and start
+    --info                            Show running containers with stats
     --config                          Create configuration file with default values
     --help                           Show this help message
 
@@ -61,6 +63,7 @@ Environment Variables (optional):
     PORT                            Port mapping (default: $DEFAULT_PORT)
     MEMORY                          Memory limit (default: $DEFAULT_MEMORY)
     CPUS                            CPU limit (default: $DEFAULT_CPUS)
+    LOG_LEVEL                       Application log level (default: $DEFAULT_LOG_LEVEL)
     GITHUB_USERNAME                 GitHub username
     GITHUB_PAT                      GitHub Personal Access Token
 
@@ -70,6 +73,7 @@ Examples:
     $0 --download wb-mqtt-bridge
     $0 --install /opt/mqtt-bridge
     $0 --start wb-mqtt-bridge /opt/mqtt-bridge
+    $0 --redeploy wb-mqtt-bridge /opt/mqtt-bridge
     $0 --info
     $0 --stop wb-mqtt-bridge
 
@@ -412,7 +416,7 @@ start_container() {
     local port="${PORT:-$DEFAULT_PORT}"
     local memory="${MEMORY:-$DEFAULT_MEMORY}"
     local cpus="${CPUS:-$DEFAULT_CPUS}"
-    local log_level="${LOG_LEVEL:-}"  # Allow LOG_LEVEL override
+    local log_level="${LOG_LEVEL:-$DEFAULT_LOG_LEVEL}"  # Use DEFAULT_LOG_LEVEL instead of empty
     
     log "Starting container '$container_name' with resources from '$resource_dir'..."
     
@@ -445,6 +449,7 @@ start_container() {
     log "  Config: $resource_dir/config:/app/config:ro"
     log "  Logs: $resource_dir/logs:/app/logs"
     log "  Data: $resource_dir/data:/app/data"
+    log "  Timezone: $(cat /etc/timezone 2>/dev/null || echo 'UTC')"
     if [[ -n "$log_level" ]]; then
         log "  Log Level Override: $log_level"
     fi
@@ -458,6 +463,9 @@ start_container() {
         -v "$resource_dir/config:/app/config:ro"
         -v "$resource_dir/logs:/app/logs"
         -v "$resource_dir/data:/app/data"
+        -v "/etc/localtime:/etc/localtime:ro"
+        -v "/etc/timezone:/etc/timezone:ro"
+        -e "TZ=$(cat /etc/timezone 2>/dev/null || echo 'UTC')"
         --memory="$memory"
         --cpus="$cpus"
     )
@@ -544,6 +552,41 @@ stop_container() {
     fi
 }
 
+# Full redeploy container
+redeploy_container() {
+    local container_name="$1"
+    local resource_dir="$2"
+    
+    log "Starting full redeploy of container '$container_name' to '$resource_dir'..."
+    
+    # Step 1: Stop container (if running)
+    log "Step 1/5: Stopping container '$container_name'..."
+    if docker ps --format '{{.Names}}' | grep -q "^${container_name}$"; then
+        stop_container "$container_name"
+    else
+        log "Container '$container_name' is not running, skipping stop step"
+    fi
+    
+    # Step 2: Docker cleanup
+    log "Step 2/5: Performing Docker cleanup..."
+    docker_cleanup
+    
+    # Step 3: Handle credentials (if needed for download)
+    log "Step 3/5: Downloading latest artifacts..."
+    handle_credentials
+    download_artifacts "$container_name"
+    
+    # Step 4: Install artifacts
+    log "Step 4/5: Installing artifacts to '$resource_dir'..."
+    install_artifacts "$resource_dir"
+    
+    # Step 5: Start container
+    log "Step 5/5: Starting container '$container_name'..."
+    start_container "$container_name" "$resource_dir"
+    
+    success "Full redeploy of '$container_name' completed successfully!"
+}
+
 # Main function
 main() {
     if [[ $# -eq 0 ]]; then
@@ -580,14 +623,20 @@ main() {
             fi
             start_container "$2" "$3"
             ;;
-        --info)
-            show_container_info
-            ;;
         --stop)
             if [[ $# -ne 2 ]]; then
                 error "Usage: $0 --stop <container>"
             fi
             stop_container "$2"
+            ;;
+        --redeploy)
+            if [[ $# -ne 3 ]]; then
+                error "Usage: $0 --redeploy <container> <resource_dir>"
+            fi
+            redeploy_container "$2" "$3"
+            ;;
+        --info)
+            show_container_info
             ;;
         --help)
             show_usage

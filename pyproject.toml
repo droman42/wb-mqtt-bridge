@@ -35,7 +35,7 @@ dependencies = [
     "paho-mqtt>=1.6.1",
     # Device-specific libraries (PyPI versions - Phase 1 migration)
     "broadlink>=0.18.0",
-    "pymotivaxmc2==0.6.5", # Migrated from Git to PyPI
+    "pymotivaxmc2==0.6.7", # Migrated from Git to PyPI
     "asyncwebostv==0.2.7", # Migrated from Git to PyPI
     "asyncmiele==0.2.6", # Migrated from Git to PyPI
     # Network and HTTP libraries

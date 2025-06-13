@@ -111,6 +111,11 @@ class MqttSniffer:
             
     def on_message(self, client, userdata, msg):
         """Callback for when a message is received from the broker."""
+        # Skip retained messages
+        if msg.retain:
+            self.logger.debug(f"Skipping retained message on topic {msg.topic}")
+            return
+            
         # Apply AV devices filter if enabled
         if self.av_devices_only and not self.is_av_device_topic(msg.topic):
             return

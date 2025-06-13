@@ -59,6 +59,9 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         
         self.client: Optional[EmotivaController] = None
         
+        # Add a lock to protect setup from concurrent calls
+        self._setup_lock = asyncio.Lock()
+        
         # Initialize device state with Pydantic model
         self.state: EmotivaXMC2State = EmotivaXMC2State(
             device_id=self.config.device_id,
@@ -87,141 +90,145 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         Returns:
             bool: True if setup was successful, False otherwise
         """
-        try:
-            # Get emotiva configuration directly from config
-            emotiva_config: AppEmotivaConfig = self.config.emotiva
-            
-            # Get the host IP address
-            host = emotiva_config.host
-            if not host:
-                logger.error(f"Missing 'host' in emotiva configuration for device: {self.get_name()}")
-                self.set_error("Missing host configuration")
-                return False
-            
-            # Store MAC address if available in config
-            if emotiva_config.mac:
-                self.update_state(mac_address=emotiva_config.mac)
-                
-            logger.info(f"Initializing eMotiva XMC2 device: {self.get_name()} at {host}")
-            
-            # Create and initialize controller with simplified constructor
-            try:
-                self.client = EmotivaController(
-                    host=host,
-                    timeout=emotiva_config.timeout or 5.0,
-                    protocol_max="3.1"  # Use the most recent protocol version
-                )
-                
-                # Update state with IP address at this point
-                self.update_state(ip_address=host)
-            except Exception as e:
-                logger.error(f"Failed to create controller for {self.get_name()}: {str(e)}")
-                self.set_error(f"Controller initialization error: {str(e)}")
-                return False
-            
-            # Connect to the device with retry logic
-            max_retries = emotiva_config.max_retries or 3
-            retry_delay = emotiva_config.retry_delay or 2.0
-            
-            for attempt in range(1, max_retries + 1):
-                try:
-                    await self.client.connect()
-                    logger.info(f"Connected to device at {host} on attempt {attempt}")
-                    break
-                except Exception as e:
-                    if attempt < max_retries:
-                        logger.warning(f"Connection attempt {attempt} failed: {str(e)}. Retrying in {retry_delay} seconds...")
-                        await asyncio.sleep(retry_delay)
-                    else:
-                        logger.error(f"Failed to connect to device at {host} after {max_retries} attempts: {str(e)}")
-                        self.set_error(f"Connection error: {str(e)}")
-                        return False
-            
-            # Set up callbacks for property changes
-            for prop in self.PROPERTIES_TO_MONITOR:
-                self._register_property_callback(prop)
-            
-            # Attempt to subscribe to properties
-            try:
-                await self.client.subscribe(self.PROPERTIES_TO_MONITOR)
-                logger.info(f"Successfully subscribed to properties for {self.get_name()}")
-                
-                # Query initial state for key properties using _refresh_device_state
-                try:
-                    # DEBUG: Log state refresh attempt
-                    logger.debug(f"[EMOTIVA_DEBUG] Starting initial state refresh during setup (device={self.get_name()})")
-                    
-                    # Refresh all properties at once
-                    updated_properties = await self._refresh_device_state()
-                    
-                    # DEBUG: Enhanced state logging
-                    logger.debug(f"[EMOTIVA_DEBUG] Initial state refresh completed: {updated_properties} (device={self.get_name()})")
-                    
-                    # Log the initial power state which is most critical
-                    if "power" in updated_properties:
-                        logger.debug(f"Initial power state: {updated_properties['power']}")
-                    
-                    # Log other important properties if power is on
-                    if self.state.power == PowerState.ON:
-                        if "volume" in updated_properties:
-                            logger.debug(f"Initial volume: {updated_properties['volume']}")
-                        if "mute" in updated_properties:
-                            logger.debug(f"Initial mute state: {updated_properties['mute']}")
-                        if "source" in updated_properties:
-                            logger.debug(f"Initial input source: {updated_properties['source']}")
-                except Exception as e:
-                    # DEBUG: Log state refresh failure
-                    logger.debug(f"[EMOTIVA_DEBUG] Initial state refresh failed: {str(e)} (device={self.get_name()})")
-                    logger.warning(f"Failed to query initial state: {str(e)}")
-                    # Continue setup even if initial state query fails
-                
-                # Update state with successful connection
-                self.clear_error()
-                self.update_state(
-                    connected=True,
-                    ip_address=host,
-                    startup_complete=True,
-                    notifications=True
-                )
-                
-                # Publish connection status
-                await self.publish_progress(f"Connected to {self.get_name()} at {host}")
-                
+        async with self._setup_lock:
+            # Double-checked locking: if already connected, return early
+            if self.client and self.state.connected:
                 return True
-            except Exception as e:
-                # Handle subscription failure
-                error_message = f"Error subscribing to properties: {str(e)}"
-                logger.error(error_message)
+            try:
+                # Get emotiva configuration directly from config
+                emotiva_config: AppEmotivaConfig = self.config.emotiva
                 
-                # The device might be in standby mode if subscription fails
-                # Try to continue if force_connect is enabled
-                if emotiva_config.force_connect:
-                    logger.warning(f"Force connect enabled, continuing with setup despite subscription failure")
+                # Get the host IP address
+                host = emotiva_config.host
+                if not host:
+                    logger.error(f"Missing 'host' in emotiva configuration for device: {self.get_name()}")
+                    self.set_error("Missing host configuration")
+                    return False
+                
+                # Store MAC address if available in config
+                if emotiva_config.mac:
+                    self.update_state(mac_address=emotiva_config.mac)
                     
-                    # Update state assuming standby mode
+                logger.info(f"Initializing eMotiva XMC2 device: {self.get_name()} at {host}")
+                
+                # Create and initialize controller with simplified constructor
+                try:
+                    self.client = EmotivaController(
+                        host=host,
+                        timeout=emotiva_config.timeout or 5.0,
+                        protocol_max="3.1"  # Use the most recent protocol version
+                    )
+                    
+                    # Update state with IP address at this point
+                    self.update_state(ip_address=host)
+                except Exception as e:
+                    logger.error(f"Failed to create controller for {self.get_name()}: {str(e)}")
+                    self.set_error(f"Controller initialization error: {str(e)}")
+                    return False
+                
+                # Connect to the device with retry logic
+                max_retries = emotiva_config.max_retries or 3
+                retry_delay = emotiva_config.retry_delay or 2.0
+                
+                for attempt in range(1, max_retries + 1):
+                    try:
+                        await self.client.connect()
+                        logger.info(f"Connected to device at {host} on attempt {attempt}")
+                        break
+                    except Exception as e:
+                        if attempt < max_retries:
+                            logger.warning(f"Connection attempt {attempt} failed: {str(e)}. Retrying in {retry_delay} seconds...")
+                            await asyncio.sleep(retry_delay)
+                        else:
+                            logger.error(f"Failed to connect to device at {host} after {max_retries} attempts: {str(e)}")
+                            self.set_error(f"Connection error: {str(e)}")
+                            return False
+                
+                # Set up callbacks for property changes
+                for prop in self.PROPERTIES_TO_MONITOR:
+                    self._register_property_callback(prop)
+                
+                # Attempt to subscribe to properties
+                try:
+                    await self.client.subscribe(self.PROPERTIES_TO_MONITOR)
+                    logger.info(f"Successfully subscribed to properties for {self.get_name()}")
+                    
+                    # Query initial state for key properties using _refresh_device_state
+                    try:
+                        # DEBUG: Log state refresh attempt
+                        logger.debug(f"[EMOTIVA_DEBUG] Starting initial state refresh during setup (device={self.get_name()})")
+                        
+                        # Refresh all properties at once
+                        updated_properties = await self._refresh_device_state()
+                        
+                        # DEBUG: Enhanced state logging
+                        logger.debug(f"[EMOTIVA_DEBUG] Initial state refresh completed: {updated_properties} (device={self.get_name()})")
+                        
+                        # Log the initial power state which is most critical
+                        if "power" in updated_properties:
+                            logger.debug(f"Initial power state: {updated_properties['power']}")
+                        
+                        # Log other important properties if power is on
+                        if self.state.power == PowerState.ON:
+                            if "volume" in updated_properties:
+                                logger.debug(f"Initial volume: {updated_properties['volume']}")
+                            if "mute" in updated_properties:
+                                logger.debug(f"Initial mute state: {updated_properties['mute']}")
+                            if "source" in updated_properties:
+                                logger.debug(f"Initial input source: {updated_properties['source']}")
+                    except Exception as e:
+                        # DEBUG: Log state refresh failure
+                        logger.debug(f"[EMOTIVA_DEBUG] Initial state refresh failed: {str(e)} (device={self.get_name()})")
+                        logger.warning(f"Failed to query initial state: {str(e)}")
+                        # Continue setup even if initial state query fails
+                    
+                    # Update state with successful connection
+                    self.clear_error()
                     self.update_state(
                         connected=True,
                         ip_address=host,
                         startup_complete=True,
-                        notifications=False,
-                        power=PowerState.OFF  # Assume standby mode which is a valid state
+                        notifications=True
                     )
                     
-                    # Set error but don't fail setup
-                    self.set_error(f"Subscription failed, using forced connection: {error_message}")
-                    
-                    # Publish connection status with warning
-                    await self.publish_progress(f"Connected to {self.get_name()} at {host} in force connect mode (limited functionality)")
+                    # Publish connection status
+                    await self.publish_progress(f"Connected to {self.get_name()} at {host}")
                     
                     return True
-                else:
-                    self.set_error(error_message)
-                    return False
+                except Exception as e:
+                    # Handle subscription failure
+                    error_message = f"Error subscribing to properties: {str(e)}"
+                    logger.error(error_message)
+                    
+                    # The device might be in standby mode if subscription fails
+                    # Try to continue if force_connect is enabled
+                    if emotiva_config.force_connect:
+                        logger.warning(f"Force connect enabled, continuing with setup despite subscription failure")
+                        
+                        # Update state assuming standby mode
+                        self.update_state(
+                            connected=True,
+                            ip_address=host,
+                            startup_complete=True,
+                            notifications=False,
+                            power=PowerState.OFF  # Assume standby mode which is a valid state
+                        )
+                        
+                        # Set error but don't fail setup
+                        self.set_error(f"Subscription failed, using forced connection: {error_message}")
+                        
+                        # Publish connection status with warning
+                        await self.publish_progress(f"Connected to {self.get_name()} at {host} in force connect mode (limited functionality)")
+                        
+                        return True
+                    else:
+                        self.set_error(error_message)
+                        return False
 
-        except Exception as e:
-            logger.error(f"Failed to initialize eMotiva XMC2 device {self.get_name()}: {str(e)}")
-            self.set_error(f"Initialization error: {str(e)}")
-            return False
+            except Exception as e:
+                logger.error(f"Failed to initialize eMotiva XMC2 device {self.get_name()}: {str(e)}")
+                self.set_error(f"Initialization error: {str(e)}")
+                return False
 
     async def shutdown(self) -> bool:
         """Cleanup device resources and properly shut down connections.

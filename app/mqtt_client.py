@@ -116,6 +116,11 @@ class MQTTClient:
                     async for message in client.messages:
                         topic = message.topic.value
                         try:
+                            # Skip processing of retained messages
+                            if message.retain:
+                                logger.debug(f"Skipping retained message on topic {topic}")
+                                continue
+                            
                             # Try UTF-8 first, fall back to latin-1 if that fails
                             try:
                                 payload = message.payload.decode('utf-8')  # type: ignore
