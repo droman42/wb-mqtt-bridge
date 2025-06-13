@@ -5,6 +5,7 @@ from enum import Enum
 import os
 from typing_extensions import Protocol
 import json
+from app.__version__ import __version__
 
 # NOTE: This module is transitioning away from using 'device_class' in device configurations.
 # The proper way to specify the device class is to use the 'class' field in the system configuration.
@@ -843,7 +844,7 @@ class MQTTMessage(BaseModel):
 # Keep the rest of the models as they were...
 class SystemInfo(BaseModel):
     """Schema for system information."""
-    version: str = "1.0.0"
+    version: str = __version__
     mqtt_broker: MQTTBrokerConfig
     devices: List[str] = Field(default_factory=list, description="List of available devices")
     scenarios: List[str] = Field(default_factory=list, description="List of available scenarios")

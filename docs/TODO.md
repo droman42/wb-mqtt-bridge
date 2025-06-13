@@ -15,7 +15,7 @@
 - [x] MQTT через FastAPI с payload
 - [ ] Проверить катушечник после рефакторинга Варенборда
 - [x] LgTv - запуск приложений и переключение входов. Не работает range по mqtt. MQTT через FastAPI не работает вообще
-- [ ] Сделать remote logging перед установкой контейнера docker на контроллер
+- [x] Сделать remote logging перед установкой контейнера docker на контроллер
 - [x] Проверить необходимость WOL для eMotiva XMC-2 + set_volume и set_mute для zone2
 
 ## PHASE 2
@@ -24,7 +24,7 @@
 - [ ] Сделать/подобрать шаблоны SprutHub для новых девайсов и всех сценариев
 - [ ] Восстановить работу SprutHub, соединить с Алисой
 - [x] Сгенерить простую Веб-морду для управления AV-системой по FastAPI (?Vue.js?)
-- [ ] Инсталляция на контроллере через Docker
+- [x] Инсталляция на контроллере через Docker
 - [x] Инсталляция правил и виртуальных устройств в wb-rules с помощью скрипта
 - [ ] Сделать девайсы [Miele](https://github.com/nordicopen/pymiele/tree/main)
 - [ ] Сделать пылесос [Roborock S8](https://github.com/Python-roborock/python-roborock?tab=readme-ov-file)

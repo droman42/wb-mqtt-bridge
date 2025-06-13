@@ -42,6 +42,8 @@ from app.types import CommandResponse
 # Import routers
 from app.routers import system, devices, mqtt, groups, scenarios, rooms, state
 
+from app.__version__ import __version__
+
 # Setup logging
 def setup_logging(log_file: str, log_level: str):
     """Configure the logging system with daily rotation."""
@@ -264,7 +266,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="MQTT Web Service",
     description="A web service that manages MQTT devices with typed configurations",
-    version="1.1.0",
+    version=__version__,
     lifespan=lifespan
 )
 
