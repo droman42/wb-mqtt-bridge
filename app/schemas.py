@@ -776,6 +776,7 @@ class DeviceActionsResponse(BaseModel):
 
 class SystemConfig(BaseModel):
     """Schema for system configuration."""
+    service_name: str = Field(default="MQTT Web Service", description="Name of the service")
     mqtt_broker: MQTTBrokerConfig
     web_service: Dict[str, Any]
     log_level: str

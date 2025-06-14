@@ -110,6 +110,10 @@ async def lifespan(app: FastAPI):
     # Initialize config manager
     config_manager = ConfigManager()
     
+    # Set app title from config
+    service_name = config_manager.get_service_name()
+    app.title = service_name
+    
     # Setup logging with system config
     system_config = config_manager.get_system_config()
     log_file = system_config.log_file or 'logs/service.log'

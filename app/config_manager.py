@@ -33,6 +33,7 @@ class ConfigManager:
         self.system_config_file = os.path.join(config_dir, "system.json")
         self.devices_dir = os.path.join(config_dir, "devices")
         self.system_config = SystemConfig(
+            service_name="MQTT Web Service",
             mqtt_broker=MQTTBrokerConfig(
                 host="localhost",
                 port=1883,
@@ -251,6 +252,10 @@ class ConfigManager:
     def get_system_config(self) -> SystemConfig:
         """Get the system configuration."""
         return self.system_config
+    
+    def get_service_name(self) -> str:
+        """Get the service name from system configuration."""
+        return self.system_config.service_name
     
     def get_device_config(self, device_id: str) -> Optional[BaseDeviceConfig]:
         """Get the configuration for a specific device."""
