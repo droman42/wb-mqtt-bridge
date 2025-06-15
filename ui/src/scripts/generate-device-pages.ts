@@ -4,7 +4,9 @@ import { LgTvHandler } from '../lib/deviceHandlers/LgTvHandler';
 import { EMotivaXMC2Handler } from '../lib/deviceHandlers/EMotivaXMC2Handler';
 import { BroadlinkKitchenHoodHandler } from '../lib/deviceHandlers/BroadlinkKitchenHoodHandler';
 import { AppleTVDeviceHandler } from '../lib/deviceHandlers/AppleTVDeviceHandler';
-import { DevicePageTemplate } from '../lib/generators/DevicePageTemplate';
+import { AuralicDeviceHandler } from '../lib/deviceHandlers/AuralicDeviceHandler';
+import { RevoxA77ReelToReelHandler } from '../lib/deviceHandlers/RevoxA77ReelToReelHandler';
+import { RemoteControlTemplate } from '../lib/generators/RemoteControlTemplate';
 import { DataValidator } from '../lib/DataValidator';
 import { BatchProcessor } from '../lib/BatchProcessor';
 import { CodeValidator } from '../lib/validation/CodeValidator';
@@ -12,10 +14,11 @@ import { ComponentValidator } from '../lib/validation/ComponentValidator';
 import { StateTypeGenerator } from '../lib/StateTypeGenerator';
 import { RouterIntegration } from '../lib/integration/RouterIntegration';
 import { DocumentationGenerator } from '../lib/DocumentationGenerator';
-import type { DeviceConfig, DeviceGroups } from '../types/DeviceConfig';
-import type { DeviceStructure } from '../types/ProcessedDevice';
+
+import type { RemoteDeviceStructure } from '../types/RemoteControlLayout';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import process from 'process';
 
 interface GenerationResult {
   success: boolean;
@@ -44,15 +47,19 @@ export class DevicePageGenerator {
     this.client = new DeviceConfigurationClient(apiBaseUrl);
     this.validator = new DataValidator();
     this.outputDir = outputDir;
+    
+    // All device handlers now support remote control layout exclusively
     this.handlers = new Map<string, any>([
       ['WirenboardIRDevice', new WirenboardIRHandler()],
       ['LgTv', new LgTvHandler()],
       ['EMotivaXMC2', new EMotivaXMC2Handler()],
       ['BroadlinkKitchenHood', new BroadlinkKitchenHoodHandler()],
-      ['AppleTVDevice', new AppleTVDeviceHandler()]
+      ['AppleTVDevice', new AppleTVDeviceHandler()],
+      ['AuralicDevice', new AuralicDeviceHandler()],
+      ['RevoxA77ReelToReel', new RevoxA77ReelToReelHandler()]
     ]);
     
-    // Phase 3 components
+    // Validation and generation components
     this.codeValidator = new CodeValidator();
     this.componentValidator = new ComponentValidator();
     this.stateGenerator = new StateTypeGenerator();
@@ -94,9 +101,10 @@ export class DevicePageGenerator {
       
       console.log(`🔧 Using ${handler.deviceClass} handler`);
       
-      // Process device structure
-      const structure: DeviceStructure = handler.analyzeStructure(validatedConfig, groups);
-      console.log(`📊 Generated ${structure.uiSections.length} UI sections`);
+      // Process device structure - now returns RemoteDeviceStructure directly
+      const structure: RemoteDeviceStructure = handler.analyzeStructure(validatedConfig, groups);
+      
+      console.log(`📊 Generated ${structure.remoteZones.length} remote control zones`);
       
       // Generate Python state types if requested
       let customStateInterface: string | null = null;
@@ -141,8 +149,16 @@ export class DevicePageGenerator {
         }
       }
       
-      // Generate component
-      const template = new DevicePageTemplate();
+      // Generate component using RemoteControlTemplate
+      console.log(`🎮 Using Remote Control Layout for ${validatedConfig.device_class} device`);
+      console.log('📊 Structure info:', {
+        deviceId: structure.deviceId,
+        deviceName: structure.deviceName,
+        deviceClass: structure.deviceClass,
+        remoteZonesCount: structure.remoteZones.length
+      });
+      
+      const template = new RemoteControlTemplate();
       const componentCode = template.generateComponent(structure);
       
       // Ensure output directory exists
@@ -159,7 +175,7 @@ export class DevicePageGenerator {
         success: true, 
         outputPath,
         deviceClass: validatedConfig.device_class,
-        sectionsGenerated: structure.uiSections.length,
+        sectionsGenerated: structure.remoteZones.length,
         duration,
         deviceId
       };
@@ -255,17 +271,11 @@ export class DevicePageGenerator {
     );
 
     const manifest = await this.routerIntegration.generateRouterManifest(deviceEntries);
-    const registry = await this.routerIntegration.generateDeviceRegistry(deviceEntries);
-    const navigation = await this.routerIntegration.generateNavigationConfig(deviceEntries);
 
     // Write router files
     await fs.writeFile(manifest.filepath, manifest.content, 'utf8');
-    await fs.writeFile(registry.filepath, registry.content, 'utf8');
-    await fs.writeFile(navigation.filepath, navigation.content, 'utf8');
 
     console.log(`✅ Generated router manifest: ${manifest.filepath}`);
-    console.log(`✅ Generated device registry: ${registry.filepath}`);
-    console.log(`✅ Generated navigation config: ${navigation.filepath}`);
   }
 
   async generateDocumentation(deviceStructures: any[]): Promise<void> {

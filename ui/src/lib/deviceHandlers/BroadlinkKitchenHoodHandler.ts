@@ -1,49 +1,82 @@
-import type { DeviceClassHandler, DeviceStructure, UISection, ProcessedAction, ComponentType } from '../../types/ProcessedDevice';
-import type { DeviceConfig, DeviceGroups, DeviceGroup, GroupAction } from '../../types/DeviceConfig';
+import type { DeviceClassHandler, ProcessedAction, ComponentType } from '../../types/ProcessedDevice';
+import type { DeviceConfig, DeviceGroups, GroupAction } from '../../types/DeviceConfig';
+import type { RemoteDeviceStructure } from '../../types/RemoteControlLayout';
 import { IconResolver } from '../IconResolver';
+import { ZoneDetection } from '../ZoneDetection';
 
 export class BroadlinkKitchenHoodHandler implements DeviceClassHandler {
   deviceClass = 'BroadlinkKitchenHood';
   private iconResolver = new IconResolver();
+  private zoneDetection = new ZoneDetection();
   
-  analyzeStructure(config: DeviceConfig, groups: DeviceGroups): DeviceStructure {
-    const uiSections = groups.groups.map(group => {
-      const componentType = this.determineComponentType(group.actions);
-      return {
-        sectionId: group.group_id,
-        sectionName: group.group_name,
-        componentType,
-        actions: this.processParameterActions(group.actions),
-        layout: this.getLayoutForComponentType(componentType)
-      };
-    });
+  analyzeStructure(config: DeviceConfig, groups: DeviceGroups): RemoteDeviceStructure {
+    console.log(`🏠 [BroadlinkKitchenHood] Analyzing structure for ${config.device_id}`);
     
-    return {
-      deviceId: config.device_id,
-      deviceName: config.device_name,
-      deviceClass: config.device_class,
-      uiSections,
-      stateInterface: this.createKitchenHoodStateInterface(config),
-      actionHandlers: this.createParameterAwareActionHandlers(config.commands)
-    };
+    // Generate remote control structure directly
+    const remoteStructure = this.generateRemoteStructure(config, groups);
+    
+    console.log(`✅ [BroadlinkKitchenHood] Generated remote control structure with ${remoteStructure.remoteZones.length} zones`);
+    return remoteStructure;
   }
-  
-  private determineComponentType(actions: GroupAction[]): ComponentType {
-    const hasRangeParams = actions.some(action => 
-      action.params?.some(param => param.type === 'range')
-    );
-    
-    // Check for fan speed controls specifically
-    const hasFanSpeed = actions.some(action => 
-      action.name.toLowerCase().includes('speed') ||
-      action.name.toLowerCase().includes('fan')
-    );
-    
-    if (hasRangeParams || hasFanSpeed) {
-      return 'SliderControl';
+
+  /**
+   * Phase 4: Generate Remote Control Structure for Kitchen Hood
+   * Maps kitchen hood controls to remote control zones
+   */
+  private generateRemoteStructure(config: DeviceConfig, groups: DeviceGroups): RemoteDeviceStructure {
+    try {
+      // Process all actions first
+      const allActions = this.processAllGroupActions(groups);
+      
+      console.log(`🔍 [KitchenHood] Starting zone detection with ${allActions.length} actions`);
+      const remoteZones = this.zoneDetection.analyzeDeviceGroups(groups, allActions);
+      console.log(`🎯 [KitchenHood] Generated ${remoteZones.length} remote control zones`);
+
+      return {
+        deviceId: config.device_id,
+        deviceName: config.device_name,
+        deviceClass: config.device_class,
+        remoteZones: remoteZones,
+        stateInterface: this.createKitchenHoodStateInterface(config),
+        actionHandlers: this.createParameterAwareActionHandlers(config.commands),
+        specialCases: [{
+          deviceClass: 'BroadlinkKitchenHood',
+          caseType: 'kitchen-hood-controls',
+          configuration: {
+            hasFanSpeedSlider: true,
+            hasLightControls: true,
+            hasParameterizedActions: true
+          }
+        }]
+      };
+    } catch (error) {
+      console.error('❌ [KitchenHood] Error generating remote structure:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Process all group actions into ProcessedAction format
+   */
+  private processAllGroupActions(groups: DeviceGroups): ProcessedAction[] {
+    if (!groups.groups) {
+      console.log('⚠️  [KitchenHood] No groups found in device groups');
+      return [];
     }
     
-    return 'ButtonGrid';
+    const allActions: ProcessedAction[] = [];
+    
+    for (const group of groups.groups) {
+      if (!group.actions) {
+        console.log(`⚠️  [KitchenHood] No actions found in group: ${group.group_name}`);
+        continue;
+      }
+      const groupActions = this.processParameterActions(group.actions);
+      allActions.push(...groupActions);
+    }
+    
+    console.log(`📊 [KitchenHood] Processed ${allActions.length} total actions from ${groups.groups.length} groups`);
+    return allActions;
   }
   
   private processParameterActions(actions: GroupAction[]): ProcessedAction[] {
@@ -72,17 +105,6 @@ export class BroadlinkKitchenHoodHandler implements DeviceClassHandler {
       max: param.max,
       description: param.description
     }));
-  }
-  
-  private getLayoutForComponentType(componentType: ComponentType): import('../../types/ProcessedDevice').LayoutConfig {
-    switch (componentType) {
-      case 'SliderControl':
-        return { columns: 1, spacing: 'large' };
-      case 'ButtonGrid':
-        return { columns: 2, spacing: 'medium' };
-      default:
-        return { columns: 2, spacing: 'medium' };
-    }
   }
   
   private formatDisplayName(actionName: string): string {
@@ -119,7 +141,7 @@ export class BroadlinkKitchenHoodHandler implements DeviceClassHandler {
       }
     }
     
-    return this.iconResolver.selectIconForAction(actionName);
+    return this.iconResolver.selectIconForActionWithLibrary(actionName, 'material');
   }
   
   private createKitchenHoodStateInterface(config: DeviceConfig): import('../../types/ProcessedDevice').StateDefinition {
@@ -179,5 +201,35 @@ export class BroadlinkKitchenHoodHandler implements DeviceClassHandler {
       `,
       dependencies: ['useExecuteDeviceAction']
     }));
+  }
+
+  // Legacy methods maintained for backward compatibility during transition
+  private determineComponentType(actions: GroupAction[]): ComponentType {
+    const hasRangeParams = actions.some(action => 
+      action.params?.some(param => param.type === 'range')
+    );
+    
+    // Check for fan speed controls specifically
+    const hasFanSpeed = actions.some(action => 
+      action.name.toLowerCase().includes('speed') ||
+      action.name.toLowerCase().includes('fan')
+    );
+    
+    if (hasRangeParams || hasFanSpeed) {
+      return 'SliderControl';
+    }
+    
+    return 'ButtonGrid';
+  }
+
+  private getLayoutForComponentType(componentType: ComponentType): import('../../types/ProcessedDevice').LayoutConfig {
+    switch (componentType) {
+      case 'SliderControl':
+        return { columns: 1, spacing: 'large' };
+      case 'ButtonGrid':
+        return { columns: 2, spacing: 'medium' };
+      default:
+        return { columns: 2, spacing: 'medium' };
+    }
   }
 } 

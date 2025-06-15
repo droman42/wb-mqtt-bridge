@@ -1,6 +1,6 @@
 import { spawn } from 'child_process';
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import * as _fs from 'fs/promises';
+import * as _path from 'path';
 import { DeviceConfig, CommandParameter } from '../types/DeviceConfig';
 
 export interface StateDefinition {

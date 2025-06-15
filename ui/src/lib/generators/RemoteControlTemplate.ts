@@ -1,0 +1,57 @@
+// Remote Control Template - Phase 1
+// Generates device pages using remote control layout instead of grid layout
+
+import type { RemoteDeviceStructure } from '../../types/RemoteControlLayout';
+
+export class RemoteControlTemplate {
+  
+  generateComponent(structure: RemoteDeviceStructure): string {
+    return `
+// Auto-generated from device config - Remote Control Layout - DO NOT EDIT
+import React from 'react';
+import { useLogStore } from '../../stores/useLogStore';
+import { useExecuteDeviceAction } from '../../hooks/useApi';
+import { useSettingsStore } from '../../stores/useSettingsStore';
+import { RemoteControlLayout } from '../../components/RemoteControlLayout';
+
+function ${this.formatComponentName(structure.deviceId)}Page() {
+  const { addLog } = useLogStore();
+  const executeAction = useExecuteDeviceAction();
+  const { statePanelOpen } = useSettingsStore();
+
+  const handleAction = (action: string, payload?: any) => {
+    executeAction.mutate({ 
+      deviceId: '${structure.deviceId}', 
+      action: { action: action, params: payload } 
+    });
+    addLog({
+      level: 'info',
+      message: \`Action: \${action}\`,
+      details: payload
+    });
+  };
+
+  const deviceStructure: import('../../types/RemoteControlLayout').RemoteDeviceStructure = ${JSON.stringify(structure, null, 2)};
+
+  return (
+    <div className={\`\${statePanelOpen ? 'p-2' : 'p-4'}\`}>
+      <RemoteControlLayout
+        deviceStructure={deviceStructure}
+        onAction={handleAction}
+        className="w-full"
+      />
+    </div>
+  );
+}
+
+export default ${this.formatComponentName(structure.deviceId)}Page;
+    `.trim();
+  }
+
+  private formatComponentName(deviceId: string): string {
+    return deviceId
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join('');
+  }
+} 

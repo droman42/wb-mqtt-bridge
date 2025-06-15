@@ -1,0 +1,30 @@
+{
+  "WirenboardIRDevice": {
+    "stateFile": "/home/development/wb-mqtt-bridge/app/schemas.py",
+    "stateClass": "WirenboardIRState"
+  },
+  "LgTv": {
+    "stateFile": "/home/development/wb-mqtt-bridge/app/schemas.py",
+    "stateClass": "LgTvState"
+  },
+  "EMotivaXMC2": {
+    "stateFile": "/home/development/wb-mqtt-bridge/app/schemas.py",
+    "stateClass": "EmotivaXMC2State"
+  },
+  "BroadlinkKitchenHood": {
+    "stateFile": "/home/development/wb-mqtt-bridge/app/schemas.py",
+    "stateClass": "KitchenHoodState"
+  },
+  "AppleTVDevice": {
+    "stateFile": "/home/development/wb-mqtt-bridge/app/schemas.py",
+    "stateClass": "AppleTVState"
+  },
+  "AuralicDevice": {
+    "stateFile": "/home/development/wb-mqtt-bridge/app/schemas.py",
+    "stateClass": "AuralicDeviceState"
+  },
+  "RevoxA77ReelToReel": {
+    "stateFile": "/home/development/wb-mqtt-bridge/app/schemas.py",
+    "stateClass": "RevoxA77ReelToReelState"
+  }
+} 

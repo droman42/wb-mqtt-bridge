@@ -4,7 +4,7 @@ import { Icon } from './icons';
 import { useRoomStore } from '../stores/useRoomStore';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import { Button } from './ui/button';
-import { getDeviceRoute } from '../pages/devices/registry.gen';
+import { getDeviceRoute } from '../pages/devices/index.gen';
 
 function Navbar() {
   const navigate = useNavigate();

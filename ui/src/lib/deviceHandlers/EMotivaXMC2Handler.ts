@@ -1,38 +1,147 @@
-import type { DeviceClassHandler, DeviceStructure, UISection, ProcessedAction, ComponentType } from '../../types/ProcessedDevice';
+import type { DeviceClassHandler, ProcessedAction, ComponentType } from '../../types/ProcessedDevice';
 import type { DeviceConfig, DeviceGroups, DeviceGroup, GroupAction } from '../../types/DeviceConfig';
+import type { RemoteDeviceStructure } from '../../types/RemoteControlLayout';
 import { IconResolver } from '../IconResolver';
+import { ZoneDetection } from '../ZoneDetection';
 
 export class EMotivaXMC2Handler implements DeviceClassHandler {
   deviceClass = 'EMotivaXMC2';
   private iconResolver = new IconResolver();
+  private zoneDetection = new ZoneDetection();
   
-  analyzeStructure(config: DeviceConfig, groups: DeviceGroups): DeviceStructure {
-    const processedSections: UISection[] = [];
+  analyzeStructure(config: DeviceConfig, groups: DeviceGroups): RemoteDeviceStructure {
+    console.log(`🎛️ [EMotivaXMC2] Analyzing structure for ${config.device_id}`);
+    
+    // Generate remote control structure directly
+    const remoteStructure = this.generateRemoteStructure(config, groups);
+    
+    console.log(`✅ [EMotivaXMC2] Generated remote control structure with ${remoteStructure.remoteZones.length} zones`);
+    return remoteStructure;
+  }
+
+  /**
+   * Phase 4: Generate Remote Control Structure for EMotivaXMC2
+   * Special case: Multi-zone handling with Zone 2 Power button in middle position
+   */
+  private generateRemoteStructure(config: DeviceConfig, groups: DeviceGroups): RemoteDeviceStructure {
+    try {
+      // Process all actions first
+      const allActions = this.processAllGroupActions(groups);
+      
+      console.log(`🔍 [EMotivaXMC2] Starting zone detection with ${allActions.length} actions`);
+      const remoteZones = this.zoneDetection.analyzeDeviceGroups(groups, allActions);
+      console.log(`🎯 [EMotivaXMC2] Generated ${remoteZones.length} remote control zones`);
+
+      // Apply EMotivaXMC2 special case - Zone 2 Power in middle position
+      this.applyEmotivaSpecialCases(remoteZones, allActions);
+
+      return {
+        deviceId: config.device_id,
+        deviceName: config.device_name,
+        deviceClass: config.device_class,
+        remoteZones: remoteZones,
+        stateInterface: this.createProcessorStateInterface(config),
+        actionHandlers: this.createZoneAwareActionHandlers(config.commands),
+        specialCases: [{
+          deviceClass: 'EMotivaXMC2',
+          caseType: 'emotiva-xmc2-power',
+          configuration: {
+            hasZone2Power: true,
+            zone2VolumeOnly: true,
+            multiZoneDevice: true
+          }
+        }]
+      };
+    } catch (error) {
+      console.error('❌ [EMotivaXMC2] Error generating remote structure:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Apply EMotivaXMC2-specific modifications to remote zones
+   * Special Power Zone Layout: Left=Power OFF, Middle=Zone 2 Power, Right=Power ON
+   */
+  private applyEmotivaSpecialCases(remoteZones: import('../../types/RemoteControlLayout').RemoteZone[], allActions: ProcessedAction[]): void {
+    // Find power zone and modify for EMotiva special case
+    const powerZone = remoteZones.find(zone => zone.zoneId === 'power');
+    if (powerZone && powerZone.content?.powerButtons) {
+      console.log('🎛️  [EMotivaXMC2] Applying special power zone layout');
+      
+      // Find Zone 2 power action
+      const zone2PowerAction = allActions.find(action => 
+        action.actionName.toLowerCase().includes('zone2') && 
+        action.actionName.toLowerCase().includes('power')
+      );
+
+      if (zone2PowerAction) {
+        // Insert Zone 2 Power button in middle position
+        const zone2Button: import('../../types/RemoteControlLayout').PowerButtonConfig = {
+          position: 'middle',
+          action: zone2PowerAction,
+          buttonType: 'zone2-power'
+        };
+
+        // Add the Zone 2 power button to the power buttons array
+        powerZone.content.powerButtons.push(zone2Button);
+        console.log('✅ [EMotivaXMC2] Added Zone 2 Power button to middle position');
+      }
+    }
+
+    // Configure Volume Zone for Zone 2 only (as per spec)
+    const volumeZone = remoteZones.find(zone => zone.zoneId === 'volume');
+    if (volumeZone && volumeZone.content) {
+      console.log('🔊 [EMotivaXMC2] Configuring volume zone for Zone 2');
+      
+      // Update volume controls to use zone 2
+      if (volumeZone.content.volumeSlider) {
+        volumeZone.content.volumeSlider.zone = 2;
+      }
+      if (volumeZone.content.volumeButtons) {
+        volumeZone.content.volumeButtons.forEach(button => {
+          button.zone = 2;
+        });
+      }
+    }
+  }
+
+  /**
+   * Process all group actions into ProcessedAction format with zone awareness
+   */
+  private processAllGroupActions(groups: DeviceGroups): ProcessedAction[] {
+    if (!groups.groups) {
+      console.log('⚠️  [EMotivaXMC2] No groups found in device groups');
+      return [];
+    }
+    
+    const allActions: ProcessedAction[] = [];
     
     for (const group of groups.groups) {
+      if (!group.actions) {
+        console.log(`⚠️  [EMotivaXMC2] No actions found in group: ${group.group_name}`);
+        continue;
+      }
+
       const zoneCommands = this.identifyZoneCommands(group.actions);
       
       if (zoneCommands.length > 0) {
-        // Create separate sections for each zone
+        // Process zone-aware actions
         const zoneCount = this.determineZoneCount(zoneCommands);
         for (let zone = 1; zone <= zoneCount; zone++) {
-          processedSections.push(this.createZoneSection(group, zone));
+          const zoneActions = this.filterActionsForZone(group.actions, zone);
+          const processedZoneActions = this.processZoneActions(zoneActions, zone);
+          allActions.push(...processedZoneActions);
         }
       } else {
-        processedSections.push(this.createStandardSection(group));
+        const groupActions = this.processGroupActions(group.actions);
+        allActions.push(...groupActions);
       }
     }
     
-    return {
-      deviceId: config.device_id,
-      deviceName: config.device_name,
-      deviceClass: config.device_class,
-      uiSections: processedSections,
-      stateInterface: this.createProcessorStateInterface(config),
-      actionHandlers: this.createZoneAwareActionHandlers(config.commands)
-    };
+    console.log(`📊 [EMotivaXMC2] Processed ${allActions.length} total actions from ${groups.groups.length} groups`);
+    return allActions;
   }
-  
+
   private identifyZoneCommands(actions: GroupAction[]): GroupAction[] {
     return actions.filter(action => 
       action.name.toLowerCase().includes('zone') ||
@@ -59,28 +168,6 @@ export class EMotivaXMC2Handler implements DeviceClassHandler {
     return zoneNumbers.length > 0 ? Math.max(...zoneNumbers) : 2;
   }
   
-  private createZoneSection(group: DeviceGroup, zoneNumber: number): UISection {
-    const zoneActions = this.filterActionsForZone(group.actions, zoneNumber);
-    
-    return {
-      sectionId: `${group.group_id}_zone_${zoneNumber}`,
-      sectionName: `${group.group_name} - Zone ${zoneNumber}`,
-      componentType: this.determineComponentType(group, zoneActions),
-      actions: this.processZoneActions(zoneActions, zoneNumber),
-      layout: { zoneNumber, columns: 1, spacing: 'medium' }
-    };
-  }
-  
-  private createStandardSection(group: DeviceGroup): UISection {
-    return {
-      sectionId: group.group_id,
-      sectionName: group.group_name,
-      componentType: this.determineComponentType(group, group.actions),
-      actions: this.processGroupActions(group.actions),
-      layout: { columns: 2, spacing: 'medium' }
-    };
-  }
-  
   private filterActionsForZone(actions: GroupAction[], zoneNumber: number): GroupAction[] {
     if (zoneNumber === 1) {
       // Zone 1 (main) gets actions without zone numbers or explicitly zone 1
@@ -96,16 +183,10 @@ export class EMotivaXMC2Handler implements DeviceClassHandler {
     }
   }
   
-  private hasRangeParameters(actions: GroupAction[]): boolean {
-    return actions.some(action => 
-      action.params?.some(param => param.type === 'range')
-    );
-  }
-  
   private processZoneActions(actions: GroupAction[], zoneNumber: number): ProcessedAction[] {
     return actions.map(action => ({
       actionName: action.name,
-      displayName: this.formatZoneActionName(action.name, zoneNumber),
+      displayName: this.formatZoneActionName(action.name),
       description: action.description,
       parameters: action.params || [],
       group: `zone_${zoneNumber}`,
@@ -125,12 +206,12 @@ export class EMotivaXMC2Handler implements DeviceClassHandler {
       description: action.description,
       parameters: action.params || [],
       group: 'default',
-      icon: this.iconResolver.selectIconForAction(action.name),
+      icon: this.iconResolver.selectIconForActionWithLibrary(action.name, 'material'),
       uiHints: { buttonSize: 'medium', buttonStyle: 'secondary' }
     }));
   }
   
-  private formatZoneActionName(actionName: string, zoneNumber: number): string {
+  private formatZoneActionName(actionName: string): string {
     // Remove zone number from display name since it's already in the section title
     let displayName = actionName
       .replace(/zone[_\s]*\d+[_\s]*/gi, '')
@@ -176,7 +257,7 @@ export class EMotivaXMC2Handler implements DeviceClassHandler {
       }
     }
     
-    return this.iconResolver.selectIconForAction(actionName);
+    return this.iconResolver.selectIconForActionWithLibrary(actionName, 'material');
   }
   
   private createProcessorStateInterface(config: DeviceConfig): import('../../types/ProcessedDevice').StateDefinition {

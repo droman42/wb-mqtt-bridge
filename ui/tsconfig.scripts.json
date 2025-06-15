@@ -1,38 +1,26 @@
 {
+  "extends": "./tsconfig.json",
   "compilerOptions": {
     "target": "ES2020",
-    "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "types": ["vite/client"],
     "module": "ESNext",
+    "moduleResolution": "node",
+    "lib": ["ES2020"],
+    "types": ["node"],
     "skipLibCheck": true,
-
-    /* Bundler mode */
-    "moduleResolution": "bundler",
+    "noEmit": true,
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true,
-    "jsx": "react-jsx",
-
-    /* Linting */
     "strict": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-    
-    /* Path mapping */
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "exclude": [
-    "node_modules", 
-    "dist", 
-    "**/*.d.ts", 
-    "src/**/*.gen.tsx",
+  "include": [
     "src/scripts/**/*",
     "src/lib/validation/**/*",
     "src/lib/BatchProcessor.ts",
@@ -45,9 +33,10 @@
     "src/lib/deviceHandlers/**/*",
     "src/lib/generators/**/*",
     "src/lib/integration/**/*",
-
-    "src/lib/IconResolver.ts",
-    "src/types/DeviceConfig.ts",
-    "src/types/ProcessedDevice.ts"
+    "src/lib/utils.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
   ]
 } 

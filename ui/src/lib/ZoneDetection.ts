@@ -1,0 +1,365 @@
+// Zone Detection Utility - Phase 1
+// Maps device groups and actions to remote control zones
+
+import type { DeviceGroups, DeviceGroup } from '../types/DeviceConfig';
+import type { ProcessedAction } from '../types/ProcessedDevice';
+import type { 
+  RemoteZone, 
+  ZoneDetectionConfig 
+} from '../types/RemoteControlLayout';
+
+// Import the default configuration as a regular import
+const DEFAULT_ZONE_DETECTION: ZoneDetectionConfig = {
+  powerGroupNames: ['power', 'power_control', 'main_power'],
+  powerActionNames: ['power', 'power_on', 'power_off', 'power_toggle', 'zone2_power'],
+  
+  inputsGroupNames: ['inputs', 'input_selection', 'sources', 'input_control'],
+  playbackGroupNames: ['playback', 'media_control', 'transport', 'player'],
+  tracksGroupNames: ['tracks', 'track_control', 'navigation', 'track_nav'],
+  
+  volumeGroupNames: ['volume', 'volume_control', 'audio', 'sound'],
+  volumeActionNames: ['volume', 'volume_up', 'volume_down', 'mute', 'set_volume'],
+  
+  menuGroupNames: ['menu', 'navigation', 'nav', 'menu_nav', 'ui_nav'],
+  navigationActionNames: ['up', 'down', 'left', 'right', 'ok', 'enter', 'select', 'back', 'menu', 'home'],
+  
+  screenGroupNames: ['screen', 'display', 'video', 'picture'],
+  screenActionNames: ['aspect', 'zoom', 'display_mode', 'picture_mode', 'screen'],
+  
+  appsGroupNames: ['apps', 'applications', 'channels', 'streaming'],
+  appsActionNames: ['launch_app', 'select_app', 'app', 'channel'],
+  
+  pointerGroupNames: ['pointer', 'cursor', 'mouse', 'trackpad'],
+  pointerActionNames: ['move', 'click', 'drag', 'scroll', 'cursor']
+};
+
+export class ZoneDetection {
+  private config: ZoneDetectionConfig;
+
+  constructor(config: ZoneDetectionConfig = DEFAULT_ZONE_DETECTION) {
+    this.config = config;
+  }
+
+  /**
+   * Analyze device groups and generate remote control zones
+   */
+  public analyzeDeviceGroups(groups: DeviceGroups, actions: ProcessedAction[]): RemoteZone[] {
+    const zones: RemoteZone[] = [];
+
+    // Create all 7 zones
+    zones.push(this.createPowerZone(groups, actions));
+    zones.push(this.createMediaStackZone(groups, actions));
+    zones.push(this.createScreenZone(groups, actions));
+    zones.push(this.createVolumeZone(groups, actions));
+    zones.push(this.createAppsZone(groups, actions));
+    zones.push(this.createMenuZone(groups, actions));
+    zones.push(this.createPointerZone(groups, actions));
+
+    return zones;
+  }
+
+  /**
+   * Power Zone (①) - Show/Hide Zone
+   */
+  private createPowerZone(groups: DeviceGroups, actions: ProcessedAction[]): RemoteZone {
+    const powerGroups = this.findGroupsByName(groups, this.config.powerGroupNames);
+    const powerActions = this.findActionsByName(actions, this.config.powerActionNames);
+    
+    const isEmpty = powerGroups.length === 0 && powerActions.length === 0;
+
+    return {
+      zoneId: 'power',
+      zoneName: 'Power Control',
+      zoneType: 'power',
+      showHide: true, // Show/Hide zone
+      isEmpty,
+      content: {
+        powerButtons: this.createPowerButtonsConfig(powerActions)
+      },
+      layout: {
+        columns: 3,
+        spacing: 'normal',
+        alignment: 'center'
+      }
+    };
+  }
+
+  /**
+   * Media Stack Zone (②) - Show/Hide Zone
+   */
+  private createMediaStackZone(groups: DeviceGroups, actions: ProcessedAction[]): RemoteZone {
+    const inputsGroups = this.findGroupsByName(groups, this.config.inputsGroupNames);
+    const playbackGroups = this.findGroupsByName(groups, this.config.playbackGroupNames);
+    const tracksGroups = this.findGroupsByName(groups, this.config.tracksGroupNames);
+    
+    const isEmpty = inputsGroups.length === 0 && playbackGroups.length === 0 && tracksGroups.length === 0;
+
+    return {
+      zoneId: 'media-stack',
+      zoneName: 'Media Stack',
+      zoneType: 'media-stack',
+      showHide: true, // Show/Hide zone
+      isEmpty,
+      content: {
+        inputsDropdown: inputsGroups.length > 0 ? {
+          type: 'inputs',
+          populationMethod: 'commands', // WirenboardIR uses commands, not API
+          options: [],
+          loading: false,
+          empty: true
+        } : undefined,
+        playbackSection: playbackGroups.length > 0 ? {
+          actions: this.getActionsFromGroups(playbackGroups, actions),
+          layout: 'horizontal'
+        } : undefined,
+        tracksSection: tracksGroups.length > 0 ? {
+          actions: this.getActionsFromGroups(tracksGroups, actions),
+          layout: 'horizontal'
+        } : undefined
+      },
+      layout: {
+        spacing: 'normal',
+        orientation: 'vertical'
+      }
+    };
+  }
+
+  /**
+   * Screen Zone (③) - Always Present Zone
+   */
+  private createScreenZone(groups: DeviceGroups, actions: ProcessedAction[]): RemoteZone {
+    const screenGroups = this.findGroupsByName(groups, this.config.screenGroupNames);
+    const screenActions = this.findActionsByName(actions, this.config.screenActionNames);
+    
+    const isEmpty = screenGroups.length === 0 && screenActions.length === 0;
+
+    return {
+      zoneId: 'screen',
+      zoneName: 'Screen Controls',
+      zoneType: 'screen',
+      showHide: false, // Always present
+      isEmpty,
+      content: {
+        screenActions: screenActions
+      },
+      layout: {
+        orientation: 'vertical',
+        alignment: 'left',
+        spacing: 'compact'
+      }
+    };
+  }
+
+  /**
+   * Volume Zone (④) - Always Present Zone
+   */
+  private createVolumeZone(groups: DeviceGroups, actions: ProcessedAction[]): RemoteZone {
+    const volumeGroups = this.findGroupsByName(groups, this.config.volumeGroupNames);
+    const volumeActions = this.findActionsByName(actions, this.config.volumeActionNames);
+    
+    const isEmpty = volumeGroups.length === 0 && volumeActions.length === 0;
+
+    // Priority-based population logic
+    const hasSliderAction = volumeActions.find(a => 
+      a.parameters.some(p => p.type === 'range')
+    );
+
+    return {
+      zoneId: 'volume',
+      zoneName: 'Volume Control',
+      zoneType: 'volume',
+      showHide: false, // Always present
+      isEmpty,
+      content: hasSliderAction ? {
+        volumeSlider: {
+          action: hasSliderAction,
+          muteAction: volumeActions.find(a => a.actionName.toLowerCase().includes('mute')),
+          orientation: 'vertical',
+          showValue: true
+        }
+      } : {
+        volumeButtons: [{
+          upAction: volumeActions.find(a => a.actionName.toLowerCase().includes('up')),
+          downAction: volumeActions.find(a => a.actionName.toLowerCase().includes('down')),
+          muteAction: volumeActions.find(a => a.actionName.toLowerCase().includes('mute'))
+        }]
+      },
+      layout: {
+        priority: hasSliderAction ? 1 : 2,
+        orientation: 'vertical',
+        alignment: 'right',
+        spacing: 'compact'
+      }
+    };
+  }
+
+  /**
+   * Apps Zone (⑤) - Show/Hide Zone
+   */
+  private createAppsZone(groups: DeviceGroups, actions: ProcessedAction[]): RemoteZone {
+    const appsGroups = this.findGroupsByName(groups, this.config.appsGroupNames);
+    const appsActions = this.findActionsByName(actions, this.config.appsActionNames);
+    
+    const isEmpty = appsGroups.length === 0 && appsActions.length === 0;
+
+    return {
+      zoneId: 'apps',
+      zoneName: 'Applications',
+      zoneType: 'apps',
+      showHide: true, // Show/Hide zone
+      isEmpty,
+      content: {
+        appsDropdown: !isEmpty ? {
+          type: 'apps',
+          populationMethod: 'api', // Apps typically use API
+          apiAction: 'get_available_apps',
+          setAction: 'launch_app',
+          options: [],
+          loading: false,
+          empty: true
+        } : undefined
+      },
+      layout: {
+        spacing: 'normal'
+      }
+    };
+  }
+
+  /**
+   * Menu Zone (⑦) - Always Present Zone (Center of central control)
+   */
+  private createMenuZone(groups: DeviceGroups, actions: ProcessedAction[]): RemoteZone {
+    const menuGroups = this.findGroupsByName(groups, this.config.menuGroupNames);
+    const navActions = this.findActionsByName(actions, this.config.navigationActionNames);
+    
+    const isEmpty = menuGroups.length === 0 && navActions.length === 0;
+
+    return {
+      zoneId: 'menu',
+      zoneName: 'Navigation',
+      zoneType: 'menu',
+      showHide: false, // Always present
+      isEmpty,
+      content: {
+        navigationCluster: {
+          upAction: navActions.find(a => a.actionName.toLowerCase().includes('up')),
+          downAction: navActions.find(a => a.actionName.toLowerCase().includes('down')),
+          leftAction: navActions.find(a => a.actionName.toLowerCase().includes('left')),
+          rightAction: navActions.find(a => a.actionName.toLowerCase().includes('right')),
+          okAction: navActions.find(a => 
+            a.actionName.toLowerCase().includes('ok') || 
+            a.actionName.toLowerCase().includes('enter') ||
+            a.actionName.toLowerCase().includes('select')
+          ),
+          // AUX buttons can be populated later
+          aux1Action: undefined,
+          aux2Action: undefined,
+          aux3Action: undefined,
+          aux4Action: undefined
+        }
+      },
+      layout: {
+        alignment: 'center',
+        spacing: 'normal'
+      }
+    };
+  }
+
+  /**
+   * Pointer Zone (⑥) - Show/Hide Zone
+   */
+  private createPointerZone(groups: DeviceGroups, actions: ProcessedAction[]): RemoteZone {
+    const pointerGroups = this.findGroupsByName(groups, this.config.pointerGroupNames);
+    const pointerActions = this.findActionsByName(actions, this.config.pointerActionNames);
+    
+    const isEmpty = pointerGroups.length === 0 && pointerActions.length === 0;
+
+    return {
+      zoneId: 'pointer',
+      zoneName: 'Pointer Control',
+      zoneType: 'pointer',
+      showHide: true, // Show/Hide zone
+      isEmpty,
+      content: {
+        pointerPad: !isEmpty ? {
+          moveAction: pointerActions.find(a => a.actionName.toLowerCase().includes('move')) || pointerActions[0],
+          clickAction: pointerActions.find(a => a.actionName.toLowerCase().includes('click')),
+          dragAction: pointerActions.find(a => a.actionName.toLowerCase().includes('drag')),
+          scrollAction: pointerActions.find(a => a.actionName.toLowerCase().includes('scroll'))
+        } : undefined
+      },
+      layout: {
+        spacing: 'normal'
+      }
+    };
+  }
+
+  // Utility methods
+  private findGroupsByName(groups: DeviceGroups, targetNames: string[]): DeviceGroup[] {
+    if (!groups.groups) return [];
+    
+    return groups.groups.filter(group =>
+      targetNames.some(name => 
+        group.group_name.toLowerCase().includes(name.toLowerCase())
+      )
+    );
+  }
+
+  private findActionsByName(actions: ProcessedAction[], targetNames: string[]): ProcessedAction[] {
+    return actions.filter(action =>
+      targetNames.some(name => 
+        action.actionName.toLowerCase().includes(name.toLowerCase())
+      )
+    );
+  }
+
+  private getActionsFromGroups(groups: DeviceGroup[], allActions: ProcessedAction[]): ProcessedAction[] {
+    const groupActionNames = groups.flatMap(group => 
+      group.actions.map(action => action.name)
+    );
+    
+    return allActions.filter(action =>
+      groupActionNames.includes(action.actionName)
+    );
+  }
+
+  private createPowerButtonsConfig(powerActions: ProcessedAction[]): any[] {
+    // EMotiva special case handling will be added in Phase 4
+    // For Phase 1, just basic power button layout
+    
+    const powerOffAction = powerActions.find(a => a.actionName.toLowerCase().includes('off'));
+    const powerOnAction = powerActions.find(a => a.actionName.toLowerCase().includes('on'));
+    const powerToggleAction = powerActions.find(a => 
+      !a.actionName.toLowerCase().includes('off') && 
+      !a.actionName.toLowerCase().includes('on') &&
+      a.actionName.toLowerCase().includes('power')
+    );
+
+    const buttons: any[] = [];
+
+    if (powerOffAction) {
+      buttons.push({
+        position: 'left',
+        action: powerOffAction,
+        buttonType: 'power-off'
+      });
+    }
+
+    if (powerOnAction) {
+      buttons.push({
+        position: 'right',
+        action: powerOnAction,
+        buttonType: 'power-on'
+      });
+    } else if (powerToggleAction && !powerOffAction) {
+      // Single toggle case
+      buttons.push({
+        position: 'left',
+        action: powerToggleAction,
+        buttonType: 'power-toggle'
+      });
+    }
+
+    return buttons;
+  }
+} 

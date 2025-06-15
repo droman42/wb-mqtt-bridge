@@ -1,19 +1,4 @@
-export interface DeviceStructure {
-  deviceId: string;
-  deviceName: string;
-  deviceClass: string;
-  uiSections: UISection[];
-  stateInterface: StateDefinition;
-  actionHandlers: ActionHandler[];
-}
-
-export interface UISection {
-  sectionId: string;
-  sectionName: string;
-  componentType: 'ButtonGrid' | 'NavCluster' | 'SliderControl' | 'PointerPad';
-  actions: ProcessedAction[];
-  layout: LayoutConfig;
-}
+// ACTIVE INTERFACES - Used in the remote control system
 
 export interface ProcessedAction {
   actionName: string;
@@ -27,7 +12,7 @@ export interface ProcessedAction {
 
 export interface ProcessedParameter {
   name: string;
-  type: 'range' | 'string' | 'integer';
+  type: 'range' | 'string' | 'integer' | 'boolean';
   required: boolean;
   default: any;
   min: number | null;
@@ -80,7 +65,11 @@ export interface ActionHandler {
 
 export type ComponentType = 'ButtonGrid' | 'NavCluster' | 'SliderControl' | 'PointerPad';
 
+/**
+ * Device Class Handler Interface
+ * All handlers return RemoteDeviceStructure directly
+ */
 export interface DeviceClassHandler {
   deviceClass: string;
-  analyzeStructure(config: import('./DeviceConfig').DeviceConfig, groups: import('./DeviceConfig').DeviceGroups): DeviceStructure;
+  analyzeStructure(config: import('./DeviceConfig').DeviceConfig, groups: import('./DeviceConfig').DeviceGroups): import('./RemoteControlLayout').RemoteDeviceStructure;
 } 

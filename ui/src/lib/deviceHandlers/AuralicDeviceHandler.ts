@@ -1,56 +1,57 @@
 import type { DeviceClassHandler, ProcessedAction, ComponentType } from '../../types/ProcessedDevice';
-import type { DeviceConfig, DeviceGroups, DeviceGroup, GroupAction } from '../../types/DeviceConfig';
+import type { DeviceConfig, DeviceGroups, GroupAction } from '../../types/DeviceConfig';
 import type { RemoteDeviceStructure } from '../../types/RemoteControlLayout';
 import { IconResolver } from '../IconResolver';
 import { ZoneDetection } from '../ZoneDetection';
 
-export class AppleTVDeviceHandler implements DeviceClassHandler {
-  deviceClass = 'AppleTVDevice';
+export class AuralicDeviceHandler implements DeviceClassHandler {
+  deviceClass = 'AuralicDevice';
   private iconResolver = new IconResolver();
   private zoneDetection = new ZoneDetection();
   
   analyzeStructure(config: DeviceConfig, groups: DeviceGroups): RemoteDeviceStructure {
-    console.log(`📱 [AppleTVDevice] Analyzing structure for ${config.device_id}`);
+    console.log(`🎵 [AuralicDevice] Analyzing structure for ${config.device_id}`);
     
     // Generate remote control structure directly
     const remoteStructure = this.generateRemoteStructure(config, groups);
     
-    console.log(`✅ [AppleTVDevice] Generated remote control structure with ${remoteStructure.remoteZones.length} zones`);
+    console.log(`✅ [AuralicDevice] Generated remote control structure with ${remoteStructure.remoteZones.length} zones`);
     return remoteStructure;
   }
 
   /**
-   * Phase 4: Generate Remote Control Structure for Apple TV
-   * Maps streaming device controls to remote control zones
+   * Phase 4: Generate Remote Control Structure for Auralic Device
+   * Maps audio streaming device controls to remote control zones
    */
   private generateRemoteStructure(config: DeviceConfig, groups: DeviceGroups): RemoteDeviceStructure {
     try {
       // Process all actions first
       const allActions = this.processAllGroupActions(groups);
       
-      console.log(`🔍 [AppleTV] Starting zone detection with ${allActions.length} actions`);
+      console.log(`🔍 [Auralic] Starting zone detection with ${allActions.length} actions`);
       const remoteZones = this.zoneDetection.analyzeDeviceGroups(groups, allActions);
-      console.log(`🎯 [AppleTV] Generated ${remoteZones.length} remote control zones`);
+      console.log(`🎯 [Auralic] Generated ${remoteZones.length} remote control zones`);
 
       return {
         deviceId: config.device_id,
         deviceName: config.device_name,
         deviceClass: config.device_class,
         remoteZones: remoteZones,
-        stateInterface: this.createAppleTVStateInterface(config),
+        stateInterface: this.createAuralicStateInterface(config),
         actionHandlers: this.createActionHandlers(config.commands),
         specialCases: [{
-          deviceClass: 'AppleTVDevice',
-          caseType: 'appletv-streaming',
+          deviceClass: 'AuralicDevice',
+          caseType: 'auralic-streaming',
           configuration: {
-            usesAppsAPI: true,
+            usesInputsAPI: true,
             hasMediaControls: true,
-            hasDirectionalNav: true
+            hasVolumeSlider: true,
+            isNetworkStreamer: true
           }
         }]
       };
     } catch (error) {
-      console.error('❌ [AppleTV] Error generating remote structure:', error);
+      console.error('❌ [Auralic] Error generating remote structure:', error);
       throw error;
     }
   }
@@ -60,7 +61,7 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
    */
   private processAllGroupActions(groups: DeviceGroups): ProcessedAction[] {
     if (!groups.groups) {
-      console.log('⚠️  [AppleTV] No groups found in device groups');
+      console.log('⚠️  [Auralic] No groups found in device groups');
       return [];
     }
     
@@ -68,14 +69,14 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
     
     for (const group of groups.groups) {
       if (!group.actions) {
-        console.log(`⚠️  [AppleTV] No actions found in group: ${group.group_name}`);
+        console.log(`⚠️  [Auralic] No actions found in group: ${group.group_name}`);
         continue;
       }
       const groupActions = this.processGroupActions(group.actions);
       allActions.push(...groupActions);
     }
     
-    console.log(`📊 [AppleTV] Processed ${allActions.length} total actions from ${groups.groups.length} groups`);
+    console.log(`📊 [Auralic] Processed ${allActions.length} total actions from ${groups.groups.length} groups`);
     return allActions;
   }
   
@@ -86,24 +87,29 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
       description: action.description,
       parameters: action.params || [],
       group: 'default',
-      icon: this.getAppleTVIcon(action.name),
+      icon: this.getAuralicIcon(action.name),
       uiHints: { 
         buttonSize: 'medium', 
         buttonStyle: this.getButtonStyle(action.name)
       }
     }));
   }
-  
+
   private formatDisplayName(actionName: string): string {
-    // Special cases for Apple TV actions
+    // Special cases for Auralic streaming device actions
     const specialMappings: Record<string, string> = {
-      'tv': 'TV',
-      'app_switcher': 'App Switcher',
-      'siri': 'Siri',
-      'airplay': 'AirPlay',
-      'home_button': 'Home',
-      'volume_up': 'Volume Up',
-      'volume_down': 'Volume Down'
+      'dac': 'DAC',
+      'usb': 'USB',
+      'coax': 'Coaxial',
+      'optical': 'Optical',
+      'aes_ebu': 'AES/EBU',
+      'wifi': 'Wi-Fi',
+      'ethernet': 'Ethernet',
+      'upnp': 'UPnP',
+      'roon': 'Roon',
+      'tidal': 'TIDAL',
+      'qobuz': 'Qobuz',
+      'spotify': 'Spotify'
     };
     
     const cleanName = actionName.toLowerCase();
@@ -120,8 +126,8 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
   }
   
   private getButtonStyle(actionName: string): 'primary' | 'secondary' | 'destructive' {
-    const primaryActions = ['play', 'pause', 'home', 'siri'];
-    const destructiveActions = ['power_off', 'stop'];
+    const primaryActions = ['play', 'pause', 'favorite', 'preset'];
+    const destructiveActions = ['power_off', 'stop', 'reset'];
     
     const cleanName = actionName.toLowerCase();
     if (primaryActions.some(action => cleanName.includes(action))) {
@@ -133,36 +139,38 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
     return 'secondary';
   }
   
-  private getAppleTVIcon(actionName: string): import('../../types/ProcessedDevice').ActionIcon {
-    const appleTVIconMappings: Record<string, string> = {
+  private getAuralicIcon(actionName: string): import('../../types/ProcessedDevice').ActionIcon {
+    const auralicIconMappings: Record<string, string> = {
       'play': 'PlayIcon',
       'pause': 'PauseIcon',
       'stop': 'StopIcon',
       'next': 'ForwardIcon',
       'previous': 'BackwardIcon',
-      'rewind': 'BackwardIcon',
-      'fast_forward': 'ForwardIcon',
-      'up': 'ChevronUpIcon',
-      'down': 'ChevronDownIcon',
-      'left': 'ChevronLeftIcon',
-      'right': 'ChevronRightIcon',
-      'ok': 'CheckIcon',
-      'select': 'CheckIcon',
-      'home': 'HomeIcon',
-      'menu': 'Bars3Icon',
-      'back': 'ArrowLeftIcon',
-      'siri': 'MicrophoneIcon',
-      'volume_up': 'SpeakerWaveIcon',
-      'volume_down': 'SpeakerWaveIcon',
+      'shuffle': 'ArrowPathRoundedSquareIcon',
+      'repeat': 'ArrowPathIcon',
+      'favorite': 'HeartIcon',
+      'preset': 'BookmarkIcon',
+      'volume': 'SpeakerWaveIcon',
       'mute': 'SpeakerXMarkIcon',
       'power': 'PowerIcon',
-      'tv': 'TvIcon',
-      'app': 'Squares2X2Icon',
-      'airplay': 'WifiIcon'
+      'input': 'ArrowsRightLeftIcon',
+      'dac': 'CpuChipIcon',
+      'filter': 'AdjustmentsHorizontalIcon',
+      'upsampling': 'ArrowTrendingUpIcon',
+      'wifi': 'WifiIcon',
+      'ethernet': 'GlobeAltIcon',
+      'usb': 'UsbIcon',
+      'coax': 'WireIcon',
+      'optical': 'BoltIcon',
+      'streaming': 'CloudIcon',
+      'tidal': 'MusicalNoteIcon',
+      'spotify': 'MusicalNoteIcon',
+      'qobuz': 'MusicalNoteIcon',
+      'roon': 'MusicalNoteIcon'
     };
     
     const cleanName = actionName.toLowerCase();
-    for (const [key, iconName] of Object.entries(appleTVIconMappings)) {
+    for (const [key, iconName] of Object.entries(auralicIconMappings)) {
       if (cleanName.includes(key)) {
         return {
           iconLibrary: 'material',
@@ -177,7 +185,7 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
     return this.iconResolver.selectIconForActionWithLibrary(actionName, 'material');
   }
   
-  private createAppleTVStateInterface(config: DeviceConfig): import('../../types/ProcessedDevice').StateDefinition {
+  private createAuralicStateInterface(config: DeviceConfig): import('../../types/ProcessedDevice').StateDefinition {
     return {
       interfaceName: `${config.device_class}State`,
       fields: [
@@ -185,13 +193,13 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
           name: 'power',
           type: 'boolean',
           optional: true,
-          description: 'Apple TV power state'
+          description: 'Device power state'
         },
         {
-          name: 'currentApp',
+          name: 'currentInput',
           type: 'string',
           optional: true,
-          description: 'Currently active application'
+          description: 'Currently selected input source'
         },
         {
           name: 'playbackState',
@@ -204,6 +212,30 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
           type: 'number',
           optional: true,
           description: 'Current volume level'
+        },
+        {
+          name: 'currentTrack',
+          type: 'string',
+          optional: true,
+          description: 'Currently playing track'
+        },
+        {
+          name: 'sampleRate',
+          type: 'string',
+          optional: true,
+          description: 'Current sample rate (e.g., 44.1kHz, 96kHz)'
+        },
+        {
+          name: 'bitDepth',
+          type: 'string',
+          optional: true,
+          description: 'Current bit depth (e.g., 16-bit, 24-bit)'
+        },
+        {
+          name: 'streamingService',
+          type: 'string',
+          optional: true,
+          description: 'Current streaming service (TIDAL, Qobuz, etc.)'
         },
         {
           name: 'lastAction',
@@ -231,54 +263,27 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
   }
 
   // Legacy methods maintained for backward compatibility during transition
-  private determineComponentType(group: DeviceGroup): ComponentType {
-    // Menu groups should always use NavCluster for directional navigation
-    const isMenuGroup = group.group_name.toLowerCase().includes('menu');
-    if (isMenuGroup) {
-      return 'NavCluster';
-    }
-    
-    // Check if this is a volume-related group
-    const isVolumeGroup = group.group_name.toLowerCase().includes('volume') || 
-                         group.actions.some(action => action.name.toLowerCase().includes('volume'));
-    
-    if (isVolumeGroup) {
-      // If any action has range parameters, use SliderControl
-      const hasRangeParam = group.actions.some(action => 
-        action.params?.some(param => param.type === 'range')
-      );
-      return hasRangeParam ? 'SliderControl' : 'ButtonGrid';
-    }
-    
-    // Check for navigation/directional commands
-    const directionalCommands = ['up', 'down', 'left', 'right', 'ok', 'enter', 'select'];
-    const hasDirectional = group.actions.some(action => 
-      directionalCommands.some(dir => action.name.toLowerCase().includes(dir))
+  private determineComponentType(actions: GroupAction[]): ComponentType {
+    // Check for volume controls with range parameters
+    const hasVolumeRange = actions.some(action => 
+      action.name.toLowerCase().includes('volume') &&
+      action.params?.some(param => param.type === 'range')
     );
     
-    // Check for media control commands
-    const mediaCommands = ['play', 'pause', 'stop', 'next', 'previous', 'rewind', 'fast_forward'];
-    const hasMediaControls = group.actions.some(action => 
-      mediaCommands.some(media => action.name.toLowerCase().includes(media))
+    if (hasVolumeRange) {
+      return 'SliderControl';
+    }
+    
+    // Check for directional navigation
+    const directionalCommands = ['up', 'down', 'left', 'right', 'ok', 'enter', 'select'];
+    const hasDirectional = actions.some(action => 
+      directionalCommands.some(dir => action.name.toLowerCase().includes(dir))
     );
     
     if (hasDirectional) {
       return 'NavCluster';
-    } else if (hasMediaControls) {
-      return 'ButtonGrid'; // Media controls work well as buttons
     }
     
     return 'ButtonGrid';
-  }
-
-  private getLayoutForComponentType(componentType: ComponentType): import('../../types/ProcessedDevice').LayoutConfig {
-    switch (componentType) {
-      case 'NavCluster':
-        return { fullWidth: true, spacing: 'medium' };
-      case 'ButtonGrid':
-        return { columns: 3, spacing: 'medium' }; // 3 columns for media controls
-      default:
-        return { columns: 2, spacing: 'medium' };
-    }
   }
 } 

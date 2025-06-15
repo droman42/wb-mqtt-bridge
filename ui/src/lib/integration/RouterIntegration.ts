@@ -1,6 +1,5 @@
 import * as fs from 'fs/promises';
-import * as path from 'path';
-import { DeviceStructure } from '../../types/ProcessedDevice';
+import type { RemoteDeviceStructure } from '../../types/RemoteControlLayout';
 
 export interface DevicePageEntry {
   id: string;
@@ -73,63 +72,7 @@ export class RouterIntegration {
     };
   }
 
-  async generateDeviceRegistry(devices: DevicePageEntry[]): Promise<GeneratedFile> {
-    const registryCode = `// Auto-generated device registry - DO NOT EDIT
-// Generated at: ${new Date().toISOString()}
 
-export interface DeviceRegistryEntry {
-  id: string;
-  name: string;
-  deviceClass: string;
-  route: string;
-  componentName: string;
-  generatedAt: string;
-}
-
-export const deviceRegistry: Record<string, DeviceRegistryEntry> = {
-${devices.map(device => `  '${device.id}': {
-    id: '${device.id}',
-    name: '${device.name}',
-    deviceClass: '${device.deviceClass}',
-    route: '${device.route}',
-    componentName: '${device.componentName}',
-    generatedAt: '${device.generatedAt.toISOString()}'
-  }`).join(',\n')}
-};
-
-export const deviceClasses = [
-${Array.from(new Set(devices.map(d => d.deviceClass))).map(cls => `  '${cls}'`).join(',\n')}
-];
-
-export const deviceRoutes = [
-${devices.map(device => `  { path: '${device.route}', deviceId: '${device.id}' }`).join(',\n')}
-];
-
-export function getDeviceById(deviceId: string): DeviceRegistryEntry | undefined {
-  return deviceRegistry[deviceId];
-}
-
-export function getDevicesByClass(deviceClass: string): DeviceRegistryEntry[] {
-  return Object.values(deviceRegistry).filter(device => device.deviceClass === deviceClass);
-}
-
-export function getAllDeviceIds(): string[] {
-  return Object.keys(deviceRegistry);
-}
-
-export function getDeviceRoute(deviceId: string): string | undefined {
-  return deviceRegistry[deviceId]?.route;
-}`;
-
-    return {
-      filepath: 'src/pages/devices/registry.gen.ts',
-      content: registryCode,
-      dependencies: [],
-      checksum: this.generateChecksum(registryCode),
-      generatedAt: new Date(),
-      sourceHash: this.generateChecksum(JSON.stringify(devices))
-    };
-  }
 
   async updateExistingRouter(routerFilePath: string, devices: DevicePageEntry[]): Promise<void> {
     try {
@@ -160,7 +103,7 @@ export function getDeviceRoute(deviceId: string): string | undefined {
     }
   }
 
-  createDevicePageEntry(structure: DeviceStructure, outputPath: string): DevicePageEntry {
+  createDevicePageEntry(structure: RemoteDeviceStructure, outputPath: string): DevicePageEntry {
     return {
       id: structure.deviceId,
       name: structure.deviceName,
@@ -173,52 +116,7 @@ export function getDeviceRoute(deviceId: string): string | undefined {
     };
   }
 
-  async generateNavigationConfig(devices: DevicePageEntry[]): Promise<GeneratedFile> {
-    const devicesByClass = this.groupDevicesByClass(devices);
-    
-    const navConfig = `// Auto-generated navigation configuration - DO NOT EDIT
-// Generated at: ${new Date().toISOString()}
 
-export interface NavigationItem {
-  label: string;
-  path: string;
-  icon?: string;
-  children?: NavigationItem[];
-}
-
-export const deviceNavigation: NavigationItem[] = [
-${Object.entries(devicesByClass).map(([deviceClass, classDevices]) => `  {
-    label: '${this.formatClassDisplayName(deviceClass)}',
-    path: '/devices/${deviceClass.toLowerCase()}',
-    children: [
-${classDevices.map(device => `      {
-        label: '${device.name}',
-        path: '${device.route}',
-        icon: '${this.getDeviceIcon(device.deviceClass)}'
-      }`).join(',\n')}
-    ]
-  }`).join(',\n')}
-];
-
-export function getNavigationForDevice(deviceId: string): NavigationItem | undefined {
-  for (const category of deviceNavigation) {
-    if (category.children) {
-      const device = category.children.find(child => child.path.includes(deviceId));
-      if (device) return device;
-    }
-  }
-  return undefined;
-}`;
-
-    return {
-      filepath: 'src/config/device-navigation.gen.ts',
-      content: navConfig,
-      dependencies: [],
-      checksum: this.generateChecksum(navConfig),
-      generatedAt: new Date(),
-      sourceHash: this.generateChecksum(JSON.stringify(devices))
-    };
-  }
 
   private generateRouterCode(devices: DevicePageEntry[], manifest: RouterManifest): string {
     return `// Auto-generated router manifest - DO NOT EDIT
@@ -403,34 +301,10 @@ ${devices.map(device => `  { path: '${device.route}', component: ${device.compon
     return this.generateRouterManifest(mergedDevices);
   }
 
-  async generateIncrementalDeviceRegistry(newDevice: DevicePageEntry): Promise<GeneratedFile> {
-    const existingDevices = await this.readExistingRouterManifest();
-    const mergedDevices = this.mergeDeviceEntries(existingDevices, newDevice);
-    
-    return this.generateDeviceRegistry(mergedDevices);
-  }
-
-  async generateIncrementalNavigationConfig(newDevice: DevicePageEntry): Promise<GeneratedFile> {
-    const existingDevices = await this.readExistingRouterManifest();
-    const mergedDevices = this.mergeDeviceEntries(existingDevices, newDevice);
-    
-    return this.generateNavigationConfig(mergedDevices);
-  }
-
   async generateIncrementalRouterFiles(newDevice: DevicePageEntry): Promise<void> {
     console.log('🗺️ Generating router manifest...');
     const routerManifest = await this.generateIncrementalRouterManifest(newDevice);
     await fs.writeFile(routerManifest.filepath, routerManifest.content, 'utf8');
     console.log(`✅ Generated router manifest: ${routerManifest.filepath}`);
-
-    console.log('📋 Generating device registry...');
-    const registry = await this.generateIncrementalDeviceRegistry(newDevice);
-    await fs.writeFile(registry.filepath, registry.content, 'utf8');
-    console.log(`✅ Generated device registry: ${registry.filepath}`);
-
-    console.log('🧭 Generating navigation config...');
-    const navigation = await this.generateIncrementalNavigationConfig(newDevice);
-    await fs.writeFile(navigation.filepath, navigation.content, 'utf8');
-    console.log(`✅ Generated navigation config: ${navigation.filepath}`);
   }
 } 

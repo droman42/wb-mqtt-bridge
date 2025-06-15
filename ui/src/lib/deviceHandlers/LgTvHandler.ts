@@ -1,27 +1,89 @@
-import type { DeviceClassHandler, DeviceStructure, UISection, ProcessedAction, ComponentType } from '../../types/ProcessedDevice';
+import type { DeviceClassHandler, ProcessedAction, ComponentType } from '../../types/ProcessedDevice';
 import type { DeviceConfig, DeviceGroups, DeviceGroup, GroupAction } from '../../types/DeviceConfig';
+import type { RemoteDeviceStructure } from '../../types/RemoteControlLayout';
 import { IconResolver } from '../IconResolver';
+import { ZoneDetection } from '../ZoneDetection';
 
 export class LgTvHandler implements DeviceClassHandler {
   deviceClass = 'LgTv';
   private iconResolver = new IconResolver();
+  private zoneDetection = new ZoneDetection();
   
-  analyzeStructure(config: DeviceConfig, groups: DeviceGroups): DeviceStructure {
-    const uiSections = groups.groups.map(group => {
-      if (group.group_id === 'pointer' || this.isPointerGroup(group)) {
-        return this.createPointerSection(group);
-      }
-      return this.createStandardSection(group);
-    });
+  analyzeStructure(config: DeviceConfig, groups: DeviceGroups): RemoteDeviceStructure {
+    console.log(`📺 [LgTv] Analyzing structure for ${config.device_id}`);
     
-    return {
-      deviceId: config.device_id,
-      deviceName: config.device_name,
-      deviceClass: config.device_class,
-      uiSections,
-      stateInterface: this.createLgTvStateInterface(config),
-      actionHandlers: this.createActionHandlers(config.commands)
-    };
+    // Generate remote control structure directly
+    const remoteStructure = this.generateRemoteStructure(config, groups);
+    
+    console.log(`✅ [LgTv] Generated remote control structure with ${remoteStructure.remoteZones.length} zones`);
+    return remoteStructure;
+  }
+
+  /**
+   * Phase 4: Generate Remote Control Structure for LG TV
+   * Maps TV controls to remote control zones
+   */
+  private generateRemoteStructure(config: DeviceConfig, groups: DeviceGroups): RemoteDeviceStructure {
+    try {
+      // Process all actions first
+      const allActions = this.processAllGroupActions(groups);
+      
+      console.log(`🔍 [LgTv] Starting zone detection with ${allActions.length} actions`);
+      const remoteZones = this.zoneDetection.analyzeDeviceGroups(groups, allActions);
+      console.log(`🎯 [LgTv] Generated ${remoteZones.length} remote control zones`);
+
+      return {
+        deviceId: config.device_id,
+        deviceName: config.device_name,
+        deviceClass: config.device_class,
+        remoteZones: remoteZones,
+        stateInterface: this.createLgTvStateInterface(config),
+        actionHandlers: this.createActionHandlers(config.commands),
+        specialCases: [{
+          deviceClass: 'LgTv',
+          caseType: 'lg-tv-inputs-apps',
+          configuration: {
+            usesInputsAPI: true,
+            usesAppsAPI: true,
+            hasPointerControl: true
+          }
+        }]
+      };
+    } catch (error) {
+      console.error('❌ [LgTv] Error generating remote structure:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Process all group actions into ProcessedAction format
+   */
+  private processAllGroupActions(groups: DeviceGroups): ProcessedAction[] {
+    if (!groups.groups) {
+      console.log('⚠️  [LgTv] No groups found in device groups');
+      return [];
+    }
+    
+    const allActions: ProcessedAction[] = [];
+    
+    for (const group of groups.groups) {
+      if (!group.actions) {
+        console.log(`⚠️  [LgTv] No actions found in group: ${group.group_name}`);
+        continue;
+      }
+      
+      // Identify pointer groups and process differently
+      if (this.isPointerGroup(group)) {
+        const pointerActions = this.processPointerActions(group.actions);
+        allActions.push(...pointerActions);
+      } else {
+        const groupActions = this.processGroupActions(group.actions);
+        allActions.push(...groupActions);
+      }
+    }
+    
+    console.log(`📊 [LgTv] Processed ${allActions.length} total actions from ${groups.groups.length} groups`);
+    return allActions;
   }
   
   private isPointerGroup(group: DeviceGroup): boolean {
@@ -29,53 +91,6 @@ export class LgTvHandler implements DeviceClassHandler {
     return group.actions.some(action => 
       pointerActions.some(pointer => action.name.toLowerCase().includes(pointer))
     );
-  }
-  
-  private createPointerSection(group: DeviceGroup): UISection {
-    return {
-      sectionId: 'pointer_control',
-      sectionName: 'Pointer Control',
-      componentType: 'PointerPad',
-      actions: this.processPointerActions(group.actions),
-      layout: { fullWidth: true }
-    };
-  }
-  
-  private createStandardSection(group: DeviceGroup): UISection {
-    return {
-      sectionId: group.group_id,
-      sectionName: group.group_name,
-      componentType: this.determineComponentType(group),
-      actions: this.processGroupActions(group.actions),
-      layout: { columns: 2, spacing: 'medium' }
-    };
-  }
-  
-  private determineComponentType(group: DeviceGroup): ComponentType {
-    // Menu groups should always use NavCluster for directional navigation
-    const isMenuGroup = group.group_name.toLowerCase().includes('menu');
-    if (isMenuGroup) {
-      return 'NavCluster';
-    }
-    
-    // Check if this is a volume-related group
-    const isVolumeGroup = group.group_name.toLowerCase().includes('volume') || 
-                         group.actions.some(action => action.name.toLowerCase().includes('volume'));
-    
-    if (isVolumeGroup) {
-      // If any action has range parameters, use SliderControl
-      const hasRangeParam = group.actions.some(action => 
-        action.params?.some(param => param.type === 'range')
-      );
-      return hasRangeParam ? 'SliderControl' : 'ButtonGrid';
-    }
-    
-    // For other groups, check for directional navigation
-    const directionalCommands = ['up', 'down', 'left', 'right', 'ok', 'enter'];
-    const hasDirectional = group.actions.some(action => 
-      directionalCommands.some(dir => action.name.toLowerCase().includes(dir))
-    );
-    return hasDirectional ? 'NavCluster' : 'ButtonGrid';
   }
   
   private processPointerActions(actions: GroupAction[]): ProcessedAction[] {
@@ -97,7 +112,7 @@ export class LgTvHandler implements DeviceClassHandler {
       description: action.description,
       parameters: action.params || [],
       group: 'default',
-      icon: this.iconResolver.selectIconForAction(action.name),
+      icon: this.iconResolver.selectIconForActionWithLibrary(action.name, 'material'),
       uiHints: { buttonSize: 'medium', buttonStyle: 'secondary' }
     }));
   }
@@ -128,9 +143,9 @@ export class LgTvHandler implements DeviceClassHandler {
     const iconName = pointerIconMappings[actionName] || 'CursorArrowRaysIcon';
     
     return {
-                iconLibrary: 'material',
+      iconLibrary: 'material',
       iconName,
-              iconVariant: 'outlined',
+      iconVariant: 'outlined',
       fallbackIcon: 'cursor',
       confidence: 0.9
     };
@@ -196,5 +211,32 @@ export class LgTvHandler implements DeviceClassHandler {
       `,
       dependencies: ['useExecuteDeviceAction']
     }));
+  }
+
+  private determineComponentType(group: DeviceGroup): ComponentType {
+    // Menu groups should always use NavCluster for directional navigation
+    const isMenuGroup = group.group_name.toLowerCase().includes('menu');
+    if (isMenuGroup) {
+      return 'NavCluster';
+    }
+    
+    // Check if this is a volume-related group
+    const isVolumeGroup = group.group_name.toLowerCase().includes('volume') || 
+                         group.actions.some(action => action.name.toLowerCase().includes('volume'));
+    
+    if (isVolumeGroup) {
+      // If any action has range parameters, use SliderControl
+      const hasRangeParam = group.actions.some(action => 
+        action.params?.some(param => param.type === 'range')
+      );
+      return hasRangeParam ? 'SliderControl' : 'ButtonGrid';
+    }
+    
+    // For other groups, check for directional navigation
+    const directionalCommands = ['up', 'down', 'left', 'right', 'ok', 'enter'];
+    const hasDirectional = group.actions.some(action => 
+      directionalCommands.some(dir => action.name.toLowerCase().includes(dir))
+    );
+    return hasDirectional ? 'NavCluster' : 'ButtonGrid';
   }
 } 

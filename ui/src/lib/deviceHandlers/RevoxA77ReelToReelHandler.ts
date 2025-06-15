@@ -1,56 +1,57 @@
 import type { DeviceClassHandler, ProcessedAction, ComponentType } from '../../types/ProcessedDevice';
-import type { DeviceConfig, DeviceGroups, DeviceGroup, GroupAction } from '../../types/DeviceConfig';
+import type { DeviceConfig, DeviceGroups, GroupAction } from '../../types/DeviceConfig';
 import type { RemoteDeviceStructure } from '../../types/RemoteControlLayout';
 import { IconResolver } from '../IconResolver';
 import { ZoneDetection } from '../ZoneDetection';
 
-export class AppleTVDeviceHandler implements DeviceClassHandler {
-  deviceClass = 'AppleTVDevice';
+export class RevoxA77ReelToReelHandler implements DeviceClassHandler {
+  deviceClass = 'RevoxA77ReelToReel';
   private iconResolver = new IconResolver();
   private zoneDetection = new ZoneDetection();
   
   analyzeStructure(config: DeviceConfig, groups: DeviceGroups): RemoteDeviceStructure {
-    console.log(`📱 [AppleTVDevice] Analyzing structure for ${config.device_id}`);
+    console.log(`📼 [RevoxA77ReelToReel] Analyzing structure for ${config.device_id}`);
     
     // Generate remote control structure directly
     const remoteStructure = this.generateRemoteStructure(config, groups);
     
-    console.log(`✅ [AppleTVDevice] Generated remote control structure with ${remoteStructure.remoteZones.length} zones`);
+    console.log(`✅ [RevoxA77ReelToReel] Generated remote control structure with ${remoteStructure.remoteZones.length} zones`);
     return remoteStructure;
   }
 
   /**
-   * Phase 4: Generate Remote Control Structure for Apple TV
-   * Maps streaming device controls to remote control zones
+   * Phase 4: Generate Remote Control Structure for Revox A77 Reel-to-Reel
+   * Maps tape deck controls to remote control zones
    */
   private generateRemoteStructure(config: DeviceConfig, groups: DeviceGroups): RemoteDeviceStructure {
     try {
       // Process all actions first
       const allActions = this.processAllGroupActions(groups);
       
-      console.log(`🔍 [AppleTV] Starting zone detection with ${allActions.length} actions`);
+      console.log(`🔍 [RevoxA77] Starting zone detection with ${allActions.length} actions`);
       const remoteZones = this.zoneDetection.analyzeDeviceGroups(groups, allActions);
-      console.log(`🎯 [AppleTV] Generated ${remoteZones.length} remote control zones`);
+      console.log(`🎯 [RevoxA77] Generated ${remoteZones.length} remote control zones`);
 
       return {
         deviceId: config.device_id,
         deviceName: config.device_name,
         deviceClass: config.device_class,
         remoteZones: remoteZones,
-        stateInterface: this.createAppleTVStateInterface(config),
+        stateInterface: this.createRevoxStateInterface(config),
         actionHandlers: this.createActionHandlers(config.commands),
         specialCases: [{
-          deviceClass: 'AppleTVDevice',
-          caseType: 'appletv-streaming',
+          deviceClass: 'RevoxA77ReelToReel',
+          caseType: 'revox-tape-deck',
           configuration: {
-            usesAppsAPI: true,
-            hasMediaControls: true,
-            hasDirectionalNav: true
+            hasTapeTransport: true,
+            hasVolumeSlider: true,
+            hasAnalogInputs: true,
+            isVintageDevice: true
           }
         }]
       };
     } catch (error) {
-      console.error('❌ [AppleTV] Error generating remote structure:', error);
+      console.error('❌ [RevoxA77] Error generating remote structure:', error);
       throw error;
     }
   }
@@ -60,7 +61,7 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
    */
   private processAllGroupActions(groups: DeviceGroups): ProcessedAction[] {
     if (!groups.groups) {
-      console.log('⚠️  [AppleTV] No groups found in device groups');
+      console.log('⚠️  [RevoxA77] No groups found in device groups');
       return [];
     }
     
@@ -68,14 +69,14 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
     
     for (const group of groups.groups) {
       if (!group.actions) {
-        console.log(`⚠️  [AppleTV] No actions found in group: ${group.group_name}`);
+        console.log(`⚠️  [RevoxA77] No actions found in group: ${group.group_name}`);
         continue;
       }
       const groupActions = this.processGroupActions(group.actions);
       allActions.push(...groupActions);
     }
     
-    console.log(`📊 [AppleTV] Processed ${allActions.length} total actions from ${groups.groups.length} groups`);
+    console.log(`📊 [RevoxA77] Processed ${allActions.length} total actions from ${groups.groups.length} groups`);
     return allActions;
   }
   
@@ -86,24 +87,33 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
       description: action.description,
       parameters: action.params || [],
       group: 'default',
-      icon: this.getAppleTVIcon(action.name),
+      icon: this.getRevoxIcon(action.name),
       uiHints: { 
         buttonSize: 'medium', 
         buttonStyle: this.getButtonStyle(action.name)
       }
     }));
   }
-  
+
   private formatDisplayName(actionName: string): string {
-    // Special cases for Apple TV actions
+    // Special cases for Revox A77 tape deck actions
     const specialMappings: Record<string, string> = {
-      'tv': 'TV',
-      'app_switcher': 'App Switcher',
-      'siri': 'Siri',
-      'airplay': 'AirPlay',
-      'home_button': 'Home',
-      'volume_up': 'Volume Up',
-      'volume_down': 'Volume Down'
+      'ff': 'Fast Forward',
+      'rew': 'Rewind',
+      'rec': 'Record',
+      'pb': 'Playback',
+      'stop': 'Stop',
+      'pause': 'Pause',
+      'eject': 'Eject',
+      'auto_stop': 'Auto Stop',
+      'tape_speed': 'Tape Speed',
+      'ips': 'IPS',
+      '7_5_ips': '7.5 IPS',
+      '15_ips': '15 IPS',
+      'bias': 'Bias',
+      'eq': 'EQ',
+      'line_in': 'Line In',
+      'mic_in': 'Mic In'
     };
     
     const cleanName = actionName.toLowerCase();
@@ -120,49 +130,55 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
   }
   
   private getButtonStyle(actionName: string): 'primary' | 'secondary' | 'destructive' {
-    const primaryActions = ['play', 'pause', 'home', 'siri'];
-    const destructiveActions = ['power_off', 'stop'];
+    const primaryActions = ['play', 'playback', 'pb'];
+    const destructiveActions = ['stop', 'eject', 'power_off'];
+    const recordActions = ['record', 'rec'];
     
     const cleanName = actionName.toLowerCase();
     if (primaryActions.some(action => cleanName.includes(action))) {
       return 'primary';
     } else if (destructiveActions.some(action => cleanName.includes(action))) {
       return 'destructive';
+    } else if (recordActions.some(action => cleanName.includes(action))) {
+      return 'destructive'; // Record is destructive (overwrites tape)
     }
     
     return 'secondary';
   }
   
-  private getAppleTVIcon(actionName: string): import('../../types/ProcessedDevice').ActionIcon {
-    const appleTVIconMappings: Record<string, string> = {
+  private getRevoxIcon(actionName: string): import('../../types/ProcessedDevice').ActionIcon {
+    const revoxIconMappings: Record<string, string> = {
       'play': 'PlayIcon',
+      'playback': 'PlayIcon',
+      'pb': 'PlayIcon',
       'pause': 'PauseIcon',
       'stop': 'StopIcon',
-      'next': 'ForwardIcon',
-      'previous': 'BackwardIcon',
-      'rewind': 'BackwardIcon',
+      'record': 'EllipsisHorizontalCircleIcon',
+      'rec': 'EllipsisHorizontalCircleIcon',
+      'ff': 'ForwardIcon',
       'fast_forward': 'ForwardIcon',
-      'up': 'ChevronUpIcon',
-      'down': 'ChevronDownIcon',
-      'left': 'ChevronLeftIcon',
-      'right': 'ChevronRightIcon',
-      'ok': 'CheckIcon',
-      'select': 'CheckIcon',
-      'home': 'HomeIcon',
-      'menu': 'Bars3Icon',
-      'back': 'ArrowLeftIcon',
-      'siri': 'MicrophoneIcon',
-      'volume_up': 'SpeakerWaveIcon',
-      'volume_down': 'SpeakerWaveIcon',
+      'rew': 'BackwardIcon',
+      'rewind': 'BackwardIcon',
+      'eject': 'ArrowUpTrayIcon',
+      'volume': 'SpeakerWaveIcon',
       'mute': 'SpeakerXMarkIcon',
       'power': 'PowerIcon',
-      'tv': 'TvIcon',
-      'app': 'Squares2X2Icon',
-      'airplay': 'WifiIcon'
+      'input': 'ArrowsRightLeftIcon',
+      'mic': 'MicrophoneIcon',
+      'line': 'WireIcon',
+      'tape': 'FilmIcon',
+      'speed': 'AdjustmentsHorizontalIcon',
+      'ips': 'ClockIcon',
+      'bias': 'AdjustmentsVerticalIcon',
+      'eq': 'AdjustmentsHorizontalIcon',
+      'level': 'SignalIcon',
+      'meter': 'ChartBarIcon',
+      'auto': 'CommandLineIcon',
+      'manual': 'HandRaisedIcon'
     };
     
     const cleanName = actionName.toLowerCase();
-    for (const [key, iconName] of Object.entries(appleTVIconMappings)) {
+    for (const [key, iconName] of Object.entries(revoxIconMappings)) {
       if (cleanName.includes(key)) {
         return {
           iconLibrary: 'material',
@@ -177,7 +193,7 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
     return this.iconResolver.selectIconForActionWithLibrary(actionName, 'material');
   }
   
-  private createAppleTVStateInterface(config: DeviceConfig): import('../../types/ProcessedDevice').StateDefinition {
+  private createRevoxStateInterface(config: DeviceConfig): import('../../types/ProcessedDevice').StateDefinition {
     return {
       interfaceName: `${config.device_class}State`,
       fields: [
@@ -185,25 +201,55 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
           name: 'power',
           type: 'boolean',
           optional: true,
-          description: 'Apple TV power state'
+          description: 'Device power state'
         },
         {
-          name: 'currentApp',
+          name: 'transportState',
           type: 'string',
           optional: true,
-          description: 'Currently active application'
+          description: 'Tape transport state (play, stop, ff, rew, record)'
         },
         {
-          name: 'playbackState',
+          name: 'tapeSpeed',
           type: 'string',
           optional: true,
-          description: 'Current playback state (playing, paused, stopped)'
+          description: 'Current tape speed (7.5 IPS, 15 IPS)'
         },
         {
-          name: 'volume',
+          name: 'recordLevel',
           type: 'number',
           optional: true,
-          description: 'Current volume level'
+          description: 'Recording level'
+        },
+        {
+          name: 'playbackLevel',
+          type: 'number',
+          optional: true,
+          description: 'Playback level'
+        },
+        {
+          name: 'inputSource',
+          type: 'string',
+          optional: true,
+          description: 'Selected input source (line, mic)'
+        },
+        {
+          name: 'biasAdjustment',
+          type: 'number',
+          optional: true,
+          description: 'Bias adjustment level'
+        },
+        {
+          name: 'eqSetting',
+          type: 'string',
+          optional: true,
+          description: 'EQ setting'
+        },
+        {
+          name: 'tapePosition',
+          type: 'string',
+          optional: true,
+          description: 'Current tape position/counter'
         },
         {
           name: 'lastAction',
@@ -231,54 +277,18 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
   }
 
   // Legacy methods maintained for backward compatibility during transition
-  private determineComponentType(group: DeviceGroup): ComponentType {
-    // Menu groups should always use NavCluster for directional navigation
-    const isMenuGroup = group.group_name.toLowerCase().includes('menu');
-    if (isMenuGroup) {
-      return 'NavCluster';
-    }
-    
-    // Check if this is a volume-related group
-    const isVolumeGroup = group.group_name.toLowerCase().includes('volume') || 
-                         group.actions.some(action => action.name.toLowerCase().includes('volume'));
-    
-    if (isVolumeGroup) {
-      // If any action has range parameters, use SliderControl
-      const hasRangeParam = group.actions.some(action => 
-        action.params?.some(param => param.type === 'range')
-      );
-      return hasRangeParam ? 'SliderControl' : 'ButtonGrid';
-    }
-    
-    // Check for navigation/directional commands
-    const directionalCommands = ['up', 'down', 'left', 'right', 'ok', 'enter', 'select'];
-    const hasDirectional = group.actions.some(action => 
-      directionalCommands.some(dir => action.name.toLowerCase().includes(dir))
+  private determineComponentType(actions: GroupAction[]): ComponentType {
+    // Check for level controls with range parameters
+    const hasLevelRange = actions.some(action => 
+      (action.name.toLowerCase().includes('level') ||
+       action.name.toLowerCase().includes('volume')) &&
+      action.params?.some(param => param.type === 'range')
     );
     
-    // Check for media control commands
-    const mediaCommands = ['play', 'pause', 'stop', 'next', 'previous', 'rewind', 'fast_forward'];
-    const hasMediaControls = group.actions.some(action => 
-      mediaCommands.some(media => action.name.toLowerCase().includes(media))
-    );
-    
-    if (hasDirectional) {
-      return 'NavCluster';
-    } else if (hasMediaControls) {
-      return 'ButtonGrid'; // Media controls work well as buttons
+    if (hasLevelRange) {
+      return 'SliderControl';
     }
     
     return 'ButtonGrid';
-  }
-
-  private getLayoutForComponentType(componentType: ComponentType): import('../../types/ProcessedDevice').LayoutConfig {
-    switch (componentType) {
-      case 'NavCluster':
-        return { fullWidth: true, spacing: 'medium' };
-      case 'ButtonGrid':
-        return { columns: 3, spacing: 'medium' }; // 3 columns for media controls
-      default:
-        return { columns: 2, spacing: 'medium' };
-    }
   }
 } 
