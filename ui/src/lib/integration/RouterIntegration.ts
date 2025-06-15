@@ -228,9 +228,9 @@ export function getNavigationForDevice(deviceId: string): NavigationItem | undef
 
 import React from 'react';
 
-${devices.map(device => `import ${device.componentName}Page from './devices/${device.id}.gen';`).join('\n')}
+${devices.map(device => `import ${device.componentName}Page from './${device.id}.gen';`).join('\n')}
 
-export const generatedDevicePages = {
+export const generatedDevicePages: Record<string, React.ComponentType> = {
 ${devices.map(device => `  '${device.id}': ${device.componentName}Page`).join(',\n')}
 };
 
@@ -264,9 +264,9 @@ export function getDeviceRoute(deviceId: string): string | undefined {
 
 import { lazy } from 'react';
 
-${devices.map(device => `const ${device.componentName}Page = lazy(() => import('./devices/${device.id}.gen'));`).join('\n')}
+${devices.map(device => `const ${device.componentName}Page = lazy(() => import('./${device.id}.gen'));`).join('\n')}
 
-export const generatedDevicePages = {
+export const generatedDevicePages: Record<string, React.LazyExoticComponent<React.ComponentType>> = {
 ${devices.map(device => `  '${device.id}': ${device.componentName}Page`).join(',\n')}
 };
 
@@ -289,7 +289,7 @@ export function getLazyDeviceComponent(deviceId: string): React.LazyExoticCompon
 
   private generateRouterSection(devices: DevicePageEntry[]): string {
     return `// BEGIN GENERATED DEVICE ROUTES
-${devices.map(device => `import ${device.componentName}Page from './devices/${device.id}.gen';`).join('\n')}
+${devices.map(device => `import ${device.componentName}Page from './${device.id}.gen';`).join('\n')}
 
 const generatedDeviceRoutes = [
 ${devices.map(device => `  { path: '${device.route}', component: ${device.componentName}Page }`).join(',\n')}
@@ -342,5 +342,95 @@ ${devices.map(device => `  { path: '${device.route}', component: ${device.compon
       hash = hash & hash; // Convert to signed 32-bit integer
     }
     return Math.abs(hash).toString(16);
+  }
+
+  async readExistingRouterManifest(): Promise<DevicePageEntry[]> {
+    const routerPath = 'src/pages/devices/index.gen.ts';
+    
+    try {
+      const routerContent = await fs.readFile(routerPath, 'utf8');
+      
+      // Extract the manifest JSON from the file
+      const manifestMatch = routerContent.match(/export const devicePageManifest = ({[\s\S]*?});/);
+      if (manifestMatch) {
+        const manifestJson = manifestMatch[1];
+        const manifest = JSON.parse(manifestJson) as RouterManifest;
+        
+        // Convert manifest devices back to DevicePageEntry format
+        return manifest.devices.map(device => ({
+          id: device.id,
+          name: device.name,
+          deviceClass: device.deviceClass,
+          componentName: device.componentName,
+          route: device.route,
+          filePath: device.filePath,
+          generatedAt: new Date(device.generatedAt),
+          checksum: device.checksum
+        }));
+      }
+    } catch (error) {
+      // File doesn't exist or can't be read - that's fine for first generation
+      console.log(`📝 No existing router manifest found (${error.message})`);
+    }
+    
+    return [];
+  }
+
+  mergeDeviceEntries(existingDevices: DevicePageEntry[], newDevice: DevicePageEntry): DevicePageEntry[] {
+    // Filter out any existing entry with the same device ID
+    const filteredExisting = existingDevices.filter(device => device.id !== newDevice.id);
+    
+    // Add the new device entry
+    const mergedDevices = [...filteredExisting, newDevice];
+    
+    // Sort by device ID for consistent output
+    return mergedDevices.sort((a, b) => a.id.localeCompare(b.id));
+  }
+
+  async generateIncrementalRouterManifest(newDevice: DevicePageEntry): Promise<GeneratedFile> {
+    console.log(`🔄 Reading existing router manifest...`);
+    const existingDevices = await this.readExistingRouterManifest();
+    
+    console.log(`📋 Found ${existingDevices.length} existing device(s)`);
+    if (existingDevices.length > 0) {
+      console.log(`   Existing: ${existingDevices.map(d => d.id).join(', ')}`);
+    }
+    
+    const mergedDevices = this.mergeDeviceEntries(existingDevices, newDevice);
+    console.log(`✅ Merged devices: ${mergedDevices.map(d => d.id).join(', ')}`);
+    
+    // Use the existing generateRouterManifest method with merged devices
+    return this.generateRouterManifest(mergedDevices);
+  }
+
+  async generateIncrementalDeviceRegistry(newDevice: DevicePageEntry): Promise<GeneratedFile> {
+    const existingDevices = await this.readExistingRouterManifest();
+    const mergedDevices = this.mergeDeviceEntries(existingDevices, newDevice);
+    
+    return this.generateDeviceRegistry(mergedDevices);
+  }
+
+  async generateIncrementalNavigationConfig(newDevice: DevicePageEntry): Promise<GeneratedFile> {
+    const existingDevices = await this.readExistingRouterManifest();
+    const mergedDevices = this.mergeDeviceEntries(existingDevices, newDevice);
+    
+    return this.generateNavigationConfig(mergedDevices);
+  }
+
+  async generateIncrementalRouterFiles(newDevice: DevicePageEntry): Promise<void> {
+    console.log('🗺️ Generating router manifest...');
+    const routerManifest = await this.generateIncrementalRouterManifest(newDevice);
+    await fs.writeFile(routerManifest.filepath, routerManifest.content, 'utf8');
+    console.log(`✅ Generated router manifest: ${routerManifest.filepath}`);
+
+    console.log('📋 Generating device registry...');
+    const registry = await this.generateIncrementalDeviceRegistry(newDevice);
+    await fs.writeFile(registry.filepath, registry.content, 'utf8');
+    console.log(`✅ Generated device registry: ${registry.filepath}`);
+
+    console.log('🧭 Generating navigation config...');
+    const navigation = await this.generateIncrementalNavigationConfig(newDevice);
+    await fs.writeFile(navigation.filepath, navigation.content, 'utf8');
+    console.log(`✅ Generated navigation config: ${navigation.filepath}`);
   }
 } 

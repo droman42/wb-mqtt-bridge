@@ -206,7 +206,7 @@ export class CodeValidator {
     try {
       // Skip validation for certain imports that are expected to exist
       if (importPath.startsWith('react') || 
-          importPath.startsWith('@heroicons') ||
+          importPath.startsWith('@mui/') ||
           importPath.startsWith('../../stores') ||
           importPath.startsWith('../../hooks') ||
           importPath.startsWith('../../components')) {

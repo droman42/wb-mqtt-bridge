@@ -1,11 +1,5 @@
 import React from 'react';
-import { 
-  ArrowUpIcon, 
-  ArrowDownIcon, 
-  ArrowLeftIcon, 
-  ArrowRightIcon,
-  CheckIcon 
-} from '@heroicons/react/24/solid';
+import { Icon } from './icons';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
 
@@ -54,7 +48,7 @@ function NavCluster({
         className="h-14 w-14"
         disabled={!onUp}
       >
-        <ArrowUpIcon className="h-6 w-6" />
+        <Icon library="material" name="KeyboardArrowUp" size="lg" fallback="arrow-up" className="h-6 w-6" />
       </Button>
       
       <Button 
@@ -75,7 +69,7 @@ function NavCluster({
         className="h-14 w-14"
         disabled={!onLeft}
       >
-        <ArrowLeftIcon className="h-6 w-6" />
+        <Icon library="material" name="KeyboardArrowLeft" size="lg" fallback="arrow-left" className="h-6 w-6" />
       </Button>
       
       <Button 
@@ -85,7 +79,7 @@ function NavCluster({
         className="h-14 w-14"
         disabled={!onOk}
       >
-        <CheckIcon className="h-6 w-6" />
+        <Icon library="material" name="Check" size="lg" fallback="check" className="h-6 w-6" />
       </Button>
       
       <Button 
@@ -95,7 +89,7 @@ function NavCluster({
         className="h-14 w-14"
         disabled={!onRight}
       >
-        <ArrowRightIcon className="h-6 w-6" />
+        <Icon library="material" name="KeyboardArrowRight" size="lg" fallback="arrow-right" className="h-6 w-6" />
       </Button>
 
       {/* Bottom Row */}
@@ -116,7 +110,7 @@ function NavCluster({
         className="h-14 w-14"
         disabled={!onDown}
       >
-        <ArrowDownIcon className="h-6 w-6" />
+        <Icon library="material" name="KeyboardArrowDown" size="lg" fallback="arrow-down" className="h-6 w-6" />
       </Button>
       
       <Button 

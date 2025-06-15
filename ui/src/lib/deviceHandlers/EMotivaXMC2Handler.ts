@@ -65,7 +65,7 @@ export class EMotivaXMC2Handler implements DeviceClassHandler {
     return {
       sectionId: `${group.group_id}_zone_${zoneNumber}`,
       sectionName: `${group.group_name} - Zone ${zoneNumber}`,
-      componentType: this.hasRangeParameters(zoneActions) ? 'SliderControl' : 'ButtonGrid',
+      componentType: this.determineComponentType(group, zoneActions),
       actions: this.processZoneActions(zoneActions, zoneNumber),
       layout: { zoneNumber, columns: 1, spacing: 'medium' }
     };
@@ -75,7 +75,7 @@ export class EMotivaXMC2Handler implements DeviceClassHandler {
     return {
       sectionId: group.group_id,
       sectionName: group.group_name,
-      componentType: this.hasRangeParameters(group.actions) ? 'SliderControl' : 'ButtonGrid',
+      componentType: this.determineComponentType(group, group.actions),
       actions: this.processGroupActions(group.actions),
       layout: { columns: 2, spacing: 'medium' }
     };
@@ -167,9 +167,9 @@ export class EMotivaXMC2Handler implements DeviceClassHandler {
     for (const [key, iconName] of Object.entries(audioIconMappings)) {
       if (cleanName.includes(key)) {
         return {
-          iconLibrary: 'heroicons',
+          iconLibrary: 'material',
           iconName,
-          iconVariant: 'outline',
+          iconVariant: 'outlined',
           fallbackIcon: key,
           confidence: 0.9
         };
@@ -236,5 +236,31 @@ export class EMotivaXMC2Handler implements DeviceClassHandler {
       `,
       dependencies: ['useExecuteDeviceAction']
     }));
+  }
+
+  private determineComponentType(group: DeviceGroup, actions: GroupAction[]): ComponentType {
+    // Menu groups should always use NavCluster for directional navigation
+    const isMenuGroup = group.group_name.toLowerCase().includes('menu');
+    if (isMenuGroup) {
+      return 'NavCluster';
+    }
+    
+    // Check if this is a volume-related group
+    const isVolumeGroup = group.group_name.toLowerCase().includes('volume') || 
+                         actions.some(action => action.name.toLowerCase().includes('volume'));
+    
+    if (isVolumeGroup) {
+      // If any action has range parameters, use SliderControl
+      const hasRangeParam = actions.some(action => 
+        action.params?.some(param => param.type === 'range')
+      );
+      return hasRangeParam ? 'SliderControl' : 'ButtonGrid';
+    }
+    
+    // For other groups, check if they have range parameters
+    const hasRangeParam = actions.some(action => 
+      action.params?.some(param => param.type === 'range')
+    );
+    return hasRangeParam ? 'SliderControl' : 'ButtonGrid';
   }
 } 

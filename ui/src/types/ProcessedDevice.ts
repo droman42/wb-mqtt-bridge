@@ -36,9 +36,9 @@ export interface ProcessedParameter {
 }
 
 export interface ActionIcon {
-  iconLibrary: 'heroicons' | 'lucide' | 'fallback';
+  iconLibrary: 'material' | 'custom' | 'fallback';
   iconName: string;
-  iconVariant?: 'outline' | 'solid' | 'mini';
+  iconVariant?: 'filled' | 'outlined' | 'rounded' | 'sharp' | 'two-tone';
   fallbackIcon: string;
   confidence: number;
 }

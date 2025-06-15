@@ -164,7 +164,7 @@ The component uses the following hooks for state management:
 - \`useLogStore\` from \`../../stores/useLogStore\`
 - \`useExecuteDeviceAction\` from \`../../hooks/useApi\`
 - \`Button\` component from \`../../components/ui/button\`
-- Icons from \`@heroicons/react/24/outline\`
+        - Icons from \`@mui/icons-material\` with custom SVG fallbacks
 
 ### Component Structure
 - Main container with responsive layout

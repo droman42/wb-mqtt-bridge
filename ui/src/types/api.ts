@@ -21,11 +21,11 @@ export interface DeviceState {
 
 export interface CommandResponse {
   success: boolean;
-  deviceId: string;
+  device_id: string;
   action: string;
   state: BaseDeviceState;
   error?: string | null;
-  mqttCommand?: { [key: string]: any } | null;
+  mqtt_command?: { [key: string]: any } | null;
   data?: any | null;
 }
 
@@ -35,7 +35,7 @@ export interface RoomDefinitionResponse {
   names: { [key: string]: string };
   description: string;
   devices: Array<string>;
-  defaultScenario?: string | null;
+  default_scenario?: string | null;
 }
 
 // Scenario Related Types
@@ -44,7 +44,7 @@ export interface CommandStep {
   command: string;
   params?: { [key: string]: any };
   condition?: string | null;
-  delayAfterMs?: number;
+  delay_after_ms?: number;
 }
 
 export interface ManualInstructions {
@@ -53,19 +53,19 @@ export interface ManualInstructions {
 }
 
 export interface ScenarioDefinition {
-  scenarioId: string;
+  scenario_id: string;
   name: string;
   description?: string;
   room_id?: string | null;
   roles: { [key: string]: string };
   devices: Array<string>;
-  startupSequence: Array<CommandStep>;
-  shutdownSequence: Array<CommandStep>;
-  manualInstructions?: ManualInstructions | null;
+  startup_sequence: Array<CommandStep>;
+  shutdown_sequence: Array<CommandStep>;
+  manual_instructions?: ManualInstructions | null;
 }
 
 export interface ScenarioState {
-  scenarioId: string;
+  scenario_id: string;
   devices?: { [key: string]: DeviceState };
 }
 
@@ -92,25 +92,25 @@ export interface Group {
 }
 
 export interface ActionGroup {
-  groupId: string;
-  groupName: string;
+  group_id: string;
+  group_name: string;
   actions: Array<{ [key: string]: any }>;
   status?: string;
 }
 
 export interface GroupActionsResponse {
-  deviceId: string;
-  groupId: string;
-  groupName?: string | null;
+  device_id: string;
+  group_id: string;
+  group_name?: string | null;
   status: string;
   message?: string | null;
-  actions?: Array<{ [key: string]: any }>;
+  actions: Array<{ [key: string]: any }>;
 }
 
 export interface GroupedActionsResponse {
-  deviceId: string;
+  device_id: string;
   groups: Array<ActionGroup>;
-  defaultIncluded?: boolean;
+  default_included?: boolean;
 }
 
 // MQTT Related Types
@@ -132,7 +132,7 @@ export interface MQTTPublishResponse {
 export interface MQTTBrokerConfig {
   host: string;
   port: number;
-  clientId: string;
+  client_id: string;
   auth?: { [key: string]: string } | null;
   keepalive?: number;
 }
@@ -148,22 +148,24 @@ export interface SystemInfo {
   version?: string;
   mqttBroker: MQTTBrokerConfig;
   devices: Array<string>;
+  scenarios: Array<string>;
+  rooms: Array<string>;
 }
 
 export interface PersistenceConfig {
-  dbPath?: string;
+  db_path?: string;
 }
 
 export interface SystemConfig {
-  mqttBroker: MQTTBrokerConfig;
-  webService: { [key: string]: any };
-  logLevel: string;
-  logFile: string;
+  mqtt_broker: MQTTBrokerConfig;
+  web_service: { [key: string]: any };
+  log_level: string;
+  log_file: string;
   loggers?: { [key: string]: string } | null;
   devices?: { [key: string]: { [key: string]: any } | null } | null;
   groups?: { [key: string]: string };
   persistence?: PersistenceConfig;
-  deviceDirectory?: string;
+  device_directory?: string;
 }
 
 export interface ReloadResponse {
@@ -175,7 +177,7 @@ export interface ReloadResponse {
 // Error Related Types
 export interface ErrorResponse {
   detail: string;
-  errorCode?: string | null;
+  error_code?: string | null;
 }
 
 export interface ValidationErrorLocInner {
@@ -190,4 +192,36 @@ export interface ValidationError {
 
 export interface HTTPValidationError {
   detail?: Array<ValidationError>;
+}
+
+// New schema types from API specification
+export interface PersistedStatesResponse {
+  [deviceId: string]: { [key: string]: any };
+}
+
+export interface BaseDeviceConfig {
+  device_id: string;
+  device_name: string;
+  mqtt_progress_topic?: string;
+  device_class: string;
+  config_class: string;
+  commands: { [key: string]: BaseCommandConfig };
+}
+
+export interface BaseCommandConfig {
+  action?: string | null;
+  topic?: string | null;
+  description?: string | null;
+  group?: string | null;
+  params?: CommandParameterDefinition[] | null;
+}
+
+export interface CommandParameterDefinition {
+  name: string;
+  type: string;
+  required: boolean;
+  default?: any | null;
+  min?: number | null;
+  max?: number | null;
+  description?: string | null;
 } 

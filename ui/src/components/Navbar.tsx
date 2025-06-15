@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { ChevronDownIcon, Cog6ToothIcon } from '@heroicons/react/24/solid';
+import { useNavigate } from 'react-router-dom';
+import { Icon } from './icons';
 import { useRoomStore } from '../stores/useRoomStore';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import { Button } from './ui/button';
+import { getDeviceRoute } from '../pages/devices/registry.gen';
 
 function Navbar() {
+  const navigate = useNavigate();
   const { 
     rooms, 
     devices, 
@@ -44,6 +47,15 @@ function Navbar() {
   const handleDeviceSelect = (deviceId: string) => {
     selectDevice(deviceId);
     setDropdownOpen(null);
+    
+    // Navigate using generated device route
+    const deviceRoute = getDeviceRoute(deviceId);
+    if (deviceRoute) {
+      navigate(deviceRoute);
+    } else {
+      // Fallback to standard route if not in registry
+      navigate(`/device/${deviceId}`);
+    }
   };
 
   const handleScenarioSelect = (scenarioId: string) => {
@@ -63,7 +75,7 @@ function Navbar() {
             onClick={() => handleDropdownToggle('rooms')}
           >
             <span>{selectedRoom?.name.en || 'All Rooms'}</span>
-            <ChevronDownIcon className="h-4 w-4" />
+            <Icon library="material" name="KeyboardArrowDown" size="sm" fallback="arrow-down" className="h-4 w-4" />
           </Button>
           
           {dropdownOpen === 'rooms' && (
@@ -108,7 +120,7 @@ function Navbar() {
             onClick={() => handleDropdownToggle('devices')}
           >
             <span>{selectedDevice?.name.en || 'Select Device'}</span>
-            <ChevronDownIcon className="h-4 w-4" />
+            <Icon library="material" name="KeyboardArrowDown" size="sm" fallback="arrow-down" className="h-4 w-4" />
           </Button>
           
           {dropdownOpen === 'devices' && (
@@ -144,7 +156,7 @@ function Navbar() {
             onClick={() => handleDropdownToggle('scenarios')}
           >
             <span>{selectedScenario?.name.en || 'Select Scenario'}</span>
-            <ChevronDownIcon className="h-4 w-4" />
+            <Icon library="material" name="KeyboardArrowDown" size="sm" fallback="arrow-down" className="h-4 w-4" />
           </Button>
           
           {dropdownOpen === 'scenarios' && (
@@ -182,7 +194,7 @@ function Navbar() {
           onClick={toggleStatePanel}
           title="Toggle Device State Panel"
         >
-          <Cog6ToothIcon className="h-5 w-5" />
+          <Icon library="material" name="Settings" size="md" fallback="settings" className="h-5 w-5" />
         </Button>
 
         {/* Log Panel Toggle */}

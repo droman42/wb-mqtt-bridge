@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronUpIcon, ChevronDownIcon, TrashIcon } from '@heroicons/react/24/solid';
+import { Icon } from './icons';
 import { useLogStore } from '../stores/useLogStore';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import { formatTimestamp } from '../lib/utils';
@@ -35,9 +35,9 @@ function LogPanel({ isOpen, className }: LogPanelProps) {
             className="flex items-center space-x-1"
           >
             {isOpen ? (
-              <ChevronDownIcon className="h-4 w-4" />
+              <Icon library="material" name="KeyboardArrowDown" size="sm" fallback="arrow-down" className="h-4 w-4" />
             ) : (
-              <ChevronUpIcon className="h-4 w-4" />
+              <Icon library="material" name="KeyboardArrowUp" size="sm" fallback="arrow-up" className="h-4 w-4" />
             )}
             <span className="text-sm font-medium">Logs ({entries.length})</span>
           </Button>
@@ -50,7 +50,7 @@ function LogPanel({ isOpen, className }: LogPanelProps) {
             onClick={clearLogs}
             className="flex items-center space-x-1"
           >
-            <TrashIcon className="h-4 w-4" />
+            <Icon library="material" name="Delete" size="sm" fallback="trash" className="h-4 w-4" />
             <span className="text-sm">Clear</span>
           </Button>
         )}

@@ -8,10 +8,7 @@ export function cn(...inputs: ClassValue[]) {
 export function resolveIcon(iconName?: string): string | null {
   if (!iconName) return null;
   
-  if (iconName.startsWith('lucide:')) {
-    return iconName.replace('lucide:', '');
-  }
-  
+  // Material Design icons don't need prefix processing
   return iconName;
 }
 

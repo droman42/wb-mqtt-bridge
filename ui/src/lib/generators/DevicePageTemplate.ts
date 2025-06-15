@@ -12,15 +12,17 @@ export class DevicePageTemplate {
 import React, { useState } from 'react';
 import { useLogStore } from '../../stores/useLogStore';
 import { useExecuteDeviceAction } from '../../hooks/useApi';
+import { useSettingsStore } from '../../stores/useSettingsStore';
 import { Button } from '../../components/ui/button';
-import { NavCluster } from '../../components/NavCluster';
-import { PointerPad } from '../../components/PointerPad';
-import { SliderControl } from '../../components/SliderControl';
-${this.generateIconImports(structure.uiSections)}
+import NavCluster from '../../components/NavCluster';
+import PointerPad from '../../components/PointerPad';
+import SliderControl from '../../components/SliderControl';
+import { Icon } from '../../components/icons';
 
 function ${this.formatComponentName(structure.deviceId)}Page() {
   const { addLog } = useLogStore();
   const executeAction = useExecuteDeviceAction();
+  const { statePanelOpen } = useSettingsStore();
 
 ${this.generateStateVariables(structure.uiSections)}
 
@@ -37,13 +39,13 @@ ${this.generateStateVariables(structure.uiSections)}
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className={\`\${statePanelOpen ? 'p-4 space-y-4' : 'p-6 space-y-6'}\`}>
       <div className="text-center">
-        <h1 className="text-2xl font-bold">${structure.deviceName}</h1>
-        <p className="text-gray-600">Device Class: ${structure.deviceClass}</p>
+        <h1 className={\`\${statePanelOpen ? 'text-xl' : 'text-2xl'} font-bold\`}>${structure.deviceName}</h1>
+        <p className={\`text-gray-600 \${statePanelOpen ? 'text-sm' : ''}\`}>Device Class: ${structure.deviceClass}</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className={\`grid grid-cols-1 lg:grid-cols-2 \${statePanelOpen ? 'gap-3' : 'gap-6'}\`}>
         ${this.generateSections(structure.uiSections)}
       </div>
     </div>
@@ -56,8 +58,8 @@ export default ${this.formatComponentName(structure.deviceId)}Page;
   
   private generateSections(sections: UISection[]): string {
     return sections.map(section => `
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">${section.sectionName}</h2>
+        <div className={\`\${statePanelOpen ? 'space-y-2' : 'space-y-4'}\`}>
+          <h2 className={\`\${statePanelOpen ? 'text-base' : 'text-lg'} font-semibold\`}>${section.sectionName}</h2>
           ${this.generateSectionContent(section)}
         </div>
     `).join('\n');
@@ -80,7 +82,7 @@ export default ${this.formatComponentName(structure.deviceId)}Page;
   
   private generateButtonGrid(actions: ProcessedAction[]): string {
     return `
-          <div className="grid grid-cols-2 gap-2">
+          <div className={\`grid grid-cols-2 \${statePanelOpen ? 'gap-1' : 'gap-2'}\`}>
             ${actions.map(action => this.generateButton(action)).join('\n            ')}
           </div>
     `;
@@ -103,7 +105,7 @@ export default ${this.formatComponentName(structure.deviceId)}Page;
             onLeft={${leftAction ? `() => handleAction('${leftAction.actionName}')` : 'undefined'}}
             onRight={${rightAction ? `() => handleAction('${rightAction.actionName}')` : 'undefined'}}
             onOk={${okAction ? `() => handleAction('${okAction.actionName}')` : 'undefined'}}
-            className="w-full max-w-sm mx-auto"
+            className={\`w-full mx-auto \${statePanelOpen ? 'max-w-xs' : 'max-w-sm'}\`}
           />
       `;
     }
@@ -113,38 +115,26 @@ export default ${this.formatComponentName(structure.deviceId)}Page;
   }
   
   private generateButton(action: ProcessedAction): string {
-    const IconComponent = action.icon.iconName;
     return `
       <Button
         variant="secondary"
-        size="default"
+        size={\`\${statePanelOpen ? 'sm' : 'default'}\`}
         onClick={() => handleAction('${action.actionName}')}
-        className="flex items-center gap-2"
+        className={\`flex items-center \${statePanelOpen ? 'gap-1 text-xs' : 'gap-2'}\`}
         title="${action.description}"
       >
-        <${IconComponent} className="w-4 h-4" />
+        <Icon
+          library="${action.icon.iconLibrary}"
+          name="${action.icon.iconName}"
+          size={\`\${statePanelOpen ? 'sm' : 'md'}\`}
+          fallback="${action.icon.fallbackIcon}"
+        />
         ${action.displayName}
       </Button>`;
   }
   
-  private generateIconImports(sections: UISection[]): string {
-    const icons = new Set<string>();
-    
-    sections.forEach(section => {
-      section.actions.forEach(action => {
-        if (action.icon.iconLibrary === 'heroicons') {
-          icons.add(action.icon.iconName);
-        }
-      });
-    });
-    
-    if (icons.size === 0) {
-      return '';
-    }
-    
-    const iconList = Array.from(icons).join(', ');
-    return `import { ${iconList} } from '@heroicons/react/24/outline';`;
-  }
+  // Icon imports are now handled by the unified Icon component
+  // No need for individual icon imports anymore
   
   private formatComponentName(deviceId: string): string {
     return deviceId

@@ -129,18 +129,18 @@ ${allDefaults.join(',\n')}
 
     return `import { useState, useEffect } from 'react';
 import { ${interfaceName}, default${interfaceName} } from '${importPath}';
-import { useDeviceState } from '../hooks/useDeviceState';
+import { useDeviceState } from '../../hooks/useDeviceState';
 
 export function ${hookName}(deviceId: string = '${deviceId}') {
   const [state, setState] = useState<${interfaceName}>(default${interfaceName});
   const { subscribeToState, updateState } = useDeviceState(deviceId);
 
   useEffect(() => {
-    const unsubscribe = subscribeToState((newState: Partial<${interfaceName}>) => {
+    const subscription = subscribeToState((newState: Partial<${interfaceName}>) => {
       setState(prevState => ({ ...prevState, ...newState }));
     });
 
-    return unsubscribe;
+    return subscription.unsubscribe;
   }, [deviceId, subscribeToState]);
 
   const updateField = <K extends keyof ${interfaceName}>(

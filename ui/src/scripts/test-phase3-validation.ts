@@ -289,7 +289,7 @@ class Phase3TestSuite {
                   description: 'Power control',
                   parameters: [],
                   group: 'basic',
-                  icon: { iconLibrary: 'heroicons', iconName: 'PowerIcon', fallbackIcon: 'power', confidence: 0.9 },
+                  icon: { iconLibrary: 'material', iconName: 'PowerSettingsNew', fallbackIcon: 'power', confidence: 0.9 },
                   uiHints: {}
                 }
               ],
@@ -353,7 +353,7 @@ class Phase3TestSuite {
                 description: 'Power control',
                 parameters: [],
                 group: 'basic',
-                icon: { iconLibrary: 'heroicons', iconName: 'PowerIcon', fallbackIcon: 'power', confidence: 0.9 },
+                icon: { iconLibrary: 'material', iconName: 'PowerSettingsNew', fallbackIcon: 'power', confidence: 0.9 },
                 uiHints: {}
               }
             ],

@@ -110,9 +110,9 @@ export class BroadlinkKitchenHoodHandler implements DeviceClassHandler {
     for (const [key, iconName] of Object.entries(kitchenHoodMappings)) {
       if (cleanName.includes(key)) {
         return {
-          iconLibrary: 'heroicons',
+          iconLibrary: 'material',
           iconName,
-          iconVariant: 'outline',
+          iconVariant: 'outlined',
           fallbackIcon: key,
           confidence: 0.9
         };

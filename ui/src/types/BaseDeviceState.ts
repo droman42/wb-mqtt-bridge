@@ -6,12 +6,10 @@ export interface LastCommand {
 }
 
 export interface BaseDeviceState {
-  deviceId: string;
-  deviceName: string;
-  lastCommand?: LastCommand | null;
+  device_id: string;
+  device_name: string;
+  last_command?: LastCommand | null;
   error?: string | null;
-  isConnected: boolean;
-  lastUpdated: Date | null;
 }
 
 export interface DeviceStateUpdate<T = any> {

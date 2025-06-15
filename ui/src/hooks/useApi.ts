@@ -18,6 +18,7 @@ import type {
   CommandResponse,
   DeviceState,
   MQTTPublishResponse,
+  PersistedStatesResponse,
 } from '../types/api';
 import { BaseDeviceState } from '../types/BaseDeviceState';
 
@@ -44,7 +45,7 @@ export const useSystemConfig = () => {
 
 export const useReloadSystem = () => {
   return useMutation({
-    mutationFn: () => api.post<ReloadResponse>('/system/reload').then(res => res.data),
+    mutationFn: () => api.post<ReloadResponse>('/reload').then(res => res.data),
   });
 };
 
@@ -84,7 +85,7 @@ export const useDevicePersistedState = (deviceId: string) => {
 export const useAllPersistedStates = () => {
   return useQuery({
     queryKey: ['devices', 'persisted'],
-    queryFn: () => api.get<any>('/devices/persisted_states').then(res => res.data),
+    queryFn: () => api.get<PersistedStatesResponse>('/devices/persisted_states').then(res => res.data),
   });
 };
 
@@ -158,7 +159,7 @@ export const useExecuteRoleAction = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (request: ActionRequest) =>
-      api.post<ScenarioResponse>('/scenario/role/action', request).then(res => res.data),
+      api.post<ScenarioResponse>('/scenario/role_action', request).then(res => res.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['scenario', 'state'] });
       queryClient.invalidateQueries({ queryKey: ['devices'] });

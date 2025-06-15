@@ -473,8 +473,8 @@ Supported Device Classes (Phase 2):
       process.exit(allPassed ? 0 : 1);
     }
     
-    // Handle batch processing
-    if (batchMode || deviceIds || deviceClasses || fullSystem || generateDocs || generateRouter) {
+    // Handle batch processing (but not single device with just generateRouter)
+    if (batchMode || deviceIds || deviceClasses || fullSystem || generateDocs || (generateRouter && !deviceId)) {
       console.log(`🎯 Device Page Generator - Phase 3 ${fullSystem ? '(Full System)' : '(Batch Mode)'}`);
       console.log(`📡 API: ${apiBaseUrl}`);
       console.log(`📁 Output: ${outputDir}`);
@@ -580,6 +580,34 @@ Supported Device Classes (Phase 2):
     console.log('');
     
     const result = await generator.generateDevicePage(deviceId, { stateFile, stateClass });
+    
+    // Handle router generation for single device
+    if (result.success && generateRouter) {
+      console.log('\n🗺️ Generating router integration for single device...');
+      try {
+        // Collect device structure for router generation
+        const [config, groups] = await Promise.all([
+          generator['client'].fetchDeviceConfig(deviceId),
+          generator['client'].fetchDeviceGroups(deviceId)
+        ]);
+        
+        const validatedConfig = generator['validator'].validateDeviceConfig(config);
+        const handler = generator['handlers'].get(validatedConfig.device_class);
+        
+        if (handler) {
+          const structure = handler.analyzeStructure(validatedConfig, groups);
+          const deviceEntry = generator['routerIntegration'].createDevicePageEntry(structure, result.outputPath!);
+          
+          // Use incremental router generation to merge with existing entries
+          await generator['routerIntegration'].generateIncrementalRouterFiles(deviceEntry);
+          console.log('✅ Router generation completed');
+        } else {
+          console.warn(`⚠️  No handler found for device class: ${validatedConfig.device_class}`);
+        }
+      } catch (error) {
+        console.error('❌ Router generation failed:', error.message);
+      }
+    }
     
     if (result.success) {
       console.log('');

@@ -1,6 +1,5 @@
 import React from 'react';
-import * as Icons from '@heroicons/react/24/solid';
-import * as LucideIcons from 'lucide-react';
+import { Icon } from './icons';
 import { debounce } from '../lib/utils';
 import { runtimeConfig } from '../config/runtime';
 
@@ -47,15 +46,8 @@ function SliderControl({
   const renderIcon = () => {
     if (!icon) return null;
 
-    if (icon.startsWith('lucide:')) {
-      const iconName = icon.replace('lucide:', '');
-      const LucideIcon = (LucideIcons as any)[iconName];
-      return LucideIcon ? <LucideIcon className="h-5 w-5" /> : null;
-    }
-
-    // Heroicon
-    const HeroIcon = (Icons as any)[icon];
-    return HeroIcon ? <HeroIcon className="h-5 w-5" /> : null;
+    // Use our unified icon system
+    return <Icon library="material" name={icon} size="md" fallback={icon.toLowerCase()} className="h-5 w-5" />;
   };
 
   const percentage = ((localValue - min) / (max - min)) * 100;

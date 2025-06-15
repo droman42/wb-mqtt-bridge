@@ -1,5 +1,5 @@
 import React from 'react';
-import { HandRaisedIcon } from '@heroicons/react/24/solid';
+import { Icon } from './icons';
 
 interface PointerPadProps {
   mode: 'relative' | 'absolute';
@@ -116,7 +116,7 @@ function PointerPad({
       >
         {hintIcon !== false && (
           <div className="flex flex-col items-center space-y-2 text-muted-foreground">
-            <HandRaisedIcon className="h-8 w-8" />
+            <Icon library="material" name="PanTool" size="lg" fallback="hand" className="h-8 w-8" />
             <span className="text-sm">
               {mode === 'relative' ? 'Drag to move cursor' : 'Touch to position'}
             </span>

@@ -18,7 +18,7 @@ A modern, responsive web application for controlling smart home devices and scen
 - **Styling**: Tailwind CSS v3 + shadcn/ui components
 - **State Management**: Zustand + Immer
 - **Data Fetching**: TanStack Query 5
-- **Icons**: Heroicons 24 + Lucide React
+- **Icons**: Material Design Icons (@mui/icons-material) + Custom SVG fallbacks
 - **Testing**: Jest + React Testing Library
 - **Deployment**: Docker + Nginx
 

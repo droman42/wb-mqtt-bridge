@@ -29,6 +29,24 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
   }
   
   private determineComponentType(group: DeviceGroup): ComponentType {
+    // Menu groups should always use NavCluster for directional navigation
+    const isMenuGroup = group.group_name.toLowerCase().includes('menu');
+    if (isMenuGroup) {
+      return 'NavCluster';
+    }
+    
+    // Check if this is a volume-related group
+    const isVolumeGroup = group.group_name.toLowerCase().includes('volume') || 
+                         group.actions.some(action => action.name.toLowerCase().includes('volume'));
+    
+    if (isVolumeGroup) {
+      // If any action has range parameters, use SliderControl
+      const hasRangeParam = group.actions.some(action => 
+        action.params?.some(param => param.type === 'range')
+      );
+      return hasRangeParam ? 'SliderControl' : 'ButtonGrid';
+    }
+    
     // Check for navigation/directional commands
     const directionalCommands = ['up', 'down', 'left', 'right', 'ok', 'enter', 'select'];
     const hasDirectional = group.actions.some(action => 
@@ -147,9 +165,9 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
     for (const [key, iconName] of Object.entries(appleTVIconMappings)) {
       if (cleanName.includes(key)) {
         return {
-          iconLibrary: 'heroicons',
+          iconLibrary: 'material',
           iconName,
-          iconVariant: 'outline',
+                      iconVariant: 'outlined',
           fallbackIcon: key,
           confidence: 0.9
         };
