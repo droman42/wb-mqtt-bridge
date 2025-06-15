@@ -769,10 +769,18 @@ class PersistenceConfig(BaseModel):
     """Configuration for the persistence layer."""
     db_path: str = Field(default="data/state_store.db", description="Path to the SQLite database file")
 
+
+class MaintenanceConfig(BaseModel):
+    """Configuration for system maintenance settings."""
+    duration: int = Field(..., description="Maintenance duration in minutes")
+    topic: str = Field(..., description="MQTT topic to monitor for maintenance status")
+
+
 class DeviceActionsResponse(BaseModel):
     """Schema for device actions list response."""
     device_id: str
     actions: List[Dict[str, str]]
+
 
 class SystemConfig(BaseModel):
     """Schema for system configuration."""
@@ -786,6 +794,7 @@ class SystemConfig(BaseModel):
     devices: Optional[Dict[str, Dict[str, Any]]] = None
     groups: Dict[str, str] = Field(default_factory=dict)  # Internal name -> Display name
     persistence: PersistenceConfig = Field(default_factory=PersistenceConfig)
+    maintenance: Optional[MaintenanceConfig] = Field(None, description="Maintenance configuration settings")
     # Add explicit device directory configuration
     device_directory: str = Field(default="devices", description="Directory containing device configuration files")
 

@@ -11,7 +11,8 @@ from app.schemas import (
     BaseDeviceConfig,
     StandardCommandConfig,
     IRCommandConfig,
-    BaseCommandConfig
+    BaseCommandConfig,
+    MaintenanceConfig
 )
 from app.class_loader import load_class_by_name
 from app.validation import (
@@ -276,6 +277,14 @@ class ConfigManager:
     def get_mqtt_broker_config(self) -> MQTTBrokerConfig:
         """Get the MQTT broker configuration."""
         return self.system_config.mqtt_broker
+    
+    def get_maintenance_config(self) -> Optional[MaintenanceConfig]:
+        """Get the maintenance configuration if it exists."""
+        return self.system_config.maintenance
+    
+    def is_maintenance_enabled(self) -> bool:
+        """Check if maintenance configuration is enabled."""
+        return self.system_config.maintenance is not None
     
     def get_all_progress_topics(self) -> Dict[str, str]:
         """Get all progress topics for all devices."""

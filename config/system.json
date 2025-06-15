@@ -1,5 +1,9 @@
 {
   "service_name": "Wirenboard Universal Remote",
+  "maintenance": {
+    "duration": 5,
+    "topic": "/devices/wbrules/meta/online"
+  },
   "mqtt_broker": {
     "host": "192.168.110.250",
     "port": 1883,

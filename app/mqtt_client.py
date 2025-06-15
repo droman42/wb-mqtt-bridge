@@ -6,12 +6,14 @@ import json
 from aiomqtt import Client, MqttError
 from asyncio.exceptions import CancelledError
 
+from app.maintenance import SystemMaintenanceGuard
+
 logger = logging.getLogger(__name__)
 
 class MQTTClient:
     """Asynchronous MQTT client for the web service."""
     
-    def __init__(self, broker_config: Dict[str, Any]):
+    def __init__(self, broker_config: Dict[str, Any], maintenance_guard: SystemMaintenanceGuard = None):
         logger.info(f"Initializing MQTT client with broker config: {broker_config}")
         
         # Check if broker_config is a Pydantic model and convert it to dict if needed
@@ -41,6 +43,8 @@ class MQTTClient:
         self.message_handlers: Dict[str, Callable] = {}
         # Map of topics to devices that have subscribed to them
         self.topic_subscribers: Dict[str, List[str]] = {}
+
+        self.guard = maintenance_guard
         
         # MQTT client
         self.client: Optional[Client] = None
@@ -112,10 +116,21 @@ class MQTTClient:
                         await client.subscribe(topic)
                         logger.info(f"Subscribed to topic: {topic}")
                     
+                    # Subscribe to guard topics
+                    if self.guard is not None:
+                        for topic in self.guard.subscription_topics():
+                            await client.subscribe(topic)
+                            logger.info(f"Subscribed to guard topic: {topic}")
+
                     # Process incoming messages
                     async for message in client.messages:
                         topic = message.topic.value
                         try:
+                            # Check if the message is in the maintenance window
+                            if self.guard is not None and self.guard.maintenance_started(topic):
+                                logger.info(f"Skipping message on topic {topic} because it's in the maintenance window")
+                                continue
+
                             # Skip processing of retained messages
                             if message.retain:
                                 logger.debug(f"Skipping retained message on topic {topic}")

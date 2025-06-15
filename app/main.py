@@ -38,6 +38,7 @@ from app.schemas import (
     BaseDeviceState
 )
 from app.types import CommandResponse
+from app.maintenance import WirenboardMaintenanceGuard
 
 # Import routers
 from app.routers import system, devices, mqtt, groups, scenarios, rooms, state
@@ -155,13 +156,26 @@ async def lifespan(app: FastAPI):
     
     # Initialize MQTT client first
     mqtt_broker_config = system_config.mqtt_broker
+    
+    # Check if maintenance is enabled and create guard if needed
+    maintenance_guard = None
+    if config_manager.is_maintenance_enabled():
+        maintenance_config = config_manager.get_maintenance_config()
+        logger.info(f"Maintenance is enabled - creating WirenboardMaintenanceGuard with duration={maintenance_config.duration}s, topic={maintenance_config.topic}")
+        maintenance_guard = WirenboardMaintenanceGuard(
+            duration=maintenance_config.duration,
+            topic=maintenance_config.topic
+        )
+    else:
+        logger.info("Maintenance is disabled - no maintenance guard will be used")
+        
     mqtt_client = MQTTClient({
         'host': mqtt_broker_config.host,
         'port': mqtt_broker_config.port,
         'client_id': mqtt_broker_config.client_id,
         'keepalive': mqtt_broker_config.keepalive,
         'auth': mqtt_broker_config.auth
-    })
+    }, maintenance_guard=maintenance_guard)
     
     # Initialize device manager with MQTT client and state store
     device_manager = DeviceManager(
