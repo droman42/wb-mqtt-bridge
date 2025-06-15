@@ -233,10 +233,10 @@
         }
       ]
     },
-    "get_public_apps": {
-      "action": "get_public_apps",
-      "topic": "/devices/children_room_tv/controls/get_public_apps",
-      "description": "List public Apps",
+    "get_available_apps": {
+      "action": "get_available_apps",
+      "topic": "/devices/children_room_tv/controls/get_available_apps",
+      "description": "List available Apps",
       "group": "apps"
     },
     "get_available_inputs": {

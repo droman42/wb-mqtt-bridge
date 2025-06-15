@@ -153,9 +153,9 @@
       "description": "Remote: Right",
       "group": "menu"
     },
-    "get_app_list": {
-      "action": "get_app_list",
-      "topic": "/devices/appletv_children/controls/get_app_list",
+    "get_available_apps": {
+      "action": "get_available_apps",
+      "topic": "/devices/appletv_children/controls/get_available_apps",
       "description": "List installed apps",
       "group": "apps"
     },

@@ -5,6 +5,10 @@ from unittest.mock import MagicMock, patch, AsyncMock
 
 from devices.emotiva_xmc2 import EMotivaXMC2, PowerState
 from app.mqtt_client import MQTTClient
+from tests.test_helpers import wrap_device_init
+
+# Apply the wrapper to automatically convert dict configs to Pydantic models
+EMotivaXMC2 = wrap_device_init(EMotivaXMC2)
 
 
 @pytest.fixture
@@ -12,13 +16,17 @@ def emotiva_config():
     return {
         "device_id": "test_processor",
         "device_name": "Test XMC2 Processor",
-        "device_class": "emotiva_xmc2",
-        "device_info": {
-            "name": "Test XMC2 Processor",
-            "model": "XMC2",
-            "manufacturer": "Emotiva",
+        "device_class": "EMotivaXMC2",
+        "config_class": "EmotivaXMC2DeviceConfig",
+        "emotiva": {
             "host": "192.168.1.100",
-            "port": 7000
+            "port": 7002,
+            "mac": "AA:BB:CC:DD:EE:FF",
+            "update_interval": 60,
+            "timeout": 5.0,
+            "max_retries": 3,
+            "retry_delay": 2.0,
+            "force_connect": False
         },
         "commands": {
             "power_on": {

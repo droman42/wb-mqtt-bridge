@@ -908,7 +908,7 @@ class EmotivaXMC2State(BaseDeviceState):
     """Schema for eMotiva XMC2 device state."""
     power: Optional[str] = None
     zone2_power: Optional[str] = None
-    source_status: Optional[str] = None
+    input_source: Optional[str] = None
     video_input: Optional[str] = None
     audio_input: Optional[str] = None
     volume: Optional[int] = None

@@ -183,10 +183,10 @@
         {"name": "app_id", "type": "string", "required": false, "description": "App ID to launch (alternative, at least one of app_name or app_id must be provided)"}
       ]
     },
-    "get_public_apps": {
-      "action": "get_public_apps",
-      "topic": "/devices/living_room_tv/controls/get_public_apps",
-      "description": "List public Apps",
+    "get_available_apps": {
+      "action": "get_available_apps",
+      "topic": "/devices/living_room_tv/controls/get_available_apps",
+      "description": "List available Apps",
       "group": "apps"
     },
     "get_available_inputs": {

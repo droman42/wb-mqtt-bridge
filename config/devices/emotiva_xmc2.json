@@ -57,6 +57,12 @@
       "params": [
         { "name": "zone", "type": "integer", "required": true, "default": 1, "min": 1, "max": 2, "description": "Zone ID (1 for main, 2 for zone2)" }
       ]
+    },
+    "get_available_inputs": {
+      "action": "get_available_inputs",
+      "topic": "/devices/processor/controls/get_available_inputs",
+      "group": "inputs",
+      "description": "List available inputs"
     }
   }
 }

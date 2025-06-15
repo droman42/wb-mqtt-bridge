@@ -2373,7 +2373,7 @@ class LgTv(BaseDevice[LgTvState]):
             self.set_error(error_msg)
             return self.create_command_result(success=False, error=error_msg)
 
-    async def handle_get_public_apps(
+    async def handle_get_available_apps(
         self, 
         cmd_config: StandardCommandConfig, 
         params: Dict[str, Any]

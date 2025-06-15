@@ -1486,3 +1486,69 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 logger.error(f"Error synchronizing Zone2 state: {str(e)}")
                 return updated_properties
 
+    async def handle_get_available_inputs(
+        self, 
+        cmd_config: StandardCommandConfig, 
+        params: Dict[str, Any]
+    ) -> CommandResult:
+        """Handle retrieving available input sources for the Emotiva XMC2.
+        
+        Returns a list of all available input sources as pairs of input_id and input_name.
+        The Emotiva XMC2 has a fixed set of inputs defined by the hardware specification.
+        
+        Args:
+            cmd_config: Command configuration
+            params: Dictionary containing optional parameters (unused)
+            
+        Returns:
+            CommandResult: Result of the command execution with a list of available inputs
+        """
+        try:
+            logger.info("Retrieving available input sources for Emotiva XMC2")
+            
+            # Create mapping from Input enum values to human-readable names
+            input_name_mapping = {
+                Input.HDMI1: "HDMI 1",
+                Input.HDMI2: "HDMI 2", 
+                Input.HDMI3: "HDMI 3",
+                Input.HDMI4: "HDMI 4",
+                Input.HDMI5: "HDMI 5",
+                Input.HDMI6: "HDMI 6",
+                Input.HDMI7: "HDMI 7",
+                Input.HDMI8: "HDMI 8",
+                Input.COAX1: "Coaxial 1",
+                Input.COAX2: "Coaxial 2", 
+                Input.COAX3: "Coaxial 3",
+                Input.COAX4: "Coaxial 4",
+                Input.OPTICAL1: "Optical 1",
+                Input.OPTICAL2: "Optical 2",
+                Input.OPTICAL3: "Optical 3", 
+                Input.OPTICAL4: "Optical 4",
+                Input.TUNER: "FM/AM Tuner"
+            }
+            
+            # Format the input sources as pairs of input_id and input_name
+            formatted_inputs = []
+            
+            for input_enum, human_name in input_name_mapping.items():
+                formatted_inputs.append({
+                    "input_id": input_enum.value,  # e.g., "hdmi1", "coax1", "optical1", "tuner"
+                    "input_name": human_name       # e.g., "HDMI 1", "Coaxial 1", "FM/AM Tuner"
+                })
+            
+            logger.info(f"Found {len(formatted_inputs)} available input sources")
+            
+            # Update the last command information
+            self._update_last_command("get_available_inputs", {})
+            
+            return self.create_command_result(
+                success=True,
+                message=f"Retrieved {len(formatted_inputs)} input sources",
+                data=formatted_inputs
+            )
+            
+        except Exception as e:
+            error_msg = f"Error retrieving input sources: {str(e)}"
+            logger.error(error_msg)
+            return self.create_command_result(success=False, error=error_msg)
+

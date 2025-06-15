@@ -1432,7 +1432,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
         # Call the handler directly
         await self.handle_refresh_status(config, {})
 
-    async def handle_get_app_list(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
+    async def handle_get_available_apps(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Retrieve list of installed apps on the Apple TV.
         
