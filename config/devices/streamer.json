@@ -94,17 +94,17 @@
       "group": "volume",
       "description": "Toggle Mute"
     },
-    "set_source": {
-      "action": "set_source",
-      "topic": "/devices/streamer/controls/set_source",
+    "set_input": {
+      "action": "set_input",
+      "topic": "/devices/streamer/controls/set_input",
       "group": "inputs",
-      "description": "Set Source",
+      "description": "Set Input",
       "params": [
         {
-          "name": "source",
+          "name": "input",
           "type": "string",
           "required": true,
-          "description": "Source name or index"
+          "description": "Input name or index"
         }
       ]
     },
@@ -114,16 +114,16 @@
       "group": "media",
       "description": "Get Current Track Information"
     },
-    "get_available_sources": {
-      "action": "get_available_sources",
-      "topic": "/devices/streamer/controls/get_available_sources",
-      "description": "List available sources",
+    "get_available_inputs": {
+      "action": "get_available_inputs",
+      "topic": "/devices/streamer/controls/get_available_inputs",
+      "description": "List available inputs",
       "group": "inputs"
     },
-    "refresh_sources": {
-      "action": "refresh_sources",
-      "topic": "/devices/streamer/controls/refresh_sources",
-      "description": "Refresh sources list",
+    "refresh_inputs": {
+      "action": "refresh_inputs",
+      "topic": "/devices/streamer/controls/refresh_inputs",
+      "description": "Refresh inputs list",
       "group": "inputs"
     }
   }

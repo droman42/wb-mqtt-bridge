@@ -1030,8 +1030,8 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                 error=f"Failed to toggle mute: {str(e)}"
             )
 
-    async def handle_set_source(self, cmd_config: BaseCommandConfig, params: Dict[str, Any]) -> CommandResult:
-        """Handle set source command."""
+    async def handle_set_input(self, cmd_config: BaseCommandConfig, params: Dict[str, Any]) -> CommandResult:
+        """Handle set input command."""
         try:
             if not self.openhome_device:
                 return self.create_command_result(
@@ -1039,11 +1039,11 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                     error="Device not connected"
                 )
                 
-            source = params.get("source")
+            source = params.get("input")
             if source is None:
                 return self.create_command_result(
                     success=False,
-                    error="Source parameter is required"
+                    error="Input parameter is required"
                 )
             
             # Get list of sources from cache or refresh if needed
@@ -1122,11 +1122,11 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                 error=f"Failed to get track info: {str(e)}"
             )
 
-    async def handle_get_available_sources(self, cmd_config: BaseCommandConfig, params: Dict[str, Any]) -> CommandResult:
+    async def handle_get_available_inputs(self, cmd_config: BaseCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
-        Handle retrieving available sources from the device.
+        Handle retrieving available inputs from the device.
         
-        Returns a list of available sources as pairs of source_id and source_name.
+        Returns a list of available inputs as pairs of input_id and input_name.
         
         Args:
             cmd_config: Command configuration
@@ -1134,10 +1134,10 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                 refresh_cache: If True, force a cache refresh
                 
         Returns:
-            CommandResult: Result with list of available sources
+            CommandResult: Result with list of available inputs
         """
         try:
-            logger.info("Retrieving available sources from device")
+            logger.info("Retrieving available inputs from device")
             
             # Check if device is connected
             if not self.openhome_device or not self.state.connected:
@@ -1186,9 +1186,9 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                 error=error_msg
             )
     
-    async def handle_refresh_sources(self, cmd_config: BaseCommandConfig, params: Dict[str, Any]) -> CommandResult:
+    async def handle_refresh_inputs(self, cmd_config: BaseCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
-        Handle manual refresh of sources cache.
+        Handle manual refresh of inputs cache.
         
         Args:
             cmd_config: Command configuration
