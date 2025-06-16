@@ -49,7 +49,7 @@ class WirenboardMaintenanceGuard(SystemMaintenanceGuard):
     def __init__(
         self,
         duration: int = 3,
-        topic: str = "/devices/wbrules/meta/online",  # change to "wb-rules" on older FW
+        topic: str = "/devices/wbrules/meta/driver",  # change to "wb-rules" on older FW
     ) -> None:
         self._duration = float(duration)
         self._watch_topic = topic
