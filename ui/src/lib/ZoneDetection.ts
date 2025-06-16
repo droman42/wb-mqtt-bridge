@@ -24,7 +24,7 @@ const DEFAULT_ZONE_DETECTION: ZoneDetectionConfig = {
   navigationActionNames: ['up', 'down', 'left', 'right', 'ok', 'enter', 'select', 'back', 'menu', 'home'],
   
   screenGroupNames: ['screen', 'display', 'video', 'picture'],
-  screenActionNames: ['aspect', 'zoom', 'display_mode', 'picture_mode', 'screen'],
+  screenActionNames: ['aspect', 'zoom', 'display_mode', 'picture_mode', 'screen', 'ratio', 'letterbox'],
   
   appsGroupNames: ['apps', 'applications', 'channels', 'streaming'],
   appsActionNames: ['launch_app', 'select_app', 'app', 'channel'],
@@ -93,6 +93,14 @@ export class ZoneDetection {
     const tracksGroups = this.findGroupsByName(groups, this.config.tracksGroupNames);
     
     const isEmpty = inputsGroups.length === 0 && playbackGroups.length === 0 && tracksGroups.length === 0;
+
+    console.log(`🔍 [ZoneDetection] Media Stack analysis:`, {
+      inputsGroups: inputsGroups.length,
+      playbackGroups: playbackGroups.length,
+      tracksGroups: tracksGroups.length,
+      isEmpty,
+      willCreateInputsDropdown: inputsGroups.length > 0
+    });
 
     return {
       zoneId: 'media-stack',
@@ -227,12 +235,22 @@ export class ZoneDetection {
 
   /**
    * Menu Zone (⑦) - Always Present Zone (Center of central control)
+   * NavCluster should ONLY be populated with actions from menu groups
    */
   private createMenuZone(groups: DeviceGroups, actions: ProcessedAction[]): RemoteZone {
     const menuGroups = this.findGroupsByName(groups, this.config.menuGroupNames);
-    const navActions = this.findActionsByName(actions, this.config.navigationActionNames);
+    // ONLY get actions from menu groups, not from all device actions
+    const menuActions = this.getActionsFromGroups(menuGroups, actions);
     
-    const isEmpty = menuGroups.length === 0 && navActions.length === 0;
+    const isEmpty = menuGroups.length === 0;
+
+    // Helper to find navigation actions within menu group actions only
+    const findMenuNavAction = (pattern: string) => {
+      return menuActions.find(a => {
+        const actionName = a.actionName.toLowerCase();
+        return actionName.includes(pattern) || actionName === pattern;
+      });
+    };
 
     return {
       zoneId: 'menu',
@@ -242,15 +260,11 @@ export class ZoneDetection {
       isEmpty,
       content: {
         navigationCluster: {
-          upAction: navActions.find(a => a.actionName.toLowerCase().includes('up')),
-          downAction: navActions.find(a => a.actionName.toLowerCase().includes('down')),
-          leftAction: navActions.find(a => a.actionName.toLowerCase().includes('left')),
-          rightAction: navActions.find(a => a.actionName.toLowerCase().includes('right')),
-          okAction: navActions.find(a => 
-            a.actionName.toLowerCase().includes('ok') || 
-            a.actionName.toLowerCase().includes('enter') ||
-            a.actionName.toLowerCase().includes('select')
-          ),
+          upAction: findMenuNavAction('up'),
+          downAction: findMenuNavAction('down'),
+          leftAction: findMenuNavAction('left'),
+          rightAction: findMenuNavAction('right'),
+          okAction: findMenuNavAction('ok') || findMenuNavAction('enter') || findMenuNavAction('select'),
           // AUX buttons can be populated later
           aux1Action: undefined,
           aux2Action: undefined,

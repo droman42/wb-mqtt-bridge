@@ -1,10 +1,10 @@
 import React from 'react';
 
-interface NumberProps extends React.SVGProps<SVGSVGElement> {
+interface NumberIconProps extends React.SVGProps<SVGSVGElement> {
   number: string | number;
 }
 
-export function Number({ number, ...props }: NumberProps) {
+export function NumberIcon({ number, ...props }: NumberIconProps) {
   return (
     <svg
       viewBox="0 0 24 24"

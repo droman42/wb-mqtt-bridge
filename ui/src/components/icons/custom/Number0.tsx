@@ -1,8 +1,8 @@
 import React from 'react';
-import { Number } from './Number';
+import { NumberIcon } from './Number';
 
-interface Number0Props extends React.SVGProps<SVGSVGElement> {}
+interface NumberIcon0Props extends React.SVGProps<SVGSVGElement> {}
 
-export function Number0(props: Number0Props) {
-  return <Number number="0" {...props} />;
+export function NumberIcon0(props: NumberIcon0Props) {
+  return <NumberIcon number="0" {...props} />;
 } 

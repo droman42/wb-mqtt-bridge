@@ -118,14 +118,14 @@ export class BroadlinkKitchenHoodHandler implements DeviceClassHandler {
   
   private getKitchenHoodIcon(actionName: string): import('../../types/ProcessedDevice').ActionIcon {
     const kitchenHoodMappings: Record<string, string> = {
-      'power': 'PowerIcon',
-      'fan': 'CubeTransparentIcon',
-      'speed': 'ArrowTrendingUpIcon',
-      'light': 'LightBulbIcon',
-      'timer': 'ClockIcon',
-      'filter': 'FunnelIcon',
-      'turbo': 'BoltIcon',
-      'mode': 'Cog6ToothIcon'
+      'power': 'PowerSettingsNew',
+      'fan': 'Toys',
+      'speed': 'Speed',
+      'light': 'Lightbulb',
+      'timer': 'Timer',
+      'filter': 'FilterAlt',
+      'turbo': 'FlashOn',
+      'mode': 'Settings'
     };
     
     const cleanName = actionName.toLowerCase();

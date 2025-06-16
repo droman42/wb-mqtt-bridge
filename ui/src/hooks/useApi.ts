@@ -70,7 +70,7 @@ export const useDeviceState = (deviceId: string) => {
     queryKey: ['devices', deviceId, 'state'],
     queryFn: () => api.get<BaseDeviceState>(`/devices/${deviceId}/state`).then(res => res.data),
     enabled: !!deviceId,
-    refetchInterval: 5000, // Poll every 5 seconds for real-time updates
+    // No more aggressive polling - only fetch on mount and after actions
   });
 };
 
@@ -97,6 +97,19 @@ export const useExecuteDeviceAction = () => {
     onSuccess: (_, { deviceId }) => {
       // Invalidate device state to refetch latest data
       queryClient.invalidateQueries({ queryKey: ['devices', deviceId, 'state'] });
+    },
+  });
+};
+
+// Single-poll methods for explicit state checking
+export const usePollDeviceState = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (deviceId: string) => 
+      api.get<BaseDeviceState>(`/devices/${deviceId}/state`).then(res => res.data),
+    onSuccess: (data, deviceId) => {
+      // Update the query cache with fresh data
+      queryClient.setQueryData(['devices', deviceId, 'state'], data);
     },
   });
 };

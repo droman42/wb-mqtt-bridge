@@ -86,11 +86,13 @@ export class IconResolver {
     '5': { material: '', custom: '5', fallback: '5' },
     '6': { material: '', custom: '6', fallback: '6' },
     
-    // Aspect ratio controls
+    // Aspect ratio controls  
     'ratio-16-9': { material: '', custom: 'aspect-16-9', fallback: 'aspect-ratio' },
     'ratio169': { material: '', custom: 'aspect-16-9', fallback: 'aspect-ratio' },
+    'ratio_16_9': { material: '', custom: 'aspect-16-9', fallback: 'aspect-ratio' },
     'ratio-4-3': { material: '', custom: 'aspect-4-3', fallback: 'aspect-ratio' },
     'ratio43': { material: '', custom: 'aspect-4-3', fallback: 'aspect-ratio' },
+    'ratio_4_3': { material: '', custom: 'aspect-4-3', fallback: 'aspect-ratio' },
     'letterbox': { material: '', custom: 'letterbox', fallback: 'aspect-ratio' },
     
     // Additional common controls
@@ -144,14 +146,28 @@ export class IconResolver {
     const cleanName = this.cleanActionName(actionName);
     const mapping = this.findBestMapping(cleanName);
     
-    if (mapping && mapping.material) {
-      return {
-        iconLibrary: 'material',
-        iconName: mapping.material,
-        iconVariant: 'outlined',
-        fallbackIcon: mapping.fallback,
-        confidence: 0.9
-      };
+    if (mapping) {
+      // Prefer material icon if available
+      if (mapping.material) {
+        return {
+          iconLibrary: 'material',
+          iconName: mapping.material,
+          iconVariant: 'outlined',
+          fallbackIcon: mapping.fallback,
+          confidence: 0.9
+        };
+      }
+      
+      // Fall back to custom icon if material not available
+      if (mapping.custom) {
+        return {
+          iconLibrary: 'custom',
+          iconName: mapping.custom,
+          iconVariant: 'outlined',
+          fallbackIcon: mapping.fallback,
+          confidence: 0.9
+        };
+      }
     }
     
     // Fallback for unknown actions

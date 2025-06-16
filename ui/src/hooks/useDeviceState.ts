@@ -9,10 +9,17 @@ interface EnhancedDeviceStateHook {
   isLoading: boolean;
   error: Error | null;
   isConnected: boolean;
+  isDisabled: boolean;
+  disabledReason?: DeviceError;
+  isPoweringOn: boolean;
   subscribeToState: (callback: StateUpdateCallback) => StateSubscription;
   updateState: (updates: Partial<BaseDeviceState>) => void;
   executeAction: (action: string, params?: Record<string, any>) => Promise<void>;
+  setDeviceDisabled: (disabled: boolean, reason?: DeviceError) => void;
+  setPoweringOn: (powering: boolean) => void;
 }
+
+type DeviceError = 'power_on_failed' | 'inputs_fetch_failed' | 'apps_fetch_failed';
 
 export function useDeviceState(deviceId: string): EnhancedDeviceStateHook {
   const queryClient = useQueryClient();
@@ -22,20 +29,20 @@ export function useDeviceState(deviceId: string): EnhancedDeviceStateHook {
   // Local state management
   const [localState, setLocalState] = useState<BaseDeviceState>(() => createDefaultDeviceState(deviceId));
   const [isConnected, setIsConnected] = useState(false);
+  const [isDisabled, setIsDisabled] = useState(false);
+  const [disabledReason, setDisabledReason] = useState<DeviceError | undefined>();
+  const [isPoweringOn, setIsPoweringOn] = useState(false);
   const subscribersRef = useRef<Set<StateUpdateCallback>>(new Set());
   
   // Update local state when backend data changes
   useEffect(() => {
     if (backendState) {
       const mappedData = mapBackendDataToState(backendState);
-      const now = new Date();
       
       setLocalState(prevState => {
         const newState: BaseDeviceState = {
           ...prevState,
           ...mappedData,
-          lastUpdated: now,
-          isConnected: true, // If we got data, connection is working
         };
         
         // Notify subscribers of the update
@@ -97,7 +104,7 @@ export function useDeviceState(deviceId: string): EnhancedDeviceStateHook {
     });
     
     // Invalidate React Query cache to trigger refetch
-    if (updates.deviceId || updates.deviceName || updates.lastCommand || updates.error) {
+    if (updates.device_id || updates.device_name || updates.last_command || updates.error) {
       queryClient.invalidateQueries({ queryKey: ['devices', deviceId, 'state'] });
     }
   }, [deviceId, queryClient]);
@@ -115,7 +122,7 @@ export function useDeviceState(deviceId: string): EnhancedDeviceStateHook {
          const mappedData = mapBackendDataToState(result.state);
         updateState({
           ...mappedData,
-          lastCommand: {
+          last_command: {
             action,
             source: 'frontend',
             timestamp: new Date().toISOString(),
@@ -128,7 +135,7 @@ export function useDeviceState(deviceId: string): EnhancedDeviceStateHook {
       // Update state with error
       updateState({
         error: error instanceof Error ? error.message : 'Action execution failed',
-        lastCommand: {
+        last_command: {
           action,
           source: 'frontend',
           timestamp: new Date().toISOString(),
@@ -139,13 +146,28 @@ export function useDeviceState(deviceId: string): EnhancedDeviceStateHook {
     }
   }, [deviceId, executeDeviceAction, updateState]);
   
+  // Helper methods for managing device state
+  const setDeviceDisabled = useCallback((disabled: boolean, reason?: DeviceError) => {
+    setIsDisabled(disabled);
+    setDisabledReason(reason);
+  }, []);
+
+  const setPoweringOn = useCallback((powering: boolean) => {
+    setIsPoweringOn(powering);
+  }, []);
+
   return {
     state: localState,
     isLoading,
     error: queryError,
     isConnected,
+    isDisabled,
+    disabledReason,
+    isPoweringOn,
     subscribeToState,
     updateState,
     executeAction,
+    setDeviceDisabled,
+    setPoweringOn,
   };
 } 

@@ -146,37 +146,39 @@ export class RevoxA77ReelToReelHandler implements DeviceClassHandler {
     return 'secondary';
   }
   
-  private getRevoxIcon(actionName: string): import('../../types/ProcessedDevice').ActionIcon {
+    private getRevoxIcon(actionName: string): import('../../types/ProcessedDevice').ActionIcon {
     const revoxIconMappings: Record<string, string> = {
-      'play': 'PlayIcon',
-      'playback': 'PlayIcon',
-      'pb': 'PlayIcon',
-      'pause': 'PauseIcon',
-      'stop': 'StopIcon',
-      'record': 'EllipsisHorizontalCircleIcon',
-      'rec': 'EllipsisHorizontalCircleIcon',
-      'ff': 'ForwardIcon',
-      'fast_forward': 'ForwardIcon',
-      'rew': 'BackwardIcon',
-      'rewind': 'BackwardIcon',
-      'eject': 'ArrowUpTrayIcon',
-      'volume': 'SpeakerWaveIcon',
-      'mute': 'SpeakerXMarkIcon',
-      'power': 'PowerIcon',
-      'input': 'ArrowsRightLeftIcon',
-      'mic': 'MicrophoneIcon',
-      'line': 'WireIcon',
-      'tape': 'FilmIcon',
-      'speed': 'AdjustmentsHorizontalIcon',
-      'ips': 'ClockIcon',
-      'bias': 'AdjustmentsVerticalIcon',
-      'eq': 'AdjustmentsHorizontalIcon',
-      'level': 'SignalIcon',
-      'meter': 'ChartBarIcon',
-      'auto': 'CommandLineIcon',
-      'manual': 'HandRaisedIcon'
+      'play': 'PlayArrow',
+      'playback': 'PlayArrow',
+      'pb': 'PlayArrow',
+      'pause': 'Pause',
+      'stop': 'Stop',
+      'record': 'FiberManualRecord',
+      'rec': 'FiberManualRecord',
+      'ff': 'FastForward',
+      'fast_forward': 'FastForward',
+      'rewind_forward': 'FastForward',
+      'rew': 'FastRewind',
+      'rewind': 'FastRewind',
+      'rewind_backward': 'FastRewind',
+      'eject': 'Eject',
+      'volume': 'VolumeUp',
+      'mute': 'VolumeOff',
+      'power': 'PowerSettingsNew',
+      'input': 'Input',
+      'mic': 'Mic',
+      'line': 'Cable',
+      'tape': 'AudioFile',
+      'speed': 'Speed',
+      'ips': 'Timer',
+      'bias': 'Tune',
+      'eq': 'Equalizer',
+      'level': 'BarChart',
+      'meter': 'Analytics',
+      'auto': 'AutoMode',
+      'manual': 'Settings'
     };
-    
+
     const cleanName = actionName.toLowerCase();
     for (const [key, iconName] of Object.entries(revoxIconMappings)) {
       if (cleanName.includes(key)) {
@@ -189,7 +191,7 @@ export class RevoxA77ReelToReelHandler implements DeviceClassHandler {
         };
       }
     }
-    
+
     return this.iconResolver.selectIconForActionWithLibrary(actionName, 'material');
   }
   

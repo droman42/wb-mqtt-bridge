@@ -46,6 +46,12 @@ export class WirenboardIRHandler implements DeviceClassHandler {
           empty: false
         };
         console.log(`📺 [WirenboardIR] Populated Media Stack with ${inputOptions.length} input options`);
+      } else if (mediaStackZone && mediaStackZone.content && inputOptions.length === 0) {
+        // 🛡️ DEFENSIVE: Remove inputsDropdown if no inputs found to prevent API calls
+        if (mediaStackZone.content.inputsDropdown) {
+          console.log(`🛡️ [WirenboardIR] Removing inputsDropdown - no input commands found for ${config.device_id}`);
+          delete mediaStackZone.content.inputsDropdown;
+        }
       }
       
       console.log(`✅ [WirenboardIR] Generated ${remoteZones.length} remote control zones`);

@@ -8,16 +8,23 @@ export class RemoteControlTemplate {
   generateComponent(structure: RemoteDeviceStructure): string {
     return `
 // Auto-generated from device config - Remote Control Layout - DO NOT EDIT
-import React from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { useLogStore } from '../../stores/useLogStore';
 import { useExecuteDeviceAction } from '../../hooks/useApi';
 import { useSettingsStore } from '../../stores/useSettingsStore';
+import { useRoomStore } from '../../stores/useRoomStore';
 import { RemoteControlLayout } from '../../components/RemoteControlLayout';
 
 function ${this.formatComponentName(structure.deviceId)}Page() {
   const { addLog } = useLogStore();
   const executeAction = useExecuteDeviceAction();
   const { statePanelOpen } = useSettingsStore();
+  const { selectDevice } = useRoomStore();
+
+  // Automatically select this device when the page loads
+  useEffect(() => {
+    selectDevice('${structure.deviceId}');
+  }, [selectDevice]);
 
   const handleAction = (action: string, payload?: any) => {
     executeAction.mutate({ 
@@ -31,7 +38,11 @@ function ${this.formatComponentName(structure.deviceId)}Page() {
     });
   };
 
-  const deviceStructure: import('../../types/RemoteControlLayout').RemoteDeviceStructure = ${JSON.stringify(structure, null, 2)};
+  // 🔧 CRITICAL FIX: Memoize deviceStructure to prevent infinite re-renders
+  // This object was being recreated on every render, causing all child hooks to re-run
+  const deviceStructure: import('../../types/RemoteControlLayout').RemoteDeviceStructure = useMemo(() => (
+    ${JSON.stringify(structure, null, 2)}
+  ), []); // Empty dependency array since this is static data
 
   return (
     <div className={\`\${statePanelOpen ? 'p-2' : 'p-4'}\`}>

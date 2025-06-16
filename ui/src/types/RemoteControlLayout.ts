@@ -181,7 +181,7 @@ export const DEFAULT_ZONE_DETECTION: ZoneDetectionConfig = {
   navigationActionNames: ['up', 'down', 'left', 'right', 'ok', 'enter', 'select', 'back', 'menu', 'home'],
   
   screenGroupNames: ['screen', 'display', 'video', 'picture'],
-  screenActionNames: ['aspect', 'zoom', 'display_mode', 'picture_mode', 'screen'],
+  screenActionNames: ['aspect', 'zoom', 'display_mode', 'picture_mode', 'screen', 'ratio', 'letterbox'],
   
   appsGroupNames: ['apps', 'applications', 'channels', 'streaming'],
   appsActionNames: ['launch_app', 'select_app', 'app', 'channel'],

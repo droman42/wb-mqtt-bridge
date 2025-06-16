@@ -10,13 +10,13 @@ import * as MaterialIcons from '@mui/icons-material';
 import { PlayPause } from './custom/PlayPause';
 import { TrayOpen } from './custom/TrayOpen';
 import { TrayClose } from './custom/TrayClose';
-import { Number0 } from './custom/Number0';
-import { Number1 } from './custom/Number1';
-import { Number2 } from './custom/Number2';
-import { Number3 } from './custom/Number3';
-import { Number4 } from './custom/Number4';
-import { Number5 } from './custom/Number5';
-import { Number6 } from './custom/Number6';
+import { NumberIcon0 } from './custom/Number0';
+import { NumberIcon1 } from './custom/Number1';
+import { NumberIcon2 } from './custom/Number2';
+import { NumberIcon3 } from './custom/Number3';
+import { NumberIcon4 } from './custom/Number4';
+import { NumberIcon5 } from './custom/Number5';
+import { NumberIcon6 } from './custom/Number6';
 import { Fan } from './custom/Fan';
 import { AspectRatio } from './custom/AspectRatio';
 import { Letterbox } from './custom/Letterbox';
@@ -34,26 +34,26 @@ const customIcons = {
   'play-pause': PlayPause,
   'tray-open': TrayOpen,
   'tray-close': TrayClose,
-  'number-0': Number0,
-  'number-1': Number1,
-  'number-2': Number2,
-  'number-3': Number3,
-  'number-4': Number4,
-  'number-5': Number5,
-  'number-6': Number6,
+  'number-0': NumberIcon0,
+  'number-1': NumberIcon1,
+  'number-2': NumberIcon2,
+  'number-3': NumberIcon3,
+  'number-4': NumberIcon4,
+  'number-5': NumberIcon5,
+  'number-6': NumberIcon6,
   'fan': Fan,
   // Aspect ratio icons
   'aspect-16-9': (props: React.SVGProps<SVGSVGElement>) => <AspectRatio ratio="16:9" {...props} />,
   'aspect-4-3': (props: React.SVGProps<SVGSVGElement>) => <AspectRatio ratio="4:3" {...props} />,
   'letterbox': Letterbox,
   // Legacy number aliases for backward compatibility
-  '0': Number0,
-  '1': Number1,
-  '2': Number2,
-  '3': Number3,
-  '4': Number4,
-  '5': Number5,
-  '6': Number6,
+  '0': NumberIcon0,
+  '1': NumberIcon1,
+  '2': NumberIcon2,
+  '3': NumberIcon3,
+  '4': NumberIcon4,
+  '5': NumberIcon5,
+  '6': NumberIcon6,
 } as const;
 
 // Fallback icon mapping for common icons

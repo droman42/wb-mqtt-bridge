@@ -206,9 +206,16 @@ export class EMotivaXMC2Handler implements DeviceClassHandler {
       description: action.description,
       parameters: action.params || [],
       group: 'default',
-      icon: this.iconResolver.selectIconForActionWithLibrary(action.name, 'material'),
+      icon: this.isAudioAction(action.name) ? this.getAudioIcon(action.name) : this.iconResolver.selectIconForActionWithLibrary(action.name, 'material'),
       uiHints: { buttonSize: 'medium', buttonStyle: 'secondary' }
     }));
+  }
+
+  private isAudioAction(actionName: string): boolean {
+    const cleanName = actionName.toLowerCase();
+    return ['volume', 'mute', 'input', 'bass', 'treble', 'balance', 'eq'].some(keyword => 
+      cleanName.includes(keyword)
+    );
   }
   
   private formatZoneActionName(actionName: string): string {
@@ -235,13 +242,13 @@ export class EMotivaXMC2Handler implements DeviceClassHandler {
   
   private getAudioIcon(actionName: string): import('../../types/ProcessedDevice').ActionIcon {
     const audioIconMappings: Record<string, string> = {
-      'volume': 'SpeakerWaveIcon',
-      'mute': 'SpeakerXMarkIcon',
-      'input': 'ArrowsRightLeftIcon',
-      'bass': 'SpeakerWaveIcon',
-      'treble': 'SpeakerWaveIcon',
-      'balance': 'ArrowsRightLeftIcon',
-      'eq': 'AdjustmentsHorizontalIcon'
+      'volume': 'VolumeUp',
+      'mute': 'VolumeOff',
+      'input': 'Input',
+      'bass': 'GraphicEq',
+      'treble': 'GraphicEq',
+      'balance': 'Tune',
+      'eq': 'Equalizer'
     };
     
     const cleanName = actionName.toLowerCase();

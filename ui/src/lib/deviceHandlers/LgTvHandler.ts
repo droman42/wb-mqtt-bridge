@@ -132,12 +132,12 @@ export class LgTvHandler implements DeviceClassHandler {
   
   private getPointerIcon(actionName: string): import('../../types/ProcessedDevice').ActionIcon {
     const pointerIconMappings: Record<string, string> = {
-      'move_cursor': 'CursorArrowRaysIcon',
-      'click': 'HandRaisedIcon',
-      'double_click': 'HandRaisedIcon',
-      'right_click': 'HandRaisedIcon',
-      'drag': 'HandRaisedIcon',
-      'scroll': 'ArrowsUpDownIcon'
+      'move_cursor': 'CropFree',
+      'click': 'TouchApp',
+      'double_click': 'TouchApp',
+      'right_click': 'TouchApp',
+      'drag': 'PanTool',
+      'scroll': 'UnfoldMore'
     };
     
     const iconName = pointerIconMappings[actionName] || 'CursorArrowRaysIcon';

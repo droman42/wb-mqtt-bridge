@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { LogEntry } from '../types/Prompt';
+import type { LogEntry } from '../types/LogEntry';
 import { runtimeConfig } from '../config/runtime';
 
 interface LogState {

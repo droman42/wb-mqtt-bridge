@@ -1,5 +1,4 @@
 import React from 'react';
-import { SvgIcon } from '@mui/material';
 import { cn } from '../../lib/utils';
 
 interface MaterialIconProps {
