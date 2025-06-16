@@ -91,37 +91,34 @@ export function useInputsData(deviceStructure: RemoteDeviceStructure): UseInputs
         console.log(`📺 [WirenboardIR] Using ${inputsFromCommands.length} inputs from commands`);
         setInputs(inputsFromCommands);
       } else {
+        // ✋ GUARD: Early exit if device has no inputs functionality
+        if (!hasInputsCapability) {
+          console.log(`⚠️  [${deviceId}] No inputs capability detected - skipping inputs API calls`);
+          setInputs([]);
+          setLoading(false);
+          return;
+        }
+
         // 🔌 POWER STATE CHECK: For network-connected devices, check power state before API calls
         const powerStateKnown = devicePower !== undefined;
         const isPoweredOn = devicePower === 'on';
         const isConnected = deviceConnected === true;
 
-        // Power state validation logic
-
         // 🛡️ CRITICAL FIX: Never call APIs if we don't have device state yet
         if (!hasDeviceState) {
           console.log(`[${deviceId}] Waiting for device state before calling inputs API`);
           setInputs([]);
-          setError(null);
+          setError("Loading device state...");
           setLoading(false);
           return;
         }
 
-        // ⚡ CRITICAL FIX: Skip API call if device is known to be off or disconnected
-        // These APIs should only be called AFTER successful power_on, not during page load
+        // ⚡ SHOW APPROPRIATE MESSAGE: If device is off or disconnected, show message but keep inputs section visible
         if (powerStateKnown && (!isPoweredOn || !isConnected)) {
-          const reason = !isPoweredOn ? 'powered off' : 'disconnected';
-          console.log(`[${deviceId}] Device is ${reason} - skipping inputs API call`);
+          const reason = !isPoweredOn ? 'Device is powered off' : 'Device is disconnected';
+          console.log(`[${deviceId}] Device is ${!isPoweredOn ? 'powered off' : 'disconnected'} - showing message instead of API call`);
           setInputs([]);
-          setError(null); // Don't show error for expected behavior
-          setLoading(false);
-          return;
-        }
-
-        // ✋ GUARD: Early exit if device has no inputs functionality
-        if (!hasInputsCapability) {
-          console.log(`⚠️  [${deviceId}] No inputs capability detected - skipping inputs API calls`);
-          setInputs([]);
+          setError(reason);
           setLoading(false);
           return;
         }

@@ -152,7 +152,7 @@ export class AuralicDeviceHandler implements DeviceClassHandler {
       'preset': 'Bookmark',
       'volume': 'VolumeUp',
       'mute': 'VolumeOff',
-      'power': 'PowerSettingsNew',
+      'power': 'Power',
       'input': 'Input',
       'dac': 'Memory',
       'filter': 'FilterList',

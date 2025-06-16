@@ -16,12 +16,13 @@ const DEFAULT_ZONE_DETECTION: ZoneDetectionConfig = {
   inputsGroupNames: ['inputs', 'input_selection', 'sources', 'input_control'],
   playbackGroupNames: ['playback', 'media_control', 'transport', 'player'],
   tracksGroupNames: ['tracks', 'track_control', 'navigation', 'track_nav'],
+  tracksActionNames: ['audio', 'subtitles', 'language', 'track', 'subtitle', 'tray', 'eject'],
   
   volumeGroupNames: ['volume', 'volume_control', 'audio', 'sound'],
   volumeActionNames: ['volume', 'volume_up', 'volume_down', 'mute', 'set_volume'],
   
   menuGroupNames: ['menu', 'navigation', 'nav', 'menu_nav', 'ui_nav'],
-  navigationActionNames: ['up', 'down', 'left', 'right', 'ok', 'enter', 'select', 'back', 'menu', 'home'],
+  navigationActionNames: ['up', 'down', 'left', 'right', 'ok', 'enter', 'select', 'back', 'menu', 'home', 'settings'],
   
   screenGroupNames: ['screen', 'display', 'video', 'picture'],
   screenActionNames: ['aspect', 'zoom', 'display_mode', 'picture_mode', 'screen', 'ratio', 'letterbox'],
@@ -91,13 +92,15 @@ export class ZoneDetection {
     const inputsGroups = this.findGroupsByName(groups, this.config.inputsGroupNames);
     const playbackGroups = this.findGroupsByName(groups, this.config.playbackGroupNames);
     const tracksGroups = this.findGroupsByName(groups, this.config.tracksGroupNames);
+    const tracksActions = this.findActionsByName(actions, this.config.tracksActionNames);
     
-    const isEmpty = inputsGroups.length === 0 && playbackGroups.length === 0 && tracksGroups.length === 0;
+    const isEmpty = inputsGroups.length === 0 && playbackGroups.length === 0 && tracksGroups.length === 0 && tracksActions.length === 0;
 
     console.log(`🔍 [ZoneDetection] Media Stack analysis:`, {
       inputsGroups: inputsGroups.length,
       playbackGroups: playbackGroups.length,
       tracksGroups: tracksGroups.length,
+      tracksActions: tracksActions.length,
       isEmpty,
       willCreateInputsDropdown: inputsGroups.length > 0
     });
@@ -111,7 +114,9 @@ export class ZoneDetection {
       content: {
         inputsDropdown: inputsGroups.length > 0 ? {
           type: 'inputs',
-          populationMethod: 'commands', // WirenboardIR uses commands, not API
+          populationMethod: 'api', // AuralicDevice uses API
+          apiAction: 'get_available_inputs',
+          setAction: 'set_input',
           options: [],
           loading: false,
           empty: true
@@ -120,8 +125,10 @@ export class ZoneDetection {
           actions: this.getActionsFromGroups(playbackGroups, actions),
           layout: 'horizontal'
         } : undefined,
-        tracksSection: tracksGroups.length > 0 ? {
-          actions: this.getActionsFromGroups(tracksGroups, actions),
+        tracksSection: (tracksGroups.length > 0 || tracksActions.length > 0) ? {
+          actions: tracksGroups.length > 0 
+            ? this.getActionsFromGroups(tracksGroups, actions)
+            : tracksActions,
           layout: 'horizontal'
         } : undefined
       },
@@ -234,7 +241,7 @@ export class ZoneDetection {
   }
 
   /**
-   * Menu Zone (⑦) - Always Present Zone (Center of central control)
+   * Menu Zone (⑥) - Always Present Zone (Center of central control)
    * NavCluster should ONLY be populated with actions from menu groups
    */
   private createMenuZone(groups: DeviceGroups, actions: ProcessedAction[]): RemoteZone {
@@ -244,11 +251,44 @@ export class ZoneDetection {
     
     const isEmpty = menuGroups.length === 0;
 
+    // Check if device has volume slider to avoid duplicate volume controls
+    const hasVolumeSlider = actions.some(action => 
+      action.actionName.toLowerCase().includes('set_volume') &&
+      action.parameters.some(param => param.type === 'range')
+    );
+
     // Helper to find navigation actions within menu group actions only
     const findMenuNavAction = (pattern: string) => {
-      return menuActions.find(a => {
+      const menuAction = menuActions.find(a => {
         const actionName = a.actionName.toLowerCase();
         return actionName.includes(pattern) || actionName === pattern;
+      });
+      
+      // If menu groups don't have the action, look in all actions BUT exclude volume actions if volume slider exists
+      if (!menuAction) {
+        return actions.find(a => {
+          const actionName = a.actionName.toLowerCase();
+          const isVolumeAction = actionName.includes('volume');
+          
+          // If device has volume slider, don't map volume actions to navigation
+          if (hasVolumeSlider && isVolumeAction) {
+            return false;
+          }
+          
+          return actionName.includes(pattern) || actionName === pattern;
+        });
+      }
+      
+      return menuAction;
+    };
+
+    // Helper to find auxiliary actions across ALL device actions (not just menu groups)
+    // Only match exact action names to avoid conflicts with navigation actions
+    const findAuxAction = (pattern: string) => {
+      return actions.find(a => {
+        const actionName = a.actionName.toLowerCase();
+        // Exact match only - avoid matching 'menu' to 'menu_up' or 'back' to 'rewind_backward'
+        return actionName === pattern;
       });
     };
 
@@ -265,11 +305,11 @@ export class ZoneDetection {
           leftAction: findMenuNavAction('left'),
           rightAction: findMenuNavAction('right'),
           okAction: findMenuNavAction('ok') || findMenuNavAction('enter') || findMenuNavAction('select'),
-          // AUX buttons can be populated later
-          aux1Action: undefined,
-          aux2Action: undefined,
-          aux3Action: undefined,
-          aux4Action: undefined
+          // AUX buttons populated from ANY device actions
+          aux1Action: findAuxAction('home'),
+          aux2Action: findAuxAction('menu'),
+          aux3Action: findAuxAction('back'),
+          aux4Action: findAuxAction('settings') || findAuxAction('exit')
         }
       },
       layout: {
@@ -280,7 +320,7 @@ export class ZoneDetection {
   }
 
   /**
-   * Pointer Zone (⑥) - Show/Hide Zone
+   * Pointer Zone (⑦) - Show/Hide Zone
    */
   private createPointerZone(groups: DeviceGroups, actions: ProcessedAction[]): RemoteZone {
     const pointerGroups = this.findGroupsByName(groups, this.config.pointerGroupNames);

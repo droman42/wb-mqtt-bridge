@@ -3,6 +3,17 @@ import { Icon } from './icons';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
 
+interface AuxiliaryAction {
+  actionName: string;
+  displayName: string;
+  description: string;
+  icon: {
+    iconLibrary: string;
+    iconName: string;
+    fallbackIcon: string;
+  };
+}
+
 interface NavClusterProps {
   onUp?: () => void;
   onDown?: () => void;
@@ -13,6 +24,10 @@ interface NavClusterProps {
   onAux2?: () => void;
   onAux3?: () => void;
   onAux4?: () => void;
+  aux1Action?: AuxiliaryAction;
+  aux2Action?: AuxiliaryAction;
+  aux3Action?: AuxiliaryAction;
+  aux4Action?: AuxiliaryAction;
   className?: string;
 }
 
@@ -26,6 +41,10 @@ function NavCluster({
   onAux2,
   onAux3,
   onAux4,
+  aux1Action,
+  aux2Action,
+  aux3Action,
+  aux4Action,
   className
 }: NavClusterProps) {
   return (
@@ -37,8 +56,19 @@ function NavCluster({
         onClick={onAux1}
         className="h-14 w-14"
         disabled={!onAux1}
+        title={aux1Action?.displayName || 'Home'}
       >
-        <span className="text-xs">AUX1</span>
+        {aux1Action ? (
+          <Icon 
+            library={aux1Action.icon.iconLibrary as 'material'} 
+            name={aux1Action.icon.iconName} 
+            fallback={aux1Action.icon.fallbackIcon} 
+            size="lg" 
+            className="h-6 w-6" 
+          />
+        ) : (
+          <Icon library="material" name="Home" size="lg" fallback="home" className="h-6 w-6" />
+        )}
       </Button>
       
       <Button 
@@ -57,8 +87,19 @@ function NavCluster({
         onClick={onAux2}
         className="h-14 w-14"
         disabled={!onAux2}
+        title={aux2Action?.displayName || 'Menu'}
       >
-        <span className="text-xs">AUX2</span>
+        {aux2Action ? (
+          <Icon 
+            library={aux2Action.icon.iconLibrary as 'material'} 
+            name={aux2Action.icon.iconName} 
+            fallback={aux2Action.icon.fallbackIcon} 
+            size="lg" 
+            className="h-6 w-6" 
+          />
+        ) : (
+          <Icon library="material" name="Menu" size="lg" fallback="menu" className="h-6 w-6" />
+        )}
       </Button>
 
       {/* Middle Row */}
@@ -99,8 +140,19 @@ function NavCluster({
         onClick={onAux3}
         className="h-14 w-14"
         disabled={!onAux3}
+        title={aux3Action?.displayName || 'Back'}
       >
-        <span className="text-xs">AUX3</span>
+        {aux3Action ? (
+          <Icon 
+            library={aux3Action.icon.iconLibrary as 'material'} 
+            name={aux3Action.icon.iconName} 
+            fallback={aux3Action.icon.fallbackIcon} 
+            size="lg" 
+            className="h-6 w-6" 
+          />
+        ) : (
+          <Icon library="material" name="ArrowBack" size="lg" fallback="back" className="h-6 w-6" />
+        )}
       </Button>
       
       <Button 
@@ -119,8 +171,19 @@ function NavCluster({
         onClick={onAux4}
         className="h-14 w-14"
         disabled={!onAux4}
+        title={aux4Action?.displayName || 'Exit'}
       >
-        <span className="text-xs">AUX4</span>
+        {aux4Action ? (
+          <Icon 
+            library={aux4Action.icon.iconLibrary as 'material'} 
+            name={aux4Action.icon.iconName} 
+            fallback={aux4Action.icon.fallbackIcon} 
+            size="lg" 
+            className="h-6 w-6" 
+          />
+        ) : (
+          <Icon library="material" name="ExitToApp" size="lg" fallback="exit" className="h-6 w-6" />
+        )}
       </Button>
     </div>
   );

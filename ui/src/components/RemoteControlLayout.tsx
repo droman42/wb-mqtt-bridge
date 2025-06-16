@@ -133,7 +133,10 @@ const MediaStackZone = ({ zone, deviceStructure, onAction, className, isDisabled
     );
   }
 
-  const { playbackSection, tracksSection } = zone.content;
+  const { playbackSection, tracksSection, inputsDropdown } = zone.content;
+
+  // Check if device has inputs capability (from zone configuration)
+  const hasInputsCapability = !!inputsDropdown;
 
   const handleInputSelect = async (inputId: string) => {
     try {
@@ -149,8 +152,8 @@ const MediaStackZone = ({ zone, deviceStructure, onAction, className, isDisabled
 
   return (
     <div className={cn("zone-media-stack", className)}>
-      {/* INPUTS Section - Use dynamic data */}
-      {(dynamicInputs.length > 0 || inputsLoading || inputsError) && (
+      {/* INPUTS Section - Always show if device has inputs capability */}
+      {hasInputsCapability && (
         <div className="inputs-section">
           <label className="text-xs text-white/70 mb-1 block">
             INPUTS {inputsLoading && "(Loading...)"}
@@ -161,6 +164,8 @@ const MediaStackZone = ({ zone, deviceStructure, onAction, className, isDisabled
                 "Device is powered off"
               ) : inputsError === 'Device is disconnected' ? (
                 "Device is disconnected" 
+              ) : inputsError === 'Loading device state...' ? (
+                "Loading device state..."
               ) : (
                 `Error loading inputs: ${inputsError}`
               )}
@@ -176,6 +181,8 @@ const MediaStackZone = ({ zone, deviceStructure, onAction, className, isDisabled
               {inputsLoading ? "Loading inputs..." : 
                inputsError && inputsError.includes('powered off') ? "Device powered off" :
                inputsError && inputsError.includes('disconnected') ? "Device disconnected" :
+               inputsError && inputsError.includes('Loading device state') ? "Loading device state..." :
+               inputsError ? `Error: ${inputsError}` :
                "Select Input..."}
             </option>
             {dynamicInputs.map((option) => (
@@ -672,6 +679,10 @@ const MenuZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction: 
         onAux2={createHandler(navigationCluster.aux2Action)}
         onAux3={createHandler(navigationCluster.aux3Action)}
         onAux4={createHandler(navigationCluster.aux4Action)}
+        aux1Action={navigationCluster.aux1Action}
+        aux2Action={navigationCluster.aux2Action}
+        aux3Action={navigationCluster.aux3Action}
+        aux4Action={navigationCluster.aux4Action}
         className="scale-75 transform"
       />
     </div>

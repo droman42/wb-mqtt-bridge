@@ -12,8 +12,9 @@ export class IconResolver {
     enter: { material: 'Check', custom: '', fallback: 'check' },
     select: { material: 'Check', custom: '', fallback: 'select' },
     menu: { material: 'Menu', custom: '', fallback: 'menu' },
-    back: { material: 'Undo', custom: '', fallback: 'back' },
+    back: { material: 'ArrowBack', custom: '', fallback: 'back' },
     home: { material: 'Home', custom: '', fallback: 'home' },
+    exit: { material: 'ExitToApp', custom: '', fallback: 'exit' },
     
     // Media controls
     play: { material: 'PlayArrow', custom: '', fallback: 'play' },
@@ -25,6 +26,8 @@ export class IconResolver {
     previous: { material: 'SkipPrevious', custom: '', fallback: 'previous' },
     rewind: { material: 'FastRewind', custom: '', fallback: 'rewind' },
     fastforward: { material: 'FastForward', custom: '', fallback: 'fast-forward' },
+    rewindforward: { material: 'FastForward', custom: '', fallback: 'fast-forward' },
+    rewindbackward: { material: 'FastRewind', custom: '', fallback: 'rewind' },
     tray: { material: 'Eject', custom: '', fallback: 'tray' },
     trayopen: { material: '', custom: 'tray-open', fallback: 'tray-open' },
     trayclose: { material: '', custom: 'tray-close', fallback: 'tray-close' },
@@ -74,7 +77,6 @@ export class IconResolver {
     info: { material: 'Info', custom: '', fallback: 'info' },
     settings: { material: 'Settings', custom: '', fallback: 'settings' },
     mode: { material: 'Tune', custom: '', fallback: 'mode' },
-    exit: { material: 'Close', custom: '', fallback: 'exit' },
     guide: { material: 'MenuBook', custom: '', fallback: 'guide' },
     
     // Numbers (for remote controls)
@@ -94,6 +96,13 @@ export class IconResolver {
     'ratio43': { material: '', custom: 'aspect-4-3', fallback: 'aspect-ratio' },
     'ratio_4_3': { material: '', custom: 'aspect-4-3', fallback: 'aspect-ratio' },
     'letterbox': { material: '', custom: 'letterbox', fallback: 'aspect-ratio' },
+    
+    // Chapter/Track navigation
+    chapter: { material: 'SkipNext', custom: '', fallback: 'chapter' },
+    chapterplus: { material: 'SkipNext', custom: '', fallback: 'skip-forward' },
+    chapterminus: { material: 'SkipPrevious', custom: '', fallback: 'skip-back' },
+    'chapter_plus': { material: 'SkipNext', custom: '', fallback: 'skip-forward' },
+    'chapter_minus': { material: 'SkipPrevious', custom: '', fallback: 'skip-back' },
     
     // Additional common controls
     record: { material: 'FiberManualRecord', custom: '', fallback: 'record' },

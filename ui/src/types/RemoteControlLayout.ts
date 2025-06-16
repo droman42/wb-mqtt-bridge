@@ -143,6 +143,7 @@ export interface ZoneDetectionConfig {
   inputsGroupNames: string[];
   playbackGroupNames: string[];
   tracksGroupNames: string[];
+  tracksActionNames: string[];
   
   // Volume Zone Detection
   volumeGroupNames: string[];
@@ -173,12 +174,13 @@ export const DEFAULT_ZONE_DETECTION: ZoneDetectionConfig = {
   inputsGroupNames: ['inputs', 'input_selection', 'sources', 'input_control'],
   playbackGroupNames: ['playback', 'media_control', 'transport', 'player'],
   tracksGroupNames: ['tracks', 'track_control', 'navigation', 'track_nav'],
+  tracksActionNames: ['audio', 'subtitles', 'language', 'track', 'subtitle', 'tray', 'eject'],
   
   volumeGroupNames: ['volume', 'volume_control', 'audio', 'sound'],
   volumeActionNames: ['volume', 'volume_up', 'volume_down', 'mute', 'set_volume'],
   
   menuGroupNames: ['menu', 'navigation', 'nav', 'menu_nav', 'ui_nav'],
-  navigationActionNames: ['up', 'down', 'left', 'right', 'ok', 'enter', 'select', 'back', 'menu', 'home'],
+  navigationActionNames: ['up', 'down', 'left', 'right', 'ok', 'enter', 'select', 'back', 'menu', 'home', 'settings'],
   
   screenGroupNames: ['screen', 'display', 'video', 'picture'],
   screenActionNames: ['aspect', 'zoom', 'display_mode', 'picture_mode', 'screen', 'ratio', 'letterbox'],
