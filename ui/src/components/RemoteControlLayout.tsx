@@ -29,38 +29,26 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false }: { zone?: R
     onAction(button.action.actionName, button.action.parameters || {});
   };
 
-  const getButtonVariant = (buttonType: string) => {
-    switch (buttonType) {
-      case 'power-off':
-      case 'zone2-power':
-        return 'destructive' as const;
-      case 'power-on':
-      case 'power-toggle':
-        return 'default' as const;
-      default:
-        return 'secondary' as const;
-    }
-  };
+
 
   return (
     <div className={cn("zone-power", className)}>
       {/* Left Position */}
       {leftButton ? (
         <Button
-          variant={getButtonVariant(leftButton.buttonType)}
+          variant="ghost"
           size="sm"
           onClick={() => handlePowerAction(leftButton)}
           disabled={isDisabled}
-          className="h-12 text-xs"
+          className="h-12 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         >
           <Icon
             library={leftButton.action.icon.iconLibrary as 'material'}
             name={leftButton.action.icon.iconName}
             fallback={leftButton.action.icon.fallbackIcon}
-            size="sm"
-            className="w-4 h-4 mr-1"
+            size="lg"
+            className="w-6 h-6 text-white"
           />
-          {leftButton.action.displayName}
         </Button>
       ) : (
         <div></div>
@@ -69,20 +57,19 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false }: { zone?: R
       {/* Middle Position */}
       {middleButton ? (
         <Button
-          variant={getButtonVariant(middleButton.buttonType)}
+          variant="ghost"
           size="sm"
           onClick={() => handlePowerAction(middleButton)}
           disabled={isDisabled}
-          className="h-12 text-xs"
+          className="h-12 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         >
           <Icon
             library={middleButton.action.icon.iconLibrary as 'material'}
             name={middleButton.action.icon.iconName}
             fallback={middleButton.action.icon.fallbackIcon}
-            size="sm"
-            className="w-4 h-4 mr-1"
+            size="lg"
+            className="w-6 h-6 text-white"
           />
-          {middleButton.action.displayName}
         </Button>
       ) : (
         <div></div>
@@ -91,20 +78,19 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false }: { zone?: R
       {/* Right Position */}
       {rightButton ? (
         <Button
-          variant={getButtonVariant(rightButton.buttonType)}
+          variant="ghost"
           size="sm"
           onClick={() => handlePowerAction(rightButton)}
           disabled={isDisabled}
-          className="h-12 text-xs"
+          className="h-12 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         >
           <Icon
             library={rightButton.action.icon.iconLibrary as 'material'}
             name={rightButton.action.icon.iconName}
             fallback={rightButton.action.icon.fallbackIcon}
-            size="sm"
-            className="w-4 h-4 mr-1"
+            size="lg"
+            className="w-6 h-6 text-white"
           />
-          {rightButton.action.displayName}
         </Button>
       ) : (
         <div></div>
@@ -202,20 +188,19 @@ const MediaStackZone = ({ zone, deviceStructure, onAction, className, isDisabled
             {playbackSection.actions.map((action, index) => (
               <Button
                 key={index}
-                variant="secondary"
+                variant="ghost"
                 size="sm"
                 onClick={() => handlePlaybackAction(action)}
                 disabled={isDisabled}
-                className="h-8 px-2 text-xs flex-1 min-w-fit"
+                className="h-10 px-2 flex-1 min-w-fit bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
               >
                 <Icon
                   library={action.icon.iconLibrary as 'material'}
                   name={action.icon.iconName}
                   fallback={action.icon.fallbackIcon}
-                  size="sm"
-                  className="w-3 h-3 mr-1"
+                  size="lg"
+                  className="w-5 h-5 text-white"
                 />
-                {action.displayName}
               </Button>
             ))}
           </div>
@@ -230,19 +215,18 @@ const MediaStackZone = ({ zone, deviceStructure, onAction, className, isDisabled
             {tracksSection.actions.map((action, index) => (
               <Button
                 key={index}
-                variant="secondary"
+                variant="ghost"
                 size="sm"
                 onClick={() => handlePlaybackAction(action)}
-                className="h-8 px-2 text-xs flex-1"
+                className="h-10 px-2 flex-1 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
               >
                 <Icon
                   library={action.icon.iconLibrary as 'material'}
                   name={action.icon.iconName}
                   fallback={action.icon.fallbackIcon}
-                  size="sm"
-                  className="w-3 h-3 mr-1"
+                  size="lg"
+                  className="w-5 h-5 text-white"
                 />
-                {action.displayName}
               </Button>
             ))}
           </div>
@@ -270,23 +254,22 @@ const ScreenZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction
 
   return (
     <div className={cn("zone-screen", className)}>
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-2 items-center justify-center h-full">
         {screenActions.map((action, index) => (
           <Button
             key={index}
-            variant="secondary"
+            variant="ghost"
             size="sm"
             onClick={() => handleScreenAction(action)}
-            className="h-8 px-2 text-xs justify-start"
+            className="h-10 w-10 justify-center bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
           >
             <Icon
               library={action.icon.iconLibrary as 'material'}
               name={action.icon.iconName}
               fallback={action.icon.fallbackIcon}
-              size="sm"
-              className="w-3 h-3 mr-1"
+              size="lg"
+              className="w-6 h-6 text-white"
             />
-            {action.displayName}
           </Button>
         ))}
       </div>
@@ -500,17 +483,17 @@ const VolumeZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction
           {/* Mute Button */}
           {volumeSlider.muteAction && (
             <Button
-              variant="secondary"
+              variant="ghost"
               size="sm"
               onClick={() => handleVolumeButton(volumeSlider.muteAction)}
-              className="h-6 w-12 text-xs"
+              className="h-8 w-12 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
             >
               <Icon
                 library={volumeSlider.muteAction.icon.iconLibrary as 'material'}
                 name={volumeSlider.muteAction.icon.iconName}
                 fallback={volumeSlider.muteAction.icon.fallbackIcon}
-                size="sm"
-                className="w-3 h-3"
+                size="lg"
+                className="w-4 h-4 text-white"
               />
             </Button>
           )}
@@ -528,17 +511,17 @@ const VolumeZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction
           {/* Volume Up */}
           {buttons.upAction && (
             <Button
-              variant="secondary"
+              variant="ghost"
               size="sm"
               onClick={() => handleVolumeButton(buttons.upAction)}
-              className="h-8 w-12 text-xs"
+              className="h-10 w-12 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
             >
               <Icon
                 library={buttons.upAction.icon.iconLibrary as 'material'}
                 name={buttons.upAction.icon.iconName}
                 fallback={buttons.upAction.icon.fallbackIcon}
-                size="sm"
-                className="w-3 h-3"
+                size="lg"
+                className="w-5 h-5 text-white"
               />
             </Button>
           )}
@@ -546,17 +529,17 @@ const VolumeZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction
           {/* Volume Down */}
           {buttons.downAction && (
             <Button
-              variant="secondary"
+              variant="ghost"
               size="sm"
               onClick={() => handleVolumeButton(buttons.downAction)}
-              className="h-8 w-12 text-xs"
+              className="h-10 w-12 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
             >
               <Icon
                 library={buttons.downAction.icon.iconLibrary as 'material'}
                 name={buttons.downAction.icon.iconName}
                 fallback={buttons.downAction.icon.fallbackIcon}
-                size="sm"
-                className="w-3 h-3"
+                size="lg"
+                className="w-5 h-5 text-white"
               />
             </Button>
           )}
@@ -564,17 +547,17 @@ const VolumeZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction
           {/* Mute */}
           {buttons.muteAction && (
             <Button
-              variant="secondary"
+              variant="ghost"
               size="sm"
               onClick={() => handleVolumeButton(buttons.muteAction)}
-              className="h-8 w-12 text-xs"
+              className="h-10 w-12 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
             >
               <Icon
                 library={buttons.muteAction.icon.iconLibrary as 'material'}
                 name={buttons.muteAction.icon.iconName}
                 fallback={buttons.muteAction.icon.fallbackIcon}
-                size="sm"
-                className="w-3 h-3"
+                size="lg"
+                className="w-5 h-5 text-white"
               />
             </Button>
           )}

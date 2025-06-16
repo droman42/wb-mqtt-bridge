@@ -20,6 +20,7 @@ import { NumberIcon6 } from './custom/Number6';
 import { Fan } from './custom/Fan';
 import { AspectRatio } from './custom/AspectRatio';
 import { Letterbox } from './custom/Letterbox';
+import { PowerOff } from './custom/PowerOff';
 
 interface IconProps {
   library: 'material' | 'custom' | 'fallback';
@@ -34,6 +35,7 @@ const customIcons = {
   'play-pause': PlayPause,
   'tray-open': TrayOpen,
   'tray-close': TrayClose,
+  'power-off': PowerOff,
   'number-0': NumberIcon0,
   'number-1': NumberIcon1,
   'number-2': NumberIcon2,

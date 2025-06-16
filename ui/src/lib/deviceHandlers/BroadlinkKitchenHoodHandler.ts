@@ -117,8 +117,13 @@ export class BroadlinkKitchenHoodHandler implements DeviceClassHandler {
   }
   
   private getKitchenHoodIcon(actionName: string): import('../../types/ProcessedDevice').ActionIcon {
+    // For power actions, use IconResolver to get custom icons when available
+    const cleanName = actionName.toLowerCase();
+    if (cleanName.includes('power')) {
+      return this.iconResolver.selectIconForAction(actionName);
+    }
+    
     const kitchenHoodMappings: Record<string, string> = {
-      'power': 'PowerSettingsNew',
       'fan': 'Toys',
       'speed': 'Speed',
       'light': 'Lightbulb',
@@ -128,7 +133,6 @@ export class BroadlinkKitchenHoodHandler implements DeviceClassHandler {
       'mode': 'Settings'
     };
     
-    const cleanName = actionName.toLowerCase();
     for (const [key, iconName] of Object.entries(kitchenHoodMappings)) {
       if (cleanName.includes(key)) {
         return {

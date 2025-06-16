@@ -140,6 +140,12 @@ export class AuralicDeviceHandler implements DeviceClassHandler {
   }
   
   private getAuralicIcon(actionName: string): import('../../types/ProcessedDevice').ActionIcon {
+    // For power actions, use IconResolver to get custom icons when available
+    const cleanName = actionName.toLowerCase();
+    if (cleanName.includes('power')) {
+      return this.iconResolver.selectIconForAction(actionName);
+    }
+    
     const auralicIconMappings: Record<string, string> = {
       'play': 'PlayArrow',
       'pause': 'Pause',
@@ -152,7 +158,6 @@ export class AuralicDeviceHandler implements DeviceClassHandler {
       'preset': 'Bookmark',
       'volume': 'VolumeUp',
       'mute': 'VolumeOff',
-      'power': 'Power',
       'input': 'Input',
       'dac': 'Memory',
       'filter': 'FilterList',
@@ -169,7 +174,6 @@ export class AuralicDeviceHandler implements DeviceClassHandler {
       'roon': 'MusicNote'
     };
     
-    const cleanName = actionName.toLowerCase();
     for (const [key, iconName] of Object.entries(auralicIconMappings)) {
       if (cleanName.includes(key)) {
         return {

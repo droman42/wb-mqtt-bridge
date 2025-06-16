@@ -51,10 +51,10 @@ function NavCluster({
     <div className={cn("grid grid-cols-3 gap-2 w-48 h-48", className)}>
       {/* Top Row */}
       <Button 
-        variant="outline" 
+        variant="ghost" 
         size="icon"
         onClick={onAux1}
-        className="h-14 w-14"
+        className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onAux1}
         title={aux1Action?.displayName || 'Home'}
       >
@@ -64,28 +64,28 @@ function NavCluster({
             name={aux1Action.icon.iconName} 
             fallback={aux1Action.icon.fallbackIcon} 
             size="lg" 
-            className="h-6 w-6" 
+            className="h-8 w-8 text-white" 
           />
         ) : (
-          <Icon library="material" name="Home" size="lg" fallback="home" className="h-6 w-6" />
+          <Icon library="material" name="Home" size="lg" fallback="home" className="h-8 w-8 text-white" />
         )}
       </Button>
       
       <Button 
-        variant="outline" 
+        variant="ghost" 
         size="icon"
         onClick={onUp}
-        className="h-14 w-14"
+        className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onUp}
       >
-        <Icon library="material" name="KeyboardArrowUp" size="lg" fallback="arrow-up" className="h-6 w-6" />
+        <Icon library="material" name="KeyboardArrowUp" size="lg" fallback="arrow-up" className="h-8 w-8 text-white" />
       </Button>
       
       <Button 
-        variant="outline" 
+        variant="ghost" 
         size="icon"
         onClick={onAux2}
-        className="h-14 w-14"
+        className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onAux2}
         title={aux2Action?.displayName || 'Menu'}
       >
@@ -95,50 +95,50 @@ function NavCluster({
             name={aux2Action.icon.iconName} 
             fallback={aux2Action.icon.fallbackIcon} 
             size="lg" 
-            className="h-6 w-6" 
+            className="h-8 w-8 text-white" 
           />
         ) : (
-          <Icon library="material" name="Menu" size="lg" fallback="menu" className="h-6 w-6" />
+          <Icon library="material" name="Menu" size="lg" fallback="menu" className="h-8 w-8 text-white" />
         )}
       </Button>
 
       {/* Middle Row */}
       <Button 
-        variant="outline" 
+        variant="ghost" 
         size="icon"
         onClick={onLeft}
-        className="h-14 w-14"
+        className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onLeft}
       >
-        <Icon library="material" name="KeyboardArrowLeft" size="lg" fallback="arrow-left" className="h-6 w-6" />
+        <Icon library="material" name="KeyboardArrowLeft" size="lg" fallback="arrow-left" className="h-8 w-8 text-white" />
       </Button>
       
       <Button 
-        variant="default" 
+        variant="ghost" 
         size="icon"
         onClick={onOk}
-        className="h-14 w-14"
+        className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onOk}
       >
-        <Icon library="material" name="Check" size="lg" fallback="check" className="h-6 w-6" />
+        <Icon library="material" name="Check" size="lg" fallback="check" className="h-8 w-8 text-white" />
       </Button>
       
       <Button 
-        variant="outline" 
+        variant="ghost" 
         size="icon"
         onClick={onRight}
-        className="h-14 w-14"
+        className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onRight}
       >
-        <Icon library="material" name="KeyboardArrowRight" size="lg" fallback="arrow-right" className="h-6 w-6" />
+        <Icon library="material" name="KeyboardArrowRight" size="lg" fallback="arrow-right" className="h-8 w-8 text-white" />
       </Button>
 
       {/* Bottom Row */}
       <Button 
-        variant="outline" 
+        variant="ghost" 
         size="icon"
         onClick={onAux3}
-        className="h-14 w-14"
+        className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onAux3}
         title={aux3Action?.displayName || 'Back'}
       >
@@ -148,28 +148,28 @@ function NavCluster({
             name={aux3Action.icon.iconName} 
             fallback={aux3Action.icon.fallbackIcon} 
             size="lg" 
-            className="h-6 w-6" 
+            className="h-8 w-8 text-white" 
           />
         ) : (
-          <Icon library="material" name="ArrowBack" size="lg" fallback="back" className="h-6 w-6" />
+          <Icon library="material" name="ArrowBack" size="lg" fallback="back" className="h-8 w-8 text-white" />
         )}
       </Button>
       
       <Button 
-        variant="outline" 
+        variant="ghost" 
         size="icon"
         onClick={onDown}
-        className="h-14 w-14"
+        className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onDown}
       >
-        <Icon library="material" name="KeyboardArrowDown" size="lg" fallback="arrow-down" className="h-6 w-6" />
+        <Icon library="material" name="KeyboardArrowDown" size="lg" fallback="arrow-down" className="h-8 w-8 text-white" />
       </Button>
       
       <Button 
-        variant="outline" 
+        variant="ghost" 
         size="icon"
         onClick={onAux4}
-        className="h-14 w-14"
+        className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onAux4}
         title={aux4Action?.displayName || 'Exit'}
       >
@@ -179,10 +179,10 @@ function NavCluster({
             name={aux4Action.icon.iconName} 
             fallback={aux4Action.icon.fallbackIcon} 
             size="lg" 
-            className="h-6 w-6" 
+            className="h-8 w-8 text-white" 
           />
         ) : (
-          <Icon library="material" name="ExitToApp" size="lg" fallback="exit" className="h-6 w-6" />
+          <Icon library="material" name="ExitToApp" size="lg" fallback="exit" className="h-8 w-8 text-white" />
         )}
       </Button>
     </div>

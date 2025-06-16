@@ -134,6 +134,12 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
   }
   
   private getAppleTVIcon(actionName: string): import('../../types/ProcessedDevice').ActionIcon {
+    // For power actions, use IconResolver to get custom icons when available
+    const cleanName = actionName.toLowerCase();
+    if (cleanName.includes('power')) {
+      return this.iconResolver.selectIconForAction(actionName);
+    }
+    
     const appleTVIconMappings: Record<string, string> = {
       'play': 'PlayArrow',
       'pause': 'Pause',
@@ -155,13 +161,11 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
       'volume_up': 'VolumeUp',
       'volume_down': 'VolumeDown',
       'mute': 'VolumeOff',
-      'power': 'PowerSettingsNew',
       'tv': 'Tv',
       'app': 'Apps',
       'airplay': 'Cast'
     };
     
-    const cleanName = actionName.toLowerCase();
     for (const [key, iconName] of Object.entries(appleTVIconMappings)) {
       if (cleanName.includes(key)) {
         return {

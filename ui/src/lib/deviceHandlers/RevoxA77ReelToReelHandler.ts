@@ -147,6 +147,12 @@ export class RevoxA77ReelToReelHandler implements DeviceClassHandler {
   }
   
     private getRevoxIcon(actionName: string): import('../../types/ProcessedDevice').ActionIcon {
+    // For power actions, use IconResolver to get custom icons when available
+    const cleanName = actionName.toLowerCase();
+    if (cleanName.includes('power')) {
+      return this.iconResolver.selectIconForAction(actionName);
+    }
+    
     const revoxIconMappings: Record<string, string> = {
       'play': 'PlayArrow',
       'playback': 'PlayArrow',
@@ -164,7 +170,6 @@ export class RevoxA77ReelToReelHandler implements DeviceClassHandler {
       'eject': 'Eject',
       'volume': 'VolumeUp',
       'mute': 'VolumeOff',
-      'power': 'PowerSettingsNew',
       'input': 'Input',
       'mic': 'Mic',
       'line': 'Cable',
@@ -179,7 +184,6 @@ export class RevoxA77ReelToReelHandler implements DeviceClassHandler {
       'manual': 'Settings'
     };
 
-    const cleanName = actionName.toLowerCase();
     for (const [key, iconName] of Object.entries(revoxIconMappings)) {
       if (cleanName.includes(key)) {
         return {

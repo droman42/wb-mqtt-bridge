@@ -4,6 +4,8 @@ export class IconResolver {
   private iconMappings: Record<string, { material: string; custom: string; fallback: string }> = {
     // Basic navigation
     power: { material: 'PowerSettingsNew', custom: '', fallback: 'power' },
+    power_off: { material: '', custom: 'power-off', fallback: 'power' },
+    poweroff: { material: '', custom: 'power-off', fallback: 'power' },
     up: { material: 'KeyboardArrowUp', custom: '', fallback: 'arrow-up' },
     down: { material: 'KeyboardArrowDown', custom: '', fallback: 'arrow-down' },
     left: { material: 'KeyboardArrowLeft', custom: '', fallback: 'arrow-left' },
