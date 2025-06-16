@@ -19,7 +19,7 @@
       "topic": "/devices/ld_player/controls/tray",
       "location": "wb-msw-v3_207",
       "rom_position": "65",
-      "group": "inputs",
+      "group": "tracks",
       "description": "Tray"
     },
     "play": {
