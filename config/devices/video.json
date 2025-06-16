@@ -133,22 +133,6 @@
       "rom_position": "5",
       "group": "menu",
       "description": "Back"
-    },
-    "zappiti": {
-      "action": "zappiti",
-      "topic": "/devices/video/controls/zappiti",
-      "location": "wb-msw-v3_218",
-      "rom_position": "6",
-      "group": "apps",
-      "description": "Zappiti"
-    },
-    "explorer": {
-      "action": "explorer",
-      "topic": "/devices/video/controls/explorer",
-      "location": "wb-msw-v3_218",
-      "rom_position": "7",
-      "group": "apps",
-      "description": "Explorer"
     }
   }
 }
