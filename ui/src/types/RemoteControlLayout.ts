@@ -180,7 +180,7 @@ export const DEFAULT_ZONE_DETECTION: ZoneDetectionConfig = {
   volumeActionNames: ['volume', 'volume_up', 'volume_down', 'mute', 'set_volume'],
   
   menuGroupNames: ['menu', 'navigation', 'nav', 'menu_nav', 'ui_nav'],
-  navigationActionNames: ['up', 'down', 'left', 'right', 'ok', 'enter', 'select', 'back', 'menu', 'home', 'settings'],
+  navigationActionNames: ['up', 'down', 'left', 'right', 'ok', 'enter', 'select', 'back', 'menu', 'home', 'settings', 'exit', 'menu_exit'],
   
   screenGroupNames: ['screen', 'display', 'video', 'picture'],
   screenActionNames: ['aspect', 'zoom', 'display_mode', 'picture_mode', 'screen', 'ratio', 'letterbox'],
@@ -189,5 +189,5 @@ export const DEFAULT_ZONE_DETECTION: ZoneDetectionConfig = {
   appsActionNames: ['launch_app', 'select_app', 'app', 'channel'],
   
   pointerGroupNames: ['pointer', 'cursor', 'mouse', 'trackpad'],
-  pointerActionNames: ['move', 'click', 'drag', 'scroll', 'cursor']
+  pointerActionNames: ['move', 'click', 'drag', 'scroll', 'cursor', 'pointer_gesture', 'touch_at_position', 'gesture', 'touch']
 }; 

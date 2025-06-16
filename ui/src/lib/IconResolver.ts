@@ -15,6 +15,8 @@ export class IconResolver {
     back: { material: 'ArrowBack', custom: '', fallback: 'back' },
     home: { material: 'Home', custom: '', fallback: 'home' },
     exit: { material: 'ExitToApp', custom: '', fallback: 'exit' },
+    menu_exit: { material: 'Home', custom: '', fallback: 'home' },
+    menuexit: { material: 'Home', custom: '', fallback: 'home' },
     
     // Media controls
     play: { material: 'PlayArrow', custom: '', fallback: 'play' },
@@ -72,6 +74,10 @@ export class IconResolver {
     click: { material: 'TouchApp', custom: '', fallback: 'click' },
     drag: { material: 'PanTool', custom: '', fallback: 'drag' },
     scroll: { material: 'UnfoldMore', custom: '', fallback: 'scroll' },
+    pointer_gesture: { material: 'TouchApp', custom: '', fallback: 'gesture' },
+    touch_at_position: { material: 'TouchApp', custom: '', fallback: 'touch' },
+    touchatposition: { material: 'TouchApp', custom: '', fallback: 'touch' },
+    gesture: { material: 'TouchApp', custom: '', fallback: 'gesture' },
     
     // General controls
     info: { material: 'Info', custom: '', fallback: 'info' },

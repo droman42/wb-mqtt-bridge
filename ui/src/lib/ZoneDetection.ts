@@ -31,7 +31,7 @@ const DEFAULT_ZONE_DETECTION: ZoneDetectionConfig = {
   appsActionNames: ['launch_app', 'select_app', 'app', 'channel'],
   
   pointerGroupNames: ['pointer', 'cursor', 'mouse', 'trackpad'],
-  pointerActionNames: ['move', 'click', 'drag', 'scroll', 'cursor']
+  pointerActionNames: ['move', 'click', 'drag', 'scroll', 'cursor', 'pointer_gesture', 'touch_at_position', 'gesture', 'touch']
 };
 
 export class ZoneDetection {
@@ -306,7 +306,7 @@ export class ZoneDetection {
           rightAction: findMenuNavAction('right'),
           okAction: findMenuNavAction('ok') || findMenuNavAction('enter') || findMenuNavAction('select'),
           // AUX buttons populated from ANY device actions
-          aux1Action: findAuxAction('home'),
+          aux1Action: findAuxAction('home') || findAuxAction('menu_exit'),
           aux2Action: findAuxAction('menu'),
           aux3Action: findAuxAction('back'),
           aux4Action: findAuxAction('settings') || findAuxAction('exit')
@@ -328,6 +328,18 @@ export class ZoneDetection {
     
     const isEmpty = pointerGroups.length === 0 && pointerActions.length === 0;
 
+    // Find specific pointer actions
+    const gestureAction = pointerActions.find(a => 
+      a.actionName.toLowerCase().includes('gesture') || a.actionName.toLowerCase().includes('pointer_gesture')
+    );
+    const touchAction = pointerActions.find(a => 
+      a.actionName.toLowerCase().includes('touch_at_position') || a.actionName.toLowerCase().includes('touch')
+    );
+    const moveAction = pointerActions.find(a => a.actionName.toLowerCase().includes('move'));
+    const clickAction = pointerActions.find(a => a.actionName.toLowerCase().includes('click'));
+    const dragAction = pointerActions.find(a => a.actionName.toLowerCase().includes('drag'));
+    const scrollAction = pointerActions.find(a => a.actionName.toLowerCase().includes('scroll'));
+
     return {
       zoneId: 'pointer',
       zoneName: 'Pointer Control',
@@ -336,10 +348,10 @@ export class ZoneDetection {
       isEmpty,
       content: {
         pointerPad: !isEmpty ? {
-          moveAction: pointerActions.find(a => a.actionName.toLowerCase().includes('move')) || pointerActions[0],
-          clickAction: pointerActions.find(a => a.actionName.toLowerCase().includes('click')),
-          dragAction: pointerActions.find(a => a.actionName.toLowerCase().includes('drag')),
-          scrollAction: pointerActions.find(a => a.actionName.toLowerCase().includes('scroll'))
+          moveAction: gestureAction || moveAction || pointerActions[0],
+          clickAction: touchAction || clickAction,
+          dragAction: dragAction,
+          scrollAction: scrollAction
         } : undefined
       },
       layout: {
