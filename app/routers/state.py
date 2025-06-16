@@ -32,7 +32,7 @@ def initialize(cfg_manager, dev_manager, state_st, scenario_mgr=None):
     state_store = state_st
     scenario_manager = scenario_mgr
 
-@router.get("/devices/{device_id}/state", response_model=BaseDeviceState)
+@router.get("/devices/{device_id}/state")
 async def get_device_state(device_id: str):
     """Get information about a specific device's current state.
     
@@ -40,7 +40,9 @@ async def get_device_state(device_id: str):
         device_id: The ID of the device to retrieve
         
     Returns:
-        BaseDeviceState: The device state with proper typing
+        Device-specific state (e.g., LgTvState, AppleTVState, EmotivaXMC2State, etc.)
+        that extends BaseDeviceState with device-specific fields like volume, power,
+        input sources, playback information, and other operational data.
         
     Raises:
         HTTPException: If device is not found or an error occurs
