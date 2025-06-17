@@ -8,12 +8,10 @@ export const createDefaultDeviceState = <T extends BaseDeviceState>(
   additionalFields: Partial<Omit<T, keyof BaseDeviceState>> = {}
 ): T => {
   const baseState: BaseDeviceState = {
-    deviceId,
-    deviceName: '',
-    lastCommand: null,
+    device_id: deviceId,
+    device_name: '',
+    last_command: null,
     error: null,
-    isConnected: false,
-    lastUpdated: null,
   };
 
   return { ...baseState, ...additionalFields } as T;
@@ -21,34 +19,23 @@ export const createDefaultDeviceState = <T extends BaseDeviceState>(
 
 /**
  * Maps backend response data to frontend state format
- * Handles both snake_case (backend) and camelCase (frontend) field naming
+ * Handles snake_case field naming consistently
  */
 export const mapBackendDataToState = (backendData: any): Partial<BaseDeviceState> => {
   const mapped: Partial<BaseDeviceState> = {};
   
-  // Map backend field names to frontend field names (snake_case -> camelCase)
+  // Map backend field names (snake_case format)
   if (backendData.device_id !== undefined) {
-    mapped.deviceId = backendData.device_id;
+    mapped.device_id = backendData.device_id;
   }
   if (backendData.device_name !== undefined) {
-    mapped.deviceName = backendData.device_name;
+    mapped.device_name = backendData.device_name;
   }
   if (backendData.last_command !== undefined) {
-    mapped.lastCommand = backendData.last_command;
+    mapped.last_command = backendData.last_command;
   }
   if (backendData.error !== undefined) {
     mapped.error = backendData.error;
-  }
-  
-  // Direct mappings (already in correct camelCase format)
-  if (backendData.deviceId !== undefined) {
-    mapped.deviceId = backendData.deviceId;
-  }
-  if (backendData.deviceName !== undefined) {
-    mapped.deviceName = backendData.deviceName;
-  }
-  if (backendData.lastCommand !== undefined) {
-    mapped.lastCommand = backendData.lastCommand;
   }
   
   return mapped;
@@ -64,6 +51,5 @@ export const createStateUpdate = <T extends BaseDeviceState>(
   return {
     ...currentState,
     ...updates,
-    lastUpdated: new Date(),
   };
 }; 

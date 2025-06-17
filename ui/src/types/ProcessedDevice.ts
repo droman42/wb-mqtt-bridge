@@ -14,9 +14,9 @@ export interface ProcessedParameter {
   name: string;
   type: 'range' | 'string' | 'integer' | 'boolean';
   required: boolean;
-  default: any;
-  min: number | null;
-  max: number | null;
+  default?: any;
+  min?: number | null;
+  max?: number | null;
   description: string;
 }
 

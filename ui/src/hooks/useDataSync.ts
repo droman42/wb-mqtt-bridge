@@ -79,7 +79,7 @@ export const useDataSync = () => {
   useEffect(() => {
     if (scenariosSuccess && scenariosData) {
       const scenarios = scenariosData.map((scenario) => ({
-        id: scenario.scenarioId,
+        id: scenario.scenario_id,
         name: {
           en: scenario.name,
           ru: scenario.name, // API doesn't seem to have translations yet

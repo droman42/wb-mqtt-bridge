@@ -95,12 +95,10 @@ export class StateTypeGenerator {
 
     // Generate default object with base fields + device-specific fields
     const baseDefaults = [
-      '  deviceId: ""',
-      '  deviceName: ""',
-      '  lastCommand: null',
-      '  error: null',
-      '  isConnected: false',
-      '  lastUpdated: null'
+      '  device_id: ""',
+      '  device_name: ""',
+      '  last_command: null',
+      '  error: null'
     ];
     
     const deviceSpecificDefaults = fields.map(field => 
@@ -317,7 +315,21 @@ print(json.dumps(result))
 
   private formatDefaultValue(field: StateField): string {
     if (field.defaultValue === null) {
-      return 'null';
+      // Only return null if the type is actually nullable
+      if (field.type.includes('null')) {
+        return 'null';
+      }
+      // For non-nullable types, provide appropriate defaults
+      switch (field.type) {
+        case 'boolean':
+          return 'false';
+        case 'number':
+          return '0';
+        case 'string':
+          return "''";
+        default:
+          return 'null';
+      }
     }
     if (field.defaultValue === undefined) {
       switch (field.type) {
@@ -330,6 +342,9 @@ print(json.dumps(result))
         case 'Date | null':
           return 'null';
         default:
+          if (field.type.includes('null')) {
+            return 'null';
+          }
           return 'null';
       }
     }
