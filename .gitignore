@@ -74,3 +74,5 @@ mypy.ini
 mypy-setup.md
 run_mypy.sh
 backup/
+docker_manager_config.json
+
