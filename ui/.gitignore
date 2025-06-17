@@ -145,6 +145,7 @@ Thumbs.db
 # Includes: Remote control layouts, router manifests, state mappings
 src/pages/devices/*.gen.tsx
 src/pages/devices/*.gen.ts
+src/pages/devices/*.hooks.ts
 src/pages/devices/index.gen.ts
 src/config/device-navigation.gen.ts
 docs/devices/

@@ -36,6 +36,8 @@ export class DevicePageGenerator {
   private outputDir: string;
   private handlers: Map<string, any>;
   private apiBaseUrl: string;
+  private mode: 'api' | 'local';
+  private mappingFile?: string;
   private codeValidator: CodeValidator;
   private componentValidator: ComponentValidator;
   private stateGenerator: StateTypeGenerator;
@@ -52,11 +54,13 @@ export class DevicePageGenerator {
   ) {
     this.apiBaseUrl = apiBaseUrl;
     this.outputDir = outputDir;
+    this.mode = options?.mode || 'api';
+    this.mappingFile = options?.mappingFile;
     
     // Phase 1: Choose client based on mode
-    if (options?.mode === 'local') {
+    if (this.mode === 'local') {
       this.client = new LocalDeviceConfigurationClient(
-        options.mappingFile || 'config/device-state-mapping.json'
+        this.mappingFile || 'config/device-state-mapping.json'
       );
     } else {
       this.client = new DeviceConfigurationClient(apiBaseUrl);
@@ -88,16 +92,29 @@ export class DevicePageGenerator {
     const startTime = Date.now();
     
     try {
-      // Test API connectivity first
-      const isApiAvailable = await this.client.validateConnectivity();
-      if (!isApiAvailable) {
-        throw new Error('API is not available. Please check if the backend is running.');
+      // Test connectivity first
+      const isConnectivityAvailable = await this.client.validateConnectivity();
+      if (!isConnectivityAvailable) {
+        if (this.mode === 'local') {
+          throw new Error(`Local configuration files not accessible. Please check the mapping file: ${this.mappingFile || 'config/device-state-mapping.json'}`);
+        } else {
+          throw new Error('API is not available. Please check if the backend is running.');
+        }
       }
       
-      console.log('✅ API connectivity confirmed');
+      if (this.mode === 'local') {
+        console.log('✅ Local files accessible');
+      } else {
+        console.log('✅ API connectivity confirmed');
+      }
       
       // Fetch device data
-      console.log('📡 Fetching device configuration...');
+      if (this.mode === 'local') {
+        console.log('📁 Loading device configuration from files...');
+      } else {
+        console.log('📡 Fetching device configuration...');
+      }
+      
       const [config, groups] = await Promise.all([
         this.client.fetchDeviceConfig(deviceId),
         this.client.fetchDeviceGroups(deviceId)
@@ -161,6 +178,9 @@ export class DevicePageGenerator {
           
         } catch (error) {
           console.warn(`⚠️  Failed to generate Python state types: ${error.message}`);
+          if (this.mode === 'local') {
+            console.warn('   💡 Check if Python state file path is correct relative to the mapping file');
+          }
           console.warn('   Continuing with default state generation...');
         }
       }
@@ -216,24 +236,41 @@ export class DevicePageGenerator {
       };
     }
   }
+
+  // Backward compatibility alias
+  async testApiConnection(): Promise<boolean> {
+    return this.testConnectivity();
+  }
   
   async listSupportedDeviceClasses(): Promise<string[]> {
     return Array.from(this.handlers.keys());
   }
   
-  async testApiConnection(): Promise<boolean> {
+  async testConnectivity(): Promise<boolean> {
     try {
       const isAvailable = await this.client.validateConnectivity();
       if (isAvailable) {
-        console.log('✅ API connection successful');
+        if (this.mode === 'local') {
+          console.log('✅ Local file access successful');
+        } else {
+          console.log('✅ API connection successful');
+        }
         return true;
       } else {
-        console.log('❌ API connection failed');
+        if (this.mode === 'local') {
+          console.log('❌ Local file access failed');
+        } else {
+          console.log('❌ API connection failed');
+        }
         return false;
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('❌ API connection error:', errorMessage);
+      if (this.mode === 'local') {
+        console.error('❌ Local file access error:', errorMessage);
+      } else {
+        console.error('❌ API connection error:', errorMessage);
+      }
       return false;
     }
   }
@@ -544,8 +581,12 @@ Supported Device Classes (Phase 2):
   
   try {
     if (testConnection) {
-      console.log(`🔗 Testing connection to ${apiBaseUrl}...`);
-      const success = await generator.testApiConnection();
+      if (mode === 'local') {
+        console.log(`🔗 Testing local file access for mapping: ${mappingFile || 'config/device-state-mapping.json'}...`);
+      } else {
+        console.log(`🔗 Testing connection to ${apiBaseUrl}...`);
+      }
+      const success = await generator.testConnectivity();
       process.exit(success ? 0 : 1);
     }
     
@@ -581,10 +622,43 @@ Supported Device Classes (Phase 2):
     // Handle batch processing (but not single device with just generateRouter)
     if (batchMode || deviceIds || deviceClasses || fullSystem || generateDocs || (generateRouter && !deviceId)) {
       console.log(`🎯 Device Page Generator - Phase 3 ${fullSystem ? '(Full System)' : '(Batch Mode)'}`);
-      console.log(`📡 API: ${apiBaseUrl}`);
+      if (mode === 'local') {
+        console.log(`📁 Mode: Local (${mappingFile || 'config/device-state-mapping.json'})`);
+      } else {
+        console.log(`📡 API: ${apiBaseUrl}`);
+      }
       console.log(`📁 Output: ${outputDir}`);
       console.log(`⚡ Max Concurrency: ${maxConcurrency}`);
       console.log('');
+      
+      // Read state configuration from mapping file for batch processing
+      let stateConfigByDeviceClass: Map<string, {stateFile: string, stateClass: string}> = new Map();
+      
+      if (mode === 'local' && mappingFile) {
+        console.log(`📋 Loading state configuration from mapping file: ${mappingFile}`);
+        try {
+          const { readFileSync } = await import('fs');
+          const mappingContent = readFileSync(mappingFile, 'utf8');
+          const mappingData = JSON.parse(mappingContent);
+          
+          // Extract state configuration for each device class
+          for (const [deviceClass, config] of Object.entries(mappingData)) {
+            const configData = config as any;
+            if (configData.stateFile && configData.stateClass) {
+              stateConfigByDeviceClass.set(deviceClass, {
+                stateFile: configData.stateFile,
+                stateClass: configData.stateClass
+              });
+              console.log(`  📝 ${deviceClass}: ${configData.stateFile}::${configData.stateClass}`);
+            }
+          }
+          
+          console.log(`✅ Loaded state configuration for ${stateConfigByDeviceClass.size} device classes`);
+        } catch (error) {
+          console.warn(`⚠️  Could not read state configuration from mapping file: ${error.message}`);
+          console.warn('   Continuing without state type generation...');
+        }
+      }
       
       const batchProcessor = new BatchProcessor(generator);
       let result;
@@ -592,9 +666,9 @@ Supported Device Classes (Phase 2):
       
       if (deviceIds) {
         console.log(`🎯 Processing specific devices: [${deviceIds.join(', ')}]`);
-        result = await batchProcessor.processDeviceList(deviceIds, { maxConcurrency });
+        result = await batchProcessor.processDeviceListWithStateConfig(deviceIds, stateConfigByDeviceClass, { maxConcurrency });
       } else {
-        result = await batchProcessor.processAllDevices({ 
+        result = await batchProcessor.processAllDevicesWithStateConfig(stateConfigByDeviceClass, { 
           deviceClasses, 
           maxConcurrency 
         });
@@ -676,7 +750,11 @@ Supported Device Classes (Phase 2):
     }
     
     console.log('🎯 Device Page Generator - Phase 2');
-    console.log(`📡 API: ${apiBaseUrl}`);
+    if (mode === 'local') {
+      console.log(`📁 Mode: Local (${mappingFile || 'config/device-state-mapping.json'})`);
+    } else {
+      console.log(`📡 API: ${apiBaseUrl}`);
+    }
     console.log(`📁 Output: ${outputDir}`);
     console.log(`🔧 Device: ${deviceId}`);
     if (stateFile && stateClass) {

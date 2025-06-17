@@ -77,6 +77,46 @@ export class BatchProcessor {
     
     return this.summarizeResults(results, Date.now() - startTime);
   }
+
+  async processDeviceListWithStateConfig(
+    deviceIds: string[], 
+    stateConfigByDeviceClass: Map<string, {stateFile: string, stateClass: string}>, 
+    config: BatchConfig = {}
+  ): Promise<BatchResult> {
+    const startTime = Date.now();
+    const results: GenerationResult[] = [];
+    const maxConcurrency = config.maxConcurrency || 3;
+    
+    console.log(`🚀 Starting batch processing of ${deviceIds.length} devices...`);
+    console.log(`📊 Configuration: max concurrency=${maxConcurrency}, continue on error=${config.continueOnError !== false}`);
+    
+    // Process devices in batches to avoid overwhelming the API
+    for (let i = 0; i < deviceIds.length; i += maxConcurrency) {
+      const batch = deviceIds.slice(i, i + maxConcurrency);
+      console.log(`\n📦 Processing batch ${Math.floor(i / maxConcurrency) + 1}/${Math.ceil(deviceIds.length / maxConcurrency)}: [${batch.join(', ')}]`);
+      
+      const batchPromises = batch.map(deviceId => 
+        this.processDeviceWithStateConfigAndErrorHandling(deviceId, stateConfigByDeviceClass)
+      );
+      const batchResults = await Promise.all(batchPromises);
+      
+      results.push(...batchResults);
+      
+      // Check if we should continue after failures
+      const batchFailures = batchResults.filter(r => !r.success && !r.skipped);
+      if (batchFailures.length > 0 && config.continueOnError === false) {
+        console.log(`\n🛑 Stopping batch processing due to failures in current batch`);
+        break;
+      }
+      
+      // Small delay between batches to be respectful to the API
+      if (i + maxConcurrency < deviceIds.length) {
+        await this.delay(500);
+      }
+    }
+    
+    return this.summarizeResults(results, Date.now() - startTime);
+  }
   
   async processAllDevices(config: BatchConfig = {}): Promise<BatchResult> {
     console.log('🔍 Discovering all devices from API...');
@@ -111,6 +151,43 @@ export class BatchProcessor {
       };
     }
   }
+
+  async processAllDevicesWithStateConfig(
+    stateConfigByDeviceClass: Map<string, {stateFile: string, stateClass: string}>,
+    config: BatchConfig = {}
+  ): Promise<BatchResult> {
+    console.log('🔍 Discovering all devices from API...');
+    try {
+      const devices = await this.discoverDevices();
+      console.log(`📋 Found ${devices.length} devices`);
+      
+      let deviceIds = devices.map(d => d.device_id);
+      
+      // Filter by device classes if specified
+      if (config.deviceClasses && config.deviceClasses.length > 0) {
+        const filteredDevices = devices.filter(d => 
+          config.deviceClasses!.includes(d.device_class)
+        );
+        deviceIds = filteredDevices.map(d => d.device_id);
+        console.log(`🔎 Filtered to ${deviceIds.length} devices matching classes: [${config.deviceClasses.join(', ')}]`);
+      }
+      
+      return this.processDeviceListWithStateConfig(deviceIds, stateConfigByDeviceClass, config);
+    } catch (error) {
+      console.error('❌ Failed to discover devices:', (error as Error).message);
+      return {
+        totalProcessed: 0,
+        successful: 0,
+        failed: 1,
+        skipped: 0,
+        successRate: 0,
+        processingTime: 0,
+        failedDevices: [{ deviceId: 'discovery', error: (error as Error).message, action: 'failed' }],
+        generatedFiles: [],
+        performance: this.performanceMonitor.getMetrics()
+      };
+    }
+  }
   
   private async processDeviceWithErrorHandling(deviceId: string): Promise<GenerationResult> {
     const timer = this.performanceMonitor.trackGenerationStart(deviceId);
@@ -118,6 +195,94 @@ export class BatchProcessor {
     try {
       console.log(`  🔄 Processing ${deviceId}...`);
       const result = await this.generator.generateDevicePage(deviceId);
+      
+      if (result.success) {
+        console.log(`  ✅ ${deviceId} → ${result.outputPath}`);
+        timer.complete(true, result.deviceClass || 'unknown');
+        return {
+          deviceId,
+          success: true,
+          outputPath: result.outputPath,
+          deviceClass: result.deviceClass
+        };
+      } else {
+        // Handle error through error handler
+        const error = new Error(result.error || 'Unknown generation error');
+        const context: ErrorContext = {
+          deviceId,
+          deviceClass: result.deviceClass,
+          operation: 'device_generation',
+          timestamp: new Date()
+        };
+        
+        const recovery = this.errorHandler.handleError(error, context);
+        timer.complete(false, result.deviceClass || 'unknown');
+        
+        if (recovery.action === 'skip') {
+          console.log(`  ⏭️  ${deviceId} → ${recovery.message}`);
+          return {
+            deviceId,
+            success: false,
+            error: recovery.message,
+            skipped: true,
+            deviceClass: result.deviceClass
+          };
+        } else {
+          console.log(`  ❌ ${deviceId} → ${recovery.message}`);
+          return {
+            deviceId,
+            success: false,
+            error: recovery.message,
+            deviceClass: result.deviceClass
+          };
+        }
+      }
+    } catch (error) {
+      const context: ErrorContext = {
+        deviceId,
+        operation: 'device_generation',
+        timestamp: new Date()
+      };
+      
+      const recovery = this.errorHandler.handleError(error as Error, context);
+      timer.complete(false, 'unknown');
+      
+      console.log(`  💥 ${deviceId} → ${recovery.message}`);
+      return {
+        deviceId,
+        success: false,
+        error: recovery.message,
+        skipped: recovery.action === 'skip'
+      };
+    }
+  }
+  
+  private async processDeviceWithStateConfigAndErrorHandling(
+    deviceId: string, 
+    stateConfigByDeviceClass: Map<string, {stateFile: string, stateClass: string}>
+  ): Promise<GenerationResult> {
+    const timer = this.performanceMonitor.trackGenerationStart(deviceId);
+    
+    try {
+      console.log(`  🔄 Processing ${deviceId}...`);
+      
+      // First, fetch device config to determine device class
+      const client = (this.generator as any).client;
+      const config = await client.fetchDeviceConfig(deviceId);
+      const deviceClass = config.device_class;
+      
+      // Get state configuration for this device class
+      const stateConfig = stateConfigByDeviceClass.get(deviceClass);
+      const options = stateConfig ? { 
+        stateFile: stateConfig.stateFile, 
+        stateClass: stateConfig.stateClass 
+      } : undefined;
+      
+      if (stateConfig) {
+        console.log(`  📝 Using state config: ${stateConfig.stateFile}::${stateConfig.stateClass}`);
+      }
+      
+      const result = await this.generator.generateDevicePage(deviceId, options);
       
       if (result.success) {
         console.log(`  ✅ ${deviceId} → ${result.outputPath}`);
