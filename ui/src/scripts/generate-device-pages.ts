@@ -677,11 +677,14 @@ Supported Device Classes (Phase 2):
       // For Phase 3 features, we need to collect device structures
       if (fullSystem || generateDocs || generateRouter) {
         console.log('\n🔄 Collecting device structures for Phase 3 processing...');
-        // We'd need to modify BatchProcessor to return device structures
-        // For now, we'll generate from successful device IDs
-        const successfulDeviceIds = result.details
-          .filter((detail: any) => detail.success)
-          .map((detail: any) => detail.deviceId);
+        // Extract device IDs from generated file paths
+        const successfulDeviceIds = result.generatedFiles
+          .map(filePath => {
+            // Extract device ID from path like "src/pages/devices/ld_player.gen.tsx"
+            const filename = filePath.split('/').pop() || '';
+            return filename.replace('.gen.tsx', '');
+          })
+          .filter(deviceId => deviceId.length > 0);
 
         for (const deviceId of successfulDeviceIds) {
           try {
