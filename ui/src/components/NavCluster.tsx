@@ -48,7 +48,7 @@ function NavCluster({
   className
 }: NavClusterProps) {
   return (
-    <div className={cn("grid grid-cols-3 gap-2 w-48 h-48 p-3 border border-white/10 rounded-lg bg-white/03", className)}>
+    <div className={cn("grid grid-cols-3 gap-2 w-48 h-48 p-3 rounded-lg bg-white/03", className)}>
       {/* Top Row */}
       <Button 
         variant="ghost" 

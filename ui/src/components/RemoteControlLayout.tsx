@@ -1064,7 +1064,7 @@ export function RemoteControlLayout({
 
           .zone-menu {
             /* Menu Zone - Enhanced border with extra padding to prevent button overlap */
-            padding: 16px;
+            padding: 8px 32px;
             border-radius: 8px;
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1099,7 +1099,7 @@ export function RemoteControlLayout({
             /* FIX: Align left edge with inputs zone (left-to-left) */
             grid-column: 1;
             justify-self: stretch;
-            margin-left: -8px;
+            margin-left: 0px;
           }
 
           .zone-menu {
