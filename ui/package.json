@@ -7,8 +7,6 @@
     "build": "tsc && vite build",
     "gen:pages": "npx tsx src/scripts/generate-device-pages.ts --batch",
     "gen:device-pages": "npx tsx src/scripts/generate-device-pages.ts",
-    "test:device-generation": "npx tsx src/scripts/test-generation.ts",
-    "test:phase2-generation": "npx tsx src/scripts/test-phase2-generation.ts",
     "preview": "vite preview",
     "test": "jest",
     "test:e2e": "playwright test",

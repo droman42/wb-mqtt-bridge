@@ -1,4 +1,4 @@
-import { DeviceConfigurationClient } from '../lib/DeviceConfigurationClient';
+import { DeviceConfigurationClient, LocalDeviceConfigurationClient, IDeviceConfigurationClient } from '../lib/DeviceConfigurationClient';
 import { WirenboardIRHandler } from '../lib/deviceHandlers/WirenboardIRHandler';
 import { LgTvHandler } from '../lib/deviceHandlers/LgTvHandler';
 import { EMotivaXMC2Handler } from '../lib/deviceHandlers/EMotivaXMC2Handler';
@@ -31,7 +31,7 @@ interface GenerationResult {
 }
 
 export class DevicePageGenerator {
-  private client: DeviceConfigurationClient;
+  private client: IDeviceConfigurationClient;
   private validator: DataValidator;
   private outputDir: string;
   private handlers: Map<string, any>;
@@ -42,11 +42,27 @@ export class DevicePageGenerator {
   private routerIntegration: RouterIntegration;
   private docGenerator: DocumentationGenerator;
 
-  constructor(apiBaseUrl: string, outputDir: string) {
+  constructor(
+    apiBaseUrl: string, 
+    outputDir: string,
+    options?: { 
+      mode?: 'api' | 'local'; 
+      mappingFile?: string;
+    }
+  ) {
     this.apiBaseUrl = apiBaseUrl;
-    this.client = new DeviceConfigurationClient(apiBaseUrl);
-    this.validator = new DataValidator();
     this.outputDir = outputDir;
+    
+    // Phase 1: Choose client based on mode
+    if (options?.mode === 'local') {
+      this.client = new LocalDeviceConfigurationClient(
+        options.mappingFile || 'config/device-state-mapping.json'
+      );
+    } else {
+      this.client = new DeviceConfigurationClient(apiBaseUrl);
+    }
+    
+    this.validator = new DataValidator();
     
     // All device handlers now support remote control layout exclusively
     this.handlers = new Map<string, any>([
@@ -363,6 +379,11 @@ async function runCLI() {
   const batchMode = args.includes('--batch');
   const maxConcurrency = parseInt(args.find(arg => arg.startsWith('--max-concurrency='))?.split('=')[1] || '3');
   
+  // Phase 1: Local Configuration Mode options
+  const mode = (args.find(arg => arg.startsWith('--mode='))?.split('=')[1] as 'api' | 'local') || 'api';
+  const mappingFile = args.find(arg => arg.startsWith('--mapping-file='))?.split('=')[1];
+  const configFile = args.find(arg => arg.startsWith('--config-file='))?.split('=')[1];
+  
   // Python state generation options
   const stateFile = args.find(arg => arg.startsWith('--state-file='))?.split('=')[1];
   const stateClass = args.find(arg => arg.startsWith('--state-class='))?.split('=')[1];
@@ -377,7 +398,7 @@ async function runCLI() {
   
   if (showHelp) {
     console.log(`
-🚀 Device Page Generator - Phase 3 (Production Ready)
+🚀 Device Page Generator - Phase 1 (Local Configuration Mode)
 
 Usage:
   npm run gen:device-pages -- [options]
@@ -392,6 +413,11 @@ Batch Processing Options:
   --device-ids=<ids>      Comma-separated list of device IDs to process
   --device-classes=<cls>  Comma-separated list of device classes to process
   --max-concurrency=<n>   Max concurrent generations (default: 3)
+
+Phase 1: Local Configuration Mode Options:
+  --mode=<api|local>      Generation mode: 'api' (default) or 'local'
+  --mapping-file=<path>   Path to device state mapping file (for local mode)
+  --config-file=<path>    Path to specific device config file (direct mode)
 
 Phase 3 Validation & Integration Options:
   --validate-code         Validate TypeScript compilation of generated files
@@ -409,8 +435,23 @@ General Options:
   --help, -h             Show this help message
 
 Examples:
-  # Generate page for a specific device
-  npm run gen:device-pages -- --device-id=living_room_tv
+  # API Mode (default)
+  npm run gen:device-pages -- --device-id=living_room_tv --mode=api
+
+  # Local development (uses absolute paths)
+  npm run gen:device-pages -- --device-id=children_room_tv --mode=local --mapping-file=config/device-state-mapping.local.json
+
+  # Generate for all devices of a class using local configs
+  npm run gen:device-pages -- --device-classes=LgTv --mode=local --mapping-file=config/device-state-mapping.local.json
+
+  # Generate for all devices in local mapping file
+  npm run gen:device-pages -- --batch --mode=local --mapping-file=config/device-state-mapping.local.json
+
+  # CI/Docker builds (uses relative paths)
+  npm run gen:device-pages -- --batch --mode=local --mapping-file=config/device-state-mapping.json
+
+  # Generate using specific config file (for testing)
+  npm run gen:device-pages -- --config-file=/path/to/config.json --device-id=device_name --mode=local
 
   # Generate page with custom Python state class
   npm run gen:device-pages -- --device-id=living_room_tv \\
@@ -445,7 +486,61 @@ Supported Device Classes (Phase 2):
     process.exit(0);
   }
   
-  const generator = new DevicePageGenerator(apiBaseUrl, outputDir);
+  // Handle direct config file mode 
+  if (configFile && deviceId) {
+    console.log(`🔄 Generating page for device: ${deviceId} using config file: ${configFile}`);
+    
+    try {
+      // Read config file directly
+      const { readFileSync } = await import('fs');
+      const configData = JSON.parse(readFileSync(configFile, 'utf8'));
+      
+      // Create temporary local client for this specific config
+      const tempMappingFile = '/tmp/temp-mapping.json';
+      const tempMapping = {
+        [configData.device_class]: {
+          stateFile: stateFile || 'wb-mqtt-bridge/app/schemas.py',
+          stateClass: stateClass || 'DefaultState',
+          deviceConfigs: [configFile]
+        }
+      };
+      
+      const { writeFileSync } = await import('fs');
+      writeFileSync(tempMappingFile, JSON.stringify(tempMapping, null, 2));
+      
+      const generator = new DevicePageGenerator(apiBaseUrl, outputDir, { 
+        mode: 'local', 
+        mappingFile: tempMappingFile 
+      });
+      
+      const result = await generator.generateDevicePage(deviceId, { stateFile, stateClass });
+      
+      // Cleanup temp file
+      const { unlinkSync } = await import('fs');
+      try { 
+        unlinkSync(tempMappingFile); 
+      } catch {
+        // Ignore cleanup errors
+      }
+      
+      if (result.success) {
+        console.log('\n🎉 Generation completed successfully!');
+        console.log(`📄 File: ${result.outputPath}`);
+        console.log(`⚡ Device Class: ${result.deviceClass}`);
+        console.log(`📊 UI Sections: ${result.sectionsGenerated}`);
+        console.log(`⏱️  Duration: ${result.duration}ms`);
+      }
+      
+      process.exit(result.success ? 0 : 1);
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`❌ Direct config generation failed: ${errorMessage}`);
+      process.exit(1);
+    }
+  }
+
+  const generator = new DevicePageGenerator(apiBaseUrl, outputDir, { mode, mappingFile });
   
   try {
     if (testConnection) {

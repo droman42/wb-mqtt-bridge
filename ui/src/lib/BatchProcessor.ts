@@ -181,18 +181,51 @@ export class BatchProcessor {
   }
   
   private async discoverDevices(): Promise<Array<{ device_id: string; device_class: string }>> {
-    // This would make an API call to discover all devices
-    // For now, we'll simulate with a mock response
-    try {
-      const response = await fetch(`${this.generator.getApiBaseUrl()}/devices`);
-      if (!response.ok) {
-        throw new Error(`Failed to discover devices: ${response.status}`);
+    // Check if we're in local mode by testing client type
+    const client = (this.generator as any).client;
+    
+    if (client && typeof client.getAllDeviceIds === 'function') {
+      // Local mode: use mapping file to discover devices
+      try {
+        console.log('📁 Discovering devices from local mapping file...');
+        const deviceIds = await client.getAllDeviceIds();
+        
+        // Get device class for each device ID by fetching config
+        const devices: Array<{ device_id: string; device_class: string }> = [];
+        for (const deviceId of deviceIds) {
+          try {
+            const config = await client.fetchDeviceConfig(deviceId);
+            devices.push({
+              device_id: config.device_id,
+              device_class: config.device_class
+            });
+          } catch (error) {
+            console.warn(`⚠️  Could not load config for device ${deviceId}: ${error.message}`);
+            // Skip devices with invalid configs
+          }
+        }
+        
+        console.log(`📋 Local discovery found ${devices.length} valid devices`);
+        return devices;
+      } catch (error) {
+        console.error('❌ Local device discovery failed:', (error as Error).message);
+        throw error;
       }
-      return response.json();
-    } catch (error) {
-      // If discovery endpoint doesn't exist, return empty array
-      console.warn('⚠️  Device discovery endpoint not available');
-      return [];
+    } else {
+      // API mode: try to discover via API endpoint
+      try {
+        const response = await fetch(`${this.generator.getApiBaseUrl()}/devices`);
+        if (!response.ok) {
+          throw new Error(`Failed to discover devices: ${response.status}`);
+        }
+        const devices = await response.json();
+        console.log(`📋 API discovery found ${devices.length} devices`);
+        return devices;
+      } catch (error) {
+        // If discovery endpoint doesn't exist, return empty array
+        console.warn('⚠️  Device discovery endpoint not available');
+        return [];
+      }
     }
   }
   
