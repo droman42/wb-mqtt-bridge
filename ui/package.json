@@ -21,7 +21,8 @@
     "validate:components": "npx tsx src/scripts/generate-device-pages.ts --validate-components",
     "validate:all": "npx tsx src/scripts/generate-device-pages.ts --run-validation",
     "gen:full-system": "npx tsx src/scripts/generate-device-pages.ts --batch --full-system",
-    "test:phase3-validation": "npx tsx src/scripts/test-phase3-validation.ts"
+    "test:phase3-validation": "npx tsx src/scripts/test-phase3-validation.ts",
+    "gen:favicon": "node scripts/generate-favicon.js"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

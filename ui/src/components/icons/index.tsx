@@ -68,6 +68,8 @@ const fallbackIcons = {
   menu: MaterialIcons.Menu,
   settings: MaterialIcons.Settings,
   close: MaterialIcons.Close,
+  'sports-esports': MaterialIcons.SportsEsports,
+  gamepad: MaterialIcons.SportsEsports,
 } as const;
 
 export function Icon({ library, name, size = 'md', className, fallback }: IconProps) {
