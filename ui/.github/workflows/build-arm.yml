@@ -47,7 +47,7 @@ jobs:
         gzip /tmp/wb-mqtt-ui.tar
 
     - name: Upload Docker image artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: wb-mqtt-ui-image
         path: /tmp/wb-mqtt-ui.tar.gz
