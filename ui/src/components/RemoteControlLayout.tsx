@@ -40,14 +40,14 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false }: { zone?: R
           size="sm"
           onClick={() => handlePowerAction(leftButton)}
           disabled={isDisabled}
-          className="h-12 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
+          className="h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         >
           <Icon
             library={leftButton.action.icon.iconLibrary as 'material'}
             name={leftButton.action.icon.iconName}
             fallback={leftButton.action.icon.fallbackIcon}
             size="lg"
-            className="w-6 h-6 text-white"
+            className="w-4 h-4 text-white"
           />
         </Button>
       ) : (
@@ -61,14 +61,14 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false }: { zone?: R
           size="sm"
           onClick={() => handlePowerAction(middleButton)}
           disabled={isDisabled}
-          className="h-12 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
+          className="h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         >
           <Icon
             library={middleButton.action.icon.iconLibrary as 'material'}
             name={middleButton.action.icon.iconName}
             fallback={middleButton.action.icon.fallbackIcon}
             size="lg"
-            className="w-6 h-6 text-white"
+            className="w-4 h-4 text-white"
           />
         </Button>
       ) : (
@@ -82,14 +82,14 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false }: { zone?: R
           size="sm"
           onClick={() => handlePowerAction(rightButton)}
           disabled={isDisabled}
-          className="h-12 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
+          className="h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         >
           <Icon
             library={rightButton.action.icon.iconLibrary as 'material'}
             name={rightButton.action.icon.iconName}
             fallback={rightButton.action.icon.fallbackIcon}
             size="lg"
-            className="w-6 h-6 text-white"
+            className="w-4 h-4 text-white"
           />
         </Button>
       ) : (
@@ -140,95 +140,99 @@ const MediaStackZone = ({ zone, deviceStructure, onAction, className, isDisabled
     <div className={cn("zone-media-stack", className)}>
       {/* INPUTS Section - Always show if device has inputs capability */}
       {hasInputsCapability && (
-        <div className="inputs-section">
-          <label className="text-xs text-white/70 mb-1 block">
+        <div className="inputs-section media-stack-group">
+          <span className="media-stack-legend">
             INPUTS {inputsLoading && "(Loading...)"}
-          </label>
-          {inputsError ? (
-            <div className="text-amber-400 text-xs mb-1">
-              {inputsError === 'Device is powered off' ? (
-                "Device is powered off"
-              ) : inputsError === 'Device is disconnected' ? (
-                "Device is disconnected" 
-              ) : inputsError === 'Loading device state...' ? (
-                "Loading device state..."
-              ) : (
-                `Error loading inputs: ${inputsError}`
-              )}
-            </div>
-          ) : null}
-          <select
-            value={selectedInput}
-            onChange={(e) => handleInputSelect(e.target.value)}
-            className="w-full px-2 py-1 text-xs bg-black/30 border border-white/20 rounded text-white"
-            disabled={isDisabled || inputsLoading || !!(inputsError && (inputsError.includes('powered off') || inputsError.includes('disconnected')))}
-          >
-            <option value="">
-              {inputsLoading ? "Loading inputs..." : 
-               inputsError && inputsError.includes('powered off') ? "Device powered off" :
-               inputsError && inputsError.includes('disconnected') ? "Device disconnected" :
-               inputsError && inputsError.includes('Loading device state') ? "Loading device state..." :
-               inputsError ? `Error: ${inputsError}` :
-               "Select Input..."}
-            </option>
-            {dynamicInputs.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.displayName}
+          </span>
+          <div className="media-stack-content">
+            {inputsError && !inputsError.includes('powered off') ? (
+              <div className="text-amber-400 text-xs mb-1">
+                {inputsError === 'Device is disconnected' ? (
+                  "Device is disconnected" 
+                ) : inputsError === 'Loading device state...' ? (
+                  "Loading device state..."
+                ) : (
+                  `Error loading inputs: ${inputsError}`
+                )}
+              </div>
+            ) : null}
+            <select
+              value={selectedInput}
+              onChange={(e) => handleInputSelect(e.target.value)}
+              className="w-full px-2 py-1 text-xs bg-black/30 border border-white/20 rounded text-white"
+              disabled={isDisabled || inputsLoading || !!(inputsError && (inputsError.includes('powered off') || inputsError.includes('disconnected')))}
+            >
+              <option value="">
+                {inputsLoading ? "Loading inputs..." : 
+                 inputsError && inputsError.includes('powered off') ? "Device powered off" :
+                 inputsError && inputsError.includes('disconnected') ? "Device disconnected" :
+                 inputsError && inputsError.includes('Loading device state') ? "Loading device state..." :
+                 inputsError ? `Error: ${inputsError}` :
+                 "Select Input..."}
               </option>
-            ))}
-          </select>
+              {dynamicInputs.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.displayName}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       )}
 
       {/* PLAYBACK Section */}
       {playbackSection && playbackSection.actions.length > 0 && (
-        <div className="playback-section">
-          <label className="text-xs text-white/70 mb-1 block">PLAYBACK</label>
-          <div className="flex gap-1 flex-wrap">
-            {playbackSection.actions.map((action, index) => (
-              <Button
-                key={index}
-                variant="ghost"
-                size="sm"
-                onClick={() => handlePlaybackAction(action)}
-                disabled={isDisabled}
-                className="h-10 px-2 flex-1 min-w-fit bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
-              >
-                <Icon
-                  library={action.icon.iconLibrary as 'material'}
-                  name={action.icon.iconName}
-                  fallback={action.icon.fallbackIcon}
-                  size="lg"
-                  className="w-5 h-5 text-white"
-                />
-              </Button>
-            ))}
+        <div className="playback-section media-stack-group">
+          <span className="media-stack-legend">PLAYBACK</span>
+          <div className="media-stack-content">
+            <div className="flex gap-1 flex-wrap">
+              {playbackSection.actions.map((action, index) => (
+                <Button
+                  key={index}
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handlePlaybackAction(action)}
+                  disabled={isDisabled}
+                  className="h-10 px-2 flex-1 min-w-fit bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
+                >
+                  <Icon
+                    library={action.icon.iconLibrary as 'material'}
+                    name={action.icon.iconName}
+                    fallback={action.icon.fallbackIcon}
+                    size="lg"
+                    className="w-5 h-5 text-white"
+                  />
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
       {/* TRACKS Section */}
       {tracksSection && tracksSection.actions.length > 0 && (
-        <div className="tracks-section">
-          <label className="text-xs text-white/70 mb-1 block">TRACKS</label>
-          <div className="flex gap-1">
-            {tracksSection.actions.map((action, index) => (
-              <Button
-                key={index}
-                variant="ghost"
-                size="sm"
-                onClick={() => handlePlaybackAction(action)}
-                className="h-10 px-2 flex-1 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
-              >
-                <Icon
-                  library={action.icon.iconLibrary as 'material'}
-                  name={action.icon.iconName}
-                  fallback={action.icon.fallbackIcon}
-                  size="lg"
-                  className="w-5 h-5 text-white"
-                />
-              </Button>
-            ))}
+        <div className="tracks-section media-stack-group">
+          <span className="media-stack-legend">TRACKS</span>
+          <div className="media-stack-content">
+            <div className="flex gap-1">
+              {tracksSection.actions.map((action, index) => (
+                <Button
+                  key={index}
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handlePlaybackAction(action)}
+                  className="h-10 px-2 flex-1 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
+                >
+                  <Icon
+                    library={action.icon.iconLibrary as 'material'}
+                    name={action.icon.iconName}
+                    fallback={action.icon.fallbackIcon}
+                    size="lg"
+                    className="w-5 h-5 text-white"
+                  />
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -583,9 +587,16 @@ const AppsZone = ({ zone, deviceStructure, className }: {
   const { apps: dynamicApps, loading: appsLoading, error: appsError } = useAppsData(deviceStructure);
   const { selectedApp, launchApp } = useAppLaunching(deviceStructure);
 
-  // Hide zone completely if no apps available and not loading and no error
-  if ((!zone?.content?.appsDropdown || zone.isEmpty) && dynamicApps.length === 0 && !appsLoading && !appsError) {
-    return null; // Show/hide zone - completely hidden when empty
+  // Show empty state if no apps available and not loading and no error
+  if ((!zone?.content?.appsDropdown || zone?.isEmpty) && dynamicApps.length === 0 && !appsLoading && !appsError) {
+    return (
+      <div className={cn("zone-apps", className)}>
+        <span className="zone-legend">APPS</span>
+        <div className="zone-content zone-empty">
+          Apps Zone (Empty)
+        </div>
+      </div>
+    );
   }
 
   const handleAppSelect = async (appId: string) => {
@@ -598,38 +609,38 @@ const AppsZone = ({ zone, deviceStructure, className }: {
 
   return (
     <div className={cn("zone-apps", className)}>
-      <label className="text-xs text-white/70 mb-1 block">
+      <span className="zone-legend">
         APPS {appsLoading && "(Loading...)"}
-      </label>
-      {appsError ? (
-        <div className="text-amber-400 text-xs mb-1">
-          {appsError === 'Device is powered off' ? (
-            "Device is powered off"
-          ) : appsError === 'Device is disconnected' ? (
-            "Device is disconnected" 
-          ) : (
-            `Error loading apps: ${appsError}`
-          )}
-        </div>
-      ) : null}
-      <select
-        value={selectedApp}
-        onChange={(e) => handleAppSelect(e.target.value)}
-        className="w-full px-3 py-2 text-sm bg-black/30 border border-white/20 rounded text-white"
-        disabled={appsLoading || !!(appsError && (appsError.includes('powered off') || appsError.includes('disconnected')))}
-      >
-        <option value="">
-          {appsLoading ? "Loading apps..." : 
-           appsError && appsError.includes('powered off') ? "Device powered off" :
-           appsError && appsError.includes('disconnected') ? "Device disconnected" :
-           "Select App..."}
-        </option>
-        {dynamicApps.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.displayName}
+      </span>
+      <div className="zone-content">
+        {appsError && !appsError.includes('powered off') ? (
+          <div className="text-amber-400 text-xs mb-1">
+            {appsError === 'Device is disconnected' ? (
+              "Device is disconnected" 
+            ) : (
+              `Error loading apps: ${appsError}`
+            )}
+          </div>
+        ) : null}
+        <select
+          value={selectedApp}
+          onChange={(e) => handleAppSelect(e.target.value)}
+          className="w-full px-2 py-1 text-xs bg-black/30 border border-white/20 rounded text-white"
+          disabled={appsLoading || !!(appsError && (appsError.includes('powered off') || appsError.includes('disconnected')))}
+        >
+          <option value="">
+            {appsLoading ? "Loading apps..." : 
+             appsError && appsError.includes('powered off') ? "Device powered off" :
+             appsError && appsError.includes('disconnected') ? "Device disconnected" :
+             "Select App..."}
           </option>
-        ))}
-      </select>
+          {dynamicApps.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.displayName}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 };
@@ -674,8 +685,15 @@ const MenuZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction: 
 
 // Pointer Zone - PointerPad with lighter theme styling
 const PointerZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction: (action: string, payload?: any) => void; className?: string }) => {
-  if (!zone?.content?.pointerPad || zone.isEmpty) {
-    return null; // Show/hide zone - completely hidden when empty
+  if (!zone?.content?.pointerPad || zone?.isEmpty) {
+    return (
+      <div className={cn("zone-pointer", className)}>
+        <span className="zone-legend">Pointer Pad</span>
+        <div className="zone-content pointer-content zone-empty">
+          Pointer Zone (Empty)
+        </div>
+      </div>
+    );
   }
 
   const { pointerPad } = zone.content;
@@ -694,11 +712,14 @@ const PointerZone = ({ zone, onAction, className }: { zone?: RemoteZone; onActio
 
   return (
     <div className={cn("zone-pointer", className)}>
-      <PointerPad
-        mode="relative"
-        onMove={handleMove}
-        className="bg-white/10 border border-white/20 rounded-lg"
-      />
+      <span className="zone-legend">Pointer Pad (relative)</span>
+      <div className="zone-content pointer-content">
+        <PointerPad
+          mode="relative"
+          onMove={handleMove}
+          className="w-full h-full bg-white/10 border border-white/20 rounded-lg"
+        />
+      </div>
     </div>
   );
 };
@@ -816,23 +837,19 @@ export function RemoteControlLayout({
             />
           </div>
 
-          {/* Apps Zone (⑤) - Show/Hide */}
-          {zones.apps && !zones.apps.isEmpty && (
-            <AppsZone
-              zone={zones.apps}
-              deviceStructure={deviceStructure}
-              className="zone-apps"
-            />
-          )}
+          {/* Apps Zone (⑤) - Always Present */}
+          <AppsZone
+            zone={zones.apps}
+            deviceStructure={deviceStructure}
+            className="zone-apps"
+          />
 
-          {/* Pointer Zone (⑥) - Show/Hide */}
-          {zones.pointer && !zones.pointer.isEmpty && (
-            <PointerZone
-              zone={zones.pointer}
-              onAction={handleActionWithPowerManagement}
-              className="zone-pointer"
-            />
-          )}
+          {/* Pointer Zone (⑥) - Always Present */}
+          <PointerZone
+            zone={zones.pointer}
+            onAction={handleActionWithPowerManagement}
+            className="zone-pointer"
+          />
         </div>
       </div>
 
@@ -843,8 +860,8 @@ export function RemoteControlLayout({
             /* Authentic Remote Control Appearance */
             width: 320px;
             max-width: 90vw;
-            min-height: 720px;
-            aspect-ratio: 4/9;
+            min-height: 850px;
+            aspect-ratio: 4/10.5;
             
             /* Dark Grey Metal Gradient */
             background: linear-gradient(135deg, 
@@ -909,15 +926,121 @@ export function RemoteControlLayout({
           }
 
           /* Zone Base Styling */
-          .zone-power,
-          .zone-media-stack,
-          .zone-apps,
-          .zone-pointer {
+          .zone-power {
             /* Show/Hide Zones */
             padding: 12px;
             border-radius: 12px;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
+          }
+
+          .zone-apps {
+            /* Show/Hide Zones with Legend Support */
+            position: relative;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 12px;
+          }
+
+          .zone-pointer {
+            /* Pointer Zone - Flex to fill remaining space */
+            position: relative;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 12px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+          }
+
+          .zone-media-stack {
+            /* Media Stack - No border, just container styling */
+            padding: 12px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+          }
+
+          /* Individual Media Stack Groups */
+          .media-stack-group {
+            /* Individual control groups within media stack */
+            position: relative;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 4px;
+            padding-top: 12px;
+          }
+
+          .media-stack-group:last-child {
+            margin-bottom: 0;
+          }
+
+          .media-stack-legend {
+            /* Label that breaks through the border */
+            position: absolute;
+            top: -6px;
+            left: 12px;
+            padding: 0 6px;
+            background: linear-gradient(135deg, 
+              #2a2a2a 0%, 
+              #1a1a1a 25%, 
+              #2a2a2a 50%, 
+              #1a1a1a 75%, 
+              #2a2a2a 100%
+            );
+            font-size: 10px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.7);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            z-index: 1;
+          }
+
+          .media-stack-content {
+            /* Content area inside the bordered group */
+            padding: 8px;
+          }
+
+          /* Generic Zone Legend Styling */
+          .zone-legend {
+            /* Label that breaks through the border for zone containers */
+            position: absolute;
+            top: -6px;
+            left: 12px;
+            padding: 0 6px;
+            background: linear-gradient(135deg, 
+              #2a2a2a 0%, 
+              #1a1a1a 25%, 
+              #2a2a2a 50%, 
+              #1a1a1a 75%, 
+              #2a2a2a 100%
+            );
+            font-size: 10px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.7);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            z-index: 1;
+          }
+
+          .zone-content {
+            /* Content area inside the bordered zone */
+            padding: 8px;
+          }
+
+          .pointer-content {
+            /* Pointer zone content should fill available space dynamically */
+            flex: 1;
+            min-height: 120px;
+            padding: 4px;
+          }
+
+          .pointer-content * {
+            /* Remove any selection indicators or focus outlines */
+            outline: none !important;
+            user-select: none;
           }
 
           .zone-screen,
@@ -1009,7 +1132,7 @@ export function RemoteControlLayout({
           @media (max-width: 640px) {
             .remote-control-container {
               width: 280px;
-              min-height: 630px;
+              min-height: 730px;
               padding: 12px;
               gap: 8px;
             }
@@ -1032,7 +1155,7 @@ export function RemoteControlLayout({
           @media (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
             .remote-control-container {
               width: 360px;
-              min-height: 810px;
+              min-height: 950px;
             }
             
             .central-control {
@@ -1049,4 +1172,4 @@ export function RemoteControlLayout({
       }} />
     </div>
   );
-} 
+}

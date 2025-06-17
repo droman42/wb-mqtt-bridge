@@ -97,32 +97,26 @@ function PointerPad({
   }, [isDragging, lastPosition]);
 
   return (
-    <div className={`space-y-2 ${className}`}>
-      <div className="flex items-center space-x-2">
-        <span className="text-sm font-medium">Pointer Pad</span>
-        <span className="text-xs text-muted-foreground">({mode})</span>
-      </div>
-      
-      <div
-        ref={padRef}
-        className={`
-          w-full h-48 bg-secondary rounded-lg border-2 border-dashed border-border
-          flex items-center justify-center cursor-pointer select-none
-          transition-colors duration-200
-          ${isDragging ? 'bg-primary/10 border-primary' : 'hover:bg-secondary/80'}
-        `}
-        onMouseDown={handleStart}
-        onTouchStart={handleStart}
-      >
-        {hintIcon !== false && (
-          <div className="flex flex-col items-center space-y-2 text-muted-foreground">
-            <Icon library="material" name="PanTool" size="lg" fallback="hand" className="h-8 w-8" />
-            <span className="text-sm">
-              {mode === 'relative' ? 'Drag to move cursor' : 'Touch to position'}
-            </span>
-          </div>
-        )}
-      </div>
+    <div
+      ref={padRef}
+      className={`
+        w-full h-full bg-secondary rounded-lg border-2 border-dashed border-border
+        flex items-center justify-center cursor-pointer select-none
+        transition-colors duration-200
+        ${isDragging ? 'bg-primary/10 border-primary' : 'hover:bg-secondary/80'}
+        ${className}
+      `}
+      onMouseDown={handleStart}
+      onTouchStart={handleStart}
+    >
+      {hintIcon !== false && (
+        <div className="flex flex-col items-center space-y-2 text-muted-foreground">
+          <Icon library="material" name="PanTool" size="lg" fallback="hand" className="h-8 w-8" />
+          <span className="text-sm">
+            {mode === 'relative' ? 'Drag to move cursor' : 'Touch to position'}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
