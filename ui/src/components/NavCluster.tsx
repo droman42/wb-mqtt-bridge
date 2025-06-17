@@ -48,7 +48,7 @@ function NavCluster({
   className
 }: NavClusterProps) {
   return (
-    <div className={cn("grid grid-cols-3 gap-2 w-48 h-48", className)}>
+    <div className={cn("grid grid-cols-3 gap-2 w-48 h-48 p-3 border border-white/10 rounded-lg bg-white/03", className)}>
       {/* Top Row */}
       <Button 
         variant="ghost" 
@@ -63,11 +63,11 @@ function NavCluster({
             library={aux1Action.icon.iconLibrary as 'material'} 
             name={aux1Action.icon.iconName} 
             fallback={aux1Action.icon.fallbackIcon} 
-            size="lg" 
-            className="h-8 w-8 text-white" 
+            size="lg"
+            className="!w-8 !h-8 text-white" 
           />
         ) : (
-          <Icon library="material" name="Home" size="lg" fallback="home" className="h-8 w-8 text-white" />
+          <Icon library="material" name="Home" fallback="home" size="lg" className="!w-8 !h-8 text-white" />
         )}
       </Button>
       
@@ -78,7 +78,7 @@ function NavCluster({
         className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onUp}
       >
-        <Icon library="material" name="KeyboardArrowUp" size="lg" fallback="arrow-up" className="h-8 w-8 text-white" />
+        <Icon library="material" name="KeyboardArrowUp" fallback="arrow-up" size="lg" className="!w-8 !h-8 text-white" />
       </Button>
       
       <Button 
@@ -94,11 +94,11 @@ function NavCluster({
             library={aux2Action.icon.iconLibrary as 'material'} 
             name={aux2Action.icon.iconName} 
             fallback={aux2Action.icon.fallbackIcon} 
-            size="lg" 
-            className="h-8 w-8 text-white" 
+            size="lg"
+            className="!w-8 !h-8 text-white" 
           />
         ) : (
-          <Icon library="material" name="Menu" size="lg" fallback="menu" className="h-8 w-8 text-white" />
+          <Icon library="material" name="Menu" fallback="menu" size="lg" className="!w-8 !h-8 text-white" />
         )}
       </Button>
 
@@ -110,7 +110,7 @@ function NavCluster({
         className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onLeft}
       >
-        <Icon library="material" name="KeyboardArrowLeft" size="lg" fallback="arrow-left" className="h-8 w-8 text-white" />
+        <Icon library="material" name="KeyboardArrowLeft" fallback="arrow-left" size="lg" className="!w-8 !h-8 text-white" />
       </Button>
       
       <Button 
@@ -120,7 +120,7 @@ function NavCluster({
         className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onOk}
       >
-        <Icon library="material" name="Check" size="lg" fallback="check" className="h-8 w-8 text-white" />
+        <Icon library="material" name="Check" fallback="check" size="lg" className="!w-8 !h-8 text-white" />
       </Button>
       
       <Button 
@@ -130,7 +130,7 @@ function NavCluster({
         className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onRight}
       >
-        <Icon library="material" name="KeyboardArrowRight" size="lg" fallback="arrow-right" className="h-8 w-8 text-white" />
+        <Icon library="material" name="KeyboardArrowRight" fallback="arrow-right" size="lg" className="!w-8 !h-8 text-white" />
       </Button>
 
       {/* Bottom Row */}
@@ -147,11 +147,11 @@ function NavCluster({
             library={aux3Action.icon.iconLibrary as 'material'} 
             name={aux3Action.icon.iconName} 
             fallback={aux3Action.icon.fallbackIcon} 
-            size="lg" 
-            className="h-8 w-8 text-white" 
+            size="lg"
+            className="!w-8 !h-8 text-white" 
           />
         ) : (
-          <Icon library="material" name="ArrowBack" size="lg" fallback="back" className="h-8 w-8 text-white" />
+          <Icon library="material" name="ArrowBack" fallback="back" size="lg" className="!w-8 !h-8 text-white" />
         )}
       </Button>
       
@@ -162,7 +162,7 @@ function NavCluster({
         className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onDown}
       >
-        <Icon library="material" name="KeyboardArrowDown" size="lg" fallback="arrow-down" className="h-8 w-8 text-white" />
+        <Icon library="material" name="KeyboardArrowDown" fallback="arrow-down" size="lg" className="!w-8 !h-8 text-white" />
       </Button>
       
       <Button 
@@ -178,11 +178,11 @@ function NavCluster({
             library={aux4Action.icon.iconLibrary as 'material'} 
             name={aux4Action.icon.iconName} 
             fallback={aux4Action.icon.fallbackIcon} 
-            size="lg" 
-            className="h-8 w-8 text-white" 
+            size="lg"
+            className="!w-8 !h-8 text-white" 
           />
         ) : (
-          <Icon library="material" name="ExitToApp" size="lg" fallback="exit" className="h-8 w-8 text-white" />
+          <Icon library="material" name="ExitToApp" fallback="exit" size="lg" className="!w-8 !h-8 text-white" />
         )}
       </Button>
     </div>

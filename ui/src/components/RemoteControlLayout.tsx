@@ -267,13 +267,15 @@ const ScreenZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction
             onClick={() => handleScreenAction(action)}
             className="h-10 w-10 justify-center bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
           >
-            <Icon
-              library={action.icon.iconLibrary as 'material'}
-              name={action.icon.iconName}
-              fallback={action.icon.fallbackIcon}
-              size="lg"
-              className="w-6 h-6 text-white"
-            />
+            <div className="w-6 h-6 text-white flex items-center justify-center">
+              <Icon
+                library={action.icon.iconLibrary as 'material'}
+                name={action.icon.iconName}
+                fallback={action.icon.fallbackIcon}
+                size="lg"
+                className="!w-6 !h-6 text-white"
+              />
+            </div>
           </Button>
         ))}
       </div>
@@ -1044,13 +1046,28 @@ export function RemoteControlLayout({
           }
 
           .zone-screen,
-          .zone-menu,
           .zone-volume {
             /* Always Present Zones */
             padding: 8px;
             border-radius: 8px;
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.08);
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            /* FIX: Maintain grid item constraints */
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+          }
+
+          .zone-menu {
+            /* Menu Zone - Enhanced border with extra padding to prevent button overlap */
+            padding: 16px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             min-height: 150px;
             display: flex;
             flex-direction: column;
@@ -1078,7 +1095,7 @@ export function RemoteControlLayout({
 
           .zone-screen {
             /* Screen Zone - Vertical button alignment */
-            align-items: flex-start;
+            align-items: center;
             /* FIX: Align left edge with inputs zone (left-to-left) */
             grid-column: 1;
             justify-self: stretch;
