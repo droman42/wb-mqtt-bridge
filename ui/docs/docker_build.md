@@ -780,15 +780,15 @@ npm run gen:device-pages -- --batch --mode=local --mapping-file=config/device-st
 
 ## Phase 2 Implementation Checklist
 
-- [ ] Create GitHub Actions workflow for ARM builds
-- [ ] Implement two-stage Dockerfile with nginx
-- [ ] Configure nginx for port 3000 and SPA routing
-- [ ] Update `device-state-mapping.json` with relative paths
+- [x] Create GitHub Actions workflow for ARM builds
+- [x] Implement two-stage Dockerfile with nginx
+- [x] Configure nginx for port 3000 and SPA routing
+- [x] Update `device-state-mapping.json` with relative paths
 - [ ] Test cross-repository checkout in GitHub Actions
 - [ ] Verify ARM v7 container builds and runs correctly
-- [ ] Create deployment documentation for Wirenboard 7
-- [ ] Set up GitHub artifacts publishing (compressed Docker images)
-- [ ] Add health checks and monitoring
+- [x] Create deployment documentation for Wirenboard 7
+- [x] Set up GitHub artifacts publishing (compressed Docker images)
+- [x] Add health checks and monitoring
 - [ ] Test full end-to-end deployment workflow
 
 ---

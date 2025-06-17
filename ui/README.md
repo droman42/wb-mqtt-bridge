@@ -114,25 +114,44 @@ After creating a prompt file, run `npm run gen` to generate the React component.
 
 ## Docker Deployment
 
-### Build and Deploy to Wirenboard
+### Automated ARM Builds (Phase 2)
+
+The project now supports automated ARM v7 Docker builds via GitHub Actions for Wirenboard 7 deployment:
 
 ```bash
-# Set environment variables
-export WIRENBOARD_HOST=192.168.1.100
-export WIRENBOARD_USER=root
+# Download latest build from GitHub Actions
+gh run download --repo YOUR_USERNAME/wb-mqtt-ui --name wb-mqtt-ui-image
 
-# Build and deploy
-./docker/build_and_push.sh
+# Deploy to Wirenboard 7
+gunzip wb-mqtt-ui.tar.gz
+docker load < wb-mqtt-ui.tar
+docker run -d --name wb-ui --restart unless-stopped -p 3000:3000 wb-mqtt-ui:latest
+
+# Access at http://WIRENBOARD_IP:3000
 ```
+
+**Key Features:**
+- ✅ **ARM v7 optimized** for Wirenboard 7
+- ✅ **GitHub artifacts** - no container registry needed
+- ✅ **Two-stage builds** - ~30MB final image (nginx:alpine)
+- ✅ **Port 3000** - avoids system nginx conflicts
+- ✅ **Automated device page generation** during build
+
+See [docs/deployment.md](docs/deployment.md) for complete deployment guide.
 
 ### Manual Docker Build
 
-```bash
-# Build image
-docker build -f docker/Dockerfile -t smart-home-ui-v2 .
+For local development and testing:
 
-# Run container
-docker run -d -p 3000:80 smart-home-ui-v2
+```bash
+# Clone config repo
+git clone https://github.com/YOUR_USERNAME/wb-mqtt-bridge.git
+
+# Build image locally
+docker build -t wb-mqtt-ui:local .
+
+# Run locally
+docker run -d --name wb-ui-local -p 3000:3000 wb-mqtt-ui:local
 ```
 
 ## Configuration

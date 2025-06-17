@@ -1,0 +1,54 @@
+name: Build ARM Docker Image
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout frontend repo
+      uses: actions/checkout@v4
+
+    - name: Checkout config repo (public)
+      uses: actions/checkout@v4
+      with:
+        repository: user/wb-mqtt-bridge  # Replace with actual public repo
+        path: wb-mqtt-bridge
+        ref: main
+
+    - name: Verify directory structure
+      run: |
+        echo "Build context structure:"
+        ls -la
+        echo "Config files found:"
+        ls -la wb-mqtt-bridge/config/devices/
+        echo "Python schemas:"
+        ls -la wb-mqtt-bridge/app/
+        echo "Total config files: $(ls wb-mqtt-bridge/config/devices/*.json | wc -l)"
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build ARM Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/arm/v7
+        tags: wb-mqtt-ui:latest
+        outputs: type=docker,dest=/tmp/wb-mqtt-ui.tar
+
+    - name: Compress Docker image
+      run: |
+        gzip /tmp/wb-mqtt-ui.tar
+
+    - name: Upload Docker image artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: wb-mqtt-ui-image
+        path: /tmp/wb-mqtt-ui.tar.gz
+        retention-days: 30 
