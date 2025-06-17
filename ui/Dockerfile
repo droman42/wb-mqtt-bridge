@@ -1,5 +1,5 @@
-# Stage 1: Build Stage (latest Node.js for best performance, regular image for compatibility)
-FROM node:24 as builder
+# Stage 1: Build Stage (Node.js 20 for ARM compatibility)
+FROM node:20 AS builder
 
 WORKDIR /app
 
