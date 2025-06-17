@@ -23,7 +23,8 @@ RUN echo "Verifying config structure:" && \
 RUN npm run gen:device-pages -- \
     --batch \
     --mode=local \
-    --mapping-file=config/device-state-mapping.json
+    --mapping-file=config/device-state-mapping.json \
+    --generate-router
 
 # Build static assets
 RUN npm run build
