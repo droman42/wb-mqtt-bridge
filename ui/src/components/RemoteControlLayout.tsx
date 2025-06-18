@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { cn } from '../lib/utils';
 import { Button } from './ui/button';
 import NavCluster from './NavCluster';
@@ -6,6 +6,7 @@ import PointerPad from './PointerPad';
 import { Icon } from './icons';
 import type { RemoteZone, RemoteDeviceStructure, PowerButtonConfig, VolumeButtonConfig } from '../types/RemoteControlLayout';
 import { useInputsData, useAppsData, useInputSelection, useAppLaunching } from '../hooks/useRemoteControlData';
+import { useDeviceState as useDeviceStateQuery } from '../hooks/useApi';
 
 // Power Zone - 3-button layout with EMotiva special case
 const PowerZone = ({ zone, onAction, className, isActionPending = false, lastAction }: { zone?: RemoteZone; onAction: (action: string, payload?: any) => void; className?: string; isActionPending?: boolean; lastAction?: string }) => {
@@ -364,8 +365,11 @@ const ScreenZone = ({ zone, onAction, className, isActionPending = false, lastAc
 };
 
 // Volume Zone - Priority-based (slider vs buttons) with vertical orientation
-const VolumeZone = ({ zone, onAction, className, isActionPending = false, lastAction }: { zone?: RemoteZone; onAction: (action: string, payload?: any) => void; className?: string; isActionPending?: boolean; lastAction?: string }) => {
+const VolumeZone = ({ zone, deviceStructure, onAction, className, isActionPending = false, lastAction }: { zone?: RemoteZone; deviceStructure: RemoteDeviceStructure; onAction: (action: string, payload?: any) => void; className?: string; isActionPending?: boolean; lastAction?: string }) => {
   const [isDragging, setIsDragging] = useState(false);
+  
+  // Get device state for volume synchronization
+  const { data: deviceState } = useDeviceStateQuery(deviceStructure.deviceId);
   
   // Get volume range from device configuration (with fallback)
   const getVolumeRange = () => {
@@ -383,7 +387,46 @@ const VolumeZone = ({ zone, onAction, className, isActionPending = false, lastAc
   };
 
   const volumeRange = getVolumeRange();
-  const [volume, setVolume] = useState(volumeRange.default);
+  
+  // Helper function to get the volume value from device state
+  const getVolumeFromDeviceState = useCallback((): number | null => {
+    if (!deviceState) return null;
+    
+    // Check for different volume field names based on device type
+    const deviceStateTyped = deviceState as any;
+    const deviceClass = deviceStructure.deviceClass;
+    
+    // Device-specific volume field mapping
+    if (deviceClass === 'EMotivaXMC2') {
+      // EMotivaXMC2 volume slider manages zone2Volume
+      if (typeof deviceStateTyped.zone2Volume === 'number') {
+        return deviceStateTyped.zone2Volume;
+      }
+    } else {
+      // For other devices, try common volume field names
+      if (typeof deviceStateTyped.volume === 'number') {
+        return deviceStateTyped.volume;
+      }
+      if (typeof deviceStateTyped.mainVolume === 'number') {
+        return deviceStateTyped.mainVolume;
+      }
+    }
+    
+    return null;
+  }, [deviceState, deviceStructure.deviceClass]);
+
+  // Initialize volume state with device state if available, otherwise use default
+  const deviceVolume = getVolumeFromDeviceState();
+  const [volume, setVolume] = useState(deviceVolume ?? volumeRange.default);
+
+  // Update volume state when device state changes
+  useEffect(() => {
+    const deviceVolume = getVolumeFromDeviceState();
+    if (deviceVolume !== null && !isDragging) {
+      // Only update if not currently dragging to avoid conflicts
+      setVolume(deviceVolume);
+    }
+  }, [deviceState, isDragging, getVolumeFromDeviceState]);
 
   if (!zone?.content || zone.isEmpty) {
     return (
@@ -960,6 +1003,7 @@ export function RemoteControlLayout({
             {/* Volume Zone (④) - Always Present (Right) */}
             <VolumeZone
               zone={zones.volume}
+              deviceStructure={deviceStructure}
               onAction={handleAction}
               className="zone-volume"
               isActionPending={isActionPending}
