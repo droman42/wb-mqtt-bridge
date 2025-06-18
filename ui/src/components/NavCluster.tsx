@@ -56,7 +56,7 @@ function NavCluster({
         onClick={onAux1}
         className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onAux1}
-        title={aux1Action?.displayName || 'Home'}
+        title={aux1Action?.description || aux1Action?.displayName || 'Home'}
       >
         {aux1Action ? (
           <Icon 
@@ -77,6 +77,7 @@ function NavCluster({
         onClick={onUp}
         className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onUp}
+        title="Navigate Up"
       >
         <Icon library="material" name="KeyboardArrowUp" fallback="arrow-up" size="lg" className="!w-8 !h-8 text-white" />
       </Button>
@@ -87,7 +88,7 @@ function NavCluster({
         onClick={onAux2}
         className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onAux2}
-        title={aux2Action?.displayName || 'Menu'}
+        title={aux2Action?.description || aux2Action?.displayName || 'Menu'}
       >
         {aux2Action ? (
           <Icon 
@@ -109,6 +110,7 @@ function NavCluster({
         onClick={onLeft}
         className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onLeft}
+        title="Navigate Left"
       >
         <Icon library="material" name="KeyboardArrowLeft" fallback="arrow-left" size="lg" className="!w-8 !h-8 text-white" />
       </Button>
@@ -119,6 +121,7 @@ function NavCluster({
         onClick={onOk}
         className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onOk}
+        title="Select / OK"
       >
         <Icon library="material" name="Check" fallback="check" size="lg" className="!w-8 !h-8 text-white" />
       </Button>
@@ -129,6 +132,7 @@ function NavCluster({
         onClick={onRight}
         className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onRight}
+        title="Navigate Right"
       >
         <Icon library="material" name="KeyboardArrowRight" fallback="arrow-right" size="lg" className="!w-8 !h-8 text-white" />
       </Button>
@@ -140,7 +144,7 @@ function NavCluster({
         onClick={onAux3}
         className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onAux3}
-        title={aux3Action?.displayName || 'Back'}
+        title={aux3Action?.description || aux3Action?.displayName || 'Back'}
       >
         {aux3Action ? (
           <Icon 
@@ -161,6 +165,7 @@ function NavCluster({
         onClick={onDown}
         className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onDown}
+        title="Navigate Down"
       >
         <Icon library="material" name="KeyboardArrowDown" fallback="arrow-down" size="lg" className="!w-8 !h-8 text-white" />
       </Button>
@@ -171,7 +176,7 @@ function NavCluster({
         onClick={onAux4}
         className="h-14 w-14 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
         disabled={!onAux4}
-        title={aux4Action?.displayName || 'Exit'}
+        title={aux4Action?.description || aux4Action?.displayName || 'Exit'}
       >
         {aux4Action ? (
           <Icon 

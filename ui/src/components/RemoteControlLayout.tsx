@@ -41,6 +41,7 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false }: { zone?: R
           onClick={() => handlePowerAction(leftButton)}
           disabled={isDisabled}
           className="h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
+          title={leftButton.action.description || leftButton.action.displayName}
         >
           <Icon
             library={leftButton.action.icon.iconLibrary as 'material'}
@@ -62,6 +63,7 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false }: { zone?: R
           onClick={() => handlePowerAction(middleButton)}
           disabled={isDisabled}
           className="h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
+          title={middleButton.action.description || middleButton.action.displayName}
         >
           <Icon
             library={middleButton.action.icon.iconLibrary as 'material'}
@@ -83,6 +85,7 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false }: { zone?: R
           onClick={() => handlePowerAction(rightButton)}
           disabled={isDisabled}
           className="h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
+          title={rightButton.action.description || rightButton.action.displayName}
         >
           <Icon
             library={rightButton.action.icon.iconLibrary as 'material'}
@@ -194,6 +197,7 @@ const MediaStackZone = ({ zone, deviceStructure, onAction, className, isDisabled
                   onClick={() => handlePlaybackAction(action)}
                   disabled={isDisabled}
                   className="h-10 px-2 flex-1 min-w-fit bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
+                  title={action.description || action.displayName}
                 >
                   <Icon
                     library={action.icon.iconLibrary as 'material'}
@@ -222,6 +226,7 @@ const MediaStackZone = ({ zone, deviceStructure, onAction, className, isDisabled
                   size="sm"
                   onClick={() => handlePlaybackAction(action)}
                   className="h-10 px-2 flex-1 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
+                  title={action.description || action.displayName}
                 >
                   <Icon
                     library={action.icon.iconLibrary as 'material'}
@@ -266,6 +271,7 @@ const ScreenZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction
             size="sm"
             onClick={() => handleScreenAction(action)}
             className="h-10 w-10 justify-center bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
+            title={action.description || action.displayName}
           >
             <div className="w-6 h-6 text-white flex items-center justify-center">
               <Icon
@@ -521,6 +527,7 @@ const VolumeZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction
               size="sm"
               onClick={() => handleVolumeButton(buttons.upAction)}
               className="h-10 w-12 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
+              title={buttons.upAction.description || buttons.upAction.displayName || "Volume Up"}
             >
               <Icon
                 library={buttons.upAction.icon.iconLibrary as 'material'}
@@ -539,6 +546,7 @@ const VolumeZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction
               size="sm"
               onClick={() => handleVolumeButton(buttons.downAction)}
               className="h-10 w-12 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
+              title={buttons.downAction.description || buttons.downAction.displayName || "Volume Down"}
             >
               <Icon
                 library={buttons.downAction.icon.iconLibrary as 'material'}
@@ -557,6 +565,7 @@ const VolumeZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction
               size="sm"
               onClick={() => handleVolumeButton(buttons.muteAction)}
               className="h-10 w-12 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
+              title={buttons.muteAction.description || buttons.muteAction.displayName || "Mute"}
             >
               <Icon
                 library={buttons.muteAction.icon.iconLibrary as 'material'}

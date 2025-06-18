@@ -251,12 +251,6 @@ export class ZoneDetection {
     
     const isEmpty = menuGroups.length === 0;
 
-    // Check if device has volume slider to avoid duplicate volume controls
-    const hasVolumeSlider = actions.some(action => 
-      action.actionName.toLowerCase().includes('set_volume') &&
-      action.parameters.some(param => param.type === 'range')
-    );
-
     // Helper to find navigation actions within menu group actions only
     const findMenuNavAction = (pattern: string) => {
       const menuAction = menuActions.find(a => {
@@ -264,14 +258,14 @@ export class ZoneDetection {
         return actionName.includes(pattern) || actionName === pattern;
       });
       
-      // If menu groups don't have the action, look in all actions BUT exclude volume actions if volume slider exists
+      // If menu groups don't have the action, look in all actions BUT NEVER map volume actions to navigation
       if (!menuAction) {
         return actions.find(a => {
           const actionName = a.actionName.toLowerCase();
           const isVolumeAction = actionName.includes('volume');
           
-          // If device has volume slider, don't map volume actions to navigation
-          if (hasVolumeSlider && isVolumeAction) {
+          // NEVER map volume actions to navigation - they belong in volume zone
+          if (isVolumeAction) {
             return false;
           }
           

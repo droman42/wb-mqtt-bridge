@@ -62,7 +62,7 @@ export default ${this.formatComponentName(structure.deviceId)}Page;
   private formatComponentName(deviceId: string): string {
     return deviceId
       .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join('');
   }
 } 
