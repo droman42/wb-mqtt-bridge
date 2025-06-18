@@ -618,6 +618,7 @@ class BaseDevice(ABC, Generic[StateT]):
         Auto-detect the broadcast IP address for the local network.
         
         Prefers non-virtual, active network interfaces and filters out loopback.
+        Detects Docker bridge networks and warns about their limitations.
         Falls back to global broadcast (255.255.255.255) if detection fails.
         
         Returns:
@@ -629,6 +630,7 @@ class BaseDevice(ABC, Generic[StateT]):
             
             # Collect potential broadcast addresses with priority scoring
             candidates = []
+            docker_bridge_detected = False
             
             for iface_name, iface_addrs in psutil.net_if_addrs().items():
                 # Skip loopback interfaces
@@ -645,18 +647,33 @@ class BaseDevice(ABC, Generic[StateT]):
                     if addr.family == AF_INET and addr.broadcast:
                         # Calculate priority score (higher is better)
                         priority = 0
+                        ip_addr = addr.address
                         
-                        # Prefer ethernet/wifi interfaces
-                        if any(keyword in iface_name.lower() for keyword in ['eth', 'en', 'wlan', 'wifi']):
+                        # Detect Docker bridge networks (common ranges: 172.17.x.x, 172.18.x.x, etc.)
+                        is_docker_bridge = (
+                            iface_name.startswith('eth') and 
+                            ip_addr.startswith('172.') and 
+                            any(ip_addr.startswith(f'172.{subnet}.') for subnet in range(16, 32))
+                        )
+                        
+                        if is_docker_bridge:
+                            docker_bridge_detected = True
+                            # Significantly penalize Docker bridge networks
+                            priority -= 20
+                            logger.warning(f"Detected Docker bridge network on {iface_name} ({ip_addr}). "
+                                         f"Broadcast to {addr.broadcast} may not reach devices outside the container. "
+                                         f"Consider using host networking or specifying the host's broadcast IP.")
+                        
+                        # Prefer ethernet/wifi interfaces (but not if they're Docker bridges)
+                        if any(keyword in iface_name.lower() for keyword in ['eth', 'en', 'wlan', 'wifi']) and not is_docker_bridge:
                             priority += 10
                         
                         # Penalize virtual/tunnel interfaces
-                        if any(keyword in iface_name.lower() for keyword in ['tun', 'tap', 'vpn', 'vbox', 'vmware']):
+                        if any(keyword in iface_name.lower() for keyword in ['tun', 'tap', 'vpn', 'vbox', 'vmware', 'docker']):
                             priority -= 5
                         
-                        # Prefer interfaces with typical private network ranges
-                        ip_addr = addr.address
-                        if ip_addr.startswith(('192.168.', '10.', '172.')):
+                        # Prefer interfaces with typical private network ranges (but not Docker bridges)
+                        if ip_addr.startswith(('192.168.', '10.')) or (ip_addr.startswith('172.') and not is_docker_bridge):
                             priority += 5
                         
                         candidates.append((priority, addr.broadcast, iface_name, ip_addr))
@@ -665,6 +682,12 @@ class BaseDevice(ABC, Generic[StateT]):
                 # Sort by priority (highest first) and return the best broadcast address
                 candidates.sort(key=lambda x: x[0], reverse=True)
                 best_candidate = candidates[0]
+                
+                # Additional warning if we're using a Docker bridge despite detection
+                if docker_bridge_detected and best_candidate[3].startswith('172.') and any(best_candidate[3].startswith(f'172.{subnet}.') for subnet in range(16, 32)):
+                    logger.warning(f"Using Docker bridge broadcast IP {best_candidate[1]} - WOL packets may not reach external devices. "
+                                 f"For WOL to work with external devices, use --network=host or provide the host's broadcast IP explicitly.")
+                
                 logger.debug(f"Auto-detected broadcast IP: {best_candidate[1]} from interface {best_candidate[2]} ({best_candidate[3]})")
                 return best_candidate[1]
             
