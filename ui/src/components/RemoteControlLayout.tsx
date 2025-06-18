@@ -9,7 +9,7 @@ import { useInputsData, useAppsData, useInputSelection, useAppLaunching } from '
 import { usePowerManagement } from '../hooks/usePowerManagement';
 
 // Power Zone - 3-button layout with EMotiva special case
-const PowerZone = ({ zone, onAction, className, isDisabled = false }: { zone?: RemoteZone; onAction: (action: string, payload?: any) => void; className?: string; isDisabled?: boolean }) => {
+const PowerZone = ({ zone, onAction, className, isDisabled = false, isActionPending = false, lastAction }: { zone?: RemoteZone; onAction: (action: string, payload?: any) => void; className?: string; isDisabled?: boolean; isActionPending?: boolean; lastAction?: string }) => {
   if (!zone?.content?.powerButtons || zone.isEmpty) {
     return (
       <div className={cn("zone-empty", className)}>
@@ -39,17 +39,27 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false }: { zone?: R
           variant="ghost"
           size="sm"
           onClick={() => handlePowerAction(leftButton)}
-          disabled={isDisabled}
+          disabled={isDisabled || isActionPending}
           className="h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
           title={leftButton.action.description || leftButton.action.displayName}
         >
-          <Icon
-            library={leftButton.action.icon.iconLibrary as 'material'}
-            name={leftButton.action.icon.iconName}
-            fallback={leftButton.action.icon.fallbackIcon}
-            size="lg"
-            className="w-4 h-4 text-white"
-          />
+          {isActionPending && lastAction === leftButton.action.actionName ? (
+            <Icon
+              library="material"
+              name="Refresh"
+              fallback="loading"
+              size="lg"
+              className="w-4 h-4 text-white animate-spin"
+            />
+          ) : (
+            <Icon
+              library={leftButton.action.icon.iconLibrary as 'material'}
+              name={leftButton.action.icon.iconName}
+              fallback={leftButton.action.icon.fallbackIcon}
+              size="lg"
+              className="w-4 h-4 text-white"
+            />
+          )}
         </Button>
       ) : (
         <div></div>
@@ -61,17 +71,27 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false }: { zone?: R
           variant="ghost"
           size="sm"
           onClick={() => handlePowerAction(middleButton)}
-          disabled={isDisabled}
+          disabled={isDisabled || isActionPending}
           className="h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
           title={middleButton.action.description || middleButton.action.displayName}
         >
-          <Icon
-            library={middleButton.action.icon.iconLibrary as 'material'}
-            name={middleButton.action.icon.iconName}
-            fallback={middleButton.action.icon.fallbackIcon}
-            size="lg"
-            className="w-4 h-4 text-white"
-          />
+          {isActionPending && lastAction === middleButton.action.actionName ? (
+            <Icon
+              library="material"
+              name="Refresh"
+              fallback="loading"
+              size="lg"
+              className="w-4 h-4 text-white animate-spin"
+            />
+          ) : (
+            <Icon
+              library={middleButton.action.icon.iconLibrary as 'material'}
+              name={middleButton.action.icon.iconName}
+              fallback={middleButton.action.icon.fallbackIcon}
+              size="lg"
+              className="w-4 h-4 text-white"
+            />
+          )}
         </Button>
       ) : (
         <div></div>
@@ -83,17 +103,27 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false }: { zone?: R
           variant="ghost"
           size="sm"
           onClick={() => handlePowerAction(rightButton)}
-          disabled={isDisabled}
+          disabled={isDisabled || isActionPending}
           className="h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
           title={rightButton.action.description || rightButton.action.displayName}
         >
-          <Icon
-            library={rightButton.action.icon.iconLibrary as 'material'}
-            name={rightButton.action.icon.iconName}
-            fallback={rightButton.action.icon.fallbackIcon}
-            size="lg"
-            className="w-4 h-4 text-white"
-          />
+          {isActionPending && lastAction === rightButton.action.actionName ? (
+            <Icon
+              library="material"
+              name="Refresh"
+              fallback="loading"
+              size="lg"
+              className="w-4 h-4 text-white animate-spin"
+            />
+          ) : (
+            <Icon
+              library={rightButton.action.icon.iconLibrary as 'material'}
+              name={rightButton.action.icon.iconName}
+              fallback={rightButton.action.icon.fallbackIcon}
+              size="lg"
+              className="w-4 h-4 text-white"
+            />
+          )}
         </Button>
       ) : (
         <div></div>
@@ -103,12 +133,14 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false }: { zone?: R
 };
 
 // Media Stack Zone - INPUTS, PLAYBACK, TRACKS sections
-const MediaStackZone = ({ zone, deviceStructure, onAction, className, isDisabled = false }: { 
+const MediaStackZone = ({ zone, deviceStructure, onAction, className, isDisabled = false, isActionPending = false, lastAction }: { 
   zone?: RemoteZone; 
   deviceStructure: RemoteDeviceStructure;
   onAction: (action: string, payload?: any) => void; 
   className?: string;
   isDisabled?: boolean;
+  isActionPending?: boolean;
+  lastAction?: string;
 }) => {
   // Use dynamic input data hooks
   const { inputs: dynamicInputs, loading: inputsLoading, error: inputsError } = useInputsData(deviceStructure);
@@ -195,17 +227,27 @@ const MediaStackZone = ({ zone, deviceStructure, onAction, className, isDisabled
                   variant="ghost"
                   size="sm"
                   onClick={() => handlePlaybackAction(action)}
-                  disabled={isDisabled}
+                  disabled={isDisabled || isActionPending}
                   className="h-10 px-2 flex-1 min-w-fit bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
                   title={action.description || action.displayName}
                 >
-                  <Icon
-                    library={action.icon.iconLibrary as 'material'}
-                    name={action.icon.iconName}
-                    fallback={action.icon.fallbackIcon}
-                    size="lg"
-                    className="w-5 h-5 text-white"
-                  />
+                  {isActionPending && lastAction === action.actionName ? (
+                    <Icon
+                      library="material"
+                      name="Refresh"
+                      fallback="loading"
+                      size="lg"
+                      className="w-5 h-5 text-white animate-spin"
+                    />
+                  ) : (
+                    <Icon
+                      library={action.icon.iconLibrary as 'material'}
+                      name={action.icon.iconName}
+                      fallback={action.icon.fallbackIcon}
+                      size="lg"
+                      className="w-5 h-5 text-white"
+                    />
+                  )}
                 </Button>
               ))}
             </div>
@@ -225,16 +267,27 @@ const MediaStackZone = ({ zone, deviceStructure, onAction, className, isDisabled
                   variant="ghost"
                   size="sm"
                   onClick={() => handlePlaybackAction(action)}
+                  disabled={isDisabled || isActionPending}
                   className="h-10 px-2 flex-1 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
                   title={action.description || action.displayName}
                 >
-                  <Icon
-                    library={action.icon.iconLibrary as 'material'}
-                    name={action.icon.iconName}
-                    fallback={action.icon.fallbackIcon}
-                    size="lg"
-                    className="w-5 h-5 text-white"
-                  />
+                  {isActionPending && lastAction === action.actionName ? (
+                    <Icon
+                      library="material"
+                      name="Refresh"
+                      fallback="loading"
+                      size="lg"
+                      className="w-5 h-5 text-white animate-spin"
+                    />
+                  ) : (
+                    <Icon
+                      library={action.icon.iconLibrary as 'material'}
+                      name={action.icon.iconName}
+                      fallback={action.icon.fallbackIcon}
+                      size="lg"
+                      className="w-5 h-5 text-white"
+                    />
+                  )}
                 </Button>
               ))}
             </div>
@@ -246,7 +299,7 @@ const MediaStackZone = ({ zone, deviceStructure, onAction, className, isDisabled
 };
 
 // Screen Zone - Vertical button alignment
-const ScreenZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction: (action: string, payload?: any) => void; className?: string }) => {
+const ScreenZone = ({ zone, onAction, className, isActionPending = false, lastAction }: { zone?: RemoteZone; onAction: (action: string, payload?: any) => void; className?: string; isActionPending?: boolean; lastAction?: string }) => {
   if (!zone?.content?.screenActions || zone.isEmpty) {
     return (
       <div className={cn("zone-empty", className)}>
@@ -270,17 +323,28 @@ const ScreenZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction
             variant="ghost"
             size="sm"
             onClick={() => handleScreenAction(action)}
+            disabled={isActionPending}
             className="h-10 w-10 justify-center bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
             title={action.description || action.displayName}
           >
             <div className="w-6 h-6 text-white flex items-center justify-center">
-              <Icon
-                library={action.icon.iconLibrary as 'material'}
-                name={action.icon.iconName}
-                fallback={action.icon.fallbackIcon}
-                size="lg"
-                className="!w-6 !h-6 text-white"
-              />
+              {isActionPending && lastAction === action.actionName ? (
+                <Icon
+                  library="material"
+                  name="Refresh"
+                  fallback="loading"
+                  size="lg"
+                  className="!w-6 !h-6 text-white animate-spin"
+                />
+              ) : (
+                <Icon
+                  library={action.icon.iconLibrary as 'material'}
+                  name={action.icon.iconName}
+                  fallback={action.icon.fallbackIcon}
+                  size="lg"
+                  className="!w-6 !h-6 text-white"
+                />
+              )}
             </div>
           </Button>
         ))}
@@ -290,7 +354,7 @@ const ScreenZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction
 };
 
 // Volume Zone - Priority-based (slider vs buttons) with vertical orientation
-const VolumeZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction: (action: string, payload?: any) => void; className?: string }) => {
+const VolumeZone = ({ zone, onAction, className, isActionPending = false, lastAction }: { zone?: RemoteZone; onAction: (action: string, payload?: any) => void; className?: string; isActionPending?: boolean; lastAction?: string }) => {
   const [isDragging, setIsDragging] = useState(false);
   
   // Get volume range from device configuration (with fallback)
@@ -498,15 +562,26 @@ const VolumeZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction
               variant="ghost"
               size="sm"
               onClick={() => handleVolumeButton(volumeSlider.muteAction)}
+              disabled={isActionPending}
               className="h-8 w-12 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
             >
-              <Icon
-                library={volumeSlider.muteAction.icon.iconLibrary as 'material'}
-                name={volumeSlider.muteAction.icon.iconName}
-                fallback={volumeSlider.muteAction.icon.fallbackIcon}
-                size="lg"
-                className="w-4 h-4 text-white"
-              />
+              {isActionPending && lastAction === volumeSlider.muteAction.actionName ? (
+                <Icon
+                  library="material"
+                  name="Refresh"
+                  fallback="loading"
+                  size="lg"
+                  className="w-4 h-4 text-white animate-spin"
+                />
+              ) : (
+                <Icon
+                  library={volumeSlider.muteAction.icon.iconLibrary as 'material'}
+                  name={volumeSlider.muteAction.icon.iconName}
+                  fallback={volumeSlider.muteAction.icon.fallbackIcon}
+                  size="lg"
+                  className="w-4 h-4 text-white"
+                />
+              )}
             </Button>
           )}
         </div>
@@ -526,16 +601,27 @@ const VolumeZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction
               variant="ghost"
               size="sm"
               onClick={() => handleVolumeButton(buttons.upAction)}
+              disabled={isActionPending}
               className="h-10 w-12 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
               title={buttons.upAction.description || buttons.upAction.displayName || "Volume Up"}
             >
-              <Icon
-                library={buttons.upAction.icon.iconLibrary as 'material'}
-                name={buttons.upAction.icon.iconName}
-                fallback={buttons.upAction.icon.fallbackIcon}
-                size="lg"
-                className="w-5 h-5 text-white"
-              />
+              {isActionPending && lastAction === buttons.upAction.actionName ? (
+                <Icon
+                  library="material"
+                  name="Refresh"
+                  fallback="loading"
+                  size="lg"
+                  className="w-5 h-5 text-white animate-spin"
+                />
+              ) : (
+                <Icon
+                  library={buttons.upAction.icon.iconLibrary as 'material'}
+                  name={buttons.upAction.icon.iconName}
+                  fallback={buttons.upAction.icon.fallbackIcon}
+                  size="lg"
+                  className="w-5 h-5 text-white"
+                />
+              )}
             </Button>
           )}
 
@@ -545,16 +631,27 @@ const VolumeZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction
               variant="ghost"
               size="sm"
               onClick={() => handleVolumeButton(buttons.downAction)}
+              disabled={isActionPending}
               className="h-10 w-12 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
               title={buttons.downAction.description || buttons.downAction.displayName || "Volume Down"}
             >
-              <Icon
-                library={buttons.downAction.icon.iconLibrary as 'material'}
-                name={buttons.downAction.icon.iconName}
-                fallback={buttons.downAction.icon.fallbackIcon}
-                size="lg"
-                className="w-5 h-5 text-white"
-              />
+              {isActionPending && lastAction === buttons.downAction.actionName ? (
+                <Icon
+                  library="material"
+                  name="Refresh"
+                  fallback="loading"
+                  size="lg"
+                  className="w-5 h-5 text-white animate-spin"
+                />
+              ) : (
+                <Icon
+                  library={buttons.downAction.icon.iconLibrary as 'material'}
+                  name={buttons.downAction.icon.iconName}
+                  fallback={buttons.downAction.icon.fallbackIcon}
+                  size="lg"
+                  className="w-5 h-5 text-white"
+                />
+              )}
             </Button>
           )}
 
@@ -564,16 +661,27 @@ const VolumeZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction
               variant="ghost"
               size="sm"
               onClick={() => handleVolumeButton(buttons.muteAction)}
+              disabled={isActionPending}
               className="h-10 w-12 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
               title={buttons.muteAction.description || buttons.muteAction.displayName || "Mute"}
             >
-              <Icon
-                library={buttons.muteAction.icon.iconLibrary as 'material'}
-                name={buttons.muteAction.icon.iconName}
-                fallback={buttons.muteAction.icon.fallbackIcon}
-                size="lg"
-                className="w-5 h-5 text-white"
-              />
+              {isActionPending && lastAction === buttons.muteAction.actionName ? (
+                <Icon
+                  library="material"
+                  name="Refresh"
+                  fallback="loading"
+                  size="lg"
+                  className="w-5 h-5 text-white animate-spin"
+                />
+              ) : (
+                <Icon
+                  library={buttons.muteAction.icon.iconLibrary as 'material'}
+                  name={buttons.muteAction.icon.iconName}
+                  fallback={buttons.muteAction.icon.fallbackIcon}
+                  size="lg"
+                  className="w-5 h-5 text-white"
+                />
+              )}
             </Button>
           )}
         </div>
@@ -657,7 +765,7 @@ const AppsZone = ({ zone, deviceStructure, className }: {
 };
 
 // Menu Navigation Zone - NavCluster integration with styling adjustments
-const MenuZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction: (action: string, payload?: any) => void; className?: string }) => {
+const MenuZone = ({ zone, onAction, className, isActionPending = false, lastAction }: { zone?: RemoteZone; onAction: (action: string, payload?: any) => void; className?: string; isActionPending?: boolean; lastAction?: string }) => {
   if (!zone?.content?.navigationCluster) {
     return (
       <div className={cn("zone-empty", className)}>
@@ -695,7 +803,7 @@ const MenuZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction: 
 };
 
 // Pointer Zone - PointerPad with lighter theme styling
-const PointerZone = ({ zone, onAction, className }: { zone?: RemoteZone; onAction: (action: string, payload?: any) => void; className?: string }) => {
+const PointerZone = ({ zone, onAction, className, isActionPending = false, lastAction }: { zone?: RemoteZone; onAction: (action: string, payload?: any) => void; className?: string; isActionPending?: boolean; lastAction?: string }) => {
   if (!zone?.content?.pointerPad || zone?.isEmpty) {
     return (
       <div className={cn("zone-pointer", className)}>
@@ -738,12 +846,18 @@ const PointerZone = ({ zone, onAction, className }: { zone?: RemoteZone; onActio
 interface RemoteControlLayoutProps {
   deviceStructure: RemoteDeviceStructure;
   onAction: (actionName: string, payload?: any) => void;
+  isActionPending?: boolean;
+  actionError?: Error | null;
+  lastAction?: string;
   className?: string;
 }
 
 export function RemoteControlLayout({ 
   deviceStructure, 
   onAction, 
+  isActionPending = false,
+  actionError,
+  lastAction,
   className 
 }: RemoteControlLayoutProps) {
   const { deviceName, remoteZones, deviceId } = deviceStructure;
@@ -810,6 +924,8 @@ export function RemoteControlLayout({
               onAction={handleActionWithPowerManagement}
               className="zone-power"
               isDisabled={isControlDisabled}
+              isActionPending={isActionPending}
+              lastAction={lastAction}
             />
           )}
 
@@ -821,6 +937,8 @@ export function RemoteControlLayout({
               onAction={handleActionWithPowerManagement}
               className="zone-media-stack"
               isDisabled={isControlDisabled}
+              isActionPending={isActionPending}
+              lastAction={lastAction}
             />
           )}
 
@@ -831,6 +949,8 @@ export function RemoteControlLayout({
               zone={zones.screen}
               onAction={handleActionWithPowerManagement}
               className="zone-screen"
+              isActionPending={isActionPending}
+              lastAction={lastAction}
             />
 
             {/* Menu Navigation Zone (⑦) - Always Present (Center) */}
@@ -838,6 +958,8 @@ export function RemoteControlLayout({
               zone={zones.menu}
               onAction={handleActionWithPowerManagement}
               className="zone-menu"
+              isActionPending={isActionPending}
+              lastAction={lastAction}
             />
 
             {/* Volume Zone (④) - Always Present (Right) */}
@@ -845,6 +967,8 @@ export function RemoteControlLayout({
               zone={zones.volume}
               onAction={handleActionWithPowerManagement}
               className="zone-volume"
+              isActionPending={isActionPending}
+              lastAction={lastAction}
             />
           </div>
 
@@ -860,6 +984,8 @@ export function RemoteControlLayout({
             zone={zones.pointer}
             onAction={handleActionWithPowerManagement}
             className="zone-pointer"
+            isActionPending={isActionPending}
+            lastAction={lastAction}
           />
         </div>
       </div>

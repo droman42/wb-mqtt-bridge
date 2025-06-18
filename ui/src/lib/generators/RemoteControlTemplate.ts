@@ -27,14 +27,19 @@ function ${this.formatComponentName(structure.deviceId)}Page() {
   }, [selectDevice]);
 
   const handleAction = (action: string, payload?: any) => {
+    // Convert payload to proper params format: ensure it's an object, not an array
+    const params = payload === undefined || payload === null || Array.isArray(payload) && payload.length === 0 
+      ? {} 
+      : payload;
+    
     executeAction.mutate({ 
       deviceId: '${structure.deviceId}', 
-      action: { action: action, params: payload } 
+      action: { action: action, params: params } 
     });
     addLog({
       level: 'info',
       message: \`Action: \${action}\`,
-      details: payload
+      details: params
     });
   };
 
@@ -49,6 +54,9 @@ function ${this.formatComponentName(structure.deviceId)}Page() {
       <RemoteControlLayout
         deviceStructure={deviceStructure}
         onAction={handleAction}
+        isActionPending={executeAction.isPending}
+        actionError={executeAction.error}
+        lastAction={executeAction.variables?.action.action}
         className="w-full"
       />
     </div>

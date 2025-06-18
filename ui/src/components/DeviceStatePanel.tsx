@@ -3,6 +3,7 @@ import { Icon } from './icons';
 import { useRoomStore } from '../stores/useRoomStore';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import { useDeviceState } from '../hooks/useDeviceState';
+import { useExecuteDeviceAction } from '../hooks/useApi';
 import { Button } from './ui/button';
 import { RemoteDeviceStructure } from '../types/RemoteControlLayout';
 
@@ -79,6 +80,9 @@ function DeviceStatePanel({ isOpen, className }: DeviceStatePanelProps) {
 
   // Use the enhanced device state hook
   const { state: deviceState, isLoading, error, isConnected } = useDeviceState(selectedDeviceId || '');
+  
+  // Get device action status
+  const executeAction = useExecuteDeviceAction();
   
   // Get device structure for state interface
   const deviceStructure = getDeviceStructure(selectedDeviceId || '');
@@ -262,6 +266,73 @@ function DeviceStatePanel({ isOpen, className }: DeviceStatePanelProps) {
                       <span className="text-sm font-medium">Device Class</span>
                     </div>
                     <span className="text-sm text-foreground">{deviceStructure.deviceClass}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Action Status Section */}
+            <div className="space-y-3">
+              <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">
+                Action Status
+              </h3>
+              <div className="space-y-2">
+                {executeAction.isPending && (
+                  <div className="flex items-center justify-between p-2 rounded-md bg-blue-50/50 border border-blue-200/50">
+                    <div className="flex items-center space-x-2">
+                      <Icon 
+                        library="material" 
+                        name="Refresh" 
+                        size="sm" 
+                        fallback="loading" 
+                        className="h-4 w-4 text-blue-600 animate-spin" 
+                      />
+                      <span className="text-sm font-medium text-blue-800">Executing Action</span>
+                    </div>
+                    <span className="text-sm text-blue-600">
+                      {executeAction.variables?.action.action || 'Unknown Action'}
+                    </span>
+                  </div>
+                )}
+                
+                {executeAction.isError && executeAction.error && (
+                  <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20">
+                    <div className="flex items-start space-x-2">
+                      <Icon 
+                        library="material" 
+                        name="Error" 
+                        size="sm" 
+                        fallback="error" 
+                        className="h-4 w-4 text-destructive mt-0.5" 
+                      />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-destructive">Action Failed</p>
+                        <p className="text-xs text-destructive/80 mt-1">
+                          {executeAction.error.message}
+                        </p>
+                        {executeAction.variables?.action.action && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Action: {executeAction.variables.action.action}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {!executeAction.isPending && !executeAction.isError && executeAction.isSuccess && (
+                  <div className="flex items-center justify-between p-2 rounded-md bg-green-50/50 border border-green-200/50">
+                    <div className="flex items-center space-x-2">
+                      <Icon 
+                        library="material" 
+                        name="CheckCircle" 
+                        size="sm" 
+                        fallback="check" 
+                        className="h-4 w-4 text-green-600" 
+                      />
+                      <span className="text-sm font-medium text-green-800">Action Completed</span>
+                    </div>
+                    <span className="text-sm text-green-600">Ready</span>
                   </div>
                 )}
               </div>
