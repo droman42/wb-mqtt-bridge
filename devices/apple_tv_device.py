@@ -9,7 +9,7 @@ from datetime import datetime
 import pyatv
 from pyatv import scan, connect
 from pyatv.const import Protocol as ProtocolType, PowerState
-from pyatv.interface import DeviceListener, Playing
+from pyatv.interface import DeviceListener, Playing, PowerListener
 from pyatv.exceptions import AuthenticationError, ConnectionFailedError
 
 from devices.base_device import BaseDevice
@@ -162,7 +162,11 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             )
             
             # Assign listener for connection events and updates
-            self.atv.listener = PyATVDeviceListener(self) 
+            listener = PyATVDeviceListener(self)
+            self.atv.listener = listener
+            
+            # Set up power state listener for real-time power state updates
+            self.atv.power.listener = listener 
             
             # Perform initial status refresh and app list update
             await self.handle_refresh_status(
@@ -565,7 +569,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             
     async def handle_power_on(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
-        Turn on the Apple TV.
+        Turn on the Apple TV using await_new_state for reliable power state verification.
         
         Args:
             cmd_config: Command configuration
@@ -577,41 +581,40 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
         logger.info(f"[{self.device_id}] Attempting to turn ON (wake)...")
         if await self._ensure_connected():
             try:
-                await self.atv.power.turn_on()
-                logger.info(f"[{self.device_id}] Executed power on command.")
+                # Use await_new_state=True to wait for actual power state change
+                logger.info(f"[{self.device_id}] Waiting for device to power on...")
+                await asyncio.wait_for(
+                    self.atv.power.turn_on(await_new_state=True),
+                    timeout=10.0
+                )
+                logger.info(f"[{self.device_id}] Device successfully powered on.")
                 
-                # Immediately update state to reflect power on
+                # Record the command (power state will be updated by PowerListener)
                 self.update_state(
-                    power="on",
                     last_command=LastCommand(
                         action="power_on",
                         source="api",
                         timestamp=datetime.now(),
-                        params=None
+                        params={"method": "await_new_state"}
                     )
                 )
                 
                 # Schedule refresh after command to update other state
-                asyncio.create_task(self._delayed_refresh(delay=2.0))
+                asyncio.create_task(self._delayed_refresh(delay=1.0))
                 
                 return self.create_command_result(
                     success=True,
-                    message="Power on command executed successfully"
+                    message="Device powered on successfully"
+                )
+            except asyncio.TimeoutError:
+                logger.warning(f"[{self.device_id}] Power on command timed out")
+                return self.create_command_result(
+                    success=False,
+                    error="Power on command timed out after 10 seconds"
                 )
             except NotImplementedError:
                 logger.warning(f"[{self.device_id}] Direct power on not supported, trying to send key instead...")
-                # Set power state to on even when using fallback method
-                self.update_state(
-                    power="on",
-                    last_command=LastCommand(
-                        action="power_on",
-                        source="api",
-                        timestamp=datetime.now(),
-                        params={"method": "select"}
-                    )
-                )
                 # Fallback to sending a key press to wake
-                # Use the CommandResult returned by _execute_remote_command
                 return await self._execute_remote_command("select")
             except Exception as e:
                 error_msg = f"Error turning on: {str(e)}"
@@ -630,7 +633,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
 
     async def handle_power_off(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
-        Turn off the Apple TV (put to sleep).
+        Turn off the Apple TV using await_new_state for reliable power state verification.
         
         Args:
             cmd_config: Command configuration
@@ -640,44 +643,42 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         logger.info(f"[{self.device_id}] Attempting to turn OFF (sleep)...")
-        # Use power off command if available, otherwise fallback to long home press?
         if await self._ensure_connected():
             try:
-                await self.atv.power.turn_off()
-                logger.info(f"[{self.device_id}] Executed power off command.")
+                # Use await_new_state=True to wait for actual power state change
+                logger.info(f"[{self.device_id}] Waiting for device to power off...")
+                await asyncio.wait_for(
+                    self.atv.power.turn_off(await_new_state=True),
+                    timeout=10.0
+                )
+                logger.info(f"[{self.device_id}] Device successfully powered off.")
                 
-                # Immediately update state to reflect power off
+                # Record the command (power state will be updated by PowerListener)
                 self.update_state(
-                    power="off",
                     last_command=LastCommand(
                         action="power_off",
                         source="api",
                         timestamp=datetime.now(),
-                        params=None
+                        params={"method": "await_new_state"}
                     )
                 )
                 
                 # Still schedule a refresh to update other state attributes
-                asyncio.create_task(self._delayed_refresh(delay=2.0))
+                asyncio.create_task(self._delayed_refresh(delay=1.0))
                 
                 return self.create_command_result(
                     success=True,
-                    message="Power off command executed successfully"
+                    message="Device powered off successfully"
+                )
+            except asyncio.TimeoutError:
+                logger.warning(f"[{self.device_id}] Power off command timed out")
+                return self.create_command_result(
+                    success=False,
+                    error="Power off command timed out after 10 seconds"
                 )
             except NotImplementedError:
                 logger.warning(f"[{self.device_id}] Direct power off not supported, trying long home press...")
                 # Fallback: Press and hold home button (might bring up power menu on some tvOS versions)
-                # Set power state to off even when using fallback method
-                self.update_state(
-                    power="off",
-                    last_command=LastCommand(
-                        action="power_off",
-                        source="api",
-                        timestamp=datetime.now(),
-                        params={"method": "home_hold"}
-                    )
-                )
-                # Use the CommandResult returned by _execute_remote_command
                 return await self._execute_remote_command("home_hold")
             except Exception as e:
                 error_msg = f"Error turning off: {str(e)}"
@@ -1506,8 +1507,8 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
 
 # === PyATV Listener ===
 
-class PyATVDeviceListener(DeviceListener):
-    """Listener for pyatv events (connection status, updates)."""
+class PyATVDeviceListener(DeviceListener, PowerListener):
+    """Listener for pyatv events (connection status, updates, power state)."""
     
     def __init__(self, device: AppleTVDevice):
         """Initialize the listener with a reference to the AppleTVDevice."""
@@ -1618,4 +1619,32 @@ class PyATVDeviceListener(DeviceListener):
         )
         
         self.loop.call_soon_threadsafe(asyncio.create_task, 
-            self.device.publish_progress(f"Device error: {str(error)}")) 
+            self.device.publish_progress(f"Device error: {str(error)}"))
+
+    def powerstate_update(self, old_state: PowerState, new_state: PowerState):
+        """
+        Called by pyatv when device power state changes.
+        
+        Args:
+            old_state: Previous power state
+            new_state: New power state
+        """
+        logger.info(f"[{self.device.device_id}] Power state changed from {old_state.name} to {new_state.name}")
+        
+        # Update device state with real power state from device
+        self.device.update_state(
+            power=new_state.name.lower(),
+            last_command=LastCommand(
+                action="powerstate_update",
+                source="device",
+                timestamp=datetime.now(),
+                params={
+                    "old_state": old_state.name,
+                    "new_state": new_state.name
+                }
+            )
+        )
+        
+        # Schedule state publish
+        self.loop.call_soon_threadsafe(asyncio.create_task, 
+            self.device.publish_progress(f"Power state changed to {new_state.name.lower()}")) 

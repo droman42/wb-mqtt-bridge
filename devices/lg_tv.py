@@ -1789,7 +1789,7 @@ class LgTv(BaseDevice[LgTvState]):
             logger.error(error_msg)
             return False, error_msg
     
-    async def handle_set_input_source(
+    async def handle_set_input(
         self, 
         cmd_config: StandardCommandConfig, 
         params: Dict[str, Any]
@@ -1798,18 +1798,18 @@ class LgTv(BaseDevice[LgTvState]):
         
         Args:
             cmd_config: Command configuration
-            params: Dictionary containing source parameter for input source
+            params: Dictionary containing input parameter for input source
             
         Returns:
             CommandResult: Result of the command execution
         """
         # Extract input source from params
-        if not params or "source" not in params:
-            error_msg = "Missing required 'source' parameter"
+        if not params or "input" not in params:
+            error_msg = "Missing required 'input' parameter"
             logger.error(error_msg)
             return self.create_command_result(success=False, error=error_msg)
         
-        input_source = params["source"]
+        input_source = params["input"]
         
         try:
             if not self.source_control or not self.client or not self.state.connected:
@@ -1846,7 +1846,7 @@ class LgTv(BaseDevice[LgTvState]):
                 if result.get("returnValue", False):
                     # Update state
                     self.state.input_source = input_name
-                    await self._update_last_command("set_input_source", params, "api")
+                    await self._update_last_command("set_input", params, "api")
                     return self.create_command_result(
                         success=True,
                         message=f"Input source set to '{input_name}' successfully"
