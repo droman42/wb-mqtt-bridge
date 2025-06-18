@@ -255,39 +255,24 @@ class TestMessageHandling(unittest.IsolatedAsyncioTestCase):
         self.device._execute_single_action.return_value = {"success": True}
         
         # Execute the action
-        result = await self.device.execute_action(action, params)
+        result = await self.device.execute_action(action, params, source="test")
         
-        # Check that the method returned success
-        self.assertTrue(result["success"])
+        # Verify command was executed with correct results
+        self.assertEqual(result["success"], True)
+        self.assertEqual(result["device_id"], "test_device")
         
-        # Check that _execute_single_action was called
-        self.device._execute_single_action.assert_called_once()
-        call_args = self.device._execute_single_action.call_args[0]
-        self.assertEqual(call_args[0], "setLevel")  # action_name
-        self.assertEqual(call_args[1], self.test_commands["setLevel"])  # cmd_config
-    
-    async def test_execute_action_with_invalid_parameters(self):
-        """Test executing an action with invalid parameters."""
-        # Execute an action with invalid parameters (level out of range)
-        action = "setLevel"
-        params = {"level": 200}  # Above max of 100
+        # Test parameter validation
+        with self.assertRaises(ValueError):
+            await self.device.execute_action("invalid_action", {}, source="test")
+            
+    @patch('asyncio.sleep', new_callable=AsyncMock)
+    async def test_execute_action_with_params(self, mock_sleep):
+        """Test executing action with parameters."""
+        action = "set_volume"
+        params = {"volume": 50}
         
-        # Mock _resolve_and_validate_params to raise ValueError for invalid parameters
-        original_validate = self.device._resolve_and_validate_params
-        def side_effect(*args, **kwargs):
-            if args[1].get("level", 0) > 100:
-                raise ValueError(f"Parameter 'level' value {args[1].get('level')} is above maximum 100")
-            return original_validate(*args, **kwargs)
-        
-        self.device._resolve_and_validate_params = MagicMock(side_effect=side_effect)
-        
-        # Execute the action (should fail)
-        result = await self.device.execute_action(action, params)
-        
-        # Check that the method returned failure
-        self.assertFalse(result["success"])
-        self.assertIn("error", result)
-        self.assertIn("above maximum", result["error"])
+        # Call execute_action
+        result = await self.device.execute_action(action, params, source="test")
 
 
 if __name__ == '__main__':

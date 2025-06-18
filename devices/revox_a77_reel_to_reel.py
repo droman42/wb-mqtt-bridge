@@ -126,6 +126,8 @@ class RevoxA77ReelToReel(BaseDevice[RevoxA77ReelToReelState]):
         params["mqtt_payload"] = payload
         
         # Create the LastCommand object and update state directly
+        # Since this method is called from MQTT message handlers or internal sequences,
+        # we use "mqtt" as the source. API calls will be handled by BaseDevice.
         last_command = LastCommand(
             action=command_name,
             source="mqtt",

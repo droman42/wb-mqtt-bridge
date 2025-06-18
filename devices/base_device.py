@@ -353,19 +353,24 @@ class BaseDevice(ABC, Generic[StateT]):
         self, 
         action_name: str, 
         cmd_config: BaseCommandConfig, 
-        params: Dict[str, Any] = None
+        params: Dict[str, Any] = None,
+        source: str = "unknown"
     ) -> Optional[CommandResult]:
         """
-        Execute a single action based on its configuration.
+        Execute a single action with the provided configuration and parameters.
         
         Args:
-            action_name: The name of the action to execute
-            cmd_config: The command configuration
-            params: Optional dictionary of parameters (will be validated)
+            action_name: Name of the action to execute
+            cmd_config: Command configuration
+            params: Optional parameters for the action
+            source: Source of the command call (e.g., "api", "mqtt", "system")
             
         Returns:
-            CommandResult: The result from the handler or None if execution failed
+            Optional[CommandResult]: Result of the action execution
         """
+        if params is None:
+            params = {}
+            
         try:
             # Get the action handler method from the instance
             handler = self._get_action_handler(action_name)
@@ -399,9 +404,10 @@ class BaseDevice(ABC, Generic[StateT]):
             logger.debug(f"[BASE_DEVICE_DEBUG] Handler result for {action_name} on {self.device_id}: {result}")
             
             # Update state with information about the last command executed
+            # Use the provided source parameter instead of flawed topic-based logic
             self.update_state(last_command=LastCommand(
                 action=action_name,
-                source="mqtt" if cmd_config.topic else "api",
+                source=source,
                 timestamp=datetime.now(),
                 params=params
             ))
@@ -532,9 +538,19 @@ class BaseDevice(ABC, Generic[StateT]):
     async def execute_action(
         self, 
         action: str, 
-        params: Optional[Dict[str, Any]] = None
+        params: Optional[Dict[str, Any]] = None,
+        source: str = "unknown"
     ) -> CommandResponse[StateT]:
-        """Execute an action identified by action name."""
+        """Execute an action identified by action name.
+        
+        Args:
+            action: The action name to execute
+            params: Optional parameters for the action
+            source: Source of the command call (e.g., "api", "mqtt", "system")
+            
+        Returns:
+            CommandResponse: Response containing success status, device state, and any additional data
+        """
         try:
             # Find the command configuration for this action
             cmd = None
@@ -573,8 +589,8 @@ class BaseDevice(ABC, Generic[StateT]):
                 # No parameters defined in config but params were provided
                 validated_params = params
             
-            # Execute the action with validated parameters
-            result = await self._execute_single_action(action, cmd, validated_params)
+            # Execute the action with validated parameters and source
+            result = await self._execute_single_action(action, cmd, validated_params, source)
             
             # Create the response based on the result
             success = result.get("success", True) if result else True

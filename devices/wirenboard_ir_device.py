@@ -167,9 +167,11 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
                 effective_params["command_payload"] = command_payload
                 
         # Create a standard LastCommand object and update state
+        # Since WirenboardIR devices are typically called from MQTT messages in handle_message,
+        # we use "mqtt" as the source here. API calls will be handled by BaseDevice.
         last_command = LastCommand(
             action=action,
-            source=self.device_name,
+            source="mqtt",
             timestamp=datetime.now(),
             params=effective_params
         )

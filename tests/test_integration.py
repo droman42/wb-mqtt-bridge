@@ -161,7 +161,7 @@ class TestMQTTCommandPropagation(unittest.TestCase):
             self.assertIn("payload", mqtt_command)
         
         # Verify action propagates through execute_action
-        response = await device.execute_action("set_light", {"state": "on"})
+        response = await device.execute_action("set_light", {"state": "on"}, source="test")
         
         # Verify CommandResponse includes mqtt_command
         self.assertTrue("mqtt_command" in response, "mqtt_command should be in CommandResponse")

@@ -392,7 +392,8 @@ class DeviceManager:
             # DEBUG: Log before action execution
             logger.debug(f"[DEVICE_MGR_DEBUG] Executing action on device: {device.get_name()}")
             
-            result = await device.execute_action(action, params)
+            # Pass source="api" since this is called from API endpoints
+            result = await device.execute_action(action, params, source="api")
             
             # DEBUG: Log action result
             logger.debug(f"[DEVICE_MGR_DEBUG] Action result for {device_id}: {result}")

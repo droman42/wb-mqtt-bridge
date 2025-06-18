@@ -263,7 +263,7 @@ class DeviceTestCLI:
         
         try:
             logger.info(f"Executing command '{command}' on device '{self.device_id}'")
-            response = await self.current_device.execute_action(command, params)
+            response = await self.current_device.execute_action(command, params, source="cli")
             
             # Print basic command result
             print("\n" + "="*50)

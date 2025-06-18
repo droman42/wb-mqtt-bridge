@@ -16,7 +16,6 @@ declare -A CONTAINER_CPUS=()
 declare -A CONTAINER_RESOURCE_DIRS=()
 
 # Configuration
-DOCKER_NETWORK="wb-network"
 ARTIFACTS_DIR="/mnt/sdcard/artifacts"
 CONFIG_FILE="$HOME/docker_manager_config.json"
 DEFAULT_LOG_LEVEL="DEBUG"
@@ -67,7 +66,6 @@ Commands:
     status [container]                   Show container status and stats
     logs <container> [lines]             Show container logs
     cleanup                              Docker system cleanup
-    network                              Manage Docker network
     config                               Create/edit configuration file
 
 Configuration:
@@ -99,6 +97,8 @@ Examples:
     $0 status                            Show all container status
     $0 logs wb-mqtt-ui 50               Show last 50 log lines
     $0 cleanup                           Clean Docker system
+
+Note: All containers use host networking for direct network access.
 
 EOF
 }
@@ -209,7 +209,7 @@ load_default_containers() {
     CONTAINERS["wb-mqtt-bridge"]="1"
     CONTAINER_TYPES["wb-mqtt-bridge"]="backend"
     CONTAINER_REPOS["wb-mqtt-bridge"]="droman42/wb-mqtt-bridge"
-    CONTAINER_PORTS["wb-mqtt-bridge"]="8000:8000"
+    CONTAINER_PORTS["wb-mqtt-bridge"]="8000"
     CONTAINER_MEMORY["wb-mqtt-bridge"]="256M"
     CONTAINER_CPUS["wb-mqtt-bridge"]="0.5"
     CONTAINER_RESOURCE_DIRS["wb-mqtt-bridge"]="/opt/wb-bridge"
@@ -217,21 +217,12 @@ load_default_containers() {
     CONTAINERS["wb-mqtt-ui"]="1"
     CONTAINER_TYPES["wb-mqtt-ui"]="ui"
     CONTAINER_REPOS["wb-mqtt-ui"]="droman42/wb-mqtt-ui"
-    CONTAINER_PORTS["wb-mqtt-ui"]="3000:3000"
+    CONTAINER_PORTS["wb-mqtt-ui"]="3000"
     CONTAINER_MEMORY["wb-mqtt-ui"]="128M"
     CONTAINER_CPUS["wb-mqtt-ui"]="0.3"
     
-    CONTAINERS["wb-http-api"]="1"
-    CONTAINER_TYPES["wb-http-api"]="backend"
-    CONTAINER_REPOS["wb-http-api"]="droman42/wb-http-api"
-    CONTAINER_PORTS["wb-http-api"]="8080:8080"
-    CONTAINER_MEMORY["wb-http-api"]="512M"
-    CONTAINER_CPUS["wb-http-api"]="1.0"
-    CONTAINER_RESOURCE_DIRS["wb-http-api"]="/opt/wb-api"
-    
     # Define default dependencies
     DEPENDENCIES["wb-mqtt-ui"]="wb-mqtt-bridge"
-    DEPENDENCIES["wb-http-api"]="wb-mqtt-bridge"
     
     log "Loaded ${#CONTAINERS[@]} default containers"
 }
@@ -356,17 +347,6 @@ resolve_containers() {
             fi
             ;;
     esac
-}
-
-# Ensure Docker network exists
-ensure_docker_network() {
-    if ! docker network ls --format '{{.Name}}' | grep -q "^${DOCKER_NETWORK}$"; then
-        log "Creating Docker network: $DOCKER_NETWORK"
-        docker network create "$DOCKER_NETWORK"
-        success "Docker network '$DOCKER_NETWORK' created"
-    else
-        log "Docker network '$DOCKER_NETWORK' already exists"
-    fi
 }
 
 # Handle GitHub credentials
@@ -605,9 +585,9 @@ redeploy_container() {
         log "Container '$container_name' is not running, skipping stop step"
     fi
     
-    # Step 2: Docker cleanup
-    log "Step 2/4: Performing Docker cleanup..."
-    docker_cleanup
+    # Step 2: Container-specific cleanup
+    log "Step 2/4: Performing container-specific cleanup..."
+    cleanup_container_resources "$container_name"
     
     # Step 3: Deploy container (download, install, start)
     log "Step 3/4: Deploying container '$container_name'..."
@@ -633,10 +613,7 @@ start_container() {
     local cpu=$(get_container_config "$container_name" "cpu")
     local image=$(get_container_config "$container_name" "image")
     
-    log "Starting $type container: $container_name"
-    
-    # Ensure network exists
-    ensure_docker_network
+    log "Starting $type container: $container_name with host networking"
     
     # Stop and remove existing container
     if docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
@@ -645,13 +622,12 @@ start_container() {
         docker rm "$container_name" 2>/dev/null || true
     fi
     
-    # Build docker run command
+    # Build docker run command with host networking
     local docker_cmd=(
         docker run -d
         --name "$container_name"
         --restart unless-stopped
-        --network "$DOCKER_NETWORK"
-        -p "$port"
+        --network host
         --memory="$memory"
         --cpus="$cpu"
         -e "TZ=$(cat /etc/timezone 2>/dev/null || echo 'UTC')"
@@ -687,8 +663,8 @@ start_container() {
     # Verify container started
     sleep 2
     if docker ps --format '{{.Names}}' | grep -q "^${container_name}$"; then
-        success "Container '$container_name' started successfully"
-        info "Access at: http://localhost:${port%:*}"
+        success "Container '$container_name' started successfully with host networking"
+        info "Access at: http://localhost:$port"
     else
         error "Failed to start container '$container_name'"
     fi
@@ -738,14 +714,14 @@ show_status() {
     fi
     
     # Show running containers
-    info "Running Containers:"
+    info "Running Containers (Host Networking):"
     local running_found=false
     for container in "${containers[@]}"; do
         if docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
             running_found=true
             local port=$(get_container_config "$container" "port")
             local type=$(get_container_config "$container" "type")
-            printf "  %-20s %-10s http://localhost:%s\n" "$container" "($type)" "${port%:*}"
+            printf "  %-20s %-10s http://localhost:%s\n" "$container" "($type)" "$port"
         fi
     done
     
@@ -765,12 +741,9 @@ show_status() {
     
     echo
     info "Network Status:"
-    if docker network ls --format '{{.Name}}' | grep -q "^${DOCKER_NETWORK}$"; then
-        echo "  Network '$DOCKER_NETWORK': ✓ Active"
-        docker network inspect "$DOCKER_NETWORK" --format "  Connected containers: {{len .Containers}}" 2>/dev/null || true
-    else
-        echo "  Network '$DOCKER_NETWORK': ✗ Not found"
-    fi
+    echo "  All containers use host networking for direct network access"
+    local host_ip=$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}' || echo "unknown")
+    echo "  Host IP: $host_ip"
 }
 
 # Show container logs
@@ -786,7 +759,40 @@ show_logs() {
     docker logs --tail "$lines" --timestamps "$container_name"
 }
 
-# Docker cleanup
+# Container-specific cleanup
+cleanup_container_resources() {
+    local container_name="$1"
+    
+    log "Cleaning up resources for container: $container_name"
+    
+    # Remove old container instances for this specific container
+    local old_containers
+    old_containers=$(docker ps -a --filter "name=$container_name" --format "{{.Names}}" 2>/dev/null || true)
+    if [[ -n "$old_containers" ]]; then
+        log "Removing old container instances..."
+        echo "$old_containers" | xargs -r docker rm -f 2>/dev/null || true
+    fi
+    
+    # Remove old images for this container (keep the latest one)
+    local image_name="$container_name"
+    local old_images
+    old_images=$(docker images --filter "reference=$image_name" --format "{{.Repository}}:{{.Tag}} {{.ID}}" 2>/dev/null | tail -n +2 | awk '{print $2}' || true)
+    if [[ -n "$old_images" ]]; then
+        log "Removing old images for $container_name..."
+        echo "$old_images" | xargs -r docker rmi -f 2>/dev/null || true
+    fi
+    
+    # Clean up only dangling images and networks (safe cleanup)
+    log "Removing dangling images..."
+    docker image prune -f 2>/dev/null || true
+    
+    log "Removing unused networks..."
+    docker network prune -f 2>/dev/null || true
+    
+    success "Container-specific cleanup completed for $container_name"
+}
+
+# Docker cleanup (global - only for explicit cleanup command)
 docker_cleanup() {
     log "Performing Docker cleanup..."
     
@@ -803,19 +809,6 @@ docker_cleanup() {
     
     log "Docker system status:"
     docker system df
-}
-
-# Manage Docker network
-manage_network() {
-    log "Docker Network Management"
-    
-    if docker network ls --format '{{.Name}}' | grep -q "^${DOCKER_NETWORK}$"; then
-        info "Network '$DOCKER_NETWORK' exists"
-        docker network inspect "$DOCKER_NETWORK" --format "{{json .}}" | jq .
-    else
-        log "Creating network '$DOCKER_NETWORK'..."
-        ensure_docker_network
-    fi
 }
 
 # Create configuration file
@@ -841,8 +834,8 @@ create_config() {
         "pat": "your_personal_access_token"
     },
     "docker": {
-        "network": "$DOCKER_NETWORK",
-        "artifacts_dir": "$ARTIFACTS_DIR"
+        "artifacts_dir": "$ARTIFACTS_DIR",
+        "note": "Containers use host networking - no custom network needed"
     },
     "containers": {
 $(for container in "${!CONTAINERS[@]}"; do
@@ -1071,9 +1064,6 @@ main() {
             ;;
         "cleanup")
             docker_cleanup
-            ;;
-        "network")
-            manage_network
             ;;
         "config")
             create_config
