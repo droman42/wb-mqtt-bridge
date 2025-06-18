@@ -7,9 +7,10 @@ import { Icon } from './icons';
 import type { RemoteZone, RemoteDeviceStructure, PowerButtonConfig, VolumeButtonConfig } from '../types/RemoteControlLayout';
 import { useInputsData, useAppsData, useInputSelection, useAppLaunching } from '../hooks/useRemoteControlData';
 import { usePowerManagement } from '../hooks/usePowerManagement';
+import { useDeviceState } from '../hooks/useDeviceState';
 
 // Power Zone - 3-button layout with EMotiva special case
-const PowerZone = ({ zone, onAction, className, isDisabled = false, isActionPending = false, lastAction }: { zone?: RemoteZone; onAction: (action: string, payload?: any) => void; className?: string; isDisabled?: boolean; isActionPending?: boolean; lastAction?: string }) => {
+const PowerZone = ({ zone, onAction, className, isDisabled = false, isActionPending = false, lastAction, isPoweringOn = false }: { zone?: RemoteZone; onAction: (action: string, payload?: any) => void; className?: string; isDisabled?: boolean; isActionPending?: boolean; lastAction?: string; isPoweringOn?: boolean }) => {
   if (!zone?.content?.powerButtons || zone.isEmpty) {
     return (
       <div className={cn("zone-empty", className)}>
@@ -29,6 +30,20 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false, isActionPend
     onAction(button.action.actionName, button.action.parameters || {});
   };
 
+  // Helper function to get icon color based on button type
+  const getIconColor = (button: PowerButtonConfig) => {
+    // Power-off and power-toggle buttons should be red
+    if (button.buttonType === 'power-off' || button.buttonType === 'power-toggle') {
+      return 'text-red-600';
+    }
+    // Power-on buttons should be grass green
+    if (button.buttonType === 'power-on') {
+      return 'text-green-600';
+    }
+    // Default to white for any other cases
+    return 'text-white';
+  };
+
 
 
   return (
@@ -39,17 +54,17 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false, isActionPend
           variant="ghost"
           size="sm"
           onClick={() => handlePowerAction(leftButton)}
-          disabled={isDisabled || isActionPending}
+          disabled={isDisabled || isActionPending || (isPoweringOn && leftButton.action.actionName === 'power_on')}
           className="h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
           title={leftButton.action.description || leftButton.action.displayName}
         >
-          {isActionPending && lastAction === leftButton.action.actionName ? (
+          {(isActionPending && lastAction === leftButton.action.actionName) || (isPoweringOn && leftButton.action.actionName === 'power_on') ? (
             <Icon
               library="material"
               name="Refresh"
               fallback="loading"
               size="lg"
-              className="w-4 h-4 text-white animate-spin"
+              className={`w-4 h-4 ${getIconColor(leftButton)} animate-spin`}
             />
           ) : (
             <Icon
@@ -57,7 +72,7 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false, isActionPend
               name={leftButton.action.icon.iconName}
               fallback={leftButton.action.icon.fallbackIcon}
               size="lg"
-              className="w-4 h-4 text-white"
+              className={`w-4 h-4 ${getIconColor(leftButton)}`}
             />
           )}
         </Button>
@@ -71,17 +86,17 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false, isActionPend
           variant="ghost"
           size="sm"
           onClick={() => handlePowerAction(middleButton)}
-          disabled={isDisabled || isActionPending}
+          disabled={isDisabled || isActionPending || (isPoweringOn && middleButton.action.actionName === 'power_on')}
           className="h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
           title={middleButton.action.description || middleButton.action.displayName}
         >
-          {isActionPending && lastAction === middleButton.action.actionName ? (
+          {(isActionPending && lastAction === middleButton.action.actionName) || (isPoweringOn && middleButton.action.actionName === 'power_on') ? (
             <Icon
               library="material"
               name="Refresh"
               fallback="loading"
               size="lg"
-              className="w-4 h-4 text-white animate-spin"
+              className={`w-4 h-4 ${getIconColor(middleButton)} animate-spin`}
             />
           ) : (
             <Icon
@@ -89,7 +104,7 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false, isActionPend
               name={middleButton.action.icon.iconName}
               fallback={middleButton.action.icon.fallbackIcon}
               size="lg"
-              className="w-4 h-4 text-white"
+              className={`w-4 h-4 ${getIconColor(middleButton)}`}
             />
           )}
         </Button>
@@ -103,17 +118,17 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false, isActionPend
           variant="ghost"
           size="sm"
           onClick={() => handlePowerAction(rightButton)}
-          disabled={isDisabled || isActionPending}
+          disabled={isDisabled || isActionPending || (isPoweringOn && rightButton.action.actionName === 'power_on')}
           className="h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
           title={rightButton.action.description || rightButton.action.displayName}
         >
-          {isActionPending && lastAction === rightButton.action.actionName ? (
+          {(isActionPending && lastAction === rightButton.action.actionName) || (isPoweringOn && rightButton.action.actionName === 'power_on') ? (
             <Icon
               library="material"
               name="Refresh"
               fallback="loading"
               size="lg"
-              className="w-4 h-4 text-white animate-spin"
+              className={`w-4 h-4 ${getIconColor(rightButton)} animate-spin`}
             />
           ) : (
             <Icon
@@ -121,7 +136,7 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false, isActionPend
               name={rightButton.action.icon.iconName}
               fallback={rightButton.action.icon.fallbackIcon}
               size="lg"
-              className="w-4 h-4 text-white"
+              className={`w-4 h-4 ${getIconColor(rightButton)}`}
             />
           )}
         </Button>
@@ -864,6 +879,9 @@ export function RemoteControlLayout({
   
   // Power management hook
   const { handlePowerOn, isControlDisabled } = usePowerManagement(deviceId);
+  
+  // Get power management loading state from the device state hook
+  const { isPoweringOn } = useDeviceState(deviceId);
 
   // Expose device structure to global context for DeviceStatePanel access
   useEffect(() => {
@@ -926,6 +944,7 @@ export function RemoteControlLayout({
               isDisabled={isControlDisabled}
               isActionPending={isActionPending}
               lastAction={lastAction}
+              isPoweringOn={isPoweringOn}
             />
           )}
 

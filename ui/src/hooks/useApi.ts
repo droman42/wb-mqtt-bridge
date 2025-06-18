@@ -94,9 +94,29 @@ export const useExecuteDeviceAction = () => {
   return useMutation({
     mutationFn: ({ deviceId, action }: { deviceId: string; action: DeviceAction }) =>
       api.post<CommandResponse>(`/devices/${deviceId}/action`, action).then(res => res.data),
-    onSuccess: (_, { deviceId }) => {
-      // Invalidate device state to refetch latest data
-      queryClient.invalidateQueries({ queryKey: ['devices', deviceId, 'state'] });
+    onSuccess: (response, { deviceId, action }) => {
+      // If the response includes updated state, immediately update the cache
+      if (response.state) {
+        // Update the device state cache with the response data
+        queryClient.setQueryData(['devices', deviceId, 'state'], response.state);
+        
+        // Also add last_command info to the state if not already present
+        if (!response.state.last_command) {
+          const updatedState = {
+            ...response.state,
+            last_command: {
+              action: action.action,
+              source: 'frontend',
+              timestamp: new Date().toISOString(),
+              params: action.params || null,
+            },
+          };
+          queryClient.setQueryData(['devices', deviceId, 'state'], updatedState);
+        }
+      } else {
+        // Fallback: invalidate to trigger refetch if no state in response
+        queryClient.invalidateQueries({ queryKey: ['devices', deviceId, 'state'] });
+      }
     },
   });
 };
