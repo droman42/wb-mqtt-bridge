@@ -49,6 +49,7 @@ class LgTvConfig(BaseModel):
     """Schema for LG WebOS TV device configuration."""
     ip_address: str
     mac_address: Optional[str] = None
+    broadcast_ip: Optional[str] = None
     secure: bool = True
     client_key: Optional[str] = None
     cert_file: Optional[str] = None

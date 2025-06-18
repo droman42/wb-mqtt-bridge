@@ -7,6 +7,7 @@
   "config_class": "LgTvDeviceConfig",
   "tv": {
     "ip_address": "192.168.110.133",
+    "broadcast_ip": "192.168.110.255",
     "mac_address": "74:E6:B8:9C:36:5F",
     "client_key": "a8d2f9a7845cdf406021d782551b4860",
     "secure": true,

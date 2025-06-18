@@ -81,8 +81,14 @@ class LgTv(BaseDevice[LgTvState]):
         self._cached_apps = []
         self._cached_input_sources = []
 
-        # Initialize broadcast IP address
-        self.broadcast_ip = self.get_broadcast_ip()
+        # Initialize broadcast IP address from configuration or auto-detect
+        if self.tv_config.broadcast_ip:
+            self.broadcast_ip = self.tv_config.broadcast_ip
+            logger.info(f"Using configured broadcast IP: {self.broadcast_ip}")
+        else:
+            self.broadcast_ip = self.get_broadcast_ip()
+            logger.warning(f"No broadcast_ip configured, auto-detected: {self.broadcast_ip}. "
+                         f"Consider adding 'broadcast_ip' to your TV configuration for better reliability.")
         
         # Register action handlers is now handled by BaseDevice via _register_handlers
         # self._register_lg_tv_action_handlers()
