@@ -6,11 +6,9 @@ import PointerPad from './PointerPad';
 import { Icon } from './icons';
 import type { RemoteZone, RemoteDeviceStructure, PowerButtonConfig, VolumeButtonConfig } from '../types/RemoteControlLayout';
 import { useInputsData, useAppsData, useInputSelection, useAppLaunching } from '../hooks/useRemoteControlData';
-import { usePowerManagement } from '../hooks/usePowerManagement';
-import { useDeviceState } from '../hooks/useDeviceState';
 
 // Power Zone - 3-button layout with EMotiva special case
-const PowerZone = ({ zone, onAction, className, isDisabled = false, isActionPending = false, lastAction, isPoweringOn = false }: { zone?: RemoteZone; onAction: (action: string, payload?: any) => void; className?: string; isDisabled?: boolean; isActionPending?: boolean; lastAction?: string; isPoweringOn?: boolean }) => {
+const PowerZone = ({ zone, onAction, className, isActionPending = false, lastAction }: { zone?: RemoteZone; onAction: (action: string, payload?: any) => void; className?: string; isActionPending?: boolean; lastAction?: string }) => {
   if (!zone?.content?.powerButtons || zone.isEmpty) {
     return (
       <div className={cn("zone-empty", className)}>
@@ -44,8 +42,6 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false, isActionPend
     return 'text-white';
   };
 
-
-
   return (
     <div className={cn("zone-power", className)}>
       {/* Left Position */}
@@ -54,11 +50,11 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false, isActionPend
           variant="ghost"
           size="sm"
           onClick={() => handlePowerAction(leftButton)}
-          disabled={isDisabled || isActionPending || (isPoweringOn && leftButton.action.actionName === 'power_on')}
+          disabled={isActionPending}
           className="h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
           title={leftButton.action.description || leftButton.action.displayName}
         >
-          {(isActionPending && lastAction === leftButton.action.actionName) || (isPoweringOn && leftButton.action.actionName === 'power_on') ? (
+          {isActionPending && lastAction === leftButton.action.actionName ? (
             <Icon
               library="material"
               name="Refresh"
@@ -86,11 +82,11 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false, isActionPend
           variant="ghost"
           size="sm"
           onClick={() => handlePowerAction(middleButton)}
-          disabled={isDisabled || isActionPending || (isPoweringOn && middleButton.action.actionName === 'power_on')}
+          disabled={isActionPending}
           className="h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
           title={middleButton.action.description || middleButton.action.displayName}
         >
-          {(isActionPending && lastAction === middleButton.action.actionName) || (isPoweringOn && middleButton.action.actionName === 'power_on') ? (
+          {isActionPending && lastAction === middleButton.action.actionName ? (
             <Icon
               library="material"
               name="Refresh"
@@ -118,11 +114,11 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false, isActionPend
           variant="ghost"
           size="sm"
           onClick={() => handlePowerAction(rightButton)}
-          disabled={isDisabled || isActionPending || (isPoweringOn && rightButton.action.actionName === 'power_on')}
+          disabled={isActionPending}
           className="h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
           title={rightButton.action.description || rightButton.action.displayName}
         >
-          {(isActionPending && lastAction === rightButton.action.actionName) || (isPoweringOn && rightButton.action.actionName === 'power_on') ? (
+          {isActionPending && lastAction === rightButton.action.actionName ? (
             <Icon
               library="material"
               name="Refresh"
@@ -148,12 +144,11 @@ const PowerZone = ({ zone, onAction, className, isDisabled = false, isActionPend
 };
 
 // Media Stack Zone - INPUTS, PLAYBACK, TRACKS sections
-const MediaStackZone = ({ zone, deviceStructure, onAction, className, isDisabled = false, isActionPending = false, lastAction }: { 
+const MediaStackZone = ({ zone, deviceStructure, onAction, className, isActionPending = false, lastAction }: { 
   zone?: RemoteZone; 
   deviceStructure: RemoteDeviceStructure;
   onAction: (action: string, payload?: any) => void; 
   className?: string;
-  isDisabled?: boolean;
   isActionPending?: boolean;
   lastAction?: string;
 }) => {
@@ -210,7 +205,7 @@ const MediaStackZone = ({ zone, deviceStructure, onAction, className, isDisabled
               value={selectedInput}
               onChange={(e) => handleInputSelect(e.target.value)}
               className="w-full px-2 py-1 text-xs bg-black/30 border border-white/20 rounded text-white"
-              disabled={isDisabled || inputsLoading || !!(inputsError && (inputsError.includes('powered off') || inputsError.includes('disconnected')))}
+              disabled={inputsLoading || !!(inputsError && (inputsError.includes('powered off') || inputsError.includes('disconnected')))}
             >
               <option value="">
                 {inputsLoading ? "Loading inputs..." : 
@@ -242,7 +237,7 @@ const MediaStackZone = ({ zone, deviceStructure, onAction, className, isDisabled
                   variant="ghost"
                   size="sm"
                   onClick={() => handlePlaybackAction(action)}
-                  disabled={isDisabled || isActionPending}
+                  disabled={isActionPending}
                   className="h-10 px-2 flex-1 min-w-fit bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
                   title={action.description || action.displayName}
                 >
@@ -282,7 +277,7 @@ const MediaStackZone = ({ zone, deviceStructure, onAction, className, isDisabled
                   variant="ghost"
                   size="sm"
                   onClick={() => handlePlaybackAction(action)}
-                  disabled={isDisabled || isActionPending}
+                  disabled={isActionPending}
                   className="h-10 px-2 flex-1 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
                   title={action.description || action.displayName}
                 >
@@ -875,13 +870,9 @@ export function RemoteControlLayout({
   lastAction,
   className 
 }: RemoteControlLayoutProps) {
-  const { deviceName, remoteZones, deviceId } = deviceStructure;
+  const { deviceName, remoteZones } = deviceStructure;
   
-  // Power management hook
-  const { handlePowerOn, isControlDisabled } = usePowerManagement(deviceId);
-  
-  // Get power management loading state from the device state hook
-  const { isPoweringOn } = useDeviceState(deviceId);
+
 
   // Expose device structure to global context for DeviceStatePanel access
   useEffect(() => {
@@ -903,21 +894,9 @@ export function RemoteControlLayout({
     return acc;
   }, {} as Record<string, RemoteZone>);
 
-  // Enhanced action handler with power-on integration
-  const handleActionWithPowerManagement = async (actionName: string, payload?: any) => {
-    // Check if this is a power-on action
-    if (actionName === 'power_on') {
-      try {
-        await handlePowerOn(deviceStructure);
-      } catch (error) {
-        console.error('Power-on sequence failed:', error);
-        // Error is already logged to log panel by power management hook
-        return;
-      }
-    } else {
-      // Regular action - just call the original handler
-      onAction(actionName, payload);
-    }
+  // All actions now use the same handler - no special power management
+  const handleAction = (actionName: string, payload?: any) => {
+    onAction(actionName, payload);
   };
   
 
@@ -939,12 +918,10 @@ export function RemoteControlLayout({
           {zones.power && !zones.power.isEmpty && (
             <PowerZone
               zone={zones.power}
-              onAction={handleActionWithPowerManagement}
+              onAction={handleAction}
               className="zone-power"
-              isDisabled={isControlDisabled}
               isActionPending={isActionPending}
               lastAction={lastAction}
-              isPoweringOn={isPoweringOn}
             />
           )}
 
@@ -953,9 +930,8 @@ export function RemoteControlLayout({
             <MediaStackZone
               zone={zones['media-stack']}
               deviceStructure={deviceStructure}
-              onAction={handleActionWithPowerManagement}
+              onAction={handleAction}
               className="zone-media-stack"
-              isDisabled={isControlDisabled}
               isActionPending={isActionPending}
               lastAction={lastAction}
             />
@@ -966,7 +942,7 @@ export function RemoteControlLayout({
               {/* Screen Zone (③) - Always Present (Left) */}
             <ScreenZone
               zone={zones.screen}
-              onAction={handleActionWithPowerManagement}
+              onAction={handleAction}
               className="zone-screen"
               isActionPending={isActionPending}
               lastAction={lastAction}
@@ -975,7 +951,7 @@ export function RemoteControlLayout({
             {/* Menu Navigation Zone (⑦) - Always Present (Center) */}
             <MenuZone
               zone={zones.menu}
-              onAction={handleActionWithPowerManagement}
+              onAction={handleAction}
               className="zone-menu"
               isActionPending={isActionPending}
               lastAction={lastAction}
@@ -984,7 +960,7 @@ export function RemoteControlLayout({
             {/* Volume Zone (④) - Always Present (Right) */}
             <VolumeZone
               zone={zones.volume}
-              onAction={handleActionWithPowerManagement}
+              onAction={handleAction}
               className="zone-volume"
               isActionPending={isActionPending}
               lastAction={lastAction}
@@ -1001,7 +977,7 @@ export function RemoteControlLayout({
           {/* Pointer Zone (⑥) - Always Present */}
           <PointerZone
             zone={zones.pointer}
-            onAction={handleActionWithPowerManagement}
+            onAction={handleAction}
             className="zone-pointer"
             isActionPending={isActionPending}
             lastAction={lastAction}

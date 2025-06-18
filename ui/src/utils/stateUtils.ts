@@ -19,23 +19,17 @@ export const createDefaultDeviceState = <T extends BaseDeviceState>(
 
 /**
  * Maps backend response data to frontend state format
- * Handles snake_case field naming consistently
+ * Handles snake_case field naming consistently and includes all device-specific fields
  */
 export const mapBackendDataToState = (backendData: any): Partial<BaseDeviceState> => {
   const mapped: Partial<BaseDeviceState> = {};
   
-  // Map backend field names (snake_case format)
-  if (backendData.device_id !== undefined) {
-    mapped.device_id = backendData.device_id;
-  }
-  if (backendData.device_name !== undefined) {
-    mapped.device_name = backendData.device_name;
-  }
-  if (backendData.last_command !== undefined) {
-    mapped.last_command = backendData.last_command;
-  }
-  if (backendData.error !== undefined) {
-    mapped.error = backendData.error;
+  // Map all fields from backend data directly
+  // This handles both base fields and device-specific fields
+  for (const [key, value] of Object.entries(backendData)) {
+    if (value !== undefined) {
+      (mapped as any)[key] = value;
+    }
   }
   
   return mapped;
