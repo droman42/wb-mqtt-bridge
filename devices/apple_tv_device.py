@@ -9,7 +9,7 @@ from datetime import datetime
 import pyatv
 from pyatv import scan, connect
 from pyatv.const import Protocol as ProtocolType, PowerState
-from pyatv.interface import DeviceListener, Playing, PowerListener
+from pyatv.interface import DeviceListener, Playing, PowerListener, AudioListener
 from pyatv.exceptions import AuthenticationError, ConnectionFailedError
 
 from devices.base_device import BaseDevice
@@ -166,7 +166,12 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             self.atv.listener = listener
             
             # Set up power state listener for real-time power state updates
-            self.atv.power.listener = listener 
+            self.atv.power.listener = listener
+            
+            # Set up audio listener for real-time volume updates (MRP protocol only)
+            if hasattr(self.atv, "audio") and hasattr(self.atv.audio, "listener"):
+                self.atv.audio.listener = listener
+                logger.info(f"[{self.device_id}] Audio listener configured for volume updates") 
             
             # Perform initial status refresh and app list update
             await self.handle_refresh_status(
@@ -1215,9 +1220,23 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             normalized_level = level / 100.0
             
             logger.info(f"[{self.device_id}] Setting volume to {level}% ({normalized_level})...")
-            await self.atv.audio.set_volume(normalized_level)
             
-            # Update state immediately (optimistic)
+            # Try setting volume with a timeout to handle companion protocol issues
+            try:
+                await asyncio.wait_for(
+                    self.atv.audio.set_volume(normalized_level),
+                    timeout=8.0  # Slightly longer timeout than pyatv's internal 5 second timeout
+                )
+                logger.info(f"[{self.device_id}] Volume set successfully")
+            except asyncio.TimeoutError:
+                logger.warning(f"[{self.device_id}] Volume set command timed out, but command may have been processed")
+                # Don't return an error - volume change might still have worked
+                # The audio listener will update our state if the volume actually changed
+            except Exception as e:
+                logger.warning(f"[{self.device_id}] Volume set command failed: {e}")
+                # Still continue - sometimes the command works despite the error
+            
+            # Update state immediately (optimistic) - the audio listener will correct this if needed
             self.update_state(
                 volume=level,
                 last_command=LastCommand(
@@ -1228,10 +1247,12 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
                 )
             )
             
-            asyncio.create_task(self._delayed_refresh()) 
+            # Schedule a delayed refresh to get the actual volume level
+            asyncio.create_task(self._delayed_refresh(delay=2.0))
+            
             return self.create_command_result(
                 success=True,
-                message=f"Volume set to {level}%"
+                message=f"Volume set to {level}% (command sent)"
             )
             
         except ValueError:
@@ -1507,8 +1528,8 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
 
 # === PyATV Listener ===
 
-class PyATVDeviceListener(DeviceListener, PowerListener):
-    """Listener for pyatv events (connection status, updates, power state)."""
+class PyATVDeviceListener(DeviceListener, PowerListener, AudioListener):
+    """Listener for pyatv events (connection status, updates, power state, audio)."""
     
     def __init__(self, device: AppleTVDevice):
         """Initialize the listener with a reference to the AppleTVDevice."""
@@ -1647,4 +1668,55 @@ class PyATVDeviceListener(DeviceListener, PowerListener):
         
         # Schedule state publish
         self.loop.call_soon_threadsafe(asyncio.create_task, 
-            self.device.publish_progress(f"Power state changed to {new_state.name.lower()}")) 
+            self.device.publish_progress(f"Power state changed to {new_state.name.lower()}"))
+
+    def volume_update(self, old_level: float, new_level: float):
+        """
+        Called by pyatv when device volume level changes.
+        
+        Args:
+            old_level: Previous volume level (0.0-100.0)
+            new_level: New volume level (0.0-100.0)
+        """
+        logger.info(f"[{self.device.device_id}] Volume changed from {old_level:.1f}% to {new_level:.1f}%")
+        
+        # Update device state with real volume level from device
+        self.device.update_state(
+            volume=int(new_level),  # Convert to integer percentage
+            last_command=LastCommand(
+                action="volume_update",
+                source="device",
+                timestamp=datetime.now(),
+                params={
+                    "old_level": old_level,
+                    "new_level": new_level
+                }
+            )
+        )
+        
+        # Schedule state publish
+        self.loop.call_soon_threadsafe(asyncio.create_task, 
+            self.device.publish_progress(f"Volume changed to {new_level:.1f}%"))
+
+    def outputdevices_update(self, old_devices, new_devices):
+        """
+        Called by pyatv when output devices are changed.
+        
+        Args:
+            old_devices: Previous list of output devices
+            new_devices: New list of output devices
+        """
+        logger.debug(f"[{self.device.device_id}] Output devices changed from {old_devices} to {new_devices}")
+        
+        # For now, just log the change - we can extend this later if needed
+        self.device.update_state(
+            last_command=LastCommand(
+                action="outputdevices_update",
+                source="device",
+                timestamp=datetime.now(),
+                params={
+                    "old_devices": str(old_devices),
+                    "new_devices": str(new_devices)
+                }
+            )
+        )
