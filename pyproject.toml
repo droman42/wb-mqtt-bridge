@@ -53,6 +53,7 @@ dependencies = [
     # Apple TV support (keeping specific commit hash)
     "pyatv @ git+https://github.com/postlund/pyatv.git@f75e718bc0bdaf0a3ff06eb00086f781b3f06347",
     # Note: asyncio>=3.4.3 removed - built into Python 3.11+
+    "psutil>=7.0.0",
 ]
 
 [project.optional-dependencies]

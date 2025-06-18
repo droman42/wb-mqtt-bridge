@@ -5,6 +5,7 @@ import json
 from datetime import datetime
 from enum import Enum
 from socket import socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_BROADCAST
+import psutil
 
 from app.schemas import BaseDeviceState, LastCommand, BaseDeviceConfig, BaseCommandConfig, CommandParameterDefinition
 from app.mqtt_client import MQTTClient
@@ -612,7 +613,70 @@ class BaseDevice(ABC, Generic[StateT]):
                 error=error_msg
             )
     
-    async def send_wol_packet(self, mac_address: str, ip_address: str = '255.255.255.255', port: int = 9) -> bool:
+    def get_broadcast_ip(self) -> str:
+        """
+        Auto-detect the broadcast IP address for the local network.
+        
+        Prefers non-virtual, active network interfaces and filters out loopback.
+        Falls back to global broadcast (255.255.255.255) if detection fails.
+        
+        Returns:
+            str: The broadcast IP address to use for WOL packets
+        """
+        try:
+            # Get network interface statistics to identify active interfaces
+            net_stats = psutil.net_if_stats()
+            
+            # Collect potential broadcast addresses with priority scoring
+            candidates = []
+            
+            for iface_name, iface_addrs in psutil.net_if_addrs().items():
+                # Skip loopback interfaces
+                if iface_name.startswith(('lo', 'Loopback')):
+                    continue
+                
+                # Check if interface is up and running
+                iface_stat = net_stats.get(iface_name)
+                if not iface_stat or not iface_stat.isup:
+                    continue
+                
+                for addr in iface_addrs:
+                    # Only process IPv4 addresses with broadcast capability
+                    if addr.family == AF_INET and addr.broadcast:
+                        # Calculate priority score (higher is better)
+                        priority = 0
+                        
+                        # Prefer ethernet/wifi interfaces
+                        if any(keyword in iface_name.lower() for keyword in ['eth', 'en', 'wlan', 'wifi']):
+                            priority += 10
+                        
+                        # Penalize virtual/tunnel interfaces
+                        if any(keyword in iface_name.lower() for keyword in ['tun', 'tap', 'vpn', 'vbox', 'vmware']):
+                            priority -= 5
+                        
+                        # Prefer interfaces with typical private network ranges
+                        ip_addr = addr.address
+                        if ip_addr.startswith(('192.168.', '10.', '172.')):
+                            priority += 5
+                        
+                        candidates.append((priority, addr.broadcast, iface_name, ip_addr))
+            
+            if candidates:
+                # Sort by priority (highest first) and return the best broadcast address
+                candidates.sort(key=lambda x: x[0], reverse=True)
+                best_candidate = candidates[0]
+                logger.debug(f"Auto-detected broadcast IP: {best_candidate[1]} from interface {best_candidate[2]} ({best_candidate[3]})")
+                return best_candidate[1]
+            
+            # If no suitable interface found, log warning and fall back to global broadcast
+            logger.warning("Could not detect a suitable broadcast IP address, using global broadcast 255.255.255.255")
+            return "255.255.255.255"
+            
+        except Exception as e:
+            logger.warning(f"Failed to auto-detect broadcast IP: {str(e)}, falling back to 255.255.255.255")
+            return "255.255.255.255"
+
+    async def send_wol_packet(self, mac_address: str, ip_address: str, port: int = 9) -> bool:
         """
         Send a Wake-on-LAN magic packet to the specified MAC address.
         

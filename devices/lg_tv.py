@@ -80,6 +80,9 @@ class LgTv(BaseDevice[LgTvState]):
         # Cache for available apps and input sources
         self._cached_apps = []
         self._cached_input_sources = []
+
+        # Initialize broadcast IP address
+        self.broadcast_ip = self.get_broadcast_ip()
         
         # Register action handlers is now handled by BaseDevice via _register_handlers
         # self._register_lg_tv_action_handlers()
@@ -922,7 +925,7 @@ class LgTv(BaseDevice[LgTvState]):
             
         logger.info(f"Attempting to power on via Wake-on-LAN to MAC: {mac_address}")
         # Use the send_wol_packet method from BaseDevice
-        wol_success = await self.send_wol_packet(mac_address)
+        wol_success = await self.send_wol_packet(mac_address, self.broadcast_ip)
         if wol_success:
             logger.info("Wake-on-LAN packet sent successfully")
             # We can't be certain the TV will power on, but we've done our part
@@ -2236,7 +2239,7 @@ class LgTv(BaseDevice[LgTvState]):
             logger.info(f"Sending Wake-on-LAN packet to TV {self.get_name()} (MAC: {mac_address})")
             
             # Use the send_wol_packet method from BaseDevice
-            wol_success = await self.send_wol_packet(mac_address)
+            wol_success = await self.send_wol_packet(mac_address, self.broadcast_ip)
             
             if wol_success:
                 logger.info("Wake-on-LAN packet sent successfully")
