@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useExecuteDeviceAction, useDeviceState as useDeviceStateQuery } from './useApi';
+import { useExecuteDeviceAction } from './useApi';
 import type { DropdownOption, RemoteDeviceStructure } from '../types/RemoteControlLayout';
 
 // NOTE: This file uses optimized dependency arrays to prevent infinite re-renders.
@@ -21,28 +21,32 @@ interface UseAppsDataResult {
 
 /**
  * Hook for fetching available inputs for a device
- * Handles both WirenboardIR (commands) and other device classes (API actions with power state checking)
+ * WirenboardIR uses static command lists, other devices use API calls
  */
 export function useInputsData(deviceStructure: RemoteDeviceStructure): UseInputsDataResult {
   const [inputs, setInputs] = useState<DropdownOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const executeActionQuery = useExecuteDeviceAction();
-  
-  // Get device state for power checking (for non-WirenboardIR devices)
-  const { data: deviceState } = useDeviceStateQuery(deviceStructure.deviceId);
 
   // Extract ONLY primitive values from deviceStructure to avoid infinite re-renders
   const deviceId = deviceStructure.deviceId;
   const deviceClass = deviceStructure.deviceClass;
   
+  // Stabilize complex objects with JSON.stringify for useMemo
+  const remoteZonesJSON = JSON.stringify(deviceStructure.remoteZones);
+  const specialCasesJSON = JSON.stringify(deviceStructure.specialCases);
+  
   // Memoize complex derivations with stable dependencies
   const { hasInputsCapability, isWirenboardIR, usesCommands, inputsFromCommands } = useMemo(() => {
-    const mediaStackZone = deviceStructure.remoteZones.find(zone => zone.zoneId === 'media-stack');
+    const remoteZones = JSON.parse(remoteZonesJSON);
+    const specialCases = JSON.parse(specialCasesJSON);
+    
+    const mediaStackZone = remoteZones.find((zone: any) => zone.zoneId === 'media-stack');
     const hasInputsCapability = mediaStackZone?.content?.inputsDropdown !== undefined;
     const isWirenboardIR = deviceClass === 'WirenboardIRDevice';
-    const usesCommands = deviceStructure.specialCases?.some(
-      sc => sc.caseType === 'wirenboard-ir-commands' && sc.configuration.inputsFromCommands
+    const usesCommands = specialCases?.some(
+      (sc: any) => sc.caseType === 'wirenboard-ir-commands' && sc.configuration.inputsFromCommands
     );
     const inputsFromCommands = (isWirenboardIR && usesCommands) 
       ? (mediaStackZone?.content?.inputsDropdown?.options || [])
@@ -50,80 +54,29 @@ export function useInputsData(deviceStructure: RemoteDeviceStructure): UseInputs
     
     return { hasInputsCapability, isWirenboardIR, usesCommands, inputsFromCommands };
   }, [
-    // Only depend on JSON strings of arrays to ensure stability
-    JSON.stringify(deviceStructure.remoteZones),
-    JSON.stringify(deviceStructure.specialCases),
+    remoteZonesJSON,
+    specialCasesJSON,
     deviceClass
   ]);
-
-  // Extract only the specific state fields that matter for inputs logic
-  // Use memoization to prevent re-renders when irrelevant fields like last_command change
-  const { devicePower, deviceConnected, hasDeviceState } = useMemo(() => {
-    return {
-      devicePower: (deviceState as any)?.power,
-      deviceConnected: (deviceState as any)?.connected,
-      hasDeviceState: !!deviceState
-    };
-  }, [
-    (deviceState as any)?.power, 
-    (deviceState as any)?.connected, 
-    !!deviceState
-  ]);
-
-  // Power state checking is working correctly
 
   // Stabilize executeAction with useCallback to prevent dependency changes
   const executeAction = useCallback(
     (params: { deviceId: string; action: { action: string; params: {} } }) => 
       executeActionQuery.mutateAsync(params),
-    [executeActionQuery.mutateAsync]
+    [executeActionQuery]
   );
 
   const fetchInputs = useCallback(async () => {
-    // Check device power state before making API calls
-
     setLoading(true);
     setError(null);
 
     try {
       if (isWirenboardIR && usesCommands) {
-        // For WirenboardIR: Extract inputs from device commands
+        // For WirenboardIR: Use static command lists (DON'T TOUCH THIS LOGIC)
         console.log(`📺 [WirenboardIR] Using ${inputsFromCommands.length} inputs from commands`);
         setInputs(inputsFromCommands);
-      } else {
-        // ✋ GUARD: Early exit if device has no inputs functionality
-        if (!hasInputsCapability) {
-          console.log(`⚠️  [${deviceId}] No inputs capability detected - skipping inputs API calls`);
-          setInputs([]);
-          setLoading(false);
-          return;
-        }
-
-        // 🔌 POWER STATE CHECK: For network-connected devices, check power state before API calls
-        const powerStateKnown = devicePower !== undefined;
-        const isPoweredOn = devicePower === 'on';
-        const isConnected = deviceConnected === true;
-
-        // 🛡️ CRITICAL FIX: Never call APIs if we don't have device state yet
-        if (!hasDeviceState) {
-          console.log(`[${deviceId}] Waiting for device state before calling inputs API`);
-          setInputs([]);
-          setError("Loading device state...");
-          setLoading(false);
-          return;
-        }
-
-        // ⚡ SHOW APPROPRIATE MESSAGE: If device is off or disconnected, show message but keep inputs section visible
-        if (powerStateKnown && (!isPoweredOn || !isConnected)) {
-          const reason = !isPoweredOn ? 'Device is powered off' : 'Device is disconnected';
-          console.log(`[${deviceId}] Device is ${!isPoweredOn ? 'powered off' : 'disconnected'} - showing message instead of API call`);
-          setInputs([]);
-          setError(reason);
-          setLoading(false);
-          return;
-        }
-
-        // 📺 Execute get_available_inputs API call (only for powered-on devices)
+      } else if (hasInputsCapability) {
+        // For all other devices: Simple API call - just wait for response
         console.log(`[${deviceId}] Calling get_available_inputs API`);
         const response = await executeAction({
           deviceId,
@@ -145,6 +98,9 @@ export function useInputsData(deviceStructure: RemoteDeviceStructure): UseInputs
           setError(errorMsg);
           setInputs([]);
         }
+      } else {
+        // No inputs capability
+        setInputs([]);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -155,16 +111,12 @@ export function useInputsData(deviceStructure: RemoteDeviceStructure): UseInputs
       setLoading(false);
     }
   }, [
-    // Only depend on primitive values and stable functions
     deviceId,
     hasInputsCapability,
     isWirenboardIR,
     usesCommands,
     inputsFromCommands,
-    executeAction,
-    devicePower,
-    deviceConnected,
-    hasDeviceState
+    executeAction
   ]);
 
   const refetch = useCallback(() => {
@@ -180,116 +132,68 @@ export function useInputsData(deviceStructure: RemoteDeviceStructure): UseInputs
 
 /**
  * Hook for fetching available apps for a device
- * Handles both device capability checking and power state validation for network devices
+ * Simple API call - just wait for response, no power state logic
  */
 export function useAppsData(deviceStructure: RemoteDeviceStructure): UseAppsDataResult {
   const [apps, setApps] = useState<DropdownOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const executeActionQuery = useExecuteDeviceAction();
-  
-  // Get device state for power checking (for network-connected devices)
-  const { data: deviceState } = useDeviceStateQuery(deviceStructure.deviceId);
 
   // Extract ONLY primitive values from deviceStructure to avoid infinite re-renders
   const deviceId = deviceStructure.deviceId;
   
+  // Stabilize complex objects with JSON.stringify for useMemo
+  const remoteZonesJSON = JSON.stringify(deviceStructure.remoteZones);
+  
   // Memoize complex derivations with stable dependencies
-  const { hasAppsCapability, usesAppsAPI } = useMemo(() => {
-    const appsZone = deviceStructure.remoteZones.find(zone => zone.zoneId === 'apps');
+  const { hasAppsCapability } = useMemo(() => {
+    const remoteZones = JSON.parse(remoteZonesJSON);
+    const appsZone = remoteZones.find((zone: any) => zone.zoneId === 'apps');
     const hasAppsCapability = appsZone?.content?.appsDropdown !== undefined;
-    const usesAppsAPI = deviceStructure.specialCases?.some(
-      sc => sc.configuration?.usesAppsAPI === true
-    );
     
-    return { hasAppsCapability, usesAppsAPI };
+    return { hasAppsCapability };
   }, [
-    // Only depend on JSON strings of arrays to ensure stability
-    JSON.stringify(deviceStructure.remoteZones),
-    JSON.stringify(deviceStructure.specialCases)
+    remoteZonesJSON
   ]);
-
-  // Extract only the specific state fields that matter for apps logic
-  // Use memoization to prevent re-renders when irrelevant fields like last_command change
-  const { devicePower: appDevicePower, deviceConnected: appDeviceConnected, hasDeviceState: appHasDeviceState } = useMemo(() => {
-    return {
-      devicePower: (deviceState as any)?.power,
-      deviceConnected: (deviceState as any)?.connected,
-      hasDeviceState: !!deviceState
-    };
-  }, [(deviceState as any)?.power, (deviceState as any)?.connected, !!deviceState]);
-
-  // Power state checking is working correctly
 
   // Stabilize executeAction with useCallback to prevent dependency changes
   const executeAction = useCallback(
     (params: { deviceId: string; action: { action: string; params: {} } }) => 
       executeActionQuery.mutateAsync(params),
-    [executeActionQuery.mutateAsync]
+    [executeActionQuery]
   );
 
   const fetchApps = useCallback(async () => {
-    // Check device power state before making API calls
-
     setLoading(true);
     setError(null);
 
     try {
-      // 🔌 POWER STATE CHECK: For network-connected devices, check power state before API calls
-      const powerStateKnown = appDevicePower !== undefined;
-      const isPoweredOn = appDevicePower === 'on';
-      const isConnected = appDeviceConnected === true;
+      if (hasAppsCapability) {
+        // Simple API call - just wait for response, no other logic
+        console.log(`[${deviceId}] Calling get_available_apps API`);
+        const response = await executeAction({
+          deviceId,
+          action: { action: 'get_available_apps', params: {} }
+        });
 
-      // Power state validation logic
-
-      // 🛡️ CRITICAL FIX: Never call APIs if we don't have device state yet
-      if (!appHasDeviceState) {
-        console.log(`[${deviceId}] Waiting for device state before calling apps API`);
-        setApps([]);
-        setError(null);
-        setLoading(false);
-        return;
-      }
-
-      // ⚡ CRITICAL FIX: Skip API call if device is known to be off or disconnected
-      // These APIs should only be called AFTER successful power_on, not during page load
-      if (powerStateKnown && (!isPoweredOn || !isConnected)) {
-        const reason = !isPoweredOn ? 'powered off' : 'disconnected';
-        console.log(`[${deviceId}] Device is ${reason} - skipping apps API call`);
-        setApps([]);
-        setError(null); // Don't show error for expected behavior
-        setLoading(false);
-        return;
-      }
-
-      // ✋ GUARD: Early exit if device has no apps functionality
-      if (!hasAppsCapability) {
-        console.log(`⚠️  [${deviceId}] No apps capability detected - skipping apps API calls`);
-        setApps([]);
-        setLoading(false);
-        return;
-      }
-
-      // 📱 Execute get_available_apps API call (only for powered-on devices)
-      console.log(`[${deviceId}] Calling get_available_apps API`);
-      const response = await executeAction({
-        deviceId,
-        action: { action: 'get_available_apps', params: {} }
-      });
-
-      if (response.success && Array.isArray(response.data)) {
-        const appOptions: DropdownOption[] = response.data.map((app: any) => ({
-          id: app.app_id,
-          displayName: app.app_name,
-          description: app.app_name
-        }));
-        
-        console.log(`✅ [${deviceId}] Successfully fetched ${appOptions.length} apps`);
-        setApps(appOptions);
+        if (response.success && Array.isArray(response.data)) {
+          const appOptions: DropdownOption[] = response.data.map((app: any) => ({
+            id: app.app_id,
+            displayName: app.app_name,
+            description: app.app_name
+          }));
+          
+          console.log(`✅ [${deviceId}] Successfully fetched ${appOptions.length} apps`);
+          setApps(appOptions);
+        } else {
+          const errorMsg = response.error || 'Failed to fetch apps';
+          console.error(`❌ [${deviceId}] Apps API failed:`, errorMsg);
+          setError(errorMsg);
+          setApps([]);
+        }
       } else {
-        const errorMsg = response.error || 'Failed to fetch apps';
-        console.error(`❌ [${deviceId}] Apps API failed:`, errorMsg);
-        setError(errorMsg);
+        // No apps capability
         setApps([]);
       }
     } catch (error) {
@@ -301,14 +205,9 @@ export function useAppsData(deviceStructure: RemoteDeviceStructure): UseAppsData
       setLoading(false);
     }
   }, [
-    // Only depend on primitive values and stable functions
     deviceId,
     hasAppsCapability,
-    usesAppsAPI,
-    executeAction,
-    appDevicePower,
-    appDeviceConnected,
-    appHasDeviceState
+    executeAction
   ]);
 
   const refetch = useCallback(() => {
@@ -329,18 +228,21 @@ export function useInputSelection(deviceStructure: RemoteDeviceStructure) {
   const [selectedInput, setSelectedInput] = useState<string>('');
   const executeActionQuery = useExecuteDeviceAction();
 
+  // Extract stable values
+  const deviceId = deviceStructure.deviceId;
+  const deviceClass = deviceStructure.deviceClass;
+
   // Stabilize executeAction
   const executeAction = useCallback(
     (params: { deviceId: string; action: { action: string; params: any } }) => 
       executeActionQuery.mutateAsync(params),
-    [executeActionQuery.mutateAsync]
+    [executeActionQuery]
   );
 
   const selectInput = useCallback(async (inputId: string) => {
     setSelectedInput(inputId);
     
     try {
-      const { deviceId, deviceClass } = deviceStructure;
       const isWirenboardIR = deviceClass === 'WirenboardIRDevice';
 
       if (isWirenboardIR) {
@@ -362,7 +264,7 @@ export function useInputSelection(deviceStructure: RemoteDeviceStructure) {
       setSelectedInput('');
       throw err;
     }
-  }, [deviceStructure.deviceId, deviceStructure.deviceClass, executeAction]);
+  }, [deviceId, deviceClass, executeAction]);
 
   return { selectedInput, selectInput, setSelectedInput };
 }
@@ -374,19 +276,20 @@ export function useAppLaunching(deviceStructure: RemoteDeviceStructure) {
   const [selectedApp, setSelectedApp] = useState<string>('');
   const executeActionQuery = useExecuteDeviceAction();
 
+  // Extract stable values
+  const deviceId = deviceStructure.deviceId;
+
   // Stabilize executeAction
   const executeAction = useCallback(
     (params: { deviceId: string; action: { action: string; params: any } }) => 
       executeActionQuery.mutateAsync(params),
-    [executeActionQuery.mutateAsync]
+    [executeActionQuery]
   );
 
   const launchApp = useCallback(async (appId: string) => {
     setSelectedApp(appId);
     
     try {
-      const { deviceId } = deviceStructure;
-      
       // Use launch_app action for all device classes
       await executeAction({
         deviceId,
@@ -398,7 +301,7 @@ export function useAppLaunching(deviceStructure: RemoteDeviceStructure) {
       setSelectedApp('');
       throw err;
     }
-  }, [deviceStructure.deviceId, executeAction]);
+  }, [deviceId, executeAction]);
 
   return { selectedApp, launchApp, setSelectedApp };
 } 
