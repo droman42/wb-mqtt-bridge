@@ -142,6 +142,35 @@ class BroadlinkKitchenHood(BaseDevice[KitchenHoodState]):
     
     # ============= Updated parameter-based handlers =============
     
+    async def _send_speed_rf_code(self, level: int) -> bool:
+        """
+        Helper function to send speed RF code for a given level.
+        
+        Args:
+            level: Speed level (0-4)
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        # Validate speed level range
+        if level < 0 or level > 4:
+            logger.error(f"[{self.device_name}] Invalid speed level: {level}, must be between 0 and 4")
+            return False
+        
+        # Get RF code from the rf_codes map - the key is the level as string
+        if "speed" not in self.rf_codes:
+            logger.error(f"[{self.device_name}] No RF codes map found for 'speed' category")
+            return False
+            
+        level_key = str(level)
+        rf_code = self.rf_codes.get("speed", {}).get(level_key)
+        if not rf_code:
+            logger.error(f"[{self.device_name}] No RF code found for speed level: {level}")
+            return False
+            
+        # Send the RF code
+        return await self._send_rf_code(rf_code)
+
     async def handle_set_light(
         self, 
         cmd_config: StandardCommandConfig, 
@@ -149,6 +178,8 @@ class BroadlinkKitchenHood(BaseDevice[KitchenHoodState]):
     ) -> CommandResult:
         """
         Handle light control with parameters.
+        Includes compensation logic to restore fan speed if it was previously not 0,
+        since the physical device resets speed when light is toggled.
         
         Args:
             cmd_config: The command configuration
@@ -157,6 +188,9 @@ class BroadlinkKitchenHood(BaseDevice[KitchenHoodState]):
         Returns:
             CommandResult: Result of the command execution
         """
+        # Store the current speed before changing the light (for compensation)
+        previous_speed = self.state.speed
+        
         # Extract state parameter from params - keeping the original logic since params is still a dict
         state = params.get("state", "off")
         
@@ -195,12 +229,38 @@ class BroadlinkKitchenHood(BaseDevice[KitchenHoodState]):
             self.update_state(light=state)
             await self.publish_progress(f"Light turned {state}")
             
+            # Compensation logic: If the previous speed was not 0, restore it
+            # since the physical device resets speed when light is toggled
+            if previous_speed > 0:
+                logger.info(f"[{self.device_name}] Compensating for speed reset - restoring speed {previous_speed}")
+                await self.publish_progress(f"Restoring fan speed to {previous_speed}")
+                
+                # Small delay to ensure the light command is processed first
+                await asyncio.sleep(0.5)
+                
+                # Use helper function to send speed RF code
+                if await self._send_speed_rf_code(previous_speed):
+                    # Update state to restore the speed
+                    self.update_state(speed=previous_speed)
+                    logger.info(f"[{self.device_name}] Successfully restored speed to {previous_speed}")
+                    await self.publish_progress(f"Speed restored to {previous_speed}")
+                else:
+                    logger.warning(f"[{self.device_name}] Failed to restore speed to {previous_speed}")
+                    await self.publish_progress(f"Failed to restore speed to {previous_speed}")
+                    # Update state to reflect that speed was reset to 0 by the physical device
+                    self.update_state(speed=0)
+            else:
+                # If previous speed was 0, the physical device reset doesn't matter
+                # but we should still update our state to reflect reality
+                self.update_state(speed=0)
+                logger.debug(f"[{self.device_name}] Previous speed was 0, no compensation needed")
+            
             # Create a standardized result with MQTT command information
             return self.create_mqtt_command_result(
                 success=True,
                 mqtt_topic=f"kitchen_hood/light/state",
                 mqtt_payload=state,
-                message=f"Light turned {state}"
+                message=f"Light turned {state}" + (f" (speed restored to {previous_speed})" if previous_speed > 0 else "")
             )
         else:
             error_msg = "Failed to send RF code for light command"
@@ -246,22 +306,8 @@ class BroadlinkKitchenHood(BaseDevice[KitchenHoodState]):
             await self.publish_progress(f"Invalid speed level value")
             return self.create_command_result(success=False, error=error_msg)
             
-        # Get RF code from the rf_codes map - the key is the level as string
-        if "speed" not in self.rf_codes:
-            error_msg = "No RF codes map found for 'speed' category"
-            logger.error(error_msg)
-            await self.publish_progress("No RF codes map found for speed")
-            return self.create_command_result(success=False, error=error_msg)
-            
-        level_key = str(level)
-        rf_code = self.rf_codes.get("speed", {}).get(level_key)
-        if not rf_code:
-            error_msg = f"No RF code found for speed level: {level}"
-            logger.error(error_msg)
-            await self.publish_progress(f"No RF code found for speed level: {level}")
-            return self.create_command_result(success=False, error=error_msg)
-            
-        if await self._send_rf_code(rf_code):
+        # Use helper function to send speed RF code
+        if await self._send_speed_rf_code(level):
             # Update state using update_state method
             self.update_state(speed=level)
             await self.publish_progress(f"Speed set to {level}")

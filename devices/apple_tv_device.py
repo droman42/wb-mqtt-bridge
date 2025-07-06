@@ -1512,7 +1512,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             return self.create_command_result(
                 success=True,
                 message=f"Retrieved {len(app_list_result)} apps",
-                data={"apps": app_list_result}
+                data=app_list_result
             )
             
         except Exception as e:
