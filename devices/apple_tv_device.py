@@ -9,7 +9,14 @@ from datetime import datetime
 import pyatv
 from pyatv import scan, connect
 from pyatv.const import Protocol as ProtocolType, PowerState
-from pyatv.interface import DeviceListener, Playing, PowerListener, AudioListener
+from pyatv.interface import DeviceListener, Playing, AudioListener
+try:
+    from pyatv.interface import KeyboardListener
+    KEYBOARD_LISTENER_AVAILABLE = True
+except ImportError:
+    # KeyboardListener may not be available in all pyatv versions
+    KeyboardListener = object  # Fallback base class
+    KEYBOARD_LISTENER_AVAILABLE = False
 from pyatv.exceptions import AuthenticationError, ConnectionFailedError
 
 from devices.base_device import BaseDevice
@@ -165,13 +172,18 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             listener = PyATVDeviceListener(self)
             self.atv.listener = listener
             
-            # Set up power state listener for real-time power state updates
-            self.atv.power.listener = listener
+            # Note: PowerListener is not supported by Companion protocol, only MRP
+            # So we don't set up power state listener for automatic notifications
             
-            # Set up audio listener for real-time volume updates (MRP protocol only)
+            # Set up audio listener for real-time volume updates
             if hasattr(self.atv, "audio") and hasattr(self.atv.audio, "listener"):
                 self.atv.audio.listener = listener
-                logger.info(f"[{self.device_id}] Audio listener configured for volume updates") 
+                logger.info(f"[{self.device_id}] Audio listener configured for volume updates")
+            
+            # Set up keyboard listener for virtual keyboard focus (Companion protocol)
+            if hasattr(self.atv, "keyboard") and hasattr(self.atv.keyboard, "listener") and KEYBOARD_LISTENER_AVAILABLE:
+                self.atv.keyboard.listener = listener
+                logger.info(f"[{self.device_id}] Keyboard listener configured for focus state updates") 
             
             # Perform initial status refresh and app list update
             await self.handle_refresh_status(
@@ -375,14 +387,36 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
                 )
 
             # Get current app (only if powered on)
-            # FIX: Use metadata.app instead of apps.current_app which doesn't exist anymore
+            # NOTE: Companion protocol has limited metadata.app support, use alternative approaches
             current_app = None
             try:
-                app_info = self.atv.metadata.app
-                current_app = app_info.name if app_info else None
-                logger.info(f"[{self.device_id}] Current app from metadata: {current_app}")
+                # Try metadata.app first (may not work with Companion)
+                if hasattr(self.atv.metadata, 'app'):
+                    app_info = self.atv.metadata.app
+                    current_app = app_info.name if app_info else None
+                    logger.debug(f"[{self.device_id}] Current app from metadata: {current_app}")
+                else:
+                    logger.debug(f"[{self.device_id}] metadata.app not available (normal for Companion protocol)")
             except Exception as e:
-                logger.warning(f"[{self.device_id}] Could not get current app: {e}")
+                # This is expected for Companion protocol - metadata.app is not supported
+                logger.debug(f"[{self.device_id}] metadata.app not supported: {e}")
+                
+            # Alternative: Try to get app info from playing metadata when available
+            if not current_app:
+                try:
+                    playing_info = await self.atv.metadata.playing()
+                    if playing_info and hasattr(playing_info, 'app'):
+                        current_app = playing_info.app
+                        logger.debug(f"[{self.device_id}] Current app from playing metadata: {current_app}")
+                except Exception as e:
+                    logger.debug(f"[{self.device_id}] Could not get app from playing metadata: {e}")
+                    
+            # For Companion protocol, we often can't reliably detect current app
+            # This is a limitation of the protocol, not an error
+            if current_app:
+                logger.info(f"[{self.device_id}] Current app detected: {current_app}")
+            else:
+                logger.debug(f"[{self.device_id}] Current app unknown (common with Companion protocol)")
             
             # Get playback state (only if powered on)
             playing_info = await self.atv.metadata.playing()
@@ -522,12 +556,13 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             logger.error(f"[{self.device_id}] Reconnect failed. Cannot execute command.")
             return False
             
-    async def _execute_remote_command(self, command_name: str) -> CommandResult:
+    async def _execute_remote_command(self, command_name: str, update_device_error: bool = True) -> CommandResult:
         """
         Helper to execute a remote control command safely.
         
         Args:
             command_name: Name of the remote command to execute
+            update_device_error: Whether to update device state error on failure (default True)
             
         Returns:
             CommandResult: Result of the command execution
@@ -565,8 +600,12 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
         except Exception as e:
             error_msg = f"Error executing remote command {command_name}: {str(e)}"
             logger.error(f"[{self.device_id}] {error_msg}", exc_info=True)
-            self.update_state(error=error_msg)
-            await self.publish_progress(error_msg)
+            
+            # Only update device state error if requested (avoid overwriting main command results)
+            if update_device_error:
+                self.update_state(error=error_msg)
+                await self.publish_progress(error_msg)
+            
             return self.create_command_result(
                 success=False,
                 error=error_msg
@@ -584,57 +623,53 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         logger.info(f"[{self.device_id}] Attempting to turn ON (wake)...")
-        if await self._ensure_connected():
-            try:
-                # Use await_new_state=True to wait for actual power state change
-                logger.info(f"[{self.device_id}] Waiting for device to power on...")
-                await asyncio.wait_for(
-                    self.atv.power.turn_on(await_new_state=True),
-                    timeout=10.0
-                )
-                logger.info(f"[{self.device_id}] Device successfully powered on.")
-                
-                # Record the command (power state will be updated by PowerListener)
-                self.update_state(
-                    last_command=LastCommand(
-                        action="power_on",
-                        source="api",
-                        timestamp=datetime.now(),
-                        params={"method": "await_new_state"}
-                    )
-                )
-                
-                # Schedule refresh after command to update other state
-                asyncio.create_task(self._delayed_refresh(delay=1.0))
-                
-                return self.create_command_result(
-                    success=True,
-                    message="Device powered on successfully"
-                )
-            except asyncio.TimeoutError:
-                logger.warning(f"[{self.device_id}] Power on command timed out")
-                return self.create_command_result(
-                    success=False,
-                    error="Power on command timed out after 10 seconds"
-                )
-            except NotImplementedError:
-                logger.warning(f"[{self.device_id}] Direct power on not supported, trying to send key instead...")
-                # Fallback to sending a key press to wake
-                return await self._execute_remote_command("select")
-            except Exception as e:
-                error_msg = f"Error turning on: {str(e)}"
-                logger.error(f"[{self.device_id}] {error_msg}", exc_info=True)
-                self.update_state(error=error_msg)
-                await self.publish_progress(error_msg)
-                return self.create_command_result(
-                    success=False,
-                    error=error_msg
-                )
-        
-        return self.create_command_result(
-            success=False,
-            error="Failed to connect to Apple TV"
-        )
+        if not await self._ensure_connected():
+            return self.create_command_result(
+                success=False,
+                error="Failed to connect to Apple TV"
+            )
+
+        # Check if power interface is available
+        if not hasattr(self.atv, 'power') or not hasattr(self.atv.power, 'turn_on'):
+            logger.warning(f"[{self.device_id}] Power interface not available, using select key fallback")
+            return await self._execute_remote_command("select", update_device_error=False)
+
+        try:
+            # Use turn_on without await_new_state since Companion protocol doesn't support it yet
+            logger.info(f"[{self.device_id}] Sending power on command...")
+            await self.atv.power.turn_on()
+            logger.info(f"[{self.device_id}] Power on command sent successfully.")
+            
+            # Record the command 
+            self.update_state(
+                last_command=LastCommand(
+                    action="power_on",
+                    source="api",
+                    timestamp=datetime.now(),
+                    params={"method": "native_power_api"}
+                ),
+                error=None  # Clear any previous errors on success
+            )
+            
+            return self.create_command_result(
+                success=True,
+                message="Power on command sent successfully"
+            )
+            
+        except NotImplementedError:
+            logger.warning(f"[{self.device_id}] Native power on not implemented, using select key fallback")
+            # This should be rare for Companion protocol
+            return await self._execute_remote_command("select", update_device_error=False)
+            
+        except Exception as e:
+            error_msg = f"Error turning on: {str(e)}"
+            logger.error(f"[{self.device_id}] {error_msg}", exc_info=True)
+            self.update_state(error=error_msg)
+            await self.publish_progress(error_msg)
+            return self.create_command_result(
+                success=False,
+                error=error_msg
+            )
 
     async def handle_power_off(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
@@ -648,57 +683,58 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         logger.info(f"[{self.device_id}] Attempting to turn OFF (sleep)...")
-        if await self._ensure_connected():
-            try:
-                # Use await_new_state=True to wait for actual power state change
-                logger.info(f"[{self.device_id}] Waiting for device to power off...")
-                await asyncio.wait_for(
-                    self.atv.power.turn_off(await_new_state=True),
-                    timeout=10.0
-                )
-                logger.info(f"[{self.device_id}] Device successfully powered off.")
-                
-                # Record the command (power state will be updated by PowerListener)
-                self.update_state(
-                    last_command=LastCommand(
-                        action="power_off",
-                        source="api",
-                        timestamp=datetime.now(),
-                        params={"method": "await_new_state"}
-                    )
-                )
-                
-                # Still schedule a refresh to update other state attributes
-                asyncio.create_task(self._delayed_refresh(delay=1.0))
-                
-                return self.create_command_result(
-                    success=True,
-                    message="Device powered off successfully"
-                )
-            except asyncio.TimeoutError:
-                logger.warning(f"[{self.device_id}] Power off command timed out")
-                return self.create_command_result(
-                    success=False,
-                    error="Power off command timed out after 10 seconds"
-                )
-            except NotImplementedError:
-                logger.warning(f"[{self.device_id}] Direct power off not supported, trying long home press...")
-                # Fallback: Press and hold home button (might bring up power menu on some tvOS versions)
-                return await self._execute_remote_command("home_hold")
-            except Exception as e:
-                error_msg = f"Error turning off: {str(e)}"
-                logger.error(f"[{self.device_id}] {error_msg}", exc_info=True)
-                self.update_state(error=error_msg)
-                await self.publish_progress(error_msg)
-                return self.create_command_result(
-                    success=False,
-                    error=error_msg
-                )
-                
-        return self.create_command_result(
-            success=False,
-            error="Failed to connect to Apple TV"
-        )
+        if not await self._ensure_connected():
+            return self.create_command_result(
+                success=False,
+                error="Failed to connect to Apple TV"
+            )
+
+        # Check if power interface is available
+        if not hasattr(self.atv, 'power') or not hasattr(self.atv.power, 'turn_off'):
+            logger.warning(f"[{self.device_id}] Power interface not available, cannot turn off via API")
+            return self.create_command_result(
+                success=False,
+                error="Power interface not available for this protocol"
+            )
+
+        try:
+            # Use turn_off without await_new_state since Companion protocol doesn't support it yet
+            logger.info(f"[{self.device_id}] Sending power off command...")
+            await self.atv.power.turn_off()
+            logger.info(f"[{self.device_id}] Power off command sent successfully.")
+            
+            # Record the command 
+            self.update_state(
+                last_command=LastCommand(
+                    action="power_off",
+                    source="api",
+                    timestamp=datetime.now(),
+                    params={"method": "native_power_api"}
+                ),
+                error=None  # Clear any previous errors on success
+            )
+            
+            return self.create_command_result(
+                success=True,
+                message="Power off command sent successfully"
+            )
+            
+        except NotImplementedError:
+            logger.error(f"[{self.device_id}] Native power off not implemented - this should not happen with Companion protocol")
+            return self.create_command_result(
+                success=False,
+                error="Power off not supported by current protocol"
+            )
+            
+        except Exception as e:
+            error_msg = f"Error turning off: {str(e)}"
+            logger.error(f"[{self.device_id}] {error_msg}", exc_info=True)
+            self.update_state(error=error_msg)
+            await self.publish_progress(error_msg)
+            return self.create_command_result(
+                success=False,
+                error=error_msg
+            )
 
     async def handle_play(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
@@ -979,6 +1015,90 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             return self.create_command_result(
                 success=False,
                 error="Failed to send right command"
+            )
+
+    async def handle_screensaver(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
+        """
+        Activate screensaver (Companion protocol feature).
+        
+        Args:
+            cmd_config: Command configuration
+            params: Parameters (unused)
+            
+        Returns:
+            CommandResult: Result of the command execution
+        """
+        if not await self._ensure_connected():
+            return self.create_command_result(
+                success=False,
+                error="Failed to connect to Apple TV"
+            )
+            
+        # Check if screensaver command is available (Companion protocol)
+        if not hasattr(self.atv.remote_control, 'screensaver'):
+            return self.create_command_result(
+                success=False,
+                error="Screensaver command not available (requires Companion protocol)"
+            )
+            
+        remote_cmd_result = await self._execute_remote_command("screensaver")
+        if remote_cmd_result:
+            return self.create_command_result(
+                success=True,
+                message="Screensaver activated successfully"
+            )
+        else:
+            return self.create_command_result(
+                success=False,
+                error="Failed to activate screensaver"
+            )
+
+    async def handle_home_hold(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
+        """
+        Send Home Hold command (long press home button).
+        
+        Args:
+            cmd_config: Command configuration
+            params: Parameters (unused)
+            
+        Returns:
+            CommandResult: Result of the command execution
+        """
+        if not await self._ensure_connected():
+            return self.create_command_result(
+                success=False,
+                error="Failed to connect to Apple TV"
+            )
+            
+        try:
+            # Use InputAction.Hold for home button
+            from pyatv.const import InputAction
+            await self.atv.remote_control.home(action=InputAction.Hold)
+            logger.info(f"[{self.device_id}] Executed home hold command")
+            
+            # Record this command in last_command
+            self.update_state(last_command=LastCommand(
+                action="home_hold",
+                source="remote_control",
+                timestamp=datetime.now(),
+                params={"input_action": "Hold"}
+            ))
+            
+            return self.create_command_result(
+                success=True,
+                message="Home hold command executed successfully"
+            )
+        except ImportError:
+            # Fallback to basic home_hold if InputAction not available
+            logger.warning(f"[{self.device_id}] InputAction not available, using basic home_hold")
+            remote_cmd_result = await self._execute_remote_command("home_hold")
+            return remote_cmd_result
+        except Exception as e:
+            error_msg = f"Error executing home hold: {str(e)}"
+            logger.error(f"[{self.device_id}] {error_msg}", exc_info=True)
+            return self.create_command_result(
+                success=False,
+                error=error_msg
             )
 
     async def handle_pointer_gesture(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
@@ -1528,8 +1648,14 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
 
 # === PyATV Listener ===
 
-class PyATVDeviceListener(DeviceListener, PowerListener, AudioListener):
-    """Listener for pyatv events (connection status, updates, power state, audio)."""
+class PyATVDeviceListener(DeviceListener, AudioListener):
+    """
+    Listener for pyatv events (connection status, updates, audio, keyboard).
+    
+    Enhanced for Companion protocol support with additional listener interfaces.
+    Note: PowerListener is not supported by Companion protocol, only MRP.
+    KeyboardListener methods are implemented conditionally based on availability.
+    """
     
     def __init__(self, device: AppleTVDevice):
         """Initialize the listener with a reference to the AppleTVDevice."""
@@ -1642,33 +1768,8 @@ class PyATVDeviceListener(DeviceListener, PowerListener, AudioListener):
         self.loop.call_soon_threadsafe(asyncio.create_task, 
             self.device.publish_progress(f"Device error: {str(error)}"))
 
-    def powerstate_update(self, old_state: PowerState, new_state: PowerState):
-        """
-        Called by pyatv when device power state changes.
-        
-        Args:
-            old_state: Previous power state
-            new_state: New power state
-        """
-        logger.info(f"[{self.device.device_id}] Power state changed from {old_state.name} to {new_state.name}")
-        
-        # Update device state with real power state from device
-        self.device.update_state(
-            power=new_state.name.lower(),
-            last_command=LastCommand(
-                action="powerstate_update",
-                source="device",
-                timestamp=datetime.now(),
-                params={
-                    "old_state": old_state.name,
-                    "new_state": new_state.name
-                }
-            )
-        )
-        
-        # Schedule state publish
-        self.loop.call_soon_threadsafe(asyncio.create_task, 
-            self.device.publish_progress(f"Power state changed to {new_state.name.lower()}"))
+    # PowerListener methods removed - not supported by Companion protocol
+    # Power state changes can only be detected via manual refresh_status calls
 
     def volume_update(self, old_level: float, new_level: float):
         """
@@ -1720,3 +1821,33 @@ class PyATVDeviceListener(DeviceListener, PowerListener, AudioListener):
                 }
             )
         )
+
+    def focusstate_update(self, old_state, new_state):
+        """
+        Called by pyatv when virtual keyboard focus state changes (Companion protocol).
+        
+        Args:
+            old_state: Previous focus state
+            new_state: New focus state
+        """
+        if not KEYBOARD_LISTENER_AVAILABLE:
+            return  # Silently ignore if not supported
+            
+        logger.info(f"[{self.device.device_id}] Keyboard focus state changed from {old_state} to {new_state}")
+        
+        # Update device state with keyboard focus info
+        self.device.update_state(
+            last_command=LastCommand(
+                action="focusstate_update",
+                source="device",
+                timestamp=datetime.now(),
+                params={
+                    "old_state": str(old_state),
+                    "new_state": str(new_state)
+                }
+            )
+        )
+        
+        # Schedule state publish
+        self.loop.call_soon_threadsafe(asyncio.create_task, 
+            self.device.publish_progress(f"Keyboard focus changed to {new_state}"))

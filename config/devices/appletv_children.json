@@ -153,6 +153,18 @@
       "description": "Remote: Right",
       "group": "menu"
     },
+    "screensaver": {
+      "action": "screensaver",
+      "topic": "/devices/appletv_children/controls/screensaver",
+      "description": "Activate Screensaver",
+      "group": "noops"
+    },
+    "home_hold": {
+      "action": "home_hold",
+      "topic": "/devices/appletv_children/controls/home_hold",
+      "description": "Remote: Home Hold",
+      "group": "noops"
+    },
     "get_available_apps": {
       "action": "get_available_apps",
       "topic": "/devices/appletv_children/controls/get_available_apps",
