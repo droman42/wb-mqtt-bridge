@@ -41,6 +41,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         Property.POWER,              # Main zone power
         Property.ZONE2_POWER,        # Zone 2 power
         Property.VOLUME,             # Main volume
+        Property.ZONE2_VOLUME,       # Zone 2 volume
         Property.SOURCE,             # Current input
         Property.AUDIO_INPUT,        # Audio input
         Property.VIDEO_INPUT,        # Video input
@@ -347,6 +348,8 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             updates["zone2_power"] = processed_value
         elif property_name == "volume":
             updates["volume"] = processed_value
+        elif property_name == "zone2_volume":
+            updates["zone2_volume"] = processed_value
         elif property_name == "mute":
             updates["mute"] = processed_value
         elif property_name == "source":  # Changed from "input"
@@ -385,7 +388,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             if isinstance(value, str):
                 return PowerState.ON if value.lower() == "on" else PowerState.OFF if value.lower() == "off" else PowerState.UNKNOWN
             return value  # Already converted
-        elif property_name == "volume":
+        elif property_name in ["volume", "zone2_volume"]:
             # Convert volume to float
             try:
                 return float(value)
@@ -586,6 +589,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 Property.POWER,              # Main zone power
                 Property.ZONE2_POWER,        # Zone 2 power
                 Property.VOLUME,             # Main volume
+                Property.ZONE2_VOLUME,       # Zone 2 volume
                 Property.SOURCE,             # Current input
                 Property.AUDIO_INPUT,        # Audio input
                 Property.VIDEO_INPUT,        # Video input

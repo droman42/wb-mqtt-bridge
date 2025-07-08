@@ -640,8 +640,9 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             await self.atv.power.turn_on()
             logger.info(f"[{self.device_id}] Power on command sent successfully.")
             
-            # Record the command 
+            # Update state optimistically (follow pattern from volume/other commands)
             self.update_state(
+                power="on",  # Optimistically assume command worked
                 last_command=LastCommand(
                     action="power_on",
                     source="api",
@@ -650,6 +651,9 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
                 ),
                 error=None  # Clear any previous errors on success
             )
+            
+            # Schedule delayed refresh to verify actual power state (no PowerListener for Companion protocol)
+            asyncio.create_task(self._delayed_refresh(delay=2.0))
             
             return self.create_command_result(
                 success=True,
@@ -703,8 +707,9 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             await self.atv.power.turn_off()
             logger.info(f"[{self.device_id}] Power off command sent successfully.")
             
-            # Record the command 
+            # Update state optimistically (follow pattern from volume/other commands)
             self.update_state(
+                power="off",  # Optimistically assume command worked
                 last_command=LastCommand(
                     action="power_off",
                     source="api",
@@ -713,6 +718,9 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
                 ),
                 error=None  # Clear any previous errors on success
             )
+            
+            # Schedule delayed refresh to verify actual power state (no PowerListener for Companion protocol)
+            asyncio.create_task(self._delayed_refresh(delay=2.0))
             
             return self.create_command_result(
                 success=True,
