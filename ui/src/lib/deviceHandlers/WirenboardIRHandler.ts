@@ -195,16 +195,10 @@ export class WirenboardIRHandler implements DeviceClassHandler {
       interfaceName: `${config.device_class}State`,
       fields: [
         {
-          name: 'power',
-          type: 'boolean',
-          optional: true,
-          description: 'Device power state'
-        },
-        {
-          name: 'lastAction',
+          name: 'alias',
           type: 'string',
-          optional: true,
-          description: 'Last executed action'
+          optional: false,
+          description: 'Device alias'
         }
       ],
       imports: ['BaseDeviceState'],

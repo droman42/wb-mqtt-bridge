@@ -166,33 +166,51 @@ export class LgTvHandler implements DeviceClassHandler {
       fields: [
         {
           name: 'power',
-          type: 'boolean',
-          optional: true,
-          description: 'TV power state'
-        },
-        {
-          name: 'input',
           type: 'string',
           optional: true,
-          description: 'Current input source'
+          description: 'TV power state ("on", "off", etc.)'
         },
         {
           name: 'volume',
-          type: 'number',
+          type: 'number | null',
           optional: true,
           description: 'Current volume level'
         },
         {
-          name: 'channel',
-          type: 'number',
+          name: 'mute',
+          type: 'boolean',
           optional: true,
-          description: 'Current channel'
+          description: 'Mute status'
         },
         {
-          name: 'lastAction',
-          type: 'string',
+          name: 'current_app',
+          type: 'string | null',
           optional: true,
-          description: 'Last executed action'
+          description: 'Currently active application'
+        },
+        {
+          name: 'input_source',
+          type: 'string | null',
+          optional: true,
+          description: 'Current input source'
+        },
+        {
+          name: 'connected',
+          type: 'boolean',
+          optional: true,
+          description: 'Device connection status'
+        },
+        {
+          name: 'ip_address',
+          type: 'string | null',
+          optional: true,
+          description: 'Device IP address'
+        },
+        {
+          name: 'mac_address',
+          type: 'string | null',
+          optional: true,
+          description: 'Device MAC address'
         }
       ],
       imports: ['BaseDeviceState'],

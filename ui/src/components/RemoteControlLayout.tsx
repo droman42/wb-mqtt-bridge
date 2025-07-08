@@ -9,7 +9,10 @@ import { useInputsData, useAppsData, useInputSelection, useAppLaunching } from '
 import { useDeviceState as useDeviceStateQuery } from '../hooks/useApi';
 
 // Power Zone - 3-button layout with EMotiva special case
-const PowerZone = ({ zone, onAction, className, isActionPending = false, lastAction }: { zone?: RemoteZone; onAction: (action: string, payload?: any) => void; className?: string; isActionPending?: boolean; lastAction?: string }) => {
+const PowerZone = ({ zone, deviceStructure, onAction, className, isActionPending = false, lastAction }: { zone?: RemoteZone; deviceStructure: RemoteDeviceStructure; onAction: (action: string, payload?: any) => void; className?: string; isActionPending?: boolean; lastAction?: string }) => {
+  // Get device state for zone2 power state
+  const { data: deviceState } = useDeviceStateQuery(deviceStructure.deviceId);
+
   if (!zone?.content?.powerButtons || zone.isEmpty) {
     return (
       <div className={cn("zone-empty", className)}>
@@ -29,9 +32,19 @@ const PowerZone = ({ zone, onAction, className, isActionPending = false, lastAct
     onAction(button.action.actionName, button.action.parameters || {});
   };
 
-  // Helper function to get icon color based on button type
+  // Helper function to get icon color based on button type and device state
   const getIconColor = (button: PowerButtonConfig) => {
-    // Power-off and power-toggle buttons should be red
+    // Special handling for zone2 power toggle buttons (eMotiva)
+    if (button.buttonType === 'power-toggle' && button.action.actionName.includes('zone2')) {
+      const deviceStateTyped = deviceState as any;
+      // Check if zone2 is powered on (use correct snake_case field name and string type)
+      const zone2PowerOn = deviceStateTyped?.zone2_power === 'on';
+      
+      // Yellow when zone2 is off, white when zone2 is on
+      return zone2PowerOn ? 'text-white' : 'text-yellow-500';
+    }
+    
+    // Power-off and regular power-toggle buttons should be red
     if (button.buttonType === 'power-off' || button.buttonType === 'power-toggle') {
       return 'text-red-600';
     }
@@ -961,6 +974,7 @@ export function RemoteControlLayout({
           {zones.power && !zones.power.isEmpty && (
             <PowerZone
               zone={zones.power}
+              deviceStructure={deviceStructure}
               onAction={handleAction}
               className="zone-power"
               isActionPending={isActionPending}

@@ -68,23 +68,32 @@ export class EMotivaXMC2Handler implements DeviceClassHandler {
     if (powerZone && powerZone.content?.powerButtons) {
       console.log('🎛️  [EMotivaXMC2] Applying special power zone layout');
       
-      // Find Zone 2 power action
-      const zone2PowerAction = allActions.find(action => 
-        action.actionName.toLowerCase().includes('zone2') && 
-        action.actionName.toLowerCase().includes('power')
+      // Find power_on action (which supports zone parameter)
+      const powerOnAction = allActions.find(action => 
+        action.actionName.toLowerCase() === 'power_on'
       );
 
-      if (zone2PowerAction) {
-        // Insert Zone 2 Power button in middle position
+      if (powerOnAction) {
+        // Create Zone 2 Power toggle button using power_on action with zone=2 parameter
+        const zone2PowerAction: ProcessedAction = {
+          ...powerOnAction,
+          actionName: 'zone2_power_toggle', // Give it a unique name for identification
+          displayName: 'Zone 2 Toggle',
+          description: 'Toggle Zone 2 power state',
+          parameters: [{ name: 'zone', type: 'integer', required: true, default: 2, min: null, max: null, description: 'Zone ID (2 for zone2)' }] // Force zone=2
+        };
+
         const zone2Button: import('../../types/RemoteControlLayout').PowerButtonConfig = {
           position: 'middle',
           action: zone2PowerAction,
-          buttonType: 'zone2-power'
+          buttonType: 'power-toggle'
         };
 
         // Add the Zone 2 power button to the power buttons array
         powerZone.content.powerButtons.push(zone2Button);
         console.log('✅ [EMotivaXMC2] Added Zone 2 Power button to middle position');
+      } else {
+        console.log('⚠️  [EMotivaXMC2] power_on action not found for Zone 2 Power button');
       }
     }
 
@@ -273,39 +282,51 @@ export class EMotivaXMC2Handler implements DeviceClassHandler {
       fields: [
         {
           name: 'power',
-          type: 'boolean',
+          type: 'string | null',
           optional: true,
-          description: 'Processor power state'
+          description: 'Processor power state ("on", "off", or null)'
         },
         {
-          name: 'mainVolume',
-          type: 'number',
+          name: 'zone2_power',
+          type: 'string | null',
+          optional: true,
+          description: 'Zone 2 power state ("on", "off", or null)'
+        },
+        {
+          name: 'volume',
+          type: 'number | null',
           optional: true,
           description: 'Main zone volume level'
         },
         {
-          name: 'zone2Volume',
-          type: 'number',
+          name: 'zone2_volume',
+          type: 'number | null',
           optional: true,
           description: 'Zone 2 volume level'
         },
         {
-          name: 'mainInput',
-          type: 'string',
+          name: 'input_source',
+          type: 'string | null',
           optional: true,
           description: 'Main zone input source'
         },
         {
-          name: 'zone2Input',
-          type: 'string',
+          name: 'connected',
+          type: 'boolean',
           optional: true,
-          description: 'Zone 2 input source'
+          description: 'Device connection status'
         },
         {
-          name: 'lastAction',
-          type: 'string',
+          name: 'mute',
+          type: 'boolean | null',
           optional: true,
-          description: 'Last executed action'
+          description: 'Main zone mute status'
+        },
+        {
+          name: 'zone2_mute',
+          type: 'boolean | null',
+          optional: true,
+          description: 'Zone 2 mute status'
         }
       ],
       imports: ['BaseDeviceState'],

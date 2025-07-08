@@ -186,34 +186,76 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
       interfaceName: `${config.device_class}State`,
       fields: [
         {
-          name: 'power',
+          name: 'connected',
           type: 'boolean',
           optional: true,
-          description: 'Apple TV power state'
+          description: 'Device connection status'
         },
         {
-          name: 'currentApp',
+          name: 'power',
           type: 'string',
+          optional: true,
+          description: 'Apple TV power state ("on", "off", "unknown")'
+        },
+        {
+          name: 'app',
+          type: 'string | null',
           optional: true,
           description: 'Currently active application'
         },
         {
-          name: 'playbackState',
-          type: 'string',
+          name: 'playback_state',
+          type: 'string | null',
           optional: true,
           description: 'Current playback state (playing, paused, stopped)'
         },
         {
+          name: 'media_type',
+          type: 'string | null',
+          optional: true,
+          description: 'Current media type'
+        },
+        {
+          name: 'title',
+          type: 'string | null',
+          optional: true,
+          description: 'Current media title'
+        },
+        {
+          name: 'artist',
+          type: 'string | null',
+          optional: true,
+          description: 'Current media artist'
+        },
+        {
+          name: 'album',
+          type: 'string | null',
+          optional: true,
+          description: 'Current media album'
+        },
+        {
+          name: 'position',
+          type: 'number | null',
+          optional: true,
+          description: 'Current playback position'
+        },
+        {
+          name: 'total_time',
+          type: 'number | null',
+          optional: true,
+          description: 'Total media duration'
+        },
+        {
           name: 'volume',
-          type: 'number',
+          type: 'number | null',
           optional: true,
           description: 'Current volume level'
         },
         {
-          name: 'lastAction',
-          type: 'string',
+          name: 'ip_address',
+          type: 'string | null',
           optional: true,
-          description: 'Last executed action'
+          description: 'Device IP address'
         }
       ],
       imports: ['BaseDeviceState'],

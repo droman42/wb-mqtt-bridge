@@ -204,64 +204,10 @@ export class RevoxA77ReelToReelHandler implements DeviceClassHandler {
       interfaceName: `${config.device_class}State`,
       fields: [
         {
-          name: 'power',
-          type: 'boolean',
-          optional: true,
-          description: 'Device power state'
-        },
-        {
-          name: 'transportState',
+          name: 'connection_status',
           type: 'string',
-          optional: true,
-          description: 'Tape transport state (play, stop, ff, rew, record)'
-        },
-        {
-          name: 'tapeSpeed',
-          type: 'string',
-          optional: true,
-          description: 'Current tape speed (7.5 IPS, 15 IPS)'
-        },
-        {
-          name: 'recordLevel',
-          type: 'number',
-          optional: true,
-          description: 'Recording level'
-        },
-        {
-          name: 'playbackLevel',
-          type: 'number',
-          optional: true,
-          description: 'Playback level'
-        },
-        {
-          name: 'inputSource',
-          type: 'string',
-          optional: true,
-          description: 'Selected input source (line, mic)'
-        },
-        {
-          name: 'biasAdjustment',
-          type: 'number',
-          optional: true,
-          description: 'Bias adjustment level'
-        },
-        {
-          name: 'eqSetting',
-          type: 'string',
-          optional: true,
-          description: 'EQ setting'
-        },
-        {
-          name: 'tapePosition',
-          type: 'string',
-          optional: true,
-          description: 'Current tape position/counter'
-        },
-        {
-          name: 'lastAction',
-          type: 'string',
-          optional: true,
-          description: 'Last executed action'
+          optional: false,
+          description: 'Device connection status'
         }
       ],
       imports: ['BaseDeviceState'],

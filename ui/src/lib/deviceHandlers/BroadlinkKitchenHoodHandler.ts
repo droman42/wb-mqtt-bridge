@@ -153,40 +153,22 @@ export class BroadlinkKitchenHoodHandler implements DeviceClassHandler {
       interfaceName: `${config.device_class}State`,
       fields: [
         {
-          name: 'power',
-          type: 'boolean',
-          optional: true,
-          description: 'Hood power state'
-        },
-        {
-          name: 'fanSpeed',
-          type: 'number',
-          optional: true,
-          description: 'Current fan speed level'
-        },
-        {
-          name: 'lightState',
-          type: 'boolean',
-          optional: true,
-          description: 'Light on/off state'
-        },
-        {
-          name: 'timerRemaining',
-          type: 'number',
-          optional: true,
-          description: 'Timer remaining in minutes'
-        },
-        {
-          name: 'filterStatus',
+          name: 'light',
           type: 'string',
-          optional: true,
-          description: 'Filter status indicator'
+          optional: false,
+          description: 'Kitchen hood light state'
         },
         {
-          name: 'lastAction',
+          name: 'speed',
+          type: 'number',
+          optional: false,
+          description: 'Fan speed level'
+        },
+        {
+          name: 'connection_status',
           type: 'string',
-          optional: true,
-          description: 'Last executed action'
+          optional: false,
+          description: 'Device connection status'
         }
       ],
       imports: ['BaseDeviceState'],

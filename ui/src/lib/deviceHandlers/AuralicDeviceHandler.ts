@@ -195,21 +195,9 @@ export class AuralicDeviceHandler implements DeviceClassHandler {
       fields: [
         {
           name: 'power',
-          type: 'boolean',
-          optional: true,
-          description: 'Device power state'
-        },
-        {
-          name: 'currentInput',
           type: 'string',
           optional: true,
-          description: 'Currently selected input source'
-        },
-        {
-          name: 'playbackState',
-          type: 'string',
-          optional: true,
-          description: 'Current playback state (playing, paused, stopped)'
+          description: 'Device power state ("on", "off", "booting", "unknown")'
         },
         {
           name: 'volume',
@@ -218,34 +206,70 @@ export class AuralicDeviceHandler implements DeviceClassHandler {
           description: 'Current volume level'
         },
         {
-          name: 'currentTrack',
-          type: 'string',
+          name: 'mute',
+          type: 'boolean',
           optional: true,
-          description: 'Currently playing track'
+          description: 'Mute status'
         },
         {
-          name: 'sampleRate',
-          type: 'string',
+          name: 'source',
+          type: 'string | null',
           optional: true,
-          description: 'Current sample rate (e.g., 44.1kHz, 96kHz)'
+          description: 'Currently selected input source'
         },
         {
-          name: 'bitDepth',
-          type: 'string',
+          name: 'connected',
+          type: 'boolean',
           optional: true,
-          description: 'Current bit depth (e.g., 16-bit, 24-bit)'
+          description: 'Device connection status'
         },
         {
-          name: 'streamingService',
-          type: 'string',
+          name: 'ip_address',
+          type: 'string | null',
           optional: true,
-          description: 'Current streaming service (TIDAL, Qobuz, etc.)'
+          description: 'Device IP address'
         },
         {
-          name: 'lastAction',
-          type: 'string',
+          name: 'track_title',
+          type: 'string | null',
           optional: true,
-          description: 'Last executed action'
+          description: 'Current track title'
+        },
+        {
+          name: 'track_artist',
+          type: 'string | null',
+          optional: true,
+          description: 'Current track artist'
+        },
+        {
+          name: 'track_album',
+          type: 'string | null',
+          optional: true,
+          description: 'Current track album'
+        },
+        {
+          name: 'transport_state',
+          type: 'string | null',
+          optional: true,
+          description: 'Current transport state (Playing, Paused, Stopped, etc.)'
+        },
+        {
+          name: 'deep_sleep',
+          type: 'boolean',
+          optional: true,
+          description: 'True when device is in deep sleep mode'
+        },
+        {
+          name: 'message',
+          type: 'string | null',
+          optional: true,
+          description: 'User-friendly message about current state'
+        },
+        {
+          name: 'warning',
+          type: 'string | null',
+          optional: true,
+          description: 'Warning message if relevant'
         }
       ],
       imports: ['BaseDeviceState'],
