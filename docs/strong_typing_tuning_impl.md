@@ -261,7 +261,7 @@ async def execute_action(
             response["mqtt_command"] = result["mqtt_command"]
         
         if success:
-            await self.publish_progress(f"Action {action} executed successfully")
+            await self.emit_progress(f"Action {action} executed successfully", "action_success")
             
         return response
             
@@ -1689,7 +1689,7 @@ async def setup(self) -> bool:
             logger.warning(f"[{self.device_name}] 'speed' category missing from RF codes! Available: {list(self.rf_codes.keys())}")
         
         logger.info(f"Kitchen hood {self.get_name()} initialized with {len(self.get_available_commands())} commands")
-        await self.publish_progress(f"successfully initialized with {len(self.get_available_commands())} commands")
+        await self.emit_progress(f"successfully initialized with {len(self.get_available_commands())} commands", "device_ready")
         return True
         
     except Exception as e:

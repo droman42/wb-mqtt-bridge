@@ -45,7 +45,7 @@ def config_manager(tmpdir):
     kitchen_hood_config = {
         "device_name": "Test Kitchen Hood",
         "device_type": "broadlink_kitchen_hood",
-        "mqtt_progress_topic": "/test/kitchen_hood/progress",
+        
         "broadlink": {
             "host": "192.168.1.100",
             "mac": "AA:BB:CC:DD:EE:FF",
@@ -75,7 +75,7 @@ def config_manager(tmpdir):
     standard_device_config = {
         "device_name": "Test Standard Device",
         "device_type": "standard_device",
-        "mqtt_progress_topic": "/test/standard_device/progress",
+        
         "commands": {}
     }
     

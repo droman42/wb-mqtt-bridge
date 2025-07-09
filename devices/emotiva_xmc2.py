@@ -193,7 +193,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                     )
                     
                     # Publish connection status
-                    await self.publish_progress(f"Connected to {self.get_name()} at {host}")
+                    await self.emit_progress(f"Connected to {self.get_name()} at {host}", "device_connected")
                     
                     return True
                 except Exception as e:
@@ -219,7 +219,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                         self.set_error(f"Subscription failed, using forced connection: {error_message}")
                         
                         # Publish connection status with warning
-                        await self.publish_progress(f"Connected to {self.get_name()} at {host} in force connect mode (limited functionality)")
+                        await self.emit_progress(f"Connected to {self.get_name()} at {host} in force connect mode (limited functionality)", "device_force_connected")
                         
                         return True
                     else:
@@ -268,7 +268,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             )
             
             # Publish shutdown status
-            await self.publish_progress(f"Disconnected from {self.get_name()}")
+            await self.emit_progress(f"Disconnected from {self.get_name()}", "device_disconnected")
             
             # Release client reference
             self.client = None
@@ -403,37 +403,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         # For other properties, return as is
         return value
 
-    async def publish_progress(self, message: str) -> None:
-        """
-        Publish a progress message to the MQTT progress topic for this device.
-        
-        Args:
-            message: The message to publish
-        """
-        if not self.mqtt_client or not self.mqtt_progress_topic:
-            return
-            
-        try:
-            # Ensure the topic has proper prefix/suffix
-            topic = self.mqtt_progress_topic
-            if not topic.startswith('/'):
-                topic = f'/{topic}'
-                
-            # Include device info in the progress message
-            progress_data = {
-                "device_id": self.device_id,
-                "device_name": self.device_name,
-                "timestamp": datetime.now().isoformat(),
-                "message": message
-            }
-            
-            # Publish to MQTT
-            await self.mqtt_client.publish(topic, json.dumps(progress_data))
-            logger.debug(f"Published progress message to {topic}: {message}")
-        except Exception as e:
-            logger.error(f"Error publishing progress message: {str(e)}")
-            # Don't set error state for publishing issues as they might be transient
-            # and not related to the device itself
+
 
     def update_state(self, **kwargs) -> None:
         """
@@ -749,8 +719,8 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                     await asyncio.sleep(1.0)  # Brief delay to allow device to stabilize
                     updated_properties = await self._refresh_device_state()
                     
-                    # Publish progress message
-                    await self.publish_progress(f"Zone {zone_id} powered on successfully")
+                    # Emit progress message
+                    await self.emit_progress(f"Zone {zone_id} powered on successfully", "power_success")
                     
                     # Return success result with updated properties
                     return self.create_command_result(
@@ -772,7 +742,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                     )
             else:
                 # For non-main zones, just return success
-                await self.publish_progress(f"Zone {zone_id} powered on successfully")
+                await self.emit_progress(f"Zone {zone_id} powered on successfully", "power_success")
                 return self.create_command_result(
                     success=True,
                     message=f"Zone {zone_id} powered on successfully",
@@ -784,7 +754,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             error_message = f"Failed to power on zone {zone_id}: {str(e)}"
             logger.error(error_message)
             self.set_error(error_message)
-            await self.publish_progress(f"Failed to power on zone {zone_id}: {str(e)}")
+            await self.emit_progress(f"Failed to power on zone {zone_id}: {str(e)}", "power_error")
             return self.create_command_result(
                 success=False,
                 error=error_message
@@ -944,12 +914,12 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         logger.error(error_message)
         self.set_error(error_message)
         
-        # Publish error message to MQTT
+        # Emit error message via SSE
         try:
             error_context = f" ({', '.join([f'{k}={v}' for k, v in context.items()])})" if context else ""
-            await self.publish_progress(f"Error: {error_message}{error_context}")
+            await self.emit_progress(f"Error: {error_message}{error_context}", "command_error")
         except Exception as e:
-            logger.warning(f"Failed to publish error message: {str(e)}")
+            logger.warning(f"Failed to emit error message: {str(e)}")
         
         # Create error result
         result = self.create_command_result(
@@ -1030,7 +1000,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 if self.state.power != PowerState.ON:
                     error_message = "Cannot set input while device is powered off"
                     logger.warning(error_message)
-                    await self.publish_progress(error_message)
+                    await self.emit_progress(error_message, "power_required_error")
                     return self.create_command_result(
                         success=False,
                         error=error_message,
@@ -1041,7 +1011,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             # Check if this is already the current input
             if self.state.input_source == normalized_input:
                 logger.debug(f"Input already set to {normalized_input}, skipping command")
-                await self.publish_progress(f"Input already set to {normalized_input}")
+                await self.emit_progress(f"Input already set to {normalized_input}", "input_already_set")
                 return self.create_command_result(
                     success=True,
                     message=f"Input already set to {normalized_input}",
@@ -1058,7 +1028,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                     # Check again if already set to requested input
                     if self.state.input_source == normalized_input:
                         logger.debug(f"Input already set to {normalized_input} (verified), skipping command")
-                        await self.publish_progress(f"Input already set to {normalized_input} (verified)")
+                        await self.emit_progress(f"Input already set to {normalized_input} (verified)", "input_already_set")
                         return self.create_command_result(
                             success=True,
                             message=f"Input already set to {normalized_input} (verified)",
@@ -1099,8 +1069,8 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             # Update the last command information
             self._update_last_command("set_input", {"input": normalized_input})
             
-            # Publish success message
-            await self.publish_progress(f"Input set to {normalized_input}")
+            # Emit success message
+            await self.emit_progress(f"Input set to {normalized_input}", "input_success")
             
             # Return success result
             return self.create_command_result(

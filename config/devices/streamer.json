@@ -2,7 +2,7 @@
   "device_name": "Auralic Altair G1",
   "device_id": "streamer",
   "alias": "streamer",
-  "mqtt_progress_topic": "/devices/streamer/controls/progress",
+
   "device_class": "AuralicDevice",
   "config_class": "AuralicDeviceConfig",
   "auralic": {

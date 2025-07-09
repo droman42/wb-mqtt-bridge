@@ -2,7 +2,7 @@
   "device_name": "Pioneer CLD-D925",
   "device_id": "ld_player",
   "alias": "ld_player",
-  "mqtt_progress_topic": "/devices/ld_player/controls/progress",
+
   "device_class": "WirenboardIRDevice",
   "config_class": "WirenboardIRDeviceConfig",
   "commands": {

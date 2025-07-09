@@ -45,7 +45,7 @@ Create a complete device configuration hierarchy:
   device_id: str
   device_name: str
   device_class: str
-  mqtt_progress_topic: str = ""
+  
   ```
 
 - **`WirenboardIRDeviceConfig`**:

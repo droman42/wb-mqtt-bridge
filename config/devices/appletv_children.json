@@ -2,7 +2,6 @@
   "alias": "appletv_children",
   "device_id": "appletv_children",
   "device_name": "Apple TV Children Room",
-  "mqtt_progress_topic": "/devices/appletv_children/controls/progress",
   "device_class": "AppleTVDevice",
   "config_class": "AppleTVDeviceConfig",
   "apple_tv": {

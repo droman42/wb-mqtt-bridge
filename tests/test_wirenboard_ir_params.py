@@ -26,7 +26,7 @@ def wirenboard_ir_config():
         device_id="test_ir",
         device_name="Test IR Device",
         device_class="wirenboard_ir",
-        mqtt_progress_topic="/devices/test_ir/controls/progress",
+
         commands={"power": power_command}
     )
 

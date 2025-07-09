@@ -2,7 +2,6 @@
   "device_name": "LG OLED77G1RLA",
   "device_id": "living_room_tv",
   "alias": "living_room_tv",
-  "mqtt_progress_topic": "/devices/living_room_tv/controls/progress",
   "device_class": "LgTv",
   "config_class": "LgTvDeviceConfig",
   "tv": {

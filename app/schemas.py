@@ -112,7 +112,6 @@ class BaseDeviceConfig(BaseModel):
     """Base schema for device configuration."""
     device_id: str
     device_name: str
-    mqtt_progress_topic: str = ""
     # New required fields for dynamic class loading
     device_class: str = Field(..., description="The device implementation class name (e.g., 'LgTv')")
     config_class: str = Field(..., description="The configuration model class name (e.g., 'LgTvDeviceConfig')")

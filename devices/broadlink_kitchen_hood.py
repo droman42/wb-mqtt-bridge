@@ -80,7 +80,7 @@ class BroadlinkKitchenHood(BaseDevice[KitchenHoodState]):
                 logger.warning(f"[{self.device_name}] 'speed' category missing from RF codes! Available: {list(self.rf_codes.keys())}")
             
             logger.info(f"Kitchen hood {self.get_name()} initialized with {len(self.get_available_commands())} commands")
-            await self.publish_progress(f"successfully initialized with {len(self.get_available_commands())} commands")
+            await self.emit_progress(f"successfully initialized with {len(self.get_available_commands())} commands", "device_ready")
             return True
             
         except Exception as e:
@@ -98,7 +98,7 @@ class BroadlinkKitchenHood(BaseDevice[KitchenHoodState]):
         try:
             # Nothing to cleanup for Broadlink device
             logger.info(f"Kitchen hood {self.get_name()} shutdown complete")
-            await self.publish_progress(f"shutdown complete")
+            await self.emit_progress(f"shutdown complete", "device_shutdown")
             return True
         except Exception as e:
             error_msg = f"Error during device shutdown: {str(e)}"
@@ -205,14 +205,14 @@ class BroadlinkKitchenHood(BaseDevice[KitchenHoodState]):
         if state not in ["on", "off"]:
             error_msg = f"Invalid light state: {state}, must be 'on' or 'off'"
             logger.error(error_msg)
-            await self.publish_progress(f"Invalid light state: {state}")
+            await self.emit_progress(f"Invalid light state: {state}", "error")
             return self.create_command_result(success=False, error=error_msg)
         
         # Get RF code from the rf_codes map
         if "light" not in self.rf_codes:
             error_msg = "No RF codes map found for 'light' category"
             logger.error(error_msg)
-            await self.publish_progress("No RF codes map found for lights")
+            await self.emit_progress("No RF codes map found for lights", "error")
             return self.create_command_result(success=False, error=error_msg)
         
         # Access RF code using proper typed structure
@@ -221,19 +221,19 @@ class BroadlinkKitchenHood(BaseDevice[KitchenHoodState]):
         if not rf_code:
             error_msg = f"No RF code found for light state: {state}"
             logger.error(error_msg)
-            await self.publish_progress(f"No RF code found for light state: {state}")
+            await self.emit_progress(f"No RF code found for light state: {state}", "error")
             return self.create_command_result(success=False, error=error_msg)
             
         if await self._send_rf_code(rf_code):
             # Update state using update_state method
             self.update_state(light=state)
-            await self.publish_progress(f"Light turned {state}")
+            await self.emit_progress(f"Light turned {state}", "command_success")
             
             # Compensation logic: If the previous speed was not 0, restore it
             # since the physical device resets speed when light is toggled
             if previous_speed > 0:
                 logger.info(f"[{self.device_name}] Compensating for speed reset - restoring speed {previous_speed}")
-                await self.publish_progress(f"Restoring fan speed to {previous_speed}")
+                await self.emit_progress(f"Restoring fan speed to {previous_speed}", "compensation")
                 
                 # Small delay to ensure the light command is processed first
                 await asyncio.sleep(0.5)
@@ -243,10 +243,10 @@ class BroadlinkKitchenHood(BaseDevice[KitchenHoodState]):
                     # Update state to restore the speed
                     self.update_state(speed=previous_speed)
                     logger.info(f"[{self.device_name}] Successfully restored speed to {previous_speed}")
-                    await self.publish_progress(f"Speed restored to {previous_speed}")
+                    await self.emit_progress(f"Speed restored to {previous_speed}", "compensation_success")
                 else:
                     logger.warning(f"[{self.device_name}] Failed to restore speed to {previous_speed}")
-                    await self.publish_progress(f"Failed to restore speed to {previous_speed}")
+                    await self.emit_progress(f"Failed to restore speed to {previous_speed}", "compensation_error")
                     # Update state to reflect that speed was reset to 0 by the physical device
                     self.update_state(speed=0)
             else:
@@ -298,19 +298,19 @@ class BroadlinkKitchenHood(BaseDevice[KitchenHoodState]):
             if level < 0 or level > 4:
                 error_msg = f"Invalid speed level: {level}, must be between 0 and 4"
                 logger.error(error_msg)
-                await self.publish_progress(f"Invalid speed level: {level}")
+                await self.emit_progress(f"Invalid speed level: {level}", "error")
                 return self.create_command_result(success=False, error=error_msg)
         except (ValueError, TypeError):
             error_msg = f"Invalid speed level value: {params.get('level')}"
             logger.error(error_msg)
-            await self.publish_progress(f"Invalid speed level value")
+            await self.emit_progress(f"Invalid speed level value", "error")
             return self.create_command_result(success=False, error=error_msg)
             
         # Use helper function to send speed RF code
         if await self._send_speed_rf_code(level):
             # Update state using update_state method
             self.update_state(speed=level)
-            await self.publish_progress(f"Speed set to {level}")
+            await self.emit_progress(f"Speed set to {level}", "command_success")
             
             # Create a standardized result with MQTT command information
             return self.create_mqtt_command_result(

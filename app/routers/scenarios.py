@@ -1,11 +1,13 @@
 import logging
 from typing import Dict, Any, List, Optional
+from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
 
 from app.scenario_models import ScenarioDefinition, ScenarioState
 from app.scenario import ScenarioError, ScenarioExecutionError
+from app.sse_manager import sse_manager, SSEChannel
 
 # Create logger for this module
 logger = logging.getLogger(__name__)
@@ -92,11 +94,17 @@ async def switch_scenario(data: SwitchScenarioRequest):
     try:
         result = await scenario_manager.switch_scenario(data.id, graceful=data.graceful)
         
-        # Publish state change on MQTT if a client is available
-        if mqtt_client and scenario_manager.scenario_state:
-            topic = f"scenario/state"
-            payload = scenario_manager.scenario_state.model_dump()
-            await mqtt_client.publish(topic, payload)
+        # Broadcast scenario state change via SSE
+        if scenario_manager.scenario_state:
+            await sse_manager.broadcast(
+                channel=SSEChannel.SCENARIOS,
+                event_type="scenario_switched",
+                data={
+                    "scenario_id": data.id,
+                    "state": scenario_manager.scenario_state.model_dump(),
+                    "timestamp": datetime.now().isoformat()
+                }
+            )
         
         return ScenarioResponse(
             status="success",
@@ -129,11 +137,19 @@ async def execute_role_action(data: ActionRequest):
     try:
         result = await scenario_manager.execute_role_action(data.role, data.command, data.params)
         
-        # Publish state change on MQTT if a client is available
-        if mqtt_client and scenario_manager.scenario_state:
-            topic = f"scenario/state/update"
-            payload = scenario_manager.scenario_state.model_dump()
-            await mqtt_client.publish(topic, payload)
+        # Broadcast scenario state update via SSE
+        if scenario_manager.scenario_state:
+            await sse_manager.broadcast(
+                channel=SSEChannel.SCENARIOS,
+                event_type="role_action_executed",
+                data={
+                    "role": data.role,
+                    "command": data.command,
+                    "params": data.params,
+                    "state": scenario_manager.scenario_state.model_dump(),
+                    "timestamp": datetime.now().isoformat()
+                }
+            )
             
         return {"status": "success", "result": result}
     except ScenarioExecutionError as e:

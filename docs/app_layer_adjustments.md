@@ -31,7 +31,7 @@ This document outlines the necessary changes to the `app/` layer to align with t
 - Update the POST `/devices/{device_id}/action` handler to:
   - Return the full `CommandResponse[StateT]` (including optional `mqtt_command`) rather than mapping into `DeviceActionResponse`.
   - Remove the redundant `message: str` field; rely on HTTP status codes and `HTTPException` for error handling.
-- Audit all `publish_progress` and `mqtt_client.publish` flows to ensure `mqtt_command` payloads created in handlers propagate through unchanged.
+- Audit all `emit_progress` and `mqtt_client.publish` flows to ensure `mqtt_command` payloads created in handlers propagate through unchanged.
 
 ## 5. Endpoints Requiring Changes
 

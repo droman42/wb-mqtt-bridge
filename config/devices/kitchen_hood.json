@@ -2,7 +2,7 @@
   "device_name": "Kitchen Hood",
   "device_id": "kitchen_hood",
   "alias": "kitchen_hood",
-  "mqtt_progress_topic": "/devices/kitchen_hood/controls/progress",
+
   "device_class": "BroadlinkKitchenHood",
   "config_class": "BroadlinkKitchenHoodConfig",
   "broadlink": {

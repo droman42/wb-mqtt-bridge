@@ -120,7 +120,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State], NotificationListener):
         
         # Create a background task for publishing
         notification_data = notification.to_dict()
-        asyncio.create_task(self.publish_progress(json.dumps(notification_data)))
+        asyncio.create_task(self.emit_progress(json.dumps(notification_data), "notification_received"))
         
         try:
             updates: Dict[str, Any] = {}

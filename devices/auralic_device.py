@@ -118,6 +118,7 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                 logger.warning(f"Failed to connect to Auralic device at {self.ip_address} - device may be in deep sleep")
                 self.update_state(error=f"Device may be in deep sleep mode", connected=False, deep_sleep=True)
                 self._deep_sleep_mode = True
+                await self.emit_progress(f"Failed to connect to {self.device_name} - device may be in deep sleep", "connection_failed")
             else:
                 # Device was discovered, it's not in deep sleep
                 self._deep_sleep_mode = False
@@ -131,6 +132,7 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             if not (self.ir_power_on_topic and self.ir_power_off_topic):
                 logger.warning("IR control not properly configured - true power off will not be available")
                 self.update_state(warning="IR control not configured - only standby mode available")
+                await self.emit_progress("IR control not configured - only standby mode available", "configuration_warning")
             
             # Force a state persistence to ensure the database has all fields
             # This solves the issue of AuralicDeviceState not being fully serialized
@@ -138,11 +140,13 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                 self._state_change_callback(self.device_id)
             
             logger.info(f"Auralic device {self.get_name()} initialized")
+            await self.emit_progress(f"Auralic device {self.device_name} initialized successfully", "device_ready")
             return True
             
         except Exception as e:
             logger.error(f"Failed to initialize Auralic device {self.get_name()}: {str(e)}")
             self.update_state(error=str(e), connected=False, deep_sleep=False)
+            await self.emit_progress(f"Failed to initialize {self.device_name}: {str(e)}", "initialization_error")
             return False
     
     async def shutdown(self) -> bool:
@@ -166,6 +170,7 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             
             logger.info(f"Auralic device {self.get_name()} shutdown complete")
             self.update_state(connected=False)
+            await self.emit_progress(f"Auralic device {self.device_name} shutdown complete", "device_shutdown")
             return True
         except Exception as e:
             logger.error(f"Error during device shutdown: {str(e)}")
@@ -1256,6 +1261,7 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             
         try:
             logger.info(f"Sending IR command via MQTT topic: {mqtt_topic}")
+            await self.emit_progress(f"Sending IR command to {self.device_name}", "ir_command_sending")
             
             # Send empty payload or configured payload
             payload = "1"
@@ -1263,6 +1269,7 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             # Publish the message
             await self.mqtt_client.publish(mqtt_topic, payload)
             logger.info(f"IR command sent successfully to {mqtt_topic}")
+            await self.emit_progress(f"IR command sent successfully to {self.device_name}", "ir_command_success")
             return True
         except Exception as e:
             logger.error(f"Failed to send IR command: {str(e)}")
@@ -1283,10 +1290,12 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             await asyncio.sleep(delay)
             
             logger.info("Attempting device discovery after boot delay")
+            await self.emit_progress(f"Attempting to reconnect to {self.device_name} after power on", "reconnection_attempt")
             self.openhome_device = await self._create_openhome_device()
             
             if self.openhome_device:
                 logger.info("Device successfully discovered after power on")
+                await self.emit_progress(f"Successfully reconnected to {self.device_name}", "reconnection_success")
                 self._deep_sleep_mode = False
                 
                 # Refresh sources cache after power on

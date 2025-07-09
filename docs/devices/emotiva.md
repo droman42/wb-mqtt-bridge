@@ -10,7 +10,7 @@ Sample configuration in `config/devices/emotiva_xmc2.json`:
 {
   "device_id": "processor",
   "device_name": "eMotiva XMC2 Processor",
-  "mqtt_progress_topic": "/devices/processor/controls/progress",
+  
   "device_class": "EMotivaXMC2",
   "config_class": "EmotivaXMC2DeviceConfig",
   "emotiva": {

@@ -41,7 +41,7 @@ from app.types import CommandResponse
 from app.maintenance import WirenboardMaintenanceGuard
 
 # Import routers
-from app.routers import system, devices, mqtt, groups, scenarios, rooms, state
+from app.routers import system, devices, mqtt, groups, scenarios, rooms, state, events
 
 from app.__version__ import __version__
 
@@ -238,6 +238,7 @@ async def lifespan(app: FastAPI):
     scenarios.initialize(scenario_manager, room_manager, mqtt_client)
     rooms.initialize(room_manager)
     state.initialize(config_manager, device_manager, state_store, scenario_manager)
+    events.initialize()  # Initialize SSE events router
     
     logger.info("System startup complete")
     
@@ -305,3 +306,4 @@ app.include_router(groups.router)
 app.include_router(scenarios.router)
 app.include_router(rooms.router)
 app.include_router(state.router)
+app.include_router(events.router)

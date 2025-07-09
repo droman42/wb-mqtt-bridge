@@ -286,12 +286,7 @@ class ConfigManager:
         """Check if maintenance configuration is enabled."""
         return self.system_config.maintenance is not None
     
-    def get_all_progress_topics(self) -> Dict[str, str]:
-        """Get all progress topics for all devices."""
-        topics = {}
-        for device_id, config in self.typed_configs.items():
-            topics[device_id] = config.mqtt_progress_topic
-        return topics
+
     
     def reload_configs(self):
         """Reload all configurations from disk."""

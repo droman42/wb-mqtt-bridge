@@ -2,7 +2,6 @@
   "alias": "appletv_living",
   "device_id": "appletv_living",
   "device_name": "Apple TV Living Room",
-  "mqtt_progress_topic": "/devices/appletv_living/controls/progress",
   "device_class": "AppleTVDevice",
   "config_class": "AppleTVDeviceConfig",
   "apple_tv": {

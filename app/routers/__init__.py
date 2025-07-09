@@ -9,6 +9,7 @@ This package contains FastAPI router modules that organize API endpoints by func
 - scenarios: Scenario management endpoints (/scenario/definition/*, /scenario/switch, /scenario/role_action)
 - rooms: Room management endpoints (/room/*)
 - state: State-related endpoints (/devices/*/state, /devices/*/persisted_state, /devices/persisted_states, /scenario/state)
+- events: Server-Sent Events endpoints (/events/devices, /events/scenarios, /events/system)
 """
 
-from app.routers import system, devices, mqtt, groups, scenarios, rooms, state 
+from app.routers import system, devices, mqtt, groups, scenarios, rooms, state, events 

@@ -114,7 +114,7 @@ class TestMessageHandling(unittest.IsolatedAsyncioTestCase):
         self.device.device_id = "test_device"
         self.device.device_name = "Test Device"
         self.device.update_state = AsyncMock()
-        self.device.publish_progress = AsyncMock()
+        self.device.emit_progress = AsyncMock()
         
         # Mock the get_current_state method
         self.device.get_current_state = MagicMock(return_value={"device_id": "test_device"})

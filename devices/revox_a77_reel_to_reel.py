@@ -200,11 +200,11 @@ class RevoxA77ReelToReel(BaseDevice[RevoxA77ReelToReelState]):
             sequence_delay = self.config.reel_to_reel.sequence_delay
             
             # 3. Wait for the configured delay
-            await self.publish_progress(f"Waiting {sequence_delay}s before executing {command_name}")
+            await self.emit_progress(f"Waiting {sequence_delay}s before executing {command_name}", "sequence_delay")
             await asyncio.sleep(sequence_delay)
             
             # 4. Execute the requested command
-            await self.publish_progress(f"Executing {command_name} command")
+            await self.emit_progress(f"Executing {command_name} command", "command_executing")
             result = await self._send_ir_command(cmd_config, command_name, params)
             
             return result

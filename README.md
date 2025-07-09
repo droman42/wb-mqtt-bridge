@@ -752,7 +752,6 @@ LOG_LEVEL=INFO
   "device_name": "Living Room TV",
   "device_class": "LgTv",
   "config_class": "LgTvDeviceConfig",
-  "mqtt_progress_topic": "home/tv/progress",
   "commands": {
     "power_on": {
       "action": "power_on",
@@ -1068,7 +1067,6 @@ Example device configuration:
   "device_name": "Living Room TV",
   "device_class": "LgTv",
   "config_class": "LgTvDeviceConfig",
-  "mqtt_progress_topic": "home/tv/progress",
   "commands": {
     "power_on": {
       "action": "power_on",

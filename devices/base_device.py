@@ -10,6 +10,7 @@ import psutil
 from app.schemas import BaseDeviceState, LastCommand, BaseDeviceConfig, BaseCommandConfig, CommandParameterDefinition
 from app.mqtt_client import MQTTClient
 from app.types import StateT, CommandResult, CommandResponse, ActionHandler
+from app.sse_manager import sse_manager, SSEChannel
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,6 @@ class BaseDevice(ABC, Generic[StateT]):
         # Use typed config directly - no fallbacks to dictionary access
         self.device_id = config.device_id
         self.device_name = config.device_name
-        self.mqtt_progress_topic = config.mqtt_progress_topic
         
         # Initialize state with basic device identification
         self.state = BaseDeviceState(
@@ -521,7 +521,8 @@ class BaseDevice(ABC, Generic[StateT]):
         self._notify_state_change()
     
     def _notify_state_change(self):
-        """Notify the registered callback about state changes."""
+        """Notify the registered callback about state changes and emit SSE event."""
+        # Notify persistence callback
         if self._state_change_callback:
             try:
                 # DEBUG: Log all state change notifications
@@ -530,6 +531,35 @@ class BaseDevice(ABC, Generic[StateT]):
                 self._state_change_callback(self.device_id)
             except Exception as e:
                 logger.error(f"Error notifying state change for device {self.device_id}: {str(e)}")
+        
+        # Emit state change via SSE
+        try:
+            import asyncio
+            
+            # Get current state for broadcast
+            current_state = self.get_current_state()
+            
+            # Prepare state event data
+            state_event_data = {
+                "device_id": self.device_id,
+                "device_name": self.device_name,
+                "state": current_state.dict() if hasattr(current_state, 'dict') else current_state,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            # Create task to broadcast state change
+            asyncio.create_task(
+                sse_manager.broadcast(
+                    channel=SSEChannel.DEVICES,
+                    event_type="state_change",
+                    data=state_event_data
+                )
+            )
+            
+            logger.debug(f"State change SSE event queued for device {self.device_id}")
+            
+        except Exception as e:
+            logger.error(f"Error emitting state change SSE event for device {self.device_id}: {str(e)}")
                 
     def register_state_change_callback(self, callback):
         """Register a callback to be notified when state changes."""
@@ -614,7 +644,7 @@ class BaseDevice(ABC, Generic[StateT]):
                 response["data"] = result["data"]
             
             if success:
-                await self.publish_progress(f"Action {action} executed successfully")
+                await self.emit_progress(f"Action {action} executed successfully", "action_success")
                 
             return response
                 
@@ -745,7 +775,7 @@ class BaseDevice(ABC, Generic[StateT]):
             sock.close()
             
             logger.info(f"Sent WOL packet to {mac_address}")
-            await self.publish_progress(f"WOL packet sent to {mac_address}")
+            await self.emit_progress(f"WOL packet sent to {mac_address}", "wol_sent")
             return True
             
         except Exception as e:
@@ -756,36 +786,45 @@ class BaseDevice(ABC, Generic[StateT]):
         """Return the list of available commands for this device."""
         return self.config.commands
     
-    async def publish_progress(self, message: str) -> bool:
+    async def emit_progress(self, message: str, event_type: str = "progress") -> bool:
         """
-        Publish a progress message to the configured MQTT progress topic.
+        Emit a progress message via Server-Sent Events.
         
         Args:
-            message: The message to publish
+            message: The message to emit
+            event_type: The type of event (default: "progress")
             
         Returns:
-            bool: True if the message was published successfully, False otherwise
+            bool: True if the message was emitted successfully, False otherwise
         """
         try:
-            if not self.mqtt_client:
-                logger.warning(f"Cannot publish progress: MQTT client not available for device {self.device_id}")
-                return False
-                
-            if not self.mqtt_progress_topic:
-                logger.warning(f"No MQTT progress topic configured for device {self.device_id}")
-                return False
-
             if not message:
-                logger.warning(f"Empty progress message not published for device {self.device_id}")
+                logger.warning(f"Empty progress message not emitted for device {self.device_id}")
                 return False
                 
-            await self.mqtt_client.publish(self.mqtt_progress_topic, f"{self.device_name}: {message}")
-            logger.debug(f"Published progress message to {self.mqtt_progress_topic}: {message}")
+            # Prepare event data
+            event_data = {
+                "device_id": self.device_id,
+                "device_name": self.device_name,
+                "message": message,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            # Emit to devices channel via SSE
+            await sse_manager.broadcast(
+                channel=SSEChannel.DEVICES,
+                event_type=event_type,
+                data=event_data
+            )
+            
+            logger.debug(f"Emitted {event_type} event for device {self.device_id}: {message}")
             return True
             
         except Exception as e:
-            logger.error(f"Failed to publish progress message: {str(e)}")
+            logger.error(f"Failed to emit progress message: {str(e)}")
             return False
+    
+
     
     def _resolve_and_validate_params(self, param_defs: List[CommandParameterDefinition], 
                                    provided_params: Dict[str, Any]) -> Dict[str, Any]:

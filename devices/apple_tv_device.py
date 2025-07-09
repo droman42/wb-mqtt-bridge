@@ -604,7 +604,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             # Only update device state error if requested (avoid overwriting main command results)
             if update_device_error:
                 self.update_state(error=error_msg)
-                await self.publish_progress(error_msg)
+                await self.emit_progress(error_msg, "remote_command_error")
             
             return self.create_command_result(
                 success=False,
@@ -669,7 +669,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             error_msg = f"Error turning on: {str(e)}"
             logger.error(f"[{self.device_id}] {error_msg}", exc_info=True)
             self.update_state(error=error_msg)
-            await self.publish_progress(error_msg)
+            await self.emit_progress(error_msg, "power_error")
             return self.create_command_result(
                 success=False,
                 error=error_msg
@@ -738,7 +738,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             error_msg = f"Error turning off: {str(e)}"
             logger.error(f"[{self.device_id}] {error_msg}", exc_info=True)
             self.update_state(error=error_msg)
-            await self.publish_progress(error_msg)
+            await self.emit_progress(error_msg, "power_error")
             return self.create_command_result(
                 success=False,
                 error=error_msg
@@ -1301,7 +1301,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             error_msg = f"Error executing touch at position: {str(e)}"
             logger.error(f"[{self.device_id}] {error_msg}", exc_info=True)
             self.update_state(error=error_msg)
-            await self.publish_progress(error_msg)
+            await self.emit_progress(error_msg, "touch_error")
             return self.create_command_result(
                 success=False,
                 error=error_msg
@@ -1401,7 +1401,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             error_msg = f"Error setting volume: {str(e)}"
             logger.error(f"[{self.device_id}] {error_msg}", exc_info=True)
             self.update_state(error=error_msg)
-            await self.publish_progress(error_msg)
+            await self.emit_progress(error_msg, "volume_error")
             return self.create_command_result(
                 success=False,
                 error=error_msg
@@ -1558,7 +1558,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             error_msg = f"Error launching app {app_id_to_launch}: {str(e)}"
             logger.error(f"[{self.device_id}] {error_msg}", exc_info=True)
             self.update_state(error=error_msg)
-            await self.publish_progress(error_msg)
+            await self.emit_progress(error_msg, "app_launch_error")
             return self.create_command_result(
                 success=False,
                 error=error_msg
@@ -1647,7 +1647,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             error_msg = f"Error retrieving app list: {str(e)}"
             logger.error(f"[{self.device_id}] {error_msg}", exc_info=True)
             self.update_state(error=error_msg)
-            await self.publish_progress(error_msg)
+            await self.emit_progress(error_msg, "app_list_error")
             return self.create_command_result(
                 success=False,
                 error=error_msg
@@ -1695,7 +1695,7 @@ class PyATVDeviceListener(DeviceListener, AudioListener):
         
         # Schedule state publish in the event loop
         self.loop.call_soon_threadsafe(asyncio.create_task, 
-            self.device.publish_progress(f"Connection lost: {exception if exception else 'Unknown reason'}"))
+            self.device.emit_progress(f"Connection lost: {exception if exception else 'Unknown reason'}", "connection_lost"))
     
     def connection_closed(self):
         """Called by pyatv when connection is closed intentionally (by self.atv.close())."""
@@ -1719,7 +1719,7 @@ class PyATVDeviceListener(DeviceListener, AudioListener):
             
             # Schedule state publish in the event loop
             self.loop.call_soon_threadsafe(asyncio.create_task,
-                self.device.publish_progress("Connection closed"))
+                self.device.emit_progress("Connection closed", "connection_closed"))
 
     def device_update(self, playing: Playing):
         """
@@ -1752,7 +1752,7 @@ class PyATVDeviceListener(DeviceListener, AudioListener):
         
         # Schedule state publish
         self.loop.call_soon_threadsafe(asyncio.create_task, 
-            self.device.publish_progress(f"Playback state updated: {playing.device_state.name if playing and playing.device_state else 'idle'}"))
+            self.device.emit_progress(f"Playback state updated: {playing.device_state.name if playing and playing.device_state else 'idle'}", "playback_update"))
 
     def device_error(self, error: Exception):
         """
@@ -1774,7 +1774,7 @@ class PyATVDeviceListener(DeviceListener, AudioListener):
         )
         
         self.loop.call_soon_threadsafe(asyncio.create_task, 
-            self.device.publish_progress(f"Device error: {str(error)}"))
+            self.device.emit_progress(f"Device error: {str(error)}", "device_error"))
 
     # PowerListener methods removed - not supported by Companion protocol
     # Power state changes can only be detected via manual refresh_status calls
@@ -1805,7 +1805,7 @@ class PyATVDeviceListener(DeviceListener, AudioListener):
         
         # Schedule state publish
         self.loop.call_soon_threadsafe(asyncio.create_task, 
-            self.device.publish_progress(f"Volume changed to {new_level:.1f}%"))
+            self.device.emit_progress(f"Volume changed to {new_level:.1f}%", "volume_update"))
 
     def outputdevices_update(self, old_devices, new_devices):
         """
@@ -1858,4 +1858,4 @@ class PyATVDeviceListener(DeviceListener, AudioListener):
         
         # Schedule state publish
         self.loop.call_soon_threadsafe(asyncio.create_task, 
-            self.device.publish_progress(f"Keyboard focus changed to {new_state}"))
+            self.device.emit_progress(f"Keyboard focus changed to {new_state}", "keyboard_focus_update"))

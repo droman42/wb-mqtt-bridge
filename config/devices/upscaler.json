@@ -2,7 +2,7 @@
   "device_name": "DVDO Edge Green",
   "device_id": "upscaler",
   "alias": "upscaler",
-  "mqtt_progress_topic": "/devices/upscaler/controls/progress",
+
   "device_class": "WirenboardIRDevice",
   "config_class": "WirenboardIRDeviceConfig",
   "commands": {
