@@ -44,7 +44,7 @@ function HomePage() {
           <div>
             <h4 className="font-medium">API Status:</h4>
             <p>Loading: {isLoading ? 'Yes' : 'No'}</p>
-            <p>API Base URL: {import.meta.env.VITE_API_BASE_URL || 'http://192.168.110.250:8000'}</p>
+            <p>API Base URL: {import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}</p>
           </div>
           <div>
             <h4 className="font-medium">Data Counts:</h4>

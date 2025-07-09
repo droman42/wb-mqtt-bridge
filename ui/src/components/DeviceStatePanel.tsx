@@ -5,11 +5,26 @@ import { useSettingsStore } from '../stores/useSettingsStore';
 import { useDeviceState } from '../hooks/useDeviceState';
 import { useExecuteDeviceAction } from '../hooks/useApi';
 import { Button } from './ui/button';
+import { CollapsibleSection } from './ui/collapsible-section';
+import { ProgressReport } from './ProgressReport';
 import { RemoteDeviceStructure } from '../types/RemoteControlLayout';
+
+interface SSEConnectionState {
+  connected: boolean;
+  error: string | null;
+  reconnectAttempts: number;
+}
+
+interface SharedSSEState {
+  deviceSSE: SSEConnectionState;
+  scenarioSSE: SSEConnectionState;
+  systemSSE: SSEConnectionState;
+}
 
 interface DeviceStatePanelProps {
   isOpen: boolean;
   className?: string;
+  sseState?: SharedSSEState;
 }
 
 // Helper function to get device structure from generated pages
@@ -74,7 +89,7 @@ const getFieldIcon = (fieldName: string): string => {
   return iconMap[fieldName] || 'Info';
 };
 
-function DeviceStatePanel({ isOpen, className }: DeviceStatePanelProps) {
+function DeviceStatePanel({ isOpen, className, sseState }: DeviceStatePanelProps) {
   const { selectedDeviceId } = useRoomStore();
   const { setStatePanelOpen } = useSettingsStore();
 
@@ -83,7 +98,15 @@ function DeviceStatePanel({ isOpen, className }: DeviceStatePanelProps) {
   
   // Get device action status
   const executeAction = useExecuteDeviceAction();
-  
+
+  // Provide default SSE state if not provided
+  const defaultSSEState: SharedSSEState = {
+    deviceSSE: { connected: false, error: null, reconnectAttempts: 0 },
+    scenarioSSE: { connected: false, error: null, reconnectAttempts: 0 },
+    systemSSE: { connected: false, error: null, reconnectAttempts: 0 }
+  };
+  const currentSSEState = sseState || defaultSSEState;
+
   // Get device structure for state interface
   const deviceStructure = getDeviceStructure(selectedDeviceId || '');
 
@@ -104,49 +127,44 @@ function DeviceStatePanel({ isOpen, className }: DeviceStatePanelProps) {
     }
 
     return (
-      <div className="space-y-3">
-        <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">
-          Device State
-        </h3>
-        <div className="space-y-2">
-          {deviceSpecificFields.map((field) => {
-            const value = (deviceState as any)[field.name];
-            const formattedValue = formatStateValue(value, field.type);
-            const iconName = getFieldIcon(field.name);
-            
-            return (
-              <div key={field.name} className="flex items-center justify-between p-2 rounded-md bg-muted/30">
-                <div className="flex items-center space-x-2">
-                  <Icon 
-                    library="material" 
-                    name={iconName} 
-                    size="sm" 
-                    fallback="info" 
-                    className="h-4 w-4 text-muted-foreground" 
-                  />
-                  <div>
-                    <span className="text-sm font-medium">
-                      {field.name.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                    </span>
-                    {field.description && (
-                      <p className="text-xs text-muted-foreground">{field.description}</p>
-                    )}
-                  </div>
+      <CollapsibleSection title="Device State" defaultOpen={true}>
+        {deviceSpecificFields.map((field) => {
+          const value = (deviceState as any)[field.name];
+          const formattedValue = formatStateValue(value, field.type);
+          const iconName = getFieldIcon(field.name);
+          
+          return (
+            <div key={field.name} className="flex items-center justify-between p-2 rounded-md bg-muted/30">
+              <div className="flex items-center space-x-2">
+                <Icon 
+                  library="material" 
+                  name={iconName} 
+                  size="sm" 
+                  fallback="info" 
+                  className="h-4 w-4 text-muted-foreground" 
+                />
+                <div>
+                  <span className="text-sm font-medium">
+                    {field.name.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                  </span>
+                  {field.description && (
+                    <p className="text-xs text-muted-foreground">{field.description}</p>
+                  )}
                 </div>
-                <span className={`text-sm font-mono ${
-                  value === null || value === undefined 
-                    ? 'text-muted-foreground' 
-                    : field.type === 'boolean' 
-                      ? value ? 'text-green-600' : 'text-red-600'
-                      : 'text-foreground'
-                }`}>
-                  {formattedValue}
-                </span>
               </div>
-            );
-          })}
-        </div>
-      </div>
+              <span className={`text-sm font-mono ${
+                value === null || value === undefined 
+                  ? 'text-muted-foreground' 
+                  : field.type === 'boolean' 
+                    ? value ? 'text-green-600' : 'text-red-600'
+                    : 'text-foreground'
+              }`}>
+                {formattedValue}
+              </span>
+            </div>
+          );
+        })}
+      </CollapsibleSection>
     );
   };
 
@@ -209,144 +227,150 @@ function DeviceStatePanel({ isOpen, className }: DeviceStatePanelProps) {
           </div>
         ) : deviceState ? (
           <div className="space-y-6">
-            {/* Device Info Section */}
-            <div className="space-y-3">
-              <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">
-                Device Info
-              </h3>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between p-2 rounded-md bg-muted/30">
-                  <div className="flex items-center space-x-2">
-                    <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-                    <span className="text-sm font-medium">Status</span>
-                  </div>
-                  <span className={`text-sm ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
-                    {isConnected ? 'Connected' : 'Disconnected'}
-                  </span>
+            {/* Connection Status */}
+            <CollapsibleSection title="Connection Status" defaultOpen={true}>
+              <div className="flex items-center justify-between p-2 rounded-md bg-muted/30">
+                <div className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+                  <span className="text-sm font-medium">Device Status</span>
                 </div>
-                
-                <div className="flex items-center justify-between p-2 rounded-md bg-muted/30">
-                  <div className="flex items-center space-x-2">
-                    <Icon 
-                      library="material" 
-                      name="Badge" 
-                      size="sm" 
-                      fallback="id" 
-                      className="h-4 w-4 text-muted-foreground" 
-                    />
-                    <span className="text-sm font-medium">Device ID</span>
-                  </div>
-                  <span className="text-sm font-mono text-foreground">{deviceState.device_id}</span>
-                </div>
-
-                <div className="flex items-center justify-between p-2 rounded-md bg-muted/30">
-                  <div className="flex items-center space-x-2">
-                    <Icon 
-                      library="material" 
-                      name="Label" 
-                      size="sm" 
-                      fallback="name" 
-                      className="h-4 w-4 text-muted-foreground" 
-                    />
-                    <span className="text-sm font-medium">Device Name</span>
-                  </div>
-                  <span className="text-sm text-foreground">{deviceState.device_name || 'Unknown'}</span>
-                </div>
-
-                {deviceStructure && (
-                  <div className="flex items-center justify-between p-2 rounded-md bg-muted/30">
-                    <div className="flex items-center space-x-2">
-                      <Icon 
-                        library="material" 
-                        name="Category" 
-                        size="sm" 
-                        fallback="class" 
-                        className="h-4 w-4 text-muted-foreground" 
-                      />
-                      <span className="text-sm font-medium">Device Class</span>
-                    </div>
-                    <span className="text-sm text-foreground">{deviceStructure.deviceClass}</span>
-                  </div>
-                )}
+                <span className={`text-sm ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
+                  {isConnected ? 'Connected' : 'Disconnected'}
+                </span>
               </div>
-            </div>
+              
+              <div className="flex items-center justify-between p-2 rounded-md bg-muted/30">
+                <div className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${currentSSEState.deviceSSE.connected ? 'bg-green-500' : 'bg-red-500'}`} />
+                  <span className="text-sm font-medium">SSE Connection</span>
+                </div>
+                <span className={`text-sm ${currentSSEState.deviceSSE.connected ? 'text-green-600' : 'text-red-600'}`}>
+                  {currentSSEState.deviceSSE.connected ? 'Connected' : 'Disconnected'}
+                </span>
+              </div>
+            </CollapsibleSection>
+
+            {/* Device Info Section */}
+            <CollapsibleSection title="Device Info" defaultOpen={true}>
+              <div className="flex items-center justify-between p-2 rounded-md bg-muted/30">
+                <div className="flex items-center space-x-2">
+                  <Icon 
+                    library="material" 
+                    name="Badge" 
+                    size="sm" 
+                    fallback="id" 
+                    className="h-4 w-4 text-muted-foreground" 
+                  />
+                  <span className="text-sm font-medium">Device ID</span>
+                </div>
+                <span className="text-sm font-mono text-foreground">{deviceState.device_id}</span>
+              </div>
+
+              <div className="flex items-center justify-between p-2 rounded-md bg-muted/30">
+                <div className="flex items-center space-x-2">
+                  <Icon 
+                    library="material" 
+                    name="Label" 
+                    size="sm" 
+                    fallback="name" 
+                    className="h-4 w-4 text-muted-foreground" 
+                  />
+                  <span className="text-sm font-medium">Device Name</span>
+                </div>
+                <span className="text-sm text-foreground">{deviceState.device_name || 'Unknown'}</span>
+              </div>
+
+              {deviceStructure && (
+                <div className="flex items-center justify-between p-2 rounded-md bg-muted/30">
+                  <div className="flex items-center space-x-2">
+                    <Icon 
+                      library="material" 
+                      name="Category" 
+                      size="sm" 
+                      fallback="class" 
+                      className="h-4 w-4 text-muted-foreground" 
+                    />
+                    <span className="text-sm font-medium">Device Class</span>
+                  </div>
+                  <span className="text-sm text-foreground">{deviceStructure.deviceClass}</span>
+                </div>
+              )}
+            </CollapsibleSection>
 
             {/* Action Status Section */}
-            <div className="space-y-3">
-              <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">
-                Action Status
-              </h3>
-              <div className="space-y-2">
-                {executeAction.isPending && (
-                  <div className="flex items-center justify-between p-2 rounded-md bg-blue-50/50 border border-blue-200/50">
-                    <div className="flex items-center space-x-2">
-                      <Icon 
-                        library="material" 
-                        name="Refresh" 
-                        size="sm" 
-                        fallback="loading" 
-                        className="h-4 w-4 text-blue-600 animate-spin" 
-                      />
-                      <span className="text-sm font-medium text-blue-800">Executing Action</span>
-                    </div>
-                    <span className="text-sm text-blue-600">
-                      {executeAction.variables?.action.action || 'Unknown Action'}
-                    </span>
+            <CollapsibleSection title="Action Status" defaultOpen={true}>
+              {executeAction.isPending && (
+                <div className="flex items-center justify-between p-2 rounded-md bg-blue-50/50 border border-blue-200/50">
+                  <div className="flex items-center space-x-2">
+                    <Icon 
+                      library="material" 
+                      name="Refresh" 
+                      size="sm" 
+                      fallback="loading" 
+                      className="h-4 w-4 text-blue-600 animate-spin" 
+                    />
+                    <span className="text-sm font-medium text-blue-800">Executing Action</span>
                   </div>
-                )}
-                
-                {executeAction.isError && executeAction.error && (
-                  <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20">
-                    <div className="flex items-start space-x-2">
-                      <Icon 
-                        library="material" 
-                        name="Error" 
-                        size="sm" 
-                        fallback="error" 
-                        className="h-4 w-4 text-destructive mt-0.5" 
-                      />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-destructive">Action Failed</p>
-                        <p className="text-xs text-destructive/80 mt-1">
-                          {executeAction.error.message}
+                  <span className="text-sm text-blue-600">
+                    {executeAction.variables?.action.action || 'Unknown Action'}
+                  </span>
+                </div>
+              )}
+              
+              {executeAction.isError && executeAction.error && (
+                <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20">
+                  <div className="flex items-start space-x-2">
+                    <Icon 
+                      library="material" 
+                      name="Error" 
+                      size="sm" 
+                      fallback="error" 
+                      className="h-4 w-4 text-destructive mt-0.5" 
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-destructive">Action Failed</p>
+                      <p className="text-xs text-destructive/80 mt-1">
+                        {executeAction.error.message}
+                      </p>
+                      {executeAction.variables?.action.action && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Action: {executeAction.variables.action.action}
                         </p>
-                        {executeAction.variables?.action.action && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Action: {executeAction.variables.action.action}
-                          </p>
-                        )}
-                      </div>
+                      )}
                     </div>
                   </div>
-                )}
-                
-                {!executeAction.isPending && !executeAction.isError && executeAction.isSuccess && (
-                  <div className="flex items-center justify-between p-2 rounded-md bg-green-50/50 border border-green-200/50">
-                    <div className="flex items-center space-x-2">
-                      <Icon 
-                        library="material" 
-                        name="CheckCircle" 
-                        size="sm" 
-                        fallback="check" 
-                        className="h-4 w-4 text-green-600" 
-                      />
-                      <span className="text-sm font-medium text-green-800">Action Completed</span>
-                    </div>
-                    <span className="text-sm text-green-600">Ready</span>
+                </div>
+              )}
+              
+              {!executeAction.isPending && !executeAction.isError && executeAction.isSuccess && (
+                <div className="flex items-center justify-between p-2 rounded-md bg-green-50/50 border border-green-200/50">
+                  <div className="flex items-center space-x-2">
+                    <Icon 
+                      library="material" 
+                      name="CheckCircle" 
+                      size="sm" 
+                      fallback="check" 
+                      className="h-4 w-4 text-green-600" 
+                    />
+                    <span className="text-sm font-medium text-green-800">Action Completed</span>
                   </div>
-                )}
-              </div>
-            </div>
+                  <span className="text-sm text-green-600">Ready</span>
+                </div>
+              )}
+              
+              {!executeAction.isPending && !executeAction.isError && !executeAction.isSuccess && (
+                <div className="text-sm text-muted-foreground text-center py-2">
+                  No recent actions
+                </div>
+              )}
+            </CollapsibleSection>
 
             {/* Device-Specific State */}
             {renderDeviceSpecificState()}
 
             {/* Last Command Section */}
             {deviceState.last_command && (
-              <div className="space-y-3">
-                <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">
-                  Last Command
-                </h3>
+              <CollapsibleSection title="Last Command" defaultOpen={false}>
                 <div className="p-3 rounded-md bg-muted/30 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Action</span>
@@ -371,20 +395,20 @@ function DeviceStatePanel({ isOpen, className }: DeviceStatePanelProps) {
                     </div>
                   )}
                 </div>
-              </div>
+              </CollapsibleSection>
             )}
 
             {/* Error Section */}
             {deviceState.error && (
-              <div className="space-y-3">
-                <h3 className="font-medium text-sm text-destructive uppercase tracking-wider">
-                  Error
-                </h3>
+              <CollapsibleSection title="Error" defaultOpen={true}>
                 <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20">
                   <p className="text-sm text-destructive">{deviceState.error}</p>
                 </div>
-              </div>
+              </CollapsibleSection>
             )}
+
+            {/* Progress Report Section - Always at the bottom */}
+            <ProgressReport deviceId={selectedDeviceId || undefined} />
           </div>
         ) : null}
       </div>
