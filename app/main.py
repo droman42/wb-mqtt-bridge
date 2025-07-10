@@ -42,6 +42,7 @@ from app.maintenance import WirenboardMaintenanceGuard
 
 # Import routers
 from app.routers import system, devices, mqtt, groups, scenarios, rooms, state, events
+from app.sse_manager import sse_manager
 
 from app.__version__ import __version__
 
@@ -247,39 +248,87 @@ async def lifespan(app: FastAPI):
     # Shutdown
     logger.info("System shutting down...")
     
-    # Prepare the device manager for shutdown 
-    logger.info("Preparing device manager for shutdown...")
-    await device_manager.prepare_for_shutdown()
-    
-    # Shutdown scenario manager first
-    logger.info("Shutting down scenario manager...")
-    await scenario_manager.shutdown()
-    
-    # Shutdown room manager
-    logger.info("Shutting down room manager...")
-    await room_manager.shutdown()
-    
-    # Disconnect MQTT to prevent incoming messages during shutdown
-    logger.info("Disconnecting MQTT client...")
-    await mqtt_client.disconnect()
-    
-    # Shutdown devices
-    logger.info("Shutting down devices...")
-    await device_manager.shutdown_devices()
-    
-    # Wait for any in-flight persistence tasks to complete
-    logger.info("Waiting for persistence tasks to complete...")
-    await device_manager.wait_for_persistence_tasks(timeout=10.0)
-    
-    # Perform final state persistence for all devices
-    logger.info("Performing final state persistence...")
-    await device_manager.persist_all_device_states()
-    
-    # Close state store after all persistence is done
-    logger.info("Closing state persistence connection...")
-    await state_store.close()
-    
-    logger.info("System shutdown complete")
+    try:
+        # Shutdown SSE connections first to prevent blocking
+        logger.info("Shutting down SSE connections...")
+        await sse_manager.shutdown()
+        
+        # Cancel any remaining background tasks that might prevent shutdown
+        logger.info("Cancelling background tasks...")
+        all_tasks = [task for task in asyncio.all_tasks() if not task.done()]
+        current_task = asyncio.current_task()
+        background_tasks = [task for task in all_tasks if task != current_task]
+        
+        if background_tasks:
+            logger.info(f"Found {len(background_tasks)} background tasks to cancel")
+            for task in background_tasks:
+                if not task.done():
+                    task.cancel()
+            
+            # Wait briefly for tasks to cancel gracefully
+            try:
+                await asyncio.wait_for(
+                    asyncio.gather(*background_tasks, return_exceptions=True),
+                    timeout=2.0  # Reduced timeout
+                )
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                logger.warning("Background task cancellation interrupted or timed out")
+        
+        # Prepare the device manager for shutdown 
+        logger.info("Preparing device manager for shutdown...")
+        await device_manager.prepare_for_shutdown()
+        
+        # Shutdown scenario manager first
+        logger.info("Shutting down scenario manager...")
+        await scenario_manager.shutdown()
+        
+        # Shutdown room manager
+        logger.info("Shutting down room manager...")
+        await room_manager.shutdown()
+        
+        # Disconnect MQTT to prevent incoming messages during shutdown
+        logger.info("Disconnecting MQTT client...")
+        await mqtt_client.disconnect()
+        
+        # Shutdown devices
+        logger.info("Shutting down devices...")
+        await device_manager.shutdown_devices()
+        
+        # Wait for any in-flight persistence tasks to complete
+        logger.info("Waiting for persistence tasks to complete...")
+        try:
+            await device_manager.wait_for_persistence_tasks(timeout=2.0)  # Reduced timeout
+        except asyncio.CancelledError:
+            logger.warning("Persistence task wait interrupted by cancellation")
+        
+        # Perform final state persistence for all devices
+        logger.info("Performing final state persistence...")
+        try:
+            await device_manager.persist_all_device_states()
+        except asyncio.CancelledError:
+            logger.warning("Final state persistence interrupted by cancellation")
+        
+        # Close state store after all persistence is done
+        logger.info("Closing state persistence connection...")
+        try:
+            await state_store.close()
+        except asyncio.CancelledError:
+            logger.warning("State store close interrupted by cancellation")
+        
+        logger.info("System shutdown complete")
+        
+    except asyncio.CancelledError:
+        logger.warning("Shutdown sequence interrupted by cancellation - performing emergency cleanup")
+        
+        # Emergency cleanup - fire and forget critical operations
+        try:
+            # Try to close state store without waiting
+            await asyncio.wait_for(state_store.close(), timeout=0.5)
+        except (asyncio.TimeoutError, asyncio.CancelledError, Exception) as e:
+            logger.warning(f"Emergency state store close failed: {e}")
+        
+        # Re-raise the cancellation to let uvicorn handle it properly
+        raise
 
 # Create the FastAPI app with lifespan
 app = FastAPI(

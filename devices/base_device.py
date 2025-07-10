@@ -775,7 +775,7 @@ class BaseDevice(ABC, Generic[StateT]):
             sock.close()
             
             logger.info(f"Sent WOL packet to {mac_address}")
-            await self.emit_progress(f"WOL packet sent to {mac_address}", "wol_sent")
+            await self.emit_progress(f"WOL packet sent to {mac_address}", "action_progress")
             return True
             
         except Exception as e:

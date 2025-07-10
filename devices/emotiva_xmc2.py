@@ -193,7 +193,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                     )
                     
                     # Publish connection status
-                    await self.emit_progress(f"Connected to {self.get_name()} at {host}", "device_connected")
+                    await self.emit_progress(f"Connected to {self.get_name()} at {host}", "action_progress")
                     
                     return True
                 except Exception as e:
@@ -219,7 +219,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                         self.set_error(f"Subscription failed, using forced connection: {error_message}")
                         
                         # Publish connection status with warning
-                        await self.emit_progress(f"Connected to {self.get_name()} at {host} in force connect mode (limited functionality)", "device_force_connected")
+                        await self.emit_progress(f"Connected to {self.get_name()} at {host} in force connect mode (limited functionality)", "action_progress")
                         
                         return True
                     else:
@@ -268,7 +268,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             )
             
             # Publish shutdown status
-            await self.emit_progress(f"Disconnected from {self.get_name()}", "device_disconnected")
+            await self.emit_progress(f"Disconnected from {self.get_name()}", "action_progress")
             
             # Release client reference
             self.client = None
@@ -720,7 +720,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                     updated_properties = await self._refresh_device_state()
                     
                     # Emit progress message
-                    await self.emit_progress(f"Zone {zone_id} powered on successfully", "power_success")
+                    await self.emit_progress(f"Zone {zone_id} powered on successfully", "action_success")
                     
                     # Return success result with updated properties
                     return self.create_command_result(
@@ -742,7 +742,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                     )
             else:
                 # For non-main zones, just return success
-                await self.emit_progress(f"Zone {zone_id} powered on successfully", "power_success")
+                await self.emit_progress(f"Zone {zone_id} powered on successfully", "action_success")
                 return self.create_command_result(
                     success=True,
                     message=f"Zone {zone_id} powered on successfully",
@@ -754,7 +754,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             error_message = f"Failed to power on zone {zone_id}: {str(e)}"
             logger.error(error_message)
             self.set_error(error_message)
-            await self.emit_progress(f"Failed to power on zone {zone_id}: {str(e)}", "power_error")
+            await self.emit_progress(f"Failed to power on zone {zone_id}: {str(e)}", "action_error")
             return self.create_command_result(
                 success=False,
                 error=error_message
@@ -917,7 +917,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         # Emit error message via SSE
         try:
             error_context = f" ({', '.join([f'{k}={v}' for k, v in context.items()])})" if context else ""
-            await self.emit_progress(f"Error: {error_message}{error_context}", "command_error")
+            await self.emit_progress(f"Error: {error_message}{error_context}", "action_error")
         except Exception as e:
             logger.warning(f"Failed to emit error message: {str(e)}")
         
@@ -1000,7 +1000,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 if self.state.power != PowerState.ON:
                     error_message = "Cannot set input while device is powered off"
                     logger.warning(error_message)
-                    await self.emit_progress(error_message, "power_required_error")
+                    await self.emit_progress(error_message, "action_error")
                     return self.create_command_result(
                         success=False,
                         error=error_message,
@@ -1011,7 +1011,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             # Check if this is already the current input
             if self.state.input_source == normalized_input:
                 logger.debug(f"Input already set to {normalized_input}, skipping command")
-                await self.emit_progress(f"Input already set to {normalized_input}", "input_already_set")
+                await self.emit_progress(f"Input already set to {normalized_input}", "action_progress")
                 return self.create_command_result(
                     success=True,
                     message=f"Input already set to {normalized_input}",
@@ -1028,7 +1028,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                     # Check again if already set to requested input
                     if self.state.input_source == normalized_input:
                         logger.debug(f"Input already set to {normalized_input} (verified), skipping command")
-                        await self.emit_progress(f"Input already set to {normalized_input} (verified)", "input_already_set")
+                        await self.emit_progress(f"Input already set to {normalized_input} (verified)", "action_progress")
                         return self.create_command_result(
                             success=True,
                             message=f"Input already set to {normalized_input} (verified)",
@@ -1070,7 +1070,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             self._update_last_command("set_input", {"input": normalized_input})
             
             # Emit success message
-            await self.emit_progress(f"Input set to {normalized_input}", "input_success")
+            await self.emit_progress(f"Input set to {normalized_input}", "action_success")
             
             # Return success result
             return self.create_command_result(

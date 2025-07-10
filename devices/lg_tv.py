@@ -412,7 +412,7 @@ class LgTv(BaseDevice[LgTvState]):
         try:
             # Configure connection parameters from configuration
             logger.info(f"Setting up LG TV: {self.device_name}")
-            await self.emit_progress(f"Setting up LG TV {self.device_name}", "device_setup")
+            await self.emit_progress(f"Setting up LG TV {self.device_name}", "action_progress")
             
             # Use host from configuration directly
             self.state.ip_address = self.tv_config.ip_address
@@ -425,19 +425,19 @@ class LgTv(BaseDevice[LgTvState]):
             if self.tv_config.secure and self.tv_config.cert_file:
                 if not os.path.exists(self.tv_config.cert_file):
                     logger.warning(f"Certificate file not found: {self.tv_config.cert_file}")
-                    await self.emit_progress(f"Certificate file not found for {self.device_name}", "configuration_warning")
+                    await self.emit_progress(f"Certificate file not found for {self.device_name}", "action_progress")
             
             # Attempt initial connection
             connection_success = await self.connect()
             
             if connection_success:
                 logger.info(f"Successfully connected to LG TV {self.device_name}")
-                await self.emit_progress(f"Successfully connected to LG TV {self.device_name}", "device_connected")
+                await self.emit_progress(f"Successfully connected to LG TV {self.device_name}", "action_success")
                 # Explicitly ensure we update the volume state
                 await self._update_volume_state()
             else:
                 logger.warning(f"Could not connect to LG TV {self.device_name}. Will try again later.")
-                await self.emit_progress(f"Could not connect to {self.device_name} - will retry later", "connection_deferred")
+                await self.emit_progress(f"Could not connect to {self.device_name} - will retry later", "action_progress")
                 
             # Update power state based on connection result
             self.state.power = "off" if not connection_success else "on"
@@ -448,7 +448,7 @@ class LgTv(BaseDevice[LgTvState]):
             
         except Exception as e:
             logger.error(f"Error setting up LG TV device {self.device_name}: {str(e)}")
-            await self.emit_progress(f"Error setting up {self.device_name}: {str(e)}", "setup_error")
+            await self.emit_progress(f"Error setting up {self.device_name}: {str(e)}", "action_error")
             self.set_error(str(e))
             return False
     
@@ -464,7 +464,7 @@ class LgTv(BaseDevice[LgTvState]):
         """
         try:
             logger.info(f"Connecting to LG TV {self.device_name} at {self.state.ip_address}")
-            await self.emit_progress(f"Connecting to {self.device_name} at {self.state.ip_address}", "connection_attempt")
+            await self.emit_progress(f"Connecting to {self.device_name} at {self.state.ip_address}", "action_progress")
             
             # Update state to indicate connection attempt
             self.state.connected = False
@@ -474,7 +474,7 @@ class LgTv(BaseDevice[LgTvState]):
             
             if connection_result:
                 logger.info(f"Successfully connected to TV {self.get_name()}")
-                await self.emit_progress(f"Successfully connected to {self.device_name}", "connection_success")
+                await self.emit_progress(f"Successfully connected to {self.device_name}", "action_success")
                 self.state.connected = True
                 self.clear_error()
                 
@@ -485,7 +485,7 @@ class LgTv(BaseDevice[LgTvState]):
                 await self._update_tv_state()
             else:
                 logger.error(f"Failed to connect to TV {self.get_name()}")
-                await self.emit_progress(f"Failed to connect to {self.device_name}", "connection_failed")
+                await self.emit_progress(f"Failed to connect to {self.device_name}", "action_error")
                 self.state.connected = False
                 if not self.state.error:
                     self.set_error("Failed to connect to TV")
@@ -508,7 +508,7 @@ class LgTv(BaseDevice[LgTvState]):
         """
         try:
             logger.info(f"Shutting down LG TV device: {self.device_name}")
-            await self.emit_progress(f"Shutting down LG TV {self.device_name}", "device_shutdown")
+            await self.emit_progress(f"Shutting down LG TV {self.device_name}", "action_progress")
             
             # Update state to indicate shutdown
             self.state.connected = False
@@ -519,7 +519,7 @@ class LgTv(BaseDevice[LgTvState]):
                     # WebOSTV.close() handles closing all connections including input
                     await self.client.close()
                     logger.info(f"Disconnected from TV {self.get_name()}")
-                    await self.emit_progress(f"Disconnected from {self.device_name}", "device_disconnected")
+                    await self.emit_progress(f"Disconnected from {self.device_name}", "action_progress")
                 except Exception as close_error:
                     logger.warning(f"Error while closing connection: {str(close_error)}")
                 
@@ -2253,14 +2253,14 @@ class LgTv(BaseDevice[LgTvState]):
                 return False
                 
             logger.info(f"Sending Wake-on-LAN packet to TV {self.get_name()} (MAC: {mac_address})")
-            await self.emit_progress(f"Sending Wake-on-LAN packet to {self.device_name}", "wol_sending")
+            await self.emit_progress(f"Sending Wake-on-LAN packet to {self.device_name}", "action_progress")
             
             # Use the send_wol_packet method from BaseDevice
             wol_success = await self.send_wol_packet(mac_address, self.broadcast_ip)
             
             if wol_success:
                 logger.info("Wake-on-LAN packet sent successfully")
-                await self.emit_progress(f"Wake-on-LAN packet sent to {self.device_name}", "wol_success")
+                await self.emit_progress(f"Wake-on-LAN packet sent to {self.device_name}", "action_success")
                 self.state.last_command = LastCommand(
                     action="wake_on_lan",
                     source="api",

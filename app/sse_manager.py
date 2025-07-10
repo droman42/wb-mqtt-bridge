@@ -58,6 +58,10 @@ class SSEManager:
             SSEChannel.SYSTEM: set()
         }
         self._connection_lock = asyncio.Lock()
+        self._shutdown_event = asyncio.Event()
+        self._is_shutting_down = False
+        # Track active event generator tasks for proper cleanup
+        self._active_tasks: Set[asyncio.Task] = set()
     
     async def add_connection(self, channel: SSEChannel, queue: asyncio.Queue) -> None:
         """Add a new SSE connection to a channel"""
@@ -113,6 +117,65 @@ class SSEManager:
                 for channel, connections in self._connections.items()
             }
     
+    async def shutdown(self) -> None:
+        """Signal shutdown to all SSE connections"""
+        logger.info("Initiating SSE manager shutdown...")
+        self._is_shutting_down = True
+        self._shutdown_event.set()
+        
+        # Cancel all active tasks immediately
+        if self._active_tasks:
+            logger.info(f"Cancelling {len(self._active_tasks)} active SSE tasks...")
+            for task in self._active_tasks:
+                if not task.done():
+                    task.cancel()
+            
+            # Wait for tasks to be cancelled (with timeout)
+            try:
+                await asyncio.wait_for(
+                    asyncio.gather(*self._active_tasks, return_exceptions=True),
+                    timeout=2.0
+                )
+            except asyncio.TimeoutError:
+                logger.warning("Some SSE tasks did not cancel within timeout")
+            
+            self._active_tasks.clear()
+        
+        # Send shutdown event to any remaining active connections
+        try:
+            shutdown_data = {
+                "message": "Server is shutting down",
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            for channel in SSEChannel:
+                await asyncio.wait_for(
+                    self.broadcast(channel, "shutdown", shutdown_data),
+                    timeout=0.5
+                )
+        except asyncio.TimeoutError:
+            logger.warning("Broadcast of shutdown events timed out")
+        except Exception as e:
+            logger.warning(f"Error broadcasting shutdown events: {e}")
+        
+        # Get total connections before cleanup
+        stats = await self.get_channel_stats()
+        total_connections = sum(stats.values())
+        
+        if total_connections > 0:
+            logger.info(f"Forcefully closing {total_connections} remaining SSE connections...")
+        
+        # Clear all connections to force cleanup
+        async with self._connection_lock:
+            for channel in self._connections:
+                self._connections[channel].clear()
+        
+        logger.info("SSE manager shutdown complete")
+    
+    def is_shutting_down(self) -> bool:
+        """Check if the SSE manager is shutting down"""
+        return self._is_shutting_down
+    
     async def create_event_stream(self, channel: SSEChannel, request: Request):
         """Create an SSE event stream for a specific channel"""
         queue = asyncio.Queue(maxsize=100)  # Limit queue size to prevent memory issues
@@ -130,37 +193,74 @@ class SSEManager:
                 yield welcome_event.format()
                 
                 while True:
-                    # Check if client disconnected
-                    if await request.is_disconnected():
-                        logger.info(f"Client disconnected from {channel.value} channel")
+                    # Quick shutdown check first
+                    if self._is_shutting_down:
+                        logger.info(f"Server shutdown detected, closing {channel.value} SSE connection")
                         break
                     
+                    # Check if client disconnected (but don't await it as it might block)
                     try:
-                        # Wait for new events with timeout
-                        event_data = await asyncio.wait_for(queue.get(), timeout=30.0)
-                        yield event_data
+                        if await asyncio.wait_for(request.is_disconnected(), timeout=0.1):
+                            logger.info(f"Client disconnected from {channel.value} channel")
+                            break
                     except asyncio.TimeoutError:
-                        # Send keepalive event
-                        keepalive_event = SSEEvent(
-                            event_type="keepalive",
-                            data={"timestamp": datetime.now().isoformat()},
-                            channel=channel
-                        )
-                        yield keepalive_event.format()
+                        # Client still connected, continue
+                        pass
+                    
+                    try:
+                        # Try to get an event from the queue with a short timeout
+                        try:
+                            event_data = await asyncio.wait_for(queue.get(), timeout=1.0)
+                            yield event_data
+                        except asyncio.TimeoutError:
+                            # No events in queue, send keepalive and check shutdown again
+                            if self._is_shutting_down:
+                                break
+                            
+                            keepalive_event = SSEEvent(
+                                event_type="keepalive",
+                                data={"timestamp": datetime.now().isoformat()},
+                                channel=channel
+                            )
+                            yield keepalive_event.format()
+                            
+                    except Exception as e:
+                        logger.error(f"Error processing SSE event for {channel.value}: {e}")
+                        break
                         
+            except asyncio.CancelledError:
+                logger.info(f"SSE event generator for {channel.value} was cancelled")
+                raise  # Re-raise to ensure proper cleanup
             except Exception as e:
                 logger.error(f"Error in SSE event stream for {channel.value}: {e}")
             finally:
                 await self.remove_connection(channel, queue)
         
+        # Create a wrapper generator that tracks the task
+        async def tracked_event_generator():
+            # Get the current task (the one running this generator)
+            current_task = asyncio.current_task()
+            if current_task:
+                self._active_tasks.add(current_task)
+                
+            try:
+                async for event in event_generator():
+                    yield event
+            finally:
+                # Clean up task tracking
+                if current_task:
+                    self._active_tasks.discard(current_task)
+        
         return StreamingResponse(
-            event_generator(),
+            tracked_event_generator(),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
                 "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Cache-Control"
+                "Access-Control-Allow-Methods": "GET",
+                "Access-Control-Allow-Headers": "Cache-Control",
+                "Access-Control-Expose-Headers": "Cache-Control, Content-Type"
             }
         )
 

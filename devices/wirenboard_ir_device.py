@@ -46,24 +46,24 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
             if not commands:
                 logger.error(f"No commands defined for device {self.get_name()}")
                 self.update_state(error="No commands defined")
-                await self.emit_progress(f"No commands defined for {self.device_name}", "configuration_error")
+                await self.emit_progress(f"No commands defined for {self.device_name}", "action_error")
                 return True  # Return True to allow device to be initialized even without commands
             
             logger.info(f"Wirenboard IR device {self.get_name()} initialized with {len(commands)} commands")
-            await self.emit_progress(f"Wirenboard IR device {self.device_name} initialized with {len(commands)} commands", "device_ready")
+            await self.emit_progress(f"Wirenboard IR device {self.device_name} initialized with {len(commands)} commands", "action_success")
             return True
             
         except Exception as e:
             logger.error(f"Failed to initialize Wirenboard IR device {self.get_name()}: {str(e)}")
             self.update_state(error=str(e))
-            await self.emit_progress(f"Failed to initialize {self.device_name}: {str(e)}", "initialization_error")
+            await self.emit_progress(f"Failed to initialize {self.device_name}: {str(e)}", "action_error")
             return True  # Return True to allow device to be initialized even with errors
     
     async def shutdown(self) -> bool:
         """Cleanup device resources."""
         try:
             logger.info(f"Wirenboard IR device {self.get_name()} shutdown complete")
-            await self.emit_progress(f"Wirenboard IR device {self.device_name} shutdown complete", "device_shutdown")
+            await self.emit_progress(f"Wirenboard IR device {self.device_name} shutdown complete", "action_success")
             return True
         except Exception as e:
             logger.error(f"Error during device shutdown: {str(e)}")
@@ -343,10 +343,10 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
                 # If MQTT client is available, publish the command
                 if self.mqtt_client:
                     try:
-                        await self.emit_progress(f"Executing IR command '{action_name}' on {self.device_name}", "ir_command_executing")
+                        await self.emit_progress(f"Executing IR command '{action_name}' on {self.device_name}", "action_progress")
                         await self.mqtt_client.publish(topic, payload)
                         logger.info(f"Published IR command '{action_name}' to {topic}")
-                        await self.emit_progress(f"IR command '{action_name}' sent successfully", "ir_command_success")
+                        await self.emit_progress(f"IR command '{action_name}' sent successfully", "action_success")
                         return self.create_command_result(
                             success=True, 
                             message=f"Successfully executed IR command '{action_name}'",
