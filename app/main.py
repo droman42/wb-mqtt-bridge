@@ -199,6 +199,9 @@ async def lifespan(app: FastAPI):
         device.mqtt_client = mqtt_client
         logger.info(f"Device {device_id} initialized with typed configuration")
     
+    # Configuration Migration Phase B: Log migration guidance for deprecated topic usage
+    config_manager.log_migration_guidance()
+    
     # Initialize state from persistence layer
     await device_manager.initialize()
     logger.info("Device states initialized from persistence layer")
@@ -217,6 +220,23 @@ async def lifespan(app: FastAPI):
            for device_id, topics in device_topics.items()
            for topic in topics}
     })
+    
+    # Wait for MQTT connection to be fully established
+    logger.info("Waiting for MQTT connection to be established...")
+    connection_success = await mqtt_client.wait_for_connection(timeout=30.0)
+    if not connection_success:
+        logger.error("Failed to establish MQTT connection within timeout - WB emulation will be skipped")
+    else:
+        logger.info("MQTT connection established successfully")
+        
+        # Now that MQTT is connected, set up Wirenboard virtual device emulation for all devices
+        logger.info("Setting up Wirenboard virtual device emulation...")
+        for device_id, device in device_manager.devices.items():
+            try:
+                await device.setup_wb_emulation_if_enabled()
+                logger.debug(f"WB emulation setup completed for device {device_id}")
+            except Exception as e:
+                logger.error(f"Failed to setup WB emulation for device {device_id}: {str(e)}")
     
     # Initialize room manager
     room_manager = RoomManager(Path(config_manager.config_dir), device_manager)

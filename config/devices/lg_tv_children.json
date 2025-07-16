@@ -18,121 +18,101 @@
   "commands": {
     "power_on": {
       "action": "power_on",
-      "topic": "/devices/children_room_tv/controls/power_on",
       "description": "Power On",
       "group": "power"
     },
     "power_off": {
       "action": "power_off",
-      "topic": "/devices/children_room_tv/controls/power_off",
       "description": "Power Off",
       "group": "power"
     },
     "home": {
       "action": "home",
-      "topic": "/devices/children_room_tv/controls/home",
       "description": "Home",
       "group": "menu"
     },
     "back": {
       "action": "back",
-      "topic": "/devices/children_room_tv/controls/back",
       "description": "Back",
       "group": "menu"
     },
     "up": {
       "action": "up",
-      "topic": "/devices/children_room_tv/controls/up",
       "description": "Up",
       "group": "menu"
     },
     "down": {
       "action": "down",
-      "topic": "/devices/children_room_tv/controls/down",
       "description": "Down",
       "group": "menu"
     },
     "left": {
       "action": "left",
-      "topic": "/devices/children_room_tv/controls/left",
       "description": "Left",
       "group": "menu"
     },
     "right": {
       "action": "right",
-      "topic": "/devices/children_room_tv/controls/right",
       "description": "Right",
       "group": "menu"
     },
     "enter": {
       "action": "enter",
-      "topic": "/devices/children_room_tv/controls/enter",
       "description": "Enter/OK",
       "group": "menu"
     },
     "volume_up": {
       "action": "volume_up",
-      "topic": "/devices/children_room_tv/controls/volume_up",
       "description": "Volume Up",
       "group": "volume"
     },
     "volume_down": {
       "action": "volume_down",
-      "topic": "/devices/children_room_tv/controls/volume_down",
       "description": "Volume Down",
       "group": "volume"
     },
     "mute": {
       "action": "mute",
-      "topic": "/devices/children_room_tv/controls/mute",
       "description": "Mute",
       "group": "volume"
     },
     "play": {
       "action": "play",
-      "topic": "/devices/children_room_tv/controls/play",
       "description": "Play",
       "group": "playback"
     },
     "pause": {
       "action": "pause",
-      "topic": "/devices/children_room_tv/controls/pause",
       "description": "Pause",
       "group": "playback"
     },
     "stop": {
       "action": "stop",
-      "topic": "/devices/children_room_tv/controls/stop",
       "description": "Stop",
       "group": "playback"
     },
     "rewind_forward": {
       "action": "rewind_forward",
-      "topic": "/devices/children_room_tv/controls/rewind_forward",
       "description": "Fast Forward",
       "group": "playback"
     },
     "rewind_backward": {
       "action": "rewind_backward",
-      "topic": "/devices/children_room_tv/controls/rewind_backward",
       "description": "Fast Backward",
       "group": "playback"
     },
     "exit": {
       "action": "exit",
-      "topic": "/devices/children_room_tv/controls/exit",
       "description": "Exit Button",
       "group": "menu"
     },
     "menu": {
       "action": "menu",
-      "topic": "/devices/children_room_tv/controls/menu",
       "description": "Menu Button",
       "group": "menu"
     },
     "set_volume": {
       "action": "set_volume",
-      "topic": "/devices/children_room_tv/controls/set_volume",
       "description": "Set Volume Level",
       "group": "volume",
       "params": [
@@ -148,7 +128,6 @@
     },
     "move_cursor": {
       "action": "move_cursor",
-      "topic": "/devices/children_room_tv/controls/move",
       "description": "Move Cursor to Position",
       "group": "pointer",
       "params": [
@@ -172,7 +151,6 @@
     },
     "move_cursor_relative": {
       "action": "move_cursor_relative",
-      "topic": "/devices/children_room_tv/controls/move_relative",
       "description": "Move Cursor Relative",
       "group": "pointer",
       "params": [
@@ -196,13 +174,11 @@
     },
     "click": {
       "action": "click",
-      "topic": "/devices/children_room_tv/controls/click",
       "description": "Click at current position",
       "group": "pointer"
     },
     "set_input_source": {
       "action": "set_input_source",
-      "topic": "/devices/children_room_tv/controls/set_input_source",
       "description": "Set Input Source",
       "group": "inputs",
       "params": [
@@ -216,7 +192,6 @@
     },
     "launch_app": {
       "action": "launch_app",
-      "topic": "/devices/children_room_tv/controls/launch_app",
       "description": "Launch App",
       "group": "apps",
       "params": [
@@ -236,13 +211,11 @@
     },
     "get_available_apps": {
       "action": "get_available_apps",
-      "topic": "/devices/children_room_tv/controls/get_available_apps",
       "description": "List available Apps",
       "group": "apps"
     },
     "get_available_inputs": {
       "action": "get_available_inputs",
-      "topic": "/devices/children_room_tv/controls/get_available_inputs",
       "description": "List available inputs",
       "group": "inputs"
     }

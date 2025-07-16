@@ -8,7 +8,6 @@
   "commands": {
     "power_on": {
       "action": "power_on",
-      "topic": "/devices/upscaler/controls/power_on",
       "location": "wb-msw-v3_207",
       "rom_position": "57",
       "group": "power",
@@ -16,7 +15,6 @@
     },
     "power_off": {
       "action": "power_off",
-      "topic": "/devices/upscaler/controls/power_off",
       "location": "wb-msw-v3_207",
       "rom_position": "58",
       "group": "power",
@@ -24,7 +22,6 @@
     },
     "input_video": {
       "action": "input_video",
-      "topic": "/devices/upscaler/controls/input_video",
       "location": "wb-msw-v3_207",
       "rom_position": "59",
       "group": "inputs",
@@ -32,7 +29,6 @@
     },
     "input_s_vhs": {
       "action": "input_s_vhs",
-      "topic": "/devices/upscaler/controls/input_s_vhs",
       "location": "wb-msw-v3_207",
       "rom_position": "60",
       "group": "inputs",
@@ -40,7 +36,6 @@
     },
     "ratio_4_3": {
       "action": "ratio_4_3",
-      "topic": "/devices/upscaler/controls/ratio_4_3",
       "location": "wb-msw-v3_207",
       "rom_position": "61",
       "group": "screen",
@@ -48,7 +43,6 @@
     },
     "ratio_16_9": {
       "action": "ratio_16_9",
-      "topic": "/devices/upscaler/controls/ratio_16_9",
       "location": "wb-msw-v3_218",
       "rom_position": "8",
       "group": "screen",
@@ -56,7 +50,6 @@
     },
     "letterbox": {
       "action": "letterbox",
-      "topic": "/devices/upscaler/controls/letterbox",
       "location": "wb-msw-v3_218",
       "rom_position": "9",
       "group": "screen",
@@ -64,7 +57,6 @@
     },
     "menu": {
       "action": "menu",
-      "topic": "/devices/upscaler/controls/menu",
       "location": "wb-msw-v3_218",
       "rom_position": "10",
       "group": "menu",
@@ -72,7 +64,6 @@
     },
     "menu_exit": {
       "action": "menu_exit",
-      "topic": "/devices/upscaler/controls/menu_exit",
       "location": "wb-msw-v3_218",
       "rom_position": "11",
       "group": "menu",
@@ -80,7 +71,6 @@
     },
     "menu_up": {
       "action": "menu_up",
-      "topic": "/devices/upscaler/controls/menu_up",
       "location": "wb-msw-v3_218",
       "rom_position": "12",
       "group": "menu",
@@ -88,7 +78,6 @@
     },
     "menu_down": {
       "action": "menu_down",
-      "topic": "/devices/upscaler/controls/menu_down",
       "location": "wb-msw-v3_218",
       "rom_position": "13",
       "group": "menu",
@@ -96,7 +85,6 @@
     },
     "menu_left": {
       "action": "menu_left",
-      "topic": "/devices/upscaler/controls/menu_left",
       "location": "wb-msw-v3_218",
       "rom_position": "14",
       "group": "menu",
@@ -104,7 +92,6 @@
     },
     "menu_right": {
       "action": "menu_right",
-      "topic": "/devices/upscaler/controls/menu_right",
       "location": "wb-msw-v3_218",
       "rom_position": "15",
       "group": "menu",
@@ -112,7 +99,6 @@
     },
     "menu_ok": {
       "action": "menu_ok",
-      "topic": "/devices/upscaler/controls/menu_ok",
       "location": "wb-msw-v3_218",
       "rom_position": "16",
       "group": "menu",

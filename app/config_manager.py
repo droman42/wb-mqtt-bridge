@@ -339,3 +339,7 @@ class ConfigManager:
         
         groups = self.get_groups()
         return group_id in groups 
+
+    def log_migration_guidance(self):
+        """Log successful completion of Configuration Migration Phase C."""
+        logger.info("✅ Configuration Migration Phase C completed: All devices now use auto-generated topics following WB conventions!") 

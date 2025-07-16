@@ -8,7 +8,6 @@
   "commands": {
     "power": {
       "action": "power",
-      "topic": "/devices/vhs_player/controls/power_toggle",
       "location": "wb-msw-v3_207",
       "rom_position": "63",
       "group": "power",
@@ -16,7 +15,6 @@
     },
     "play": {
       "action": "play",
-      "topic": "/devices/vhs_player/controls/play",
       "location": "wb-msw-v3_207",
       "rom_position": "76",
       "group": "playback",
@@ -24,7 +22,6 @@
     },
     "stop": {
       "action": "stop",
-      "topic": "/devices/vhs_player/controls/stop",
       "location": "wb-msw-v3_207",
       "rom_position": "77",
       "group": "playback",
@@ -32,7 +29,6 @@
     },
     "pause": {
       "action": "pause",
-      "topic": "/devices/vhs_player/controls/pause",
       "location": "wb-msw-v3_207",
       "rom_position": "78",
       "group": "playback",
@@ -40,7 +36,6 @@
     },
     "rewind_forward": {
       "action": "rewind_forward",
-      "topic": "/devices/vhs_player/controls/rewind_forward",
       "location": "wb-msw-v3_207",
       "rom_position": "79",
       "group": "playback",
@@ -48,7 +43,6 @@
     },
     "rewind_backward": {
       "action": "rewind_backward",
-      "topic": "/devices/vhs_player/controls/rewind_backward",
       "location": "wb-msw-v3_218",
       "rom_position": "80",
       "group": "playback",

@@ -8,7 +8,6 @@
   "commands": {
     "power_on": {
       "action": "power_on",
-      "topic": "/devices/video/controls/power_on",
       "location": "wb-msw-v3_207",
       "rom_position": "26",
       "group": "power",
@@ -16,7 +15,6 @@
     },
     "power_off": {
       "action": "power_off",
-      "topic": "/devices/video/controls/power_off",
       "location": "wb-msw-v3_207",
       "rom_position": "27",
       "group": "power",
@@ -24,7 +22,6 @@
     },
     "play_pause": {
       "action": "play_pause",
-      "topic": "/devices/video/controls/play_pause",
       "location": "wb-msw-v3_207",
       "rom_position": "28",
       "group": "playback",
@@ -32,7 +29,6 @@
     },
     "chapter_plus": {
       "action": "chapter_plus",
-      "topic": "/devices/video/controls/chapter_plus",
       "location": "wb-msw-v3_207",
       "rom_position": "29",
       "group": "playback",
@@ -40,7 +36,6 @@
     },
     "chapter_minus": {
       "action": "chapter_minus",
-      "topic": "/devices/video/controls/chapter_minus",
       "location": "wb-msw-v3_207",
       "rom_position": "30",
       "group": "playback",
@@ -48,7 +43,6 @@
     },
     "stop": {
       "action": "stop",
-      "topic": "/devices/video/controls/stop",
       "location": "wb-msw-v3_207",
       "rom_position": "31",
       "group": "playback",
@@ -56,7 +50,6 @@
     },
     "menu_up": {
       "action": "menu_up",
-      "topic": "/devices/video/controls/menu_up",
       "location": "wb-msw-v3_207",
       "rom_position": "32",
       "group": "menu",
@@ -64,7 +57,6 @@
     },
     "menu_down": {
       "action": "menu_down",
-      "topic": "/devices/video/controls/menu_down",
       "location": "wb-msw-v3_207",
       "rom_position": "33",
       "group": "menu",
@@ -72,7 +64,6 @@
     },
     "menu_left": {
       "action": "menu_left",
-      "topic": "/devices/video/controls/menu_left",
       "location": "wb-msw-v3_207",
       "rom_position": "34",
       "group": "menu",
@@ -80,7 +71,6 @@
     },
     "menu_right": {
       "action": "menu_right",
-      "topic": "/devices/video/controls/menu_right",
       "location": "wb-msw-v3_207",
       "rom_position": "35",
       "group": "menu",
@@ -88,7 +78,6 @@
     },
     "menu_ok": {
       "action": "menu_ok",
-      "topic": "/devices/video/controls/menu_ok",
       "location": "wb-msw-v3_207",
       "rom_position": "36",
       "group": "menu",
@@ -96,7 +85,6 @@
     },
     "audio": {
       "action": "audio",
-      "topic": "/devices/video/controls/audio",
       "location": "wb-msw-v3_207",
       "rom_position": "37",
       "group": "tracks",
@@ -104,7 +92,6 @@
     },
     "subtitles": {
       "action": "subtitles",
-      "topic": "/devices/video/controls/subtitles",
       "location": "wb-msw-v3_207",
       "rom_position": "38",
       "group": "tracks",
@@ -112,7 +99,6 @@
     },
     "home": {
       "action": "home",
-      "topic": "/devices/video/controls/home",
       "location": "wb-msw-v3_218",
       "rom_position": "3",
       "group": "menu",
@@ -120,7 +106,6 @@
     },
     "settings": {
       "action": "settings",
-      "topic": "/devices/video/controls/settings",
       "location": "wb-msw-v3_218",
       "rom_position": "4",
       "group": "menu",
@@ -128,7 +113,6 @@
     },
     "back": {
       "action": "back",
-      "topic": "/devices/video/controls/back",
       "location": "wb-msw-v3_218",
       "rom_position": "5",
       "group": "menu",

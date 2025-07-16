@@ -51,6 +51,7 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
             
             logger.info(f"Wirenboard IR device {self.get_name()} initialized with {len(commands)} commands")
             await self.emit_progress(f"Wirenboard IR device {self.device_name} initialized with {len(commands)} commands", "action_success")
+            
             return True
             
         except Exception as e:
@@ -200,7 +201,8 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
             matching_cmd_config: Optional[IRCommandConfig] = None
             
             for cmd_name, cmd_config in self.get_available_commands().items():
-                if cmd_config.topic == topic:
+                auto_generated_topic = f"/devices/{self.device_id}/controls/{cmd_name}"
+                if auto_generated_topic == topic:
                     matching_cmd_name = cmd_name
                     matching_cmd_config = cast(IRCommandConfig, cmd_config)
                     break

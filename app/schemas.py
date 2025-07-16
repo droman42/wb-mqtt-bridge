@@ -85,7 +85,6 @@ class CommandParameterDefinition(BaseModel):
 class BaseCommandConfig(BaseModel):
     """Base schema for command configuration."""
     action: Optional[str] = Field(None, description="Action identifier for this command")
-    topic: Optional[str] = Field(None, description="MQTT topic this command listens to")
     description: Optional[str] = Field(None, description="Human-readable description of the command")
     group: Optional[str] = Field(None, description="Functional group this command belongs to")
     params: Optional[List[CommandParameterDefinition]] = Field(
@@ -116,6 +115,11 @@ class BaseDeviceConfig(BaseModel):
     device_class: str = Field(..., description="The device implementation class name (e.g., 'LgTv')")
     config_class: str = Field(..., description="The configuration model class name (e.g., 'LgTvDeviceConfig')")
     commands: Dict[str, BaseCommandConfig] = Field(default_factory=dict)
+    
+    # Wirenboard virtual device emulation configuration
+    enable_wb_emulation: bool = Field(True, description="Enable Wirenboard virtual device emulation")
+    wb_controls: Optional[Dict[str, Dict[str, Any]]] = Field(None, description="Custom Wirenboard control definitions")
+    wb_state_mappings: Optional[Dict[str, Union[str, List[str]]]] = Field(None, description="Custom state field to WB control mappings")
 
     @validator('device_class')
     def validate_device_class(cls, v):

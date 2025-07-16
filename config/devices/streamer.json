@@ -17,13 +17,11 @@
   "commands": {
     "power_on": {
       "action": "power_on",
-      "topic": "/devices/streamer/controls/power_on",
       "group": "power",
       "description": "Power On"
     },
     "power_off": {
       "action": "power_off",
-      "topic": "/devices/streamer/controls/power_off",
       "group": "power",
       "description": "Power Off",
       "params": [
@@ -38,31 +36,26 @@
     },
     "play": {
       "action": "play",
-      "topic": "/devices/streamer/controls/play",
       "group": "playback",
       "description": "Play"
     },
     "pause": {
       "action": "pause",
-      "topic": "/devices/streamer/controls/pause",
       "group": "playback",
       "description": "Pause"
     },
     "stop": {
       "action": "stop",
-      "topic": "/devices/streamer/controls/stop",
       "group": "playback",
       "description": "Stop"
     },
     "next": {
       "action": "next",
-      "topic": "/devices/streamer/controls/next",
       "group": "playback",
       "description": "Next Track"
     },
     "set_volume": {
       "action": "set_volume",
-      "topic": "/devices/streamer/controls/set_volume",
       "group": "volume",
       "description": "Set Volume",
       "params": [
@@ -78,25 +71,21 @@
     },
     "volume_up": {
       "action": "volume_up",
-      "topic": "/devices/streamer/controls/volume_up",
       "group": "volume",
       "description": "Increase Volume"
     },
     "volume_down": {
       "action": "volume_down",
-      "topic": "/devices/streamer/controls/volume_down",
       "group": "volume",
       "description": "Decrease Volume"
     },
     "mute": {
       "action": "mute",
-      "topic": "/devices/streamer/controls/mute",
       "group": "volume",
       "description": "Toggle Mute"
     },
     "set_input": {
       "action": "set_input",
-      "topic": "/devices/streamer/controls/set_input",
       "group": "inputs",
       "description": "Set Input",
       "params": [
@@ -110,19 +99,16 @@
     },
     "track_info": {
       "action": "track_info",
-      "topic": "/devices/streamer/controls/track_info",
       "group": "media",
       "description": "Get Current Track Information"
     },
     "get_available_inputs": {
       "action": "get_available_inputs",
-      "topic": "/devices/streamer/controls/get_available_inputs",
       "description": "List available inputs",
       "group": "inputs"
     },
     "refresh_inputs": {
       "action": "refresh_inputs",
-      "topic": "/devices/streamer/controls/refresh_inputs",
       "description": "Refresh inputs list",
       "group": "inputs"
     }

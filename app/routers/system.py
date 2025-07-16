@@ -163,6 +163,23 @@ async def reload_system_task():
                     # Connect without topics if no handlers available
                     await mqtt_client.connect()
                 
+                # Wait for MQTT connection to be fully established
+                logger.info("Waiting for MQTT connection to be established after reload...")
+                connection_success = await mqtt_client.wait_for_connection(timeout=30.0)
+                if not connection_success:
+                    logger.error("Failed to establish MQTT connection within timeout after reload - WB emulation will be skipped")
+                else:
+                    logger.info("MQTT connection established successfully after reload")
+                    
+                    # Now that MQTT is connected, set up Wirenboard virtual device emulation for all devices
+                    logger.info("Setting up Wirenboard virtual device emulation after reload...")
+                    for device_id, device in device_manager.devices.items():
+                        try:
+                            await device.setup_wb_emulation_if_enabled()
+                            logger.debug(f"WB emulation setup completed for device {device_id} after reload")
+                        except Exception as e:
+                            logger.error(f"Failed to setup WB emulation for device {device_id} after reload: {str(e)}")
+                
             logger.info("System reload completed successfully")
     except Exception as e:
         logger.error(f"Error during system reload: {str(e)}")
