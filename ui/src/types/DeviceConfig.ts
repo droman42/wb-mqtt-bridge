@@ -8,7 +8,8 @@ export interface DeviceConfig {
 
 export interface DeviceCommand {
   action: string;
-  topic: string;
+  location: string;
+  rom_position?: string;
   description: string;
   group: string | null;
   params: CommandParameter[] | null;

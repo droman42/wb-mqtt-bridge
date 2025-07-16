@@ -38,7 +38,7 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
         deviceClass: config.device_class,
         remoteZones: remoteZones,
         stateInterface: this.createAppleTVStateInterface(config),
-        actionHandlers: this.createActionHandlers(config.commands),
+        actionHandlers: this.createActionHandlers(config.commands, config.device_id),
         specialCases: [{
           deviceClass: 'AppleTVDevice',
           caseType: 'appletv-streaming',
@@ -263,12 +263,12 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
     };
   }
   
-  private createActionHandlers(commands: Record<string, import('../../types/DeviceConfig').DeviceCommand>): import('../../types/ProcessedDevice').ActionHandler[] {
+  private createActionHandlers(commands: Record<string, import('../../types/DeviceConfig').DeviceCommand>, deviceId: string): import('../../types/ProcessedDevice').ActionHandler[] {
     return Object.entries(commands).map(([commandName, command]) => ({
       actionName: commandName,
       handlerCode: `
         executeAction.mutate({ 
-          deviceId: '${command.topic.split('/')[0]}', 
+          deviceId: '${deviceId}', 
           action: { action: '${command.action}', params: payload } 
         });
       `,
