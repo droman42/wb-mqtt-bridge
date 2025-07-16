@@ -1,10 +1,28 @@
+// Helper function to get API base URL
+const getApiBaseUrl = () => {
+  const envURL = import.meta.env.VITE_API_BASE_URL;
+  if (envURL === undefined || envURL === null) {
+    return 'http://localhost:8000'; // Development fallback
+  }
+  return envURL === '' ? '/api' : envURL; // Empty string means use nginx proxy
+};
+
+// Helper function to get SSE base URL
+const getSSEBaseUrl = () => {
+  const envURL = import.meta.env.VITE_SSE_BASE_URL;
+  if (envURL === undefined || envURL === null) {
+    return 'http://localhost:8000'; // Development fallback
+  }
+  return envURL === '' ? '' : envURL; // Empty string means use relative URLs
+};
+
 export const runtimeConfig = {
   statePollIntervalSec: 5,
-  apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+  apiBaseUrl: getApiBaseUrl(),
   mqttUrl: import.meta.env.VITE_MQTT_URL || 'ws://localhost:9001',
   
   // SSE Configuration
-  sseBaseUrl: import.meta.env.VITE_SSE_BASE_URL || 'http://localhost:8000',
+  sseBaseUrl: getSSEBaseUrl(),
   sseDevicesPath: '/events/devices',
   sseScenariosPath: '/events/scenarios', 
   sseSystemPath: '/events/system',

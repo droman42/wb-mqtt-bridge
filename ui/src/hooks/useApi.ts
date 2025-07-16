@@ -23,8 +23,17 @@ import type {
 import { BaseDeviceState } from '../types/BaseDeviceState';
 
 // Create axios instance with base configuration
+// Use relative URLs when VITE_API_BASE_URL is empty (for nginx proxy)
+const getBaseURL = () => {
+  const envURL = import.meta.env.VITE_API_BASE_URL;
+  if (envURL === undefined || envURL === null) {
+    return 'http://localhost:8000'; // Development fallback
+  }
+  return envURL === '' ? '/api' : envURL; // Empty string means use nginx proxy
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+  baseURL: getBaseURL(),
   // No timeout - let backend manage operation-specific timeouts
 });
 

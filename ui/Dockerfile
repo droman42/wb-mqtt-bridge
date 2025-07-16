@@ -13,6 +13,12 @@ COPY wb-mqtt-bridge/ ./wb-mqtt-bridge/
 # Copy frontend source code
 COPY . .
 
+# Set environment variables for production build
+# Use relative URLs so nginx proxy handles the routing
+ENV VITE_API_BASE_URL=""
+ENV VITE_SSE_BASE_URL=""
+ENV VITE_MQTT_URL="ws://192.168.110.250:9001"
+
 # Verify all paths are accessible
 RUN echo "Verifying config structure:" && \
     ls -la wb-mqtt-bridge/config/devices/ && \
