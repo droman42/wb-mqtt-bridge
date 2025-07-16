@@ -53,10 +53,22 @@ class BaseDevice(ABC, Generic[StateT]):
         return getattr(self.config, 'enable_wb_emulation', True)
     
     async def _setup_wb_virtual_device(self):
-        """Set up Wirenboard virtual device emulation."""
+        """Set up Wirenboard virtual device emulation with enhanced validation."""
         if not self.mqtt_client:
             logger.warning(f"Cannot setup WB virtual device for {self.device_id}: no MQTT client")
             return
+        
+        # Validate WB configuration before setup
+        is_valid, validation_results = await self.validate_wb_configuration()
+        if not is_valid:
+            logger.error(f"WB configuration validation failed for {self.device_id}")
+            logger.error(f"Validation results: {validation_results}")
+            return
+        
+        # Log warnings even if configuration is valid
+        if validation_results.get('warnings'):
+            for warning in validation_results['warnings']:
+                logger.warning(f"WB setup warning for {self.device_id}: {warning}")
         
         # Publish device metadata
         await self._publish_wb_device_meta()
@@ -390,28 +402,31 @@ class BaseDevice(ABC, Generic[StateT]):
             return "0"
     
     async def _setup_wb_last_will(self):
-        """Set up enhanced Last Will Testament for device offline detection."""
+        """Set up enhanced Last Will Testament for device offline detection with maintenance guard integration."""
         try:
             # Set error state when device goes offline
             error_topic = f"/devices/{self.device_id}/meta/error"
-            
-            # Set Last Will Testament - this will be published when connection is lost
-            # Note: will_set is typically synchronous in most MQTT libraries
-            if hasattr(self.mqtt_client, 'will_set'):
-                self.mqtt_client.will_set(error_topic, "offline", retain=True)
-            
-            # Clear error state on successful connection
-            await self.mqtt_client.publish(error_topic, "", retain=True)
-            
-            # Also set device availability topic (common WB pattern)
             availability_topic = f"/devices/{self.device_id}/meta/available"
             
-            # Set LWT for availability
-            if hasattr(self.mqtt_client, 'will_set'):
-                self.mqtt_client.will_set(availability_topic, "0", retain=True)
+            # Add Last Will Testament messages to MQTT client
+            if hasattr(self.mqtt_client, 'add_will_message'):
+                # Add device offline LWT messages
+                self.mqtt_client.add_will_message(self.device_id, error_topic, "offline", qos=1, retain=True)
+                self.mqtt_client.add_will_message(self.device_id, availability_topic, "0", qos=1, retain=True)
+                
+                logger.debug(f"Added LWT messages for device {self.device_id}")
+            else:
+                logger.warning(f"MQTT client does not support Last Will Testament for {self.device_id}")
             
-            # Mark device as available
+            # Clear error state and mark device as available on successful setup
+            await self.mqtt_client.publish(error_topic, "", retain=True)
             await self.mqtt_client.publish(availability_topic, "1", retain=True)
+            
+            # Integration with maintenance guard - if maintenance is active, 
+            # delay LWT setup to avoid false positives during system restarts
+            if hasattr(self.mqtt_client, 'guard') and self.mqtt_client.guard:
+                # The maintenance guard will handle filtering during restart windows
+                logger.debug(f"LWT setup with maintenance guard integration for {self.device_id}")
             
             logger.debug(f"Set up WB Last Will Testament for {self.device_id}")
             
@@ -654,8 +669,16 @@ class BaseDevice(ABC, Generic[StateT]):
         return topics
     
     def get_command_topic(self, handler_name: str, cmd_config: BaseCommandConfig) -> str:
-        """Get topic for command - explicit or auto-generated."""
+        """Get topic for command - explicit or auto-generated with deprecation warnings."""
         if cmd_config.topic:
+            # Configuration Migration Phase B: Add deprecation warning for explicit topics
+            logger.warning(
+                f"DEPRECATION WARNING: Device {self.device_id}, command '{handler_name}' uses explicit topic field. "
+                f"Explicit topics are deprecated and will be removed in a future version. "
+                f"Please remove the 'topic' field from command configuration to use auto-generated topics. "
+                f"Current topic: {cmd_config.topic}, "
+                f"Auto-generated topic would be: /devices/{self.device_id}/controls/{handler_name}"
+            )
             return cmd_config.topic  # Use explicit topic if provided
         else:
             return f"/devices/{self.device_id}/controls/{handler_name}"  # Auto-generate
@@ -1516,8 +1539,6 @@ class BaseDevice(ABC, Generic[StateT]):
             logger.error(f"Failed to emit progress message: {str(e)}")
             return False
     
-
-    
     def _resolve_and_validate_params(self, param_defs: List[CommandParameterDefinition], 
                                    provided_params: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -1641,3 +1662,233 @@ class BaseDevice(ABC, Generic[StateT]):
         )
         
         return result
+    
+    def _validate_wb_controls_config(self) -> Dict[str, List[str]]:
+        """
+        Validate the wb_controls configuration and return any errors found.
+        
+        Returns:
+            Dict[str, List[str]]: Dictionary mapping control names to lists of error messages
+        """
+        errors = {}
+        
+        if not hasattr(self.config, 'wb_controls') or not self.config.wb_controls:
+            return errors  # No controls to validate
+        
+        valid_types = {'switch', 'range', 'value', 'text', 'pushbutton'}
+        
+        for control_name, control_config in self.config.wb_controls.items():
+            control_errors = []
+            
+            # Validate control name
+            if not control_name or not isinstance(control_name, str):
+                control_errors.append("Control name must be a non-empty string")
+            elif control_name.startswith('_'):
+                control_errors.append("Control name cannot start with underscore")
+            elif not control_name in self._action_handlers:
+                control_errors.append(f"No handler found for control '{control_name}'")
+            
+            # Validate control config structure
+            if not isinstance(control_config, dict):
+                control_errors.append("Control configuration must be a dictionary")
+                errors[control_name] = control_errors
+                continue
+            
+            # Validate type field
+            control_type = control_config.get('type')
+            if not control_type:
+                control_errors.append("Control type is required")
+            elif control_type not in valid_types:
+                control_errors.append(f"Invalid control type '{control_type}'. Valid types: {valid_types}")
+            
+            # Validate range-specific fields
+            if control_type == 'range':
+                min_val = control_config.get('min')
+                max_val = control_config.get('max')
+                
+                if min_val is not None and not isinstance(min_val, (int, float)):
+                    control_errors.append("'min' value must be a number")
+                if max_val is not None and not isinstance(max_val, (int, float)):
+                    control_errors.append("'max' value must be a number")
+                if min_val is not None and max_val is not None and min_val >= max_val:
+                    control_errors.append("'min' value must be less than 'max' value")
+            
+            # Validate title field
+            title = control_config.get('title')
+            if title is not None:
+                if isinstance(title, dict):
+                    if 'en' not in title:
+                        control_errors.append("Title dictionary must contain 'en' key")
+                    elif not isinstance(title['en'], str):
+                        control_errors.append("Title 'en' value must be a string")
+                elif not isinstance(title, str):
+                    control_errors.append("Title must be a string or dictionary with 'en' key")
+            
+            # Validate order field
+            order = control_config.get('order')
+            if order is not None and not isinstance(order, int):
+                control_errors.append("Order must be an integer")
+            
+            # Validate readonly field
+            readonly = control_config.get('readonly')
+            if readonly is not None and not isinstance(readonly, bool):
+                control_errors.append("Readonly must be a boolean")
+            
+            if control_errors:
+                errors[control_name] = control_errors
+        
+        return errors
+    
+    def _validate_wb_state_mappings(self) -> List[str]:
+        """
+        Validate the wb_state_mappings configuration and return any errors found.
+        
+        Returns:
+            List[str]: List of error messages
+        """
+        errors = []
+        
+        if not hasattr(self.config, 'wb_state_mappings') or not self.config.wb_state_mappings:
+            return errors  # No mappings to validate
+        
+        if not isinstance(self.config.wb_state_mappings, dict):
+            errors.append("wb_state_mappings must be a dictionary")
+            return errors
+        
+        for state_field, wb_controls in self.config.wb_state_mappings.items():
+            # Validate state field name
+            if not isinstance(state_field, str) or not state_field:
+                errors.append(f"Invalid state field name: {state_field}")
+                continue
+            
+            # Validate wb_controls value
+            if isinstance(wb_controls, str):
+                # Single control mapping
+                if wb_controls not in self._action_handlers:
+                    errors.append(f"State field '{state_field}' maps to unknown control '{wb_controls}'")
+            elif isinstance(wb_controls, list):
+                # Multiple control mapping
+                for control in wb_controls:
+                    if not isinstance(control, str):
+                        errors.append(f"State field '{state_field}' contains non-string control name: {control}")
+                    elif control not in self._action_handlers:
+                        errors.append(f"State field '{state_field}' maps to unknown control '{control}'")
+            else:
+                errors.append(f"State field '{state_field}' mapping must be string or list of strings")
+        
+        return errors
+    
+    async def validate_wb_configuration(self) -> Tuple[bool, Dict[str, Any]]:
+        """
+        Comprehensive validation of WB emulation configuration.
+        
+        Returns:
+            Tuple[bool, Dict[str, Any]]: (is_valid, validation_results)
+        """
+        validation_results = {
+            'wb_controls_errors': {},
+            'wb_state_mappings_errors': [],
+            'handler_validation': {},
+            'warnings': []
+        }
+        
+        try:
+            # Validate wb_controls configuration
+            validation_results['wb_controls_errors'] = self._validate_wb_controls_config()
+            
+            # Validate wb_state_mappings configuration
+            validation_results['wb_state_mappings_errors'] = self._validate_wb_state_mappings()
+            
+            # Validate that all handlers have reasonable WB control mappings
+            for handler_name in self._action_handlers:
+                if not handler_name.startswith('_'):
+                    handler_validation = self._validate_handler_wb_compatibility(handler_name)
+                    if handler_validation:
+                        validation_results['handler_validation'][handler_name] = handler_validation
+            
+            # Check for potential issues
+            warnings = []
+            
+            # Warn about missing MQTT client
+            if not self.mqtt_client:
+                warnings.append("MQTT client not available - WB emulation will be disabled")
+            
+            # Warn about disabled WB emulation
+            if not self.should_publish_wb_virtual_device():
+                warnings.append("WB emulation is disabled in configuration")
+            
+            # Warn about missing IR topics for devices that might need them
+            if hasattr(self.config, 'auralic') and self.should_publish_wb_virtual_device():
+                if not getattr(self.config.auralic, 'ir_power_on_topic', None):
+                    warnings.append("IR power control not configured - power operations may be limited")
+            
+            validation_results['warnings'] = warnings
+            
+            # Determine if configuration is valid
+            has_errors = (
+                bool(validation_results['wb_controls_errors']) or
+                bool(validation_results['wb_state_mappings_errors']) or
+                bool(validation_results['handler_validation'])
+            )
+            
+            is_valid = not has_errors
+            
+            # Log validation results
+            if not is_valid:
+                logger.warning(f"WB configuration validation failed for device {self.device_id}")
+                for control, errors in validation_results['wb_controls_errors'].items():
+                    for error in errors:
+                        logger.warning(f"WB control '{control}': {error}")
+                for error in validation_results['wb_state_mappings_errors']:
+                    logger.warning(f"WB state mappings: {error}")
+                for handler, issues in validation_results['handler_validation'].items():
+                    for issue in issues:
+                        logger.warning(f"Handler '{handler}': {issue}")
+            
+            if warnings:
+                for warning in warnings:
+                    logger.info(f"WB configuration warning for {self.device_id}: {warning}")
+            
+            return is_valid, validation_results
+            
+        except Exception as e:
+            logger.error(f"Error during WB configuration validation for {self.device_id}: {str(e)}")
+            validation_results['validation_error'] = str(e)
+            return False, validation_results
+    
+    def _validate_handler_wb_compatibility(self, handler_name: str) -> List[str]:
+        """
+        Validate that a handler is compatible with WB control generation.
+        
+        Args:
+            handler_name: Name of the handler to validate
+            
+        Returns:
+            List[str]: List of compatibility issues
+        """
+        issues = []
+        
+        # Check if handler exists
+        if handler_name not in self._action_handlers:
+            issues.append("Handler method not found")
+            return issues
+        
+        handler = self._action_handlers[handler_name]
+        
+        # Validate handler is callable
+        if not callable(handler):
+            issues.append("Handler is not callable")
+        
+        # Check if handler name suggests it needs parameters but no command config exists
+        param_suggesting_names = ['set_', 'move_', 'launch_', 'click_']
+        if any(handler_name.startswith(prefix) for prefix in param_suggesting_names):
+            # Check if there's a command configuration for this handler
+            command_configs = self.get_available_commands()
+            if handler_name not in command_configs:
+                issues.append("Handler suggests parameter usage but no command configuration found")
+            else:
+                cmd_config = command_configs[handler_name]
+                if not hasattr(cmd_config, 'params') or not cmd_config.params:
+                    issues.append("Handler suggests parameter usage but no parameters defined in configuration")
+        
+        return issues

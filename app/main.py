@@ -199,6 +199,9 @@ async def lifespan(app: FastAPI):
         device.mqtt_client = mqtt_client
         logger.info(f"Device {device_id} initialized with typed configuration")
     
+    # Configuration Migration Phase B: Log migration guidance for deprecated topic usage
+    config_manager.log_migration_guidance()
+    
     # Initialize state from persistence layer
     await device_manager.initialize()
     logger.info("Device states initialized from persistence layer")

@@ -3,7 +3,7 @@ import logging
 from typing import Dict, Any, Callable, Optional, List, Awaitable
 import json
 
-from aiomqtt import Client, MqttError
+from aiomqtt import Client, MqttError, Will
 from asyncio.exceptions import CancelledError
 
 from app.maintenance import SystemMaintenanceGuard
@@ -45,6 +45,10 @@ class MQTTClient:
         self.topic_subscribers: Dict[str, List[str]] = {}
 
         self.guard = maintenance_guard
+        
+        # Last Will Testament configuration
+        self._will_messages: List[Will] = []
+        self._device_lwt_registry: Dict[str, List[str]] = {}  # device_id -> list of will topics
         
         # MQTT client
         self.client: Optional[Client] = None
@@ -95,6 +99,54 @@ class MQTTClient:
             logger.error(f"Failed to start MQTT client: {str(e)}")
             return False
     
+    def add_will_message(self, device_id: str, topic: str, payload: str, qos: int = 0, retain: bool = True):
+        """
+        Add a Last Will Testament message for a device.
+        
+        Args:
+            device_id: The device ID for tracking
+            topic: The topic for the will message
+            payload: The payload to send when connection is lost
+            qos: Quality of Service level
+            retain: Whether to retain the will message
+        """
+        will = Will(topic=topic, payload=payload, qos=qos, retain=retain)
+        self._will_messages.append(will)
+        
+        # Track will topics per device for cleanup
+        if device_id not in self._device_lwt_registry:
+            self._device_lwt_registry[device_id] = []
+        self._device_lwt_registry[device_id].append(topic)
+        
+        logger.debug(f"Added LWT for device {device_id}: {topic} -> '{payload}'")
+    
+    def remove_device_will_messages(self, device_id: str):
+        """
+        Remove all will messages for a specific device.
+        
+        Args:
+            device_id: The device ID to remove will messages for
+        """
+        if device_id in self._device_lwt_registry:
+            topics_to_remove = self._device_lwt_registry[device_id]
+            
+            # Remove will messages with matching topics
+            self._will_messages = [
+                will for will in self._will_messages 
+                if will.topic not in topics_to_remove
+            ]
+            
+            # Clear registry for this device
+            del self._device_lwt_registry[device_id]
+            
+            logger.debug(f"Removed {len(topics_to_remove)} LWT messages for device {device_id}")
+    
+    def clear_all_will_messages(self):
+        """Clear all Last Will Testament messages."""
+        self._will_messages.clear()
+        self._device_lwt_registry.clear()
+        logger.debug("Cleared all LWT messages")
+    
     async def _run_mqtt_client(self, client_args, topics_to_subscribe):
         """Run the MQTT client in an async context manager with the given topics."""
         max_retries = 5
@@ -106,6 +158,21 @@ class MQTTClient:
         while retry_count < max_retries:
             try:
                 logger.info(f"Connecting to MQTT broker at {client_args.get('hostname', 'unknown')}:{client_args.get('port', 'unknown')} (attempt {retry_count + 1}/{max_retries})")
+                
+                # Add Last Will Testament messages to client args
+                if self._will_messages:
+                    # For aiomqtt, we can only set one will message per connection
+                    # If multiple devices need LWT, we'll use a service-level LWT
+                    # that signals overall service offline state
+                    service_will = Will(
+                        topic=f"/devices/{self.client_id}/meta/error",
+                        payload="service_offline",
+                        qos=1,
+                        retain=True
+                    )
+                    client_args['will'] = service_will
+                    logger.info(f"Set service-level LWT: {service_will.topic}")
+                
                 async with Client(**client_args) as client:
                     self.client = client
                     self.connected = True

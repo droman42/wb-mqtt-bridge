@@ -339,3 +339,105 @@ class ConfigManager:
         
         groups = self.get_groups()
         return group_id in groups 
+
+    def check_deprecated_topic_usage(self) -> Dict[str, List[str]]:
+        """
+        Check all device configurations for deprecated explicit topic usage.
+        
+        Returns:
+            Dict[str, List[str]]: Dictionary mapping device IDs to lists of commands with explicit topics
+        """
+        deprecated_usage = {}
+        
+        for device_id, config in self.typed_configs.items():
+            commands_with_topics = []
+            
+            for cmd_name, cmd_config in config.commands.items():
+                if hasattr(cmd_config, 'topic') and cmd_config.topic:
+                    commands_with_topics.append(cmd_name)
+            
+            if commands_with_topics:
+                deprecated_usage[device_id] = commands_with_topics
+        
+        return deprecated_usage
+    
+    def get_migration_guidance(self) -> Dict[str, Any]:
+        """
+        Get comprehensive migration guidance for moving from explicit to auto-generated topics.
+        
+        Returns:
+            Dict[str, Any]: Migration guidance with statistics and recommendations
+        """
+        deprecated_usage = self.check_deprecated_topic_usage()
+        
+        total_devices = len(self.typed_configs)
+        devices_needing_migration = len(deprecated_usage)
+        total_commands_with_topics = sum(len(commands) for commands in deprecated_usage.values())
+        
+        guidance = {
+            'summary': {
+                'total_devices': total_devices,
+                'devices_needing_migration': devices_needing_migration,
+                'total_commands_with_explicit_topics': total_commands_with_topics,
+                'migration_progress': f"{devices_needing_migration}/{total_devices} devices need migration"
+            },
+            'deprecated_usage': deprecated_usage,
+            'migration_steps': [
+                "1. Review each device configuration file",
+                "2. Remove the 'topic' field from command definitions",
+                "3. Test that auto-generated topics work correctly",
+                "4. Update any external integrations to use new topic format",
+                "5. Restart the service to apply changes"
+            ],
+            'auto_generated_topic_format': "/devices/{device_id}/controls/{command_name}",
+            'benefits': [
+                "Cleaner, shorter configuration files",
+                "Consistent topic naming across all devices",
+                "Automatic compliance with Wirenboard conventions",
+                "Reduced configuration errors and typos",
+                "Easier device configuration maintenance"
+            ]
+        }
+        
+        # Add specific migration examples
+        examples = []
+        for device_id, commands in list(deprecated_usage.items())[:3]:  # Show first 3 examples
+            device_examples = []
+            for cmd_name in commands[:2]:  # Show first 2 commands per device
+                cmd_config = self.typed_configs[device_id].commands[cmd_name]
+                example = {
+                    'current_topic': cmd_config.topic,
+                    'auto_generated_topic': f"/devices/{device_id}/controls/{cmd_name}",
+                    'action': f"Remove 'topic' field from '{cmd_name}' command in {device_id} configuration"
+                }
+                device_examples.append(example)
+            examples.append({
+                'device_id': device_id,
+                'examples': device_examples
+            })
+        
+        guidance['migration_examples'] = examples
+        
+        return guidance
+    
+    def log_migration_guidance(self):
+        """Log migration guidance for deprecated topic usage."""
+        guidance = self.get_migration_guidance()
+        
+        if guidance['summary']['devices_needing_migration'] == 0:
+            logger.info("✅ All device configurations are using auto-generated topics - no migration needed!")
+            return
+        
+        logger.warning("📋 CONFIGURATION MIGRATION NEEDED:")
+        logger.warning(f"   {guidance['summary']['migration_progress']} devices need topic migration")
+        logger.warning(f"   {guidance['summary']['total_commands_with_explicit_topics']} commands have explicit topics")
+        
+        logger.warning("📌 Devices needing migration:")
+        for device_id, commands in guidance['deprecated_usage'].items():
+            logger.warning(f"   • {device_id}: {len(commands)} commands ({', '.join(commands[:3])}{'...' if len(commands) > 3 else ''})")
+        
+        logger.warning("🔄 Migration steps:")
+        for step in guidance['migration_steps']:
+            logger.warning(f"   {step}")
+        
+        logger.warning("📖 For detailed migration guidance, check the virtual_devices.md documentation") 
