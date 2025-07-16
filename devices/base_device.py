@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional, Type, Callable, TYPE_CHECKING, Awaitable, Coroutine, TypeVar, cast, Union, Generic, Tuple
 import logging
 import json
+import re
 from datetime import datetime
 from enum import Enum
 from socket import socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_BROADCAST
@@ -42,6 +43,156 @@ class BaseDevice(ABC, Generic[StateT]):
         # Auto-register handlers based on naming convention
         self._auto_register_handlers()
     
+    def should_publish_wb_virtual_device(self) -> bool:
+        """Check if WB virtual device emulation should be enabled for this device."""
+        # Check if MQTT client is available
+        if not self.mqtt_client:
+            return False
+            
+        # Check configuration flag (defaults to True)
+        return getattr(self.config, 'enable_wb_emulation', True)
+    
+    async def _setup_wb_virtual_device(self):
+        """Set up Wirenboard virtual device emulation."""
+        if not self.mqtt_client:
+            logger.warning(f"Cannot setup WB virtual device for {self.device_id}: no MQTT client")
+            return
+        
+        # Publish device metadata
+        await self._publish_wb_device_meta()
+        
+        # Publish control metadata and initial states
+        await self._publish_wb_control_metas()
+        
+        # Set up Last Will Testament for offline detection
+        await self._setup_wb_last_will()
+        
+        logger.info(f"WB virtual device emulation enabled for {self.device_id}")
+    
+    async def _publish_wb_device_meta(self):
+        """Publish WB device metadata."""
+        device_meta = {
+            "driver": "wb_mqtt_bridge",
+            "title": {"en": self.device_name}
+        }
+        
+        topic = f"/devices/{self.device_id}/meta"
+        await self.mqtt_client.publish(topic, json.dumps(device_meta), retain=True)
+        logger.debug(f"Published WB device meta for {self.device_id}")
+    
+    async def _publish_wb_control_metas(self):
+        """Publish WB control metadata for all handlers."""
+        for handler_name in self._action_handlers:
+            if not handler_name.startswith('_'):
+                control_meta = self._generate_wb_control_meta(handler_name)
+                
+                # Publish control metadata
+                meta_topic = f"/devices/{self.device_id}/controls/{handler_name}/meta"
+                await self.mqtt_client.publish(meta_topic, json.dumps(control_meta), retain=True)
+                
+                # Publish initial control state
+                initial_state = self._get_initial_wb_control_state(handler_name)
+                state_topic = f"/devices/{self.device_id}/controls/{handler_name}"
+                await self.mqtt_client.publish(state_topic, str(initial_state), retain=True)
+                
+                logger.debug(f"Published WB control meta for {self.device_id}/{handler_name}")
+    
+    def _generate_wb_control_meta(self, handler_name: str) -> Dict[str, Any]:
+        """Generate WB control metadata with smart defaults."""
+        
+        # Check for explicit WB configuration in device config
+        if hasattr(self.config, 'wb_controls') and self.config.wb_controls and handler_name in self.config.wb_controls:
+            return self.config.wb_controls[handler_name]
+        
+        # Generate smart defaults based on handler name
+        meta = {
+            "title": {"en": handler_name.replace('_', ' ').title()},
+            "readonly": False,
+            "order": self._get_control_order(handler_name)
+        }
+        
+        # Smart type detection based on naming patterns
+        handler_lower = handler_name.lower()
+        
+        if any(x in handler_lower for x in ['power_on', 'power_off', 'play', 'pause', 'stop']):
+            meta["type"] = "pushbutton"
+        elif 'set_volume' in handler_lower or 'volume' in handler_lower:
+            meta.update({
+                "type": "range",
+                "min": 0,
+                "max": 100,
+                "units": "%"
+            })
+        elif 'mute' in handler_lower:
+            meta["type"] = "switch"
+        elif 'set_' in handler_lower:
+            meta["type"] = "range"  # Generic setter
+        elif any(x in handler_lower for x in ['get_', 'list_', 'available']):
+            meta.update({
+                "type": "text",
+                "readonly": True
+            })
+        else:
+            meta["type"] = "pushbutton"  # Default for actions
+        
+        return meta
+    
+    def _get_control_order(self, handler_name: str) -> int:
+        """Generate control ordering based on handler name patterns."""
+        handler_lower = handler_name.lower()
+        
+        # Power controls first
+        if 'power_on' in handler_lower:
+            return 1
+        elif 'power_off' in handler_lower:
+            return 2
+        # Volume controls
+        elif 'volume' in handler_lower:
+            return 10
+        elif 'mute' in handler_lower:
+            return 11
+        # Playback controls
+        elif any(x in handler_lower for x in ['play', 'pause', 'stop']):
+            return 20
+        # Navigation controls
+        elif any(x in handler_lower for x in ['home', 'back', 'menu']):
+            return 30
+        # Other controls
+        else:
+            return 50
+    
+    def _get_initial_wb_control_state(self, handler_name: str) -> str:
+        """Get initial state value for WB control."""
+        handler_lower = handler_name.lower()
+        
+        # Default states based on control type
+        if 'mute' in handler_lower:
+            return "0"  # Not muted
+        elif 'volume' in handler_lower:
+            return "50"  # Default volume
+        elif any(x in handler_lower for x in ['power_on', 'power_off']):
+            return "0"  # Not pressed
+        else:
+            return "0"  # Default for most controls
+    
+    async def _setup_wb_last_will(self):
+        """Set up Last Will Testament for device offline detection."""
+        # Set error state when device goes offline
+        error_topic = f"/devices/{self.device_id}/meta/error"
+        # Note: will_set is likely synchronous, but publish is async
+        self.mqtt_client.will_set(error_topic, "offline", retain=True)
+        
+        # Clear error state on connection
+        await self.mqtt_client.publish(error_topic, "", retain=True)
+    
+    async def setup_wb_emulation_if_enabled(self):
+        """
+        Helper method for subclasses to call during their setup() method.
+        Sets up WB virtual device emulation if enabled.
+        """
+        if self.should_publish_wb_virtual_device():
+            await self._setup_wb_virtual_device()
+
     def _register_handlers(self) -> None:
         """
         Register all action handlers for this device.
@@ -173,10 +324,29 @@ class BaseDevice(ABC, Generic[StateT]):
     def subscribe_topics(self) -> List[str]:
         """Define the MQTT topics this device should subscribe to."""
         topics = []
-        for cmd in self.get_available_commands().values():
-            if cmd.topic:
-                topics.append(cmd.topic)
+        
+        # Add existing configured topics using the dual support method
+        for cmd_name, cmd in self.get_available_commands().items():
+            # Use the new get_command_topic method for backward compatibility
+            topic = self.get_command_topic(cmd_name, cmd)
+            if topic:
+                topics.append(topic)
+        
+        # Add WB command topics for virtual device emulation
+        if self.should_publish_wb_virtual_device():
+            for handler_name in self._action_handlers:
+                if not handler_name.startswith('_'):
+                    command_topic = f"/devices/{self.device_id}/controls/{handler_name}/on"
+                    topics.append(command_topic)
+        
         return topics
+    
+    def get_command_topic(self, handler_name: str, cmd_config: BaseCommandConfig) -> str:
+        """Get topic for command - explicit or auto-generated."""
+        if cmd_config.topic:
+            return cmd_config.topic  # Use explicit topic if provided
+        else:
+            return f"/devices/{self.device_id}/controls/{handler_name}"  # Auto-generate
     
     async def handle_message(self, topic: str, payload: str):
         """Handle incoming MQTT messages for this device."""
@@ -185,10 +355,17 @@ class BaseDevice(ABC, Generic[StateT]):
         # DEBUG: Enhanced logging for all device messages
         logger.debug(f"[BASE_DEVICE_DEBUG] handle_message for {self.device_id}: topic={topic}, payload='{payload}'")
         
+        # Check if this is a WB command topic
+        if self._is_wb_command_topic(topic):
+            await self._handle_wb_command(topic, payload)
+            return
+        
         # Find matching command configuration based on topic
         matching_commands = []
         for cmd_name, cmd in self.get_available_commands().items():
-            if cmd.topic == topic:
+            # Use get_command_topic for consistent topic resolution
+            expected_topic = self.get_command_topic(cmd_name, cmd)
+            if expected_topic == topic:
                 # Add command to matches when topic matches
                 matching_commands.append((cmd_name, cmd))
         
@@ -218,6 +395,68 @@ class BaseDevice(ABC, Generic[StateT]):
             logger.debug(f"Executing command '{cmd_name}' based on topic match.")
             await self._execute_single_action(cmd_name, cmd, params)
     
+    def _is_wb_command_topic(self, topic: str) -> bool:
+        """Check if topic is a WB command topic."""
+        pattern = f"/devices/{re.escape(self.device_id)}/controls/(.+)/on"
+        return bool(re.match(pattern, topic))
+
+    async def _handle_wb_command(self, topic: str, payload: str):
+        """Handle WB command topic messages."""
+        # Extract control name from topic
+        match = re.match(f"/devices/{re.escape(self.device_id)}/controls/(.+)/on", topic)
+        if not match:
+            return
+        
+        control_name = match.group(1)
+        
+        # Find corresponding handler
+        if control_name in self._action_handlers:
+            # Create minimal command config for WB commands
+            from app.schemas import BaseCommandConfig
+            wb_cmd_config = BaseCommandConfig(
+                action=control_name,
+                topic=topic,
+                description=f"WB command for {control_name}"
+            )
+            
+            # Process parameters from payload
+            params = self._process_wb_command_payload(control_name, payload)
+            
+            # Execute the handler
+            await self._execute_single_action(control_name, wb_cmd_config, params, source="wb_command")
+            
+            # Update WB control state to reflect the command
+            await self._update_wb_control_state(control_name, payload)
+        else:
+            logger.warning(f"No handler found for WB control: {control_name}")
+    
+    def _process_wb_command_payload(self, control_name: str, payload: str) -> Dict[str, Any]:
+        """Process WB command payload into parameters."""
+        params = {}
+        
+        # For range controls, the payload is the value
+        handler_lower = control_name.lower()
+        if 'volume' in handler_lower or 'set_' in handler_lower:
+            try:
+                # Try to parse as numeric value
+                value = float(payload)
+                # Map volume to a generic parameter name
+                if 'volume' in handler_lower:
+                    params['volume'] = int(value)
+                else:
+                    params['value'] = value
+            except ValueError:
+                # If not numeric, treat as string
+                params['value'] = payload
+        
+        return params
+    
+    async def _update_wb_control_state(self, control_name: str, payload: str):
+        """Update WB control state topic with the new value."""
+        if self.mqtt_client:
+            state_topic = f"/devices/{self.device_id}/controls/{control_name}"
+            await self.mqtt_client.publish(state_topic, payload, retain=True)
+
     def _process_mqtt_payload(self, payload: str, param_defs: List[CommandParameterDefinition]) -> Dict[str, Any]:
         """
         Process an MQTT payload into a parameters dictionary based on parameter definitions.

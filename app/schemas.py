@@ -116,6 +116,10 @@ class BaseDeviceConfig(BaseModel):
     device_class: str = Field(..., description="The device implementation class name (e.g., 'LgTv')")
     config_class: str = Field(..., description="The configuration model class name (e.g., 'LgTvDeviceConfig')")
     commands: Dict[str, BaseCommandConfig] = Field(default_factory=dict)
+    
+    # Wirenboard virtual device emulation configuration
+    enable_wb_emulation: bool = Field(True, description="Enable Wirenboard virtual device emulation")
+    wb_controls: Optional[Dict[str, Dict[str, Any]]] = Field(None, description="Custom Wirenboard control definitions")
 
     @validator('device_class')
     def validate_device_class(cls, v):
