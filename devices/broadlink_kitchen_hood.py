@@ -81,6 +81,7 @@ class BroadlinkKitchenHood(BaseDevice[KitchenHoodState]):
             
             logger.info(f"Kitchen hood {self.get_name()} initialized with {len(self.get_available_commands())} commands")
             await self.emit_progress(f"successfully initialized with {len(self.get_available_commands())} commands", "action_success")
+            
             return True
             
         except Exception as e:
@@ -121,23 +122,6 @@ class BroadlinkKitchenHood(BaseDevice[KitchenHoodState]):
         
         # Delegate to parent class's handler
         return await super().handle_message(topic, payload)
-    
-    def subscribe_topics(self) -> List[str]:
-        """Define the MQTT topics this device should subscribe to."""
-        topics = []
-        
-        # Add command topics
-        commands = self.get_available_commands()
-        logger.debug(f"[{self.device_name}] Available commands: {list(commands.keys())}")
-        
-        for cmd_name, command in commands.items():
-            # Auto-generate topic following WB conventions
-            topic = f"/devices/{self.device_id}/controls/{cmd_name}"
-            topics.append(topic)
-            logger.debug(f"[{self.device_name}] Subscribing to auto-generated topic '{topic}' for command '{cmd_name}'")
-        
-        logger.debug(f"Device {self.get_name()} subscribing to topics: {topics}")
-        return topics
     
     # ============= Updated parameter-based handlers =============
     

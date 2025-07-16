@@ -51,5 +51,20 @@
         }
       ]
     }
+  },
+  "wb_controls": {
+    "set_light": {
+      "type": "switch",
+      "title": {"en": "Kitchen Light"},
+      "order": 1
+    },
+    "set_speed": {
+      "type": "range",
+      "min": 0,
+      "max": 4,
+      "title": {"en": "Fan Speed"},
+      "units": "",
+      "order": 2
+    }
   }
 }

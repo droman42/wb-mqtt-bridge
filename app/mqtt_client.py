@@ -54,7 +54,25 @@ class MQTTClient:
         self.client: Optional[Client] = None
         self.connected = False
         self.tasks: List[asyncio.Task] = []
+        self._connection_event = asyncio.Event()
     
+    async def wait_for_connection(self, timeout: float = 30.0) -> bool:
+        """
+        Wait for MQTT connection to be established.
+        
+        Args:
+            timeout: Maximum time to wait for connection in seconds
+            
+        Returns:
+            bool: True if connected within timeout, False otherwise
+        """
+        try:
+            await asyncio.wait_for(self._connection_event.wait(), timeout=timeout)
+            return self.connected
+        except asyncio.TimeoutError:
+            logger.error(f"MQTT connection timeout after {timeout} seconds")
+            return False
+
     async def connect_and_subscribe(self, topic_handlers: Dict[str, Callable]):
         """
         Connect to MQTT broker and subscribe to topics with their respective handlers.
@@ -176,6 +194,7 @@ class MQTTClient:
                 async with Client(**client_args) as client:
                     self.client = client
                     self.connected = True
+                    self._connection_event.set()  # Signal that connection is established
                     logger.info(f"Connected to MQTT broker at {self.host}:{self.port}")
                     
                     # Subscribe to all topics
@@ -251,6 +270,7 @@ class MQTTClient:
                     logger.error("Authentication failed. Please check your MQTT username and password.")
                 
                 self.connected = False
+                self._connection_event.clear()  # Clear connection event on MQTT error
                 retry_count += 1
                 if retry_count < max_retries:
                     wait_time = retry_delay * retry_count
@@ -266,6 +286,7 @@ class MQTTClient:
                 import traceback
                 logger.error(traceback.format_exc())
                 self.connected = False
+                self._connection_event.clear()  # Clear connection event on unexpected error
                 retry_count += 1
                 if retry_count < max_retries:
                     wait_time = retry_delay * retry_count
@@ -277,6 +298,7 @@ class MQTTClient:
                 if self.connected:  # Only reset if we were connected
                     self.connected = False
                     self.client = None
+                    self._connection_event.clear()  # Clear connection event on disconnect
     
     async def disconnect(self):
         """Disconnect the MQTT client and cancel all tasks."""
@@ -287,6 +309,7 @@ class MQTTClient:
         self.tasks = []
         self.connected = False
         self.client = None
+        self._connection_event.clear()  # Clear connection event on disconnect
         logger.info("MQTT client disconnected")
     
     # For backward compatibility

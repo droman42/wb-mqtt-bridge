@@ -442,8 +442,6 @@ class LgTv(BaseDevice[LgTvState]):
             # Update power state based on connection result
             self.state.power = "off" if not connection_success else "on"
             
-            # Base device is already initialized, no need to recreate the full state object
-            
             return True  # Setup completed even if connection failed
             
         except Exception as e:

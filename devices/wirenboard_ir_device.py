@@ -51,6 +51,7 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
             
             logger.info(f"Wirenboard IR device {self.get_name()} initialized with {len(commands)} commands")
             await self.emit_progress(f"Wirenboard IR device {self.device_name} initialized with {len(commands)} commands", "action_success")
+            
             return True
             
         except Exception as e:

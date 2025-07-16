@@ -93,22 +93,236 @@ class BaseDevice(ABC, Generic[StateT]):
         logger.debug(f"Published WB device meta for {self.device_id}")
     
     async def _publish_wb_control_metas(self):
-        """Publish WB control metadata for all handlers."""
-        for handler_name in self._action_handlers:
-            if not handler_name.startswith('_'):
-                control_meta = self._generate_wb_control_meta(handler_name)
+        """Publish WB control metadata for configured commands only."""
+        available_commands = self.get_available_commands()
+        
+        for cmd_name, cmd_config in available_commands.items():
+            # Only create WB controls for commands that have handlers
+            if cmd_config.action and cmd_config.action in self._action_handlers:
+                control_meta = self._generate_wb_control_meta_from_config(cmd_name, cmd_config)
+                
+                # Use command name as control name for WB topics
+                control_name = cmd_name
                 
                 # Publish control metadata
-                meta_topic = f"/devices/{self.device_id}/controls/{handler_name}/meta"
+                meta_topic = f"/devices/{self.device_id}/controls/{control_name}/meta"
                 await self.mqtt_client.publish(meta_topic, json.dumps(control_meta), retain=True)
                 
                 # Publish initial control state
-                initial_state = self._get_initial_wb_control_state(handler_name)
-                state_topic = f"/devices/{self.device_id}/controls/{handler_name}"
+                initial_state = self._get_initial_wb_control_state_from_config(cmd_name, cmd_config)
+                state_topic = f"/devices/{self.device_id}/controls/{control_name}"
                 await self.mqtt_client.publish(state_topic, str(initial_state), retain=True)
                 
-                logger.debug(f"Published WB control meta for {self.device_id}/{handler_name}")
+                logger.debug(f"Published WB control meta for {self.device_id}/{control_name}")
     
+    def _generate_wb_control_meta_from_config(self, cmd_name: str, cmd_config) -> Dict[str, Any]:
+        """Generate WB control metadata from command configuration."""
+        
+        # Check for explicit WB configuration in device config first
+        if hasattr(self.config, 'wb_controls') and self.config.wb_controls and cmd_name in self.config.wb_controls:
+            return self.config.wb_controls[cmd_name]
+        
+        # Generate control metadata from command configuration
+        meta = {
+            "title": {"en": cmd_config.description or self._generate_control_title(cmd_name)},
+            "readonly": False,
+            "order": self._get_control_order_from_config(cmd_config)
+        }
+        
+        # Determine control type based on parameters and group
+        control_type = self._determine_wb_control_type_from_config(cmd_config)
+        meta["type"] = control_type
+        
+        # Extract parameter-specific metadata
+        param_metadata = self._extract_parameter_metadata_from_config(cmd_config)
+        meta.update(param_metadata)
+        
+        return meta
+
+    def _determine_wb_control_type_from_config(self, cmd_config) -> str:
+        """Determine WB control type from command configuration."""
+        
+        # Group-based overrides take precedence
+        if hasattr(cmd_config, 'group') and cmd_config.group:
+            group_type = self._get_control_type_from_group(cmd_config.group, cmd_config.action)
+            if group_type:
+                return group_type
+        
+        # Parameter-based type detection
+        if hasattr(cmd_config, 'params') and cmd_config.params:
+            return self._get_control_type_from_parameters(cmd_config.params)
+        
+        # No parameters - default to pushbutton
+        return "pushbutton"
+    
+    def _get_control_type_from_group(self, group: str, action: str) -> Optional[str]:
+        """Get control type based on command group and action."""
+        group_lower = group.lower()
+        action_lower = action.lower()
+        
+        # Power commands are always pushbuttons
+        if group_lower == "power":
+            return "pushbutton"
+        
+        # Volume group - distinguish between discrete and continuous controls
+        if group_lower == "volume":
+            if action_lower in ["volume_up", "volume_down", "mute", "unmute", "mute_toggle"]:
+                return "pushbutton"  # Discrete volume controls
+            elif action_lower in ["set_volume"]:
+                return None  # Let parameter detection decide (likely range)
+        
+        # Playback controls are always pushbuttons
+        if group_lower in ["playback", "menu", "navigation"]:
+            return "pushbutton"
+        
+        # Input/source selection
+        if group_lower in ["inputs", "apps"]:
+            return None  # Let parameter detection decide
+        
+        return None  # No group-based override
+    
+    def _get_control_type_from_parameters(self, params: List) -> str:
+        """Get control type based on command parameters."""
+        if not params:
+            return "pushbutton"
+        
+        # Look at the first parameter to determine control type
+        first_param = params[0]
+        param_type = getattr(first_param, 'type', 'string')
+        
+        if param_type == "range":
+            return "range"
+        elif param_type == "boolean":
+            return "switch"
+        elif param_type == "string":
+            return "text"
+        elif param_type in ["integer", "float"]:
+            return "range"  # Numeric inputs as ranges
+        else:
+            return "pushbutton"  # Fallback
+    
+    def _extract_parameter_metadata_from_config(self, cmd_config) -> Dict[str, Any]:
+        """Extract parameter metadata for WB control."""
+        metadata = {}
+        
+        if not hasattr(cmd_config, 'params') or not cmd_config.params:
+            return metadata
+        
+        first_param = cmd_config.params[0]
+        
+        # Extract range metadata
+        if getattr(first_param, 'type', None) in ["range", "integer", "float"]:
+            if hasattr(first_param, 'min') and first_param.min is not None:
+                metadata["min"] = first_param.min
+            if hasattr(first_param, 'max') and first_param.max is not None:
+                metadata["max"] = first_param.max
+            
+            # Infer units from parameter description or name
+            param_desc = getattr(first_param, 'description', '') or ''
+            param_name = getattr(first_param, 'name', '') or ''
+            
+            if "dB" in param_desc:
+                metadata["units"] = "dB"
+            elif "%" in param_desc or param_name.lower() in ["volume", "level", "percentage"]:
+                metadata["units"] = "%"
+            elif param_name.lower() in ["speed", "rpm"]:
+                metadata["units"] = "rpm"
+            elif param_name.lower() in ["temperature", "temp"]:
+                metadata["units"] = "°C"
+        
+        return metadata
+    
+    def _get_control_order_from_config(self, cmd_config) -> int:
+        """Generate control ordering based on command configuration."""
+        
+        # Group-based ordering
+        if hasattr(cmd_config, 'group') and cmd_config.group:
+            group_lower = cmd_config.group.lower()
+            action_lower = getattr(cmd_config, 'action', '').lower()
+            
+            # Power controls first (1-10)
+            if group_lower == "power":
+                if "on" in action_lower:
+                    return 1
+                elif "off" in action_lower:
+                    return 2
+                else:
+                    return 5
+            
+            # Volume controls (10-19)
+            elif group_lower == "volume":
+                if "set_volume" in action_lower:
+                    return 10
+                elif "volume_up" in action_lower:
+                    return 11
+                elif "volume_down" in action_lower:
+                    return 12
+                elif "mute" in action_lower:
+                    return 13
+                else:
+                    return 15
+            
+            # Input/source controls (20-29)
+            elif group_lower in ["inputs", "apps"]:
+                return 20
+            
+            # Playback controls (30-39)
+            elif group_lower == "playback":
+                if "play" in action_lower:
+                    return 30
+                elif "pause" in action_lower:
+                    return 31
+                elif "stop" in action_lower:
+                    return 32
+                elif "next" in action_lower:
+                    return 33
+                elif "previous" in action_lower:
+                    return 34
+                else:
+                    return 35
+            
+            # Menu/navigation controls (40-49)
+            elif group_lower in ["menu", "navigation"]:
+                return 40
+        
+        # Fallback ordering based on action name
+        action_lower = getattr(cmd_config, 'action', '').lower()
+        if any(x in action_lower for x in ['get_', 'list_', 'available']):
+            return 80  # Information controls at end
+        
+        return 100  # Default order
+
+    def _get_initial_wb_control_state_from_config(self, cmd_name: str, cmd_config) -> str:
+        """Get initial state value for WB control from command configuration."""
+        
+        # If no parameters, it's a pushbutton (always 0)
+        if not hasattr(cmd_config, 'params') or not cmd_config.params:
+            return "0"
+        
+        first_param = cmd_config.params[0]
+        param_type = getattr(first_param, 'type', 'string')
+        
+        # Use default value if specified
+        if hasattr(first_param, 'default') and first_param.default is not None:
+            if param_type == "boolean":
+                return "1" if first_param.default else "0"
+            else:
+                return str(first_param.default)
+        
+        # Type-based defaults
+        if param_type == "boolean":
+            return "0"  # False
+        elif param_type in ["range", "integer", "float"]:
+            # Use minimum value or 0
+            if hasattr(first_param, 'min') and first_param.min is not None:
+                return str(first_param.min)
+            else:
+                return "0"
+        elif param_type == "string":
+            return ""  # Empty string
+        else:
+            return "0"  # Fallback
+
     def _generate_wb_control_meta(self, handler_name: str) -> Dict[str, Any]:
         """Generate WB control metadata with enhanced smart defaults."""
         
@@ -652,19 +866,21 @@ class BaseDevice(ABC, Generic[StateT]):
         """Define the MQTT topics this device should subscribe to."""
         topics = []
         
-        # Add existing configured topics using the dual support method
-        for cmd_name, cmd in self.get_available_commands().items():
-            # Use the new get_command_topic method for backward compatibility
-            topic = self.get_command_topic(cmd_name, cmd)
-            if topic:
-                topics.append(topic)
-        
-        # Add WB command topics for virtual device emulation
+        # For WB-enabled devices, subscribe ONLY to WB command topics (/on suffix)
         if self.should_publish_wb_virtual_device():
-            for handler_name in self._action_handlers:
-                if not handler_name.startswith('_'):
-                    command_topic = f"/devices/{self.device_id}/controls/{handler_name}/on"
+            available_commands = self.get_available_commands()
+            for cmd_name, cmd_config in available_commands.items():
+                # Only add WB command topics for commands that have handlers
+                if cmd_config.action and cmd_config.action in self._action_handlers:
+                    command_topic = f"/devices/{self.device_id}/controls/{cmd_name}/on"
                     topics.append(command_topic)
+        else:
+            # For non-WB devices, use legacy topic subscription for backward compatibility
+            for cmd_name, cmd in self.get_available_commands().items():
+                # Use the new get_command_topic method for backward compatibility
+                topic = self.get_command_topic(cmd_name, cmd)
+                if topic:
+                    topics.append(topic)
         
         return topics
     
@@ -726,34 +942,73 @@ class BaseDevice(ABC, Generic[StateT]):
 
     async def _handle_wb_command(self, topic: str, payload: str):
         """Handle WB command topic messages."""
-        # Extract control name from topic
+        # Extract control name (command name) from topic
         match = re.match(f"/devices/{re.escape(self.device_id)}/controls/(.+)/on", topic)
         if not match:
             return
         
-        control_name = match.group(1)
+        cmd_name = match.group(1)
         
-        # Find corresponding handler
-        if control_name in self._action_handlers:
-            # Create minimal command config for WB commands
-            from app.schemas import BaseCommandConfig
-            wb_cmd_config = BaseCommandConfig(
-                action=control_name,
-                topic=topic,
-                description=f"WB command for {control_name}"
-            )
-            
-            # Process parameters from payload
-            params = self._process_wb_command_payload(control_name, payload)
-            
-            # Execute the handler
-            await self._execute_single_action(control_name, wb_cmd_config, params, source="wb_command")
-            
-            # Update WB control state to reflect the command
-            await self._update_wb_control_state(control_name, payload)
-        else:
-            logger.warning(f"No handler found for WB control: {control_name}")
+        # Find corresponding command configuration
+        available_commands = self.get_available_commands()
+        if cmd_name not in available_commands:
+            logger.warning(f"No command configuration found for WB control: {cmd_name}")
+            return
+        
+        cmd_config = available_commands[cmd_name]
+        
+        # Check if command has a handler
+        if not cmd_config.action or cmd_config.action not in self._action_handlers:
+            logger.warning(f"No handler found for WB control: {cmd_name} (action: {cmd_config.action})")
+            return
+        
+        # Process parameters from payload using command configuration
+        params = self._process_wb_command_payload_from_config(cmd_name, cmd_config, payload)
+        
+        # Execute the handler using the action name
+        await self._execute_single_action(cmd_config.action, cmd_config, params, source="wb_command")
+        
+        # Update WB control state to reflect the command
+        await self._update_wb_control_state(cmd_name, payload)
     
+    def _process_wb_command_payload_from_config(self, cmd_name: str, cmd_config, payload: str) -> Dict[str, Any]:
+        """Process WB command payload into parameters using command configuration."""
+        params = {}
+        
+        # If no parameters defined, it's a simple pushbutton
+        if not hasattr(cmd_config, 'params') or not cmd_config.params:
+            return params
+        
+        # Process the first parameter (WB controls typically map to one parameter)
+        first_param = cmd_config.params[0]
+        param_name = first_param.name
+        param_type = getattr(first_param, 'type', 'string')
+        
+        try:
+            if param_type == "boolean":
+                # Convert payload to boolean
+                params[param_name] = payload.lower() in ["1", "true", "on", "yes"]
+            elif param_type in ["range", "integer", "float"]:
+                # Convert payload to numeric value
+                if param_type == "integer":
+                    params[param_name] = int(float(payload))  # Handle "1.0" -> 1
+                elif param_type == "float" or param_type == "range":
+                    params[param_name] = float(payload)
+            elif param_type == "string":
+                # Use payload as string
+                params[param_name] = payload
+            else:
+                # Fallback to string
+                params[param_name] = payload
+                
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Failed to convert WB payload '{payload}' for parameter {param_name} (type: {param_type}): {e}")
+            # Use default value if available
+            if hasattr(first_param, 'default') and first_param.default is not None:
+                params[param_name] = first_param.default
+        
+        return params
+
     def _process_wb_command_payload(self, control_name: str, payload: str) -> Dict[str, Any]:
         """Process WB command payload into parameters."""
         params = {}
@@ -1209,17 +1464,6 @@ class BaseDevice(ABC, Generic[StateT]):
                 logger.warning(f"Device {self.device_id}: State contains non-serializable fields after update: {', '.join(state_errors)}")
         
         logger.debug(f"Updated state for {self.device_name}: {updates}")
-        
-        # Sync relevant state changes to WB control topics
-        if self.should_publish_wb_virtual_device():
-            # Run sync in background to avoid blocking state updates
-            import asyncio
-            if hasattr(asyncio, 'create_task'):
-                asyncio.create_task(self._sync_state_to_wb_controls(updates))
-            else:
-                # Fallback for older Python versions
-                loop = asyncio.get_event_loop()
-                loop.create_task(self._sync_state_to_wb_controls(updates))
         
         # Notify about state change only if there were actual changes
         self._notify_state_change()

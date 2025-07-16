@@ -133,7 +133,8 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 
                 for attempt in range(1, max_retries + 1):
                     try:
-                        await self.client.connect()
+                        if self.client is not None:
+                            await self.client.connect()
                         logger.info(f"Connected to device at {host} on attempt {attempt}")
                         break
                     except Exception as e:

@@ -35,6 +35,7 @@ class RevoxA77ReelToReel(BaseDevice[RevoxA77ReelToReelState]):
                 return True  # Return True to allow device to be initialized even without commands
             
             logger.info(f"Revox A77 reel-to-reel {self.get_name()} initialized with {len(commands)} commands")
+            
             return True
             
         except Exception as e:
