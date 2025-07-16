@@ -26,7 +26,6 @@
   "commands": {
     "set_light": {
       "action": "set_light",
-      "topic": "/devices/kitchen_hood/controls/light",
       "description": "Control kitchen hood light",
       "params": [
         {
@@ -40,7 +39,6 @@
     },
     "set_speed": {
       "action": "set_speed",
-      "topic": "/devices/kitchen_hood/controls/speed",
       "description": "Control kitchen hood speed",
       "params": [
         {

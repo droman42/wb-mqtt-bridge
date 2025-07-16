@@ -13,7 +13,6 @@
   "commands": {
     "power_on": {
       "action": "power_on",
-      "topic": "/devices/processor/controls/power_on",
       "group": "power",
       "description": "Turn on the processor",
       "params": [
@@ -22,7 +21,6 @@
     },
     "power_off": {
       "action": "power_off",
-      "topic": "/devices/processor/controls/power_off",
       "group": "power",
       "description": "Turn off the processor",
       "params": [
@@ -31,7 +29,6 @@
     },
     "set_input": {
       "action": "set_input",
-      "topic": "/devices/processor/controls/set_input",
       "group": "inputs",
       "description": "Switch to input",
       "params": [
@@ -40,7 +37,6 @@
     },
     "set_volume": {
       "action": "set_volume",
-      "topic": "/devices/processor/controls/volume",
       "group": "volume",
       "description": "Set the volume level",
       "params": [
@@ -50,7 +46,6 @@
     },
     "mute_toggle": {
       "action": "mute_toggle",
-      "topic": "/devices/processor/controls/mute_toggle",
       "group": "volume",
       "description": "Toggle mute state",
       "params": [
@@ -59,7 +54,6 @@
     },
     "get_available_inputs": {
       "action": "get_available_inputs",
-      "topic": "/devices/processor/controls/get_available_inputs",
       "group": "inputs",
       "description": "List available inputs"
     }

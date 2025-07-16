@@ -85,7 +85,6 @@ class CommandParameterDefinition(BaseModel):
 class BaseCommandConfig(BaseModel):
     """Base schema for command configuration."""
     action: Optional[str] = Field(None, description="Action identifier for this command")
-    topic: Optional[str] = Field(None, description="MQTT topic this command listens to")
     description: Optional[str] = Field(None, description="Human-readable description of the command")
     group: Optional[str] = Field(None, description="Functional group this command belongs to")
     params: Optional[List[CommandParameterDefinition]] = Field(

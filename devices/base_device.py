@@ -669,19 +669,8 @@ class BaseDevice(ABC, Generic[StateT]):
         return topics
     
     def get_command_topic(self, handler_name: str, cmd_config: BaseCommandConfig) -> str:
-        """Get topic for command - explicit or auto-generated with deprecation warnings."""
-        if cmd_config.topic:
-            # Configuration Migration Phase B: Add deprecation warning for explicit topics
-            logger.warning(
-                f"DEPRECATION WARNING: Device {self.device_id}, command '{handler_name}' uses explicit topic field. "
-                f"Explicit topics are deprecated and will be removed in a future version. "
-                f"Please remove the 'topic' field from command configuration to use auto-generated topics. "
-                f"Current topic: {cmd_config.topic}, "
-                f"Auto-generated topic would be: /devices/{self.device_id}/controls/{handler_name}"
-            )
-            return cmd_config.topic  # Use explicit topic if provided
-        else:
-            return f"/devices/{self.device_id}/controls/{handler_name}"  # Auto-generate
+        """Get auto-generated topic for command following WB conventions."""
+        return f"/devices/{self.device_id}/controls/{handler_name}"
     
     async def handle_message(self, topic: str, payload: str):
         """Handle incoming MQTT messages for this device."""

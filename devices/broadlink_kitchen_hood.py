@@ -131,11 +131,10 @@ class BroadlinkKitchenHood(BaseDevice[KitchenHoodState]):
         logger.debug(f"[{self.device_name}] Available commands: {list(commands.keys())}")
         
         for cmd_name, command in commands.items():
-            # Use attribute access instead of dictionary access
-            topic = command.topic
-            if topic:
-                topics.append(topic)
-                logger.debug(f"[{self.device_name}] Subscribing to topic '{topic}' for command '{cmd_name}'")
+            # Auto-generate topic following WB conventions
+            topic = f"/devices/{self.device_id}/controls/{cmd_name}"
+            topics.append(topic)
+            logger.debug(f"[{self.device_name}] Subscribing to auto-generated topic '{topic}' for command '{cmd_name}'")
         
         logger.debug(f"Device {self.get_name()} subscribing to topics: {topics}")
         return topics

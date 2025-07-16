@@ -57,11 +57,10 @@ class RevoxA77ReelToReel(BaseDevice[RevoxA77ReelToReelState]):
         """Define the MQTT topics this device should subscribe to."""
         topics = []
         
-        # Add command topics
-        for command in self.get_available_commands().values():
-            topic = command.topic
-            if topic:
-                topics.append(topic)
+        # Add command topics using auto-generated topics
+        for cmd_name, command in self.get_available_commands().items():
+            topic = f"/devices/{self.device_id}/controls/{cmd_name}"
+            topics.append(topic)
         
         logger.debug(f"Device {self.get_name()} subscribing to topics: {topics}")
         return topics
@@ -283,7 +282,8 @@ class RevoxA77ReelToReel(BaseDevice[RevoxA77ReelToReelState]):
             matching_cmd_config = None
             
             for cmd_name, cmd_config in self.get_available_commands().items():
-                if topic == cmd_config.topic:
+                auto_generated_topic = f"/devices/{self.device_id}/controls/{cmd_name}"
+                if topic == auto_generated_topic:
                     matching_cmd_name = cmd_name
                     matching_cmd_config = cmd_config
                     break

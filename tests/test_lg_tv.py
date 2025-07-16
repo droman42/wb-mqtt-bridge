@@ -346,8 +346,9 @@ async def test_lg_tv(config_path: str) -> None:
             logger.info(f"Command: {cmd_name}")
             if hasattr(cmd_config, "description") and cmd_config.description:
                 logger.info(f"  Description: {cmd_config.description}")
-            if hasattr(cmd_config, "topic") and cmd_config.topic:
-                logger.info(f"  Topic: {cmd_config.topic}")
+            # Auto-generated topic following WB conventions
+            auto_topic = f"/devices/{tv.device_id}/controls/{cmd_name}"
+            logger.info(f"  Auto-generated Topic: {auto_topic}")
             if hasattr(cmd_config, "group") and cmd_config.group:
                 logger.info(f"  Group: {cmd_config.group}")
             logger.info("---")

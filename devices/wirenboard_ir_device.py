@@ -200,7 +200,8 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
             matching_cmd_config: Optional[IRCommandConfig] = None
             
             for cmd_name, cmd_config in self.get_available_commands().items():
-                if cmd_config.topic == topic:
+                auto_generated_topic = f"/devices/{self.device_id}/controls/{cmd_name}"
+                if auto_generated_topic == topic:
                     matching_cmd_name = cmd_name
                     matching_cmd_config = cast(IRCommandConfig, cmd_config)
                     break
