@@ -98,7 +98,7 @@ class BaseDevice(ABC, Generic[StateT]):
                 logger.debug(f"Published WB control meta for {self.device_id}/{handler_name}")
     
     def _generate_wb_control_meta(self, handler_name: str) -> Dict[str, Any]:
-        """Generate WB control metadata with smart defaults."""
+        """Generate WB control metadata with enhanced smart defaults."""
         
         # Check for explicit WB configuration in device config
         if hasattr(self.config, 'wb_controls') and self.config.wb_controls and handler_name in self.config.wb_controls:
@@ -106,84 +106,339 @@ class BaseDevice(ABC, Generic[StateT]):
         
         # Generate smart defaults based on handler name
         meta = {
-            "title": {"en": handler_name.replace('_', ' ').title()},
+            "title": {"en": self._generate_control_title(handler_name)},
             "readonly": False,
             "order": self._get_control_order(handler_name)
         }
         
-        # Smart type detection based on naming patterns
+        # Enhanced smart type detection based on naming patterns
         handler_lower = handler_name.lower()
         
-        if any(x in handler_lower for x in ['power_on', 'power_off', 'play', 'pause', 'stop']):
-            meta["type"] = "pushbutton"
-        elif 'set_volume' in handler_lower or 'volume' in handler_lower:
+        # Power controls - pushbuttons
+        if any(x in handler_lower for x in ['power_on', 'power_off', 'turn_on', 'turn_off']):
+            meta.update({
+                "type": "pushbutton",
+                "readonly": False
+            })
+        
+        # Volume controls - range sliders
+        elif any(x in handler_lower for x in ['set_volume', 'volume', 'vol']):
             meta.update({
                 "type": "range",
                 "min": 0,
                 "max": 100,
-                "units": "%"
+                "units": "%",
+                "readonly": False
             })
-        elif 'mute' in handler_lower:
-            meta["type"] = "switch"
-        elif 'set_' in handler_lower:
-            meta["type"] = "range"  # Generic setter
-        elif any(x in handler_lower for x in ['get_', 'list_', 'available']):
+        
+        # Mute controls - switches  
+        elif any(x in handler_lower for x in ['mute', 'unmute', 'toggle_mute']):
+            meta.update({
+                "type": "switch",
+                "readonly": False
+            })
+        
+        # Input/source selection - text input or range
+        elif any(x in handler_lower for x in ['set_input', 'input', 'source', 'channel']):
+            if 'set_' in handler_lower:
+                meta.update({
+                    "type": "text",
+                    "readonly": False
+                })
+            else:
+                meta.update({
+                    "type": "text", 
+                    "readonly": True
+                })
+        
+        # Playback controls - pushbuttons
+        elif any(x in handler_lower for x in ['play', 'pause', 'stop', 'next', 'previous', 'forward', 'rewind']):
+            meta.update({
+                "type": "pushbutton",
+                "readonly": False
+            })
+        
+        # Navigation controls - pushbuttons
+        elif any(x in handler_lower for x in ['home', 'back', 'menu', 'up', 'down', 'left', 'right', 'ok', 'select']):
+            meta.update({
+                "type": "pushbutton",
+                "readonly": False
+            })
+        
+        # App/application controls - text or pushbutton
+        elif any(x in handler_lower for x in ['app', 'application', 'launch']):
+            if 'launch' in handler_lower or 'open' in handler_lower:
+                meta.update({
+                    "type": "text",
+                    "readonly": False
+                })
+            else:
+                meta.update({
+                    "type": "text",
+                    "readonly": True
+                })
+        
+        # Speed/level controls - range sliders
+        elif any(x in handler_lower for x in ['speed', 'level', 'brightness', 'contrast']):
+            meta.update({
+                "type": "range",
+                "min": 0,
+                "max": 100,
+                "readonly": False
+            })
+            
+            # Add appropriate units
+            if 'speed' in handler_lower:
+                meta["units"] = "rpm" if 'fan' in handler_lower else ""
+            elif any(x in handler_lower for x in ['brightness', 'contrast']):
+                meta["units"] = "%"
+        
+        # Temperature controls - range with appropriate units
+        elif any(x in handler_lower for x in ['temp', 'temperature']):
+            meta.update({
+                "type": "range",
+                "min": 16,
+                "max": 30,
+                "units": "°C",
+                "readonly": "set_" not in handler_lower
+            })
+        
+        # Status/state getters - readonly text
+        elif any(x in handler_lower for x in ['get_', 'status', 'state', 'current']):
             meta.update({
                 "type": "text",
                 "readonly": True
             })
+        
+        # List/available getters - readonly text  
+        elif any(x in handler_lower for x in ['list_', 'available', 'supported']):
+            meta.update({
+                "type": "text",
+                "readonly": True
+            })
+        
+        # Generic setters - range sliders
+        elif 'set_' in handler_lower:
+            meta.update({
+                "type": "range",
+                "min": 0,
+                "max": 100,
+                "readonly": False
+            })
+        
+        # Connection/setup controls - pushbuttons
+        elif any(x in handler_lower for x in ['connect', 'disconnect', 'setup', 'reset', 'restart']):
+            meta.update({
+                "type": "pushbutton",
+                "readonly": False
+            })
+        
+        # Default fallback - pushbutton for actions
         else:
-            meta["type"] = "pushbutton"  # Default for actions
+            meta.update({
+                "type": "pushbutton",
+                "readonly": False
+            })
         
         return meta
+    
+    def _generate_control_title(self, handler_name: str) -> str:
+        """Generate a human-readable title for a control."""
+        # Handle common abbreviations and improve formatting
+        title = handler_name.replace('_', ' ').title()
+        
+        # Improve common abbreviations and terms
+        replacements = {
+            'Tv': 'TV',
+            'Ir': 'IR', 
+            'Rf': 'RF',
+            'App ': 'App ',
+            'Vol': 'Volume',
+            'Temp': 'Temperature',
+            'Set ': '',  # Remove "Set" prefix
+            'Get ': '',  # Remove "Get" prefix
+            'Toggle ': '',  # Simplify toggle controls
+        }
+        
+        for old, new in replacements.items():
+            title = title.replace(old, new)
+        
+        # Clean up extra spaces
+        title = ' '.join(title.split())
+        
+        return title
     
     def _get_control_order(self, handler_name: str) -> int:
         """Generate control ordering based on handler name patterns."""
         handler_lower = handler_name.lower()
         
-        # Power controls first
-        if 'power_on' in handler_lower:
+        # Power controls first (1-5)
+        if any(x in handler_lower for x in ['power_on', 'turn_on']):
             return 1
-        elif 'power_off' in handler_lower:
+        elif any(x in handler_lower for x in ['power_off', 'turn_off']):
             return 2
-        # Volume controls
-        elif 'volume' in handler_lower:
+        elif any(x in handler_lower for x in ['connect', 'setup']):
+            return 3
+        elif any(x in handler_lower for x in ['disconnect', 'reset', 'restart']):
+            return 4
+        
+        # Audio controls (10-19)
+        elif any(x in handler_lower for x in ['volume', 'vol']):
             return 10
-        elif 'mute' in handler_lower:
+        elif any(x in handler_lower for x in ['mute', 'unmute']):
             return 11
-        # Playback controls
-        elif any(x in handler_lower for x in ['play', 'pause', 'stop']):
+        
+        # Input/source controls (20-24)
+        elif any(x in handler_lower for x in ['input', 'source', 'channel']):
             return 20
-        # Navigation controls
-        elif any(x in handler_lower for x in ['home', 'back', 'menu']):
-            return 30
-        # Other controls
+        
+        # Playback controls (25-35)
+        elif 'play' in handler_lower:
+            return 25
+        elif 'pause' in handler_lower:
+            return 26
+        elif 'stop' in handler_lower:
+            return 27
+        elif any(x in handler_lower for x in ['next', 'forward']):
+            return 28
+        elif any(x in handler_lower for x in ['previous', 'rewind']):
+            return 29
+        
+        # Navigation controls (40-50)
+        elif 'home' in handler_lower:
+            return 40
+        elif 'back' in handler_lower:
+            return 41
+        elif 'menu' in handler_lower:
+            return 42
+        elif any(x in handler_lower for x in ['up', 'down', 'left', 'right']):
+            return 43
+        elif any(x in handler_lower for x in ['ok', 'select']):
+            return 44
+        
+        # App/application controls (55-59)
+        elif any(x in handler_lower for x in ['app', 'application', 'launch']):
+            return 55
+        
+        # Environmental controls (60-70)
+        elif any(x in handler_lower for x in ['temp', 'temperature']):
+            return 60
+        elif any(x in handler_lower for x in ['speed', 'fan']):
+            return 61
+        elif any(x in handler_lower for x in ['brightness', 'contrast']):
+            return 62
+        elif 'level' in handler_lower:
+            return 63
+        
+        # Status/information controls (80-89)
+        elif any(x in handler_lower for x in ['status', 'state', 'current']):
+            return 80
+        elif any(x in handler_lower for x in ['get_', 'list_', 'available']):
+            return 85
+        
+        # Generic setters (90-95)
+        elif 'set_' in handler_lower:
+            return 90
+        
+        # Everything else (100+)
         else:
-            return 50
+            return 100
     
     def _get_initial_wb_control_state(self, handler_name: str) -> str:
-        """Get initial state value for WB control."""
+        """Get initial state value for WB control with enhanced defaults."""
         handler_lower = handler_name.lower()
         
-        # Default states based on control type
-        if 'mute' in handler_lower:
+        # Switch controls (0 = off, 1 = on)
+        if any(x in handler_lower for x in ['mute', 'unmute']):
             return "0"  # Not muted
-        elif 'volume' in handler_lower:
-            return "50"  # Default volume
-        elif any(x in handler_lower for x in ['power_on', 'power_off']):
+        
+        # Range controls with appropriate defaults
+        elif any(x in handler_lower for x in ['volume', 'vol']):
+            return "50"  # 50% volume
+        elif any(x in handler_lower for x in ['speed', 'fan']):
+            return "0"  # Fan/speed off
+        elif any(x in handler_lower for x in ['brightness', 'contrast']):
+            return "75"  # 75% brightness/contrast
+        elif 'level' in handler_lower:
+            return "50"  # 50% level
+        elif any(x in handler_lower for x in ['temp', 'temperature']):
+            return "22"  # 22°C default temperature
+        elif 'set_' in handler_lower:
+            return "0"  # Generic setter default
+        
+        # Text controls - empty or status strings
+        elif any(x in handler_lower for x in ['input', 'source', 'channel']):
+            return ""  # No input selected
+        elif any(x in handler_lower for x in ['app', 'application']):
+            return ""  # No app selected
+        elif any(x in handler_lower for x in ['status', 'state']):
+            return "unknown"  # Unknown status
+        elif any(x in handler_lower for x in ['get_', 'list_', 'available']):
+            return ""  # Empty list/info
+        
+        # Pushbutton controls (always 0 for non-pressed state)
+        elif any(x in handler_lower for x in [
+            'power_on', 'power_off', 'turn_on', 'turn_off',
+            'play', 'pause', 'stop', 'next', 'previous', 'forward', 'rewind',
+            'home', 'back', 'menu', 'up', 'down', 'left', 'right', 'ok', 'select',
+            'connect', 'disconnect', 'setup', 'reset', 'restart'
+        ]):
             return "0"  # Not pressed
+        
+        # Default for any other controls
         else:
-            return "0"  # Default for most controls
+            return "0"
     
     async def _setup_wb_last_will(self):
-        """Set up Last Will Testament for device offline detection."""
-        # Set error state when device goes offline
-        error_topic = f"/devices/{self.device_id}/meta/error"
-        # Note: will_set is likely synchronous, but publish is async
-        self.mqtt_client.will_set(error_topic, "offline", retain=True)
-        
-        # Clear error state on connection
-        await self.mqtt_client.publish(error_topic, "", retain=True)
+        """Set up enhanced Last Will Testament for device offline detection."""
+        try:
+            # Set error state when device goes offline
+            error_topic = f"/devices/{self.device_id}/meta/error"
+            
+            # Set Last Will Testament - this will be published when connection is lost
+            # Note: will_set is typically synchronous in most MQTT libraries
+            if hasattr(self.mqtt_client, 'will_set'):
+                self.mqtt_client.will_set(error_topic, "offline", retain=True)
+            
+            # Clear error state on successful connection
+            await self.mqtt_client.publish(error_topic, "", retain=True)
+            
+            # Also set device availability topic (common WB pattern)
+            availability_topic = f"/devices/{self.device_id}/meta/available"
+            
+            # Set LWT for availability
+            if hasattr(self.mqtt_client, 'will_set'):
+                self.mqtt_client.will_set(availability_topic, "0", retain=True)
+            
+            # Mark device as available
+            await self.mqtt_client.publish(availability_topic, "1", retain=True)
+            
+            logger.debug(f"Set up WB Last Will Testament for {self.device_id}")
+            
+        except Exception as e:
+            logger.warning(f"Error setting up Last Will Testament for {self.device_id}: {str(e)}")
+    
+    async def cleanup_wb_device_state(self):
+        """
+        Clean up WB device state on shutdown.
+        Marks device as offline and unavailable.
+        """
+        if not self.should_publish_wb_virtual_device() or not self.mqtt_client:
+            return
+            
+        try:
+            # Mark device as offline
+            error_topic = f"/devices/{self.device_id}/meta/error"
+            await self.mqtt_client.publish(error_topic, "offline", retain=True)
+            
+            # Mark device as unavailable
+            availability_topic = f"/devices/{self.device_id}/meta/available"
+            await self.mqtt_client.publish(availability_topic, "0", retain=True)
+            
+            logger.debug(f"Cleaned up WB device state for {self.device_id}")
+            
+        except Exception as e:
+            logger.warning(f"Error cleaning up WB device state for {self.device_id}: {str(e)}")
     
     async def setup_wb_emulation_if_enabled(self):
         """
@@ -192,6 +447,63 @@ class BaseDevice(ABC, Generic[StateT]):
         """
         if self.should_publish_wb_virtual_device():
             await self._setup_wb_virtual_device()
+    
+    async def refresh_wb_control_states(self):
+        """
+        Refresh all WB control states by republishing current device state.
+        Useful after MQTT reconnection to ensure state persistence.
+        """
+        if not self.should_publish_wb_virtual_device():
+            return
+            
+        try:
+            # Republish all current state values to WB controls
+            current_state = self.state.dict(exclude_unset=True)
+            await self._sync_state_to_wb_controls(current_state)
+            
+            # Also republish any handler-specific states that might not be in main state
+            for handler_name in self._action_handlers:
+                if not handler_name.startswith('_'):
+                    # Check if we have a current state for this handler
+                    if hasattr(self.state, handler_name):
+                        value = getattr(self.state, handler_name)
+                        wb_value = self._convert_state_to_wb_value(handler_name, value)
+                        if wb_value is not None:
+                            control_topic = f"/devices/{self.device_id}/controls/{handler_name}"
+                            await self.mqtt_client.publish(control_topic, str(wb_value), retain=True)
+            
+            logger.debug(f"Refreshed WB control states for {self.device_id}")
+            
+        except Exception as e:
+            logger.warning(f"Error refreshing WB control states for {self.device_id}: {str(e)}")
+    
+    async def handle_mqtt_reconnection(self):
+        """
+        Handle MQTT reconnection by republishing all WB device metadata and states.
+        This ensures retained messages are restored after connection loss.
+        """
+        if not self.should_publish_wb_virtual_device():
+            return
+            
+        try:
+            logger.info(f"Handling MQTT reconnection for WB device {self.device_id}")
+            
+            # Republish device metadata
+            await self._publish_wb_device_meta()
+            
+            # Republish control metadata
+            await self._publish_wb_control_metas()
+            
+            # Refresh all control states
+            await self.refresh_wb_control_states()
+            
+            # Re-setup Last Will Testament
+            await self._setup_wb_last_will()
+            
+            logger.info(f"Successfully restored WB device state for {self.device_id}")
+            
+        except Exception as e:
+            logger.error(f"Error handling MQTT reconnection for {self.device_id}: {str(e)}")
 
     def _register_handlers(self) -> None:
         """
@@ -456,6 +768,136 @@ class BaseDevice(ABC, Generic[StateT]):
         if self.mqtt_client:
             state_topic = f"/devices/{self.device_id}/controls/{control_name}"
             await self.mqtt_client.publish(state_topic, payload, retain=True)
+    
+    async def _sync_state_to_wb_controls(self, state_updates: Dict[str, Any]):
+        """Synchronize state changes to WB control topics with bidirectional mapping."""
+        if not self.mqtt_client:
+            return
+        
+        try:
+            # Get state field to WB control mappings for this device
+            control_mappings = self._get_wb_control_mappings()
+            
+            for state_field, value in state_updates.items():
+                # Skip internal fields and non-relevant updates
+                if state_field in ['last_command', 'device_id', 'device_name']:
+                    continue
+                
+                # Check if this state field maps to any WB controls
+                if state_field in control_mappings:
+                    wb_controls = control_mappings[state_field]
+                    if isinstance(wb_controls, str):
+                        wb_controls = [wb_controls]
+                    
+                    # Update all mapped WB controls
+                    for wb_control in wb_controls:
+                        if wb_control in self._action_handlers:
+                            wb_value = self._convert_state_to_wb_value(state_field, value)
+                            if wb_value is not None:
+                                control_topic = f"/devices/{self.device_id}/controls/{wb_control}"
+                                await self.mqtt_client.publish(control_topic, str(wb_value), retain=True)
+                                logger.debug(f"Synced {state_field}={value} to WB control {wb_control}={wb_value}")
+                
+                # Also check for direct handler name matches
+                if state_field in self._action_handlers:
+                    wb_value = self._convert_state_to_wb_value(state_field, value)
+                    if wb_value is not None:
+                        control_topic = f"/devices/{self.device_id}/controls/{state_field}"
+                        await self.mqtt_client.publish(control_topic, str(wb_value), retain=True)
+                        logger.debug(f"Synced direct {state_field}={value} to WB control {state_field}={wb_value}")
+                        
+        except Exception as e:
+            logger.warning(f"Error syncing state to WB controls for {self.device_id}: {str(e)}")
+    
+    def _get_wb_control_mappings(self) -> Dict[str, Union[str, List[str]]]:
+        """Get state field to WB control mappings for this device."""
+        # Default mappings for common state fields
+        mappings = {
+            # Power state mappings
+            'power': ['power_state', 'get_power', 'power_status'],
+            'connected': ['connection_status', 'get_connection_status'],
+            'connection_status': ['get_connection_status'],
+            
+            # Audio state mappings  
+            'volume': ['set_volume', 'get_volume', 'volume_level'],
+            'mute': ['mute', 'toggle_mute', 'get_mute'],
+            
+            # Input/source mappings
+            'input_source': ['set_input', 'get_input', 'input'],
+            'current_app': ['get_app', 'current_app'],
+            'app': ['get_app', 'current_app'],
+            
+            # Playback state mappings
+            'playback_state': ['get_playback_state', 'playback_status'],
+            'media_type': ['get_media_type'],
+            'title': ['get_title'],
+            'artist': ['get_artist'],
+            'album': ['get_album'],
+            
+            # Kitchen hood specific
+            'light': ['light', 'set_light'],
+            'speed': ['speed', 'set_speed', 'fan_speed'],
+            
+            # Environment specific
+            'temperature': ['set_temperature', 'get_temperature'],
+            'brightness': ['set_brightness', 'get_brightness'],
+            'contrast': ['set_contrast', 'get_contrast'],
+            
+            # Network info
+            'ip_address': ['get_ip_address'],
+            'mac_address': ['get_mac_address'],
+            
+            # Error/status
+            'error': ['get_error', 'error_status'],
+        }
+        
+        # Allow devices to override mappings via configuration
+        if hasattr(self.config, 'wb_state_mappings') and self.config.wb_state_mappings:
+            mappings.update(self.config.wb_state_mappings)
+        
+        return mappings
+    
+    def _convert_state_to_wb_value(self, state_field: str, value: Any) -> Optional[str]:
+        """Convert a device state value to a WB control value."""
+        if value is None:
+            return None
+        
+        # Handle boolean values
+        if isinstance(value, bool):
+            return "1" if value else "0"
+        
+        # Handle string values
+        if isinstance(value, str):
+            # Special handling for power states
+            if state_field in ['power', 'connection_status'] and value.lower() in ['on', 'connected', 'true']:
+                return "1"
+            elif state_field in ['power', 'connection_status'] and value.lower() in ['off', 'disconnected', 'false']:
+                return "0"
+            else:
+                return value
+        
+        # Handle numeric values
+        if isinstance(value, (int, float)):
+            # Volume, brightness, etc. should be in 0-100 range
+            if state_field in ['volume', 'brightness', 'contrast'] and 0 <= value <= 100:
+                return str(int(value))
+            # Temperature values
+            elif state_field in ['temperature'] and isinstance(value, (int, float)):
+                return str(int(value))
+            # Speed/level values
+            elif state_field in ['speed', 'level']:
+                return str(int(value))
+            else:
+                return str(value)
+        
+        # Handle enum values
+        if hasattr(value, 'value'):
+            return str(value.value)
+        elif hasattr(value, 'name'):
+            return str(value.name)
+        
+        # Fallback to string conversion
+        return str(value)
 
     def _process_mqtt_payload(self, payload: str, param_defs: List[CommandParameterDefinition]) -> Dict[str, Any]:
         """
@@ -755,6 +1197,17 @@ class BaseDevice(ABC, Generic[StateT]):
                 logger.warning(f"Device {self.device_id}: State contains non-serializable fields after update: {', '.join(state_errors)}")
         
         logger.debug(f"Updated state for {self.device_name}: {updates}")
+        
+        # Sync relevant state changes to WB control topics
+        if self.should_publish_wb_virtual_device():
+            # Run sync in background to avoid blocking state updates
+            import asyncio
+            if hasattr(asyncio, 'create_task'):
+                asyncio.create_task(self._sync_state_to_wb_controls(updates))
+            else:
+                # Fallback for older Python versions
+                loop = asyncio.get_event_loop()
+                loop.create_task(self._sync_state_to_wb_controls(updates))
         
         # Notify about state change only if there were actual changes
         self._notify_state_change()

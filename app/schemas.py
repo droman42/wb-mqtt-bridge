@@ -120,6 +120,7 @@ class BaseDeviceConfig(BaseModel):
     # Wirenboard virtual device emulation configuration
     enable_wb_emulation: bool = Field(True, description="Enable Wirenboard virtual device emulation")
     wb_controls: Optional[Dict[str, Dict[str, Any]]] = Field(None, description="Custom Wirenboard control definitions")
+    wb_state_mappings: Optional[Dict[str, Union[str, List[str]]]] = Field(None, description="Custom state field to WB control mappings")
 
     @validator('device_class')
     def validate_device_class(cls, v):
