@@ -1,4 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { runtimeConfig, getSSEUrl } from '@/config/runtime';
+
+// 🔧 CRITICAL: Stable, frozen array references to prevent multiple SSE subscriptions
+// These MUST be at the top and frozen to prevent React useEffect from seeing them as new references
+const DEVICE_EVENT_TYPES = Object.freeze(['state_change', 'action_success', 'action_error', 'action_progress', 'test', 'connected', 'keepalive']);
+const SCENARIO_EVENT_TYPES = Object.freeze(['test', 'connected', 'keepalive']);
+const SYSTEM_EVENT_TYPES = Object.freeze(['test', 'connected', 'keepalive']);
 
 export interface SSEOptions {
   withCredentials?: boolean;
@@ -6,6 +13,7 @@ export interface SSEOptions {
   retryInterval?: number;
   maxRetries?: number;
   enabled?: boolean;
+  eventTypes?: readonly string[]; // Allow readonly arrays for stable references
 }
 
 export interface SSEState<T> {
@@ -14,6 +22,8 @@ export interface SSEState<T> {
   connected: boolean;
   reconnectAttempts: number;
   lastEventType?: string;
+  addHandler: (handler: (data: any) => void) => void;
+  removeHandler: (handler: (data: any) => void) => void;
 }
 
 export function useEventSource<T = any>(
@@ -24,6 +34,7 @@ export function useEventSource<T = any>(
     retryInterval = 5_000,
     maxRetries = 10,
     enabled = true,
+    eventTypes = [], // Default to empty array - specific listeners must be specified
   }: SSEOptions = {}
 ): SSEState<T> {
   const [data, setData] = useState<T | null>(null);
@@ -35,140 +46,166 @@ export function useEventSource<T = any>(
   const esRef = useRef<EventSource | null>(null);
   const retryRef = useRef<number>(retryInterval);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handlers = useRef<((data: any) => void)[]>([]);
+  
+  // 🔧 FIX: Use refs to avoid stale closure issues
+  const reconnectAttemptsRef = useRef<number>(0);
+  const cancelledRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!enabled || !url) {
-      console.log(`[SSE] Hook disabled or no URL: enabled=${enabled}, url=${url}`);
       return;
     }
 
-    let cancelled = false;
+    if (!eventTypes || eventTypes.length === 0) {
+      return;
+    }
+
+    // 🔧 FIX: Reset cancellation flag when effect runs
+    cancelledRef.current = false;
+    reconnectAttemptsRef.current = 0;
+    setReconnectAttempts(0);
 
     function connect() {
-      if (cancelled) return;
+      if (cancelledRef.current) {
+        return;
+      }
 
       try {
         // Build full URL with base URL if needed
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-        const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`;
+        // Use Vite proxy for relative URLs  
+        const fullUrl = url.startsWith('http') ? url : url;
         
-        console.log(`[SSE] Attempting to connect to: ${fullUrl}`);
-        
-        // For custom headers, we'd need a polyfill, but for now use basic EventSource
-        const es = new EventSource(fullUrl, { withCredentials });
+        // For SSE, we need to create the EventSource with specific options
+        console.log(`Creating EventSource for ${fullUrl}`);
+        const es = new EventSource(fullUrl);
         esRef.current = es;
 
+        // Generic message listener to catch ALL events
+        es.onmessage = (event) => {
+          console.log(`GENERIC SSE message on ${url}:`, event);
+        };
+
         es.onopen = () => {
-          if (!cancelled) {
-            console.log(`[SSE] Connected to ${fullUrl}`);
+          if (!cancelledRef.current) {
             setConnected(true);
             setError(null);
+            
+            // 🔧 FIX: Reset reconnection counters on successful connection
+            reconnectAttemptsRef.current = 0;
             setReconnectAttempts(0);
             retryRef.current = retryInterval; // Reset retry interval
           }
         };
 
-        es.onmessage = (e) => {
-          if (!cancelled) {
-            console.log(`[SSE] Received default message from ${fullUrl}:`, e.data);
+        // Create specific event handler for each event type
+        const createEventHandler = (eventType: string) => (event: MessageEvent) => {
+          console.log(`SSE ${eventType} event received on ${url}:`, event);
+          if (!cancelledRef.current) {
             try {
-              const parsedData = JSON.parse(e.data);
-              setData(parsedData);
-              setLastEventType('message');
+              const eventData = JSON.parse(event.data);
+              console.log(`SSE ${eventType} parsed data:`, eventData);
+              
+              // Update connection status
+              setConnected(true);
+              setError(null);
+              
+              // 🔧 FIX: Reset reconnection counters on successful event
+              reconnectAttemptsRef.current = 0;
+              setReconnectAttempts(0);
+
+              // Update state with event data and type
+              setData({ ...eventData, eventType });
+              setLastEventType(eventType);
+
+              // Call all registered handlers
+              handlers.current.forEach(handler => {
+                try {
+                  handler(eventData);
+                } catch (handlerError) {
+                  console.error(`Handler error for ${eventType}:`, handlerError);
+                }
+              });
             } catch (parseError) {
-              console.warn('Failed to parse SSE data as JSON:', e.data);
-              setData(e.data as T);
-              setLastEventType('message');
+              console.error(`Failed to parse ${eventType} event data:`, parseError, event.data);
             }
           }
         };
 
-        // Handle all possible backend event types
-        const deviceEventTypes = [
-          'device_setup', 'connection_attempt', 'connection_success', 'connection_failed',
-          'device_action', 'device_state_change', 'device_progress'
-        ];
-        
-        const scenarioEventTypes = [
-          'scenario_start', 'scenario_progress', 'scenario_complete', 'scenario_error'
-        ];
-        
-        const systemEventTypes = [
-          'system_info', 'system_warning', 'system_error', 'config_reload', 
-          'device_discovery', 'keepalive', 'connected'
-        ];
-        
-        const allEventTypes = [...deviceEventTypes, ...scenarioEventTypes, ...systemEventTypes];
-        
-        allEventTypes.forEach(eventType => {
-          es.addEventListener(eventType, (event) => {
-            if (!cancelled) {
-              console.log(`[SSE] Received ${eventType} event from ${fullUrl}:`, (event as MessageEvent).data);
-              try {
-                const parsedData = JSON.parse((event as MessageEvent).data);
-                // Add the event type to the data for easier handling
-                const dataWithEventType = { ...parsedData, eventType };
-                setData(dataWithEventType);
-                setLastEventType(eventType);
-              } catch (parseError) {
-                console.warn(`Failed to parse SSE data for event ${eventType}:`, (event as MessageEvent).data);
-                const dataWithEventType = { data: (event as MessageEvent).data, eventType } as T;
-                setData(dataWithEventType);
-                setLastEventType(eventType);
-              }
-            }
-          });
+        // Register specific event listeners for each event type
+        eventTypes.forEach(eventType => {
+          const handler = createEventHandler(eventType);
+          es.addEventListener(eventType, handler);
         });
 
         es.onerror = (e) => {
-          console.error(`[SSE] Connection error for ${fullUrl}:`, e);
           setError(e);
           setConnected(false);
           es.close();
           
-          // Only retry if we haven't exceeded max retries and not cancelled
-          if (!cancelled && reconnectAttempts < maxRetries) {
-            setReconnectAttempts(prev => prev + 1);
+          // 🔧 FIX: Use ref values to avoid stale closure issues
+          if (!cancelledRef.current && reconnectAttemptsRef.current < maxRetries) {
+            reconnectAttemptsRef.current++;
+            setReconnectAttempts(reconnectAttemptsRef.current);
             
             // Exponential back-off with jitter
             const jitter = Math.random() * 1000; // 0-1s jitter
             const delay = Math.min(retryRef.current + jitter, 60_000);
             retryRef.current = Math.min(retryRef.current * 1.5, 30_000);
             
-            console.log(`[SSE] Retrying connection to ${fullUrl} in ${Math.round(delay)}ms (attempt ${reconnectAttempts + 1}/${maxRetries})`);
-            
             reconnectTimeoutRef.current = setTimeout(() => {
-              if (!cancelled) connect();
+              if (!cancelledRef.current) connect();
             }, delay);
-          } else {
-            console.error(`[SSE] Max retries reached for ${fullUrl} or connection cancelled`);
           }
         };
 
       } catch (connectError) {
-        console.error(`[SSE] Failed to create EventSource for ${url}:`, connectError);
-        if (!cancelled) {
+        if (!cancelledRef.current) {
           setError(connectError as Event);
           setConnected(false);
         }
       }
     }
 
-    console.log(`[SSE] Initializing connection for ${url}`);
     connect();
 
     return () => {
-      console.log(`[SSE] Cleaning up connection for ${url}`);
-      cancelled = true;
+      // 🔧 FIX: Set cancellation flag first
+      cancelledRef.current = true;
+      
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
       }
-      esRef.current?.close();
+      
+      if (esRef.current) {
+        esRef.current.close();
+        esRef.current = null;
+      }
+      
       setConnected(false);
     };
-  }, [url, withCredentials, enabled, retryInterval, maxRetries]);
+  }, [url, enabled, maxRetries, eventTypes, retryInterval, withCredentials]);
 
-  return { data, error, connected, reconnectAttempts, lastEventType };
+  // Add event handler function
+  const addHandler = (handler: (data: any) => void) => {
+    handlers.current.push(handler);
+  };
+
+  // Remove event handler function
+  const removeHandler = (handler: (data: any) => void) => {
+    handlers.current = handlers.current.filter(h => h !== handler);
+  };
+
+  return {
+    data,
+    error,
+    connected,
+    reconnectAttempts,
+    lastEventType,
+    addHandler,
+    removeHandler,
+  };
 }
 
 // Backend data structures based on the SSE specification
@@ -178,6 +215,27 @@ export interface DeviceEventData {
   message: string;
   timestamp: string;
   eventType?: string; // Added by frontend
+  // For test events, which have nested data structure
+  data?: {
+    device_id: string;
+    device_name: string;
+    message: string;
+  };
+  // For state_change events, which include device state
+  state?: {
+    device_id: string;
+    device_name: string;
+    power?: boolean | string;
+    volume?: number;
+    mute?: boolean;
+    current_app?: string | null;
+    input_source?: string | null;
+    connected?: boolean;
+    ip_address?: string;
+    mac_address?: string;
+    last_command?: any;
+    error?: any;
+  };
 }
 
 export interface ScenarioEventData {
@@ -198,13 +256,22 @@ export interface SystemEventData {
 
 // Specialized hooks for different event types
 export function useDeviceSSE(enabled: boolean = true) {
-  return useEventSource<DeviceEventData>('/events/devices', { enabled });
+  return useEventSource<DeviceEventData>(getSSEUrl(runtimeConfig.sseDevicesPath), { 
+    enabled,
+    eventTypes: DEVICE_EVENT_TYPES
+  });
 }
 
 export function useScenarioSSE(enabled: boolean = true) {
-  return useEventSource<ScenarioEventData>('/events/scenarios', { enabled });
+  return useEventSource<ScenarioEventData>(getSSEUrl(runtimeConfig.sseScenariosPath), { 
+    enabled,
+    eventTypes: SCENARIO_EVENT_TYPES
+  });
 }
 
 export function useSystemSSE(enabled: boolean = true) {
-  return useEventSource<SystemEventData>('/events/system', { enabled });
+  return useEventSource<SystemEventData>(getSSEUrl(runtimeConfig.sseSystemPath), { 
+    enabled,
+    eventTypes: SYSTEM_EVENT_TYPES
+  });
 } 

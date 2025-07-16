@@ -16,51 +16,124 @@ function Layout({ children }: LayoutProps) {
   const { addLog } = useLogStore();
   const { addMessage } = useProgressStore();
 
-  // Use the new SSE hooks
+  // SSE connections
   const deviceSSE = useDeviceSSE(true);
   const scenarioSSE = useScenarioSSE(true);
   const systemSSE = useSystemSSE(true);
 
-  // Handle device events - now includes setup, connection attempts, and progress
+  // Handle device events - only handle specified event types per specification
   useEffect(() => {
     if (deviceSSE.data) {
-      const { device_id, device_name, message, eventType } = deviceSSE.data;
+      console.log('[Layout] Device SSE data received:', deviceSSE.data);
       
-      // Handle different device event types
-      if (eventType && ['device_setup', 'connection_attempt', 'connection_success', 'device_progress'].includes(eventType)) {
-        addMessage({
-          type: 'device',
-          deviceId: device_id,
-          deviceName: device_name,
-          message: message,
-          eventType: eventType
-        });
+      const { device_id, device_name, message, eventType, timestamp } = deviceSSE.data;
+      
+      // Handle test events which have a different structure
+      if (eventType === 'test') {
+        const testData = deviceSSE.data.data;
+        if (testData && testData.device_id) {
+          console.log('[Layout] Adding test device progress message:', {
+            type: 'device',
+            deviceId: testData.device_id,
+            deviceName: testData.device_name,
+            message: testData.message,
+            eventType: 'test'
+          });
+          
+          addMessage({
+            type: 'device',
+            deviceId: testData.device_id,
+            deviceName: testData.device_name,
+            message: testData.message,
+            eventType: 'test'
+          });
+        }
+        return; // Exit early for test events
       }
       
-      // Log important device events
-      if (eventType === 'connection_success') {
+      // Handle real backend events: only the specified event types
+      if (eventType && device_id && device_name) {
+        // Process different backend event types per specification
+        let progressMessage = message;
+        let shouldAddToProgress = false;
+        
+        switch (eventType) {
+          case 'action_success':
+            // Show successful device actions in progress (green)
+            progressMessage = message || `Action completed successfully`;
+            shouldAddToProgress = true;
+            break;
+            
+          case 'action_error':
+            // Show failed device actions in progress (red)
+            progressMessage = message || `Action failed`;
+            shouldAddToProgress = true;
+            break;
+            
+          case 'action_progress':
+            // Show device action progress in progress (blue)
+            progressMessage = message || `Action in progress`;
+            shouldAddToProgress = true;
+            break;
+            
+          case 'state_change': {
+            // Update device state, NO progress display per specification
+            const state = deviceSSE.data.state;
+            console.log('[Layout] Device state change received:', { device_id, device_name, state });
+            // Note: state_change should update device state but not show in progress
+            shouldAddToProgress = false;
+            break;
+          }
+            
+          default:
+            // Unknown event types are ignored per specification
+            console.log(`[Layout] Unknown device event type: ${eventType}`);
+            shouldAddToProgress = false;
+        }
+        
+        if (shouldAddToProgress) {
+          console.log('[Layout] Adding device progress message:', {
+            type: 'device',
+            deviceId: device_id,
+            deviceName: device_name,
+            message: progressMessage,
+            eventType: eventType
+          });
+          
+          addMessage({
+            type: 'device',
+            deviceId: device_id,
+            deviceName: device_name,
+            message: progressMessage,
+            eventType: eventType
+          });
+        }
+      }
+      
+      // Log important device events to the log panel - only valid event types
+      if (eventType === 'action_success') {
         addLog({
           level: 'info',
-          message: `Device connected: ${device_name}`,
-          details: { device_id, timestamp: deviceSSE.data.timestamp }
+          message: `${device_name}: ${message}`,
+          details: { device_id, timestamp, eventType }
         });
-      } else if (eventType === 'connection_failed') {
+      } else if (eventType === 'action_error') {
         addLog({
           level: 'error',
-          message: `Device connection failed: ${device_name}`,
-          details: { device_id, timestamp: deviceSSE.data.timestamp }
+          message: `${device_name}: ${message}`,
+          details: { device_id, timestamp, eventType }
         });
       }
     }
   }, [deviceSSE.data, addMessage, addLog]);
 
-  // Handle scenario events
+  // Handle scenario events - only test events per specification
   useEffect(() => {
     if (scenarioSSE.data) {
-      const { scenario_id, scenario_name, message, eventType, progress } = scenarioSSE.data;
+      const { scenario_id, scenario_name, message, eventType } = scenarioSSE.data;
       
-      // Handle different scenario event types
-      if (eventType && ['scenario_start', 'scenario_progress', 'scenario_complete', 'scenario_error'].includes(eventType)) {
+      // Only handle test events per specification
+      if (eventType === 'test') {
         addMessage({
           type: 'scenario',
           scenarioId: scenario_id,
@@ -69,44 +142,23 @@ function Layout({ children }: LayoutProps) {
           eventType: eventType
         });
       }
-      
-      // Log important scenario events
-      if (eventType === 'scenario_complete') {
-        addLog({
-          level: 'info',
-          message: `Scenario completed: ${scenario_name || scenario_id}`,
-          details: { scenario_id, timestamp: scenarioSSE.data.timestamp, progress }
-        });
-      } else if (eventType === 'scenario_error') {
-        addLog({
-          level: 'error',
-          message: `Scenario error: ${scenario_name || scenario_id}`,
-          details: { scenario_id, timestamp: scenarioSSE.data.timestamp, message }
-        });
-      }
     }
-  }, [scenarioSSE.data, addMessage, addLog]);
+  }, [scenarioSSE.data, addMessage]);
 
-  // Handle system events - add to log panel
+  // Handle system events - only test events per specification
   useEffect(() => {
     if (systemSSE.data) {
-      const { message, level, eventType, timestamp } = systemSSE.data;
+      const { message, level, eventType } = systemSSE.data;
       
-      // Don't log keepalive events to reduce noise
-      if (eventType !== 'keepalive') {
+      // Only handle test events per specification
+      if (eventType === 'test') {
         addLog({
           level: level || 'info',
           message: message,
           details: { 
-            timestamp: timestamp,
             eventType: eventType
           }
         });
-      }
-      
-      // Special handling for connected event
-      if (eventType === 'connected') {
-        console.log('[Layout] System SSE connected');
       }
     }
   }, [systemSSE.data, addLog]);

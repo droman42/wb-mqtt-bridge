@@ -163,11 +163,38 @@ export const runtimeConfig = {
   statePollIntervalSec: 5,
   apiBaseUrl: '/api',
   mqttUrl: 'ws://localhost:9001',
+  sseBaseUrl: '', // Environment-driven SSE configuration
   defaultLanguage: 'en',
   maxLogEntries: 1000,
   debounceDelaySec: 0.3,
 };
 ```
+
+### Environment Variables
+
+Create a `.env` file in the project root to customize configuration:
+
+```bash
+# API Base URL for regular HTTP requests
+VITE_API_BASE_URL=http://localhost:8000
+
+# MQTT WebSocket URL  
+VITE_MQTT_URL=ws://localhost:9001
+
+# SSE (Server-Sent Events) Configuration
+# Leave empty to use relative URLs (proxy mode - recommended)
+VITE_SSE_BASE_URL=
+
+# Alternative: Use absolute URL for direct backend connection
+# VITE_SSE_BASE_URL=http://192.168.110.250:8000
+
+# Alternative: For production with different backend
+# VITE_SSE_BASE_URL=https://api.yourdomain.com
+```
+
+**SSE Behavior:**
+- **Empty `VITE_SSE_BASE_URL`**: Uses relative URLs (`/events/devices`) → Works with Vite proxy (dev) or nginx proxy (production)
+- **Set `VITE_SSE_BASE_URL`**: Uses absolute URLs (`http://backend:8000/events/devices`) → Direct backend connection
 
 ## Component Library
 

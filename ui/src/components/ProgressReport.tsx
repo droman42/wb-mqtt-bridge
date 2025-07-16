@@ -9,25 +9,20 @@ interface ProgressReportProps {
   className?: string;
 }
 
-// Helper function to get event type icon and color
+// Helper function to get event type icon and color - only valid event types per specification
 function getEventTypeDisplay(eventType: string) {
   switch (eventType) {
-    case 'device_setup':
-      return { icon: 'Settings', color: 'text-blue-600' };
-    case 'connection_attempt':
-      return { icon: 'Sync', color: 'text-yellow-600' };
-    case 'connection_success':
+    case 'action_success':
       return { icon: 'CheckCircle', color: 'text-green-600' };
-    case 'device_progress':
-      return { icon: 'Schedule', color: 'text-blue-600' };
-    case 'scenario_start':
-      return { icon: 'PlayArrow', color: 'text-green-600' };
-    case 'scenario_progress':
-      return { icon: 'Schedule', color: 'text-blue-600' };
-    case 'scenario_complete':
-      return { icon: 'CheckCircle', color: 'text-green-600' };
-    case 'scenario_error':
+    case 'action_error':
       return { icon: 'Error', color: 'text-red-600' };
+    case 'action_progress':
+      return { icon: 'Schedule', color: 'text-blue-600' };
+    case 'test':
+      return { icon: 'Science', color: 'text-orange-600' };
+    case 'state_change':
+      // Should not normally appear in progress, but handle just in case
+      return { icon: 'Sync', color: 'text-gray-600' };
     default:
       return { icon: 'Info', color: 'text-gray-600' };
   }
