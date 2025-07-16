@@ -2,7 +2,6 @@
   "device_name": "Zappiti Neo",
   "device_id": "video",
   "alias": "video",
-
   "device_class": "WirenboardIRDevice",
   "config_class": "WirenboardIRDeviceConfig",
   "commands": {

@@ -2,7 +2,6 @@
   "device_name": "Musical Fidelity M6si",
   "device_id": "mf_amplifier",
   "alias": "amplifier",
-
   "device_class": "WirenboardIRDevice",
   "config_class": "WirenboardIRDeviceConfig",
   "commands": {

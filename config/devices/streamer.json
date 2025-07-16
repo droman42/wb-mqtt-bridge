@@ -2,7 +2,6 @@
   "device_name": "Auralic Altair G1",
   "device_id": "streamer",
   "alias": "streamer",
-
   "device_class": "AuralicDevice",
   "config_class": "AuralicDeviceConfig",
   "auralic": {

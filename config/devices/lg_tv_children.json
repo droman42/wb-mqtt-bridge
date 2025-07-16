@@ -2,7 +2,6 @@
   "device_name": "LG OLED55C6D",
   "device_id": "children_room_tv",
   "alias": "children_room_tv",
-
   "device_class": "LgTv",
   "config_class": "LgTvDeviceConfig",
   "tv": {
