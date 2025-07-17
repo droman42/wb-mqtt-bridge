@@ -1,332 +1,360 @@
-# Scenario System Enhancement: Role Interface Standardization
-*Version: 2025-01-03-draft*
+# Scenario System Enhancement: WB Virtual Device Integration
+*Version: 2025-01-03-basedevice-pattern*
 
 ---
 
 ## 1 Problem Statement
 
-The current scenario system provides **device aggregation** but lacks **command interface abstraction**. This creates several issues:
+The current scenario system provides excellent **device aggregation** and the existing `group` parameter already provides good functional categorization. However, scenarios are only accessible via REST API, limiting their integration with the Wirenboard ecosystem.
 
 ### Current Limitations
-- **Device-Specific UI Logic**: UI clients must know individual device command interfaces
-- **Incomplete Role Abstraction**: Roles identify devices but don't standardize interfaces
-- **Scenario Incompatibility**: Switching scenarios may break UI functionality
-- **Command Fragmentation**: Same logical action requires different commands across devices
+- **No MQTT Interface**: Scenarios cannot be controlled via MQTT
+- **WB UI Gap**: Scenarios don't appear in Wirenboard web interface
+- **Client Complexity**: REST clients need to understand which device fills which role for each scenario
 
-### Example Problem
-```json
-// LD Player scenario - UI must use:
-{"role": "playback", "command": "play", "params": {}}
-
-// VHS Player scenario - UI must use: 
-{"role": "playback", "command": "play_pause_toggle", "params": {}}
-```
-
-**Same role, different commands → UI complexity increases**
+### What Works Well ✅
+- **Scenario Architecture**: One `Scenario` class + multiple JSON configs (already aligned with requirements)
+- **Device Configs**: Already well-structured with good group categorization
+- **Parameter Handling**: `BaseDevice` handles type conversion, validation, defaults at runtime
+- **WB Device Pattern**: Already implemented and proven in `BaseDevice` class (PR #1)
 
 ---
 
-## 2 Solution Strategy: Role Interface Standardization
+## 2 Proposed Solution: Apply BaseDevice WB Pattern to Scenarios
 
-### 2.1 Core Concept
-Transform scenarios from **"device locators"** into **"capability abstractors"** by adding a command translation layer between role interfaces and device implementations.
+Extend `ScenarioManager` to implement the same **WB virtual device pattern** used by `BaseDevice`, creating virtual devices for scenarios that expose standardized group-based controls.
 
-### 2.2 Architecture Components
-
-#### A. Standard Role Command Interfaces
-Define canonical command sets for each role type:
-
-| Role Type | Standard Commands | Parameters |
-|-----------|------------------|------------|
-| **playback** | `play`, `pause`, `stop`, `next`, `previous`, `seek` | `position` (seconds) |
-| **volume_control** | `set_level`, `mute`, `unmute`, `volume_up`, `volume_down` | `level` (0-100) |
-| **screen** | `set_input`, `set_aspect_ratio`, `set_brightness` | `input`, `ratio`, `brightness` |
-| **lighting** | `set_brightness`, `set_color`, `on`, `off` | `brightness` (0-100), `color` (hex) |
-| **source_control** | `set_input`, `next_input`, `previous_input` | `input` (string) |
-
-#### B. Device Capability Registration
-Extend device definitions with role command mappings:
-
-```json
-{
-  "device_id": "ld_player",
-  "role_capabilities": {
-    "playback": {
-      "command_mappings": {
-        "play": {"device_command": "play", "params": {}},
-        "pause": {"device_command": "pause", "params": {}},
-        "stop": {"device_command": "stop", "params": {}},
-        "seek": {"device_command": "seek_to", "params": {"position": "position"}}
-      }
-    }
-  }
-}
+### Core Concept
+```
+/devices/movie_ld/controls/playback_play/on        → scenario.execute_role_action("playback", "play")
+/devices/movie_ld/controls/playbook_pause/on       → scenario.execute_role_action("playbook", "pause")
+/devices/movie_ld/controls/volume_set_level/on     → scenario.execute_role_action("volume", "set_volume", {"level": payload})
+/devices/movie_ld/controls/volume_mute/on          → scenario.execute_role_action("volume", "mute")
 ```
 
-```json
-{
-  "device_id": "vhs_player", 
-  "role_capabilities": {
-    "playback": {
-      "command_mappings": {
-        "play": {"device_command": "play_pause_toggle", "requires_state": "paused"},
-        "pause": {"device_command": "play_pause_toggle", "requires_state": "playing"},
-        "stop": {"device_command": "stop", "params": {}}
-      }
-    }
-  }
-}
-```
-
-#### C. Command Translation Layer
-Add translation mechanism in scenario execution:
-1. **Standard Interface Lookup**: Check if device supports standard role command
-2. **Parameter Transformation**: Convert standard parameters to device-specific format
-3. **State-Aware Translation**: Handle toggle commands requiring current state
-4. **Fallback to Direct**: Use original command if no translation exists
-
-#### D. Enhanced Role Definitions
-Scenarios define roles with interface contracts:
-
-```json
-{
-  "roles": {
-    "playback": {
-      "device_id": "ld_player",
-      "interface": "standard_playback_v1",
-      "custom_mappings": {
-        "seek": {"device_command": "jump_to_chapter", "params": {"chapter": "position"}}
-      }
-    }
-  }
-}
-```
+Each active scenario becomes a WB virtual device with **role-prefixed controls** that route to `scenario.execute_role_action()`.
 
 ---
 
-## 3 Implementation Phases
+## 3 Implementation: Follow BaseDevice WB Pattern
 
-### Phase 1: Foundation (Week 1-2)
-**Goal**: Establish basic translation infrastructure
+### 3.1 BaseDevice Pattern Analysis ✅
 
-#### Tasks:
-1. **Define Standard Interfaces**
-   - Create `role_interfaces.json` with canonical command definitions
-   - Start with `playback` and `volume_control` roles
-   - Document parameter formats and validation rules
-
-2. **Extend Device Models**
-   - Add `role_capabilities` field to device configurations
-   - Create Pydantic models for command mappings
-   - Implement basic validation
-
-3. **Command Translation Engine**
-   - Add `RoleCommandTranslator` class
-   - Implement direct mapping (1:1 command translation)
-   - Add fallback to existing direct command execution
-
-#### Success Criteria:
-- LD Player and VHS Player both respond to standard `play` command
-- Existing direct commands continue to work
-- Translation layer has comprehensive logging
-
-### Phase 2: State-Aware Translation (Week 3)
-**Goal**: Handle complex command mappings requiring device state
-
-#### Tasks:
-1. **State-Aware Mappings**
-   - Implement `requires_state` condition evaluation
-   - Add device state querying before command execution
-   - Handle toggle commands intelligently
-
-2. **Parameter Transformation**
-   - Add parameter mapping and validation
-   - Implement range conversions (e.g., volume 0-100 → device range)
-   - Add parameter defaults and constraints
-
-3. **Error Handling Enhancement**
-   - Add translation-specific error types
-   - Implement retry logic for state-dependent commands
-   - Provide clear error messages for unsupported operations
-
-#### Success Criteria:
-- VHS Player `play` command works correctly regardless of current state
-- Volume control works consistently across different amplifier ranges
-- Clear error messages when translations fail
-
-### Phase 3: Advanced Features (Week 4)
-**Goal**: Complete the abstraction with advanced capabilities
-
-#### Tasks:
-1. **Scenario-Level Overrides**
-   - Allow scenarios to define custom command mappings
-   - Implement inheritance from device defaults
-   - Add scenario-specific parameter transformations
-
-2. **Multi-Device Roles**
-   - Support roles that coordinate multiple devices
-   - Implement broadcast commands (e.g., `all_lights.off`)
-   - Add conditional execution based on device states
-
-3. **Runtime Capability Discovery**
-   - Add API endpoint to query available role commands
-   - Implement dynamic interface negotiation
-   - Provide capability metadata to UI clients
-
-#### Success Criteria:
-- UI can query available commands for any role
-- Scenarios can override default device mappings
-- Multi-device coordination works reliably
-
-### Phase 4: Integration & Polish (Week 5)
-**Goal**: Complete integration with existing system
-
-#### Tasks:
-1. **API Enhancement**
-   - Add `/scenario/role/{role}/capabilities` endpoint
-   - Enhance existing endpoints with translation support
-   - Add translation debugging endpoints
-
-2. **Documentation & Testing**
-   - Complete API documentation
-   - Add comprehensive unit tests
-   - Create integration test scenarios
-
-3. **Migration Tools**
-   - Create tools to migrate existing device configs
-   - Add validation for role capability definitions
-   - Implement configuration upgrade scripts
-
-#### Success Criteria:
-- All existing scenarios work without modification
-- New role interface system is fully documented
-- Migration path is clear and automated
-
----
-
-## 4 Technical Specifications
-
-### 4.1 Role Interface Definition Format
-```json
-{
-  "interface_id": "standard_playback_v1",
-  "version": "1.0.0",
-  "commands": {
-    "play": {
-      "description": "Start playback",
-      "parameters": {},
-      "returns": {"status": "string"}
-    },
-    "pause": {
-      "description": "Pause playback",
-      "parameters": {},
-      "returns": {"status": "string"}
-    },
-    "seek": {
-      "description": "Seek to position",
-      "parameters": {
-        "position": {"type": "integer", "min": 0, "description": "Position in seconds"}
-      },
-      "returns": {"new_position": "integer"}
-    }
-  }
-}
-```
-
-### 4.2 Device Capability Mapping Format
-```json
-{
-  "device_id": "example_device",
-  "role_capabilities": {
-    "playback": {
-      "interface_version": "standard_playback_v1", 
-      "command_mappings": {
-        "play": {
-          "device_command": "start_playback",
-          "parameter_mappings": {},
-          "requires_state": null,
-          "pre_conditions": [],
-          "post_actions": []
-        }
-      }
-    }
-  }
-}
-```
-
-### 4.3 Translation Algorithm
+**Current BaseDevice WB Implementation:**
 ```python
-async def execute_role_action(self, role: str, command: str, **params):
-    # 1. Get device for role
-    device_id = self.get_device_for_role(role)
-    device = self.device_manager.get_device(device_id)
+# 1. Virtual Device Generation
+BaseDevice._setup_wb_virtual_device()
+├── _publish_wb_device_meta()           # /devices/{device_id}/meta
+├── _publish_wb_control_metas()         # /devices/{device_id}/controls/{cmd_name}/meta
+└── _setup_wb_last_will()              # Offline detection
+
+# 2. Topic Subscription  
+BaseDevice.subscribe_topics() → ["/devices/{device_id}/controls/{cmd_name}/on", ...]
+
+# 3. Command Handling
+BaseDevice.handle_message() 
+├── _is_wb_command_topic()              # Check /on suffix
+├── _handle_wb_command()                # Parse topic → cmd_name
+├── _process_wb_command_payload()       # payload → params
+└── _execute_single_action()            # Execute handler
+```
+
+### 3.2 Apply Pattern to ScenarioManager
+
+**Add to ScenarioManager class:**
+
+#### Step 1: WB Virtual Device Generation
+```python
+async def _setup_wb_virtual_device_for_scenario(self, scenario: Scenario):
+    """Set up WB virtual device for active scenario (mirrors BaseDevice pattern)."""
+    # Publish scenario device metadata
+    await self._publish_scenario_wb_device_meta(scenario)
     
-    # 2. Check for standard interface translation
-    translator = self.role_translator
-    if translator.has_mapping(device_id, role, command):
-        translated = await translator.translate_command(device, role, command, params)
-        return await device.execute_command(translated.command, translated.params)
+    # Generate controls based on scenario roles and available device commands
+    await self._publish_scenario_wb_control_metas(scenario)
     
-    # 3. Fallback to direct command
-    return await device.execute_command(command, params)
+    # Setup Last Will Testament for scenario offline detection
+    await self._setup_scenario_wb_last_will(scenario)
+
+async def _publish_scenario_wb_device_meta(self, scenario: Scenario):
+    """Publish WB device metadata for scenario (mirrors BaseDevice._publish_wb_device_meta)."""
+    device_meta = {
+        "driver": "wb_mqtt_bridge_scenario",
+        "title": {"en": scenario.definition.name},
+        "type": "scenario"
+    }
+    
+    topic = f"/devices/{scenario.scenario_id}/meta"
+    await self.mqtt_client.publish(topic, json.dumps(device_meta), retain=True)
+
+async def _publish_scenario_wb_control_metas(self, scenario: Scenario):
+    """Generate and publish WB controls for scenario roles (mirrors BaseDevice._publish_wb_control_metas)."""
+    # For each role, analyze assigned device's available commands by group
+    for role, device_id in scenario.definition.roles.items():
+        device = self.device_manager.get_device(device_id)
+        if not device:
+            continue
+            
+        # Get device commands grouped by the role's functional area
+        role_commands = self._get_role_commands_for_device(device, role)
+        
+        for command_name, command_config in role_commands.items():
+            control_name = f"{role}_{command_name}"  # e.g., "playback_play", "volume_set_level"
+            
+            # Generate control metadata (mirrors BaseDevice._generate_wb_control_meta_from_config)
+            control_meta = self._generate_scenario_control_meta(role, command_name, command_config)
+            
+            # Publish control metadata
+            meta_topic = f"/devices/{scenario.scenario_id}/controls/{control_name}/meta"
+            await self.mqtt_client.publish(meta_topic, json.dumps(control_meta), retain=True)
+            
+            # Publish initial control state
+            initial_state = self._get_initial_scenario_control_state(command_config)
+            state_topic = f"/devices/{scenario.scenario_id}/controls/{control_name}"
+            await self.mqtt_client.publish(state_topic, str(initial_state), retain=True)
+```
+
+#### Step 2: Topic Subscription (Add to ScenarioManager)
+```python
+def subscribe_scenario_topics(self) -> List[str]:
+    """Get MQTT topics for active scenario WB controls (mirrors BaseDevice.subscribe_topics)."""
+    if not self.current_scenario:
+        return []
+        
+    topics = []
+    scenario = self.current_scenario
+    
+    # Subscribe to WB command topics for all scenario controls
+    for role, device_id in scenario.definition.roles.items():
+        device = self.device_manager.get_device(device_id)
+        if not device:
+            continue
+            
+        role_commands = self._get_role_commands_for_device(device, role)
+        for command_name in role_commands.keys():
+            control_name = f"{role}_{command_name}"
+            command_topic = f"/devices/{scenario.scenario_id}/controls/{control_name}/on"
+            topics.append(command_topic)
+    
+    return topics
+
+async def handle_scenario_message(self, topic: str, payload: str):
+    """Handle MQTT messages for scenario WB controls (mirrors BaseDevice.handle_message)."""
+    if not self.current_scenario:
+        return
+        
+    # Check if this is a scenario WB command topic (mirrors BaseDevice._is_wb_command_topic)
+    if self._is_scenario_wb_command_topic(topic):
+        await self._handle_scenario_wb_command(topic, payload)
+
+def _is_scenario_wb_command_topic(self, topic: str) -> bool:
+    """Check if topic is a scenario WB command topic (mirrors BaseDevice._is_wb_command_topic)."""
+    if not self.current_scenario:
+        return False
+    pattern = f"/devices/{re.escape(self.current_scenario.scenario_id)}/controls/(.+)/on"
+    return bool(re.match(pattern, topic))
+
+async def _handle_scenario_wb_command(self, topic: str, payload: str):
+    """Handle scenario WB command (mirrors BaseDevice._handle_wb_command)."""
+    # Extract control name from topic: "role_command"
+    match = re.match(f"/devices/{re.escape(self.current_scenario.scenario_id)}/controls/(.+)/on", topic)
+    if not match:
+        return
+        
+    control_name = match.group(1)  # e.g., "playback_play", "volume_set_level"
+    
+    # Parse role and command from control name
+    if "_" not in control_name:
+        logger.warning(f"Invalid scenario control name format: {control_name}")
+        return
+        
+    role, command = control_name.split("_", 1)
+    
+    # Process parameters from payload (mirrors BaseDevice._process_wb_command_payload_from_config)
+    params = self._process_scenario_wb_command_payload(role, command, payload)
+    
+    # Execute role action using existing scenario system
+    try:
+        await self.execute_role_action(role, command, params)
+        
+        # Update WB control state (mirrors BaseDevice._update_wb_control_state)
+        await self._update_scenario_wb_control_state(control_name, payload)
+    except Exception as e:
+        logger.error(f"Error executing scenario role action {role}.{command}: {str(e)}")
+```
+
+#### Step 3: Helper Methods (Role Command Discovery)
+```python
+def _get_role_commands_for_device(self, device: BaseDevice, role: str) -> Dict[str, Any]:
+    """Get commands from device that match the role's functional area."""
+    available_commands = device.get_available_commands()
+    role_commands = {}
+    
+    # Map role to expected command groups (leverages existing group system)
+    role_group_mapping = {
+        "playback": ["playback"],
+        "volume": ["volume"], 
+        "power": ["power"],
+        "inputs": ["inputs", "apps"],
+        "menu": ["menu", "navigation"],
+        "display": ["screen", "display"]
+    }
+    
+    expected_groups = role_group_mapping.get(role, [role])  # Fallback to role name as group
+    
+    for cmd_name, cmd_config in available_commands.items():
+        if hasattr(cmd_config, 'group') and cmd_config.group in expected_groups:
+            role_commands[cmd_name] = cmd_config
+    
+    return role_commands
+
+def _generate_scenario_control_meta(self, role: str, command: str, command_config) -> Dict[str, Any]:
+    """Generate WB control metadata for scenario control (mirrors BaseDevice._generate_wb_control_meta_from_config)."""
+    # Use BaseDevice control type detection logic
+    control_type = "pushbutton"  # Default
+    
+    if hasattr(command_config, 'group') and command_config.group:
+        if command_config.group == "volume" and command in ["set_volume", "set_level"]:
+            control_type = "range"
+        elif command_config.group == "volume" and command in ["mute"]:
+            control_type = "switch"
+        # Add more group-based type detection as needed
+    
+    meta = {
+        "title": {"en": f"{role.title()} {command.replace('_', ' ').title()}"},
+        "type": control_type,
+        "readonly": False,
+        "order": self._get_scenario_control_order(role, command)
+    }
+    
+    # Add parameter metadata for range controls
+    if control_type == "range" and hasattr(command_config, 'params'):
+        first_param = command_config.params[0] if command_config.params else None
+        if first_param:
+            if hasattr(first_param, 'min'):
+                meta["min"] = first_param.min
+            if hasattr(first_param, 'max'):
+                meta["max"] = first_param.max
+    
+    return meta
+
+def _process_scenario_wb_command_payload(self, role: str, command: str, payload: str) -> Dict[str, Any]:
+    """Process scenario WB command payload into parameters (mirrors BaseDevice._process_wb_command_payload)."""
+    params = {}
+    
+    # For range controls, payload is the value
+    if command in ["set_volume", "set_level", "set_brightness"]:
+        try:
+            value = float(payload)
+            # Map to appropriate parameter based on command
+            if "volume" in command:
+                params["level"] = int(value)  # Volume typically integer
+            else:
+                params["value"] = value
+        except ValueError:
+            params["value"] = payload
+    
+    return params
+```
+
+### 3.3 Integration Points
+
+#### Step 4: MQTT Client Integration (Modify existing MQTT setup)
+```python
+# In main.py or wherever MQTT subscriptions are handled
+# Add scenario topic subscriptions alongside device topics
+
+async def setup_mqtt_subscriptions():
+    # Existing device subscriptions
+    for device in device_manager.devices.values():
+        topics = device.subscribe_topics()
+        for topic in topics:
+            await mqtt_client.subscribe(topic, device.handle_message)
+    
+    # NEW: Add scenario subscriptions  
+    scenario_topics = scenario_manager.subscribe_scenario_topics()
+    for topic in scenario_topics:
+        await mqtt_client.subscribe(topic, scenario_manager.handle_scenario_message)
+```
+
+#### Step 5: Scenario Lifecycle Integration (Modify ScenarioManager.switch_scenario)
+```python
+async def switch_scenario(self, target_id: str, *, graceful: bool = True) -> Dict[str, Any]:
+    # ... existing scenario switch logic ...
+    
+    # NEW: Clean up WB virtual device for previous scenario
+    if self.current_scenario:
+        await self._cleanup_scenario_wb_device(self.current_scenario)
+    
+    # ... switch to new scenario ...
+    
+    # NEW: Set up WB virtual device for new scenario
+    self.current_scenario = incoming
+    await self._setup_wb_virtual_device_for_scenario(self.current_scenario)
+    
+    # NEW: Update MQTT subscriptions for new scenario
+    await self._update_scenario_mqtt_subscriptions()
+    
+    # ... rest of existing logic ...
 ```
 
 ---
 
-## 5 Backward Compatibility
+## 4 Implementation Plan
 
-### 5.1 Compatibility Strategy
-- **Graceful Degradation**: Unmapped commands fall back to direct execution
-- **Progressive Enhancement**: Devices can be migrated incrementally
-- **Explicit Override**: Scenarios can force direct command execution
+### Phase 1: Core WB Virtual Device Generation
+1. **Add WB device methods to ScenarioManager** following BaseDevice pattern
+2. **Implement role command discovery** using existing device group system
+3. **Generate WB controls** for role + command combinations
 
-### 5.2 Migration Path
-1. **Phase 1**: Add role capability definitions to new devices
-2. **Phase 2**: Migrate existing device configs with tooling
-3. **Phase 3**: Update UI to use standard interfaces
-4. **Phase 4**: Deprecate direct command usage (optional)
+### Phase 2: MQTT Integration  
+1. **Add scenario topic subscription** alongside device topics
+2. **Route scenario MQTT messages** to ScenarioManager.handle_scenario_message()
+3. **Parse and execute role actions** from WB command topics
 
----
+### Phase 3: Lifecycle Integration
+1. **WB device generation** when scenario becomes active
+2. **WB device cleanup** when scenario switches
+3. **MQTT subscription updates** during scenario transitions
 
-## 6 Benefits Analysis
-
-### 6.1 For UI Developers
-- **Simplified Logic**: Same commands work across all scenarios
-- **Reduced Complexity**: No device-specific conditional logic needed
-- **Better UX**: Consistent behavior regardless of active scenario
-- **Future-Proof**: Adding new devices doesn't break existing UI
-
-### 6.2 For System Administrators  
-- **Device Flexibility**: Swap devices without reconfiguring UI
-- **Easier Testing**: Standard interfaces enable automated testing
-- **Better Documentation**: Clear contracts for each role
-- **Reduced Support**: Fewer device-specific issues
-
-### 6.3 For System Architecture
-- **True Abstraction**: Scenarios become genuine capability aggregators
-- **Cleaner APIs**: Standard interfaces reduce API surface complexity
-- **Better Testability**: Mock standard interfaces for testing
-- **Extensibility**: Easy to add new role types and capabilities
+### Phase 4: State Synchronization
+1. **Sync scenario control states** based on underlying device states
+2. **Handle parameter mapping** between WB controls and device commands
+3. **Update control states** after role actions
 
 ---
 
-## 7 Open Questions
+## 5 Benefits
 
-1. **Versioning Strategy**: How do we handle interface evolution over time?
-2. **Performance Impact**: What's the overhead of translation layer?
-3. **Complex Mappings**: How do we handle commands requiring multiple device calls?
-4. **State Synchronization**: How do we handle state consistency across role abstractions?
-5. **Error Recovery**: What happens when translation fails mid-execution?
+### ✅ **Proven Pattern**
+- Reuses the exact BaseDevice WB pattern that's already working
+- No new concepts - just applying existing proven implementation
+
+### ✅ **Minimal Changes**
+- No device config changes required
+- Builds on existing scenario architecture
+- Leverages existing role system and group categorization
+
+### ✅ **Integration**
+- Scenarios appear natively in WB UI
+- MQTT control interface for scenarios  
+- Consistent with individual device patterns
+
+### ✅ **Maintainability**
+- Same patterns developers already understand
+- Clear separation of concerns
+- Reuses existing parameter handling and validation
 
 ---
 
-## 8 Next Steps
+## 6 Next Steps
 
-1. **Review and Approve**: Get stakeholder approval for approach
-2. **Detailed Design**: Create detailed technical specifications for Phase 1
-3. **Prototype Development**: Build proof-of-concept for playback role
-4. **Testing Strategy**: Define test cases and validation criteria
-5. **Implementation Planning**: Create detailed sprint plans for each phase
+1. **Implement ScenarioManager WB methods** following BaseDevice pattern exactly
+2. **Add scenario MQTT subscription** to existing MQTT setup
+3. **Integrate with scenario lifecycle** for WB device generation/cleanup
+4. **Test role-based controls** work correctly through WB interface
+
+This approach provides scenario MQTT/WB integration by applying the proven BaseDevice pattern, ensuring consistency and maintainability while enabling scenarios to appear natively in the Wirenboard ecosystem.
 
 ---
 *© 2025 – droman42 / contributors* 
