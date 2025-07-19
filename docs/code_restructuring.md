@@ -20,6 +20,9 @@ src/wb_mqtt_bridge/
 ├─ __init__.py
 ├─ __version__.py
 ├─ app/                  # application bootstrap (FastAPI instance)
+├─ cli/                  # command-line utilities
+│   ├─ mqtt_sniffer.py
+│   └─ device_test.py
 ├─ domain/               # pure business logic (no I/O)
 │   ├─ devices/
 │   ├─ scenarios/
@@ -58,10 +61,69 @@ flowchart LR
 | `app/schemas.py` (API‐facing) | `presentation/api/schemas.py` | Split internal vs HTTP models. |
 | `app/schemas.py` (domain models) | `domain/*/models.py` | Move intact. |
 | `app/main.py` | `wb_mqtt_bridge/app/main.py` | Remains the FastAPI entry-point; adjust imports & wiring. |
+| `mqtt_sniffer.py` | `cli/mqtt_sniffer.py` | Move unchanged; expose via `mqtt-sniffer` console script. |
+| `device_test_cli.py` | `cli/device_test.py` | Move unchanged; expose via `device-test` console script. |
 
 ---
 
-## 4. Migration Checklist
+## 4. Phased Rollout Schedule
+
+### Phase 1 — Skeleton & Packaging
+* Create the `src/` package layout and update `pyproject.toml` (`tool.setuptools.package-dir = {"" = "src"}`).
+* Move stateless helpers (`serialization_utils.py`, `class_loader.py`, etc.) to `wb_mqtt_bridge/utils`.
+* Run `ruff --fix` to rewrite import paths.
+
+**Exit criteria:** All tests pass from the new package root.
+
+### Phase 2 — CLI Relocation
+* Add `src/wb_mqtt_bridge/cli/`.
+* Move `mqtt_sniffer.py` → `cli/mqtt_sniffer.py` and `device_test_cli.py` → `cli/device_test.py`.
+* Expose both via `console_scripts` in `pyproject.toml`:
+  ```toml
+  [project.scripts]
+  mqtt-sniffer = "wb_mqtt_bridge.cli.mqtt_sniffer:main"
+  device-test  = "wb_mqtt_bridge.cli.device_test:main"
+  ```
+* Replace `if __name__ == "__main__":` blocks with a `main()` entry point where needed.
+
+**Exit criteria:** Commands run after `pip install -e .`; tests remain green.
+
+### Phase 3 — Ports Definition
+* Introduce `domain/ports.py` containing ABCs (e.g., `MessageBusPort`, `DeviceBusPort`, `StateRepositoryPort`).
+
+**Exit criteria:** Static analysis succeeds; no runtime usage yet.
+
+### Phase 4 — Domain Service Extraction
+* Refactor `DeviceManager`, `ScenarioManager`, `RoomManager`, etc., to receive ports via constructor.
+* Move those managers and core models into `domain/*/` sub-packages.
+* Add temporary shim modules that re-export classes from old paths to ease transition.
+
+**Exit criteria:** Managers live in `domain/*`; shims pass tests with only deprecation warnings.
+
+### Phase 5 — Adapters & Device Drivers
+* Move concrete drivers from `devices/` to `infrastructure/devices/*/driver.py`.
+* Implement MQTT and persistence adapters under `infrastructure/mqtt/` and `infrastructure/persistence/`.
+* Register drivers via entry-points (`[project.entry-points."wb_mqtt_bridge.devices"]`).
+
+**Exit criteria:** Device & MQTT integration tests pass.
+
+### Phase 6 — Presentation Layer Split
+* Move FastAPI routers to `presentation/api/routers/*`.
+* Split `schemas.py` into HTTP DTOs (`presentation/api/schemas.py`) and pure domain models (`domain/*/models.py`).
+* Wire dependencies in `app/__init__.py`.
+
+**Exit criteria:** `uvicorn wb_mqtt_bridge.app:app` serves all endpoints; tests pass.
+
+### Phase 7 — Cleanup & CI Hardening
+* Remove temporary shims, run `ruff --fix` and static type checks.
+* Update docs, Dockerfile, CI, and examples.
+* Tag a release candidate and publish migration guide.
+
+**Exit criteria:** No shims remain; green CI; migration guide published.
+
+---
+
+## 5. Migration Checklist
 ```mermaid
 graph TD
     A[Create src/ skeleton] --> B[git mv utils + stateless helpers]
@@ -83,14 +145,15 @@ graph TD
    [project.entry-points."wb_mqtt_bridge.devices"]
    lg_tv = "wb_mqtt_bridge.infrastructure.devices.lg_tv.driver:LgTv"
    ```
-6. **Split `schemas.py`** – keep pure models in domain; move HTTP DTOs to presentation.
-7. **Bootstrap wiring** in `app/__init__.py`: instantiate adapters, inject into services, expose FastAPI app.
-8. **Update tests / CI** to import from `wb_mqtt_bridge.*` packages only.
-9. **Run full test suite**; ensure behaviour parity.
+6. **Move CLI utilities** (`mqtt_sniffer.py`, `device_test_cli.py`) under `cli/` and add corresponding `console_scripts` in `pyproject.toml`.
+7. **Split `schemas.py`** – keep pure models in domain; move HTTP DTOs to presentation.
+8. **Bootstrap wiring** in `app/__init__.py`: instantiate adapters, inject into services, expose FastAPI app.
+9. **Update tests / CI** to import from `wb_mqtt_bridge.*` packages only.
+10. **Run full test suite**; ensure behaviour parity.
 
 ---
 
-## 5. Effort & Timeline
+## 6. Effort & Timeline
 | Task | Effort |
 | --- | --- |
 | File moves & import rewrites | 2–3 days |
@@ -101,7 +164,7 @@ graph TD
 
 ---
 
-## 6. FAQs
+## 7. FAQs
 **Q 1:** *Do we rewrite algorithms?*  
 **A:** No. Logic stays untouched; only module boundaries change.
 
