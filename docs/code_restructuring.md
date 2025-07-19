@@ -66,60 +66,172 @@ flowchart LR
 
 ---
 
-## 4. Phased Rollout Schedule
+## 4. Step-by-Step Migration Plan (no shims)
 
-### Phase 1 — Skeleton & Packaging
-* Create the `src/` package layout and update `pyproject.toml` (`tool.setuptools.package-dir = {"" = "src"}`).
-* Move stateless helpers (`serialization_utils.py`, `class_loader.py`, etc.) to `wb_mqtt_bridge/utils`.
-* Run `ruff --fix` to rewrite import paths.
+Below is a lean "one-way-door" migration path that takes us from today's mixed layout to the new domain-centric structure **without ever introducing shim/compat modules**. Each step ends with a green test suite so we always have a stable baseline.
 
-**Exit criteria:** All tests pass from the new package root.
+**Legend**  
+• 🔄 = automated mass-rewrite (`ruff --fix`, `sed`, etc.)  
+• ✅ = run full `pytest -q` before moving on
 
-### Phase 2 — CLI Relocation
-* Add `src/wb_mqtt_bridge/cli/`.
-* Move `mqtt_sniffer.py` → `cli/mqtt_sniffer.py` and `device_test_cli.py` → `cli/device_test.py`.
-* Expose both via `console_scripts` in `pyproject.toml`:
-  ```toml
-  [project.scripts]
-  mqtt-sniffer = "wb_mqtt_bridge.cli.mqtt_sniffer:main"
-  device-test  = "wb_mqtt_bridge.cli.device_test:main"
-  ```
-* Replace `if __name__ == "__main__":` blocks with a `main()` entry point where needed.
+---
 
-**Exit criteria:** Commands run after `pip install -e .`; tests remain green.
+### Step-by-Step Outline
 
-### Phase 3 — Ports Definition
-* Introduce `domain/ports.py` containing ABCs (e.g., `MessageBusPort`, `DeviceBusPort`, `StateRepositoryPort`).
+1. **Prepare the workspace**  
+   1.1 Create and checkout `feature/ddd-migration`  
+   1.2 Freeze current requirements in `requirements-lock.txt`  
+   1.3 Enable strict CI (tests + ruff + mypy) ✅  
 
-**Exit criteria:** Static analysis succeeds; no runtime usage yet.
+2. **Create the canonical package root (`src/`)**  
+   - `mkdir -p src/wb_mqtt_bridge`  
+   - `git mv app/__init__.py src/wb_mqtt_bridge/__init__.py`  
+   - `git mv app/__version__.py src/wb_mqtt_bridge/__version__.py`  
+   - Update `pyproject.toml`:
 
-### Phase 4 — Domain Service Extraction
-* Refactor `DeviceManager`, `ScenarioManager`, `RoomManager`, etc., to receive ports via constructor.
-* Move those managers and core models into `domain/*/` sub-packages.
-* Add temporary shim modules that re-export classes from old paths to ease transition.
+     ```toml
+     [tool.setuptools]
+     package-dir = { "" = "src" }
+     ```
 
-**Exit criteria:** Managers live in `domain/*`; shims pass tests with only deprecation warnings.
+   ✅ Imports still resolve.
 
-### Phase 5 — Adapters & Device Drivers
-* Move concrete drivers from `devices/` to `infrastructure/devices/*/driver.py`.
-* Implement MQTT and persistence adapters under `infrastructure/mqtt/` and `infrastructure/persistence/`.
-* Register drivers via entry-points (`[project.entry-points."wb_mqtt_bridge.devices"]`).
+3. **Move stateless helpers**  
+   - `mkdir -p src/wb_mqtt_bridge/utils`  
+   - `git mv app/{serialization_utils.py,class_loader.py,types.py,validation.py} src/wb_mqtt_bridge/utils/`  
+   - 🔄  Run `ruff --fix` to rewrite imports  
+   ✅ Tests green.
 
-**Exit criteria:** Device & MQTT integration tests pass.
+4. **Create empty target skeleton**
 
-### Phase 6 — Presentation Layer Split
-* Move FastAPI routers to `presentation/api/routers/*`.
-* Split `schemas.py` into HTTP DTOs (`presentation/api/schemas.py`) and pure domain models (`domain/*/models.py`).
-* Wire dependencies in `app/__init__.py`.
+   ```bash
+   mkdir -p src/wb_mqtt_bridge/{domain,infrastructure/{mqtt,persistence,devices},presentation/api,cli,app}
+   ```
 
-**Exit criteria:** `uvicorn wb_mqtt_bridge.app:app` serves all endpoints; tests pass.
+5. **Relocate CLI utilities**  
+   - `git mv mqtt_sniffer.py src/wb_mqtt_bridge/cli/mqtt_sniffer.py`  
+   - `git mv device_test_cli.py src/wb_mqtt_bridge/cli/device_test.py`  
+   - `git mv broadlink_cli.py src/wb_mqtt_bridge/cli/broadlink_cli.py`  
+   - `git mv broadlink_discovery.py src/wb_mqtt_bridge/cli/broadlink_discovery.py`  
+   - Register via `console_scripts` in `pyproject.toml`  
+   - Replace `if __name__ == "__main__":` with `def main() -> None:`  
+   ✅ `mqtt-sniffer --help` works.
 
-### Phase 7 — Cleanup & CI Hardening
-* Remove temporary shims, run `ruff --fix` and static type checks.
-* Update docs, Dockerfile, CI, and examples.
-* Tag a release candidate and publish migration guide.
+6. **Add abstract ports**  
+   - **Create** `src/wb_mqtt_bridge/domain/ports.py` defining three ABCs:  
+     | Port | Purpose | Implemented in | Used by (domain layer) | Key methods |
+     |------|---------|----------------|------------------------|-------------|
+     | `MessageBusPort` | Publish/subscribe to the external message bus (MQTT today) | `infrastructure/mqtt/client.MQTTClient` | `ScenarioManager`, `RoomManager`, future notification services | `publish(topic,payload,qos,retain)`, `subscribe(topic,callback)` |
+     | `DeviceBusPort`  | Low-level send/receive operations a **device driver** performs on its transport (MQTT, HTTP, Serial, etc.) | every file in `infrastructure/devices/*/driver.py` | Device drivers only | `send(command,params)`, `subscribe_topics()`, etc. |
+     | `StateRepositoryPort` | Persist & retrieve aggregate/device state | `infrastructure/persistence/sqlite.SQLiteStateStore` | `DeviceManager`, `ScenarioManager` | `load(id)`, `save(id,state)`, `bulk_save(states)` |
+   - The ABCs contain **no logic**—just `@abstractmethod` signatures and docstrings.  
+   ✅ Static analysis passes.
 
-**Exit criteria:** No shims remain; green CI; migration guide published.
+7. **Move domain managers & models**  
+   - For each manager (`DeviceManager`, `ScenarioManager`, `RoomManager`, etc.) **update the constructor** to receive the ports defined above instead of concrete classes.  
+   - Detailed moves:  
+     - `git mv app/device_manager.py src/wb_mqtt_bridge/domain/devices/service.py`  
+     - `git mv app/room_manager.py src/wb_mqtt_bridge/domain/rooms/service.py`  
+     - `git mv app/scenario_manager.py src/wb_mqtt_bridge/domain/scenarios/service.py`  
+     - `git mv app/scenario.py src/wb_mqtt_bridge/domain/scenarios/scenario.py`  
+     - `git mv app/scenario_models.py src/wb_mqtt_bridge/domain/scenarios/models.py`  
+     - Extract *domain* models from `app/schemas.py` → appropriate `domain/**/models.py`  
+   - **Logic changes:** replace direct imports/usage of `MQTTClient`, `SQLiteStateStore`, etc., with calls to the injected ports (`MessageBusPort`, `StateRepositoryPort`, etc.).  
+   - 🔄 Rewrite imports site-wide.  
+   ✅ Tests.
+
+8. **Relocate adapters & device drivers**  
+   - MQTT → `infrastructure/mqtt/client.MQTTClient`  
+   - Persistence → `infrastructure/persistence/sqlite.SQLiteStateStore`  
+   - `git mv app/mqtt_client.py src/wb_mqtt_bridge/infrastructure/mqtt/client.py`  
+   - `git mv app/state_store.py src/wb_mqtt_bridge/infrastructure/persistence/sqlite.py`  
+   - `git mv app/config_manager.py src/wb_mqtt_bridge/infrastructure/config/manager.py`  
+   - `git mv app/maintenance.py src/wb_mqtt_bridge/infrastructure/maintenance/wirenboard_guard.py`  
+   - Device drivers → `infrastructure/devices/<device>/driver.py`, implementing `DeviceBusPort`.  
+     - `git mv devices/base_device.py src/wb_mqtt_bridge/infrastructure/devices/base.py`  
+     - `git mv devices/lg_tv.py src/wb_mqtt_bridge/infrastructure/devices/lg_tv/driver.py`  
+     - `git mv devices/apple_tv_device.py src/wb_mqtt_bridge/infrastructure/devices/apple_tv/driver.py`  
+     - `git mv devices/auralic_device.py src/wb_mqtt_bridge/infrastructure/devices/auralic/driver.py`  
+     - `git mv devices/emotiva_xmc2.py src/wb_mqtt_bridge/infrastructure/devices/emotiva_xmc2/driver.py`  
+     - `git mv devices/broadlink_kitchen_hood.py src/wb_mqtt_bridge/infrastructure/devices/broadlink_kitchen_hood/driver.py`  
+     - `git mv devices/wirenboard_ir_device.py src/wb_mqtt_bridge/infrastructure/devices/wirenboard_ir_device/driver.py`  
+     - `git mv devices/revox_a77_reel_to_reel.py src/wb_mqtt_bridge/infrastructure/devices/revox_a77_reel_to_reel/driver.py`  
+   - `infrastructure/mqtt/client.MQTTClient` now **implements `MessageBusPort`** (add `class MQTTClient(MessageBusPort): ...`).  
+   - `infrastructure/persistence/sqlite.SQLiteStateStore` now **implements `StateRepositoryPort`**.  
+   - Each driver in `infrastructure/devices/*/driver.py` now subclasses both its concrete base (`BaseDevice`) **and** implements `DeviceBusPort`.  
+   - **Register drivers via entry-points** so that external plugins can auto-discover them:  
+     ```toml
+     [project.entry-points."wb_mqtt_bridge.devices"]
+     lg_tv          = "wb_mqtt_bridge.infrastructure.devices.lg_tv.driver:LgTv"
+     apple_tv       = "wb_mqtt_bridge.infrastructure.devices.apple_tv.driver:AppleTv"
+     auralic        = "wb_mqtt_bridge.infrastructure.devices.auralic.driver:Auralic"
+     emotiva_xmc2   = "wb_mqtt_bridge.infrastructure.devices.emotiva_xmc2.driver:EmotivaXmc2"
+     broadlink_hood = "wb_mqtt_bridge.infrastructure.devices.broadlink_kitchen_hood.driver:BroadlinkKitchenHood"
+     wirenboard_ir  = "wb_mqtt_bridge.infrastructure.devices.wirenboard_ir_device.driver:WirenboardIrDevice"
+     revox_a77      = "wb_mqtt_bridge.infrastructure.devices.revox_a77_reel_to_reel.driver:RevoxA77ReelToReel"
+     ```  
+   ✅ Device & MQTT tests.
+
+9. **Split presentation layer**  
+   - Move FastAPI routers to `presentation/api/routers`  
+   - Move HTTP DTOs to `presentation/api/schemas.py`; keep pure domain models in `domain/`  
+   - `git mv app/routers/*.py src/wb_mqtt_bridge/presentation/api/routers/`  
+   - `git mv app/sse_manager.py src/wb_mqtt_bridge/presentation/api/sse_manager.py`  
+   ✅ OpenAPI generation succeeds.
+
+10. **Bootstrap wiring** (`wb_mqtt_bridge/app`)  
+    - **Create** `src/wb_mqtt_bridge/app/bootstrap.py` containing `create_app() -> FastAPI` and the full `lifespan` context manager copied verbatim from today's `app/main.py` (plus CORS middleware & router includes).  
+    - **Export point:** `src/wb_mqtt_bridge/app/__init__.py` does only:  
+      ```python
+      from .bootstrap import create_app
+      app = create_app()
+      ```  
+    - **Thin launcher:** `src/wb_mqtt_bridge/app/main.py` keeps just:  
+      ```python
+      def main() -> None:
+          import uvicorn
+          uvicorn.run("wb_mqtt_bridge.app:app", host="0.0.0.0", port=8000, reload=False)
+
+      if __name__ == "__main__":
+          main()
+      ```  
+    - **Console-script (optional):** add  
+      ```toml
+      [project.scripts]
+      wb-api = "wb_mqtt_bridge.app.main:main"
+      ```  
+    - **Remove** legacy startup logic from the old `app/main.py` once migrated.  
+    ✅ `uvicorn wb_mqtt_bridge.app:app --reload` boots and CLI `wb-api` starts the server.
+
+11. **Global cleanup**  
+    - Remove old `app/` & `devices/` dirs  
+    - 🔄 `ruff --fix`, `mypy`, docs update  
+    ✅ CI green.
+
+12. **Merge & release**  
+    - PR review → squash merge → tag `vNEXT-domain-architecture`  
+    - Publish wheel & Docker images.
+
+---
+
+**Indicative timeline**
+
+| Day | Steps |
+|-----|-------|
+| 1   | 1-3 |
+| 2   | 4-6 |
+| 3-4 | 7-8 |
+| 5   | 9-10 |
+| 6   | 11 |
+| 7   | 12 |
+
+Total: ~7 focused dev-days.
+
+---
+
+**Why no shims?**
+
+We never import from old paths after a file moves; imports are rewritten in the same commit and verified by tests.
 
 ---
 
@@ -147,7 +259,7 @@ graph TD
    ```
 6. **Move CLI utilities** (`mqtt_sniffer.py`, `device_test_cli.py`) under `cli/` and add corresponding `console_scripts` in `pyproject.toml`.
 7. **Split `schemas.py`** – keep pure models in domain; move HTTP DTOs to presentation.
-8. **Bootstrap wiring** in `app/__init__.py`: instantiate adapters, inject into services, expose FastAPI app.
+8. **Bootstrap wiring** in `app/__init__.py`.
 9. **Update tests / CI** to import from `wb_mqtt_bridge.*` packages only.
 10. **Run full test suite**; ensure behaviour parity.
 
