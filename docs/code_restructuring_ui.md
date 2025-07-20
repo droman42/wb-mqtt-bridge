@@ -1,22 +1,26 @@
-# UI Integration Plan after Backend Restructuring  
-*Option 2 – consume `wb-mqtt-bridge` as an installable package*
+# UI Integration Guide for Domain-Centric Backend
+*Consuming `wb-mqtt-bridge` as an installable package*
 
-> This document explains how the **wb-mqtt-ui** build workflow will work once _wb-mqtt-bridge_ is reorganised into a proper Python package (`src/wb_mqtt_bridge`).  It captures CI examples, local-dev steps and required code changes so the team can revisit at any time.
+> This document explains how **wb-mqtt-ui** integrates with the restructured _wb-mqtt-bridge_ backend, which is now organized as a proper Python package (`src/wb_mqtt_bridge`) with domain-centric architecture.
 
 ---
 
-## 1. Concept in a Nutshell
-1. **Package not path** – the UI generator imports Python classes via
+## 1. Current Implementation
+
+The wb-mqtt-bridge backend has been successfully restructured and now supports:
+
+1. **Package-based imports** – the UI generator imports Python classes via:
    ```python
    importlib.import_module("wb_mqtt_bridge.domain.devices.models").WirenboardIRState
    ```
-   instead of reading `app/schemas.py` by absolute file path.
-2. **Backend wheel available** – GitHub Actions (or local dev) performs
-   `pip install wb-mqtt-bridge`, either from:
-   * PyPI / GitHub Packages,
-   * or an artifact built earlier in the workflow,
-   * or an editable install (`pip install -e …`).
-3. **Mapping JSON simplified** – each entry now carries a single import path:
+   instead of reading files by absolute path.
+
+2. **Installable package** – the backend can be installed via:
+   * Local editable install (`pip install -e ../wb-mqtt-bridge`)
+   * Package artifacts from CI/CD workflows
+   * Future PyPI releases
+
+3. **Simplified mapping** – device configurations use standardized import paths:
    ```jsonc
    {
      "WirenboardIRDevice": {
@@ -25,13 +29,20 @@
      }
    }
    ```
-4. **Generator update** – `StateTypeGenerator` first tries dynamic import; if that fails, it can still fall back to the legacy `stateFile` semantics for a grace period.
+
+4. **Entry point registration** – devices are discoverable via setuptools entry points:
+   ```toml
+   [project.entry-points."wb_mqtt_bridge.devices"]
+   lg_tv = "wb_mqtt_bridge.infrastructure.devices.lg_tv.driver:LgTv"
+   apple_tv = "wb_mqtt_bridge.infrastructure.devices.apple_tv.driver:AppleTVDevice"
+   # ... additional devices
+   ```
 
 ---
 
-## 2. GitHub Actions Reference
+## 2. GitHub Actions Implementation
 
-### 2.1  Monorepo (backend & UI in same repo)
+### 2.1 Monorepo Setup (backend & UI in same repo)
 ```yaml
 name: build-ui
 on: [push]
@@ -50,31 +61,32 @@ jobs:
         run: |
           cd wb-mqtt-ui
           npm ci
-          npm run generate  # invokes python, imports backend classes
+          npm run generate  # imports backend classes dynamically
           npm test
           npm run build
 ```
 
-### 2.2  Two-repo Setup (backend & UI separated)
+### 2.2 Two-repo Setup (backend & UI separated)
 
-#### A  Release-based
+#### A. Release-based Integration
 Backend workflow (tags only):
 ```yaml
 # wb-mqtt-bridge/.github/workflows/release.yml
 - name: Build wheel
   run: python -m build
-- name: Publish
+- name: Publish to PyPI
   run: twine upload dist/*
 ```
+
 UI workflow:
 ```yaml
 - uses: actions/setup-python@v5
   with: { python-version: '3.11' }
-- run: pip install "wb-mqtt-bridge>=0.5.0"
+- run: pip install "wb-mqtt-bridge>=1.0.0"  # Use actual version
 ```
 
-#### B  Artifact hand-off (nightly/PR builds)
-Backend:
+#### B. Artifact-based Integration (nightly/PR builds)
+Backend workflow:
 ```yaml
 - name: Build wheel
   id: build
@@ -84,21 +96,22 @@ Backend:
 - uses: actions/upload-artifact@v4
   with: { name: wb-wheel, path: dist/*.whl }
 ```
-UI (triggered via `workflow_run`):
+
+UI workflow (triggered via `workflow_run`):
 ```yaml
 - uses: actions/download-artifact@v4
   with: { name: wb-wheel }
 - run: pip install dist/*.whl
 ```
 
-#### Diagram – artifact flow
+#### Workflow diagram
 ```mermaid
 graph TD
-    subgraph Backend
+    subgraph Backend[Backend Repository]
         A[Checkout] --> B[Build Wheel]
         B --> C[Upload Artifact]
     end
-    subgraph UI
+    subgraph UI[UI Repository]
         D[Trigger on workflow_run] --> E[Download Artifact]
         E --> F[pip install *.whl]
         F --> G[Run generate script]
@@ -108,51 +121,132 @@ graph TD
 
 ---
 
-## 3. Code Changes in wb-mqtt-ui
+## 3. UI Code Integration
 
-| File | Change |
-| ---- | ------ |
-| `config/device-state-mapping*.json` | Replace `stateFile` + `stateClass` with `stateClassImport`. Leave old keys for fallback (one release). |
-| `StateTypeGenerator.generateFromPythonClass()` | New helper `generateFromImportPath(import_str)` that uses `importlib`. Try import first, fallback to old path method. |
-| Build script `generate-device-pages.ts` | Pass `stateClassImport` to generator instead of file path. |
+### Required Changes in wb-mqtt-ui
 
-> **Tip:** guard legacy behaviour with `if ('stateClassImport' in entry) { … }` to keep backwards compatibility.
+| File | Change | Status |
+| ---- | ------ | ------ |
+| `config/device-state-mapping*.json` | Use `stateClassImport` instead of `stateFile` + `stateClass` | ⏳ Pending |
+| `StateTypeGenerator.generateFromPythonClass()` | Add `generateFromImportPath(import_str)` using `importlib` | ⏳ Pending |
+| Build script `generate-device-pages.ts` | Pass `stateClassImport` to generator | ⏳ Pending |
 
----
+### Example mapping configuration:
+```jsonc
+{
+  "WirenboardIRDevice": {
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:WirenboardIRState",
+    "deviceConfigs": [ "config/devices/ld_player.json" ],
+    // Legacy fallback (optional during transition)
+    "stateFile": "app/schemas.py",
+    "stateClass": "WirenboardIRState"
+  }
+}
+```
 
-## 4. Local Developer Workflow
-```bash
-# once per machine
-python -m venv .venv && source .venv/bin/activate
-pip install -e ../wb-mqtt-bridge   # editable install keeps changes live
-npm ci
-npm run generate
-npm run dev  # start Vite
+### Implementation approach:
+```typescript
+// In StateTypeGenerator
+if ('stateClassImport' in deviceEntry) {
+  // Use new package-based import
+  return generateFromImportPath(deviceEntry.stateClassImport);
+} else if ('stateFile' in deviceEntry) {
+  // Fall back to legacy file-based approach
+  return generateFromPythonClass(deviceEntry.stateFile, deviceEntry.stateClass);
+}
 ```
 
 ---
 
-## 5. CI Caching Hints
-* Cache **pip** directory: `~/.cache/pip`.
-* Cache **node_modules**.
-* Wheel build is light (< 5 s); caching wheels is optional unless bandwidth-constrained.
+## 4. Local Development Workflow
+
+```bash
+# Setup (once per machine)
+python -m venv .venv && source .venv/bin/activate
+
+# Install backend in editable mode (stays in sync with changes)
+pip install -e ../wb-mqtt-bridge
+
+# Install UI dependencies
+npm ci
+
+# Generate TypeScript types from Python models
+npm run generate
+
+# Start development server
+npm run dev
+```
+
+**Verification:**
+```bash
+# Test that backend classes are importable
+python -c "from wb_mqtt_bridge.domain.devices.models import WirenboardIRState; print('✅ Import successful')"
+
+# Check available console scripts
+wb-api --help
+device-test --help
+```
 
 ---
 
-## 6. Roll-out Strategy
-1. Merge backend restructuring branch; publish pre-release wheel `0.5.0-alpha`.  
-2. Update UI generator to support `stateClassImport`, keep fallback.  
-3. Ship UI release that works with both `>=0.4.0` (paths) and `>=0.5.0` (package).  
-4. After two stable releases, drop legacy path logic.
+## 5. Performance Optimizations
+
+### CI Caching Strategy
+* **Python packages**: Cache `~/.cache/pip`
+* **Node modules**: Cache `node_modules`
+* **Wheel builds**: Optional (builds are fast ~5s), useful for bandwidth-constrained environments
+
+### Build optimizations:
+```yaml
+- uses: actions/cache@v4
+  with:
+    path: ~/.cache/pip
+    key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
+    
+- uses: actions/cache@v4
+  with:
+    path: node_modules
+    key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+```
 
 ---
 
-## 7. FAQ
-* **Q – Does the UI still need Python installed?**  
-  **A – Yes.** Only for the build step where TypeScript types are generated; the runtime bundle is unaffected.
-* **Q – What if the backend wheel isn't published yet?**  
-  Use the artifact method or editable install inside the monorepo.
+## 6. Current Status
+
+### ✅ Completed (Backend)
+- Domain-centric package structure (`src/wb_mqtt_bridge/`)
+- Entry point registration for device discovery
+- Console scripts (`wb-api`, `device-test`, etc.)
+- Installable wheel generation
+- All 10 steps of backend restructuring
+
+### ⏳ Pending (UI Integration)
+- Update `device-state-mapping*.json` to use `stateClassImport`
+- Implement `generateFromImportPath()` in `StateTypeGenerator`
+- Update build scripts to use package imports
+- Add fallback support during transition
+- CI/CD workflow updates
+
+### 🎯 Next Steps
+1. Update UI generator to support `stateClassImport` field
+2. Test with local editable install (`pip install -e ../wb-mqtt-bridge`)
+3. Update CI workflows for artifact handoff
+4. Validate all device state models are accessible
+5. Remove legacy file-path dependencies
 
 ---
 
-_Last updated: {{DATE}}_ 
+## 7. Troubleshooting
+
+**Q: Import errors when running `npm run generate`**  
+**A:** Ensure backend is installed: `pip install -e ../wb-mqtt-bridge`
+
+**Q: Missing device models in generated TypeScript**  
+**A:** Check that device entry points are registered in `pyproject.toml`
+
+**Q: CI workflow fails to find wheel**  
+**A:** Verify artifact upload/download names match between workflows
+
+---
+
+*Last updated: January 2025* 

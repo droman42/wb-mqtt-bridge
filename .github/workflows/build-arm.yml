@@ -2,7 +2,7 @@ name: Build ARM Docker Image
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, code_structure ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
