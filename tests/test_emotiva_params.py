@@ -3,8 +3,8 @@ import asyncio
 import json
 from unittest.mock import MagicMock, patch, AsyncMock
 
-from devices.emotiva_xmc2 import EMotivaXMC2, PowerState
-from app.mqtt_client import MQTTClient
+from wb_mqtt_bridge.infrastructure.devices.emotiva_xmc2.driver import EMotivaXMC2, PowerState
+from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
 from tests.test_helpers import wrap_device_init
 
 # Apply the wrapper to automatically convert dict configs to Pydantic models
@@ -356,7 +356,7 @@ async def test_mqtt_message_handling(emotiva_device):
             # Call handle_message with the volume topic and a JSON payload including zone
             volume_topic = emotiva_device.get_available_commands()["set_volume"]["topic"]
             payload = json.dumps({"level": -40.0, "zone": 2})
-            result = await emotiva_device.handle_message(volume_topic, payload)
+            await emotiva_device.handle_message(volume_topic, payload)
             
             # Verify handle_set_volume was called with the right parameters
             mock_handle.assert_called_once()
@@ -386,7 +386,7 @@ async def test_mqtt_message_with_single_param(emotiva_device):
             # Call handle_message with the volume topic and a raw (non-JSON) payload
             volume_topic = emotiva_device.get_available_commands()["set_volume"]["topic"]
             payload = "-35.5"  # Raw volume value as a string
-            result = await emotiva_device.handle_message(volume_topic, payload)
+            await emotiva_device.handle_message(volume_topic, payload)
             
             # Verify handle_set_volume was called with the right parameters
             mock_handle.assert_called_once()

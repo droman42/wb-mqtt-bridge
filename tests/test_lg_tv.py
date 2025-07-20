@@ -17,12 +17,12 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any
 
 # Add parent directory to path so we can import modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from devices.lg_tv import LgTv
+from wb_mqtt_bridge.infrastructure.devices.lg_tv.driver import LgTv
 
 
 def setup_logging() -> None:

@@ -1,11 +1,9 @@
-import json
 import pytest
 import pytest_asyncio
 import asyncio
-from unittest.mock import MagicMock, patch
-import base64
-from devices.wirenboard_ir_device import WirenboardIRDevice
-from app.schemas import WirenboardIRState, WirenboardIRDeviceConfig, IRCommandConfig
+from unittest.mock import MagicMock
+from wb_mqtt_bridge.infrastructure.devices.wirenboard_ir_device.driver import WirenboardIRDevice
+from wb_mqtt_bridge.infrastructure.config.models import WirenboardIRDeviceConfig, IRCommandConfig
 
 
 @pytest.fixture

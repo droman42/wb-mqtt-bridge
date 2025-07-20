@@ -154,7 +154,7 @@ def is_host_reachable(hostname, port, timeout=3, mac_address=None, wol_retries=2
 def extract_certificate(hostname, port, verbose=False):
     """Extract SSL certificate from the given hostname and port."""
     if verbose:
-        print(f"Creating SSL context without verification...")
+        print("Creating SSL context without verification...")
     
     # Create SSL context without verification
     context = ssl.create_default_context()

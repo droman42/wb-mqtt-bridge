@@ -12,30 +12,25 @@ import unittest
 from unittest.mock import MagicMock, patch, AsyncMock
 import sys
 import os
-import json
-import asyncio
-from typing import Dict, Any, cast
 
 # Add parent directory to path to allow importing from app
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Import the mock_sqlite module first to handle SQLite issues
-from tests import mock_sqlite
 
 # Import required modules
-from devices.base_device import BaseDevice
-from devices.broadlink_kitchen_hood import BroadlinkKitchenHood
-from devices.wirenboard_ir_device import WirenboardIRDevice
-from app.schemas import (
-    BaseDeviceState, KitchenHoodState, WirenboardIRState,
+from wb_mqtt_bridge.infrastructure.devices.broadlink_kitchen_hood.driver import BroadlinkKitchenHood
+from wb_mqtt_bridge.infrastructure.devices.wirenboard_ir_device.driver import WirenboardIRDevice
+from wb_mqtt_bridge.infrastructure.config.models import (
     BroadlinkKitchenHoodConfig, WirenboardIRDeviceConfig,
-    LastCommand, StandardCommandConfig, IRCommandConfig
+    StandardCommandConfig, IRCommandConfig
 )
-from app.types import CommandResult, CommandResponse
-from app.mqtt_client import MQTTClient
-import httpx
+from wb_mqtt_bridge.domain.devices.models import (
+    KitchenHoodState, WirenboardIRState, LastCommand
+)
+from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
 from fastapi.testclient import TestClient
-from app.main import app
+from wb_mqtt_bridge.app import app
 
 class TestStateTypePreservation(unittest.TestCase):
     """Test that state concrete types are preserved through updates."""

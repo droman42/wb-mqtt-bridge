@@ -1,9 +1,8 @@
-import asyncio
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
 
-from app.scenario import Scenario, ScenarioError, ScenarioExecutionError
-from app.scenario_models import ScenarioDefinition, CommandStep, ManualInstructions
+from wb_mqtt_bridge.domain.scenarios.scenario import Scenario, ScenarioError, ScenarioExecutionError
+from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition
 
 # Sample scenario data for testing
 SAMPLE_SCENARIO = {

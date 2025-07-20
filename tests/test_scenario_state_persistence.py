@@ -1,12 +1,9 @@
-import asyncio
 import json
 import pytest
-from pathlib import Path
 from unittest.mock import MagicMock, patch, AsyncMock
 
-from app.scenario_models import ScenarioState, DeviceState
-from app.scenario_manager import ScenarioManager
-from app.scenario import Scenario
+from wb_mqtt_bridge.domain.scenarios.models import ScenarioState, DeviceState
+from wb_mqtt_bridge.domain.scenarios.service import ScenarioManager
 
 # Mock classes for testing
 class MockDevice:

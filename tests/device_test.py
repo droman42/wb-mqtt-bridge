@@ -26,7 +26,7 @@ import time
 import asyncio
 import argparse
 import logging
-from typing import Dict, Any, List, Optional, Tuple, Set
+from typing import Dict, Any, Optional, Tuple, Set
 from pathlib import Path
 
 # Add parent directory to path so we can import app modules
@@ -34,8 +34,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import required modules
 import httpx
-from app.config_manager import ConfigManager
-from app.schemas import DeviceAction, MQTTMessage
+from wb_mqtt_bridge.infrastructure.config.manager import ConfigManager
+from wb_mqtt_bridge.presentation.api.schemas import DeviceAction, MQTTMessage
 from pydantic import ValidationError
 
 logger = logging.getLogger("device_test")
@@ -237,7 +237,7 @@ class DeviceTester:
                     else:
                         # Try to convert to the right type
                         try:
-                            if param_type == bool:
+                            if param_type is bool:
                                 param_values[param_name] = user_input.lower() in ['true', 'yes', 'y', '1']
                             else:
                                 param_values[param_name] = param_type(user_input)
@@ -342,7 +342,7 @@ class DeviceTester:
                 # Log HTTP request details
                 full_url = f"{self.service_url}{url}"
                 logger.info(f"HTTP Request: POST {full_url}")
-                logger.info(f"HTTP Headers: {{'Content-Type': 'application/json'}}")
+                logger.info("HTTP Headers: {'Content-Type': 'application/json'}")
                 logger.info(f"HTTP Payload: {json.dumps(payload)}")
                 
                 response = await self.http_client.post(url, json=payload)
@@ -406,7 +406,7 @@ class DeviceTester:
                 # Log HTTP request details
                 full_url = f"{self.service_url}{publish_url}"
                 logger.info(f"HTTP Request: POST {full_url}")
-                logger.info(f"HTTP Headers: {{'Content-Type': 'application/json'}}")
+                logger.info("HTTP Headers: {'Content-Type': 'application/json'}")
                 logger.info(f"HTTP Payload: {json.dumps(publish_data)}")
                 
                 response = await self.http_client.post(publish_url, json=publish_data)
@@ -421,7 +421,7 @@ class DeviceTester:
                     # Log HTTP request details
                     full_url = f"{self.service_url}{status_url}"
                     logger.info(f"HTTP Request: GET {full_url}")
-                    logger.info(f"HTTP Headers: {{'Accept': 'application/json'}}")
+                    logger.info("HTTP Headers: {'Accept': 'application/json'}")
                     
                     status_response = await self.http_client.get(status_url)
                     
@@ -484,7 +484,7 @@ class DeviceTester:
                 # Log HTTP request details
                 full_url = f"{self.service_url}{url}"
                 logger.info(f"HTTP Request: POST {full_url}")
-                logger.info(f"HTTP Headers: {{'Content-Type': 'application/json'}}")
+                logger.info("HTTP Headers: {'Content-Type': 'application/json'}")
                 logger.info(f"HTTP Payload: {json.dumps(payload)}")
                 
                 rest_response = await self.http_client.post(url, json=payload)
@@ -551,7 +551,7 @@ class DeviceTester:
                         # Log HTTP request details
                         full_url = f"{self.service_url}{publish_url}"
                         logger.info(f"HTTP Request: POST {full_url}")
-                        logger.info(f"HTTP Headers: {{'Content-Type': 'application/json'}}")
+                        logger.info("HTTP Headers: {'Content-Type': 'application/json'}")
                         logger.info(f"HTTP Payload: {json.dumps(publish_data)}")
                         
                         mqtt_response = await self.http_client.post(publish_url, json=publish_data)
@@ -566,7 +566,7 @@ class DeviceTester:
                             # Log HTTP request details
                             full_url = f"{self.service_url}{status_url}"
                             logger.info(f"HTTP Request: GET {full_url}")
-                            logger.info(f"HTTP Headers: {{'Accept': 'application/json'}}")
+                            logger.info("HTTP Headers: {'Accept': 'application/json'}")
                             
                             status_response = await self.http_client.get(status_url)
                             

@@ -12,10 +12,9 @@ This script tests the new device configuration architecture by:
 
 import os
 import sys
-import json
 import logging
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any
 
 # Set up basic logging
 logging.basicConfig(
@@ -28,15 +27,14 @@ logger = logging.getLogger("config_test")
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
-    from app.config_manager import ConfigManager
-    from app.validation import validate_device_configs, discover_config_files
-    from app.schemas import (
+    from wb_mqtt_bridge.infrastructure.config.manager import ConfigManager
+    from wb_mqtt_bridge.utils.validation import validate_device_configs
+    from wb_mqtt_bridge.infrastructure.config.models import (
         BaseDeviceConfig,
-        BaseCommandConfig,
         StandardCommandConfig,
         IRCommandConfig
     )
-    from app.class_loader import load_class_by_name
+    from wb_mqtt_bridge.utils.class_loader import load_class_by_name
 except ImportError as e:
     logger.error(f"Failed to import required modules: {e}")
     logger.error("Make sure you're running this script from the project root directory")

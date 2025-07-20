@@ -2,16 +2,12 @@ import unittest
 from unittest.mock import MagicMock, patch, AsyncMock
 import sys
 import os
-import json
-from typing import Dict, Any, Optional
-import asyncio
 
 # Add parent directory to path to allow importing
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from devices.apple_tv_device import AppleTVDevice
-from devices.base_device import BaseDevice
-from app.schemas import LastCommand
+from wb_mqtt_bridge.infrastructure.devices.apple_tv.driver import AppleTVDevice
+from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 from pyatv.const import PowerState
 from pyatv.interface import Playing
 from tests.test_helpers import wrap_device_init
@@ -29,7 +25,7 @@ class TestAppleTVParameters(unittest.IsolatedAsyncioTestCase):
             "device_id": "test_appletv",
             "device_name": "Test Apple TV",
             "device_type": "apple_tv_device",
-            "device_class": "devices.apple_tv_device.AppleTVDevice",
+            "device_class": "wb_mqtt_bridge.infrastructure.devices.apple_tv.driver.AppleTVDevice",
             "config_class": "app.schemas.AppleTVDeviceConfig",
             "apple_tv": {
                 "ip_address": "192.168.1.100",
@@ -117,7 +113,7 @@ class TestAppleTVParameters(unittest.IsolatedAsyncioTestCase):
         self.mock_metadata.playing = AsyncMock(return_value=self.mock_playing)
         
         # Setup AppleTV device with mocks
-        with patch('devices.apple_tv_device.asyncio.get_event_loop', return_value=self.mock_loop):
+        with patch('wb_mqtt_bridge.infrastructure.devices.apple_tv.driver.asyncio.get_event_loop', return_value=self.mock_loop):
             self.appletv = AppleTVDevice(self.config, self.mqtt_client)
             
         # Replace instance variables with mocks

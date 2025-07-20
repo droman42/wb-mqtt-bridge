@@ -1,12 +1,10 @@
 import json
 import pytest
-import asyncio
-from pathlib import Path
-from unittest.mock import MagicMock, patch, AsyncMock, mock_open
+from unittest.mock import MagicMock, patch, AsyncMock
 
-from app.scenario_manager import ScenarioManager
-from app.scenario import Scenario, ScenarioError
-from app.scenario_models import ScenarioDefinition, ScenarioState, DeviceState
+from wb_mqtt_bridge.domain.scenarios.service import ScenarioManager
+from wb_mqtt_bridge.domain.scenarios.scenario import Scenario, ScenarioError
+from wb_mqtt_bridge.domain.scenarios.models import ScenarioState, DeviceState
 
 # Sample scenario data for testing
 SAMPLE_SCENARIOS = {
@@ -251,7 +249,7 @@ class TestScenarioManager:
         # Check that device commands were executed
         mock_tv = mock_device_manager.get_device("tv")
         mock_soundbar = mock_device_manager.get_device("soundbar")
-        mock_lights = mock_device_manager.get_device("lights")
+        mock_device_manager.get_device("lights")
         
         mock_tv.execute_command.assert_any_call("power_on", {})
         mock_soundbar.execute_command.assert_any_call("power_on", {})

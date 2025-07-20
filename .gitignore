@@ -62,8 +62,6 @@ Thumbs.db
 # Docker
 .env
 docker-compose.override.yml
-broadlink_cli.py
-broadlink_discovery.py
 share/man/man1/ipython.1
 share/
 etc/jupyter/

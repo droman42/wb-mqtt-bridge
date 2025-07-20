@@ -4,14 +4,12 @@ import json
 import pytest
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 import os
-from typing import Dict, Any
 
 # Add parent directory to path to allow importing
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from devices.lg_tv import LgTv
-from devices.base_device import BaseDevice
-from app.schemas import LastCommand
+from wb_mqtt_bridge.infrastructure.devices.lg_tv.driver import LgTv
+from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 from tests.test_helpers import wrap_device_init
 
 # Wrap the LgTv class to handle dictionary configs
@@ -78,7 +76,7 @@ class TestLgTvParameters(unittest.IsolatedAsyncioTestCase):
         self.mqtt_client = MagicMock()
         
         # Setup LG TV device with mocks
-        with patch('devices.lg_tv.WebOSTV'), patch('devices.lg_tv.SecureWebOSTV'):
+        with patch('wb_mqtt_bridge.infrastructure.devices.lg_tv.driver.WebOSTV'), patch('wb_mqtt_bridge.infrastructure.devices.lg_tv.driver.SecureWebOSTV'):
             self.lg_tv = LgTv(self.config, self.mqtt_client)
             
         # Mock methods to avoid actual network operations

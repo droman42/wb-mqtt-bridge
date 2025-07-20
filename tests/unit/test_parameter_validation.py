@@ -1,14 +1,13 @@
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 import sys
 import os
-from typing import Dict, Any, List
 
 # Add parent directory to path to allow importing from app
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from devices.base_device import BaseDevice
-from app.schemas import CommandParameterDefinition
+from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
+from wb_mqtt_bridge.infrastructure.config.models import CommandParameterDefinition
 
 class TestParameterValidation(unittest.TestCase):
     """Test suite for parameter validation functionality."""

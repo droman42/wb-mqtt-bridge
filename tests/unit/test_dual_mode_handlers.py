@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, AsyncMock
 import sys
 import os
 import json
@@ -9,8 +9,8 @@ from typing import Dict, Any, Optional, Callable, Awaitable
 # Add parent directory to path to allow importing from app
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from devices.base_device import BaseDevice
-from app.schemas import LastCommand
+from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
+from wb_mqtt_bridge.infrastructure.config.models import LastCommand
 
 # Mock implementations for missing methods
 async def mock_call_action_handler(

@@ -1,7 +1,7 @@
 import os
 import sys
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, AsyncMock
 import pytest_asyncio
 
 # Add the app directory to sys.path for importing
@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
 from tests import mock_sqlite
 
 # Import after setting up sys.path
-from app.state_store import SQLiteStateStore
+from wb_mqtt_bridge.infrastructure.persistence.sqlite import SQLiteStateStore
 
 # Skip all tests if aiosqlite is not available
 if not mock_sqlite.HAS_AIOSQLITE:
