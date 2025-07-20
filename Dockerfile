@@ -29,18 +29,16 @@ RUN mkdir -p /etc/pip && \
     echo "[global]\nextra-index-url=https://www.piwheels.org/simple" > /etc/pip/pip.conf
 
 # Copy source code and UV project files
-COPY app/ ./app/
-COPY devices/ ./devices/
+COPY src/ ./src/
 COPY pyproject.toml uv.lock ./
 
 # Create virtual environment and install dependencies with UV
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=cache,target=/tmp/uv-cache \
-    echo "Installing dependencies with UV..." && \
+    echo "Installing dependencies and package with UV..." && \
     uv venv /opt/venv && \
     . /opt/venv/bin/activate && \
-    uv export --no-dev > requirements.txt && \
-    uv pip install --cache-dir=/tmp/uv-cache --requirement requirements.txt
+    uv pip install --cache-dir=/tmp/uv-cache .
 
 # Set environment path for the virtual environment
 ENV PATH="/opt/venv/bin:$PATH"
@@ -54,7 +52,6 @@ WORKDIR /app
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app \
     PYTHONHASHSEED=1
 
 # Install minimal runtime dependencies
@@ -65,10 +62,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy virtual environment from builder stage
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-
-# Copy application code
-COPY app/ ./app/
-COPY devices/ ./devices/
 
 # Create necessary directories
 RUN mkdir -p logs data config
@@ -139,5 +132,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/', timeout=10)" || exit 1
 
-# Command to run the service
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"] 
+# Command to run the service using the console script
+CMD ["wb-api", "--host", "0.0.0.0", "--port", "8000"] 
