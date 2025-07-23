@@ -152,4 +152,5 @@ docs/devices/
 
 # Generated type files
 src/types/generated/
+.venv/
 

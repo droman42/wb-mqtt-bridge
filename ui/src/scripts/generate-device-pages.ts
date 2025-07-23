@@ -18,7 +18,7 @@ import { DocumentationGenerator } from '../lib/DocumentationGenerator';
 import type { RemoteDeviceStructure } from '../types/RemoteControlLayout';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import process from 'process';
+import * as process from 'process';
 
 interface GenerationResult {
   success: boolean;
@@ -87,7 +87,11 @@ export class DevicePageGenerator {
     this.docGenerator = new DocumentationGenerator();
   }
   
-  async generateDevicePage(deviceId: string, options?: { stateFile?: string; stateClass?: string }): Promise<GenerationResult> {
+  async generateDevicePage(deviceId: string, options?: { 
+    stateFile?: string; 
+    stateClass?: string; 
+    stateClassImport?: string; 
+  }): Promise<GenerationResult> {
     console.log(`🔄 Generating page for device: ${deviceId}`);
     const startTime = Date.now();
     
@@ -139,19 +143,37 @@ export class DevicePageGenerator {
       
       console.log(`📊 Generated ${structure.remoteZones.length} remote control zones`);
       
-      // Generate Python state types if requested
+      // Generate Python state types if requested or available from mapping
       let customStateInterface: string | null = null;
-      if (options?.stateFile && options?.stateClass) {
+      
+      // Determine state generation method - prefer stateClassImport over legacy options
+      let stateOptions: { importPath?: string; filePath?: string; className?: string } = {};
+      let stateClass: string | undefined = undefined;
+      
+      if (options?.stateClassImport) {
+        // Use new package-based import method (highest priority)
+        stateOptions.importPath = options.stateClassImport;
+        stateClass = options.stateClassImport.split(':')[1]; // Extract class name from import path
+        console.log(`🐍 Using package import: ${options.stateClassImport}`);
+      } else if (options?.stateFile && options?.stateClass) {
+        // Use legacy file-based method
+        stateOptions.filePath = options.stateFile;
+        stateOptions.className = options.stateClass;
+        stateClass = options.stateClass;
+        console.log(`🐍 Using legacy file method: ${options.stateFile}::${options.stateClass}`);
+      }
+      
+      if (stateOptions.importPath || (stateOptions.filePath && stateOptions.className)) {
         try {
-          console.log(`🐍 Generating TypeScript state from Python: ${options.stateFile}::${options.stateClass}`);
-          const stateDefinition = await this.stateGenerator.generateFromPythonClass(options.stateFile, options.stateClass);
+          console.log(`🔄 Generating TypeScript state types...`);
+          const stateDefinition = await this.stateGenerator.generateFromPythonState(stateOptions);
           
           // Create shared types directory
           const sharedTypesDir = 'src/types/generated';
           await fs.mkdir(sharedTypesDir, { recursive: true });
           
           // Use state class name for file naming, not device ID
-          const stateInterfacePath = path.join(sharedTypesDir, `${options.stateClass}.state.ts`);
+          const stateInterfacePath = path.join(sharedTypesDir, `${stateClass}.state.ts`);
           const stateHookPath = path.join(this.outputDir, `${deviceId}.hooks.ts`);
           
           // Check if state interface already exists
@@ -172,14 +194,14 @@ export class DevicePageGenerator {
           }
           
           // Always generate device-specific hook (but update imports to shared state)
-          const stateHook = await this.stateGenerator.generateStateHook(stateDefinition, deviceId, options.stateClass);
+          const stateHook = await this.stateGenerator.generateStateHook(stateDefinition, deviceId, stateClass);
           await fs.writeFile(stateHookPath, stateHook, 'utf8');
           console.log(`✅ Generated device hook: ${stateHookPath}`);
           
         } catch (error) {
           console.warn(`⚠️  Failed to generate Python state types: ${error.message}`);
           if (this.mode === 'local') {
-            console.warn('   💡 Check if Python state file path is correct relative to the mapping file');
+            console.warn('   💡 Check if wb-mqtt-bridge package is installed: pip install -e ../wb-mqtt-bridge');
           }
           console.warn('   Continuing with default state generation...');
         }
@@ -632,7 +654,11 @@ Supported Device Classes (Phase 2):
       console.log('');
       
       // Read state configuration from mapping file for batch processing
-      let stateConfigByDeviceClass: Map<string, {stateFile: string, stateClass: string}> = new Map();
+      let stateConfigByDeviceClass: Map<string, {
+        stateFile?: string; 
+        stateClass?: string; 
+        stateClassImport?: string;
+      }> = new Map();
       
       if (mode === 'local' && mappingFile) {
         console.log(`📋 Loading state configuration from mapping file: ${mappingFile}`);
@@ -644,12 +670,19 @@ Supported Device Classes (Phase 2):
           // Extract state configuration for each device class
           for (const [deviceClass, config] of Object.entries(mappingData)) {
             const configData = config as any;
-            if (configData.stateFile && configData.stateClass) {
+            
+            // Prefer stateClassImport over legacy stateFile/stateClass
+            if (configData.stateClassImport) {
+              stateConfigByDeviceClass.set(deviceClass, {
+                stateClassImport: configData.stateClassImport
+              });
+              console.log(`  📦 ${deviceClass}: ${configData.stateClassImport} (package import)`);
+            } else if (configData.stateFile && configData.stateClass) {
               stateConfigByDeviceClass.set(deviceClass, {
                 stateFile: configData.stateFile,
                 stateClass: configData.stateClass
               });
-              console.log(`  📝 ${deviceClass}: ${configData.stateFile}::${configData.stateClass}`);
+              console.log(`  📝 ${deviceClass}: ${configData.stateFile}::${configData.stateClass} (legacy)`);
             }
           }
           

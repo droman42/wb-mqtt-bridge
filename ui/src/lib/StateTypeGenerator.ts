@@ -25,6 +25,41 @@ export interface PythonParsingResult {
 }
 
 export class StateTypeGenerator {
+  /**
+   * Generate TypeScript state definition from Python class using package import path
+   * @param importPath - Package import path in format "module.path:ClassName"
+   * @returns Promise<StateDefinition>
+   */
+  async generateFromImportPath(importPath: string): Promise<StateDefinition> {
+    try {
+      console.log(`🐍 Generating types from package import: ${importPath}`);
+      
+      // Parse import path (e.g., "wb_mqtt_bridge.domain.devices.models:WirenboardIRState")
+      const [modulePath, className] = importPath.split(':');
+      
+      if (!modulePath || !className) {
+        throw new Error(`Invalid import path format: ${importPath}. Expected format: "module.path:ClassName"`);
+      }
+
+      // Try to parse Python class using importlib
+      const pythonResult = await this.parsePythonClassFromImport(modulePath, className);
+      
+      if (pythonResult.success) {
+        console.log(`✅ Successfully parsed ${className} from ${modulePath}`);
+        return this.convertToStateDefinition(className, pythonResult.fields);
+      } else {
+        console.warn(`Python parsing failed for ${importPath}: ${pythonResult.error}`);
+        // Fallback to basic state generation
+        return this.generateBasicStateDefinition(className);
+      }
+    } catch (error) {
+      console.warn(`Import-based state generation failed for ${importPath}: ${error.message}`);
+      // Extract class name from import path for fallback
+      const className = importPath.split(':')[1] || 'UnknownState';
+      return this.generateBasicStateDefinition(className);
+    }
+  }
+
   async generateFromPythonClass(filePath: string, className: string): Promise<StateDefinition> {
     try {
       // Try to parse Python class first
@@ -40,6 +75,27 @@ export class StateTypeGenerator {
     } catch (error) {
       console.warn(`State generation failed for ${className}: ${error.message}`);
       return this.generateBasicStateDefinition(className);
+    }
+  }
+
+  /**
+   * Enhanced method that supports both import path and file-based generation
+   * @param options - Generation options with either importPath or filePath/className
+   * @returns Promise<StateDefinition>
+   */
+  async generateFromPythonState(options: {
+    importPath?: string;
+    filePath?: string;
+    className?: string;
+  }): Promise<StateDefinition> {
+    if (options.importPath) {
+      // Use new package-based import method
+      return this.generateFromImportPath(options.importPath);
+    } else if (options.filePath && options.className) {
+      // Use legacy file-based method
+      return this.generateFromPythonClass(options.filePath, options.className);
+    } else {
+      throw new Error('Either importPath or both filePath and className must be provided');
     }
   }
 
@@ -158,6 +214,123 @@ export function ${hookName}(deviceId: string = '${deviceId}') {
     }
   };
 }`;
+  }
+
+  private async parsePythonClassFromImport(modulePath: string, className: string): Promise<PythonParsingResult> {
+    return new Promise((resolve) => {
+      const pythonScript = `
+import importlib
+import ast
+import sys
+import json
+import inspect
+
+def extract_class_fields_from_import(module_path, class_name):
+    try:
+        # Import the module using importlib
+        module = importlib.import_module(module_path)
+        
+        # Get the class from the module
+        cls = getattr(module, class_name)
+        
+        # Try to get source and parse with AST if possible
+        try:
+            import inspect
+            source = inspect.getsource(cls)
+            tree = ast.parse(source)
+            
+            fields = []
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ClassDef) and node.name == class_name:
+                    for item in node.body:
+                        if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name):
+                            field_type = 'Any'
+                            try:
+                                field_type = ast.unparse(item.annotation)
+                            except:
+                                pass
+                            
+                            default_value = None
+                            if item.value:
+                                try:
+                                    default_value = ast.literal_eval(item.value)
+                                except:
+                                    default_value = str(item.value)
+                            
+                            fields.append({
+                                'name': item.target.id,
+                                'type': field_type,
+                                'optional': default_value is not None,
+                                'default': default_value
+                            })
+            return fields
+            
+        except Exception as ast_error:
+            # Fallback: try to extract fields from class annotations if available
+            try:
+                if hasattr(cls, '__annotations__'):
+                    fields = []
+                    for field_name, field_type in cls.__annotations__.items():
+                        # Skip private fields
+                        if not field_name.startswith('_'):
+                            fields.append({
+                                'name': field_name,
+                                'type': str(field_type),
+                                'optional': hasattr(cls, field_name) and getattr(cls, field_name) is not None,
+                                'default': getattr(cls, field_name, None) if hasattr(cls, field_name) else None
+                            })
+                    return fields
+                else:
+                    return []
+            except Exception as annotation_error:
+                return {'error': f'AST parsing failed: {ast_error}, Annotation parsing failed: {annotation_error}'}
+        
+    except Exception as e:
+        return {'error': str(e)}
+
+result = extract_class_fields_from_import(sys.argv[1], sys.argv[2])
+print(json.dumps(result))
+      `;
+
+      const process = spawn('python3', ['-c', pythonScript, modulePath, className]);
+      let output = '';
+      let errorOutput = '';
+
+      process.stdout.on('data', (data) => {
+        output += data.toString();
+      });
+
+      process.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+      });
+
+      process.on('close', (code) => {
+        if (code === 0 && output) {
+          try {
+            const result = JSON.parse(output);
+            if (result.error) {
+              resolve({ success: false, fields: [], error: result.error });
+            } else {
+              resolve({ success: true, fields: result, error: undefined });
+            }
+          } catch (parseError) {
+            resolve({ success: false, fields: [], error: `JSON parse error: ${parseError.message}` });
+          }
+        } else {
+          resolve({ 
+            success: false, 
+            fields: [], 
+            error: `Python execution failed (code ${code}): ${errorOutput || 'Unknown error'}` 
+          });
+        }
+      });
+
+      // Set a timeout to prevent hanging
+      setTimeout(() => {
+        process.kill();
+        resolve({ success: false, fields: [], error: 'Python execution timeout' });
+      }, 15000); // Increased timeout for import operations
+    });
   }
 
   private async parsePythonClass(filePath: string, className: string): Promise<PythonParsingResult> {

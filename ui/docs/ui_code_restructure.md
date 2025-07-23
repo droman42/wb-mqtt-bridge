@@ -21,10 +21,10 @@ The wb-mqtt-bridge backend has been restructured into a proper Python package wi
 **Estimated Time**: 2-3 hours
 
 **Tasks**:
-- [ ] Add new method `generateFromImportPath(importPath: string)`
-- [ ] Implement `importlib`-based Python class loading
-- [ ] Add fallback logic to support both old and new import methods during transition
-- [ ] Add error handling for import failures
+- [x] Add new method `generateFromImportPath(importPath: string)`
+- [x] Implement `importlib`-based Python class loading
+- [x] Add fallback logic to support both old and new import methods during transition
+- [x] Add error handling for import failures
 
 **Implementation Details**:
 ```typescript
@@ -55,9 +55,9 @@ cls = getattr(module, "${className}")
 **Estimated Time**: 1-2 hours
 
 **Tasks**:
-- [ ] Add `stateClassImport` field to all device configurations
-- [ ] Keep existing `stateFile`/`stateClass` fields for backward compatibility
-- [ ] Add new `ScenarioDevice` configuration for virtual devices
+- [x] Add `stateClassImport` field to all device configurations
+- [x] Keep existing `stateFile`/`stateClass` fields for backward compatibility
+- [x] Add new `ScenarioDevice` configuration for virtual devices
 
 **New Configuration Format**:
 ```jsonc
@@ -83,10 +83,10 @@ cls = getattr(module, "${className}")
 **Estimated Time**: 1-2 hours
 
 **Tasks**:
-- [ ] Modify script to pass `stateClassImport` to StateTypeGenerator
-- [ ] Add logic to prefer `stateClassImport` over legacy methods
-- [ ] Add validation for import path format
-- [ ] Include error handling and logging
+- [x] Modify script to pass `stateClassImport` to StateTypeGenerator
+- [x] Add logic to prefer `stateClassImport` over legacy methods
+- [x] Add validation for import path format
+- [x] Include error handling and logging
 
 ---
 
@@ -147,10 +147,10 @@ const useScenarioVirtualConfigs = () => {
 **Estimated Time**: 1 hour
 
 **Tasks**:
-- [ ] Document installation process: `pip install -e ../wb-mqtt-bridge`
-- [ ] Create validation script to test backend imports
-- [ ] Add development workflow documentation
-- [ ] Test type generation with new import paths
+- [x] Document installation process: `pip install -e ../wb-mqtt-bridge`
+- [x] Create validation script to test backend imports
+- [x] Add development workflow documentation
+- [x] Test type generation with new import paths
 
 **Validation Script**:
 ```bash

@@ -1,5 +1,6 @@
 {
   "WirenboardIRDevice": {
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:WirenboardIRState",
     "stateFile": "/home/droman42/development/wb-mqtt-bridge/app/schemas.py",
     "stateClass": "WirenboardIRState",
     "deviceConfigs": [
@@ -11,6 +12,7 @@
     ]
   },
   "LgTv": {
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:LgTvState",
     "stateFile": "/home/droman42/development/wb-mqtt-bridge/app/schemas.py",
     "stateClass": "LgTvState",
     "deviceConfigs": [
@@ -19,6 +21,7 @@
     ]
   },
   "EMotivaXMC2": {
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:EmotivaXMC2State",
     "stateFile": "/home/droman42/development/wb-mqtt-bridge/app/schemas.py",
     "stateClass": "EmotivaXMC2State",
     "deviceConfigs": [
@@ -26,6 +29,7 @@
     ]
   },
   "BroadlinkKitchenHood": {
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:KitchenHoodState",
     "stateFile": "/home/droman42/development/wb-mqtt-bridge/app/schemas.py",
     "stateClass": "KitchenHoodState",
     "deviceConfigs": [
@@ -33,6 +37,7 @@
     ]
   },
   "AppleTVDevice": {
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:AppleTVState",
     "stateFile": "/home/droman42/development/wb-mqtt-bridge/app/schemas.py",
     "stateClass": "AppleTVState",
     "deviceConfigs": [
@@ -41,6 +46,7 @@
     ]
   },
   "AuralicDevice": {
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:AuralicDeviceState",
     "stateFile": "/home/droman42/development/wb-mqtt-bridge/app/schemas.py",
     "stateClass": "AuralicDeviceState",
     "deviceConfigs": [
@@ -48,10 +54,18 @@
     ]
   },
   "RevoxA77ReelToReel": {
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:RevoxA77ReelToReelState",
     "stateFile": "/home/droman42/development/wb-mqtt-bridge/app/schemas.py",
     "stateClass": "RevoxA77ReelToReelState",
     "deviceConfigs": [
       "/home/droman42/development/wb-mqtt-bridge/config/devices/reel_to_reel.json"
     ]
+  },
+  "ScenarioDevice": {
+    "stateClassImport": "wb_mqtt_bridge.infrastructure.scenarios.models:ScenarioWBConfig",
+    "scenarioConfigs": [
+      "/home/droman42/development/wb-mqtt-bridge/config/scenarios/*.json"
+    ],
+    "description": "Virtual WB device configurations for scenarios"
   }
 } 

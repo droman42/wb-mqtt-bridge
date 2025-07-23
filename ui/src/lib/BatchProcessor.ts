@@ -80,7 +80,11 @@ export class BatchProcessor {
 
   async processDeviceListWithStateConfig(
     deviceIds: string[], 
-    stateConfigByDeviceClass: Map<string, {stateFile: string, stateClass: string}>, 
+    stateConfigByDeviceClass: Map<string, {
+      stateFile?: string; 
+      stateClass?: string; 
+      stateClassImport?: string;
+    }>, 
     config: BatchConfig = {}
   ): Promise<BatchResult> {
     const startTime = Date.now();
@@ -153,7 +157,11 @@ export class BatchProcessor {
   }
 
   async processAllDevicesWithStateConfig(
-    stateConfigByDeviceClass: Map<string, {stateFile: string, stateClass: string}>,
+    stateConfigByDeviceClass: Map<string, {
+      stateFile?: string; 
+      stateClass?: string; 
+      stateClassImport?: string;
+    }>,
     config: BatchConfig = {}
   ): Promise<BatchResult> {
     console.log('🔍 Discovering all devices from API...');
@@ -259,7 +267,11 @@ export class BatchProcessor {
   
   private async processDeviceWithStateConfigAndErrorHandling(
     deviceId: string, 
-    stateConfigByDeviceClass: Map<string, {stateFile: string, stateClass: string}>
+    stateConfigByDeviceClass: Map<string, {
+      stateFile?: string; 
+      stateClass?: string; 
+      stateClassImport?: string;
+    }>
   ): Promise<GenerationResult> {
     const timer = this.performanceMonitor.trackGenerationStart(deviceId);
     
@@ -273,13 +285,24 @@ export class BatchProcessor {
       
       // Get state configuration for this device class
       const stateConfig = stateConfigByDeviceClass.get(deviceClass);
-      const options = stateConfig ? { 
-        stateFile: stateConfig.stateFile, 
-        stateClass: stateConfig.stateClass 
-      } : undefined;
+      let options: { 
+        stateFile?: string; 
+        stateClass?: string; 
+        stateClassImport?: string; 
+      } | undefined = undefined;
       
       if (stateConfig) {
-        console.log(`  📝 Using state config: ${stateConfig.stateFile}::${stateConfig.stateClass}`);
+        // Prefer stateClassImport over legacy stateFile/stateClass
+        if (stateConfig.stateClassImport) {
+          options = { stateClassImport: stateConfig.stateClassImport };
+          console.log(`  📦 Using package import: ${stateConfig.stateClassImport}`);
+        } else if (stateConfig.stateFile && stateConfig.stateClass) {
+          options = { 
+            stateFile: stateConfig.stateFile, 
+            stateClass: stateConfig.stateClass 
+          };
+          console.log(`  📝 Using legacy config: ${stateConfig.stateFile}::${stateConfig.stateClass}`);
+        }
       }
       
       const result = await this.generator.generateDevicePage(deviceId, options);
