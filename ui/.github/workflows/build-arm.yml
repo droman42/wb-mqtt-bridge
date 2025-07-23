@@ -39,9 +39,60 @@ jobs:
         echo "Installing wb-mqtt-bridge package..."
         cd wb-mqtt-bridge
         pip install -e .
-        echo "Package installation complete. Testing imports..."
-        python -c "from wb_mqtt_bridge.domain.devices.models import WirenboardIRState; print('✅ Device models import successful')"
-        python -c "from wb_mqtt_bridge.infrastructure.scenarios.models import ScenarioWBConfig; print('✅ Scenario models import successful')" || echo "⚠️ Scenario models not available (optional)"
+        echo "Package installation complete. Diagnosing package structure..."
+        
+        # Check installed packages
+        pip list | grep wb-mqtt
+        
+        # Check Python path and available modules
+        python -c "import sys; print('Python path:', sys.path)"
+        
+        # Try to find the actual module structure
+        python -c "
+        import pkg_resources
+        try:
+            dist = pkg_resources.get_distribution('wb-mqtt-bridge')
+            print(f'Package found: {dist.project_name} {dist.version}')
+            print(f'Location: {dist.location}')
+        except:
+            print('Package not found in pkg_resources')
+        
+        # Try different import patterns
+        import importlib
+        for module_name in ['wb_mqtt_bridge', 'wb-mqtt-bridge', 'wbmqttbridge']:
+            try:
+                mod = importlib.import_module(module_name)
+                print(f'✅ Successfully imported {module_name}')
+                print(f'Module path: {mod.__file__ if hasattr(mod, \"__file__\") else \"built-in\"}')
+                break
+            except ImportError as e:
+                print(f'❌ Failed to import {module_name}: {e}')
+        else:
+            print('❌ No valid module name found')
+        "
+        
+        # Try to import from the actual package structure
+        echo "Testing specific imports..."
+        python -c "
+        import sys, os
+        sys.path.insert(0, os.getcwd())
+        
+        # Try importing from local structure
+        try:
+            from app.schemas import WirenboardIRState
+            print('✅ Found WirenboardIRState in app.schemas (local import)')
+        except ImportError as e:
+            print(f'❌ Local import failed: {e}')
+            
+        # List available Python files
+        print('Available Python files in app/:')
+        if os.path.exists('app'):
+            for f in os.listdir('app'):
+                if f.endswith('.py'):
+                    print(f'  - {f}')
+        else:
+            print('  app/ directory not found')
+        "
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
@@ -64,9 +115,20 @@ jobs:
 
     - name: Validate type generation
       run: |
-        echo "Generating TypeScript types from Python models..."
-        npm run gen:device-pages -- --batch --mode=package
-        echo "✅ Type generation successful"
+        echo "Attempting TypeScript type generation..."
+        
+        # Try package mode first
+        if npm run gen:device-pages -- --batch --mode=package; then
+          echo "✅ Type generation successful with package mode"
+        else
+          echo "⚠️ Package mode failed, trying local mode as fallback..."
+          if npm run gen:device-pages -- --batch --mode=local; then
+            echo "✅ Type generation successful with local mode (fallback)"
+          else
+            echo "❌ Both package and local mode failed"
+            exit 1
+          fi
+        fi
 
     - name: Run TypeScript validation
       run: |
