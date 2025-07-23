@@ -112,7 +112,7 @@ class DeviceManager:
                     logger.error(f"Cannot instantiate abstract class {device_class_name} for device {device_id}")
                     continue
                 
-                # Instantiate the device with typed configuration (mqtt_client assigned later by bootstrap)
+                # Instantiate the device with typed configuration (mqtt_client and wb_service assigned later by bootstrap)
                 try:
                     device = device_class(config, mqtt_client=None)
                 except Exception as e:

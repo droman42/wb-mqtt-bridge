@@ -38,6 +38,11 @@ The wb-mqtt-bridge backend has been successfully restructured and now supports:
    # ... additional devices
    ```
 
+5. **Virtual Device Integration** – scenarios now support WB virtual device emulation:
+   * `ScenarioWBConfig` Pydantic models for virtual device configurations
+   * `WBVirtualDeviceService` infrastructure service for device abstraction
+   * REST API endpoints for accessing virtual scenario configurations
+
 ---
 
 ## 2. GitHub Actions Implementation
@@ -140,6 +145,11 @@ graph TD
     // Legacy fallback (optional during transition)
     "stateFile": "app/schemas.py",
     "stateClass": "WirenboardIRState"
+  },
+  "ScenarioDevice": {
+    "stateClassImport": "wb_mqtt_bridge.infrastructure.scenarios.models:ScenarioWBConfig",
+    "scenarioConfigs": [ "config/scenarios/*.json" ],
+    "description": "Virtual WB device configurations for scenarios"
   }
 }
 ```
@@ -180,7 +190,8 @@ npm run dev
 **Verification:**
 ```bash
 # Test that backend classes are importable
-python -c "from wb_mqtt_bridge.domain.devices.models import WirenboardIRState; print('✅ Import successful')"
+python -c "from wb_mqtt_bridge.domain.devices.models import WirenboardIRState; print('✅ Device models import successful')"
+python -c "from wb_mqtt_bridge.infrastructure.scenarios.models import ScenarioWBConfig; print('✅ Scenario models import successful')"
 
 # Check available console scripts
 wb-api --help
@@ -219,24 +230,64 @@ device-test --help
 - Console scripts (`wb-api`, `device-test`, etc.)
 - Installable wheel generation
 - All 10 steps of backend restructuring
+- **WB Virtual Device Service** - Infrastructure service for WB device abstraction
+- **Scenario WB Integration** - Virtual device configurations for scenarios
+- **ScenarioWBConfig Models** - Pydantic models for scenario virtual configurations
+- **New REST API endpoints** - `/scenario/virtual_config/{id}` and `/scenario/virtual_configs`
 
 ### ⏳ Pending (UI Integration)
 - Update `device-state-mapping*.json` to use `stateClassImport`
+- **Add ScenarioWBConfig to UI type generation** for scenario virtual configurations
 - Implement `generateFromImportPath()` in `StateTypeGenerator`
 - Update build scripts to use package imports
 - Add fallback support during transition
 - CI/CD workflow updates
+- **Integrate new scenario virtual config API endpoints** for UI consumption
 
 ### 🎯 Next Steps
 1. Update UI generator to support `stateClassImport` field
-2. Test with local editable install (`pip install -e ../wb-mqtt-bridge`)
-3. Update CI workflows for artifact handoff
-4. Validate all device state models are accessible
-5. Remove legacy file-path dependencies
+2. **Add ScenarioWBConfig model to device-state-mapping configuration**
+3. **Implement UI consumption of new scenario virtual config endpoints**
+4. Test with local editable install (`pip install -e ../wb-mqtt-bridge`)
+5. Update CI workflows for artifact handoff
+6. Validate all device state models are accessible
+7. **Test scenario virtual configuration TypeScript generation**
+8. Remove legacy file-path dependencies
 
 ---
 
-## 7. Troubleshooting
+## 7. New API Endpoints for UI Integration
+
+The backend now provides additional REST API endpoints that the UI can consume:
+
+### Scenario Virtual Configuration Endpoints
+```typescript
+// Get virtual WB configuration for a specific scenario
+GET /scenario/virtual_config/{scenario_id} -> ScenarioWBConfig
+
+// Get all scenario virtual configurations
+GET /scenario/virtual_configs -> Dict[str, ScenarioWBConfig]
+```
+
+These endpoints provide:
+- Virtual device metadata (device_id, device_name, device_class)
+- Generated command definitions (startup/shutdown, role-based commands)
+- WB control types and parameter validation
+- Compatible with existing device configuration patterns
+
+### Usage in UI
+```typescript
+// Fetch scenario virtual config for UI display
+const scenarioConfig = await fetch(`/api/scenario/virtual_config/${scenarioId}`);
+const config: ScenarioWBConfig = await scenarioConfig.json();
+
+// Generate UI controls based on virtual configuration
+const controls = config.commands.map(cmd => generateControl(cmd));
+```
+
+---
+
+## 8. Troubleshooting
 
 **Q: Import errors when running `npm run generate`**  
 **A:** Ensure backend is installed: `pip install -e ../wb-mqtt-bridge`
@@ -244,9 +295,15 @@ device-test --help
 **Q: Missing device models in generated TypeScript**  
 **A:** Check that device entry points are registered in `pyproject.toml`
 
+**Q: Missing scenario models in generated TypeScript**  
+**A:** Ensure `ScenarioWBConfig` is included in device-state-mapping configuration with correct import path
+
 **Q: CI workflow fails to find wheel**  
 **A:** Verify artifact upload/download names match between workflows
 
+**Q: Scenario virtual config endpoints return 503 errors**  
+**A:** Ensure scenario WB adapter is properly initialized in backend bootstrap process
+
 ---
 
-*Last updated: January 2025* 
+*Last updated: January 2025 - Updated for Virtual Device Service and Scenario WB Integration* 

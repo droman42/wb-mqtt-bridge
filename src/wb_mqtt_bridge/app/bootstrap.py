@@ -12,8 +12,10 @@ from wb_mqtt_bridge.infrastructure.config.manager import ConfigManager
 from wb_mqtt_bridge.domain.devices.service import DeviceManager
 from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
 from wb_mqtt_bridge.infrastructure.persistence.sqlite import SQLiteStateStore
+from wb_mqtt_bridge.infrastructure.wb_device.service import WBVirtualDeviceService
 from wb_mqtt_bridge.domain.rooms.service import RoomManager
 from wb_mqtt_bridge.domain.scenarios.service import ScenarioManager
+from wb_mqtt_bridge.infrastructure.scenarios.wb_adapter import ScenarioWBAdapter
 from wb_mqtt_bridge.infrastructure.maintenance.wirenboard_guard import WirenboardMaintenanceGuard
 
 # Import routers
@@ -173,10 +175,15 @@ def create_app() -> FastAPI:
         # Initialize devices using typed configurations only
         await device_manager.initialize_devices(config_manager.get_all_device_configs())
         
-        # Now set the MQTT client for each initialized device
+        # Create WB virtual device service
+        wb_service = WBVirtualDeviceService(message_bus=mqtt_client)
+        logger.info("Created WB virtual device service")
+        
+        # Now set the MQTT client and WB service for each initialized device
         for device_id, device in device_manager.devices.items():
             device.mqtt_client = mqtt_client
-            logger.info(f"Device {device_id} initialized with typed configuration")
+            device.wb_service = wb_service
+            logger.info(f"Device {device_id} initialized with typed configuration and WB service")
         
         # Configuration Migration Phase B: Log migration guidance for deprecated topic usage
         config_manager.log_migration_guidance()
@@ -230,12 +237,34 @@ def create_app() -> FastAPI:
         await scenario_manager.initialize()
         logger.info("Scenario manager initialized")
         
+        # Initialize scenario WB adapter with shared service
+        scenario_wb_adapter = ScenarioWBAdapter(
+            scenario_manager=scenario_manager,
+            wb_service=wb_service,
+            device_manager=device_manager
+        )
+        logger.info("Scenario WB adapter initialized")
+        
+        # Set up WB device for current scenario if any (after MQTT is connected)
+        if scenario_manager.current_scenario and connection_success:
+            try:
+                logger.info(f"Setting up WB virtual device for active scenario: {scenario_manager.current_scenario.definition.scenario_id}")
+                success = await scenario_wb_adapter.setup_wb_virtual_device_for_scenario(
+                    scenario_manager.current_scenario
+                )
+                if success:
+                    logger.info("Scenario WB virtual device setup completed")
+                else:
+                    logger.warning("Failed to setup scenario WB virtual device")
+            except Exception as e:
+                logger.error(f"Error setting up scenario WB virtual device: {str(e)}")
+        
         # Initialize routers with dependencies
         system.initialize(config_manager, device_manager, mqtt_client, state_store, scenario_manager, room_manager)
         devices.initialize(config_manager, device_manager, mqtt_client)
         mqtt.initialize(mqtt_client)
         groups.initialize(config_manager, device_manager)
-        scenarios.initialize(scenario_manager, room_manager, mqtt_client)
+        scenarios.initialize(scenario_manager, room_manager, mqtt_client, scenario_wb_adapter)
         rooms.initialize(room_manager)
         state.initialize(config_manager, device_manager, state_store, scenario_manager)
         events.initialize()  # Initialize SSE events router
@@ -277,7 +306,16 @@ def create_app() -> FastAPI:
             logger.info("Preparing device manager for shutdown...")
             await device_manager.prepare_for_shutdown()
             
-            # Shutdown scenario manager first
+            # Clean up scenario WB devices first
+            logger.info("Cleaning up scenario WB devices...")
+            if scenario_manager.current_scenario:
+                try:
+                    await scenario_wb_adapter.cleanup_scenario_wb_device(scenario_manager.current_scenario)
+                    logger.info("Scenario WB virtual device cleanup completed")
+                except Exception as e:
+                    logger.error(f"Error cleaning up scenario WB virtual device: {str(e)}")
+            
+            # Shutdown scenario manager
             logger.info("Shutting down scenario manager...")
             await scenario_manager.shutdown()
             

@@ -11,6 +11,7 @@ import psutil
 from wb_mqtt_bridge.domain.devices.models import BaseDeviceState, LastCommand
 from wb_mqtt_bridge.infrastructure.config.models import BaseDeviceConfig, BaseCommandConfig, CommandParameterDefinition
 from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
+from wb_mqtt_bridge.infrastructure.wb_device.service import WBVirtualDeviceService
 from wb_mqtt_bridge.utils.types import StateT, CommandResult, CommandResponse, ActionHandler
 from wb_mqtt_bridge.presentation.api.sse_manager import sse_manager, SSEChannel
 from wb_mqtt_bridge.domain.ports import DeviceBusPort
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
     """Base class for all device implementations."""
     
-    def __init__(self, config: BaseDeviceConfig, mqtt_client: Optional["MQTTClient"] = None):
+    def __init__(self, config: BaseDeviceConfig, mqtt_client: Optional["MQTTClient"] = None, wb_service: Optional[WBVirtualDeviceService] = None):
         self.config = config
         # Use typed config directly - no fallbacks to dictionary access
         self.device_id = config.device_id
@@ -34,6 +35,7 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
         self._action_handlers: Dict[str, ActionHandler] = {}  # Cache for action handlers
         self._action_groups: Dict[str, List[Dict[str, Any]]] = {}  # Index of actions by group
         self.mqtt_client = mqtt_client
+        self.wb_service = wb_service  # Injected WB virtual device service
         self._state_change_callback = None  # Callback for state changes
         
         # Register action handlers
@@ -47,7 +49,11 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
     
     def should_publish_wb_virtual_device(self) -> bool:
         """Check if WB virtual device emulation should be enabled for this device."""
-        # Check if MQTT client is available
+        # Check if WB service is available
+        if not self.wb_service:
+            return False
+            
+        # Check if MQTT client is available (service needs it)
         if not self.mqtt_client:
             return False
             
@@ -55,246 +61,54 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
         return getattr(self.config, 'enable_wb_emulation', True)
     
     async def _setup_wb_virtual_device(self):
-        """Set up Wirenboard virtual device emulation with enhanced validation."""
+        """Set up Wirenboard virtual device emulation using WB service."""
+        if not self.wb_service:
+            logger.warning(f"Cannot setup WB virtual device for {self.device_id}: no WB service")
+            return
+        
         if not self.mqtt_client:
             logger.warning(f"Cannot setup WB virtual device for {self.device_id}: no MQTT client")
             return
         
-        # Validate WB configuration before setup
-        is_valid, validation_results = await self.validate_wb_configuration()
-        if not is_valid:
-            logger.error(f"WB configuration validation failed for {self.device_id}")
-            logger.error(f"Validation results: {validation_results}")
-            return
+        # Use WB service to set up virtual device
+        success = await self.wb_service.setup_wb_device_from_config(
+            config=self.config,
+            command_executor=self._execute_wb_command_from_service,
+            driver_name="wb_mqtt_bridge",
+            device_type=self.config.device_class.lower() if hasattr(self.config, 'device_class') else None
+        )
         
-        # Log warnings even if configuration is valid
-        if validation_results.get('warnings'):
-            for warning in validation_results['warnings']:
-                logger.warning(f"WB setup warning for {self.device_id}: {warning}")
-        
-        # Publish device metadata
-        await self._publish_wb_device_meta()
-        
-        # Publish control metadata and initial states
-        await self._publish_wb_control_metas()
-        
-        # Set up Last Will Testament for offline detection
-        await self._setup_wb_last_will()
-        
-        logger.info(f"WB virtual device emulation enabled for {self.device_id}")
-    
-    async def _publish_wb_device_meta(self):
-        """Publish WB device metadata."""
-        device_meta = {
-            "driver": "wb_mqtt_bridge",
-            "title": {"en": self.device_name}
-        }
-        
-        topic = f"/devices/{self.device_id}/meta"
-        await self.mqtt_client.publish(topic, json.dumps(device_meta), retain=True)
-        logger.debug(f"Published WB device meta for {self.device_id}")
-    
-    async def _publish_wb_control_metas(self):
-        """Publish WB control metadata for configured commands only."""
-        available_commands = self.get_available_commands()
-        
-        for cmd_name, cmd_config in available_commands.items():
-            # Only create WB controls for commands that have handlers
-            if cmd_config.action and cmd_config.action in self._action_handlers:
-                control_meta = self._generate_wb_control_meta_from_config(cmd_name, cmd_config)
-                
-                # Use command name as control name for WB topics
-                control_name = cmd_name
-                
-                # Publish control metadata
-                meta_topic = f"/devices/{self.device_id}/controls/{control_name}/meta"
-                await self.mqtt_client.publish(meta_topic, json.dumps(control_meta), retain=True)
-                
-                # Publish initial control state
-                initial_state = self._get_initial_wb_control_state_from_config(cmd_name, cmd_config)
-                state_topic = f"/devices/{self.device_id}/controls/{control_name}"
-                await self.mqtt_client.publish(state_topic, str(initial_state), retain=True)
-                
-                logger.debug(f"Published WB control meta for {self.device_id}/{control_name}")
-    
-    def _generate_wb_control_meta_from_config(self, cmd_name: str, cmd_config) -> Dict[str, Any]:
-        """Generate WB control metadata from command configuration."""
-        
-        # Check for explicit WB configuration in device config first
-        if hasattr(self.config, 'wb_controls') and self.config.wb_controls and cmd_name in self.config.wb_controls:
-            return self.config.wb_controls[cmd_name]
-        
-        # Generate control metadata from command configuration
-        meta = {
-            "title": {"en": cmd_config.description or self._generate_control_title(cmd_name)},
-            "readonly": False,
-            "order": self._get_control_order_from_config(cmd_config)
-        }
-        
-        # Determine control type based on parameters and group
-        control_type = self._determine_wb_control_type_from_config(cmd_config)
-        meta["type"] = control_type
-        
-        # Extract parameter-specific metadata
-        param_metadata = self._extract_parameter_metadata_from_config(cmd_config)
-        meta.update(param_metadata)
-        
-        return meta
-
-    def _determine_wb_control_type_from_config(self, cmd_config) -> str:
-        """Determine WB control type from command configuration."""
-        
-        # Group-based overrides take precedence
-        if hasattr(cmd_config, 'group') and cmd_config.group:
-            group_type = self._get_control_type_from_group(cmd_config.group, cmd_config.action)
-            if group_type:
-                return group_type
-        
-        # Parameter-based type detection
-        if hasattr(cmd_config, 'params') and cmd_config.params:
-            return self._get_control_type_from_parameters(cmd_config.params)
-        
-        # No parameters - default to pushbutton
-        return "pushbutton"
-    
-    def _get_control_type_from_group(self, group: str, action: str) -> Optional[str]:
-        """Get control type based on command group and action."""
-        group_lower = group.lower()
-        action_lower = action.lower()
-        
-        # Power commands are always pushbuttons
-        if group_lower == "power":
-            return "pushbutton"
-        
-        # Volume group - distinguish between discrete and continuous controls
-        if group_lower == "volume":
-            if action_lower in ["volume_up", "volume_down", "mute", "unmute", "mute_toggle"]:
-                return "pushbutton"  # Discrete volume controls
-            elif action_lower in ["set_volume"]:
-                return None  # Let parameter detection decide (likely range)
-        
-        # Playback controls are always pushbuttons
-        if group_lower in ["playback", "menu", "navigation"]:
-            return "pushbutton"
-        
-        # Input/source selection
-        if group_lower in ["inputs", "apps"]:
-            return None  # Let parameter detection decide
-        
-        return None  # No group-based override
-    
-    def _get_control_type_from_parameters(self, params: List) -> str:
-        """Get control type based on command parameters."""
-        if not params:
-            return "pushbutton"
-        
-        # Look at the first parameter to determine control type
-        first_param = params[0]
-        param_type = getattr(first_param, 'type', 'string')
-        
-        if param_type == "range":
-            return "range"
-        elif param_type == "boolean":
-            return "switch"
-        elif param_type == "string":
-            return "text"
-        elif param_type in ["integer", "float"]:
-            return "range"  # Numeric inputs as ranges
+        if success:
+            logger.info(f"WB virtual device emulation enabled for {self.device_id}")
         else:
-            return "pushbutton"  # Fallback
+            logger.error(f"Failed to setup WB virtual device for {self.device_id}")
     
-    def _extract_parameter_metadata_from_config(self, cmd_config) -> Dict[str, Any]:
-        """Extract parameter metadata for WB control."""
-        metadata = {}
-        
-        if not hasattr(cmd_config, 'params') or not cmd_config.params:
-            return metadata
-        
-        first_param = cmd_config.params[0]
-        
-        # Extract range metadata
-        if getattr(first_param, 'type', None) in ["range", "integer", "float"]:
-            if hasattr(first_param, 'min') and first_param.min is not None:
-                metadata["min"] = first_param.min
-            if hasattr(first_param, 'max') and first_param.max is not None:
-                metadata["max"] = first_param.max
+    async def _execute_wb_command_from_service(self, control_name: str, payload: str, params: Dict[str, Any]):
+        """Command executor callback for WB service - routes to BaseDevice execution logic."""
+        try:
+            # Find corresponding command configuration
+            available_commands = self.get_available_commands()
+            if control_name not in available_commands:
+                logger.warning(f"No command configuration found for WB control: {control_name}")
+                return
             
-            # Infer units from parameter description or name
-            param_desc = getattr(first_param, 'description', '') or ''
-            param_name = getattr(first_param, 'name', '') or ''
+            cmd_config = available_commands[control_name]
             
-            if "dB" in param_desc:
-                metadata["units"] = "dB"
-            elif "%" in param_desc or param_name.lower() in ["volume", "level", "percentage"]:
-                metadata["units"] = "%"
-            elif param_name.lower() in ["speed", "rpm"]:
-                metadata["units"] = "rpm"
-            elif param_name.lower() in ["temperature", "temp"]:
-                metadata["units"] = "°C"
-        
-        return metadata
+            # Check if command has a handler
+            if not cmd_config.action or cmd_config.action not in self._action_handlers:
+                logger.warning(f"No handler found for WB control: {control_name} (action: {cmd_config.action})")
+                return
+            
+            # Execute the handler using the action name
+            await self._execute_single_action(cmd_config.action, cmd_config, params, source="wb_command")
+            
+        except Exception as e:
+            logger.error(f"Error executing WB command {control_name} for device {self.device_id}: {str(e)}")
+            raise
     
-    def _get_control_order_from_config(self, cmd_config) -> int:
-        """Generate control ordering based on command configuration."""
-        
-        # Group-based ordering
-        if hasattr(cmd_config, 'group') and cmd_config.group:
-            group_lower = cmd_config.group.lower()
-            action_lower = getattr(cmd_config, 'action', '').lower()
-            
-            # Power controls first (1-10)
-            if group_lower == "power":
-                if "on" in action_lower:
-                    return 1
-                elif "off" in action_lower:
-                    return 2
-                else:
-                    return 5
-            
-            # Volume controls (10-19)
-            elif group_lower == "volume":
-                if "set_volume" in action_lower:
-                    return 10
-                elif "volume_up" in action_lower:
-                    return 11
-                elif "volume_down" in action_lower:
-                    return 12
-                elif "mute" in action_lower:
-                    return 13
-                else:
-                    return 15
-            
-            # Input/source controls (20-29)
-            elif group_lower in ["inputs", "apps"]:
-                return 20
-            
-            # Playback controls (30-39)
-            elif group_lower == "playback":
-                if "play" in action_lower:
-                    return 30
-                elif "pause" in action_lower:
-                    return 31
-                elif "stop" in action_lower:
-                    return 32
-                elif "next" in action_lower:
-                    return 33
-                elif "previous" in action_lower:
-                    return 34
-                else:
-                    return 35
-            
-            # Menu/navigation controls (40-49)
-            elif group_lower in ["menu", "navigation"]:
-                return 40
-        
-        # Fallback ordering based on action name
-        action_lower = getattr(cmd_config, 'action', '').lower()
-        if any(x in action_lower for x in ['get_', 'list_', 'available']):
-            return 80  # Information controls at end
-        
-        return 100  # Default order
-
-    def _get_initial_wb_control_state_from_config(self, cmd_name: str, cmd_config) -> str:
+    # WB device metadata and control publishing is now handled by WBVirtualDeviceService
+    
+    # WB control metadata generation is now handled by WBVirtualDeviceService
         """Get initial state value for WB control from command configuration."""
         
         # If no parameters, it's a pushbutton (always 0)
@@ -325,349 +139,32 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
         else:
             return "0"  # Fallback
 
-    def _generate_wb_control_meta(self, handler_name: str) -> Dict[str, Any]:
-        """Generate WB control metadata with enhanced smart defaults."""
-        
-        # Check for explicit WB configuration in device config
-        if hasattr(self.config, 'wb_controls') and self.config.wb_controls and handler_name in self.config.wb_controls:
-            return self.config.wb_controls[handler_name]
-        
-        # Generate smart defaults based on handler name
-        meta = {
-            "title": {"en": self._generate_control_title(handler_name)},
-            "readonly": False,
-            "order": self._get_control_order(handler_name)
-        }
-        
-        # Enhanced smart type detection based on naming patterns
-        handler_lower = handler_name.lower()
-        
-        # Power controls - pushbuttons
-        if any(x in handler_lower for x in ['power_on', 'power_off', 'turn_on', 'turn_off']):
-            meta.update({
-                "type": "pushbutton",
-                "readonly": False
-            })
-        
-        # Volume controls - range sliders
-        elif any(x in handler_lower for x in ['set_volume', 'volume', 'vol']):
-            meta.update({
-                "type": "range",
-                "min": 0,
-                "max": 100,
-                "units": "%",
-                "readonly": False
-            })
-        
-        # Mute controls - switches  
-        elif any(x in handler_lower for x in ['mute', 'unmute', 'toggle_mute']):
-            meta.update({
-                "type": "switch",
-                "readonly": False
-            })
-        
-        # Input/source selection - text input or range
-        elif any(x in handler_lower for x in ['set_input', 'input', 'source', 'channel']):
-            if 'set_' in handler_lower:
-                meta.update({
-                    "type": "text",
-                    "readonly": False
-                })
-            else:
-                meta.update({
-                    "type": "text", 
-                    "readonly": True
-                })
-        
-        # Playback controls - pushbuttons
-        elif any(x in handler_lower for x in ['play', 'pause', 'stop', 'next', 'previous', 'forward', 'rewind']):
-            meta.update({
-                "type": "pushbutton",
-                "readonly": False
-            })
-        
-        # Navigation controls - pushbuttons
-        elif any(x in handler_lower for x in ['home', 'back', 'menu', 'up', 'down', 'left', 'right', 'ok', 'select']):
-            meta.update({
-                "type": "pushbutton",
-                "readonly": False
-            })
-        
-        # App/application controls - text or pushbutton
-        elif any(x in handler_lower for x in ['app', 'application', 'launch']):
-            if 'launch' in handler_lower or 'open' in handler_lower:
-                meta.update({
-                    "type": "text",
-                    "readonly": False
-                })
-            else:
-                meta.update({
-                    "type": "text",
-                    "readonly": True
-                })
-        
-        # Speed/level controls - range sliders
-        elif any(x in handler_lower for x in ['speed', 'level', 'brightness', 'contrast']):
-            meta.update({
-                "type": "range",
-                "min": 0,
-                "max": 100,
-                "readonly": False
-            })
-            
-            # Add appropriate units
-            if 'speed' in handler_lower:
-                meta["units"] = "rpm" if 'fan' in handler_lower else ""
-            elif any(x in handler_lower for x in ['brightness', 'contrast']):
-                meta["units"] = "%"
-        
-        # Temperature controls - range with appropriate units
-        elif any(x in handler_lower for x in ['temp', 'temperature']):
-            meta.update({
-                "type": "range",
-                "min": 16,
-                "max": 30,
-                "units": "°C",
-                "readonly": "set_" not in handler_lower
-            })
-        
-        # Status/state getters - readonly text
-        elif any(x in handler_lower for x in ['get_', 'status', 'state', 'current']):
-            meta.update({
-                "type": "text",
-                "readonly": True
-            })
-        
-        # List/available getters - readonly text  
-        elif any(x in handler_lower for x in ['list_', 'available', 'supported']):
-            meta.update({
-                "type": "text",
-                "readonly": True
-            })
-        
-        # Generic setters - range sliders
-        elif 'set_' in handler_lower:
-            meta.update({
-                "type": "range",
-                "min": 0,
-                "max": 100,
-                "readonly": False
-            })
-        
-        # Connection/setup controls - pushbuttons
-        elif any(x in handler_lower for x in ['connect', 'disconnect', 'setup', 'reset', 'restart']):
-            meta.update({
-                "type": "pushbutton",
-                "readonly": False
-            })
-        
-        # Default fallback - pushbutton for actions
-        else:
-            meta.update({
-                "type": "pushbutton",
-                "readonly": False
-            })
-        
-        return meta
+    # Legacy WB control metadata generation is now handled by WBVirtualDeviceService
     
-    def _generate_control_title(self, handler_name: str) -> str:
-        """Generate a human-readable title for a control."""
-        # Handle common abbreviations and improve formatting
-        title = handler_name.replace('_', ' ').title()
-        
-        # Improve common abbreviations and terms
-        replacements = {
-            'Tv': 'TV',
-            'Ir': 'IR', 
-            'Rf': 'RF',
-            'App ': 'App ',
-            'Vol': 'Volume',
-            'Temp': 'Temperature',
-            'Set ': '',  # Remove "Set" prefix
-            'Get ': '',  # Remove "Get" prefix
-            'Toggle ': '',  # Simplify toggle controls
-        }
-        
-        for old, new in replacements.items():
-            title = title.replace(old, new)
-        
-        # Clean up extra spaces
-        title = ' '.join(title.split())
-        
-        return title
+    # WB control title generation and ordering are now handled by WBVirtualDeviceService
     
-    def _get_control_order(self, handler_name: str) -> int:
-        """Generate control ordering based on handler name patterns."""
-        handler_lower = handler_name.lower()
-        
-        # Power controls first (1-5)
-        if any(x in handler_lower for x in ['power_on', 'turn_on']):
-            return 1
-        elif any(x in handler_lower for x in ['power_off', 'turn_off']):
-            return 2
-        elif any(x in handler_lower for x in ['connect', 'setup']):
-            return 3
-        elif any(x in handler_lower for x in ['disconnect', 'reset', 'restart']):
-            return 4
-        
-        # Audio controls (10-19)
-        elif any(x in handler_lower for x in ['volume', 'vol']):
-            return 10
-        elif any(x in handler_lower for x in ['mute', 'unmute']):
-            return 11
-        
-        # Input/source controls (20-24)
-        elif any(x in handler_lower for x in ['input', 'source', 'channel']):
-            return 20
-        
-        # Playback controls (25-35)
-        elif 'play' in handler_lower:
-            return 25
-        elif 'pause' in handler_lower:
-            return 26
-        elif 'stop' in handler_lower:
-            return 27
-        elif any(x in handler_lower for x in ['next', 'forward']):
-            return 28
-        elif any(x in handler_lower for x in ['previous', 'rewind']):
-            return 29
-        
-        # Navigation controls (40-50)
-        elif 'home' in handler_lower:
-            return 40
-        elif 'back' in handler_lower:
-            return 41
-        elif 'menu' in handler_lower:
-            return 42
-        elif any(x in handler_lower for x in ['up', 'down', 'left', 'right']):
-            return 43
-        elif any(x in handler_lower for x in ['ok', 'select']):
-            return 44
-        
-        # App/application controls (55-59)
-        elif any(x in handler_lower for x in ['app', 'application', 'launch']):
-            return 55
-        
-        # Environmental controls (60-70)
-        elif any(x in handler_lower for x in ['temp', 'temperature']):
-            return 60
-        elif any(x in handler_lower for x in ['speed', 'fan']):
-            return 61
-        elif any(x in handler_lower for x in ['brightness', 'contrast']):
-            return 62
-        elif 'level' in handler_lower:
-            return 63
-        
-        # Status/information controls (80-89)
-        elif any(x in handler_lower for x in ['status', 'state', 'current']):
-            return 80
-        elif any(x in handler_lower for x in ['get_', 'list_', 'available']):
-            return 85
-        
-        # Generic setters (90-95)
-        elif 'set_' in handler_lower:
-            return 90
-        
-        # Everything else (100+)
-        else:
-            return 100
+    # WB control state generation is now handled by WBVirtualDeviceService
     
-    def _get_initial_wb_control_state(self, handler_name: str) -> str:
-        """Get initial state value for WB control with enhanced defaults."""
-        handler_lower = handler_name.lower()
-        
-        # Switch controls (0 = off, 1 = on)
-        if any(x in handler_lower for x in ['mute', 'unmute']):
-            return "0"  # Not muted
-        
-        # Range controls with appropriate defaults
-        elif any(x in handler_lower for x in ['volume', 'vol']):
-            return "50"  # 50% volume
-        elif any(x in handler_lower for x in ['speed', 'fan']):
-            return "0"  # Fan/speed off
-        elif any(x in handler_lower for x in ['brightness', 'contrast']):
-            return "75"  # 75% brightness/contrast
-        elif 'level' in handler_lower:
-            return "50"  # 50% level
-        elif any(x in handler_lower for x in ['temp', 'temperature']):
-            return "22"  # 22°C default temperature
-        elif 'set_' in handler_lower:
-            return "0"  # Generic setter default
-        
-        # Text controls - empty or status strings
-        elif any(x in handler_lower for x in ['input', 'source', 'channel']):
-            return ""  # No input selected
-        elif any(x in handler_lower for x in ['app', 'application']):
-            return ""  # No app selected
-        elif any(x in handler_lower for x in ['status', 'state']):
-            return "unknown"  # Unknown status
-        elif any(x in handler_lower for x in ['get_', 'list_', 'available']):
-            return ""  # Empty list/info
-        
-        # Pushbutton controls (always 0 for non-pressed state)
-        elif any(x in handler_lower for x in [
-            'power_on', 'power_off', 'turn_on', 'turn_off',
-            'play', 'pause', 'stop', 'next', 'previous', 'forward', 'rewind',
-            'home', 'back', 'menu', 'up', 'down', 'left', 'right', 'ok', 'select',
-            'connect', 'disconnect', 'setup', 'reset', 'restart'
-        ]):
-            return "0"  # Not pressed
-        
-        # Default for any other controls
-        else:
-            return "0"
-    
-    async def _setup_wb_last_will(self):
-        """Set up enhanced Last Will Testament for device offline detection with maintenance guard integration."""
-        try:
-            # Set error state when device goes offline
-            error_topic = f"/devices/{self.device_id}/meta/error"
-            availability_topic = f"/devices/{self.device_id}/meta/available"
-            
-            # Add Last Will Testament messages to MQTT client
-            if hasattr(self.mqtt_client, 'add_will_message'):
-                # Add device offline LWT messages
-                self.mqtt_client.add_will_message(self.device_id, error_topic, "offline", qos=1, retain=True)
-                self.mqtt_client.add_will_message(self.device_id, availability_topic, "0", qos=1, retain=True)
-                
-                logger.debug(f"Added LWT messages for device {self.device_id}")
-            else:
-                logger.warning(f"MQTT client does not support Last Will Testament for {self.device_id}")
-            
-            # Clear error state and mark device as available on successful setup
-            await self.mqtt_client.publish(error_topic, "", retain=True)
-            await self.mqtt_client.publish(availability_topic, "1", retain=True)
-            
-            # Integration with maintenance guard - if maintenance is active, 
-            # delay LWT setup to avoid false positives during system restarts
-            if hasattr(self.mqtt_client, 'guard') and self.mqtt_client.guard:
-                # The maintenance guard will handle filtering during restart windows
-                logger.debug(f"LWT setup with maintenance guard integration for {self.device_id}")
-            
-            logger.debug(f"Set up WB Last Will Testament for {self.device_id}")
-            
-        except Exception as e:
-            logger.warning(f"Error setting up Last Will Testament for {self.device_id}: {str(e)}")
+    # WB Last Will Testament setup is now handled by WBVirtualDeviceService
     
     async def cleanup_wb_device_state(self):
         """
-        Clean up WB device state on shutdown.
-        Marks device as offline and unavailable.
+        Clean up WB device state on shutdown using WB service.
         """
-        if not self.should_publish_wb_virtual_device() or not self.mqtt_client:
+        if not self.should_publish_wb_virtual_device():
             return
             
+        if not self.wb_service:
+            logger.warning(f"Cannot cleanup WB device for {self.device_id}: no WB service")
+            return
+        
         try:
-            # Mark device as offline
-            error_topic = f"/devices/{self.device_id}/meta/error"
-            await self.mqtt_client.publish(error_topic, "offline", retain=True)
-            
-            # Mark device as unavailable
-            availability_topic = f"/devices/{self.device_id}/meta/available"
-            await self.mqtt_client.publish(availability_topic, "0", retain=True)
-            
-            logger.debug(f"Cleaned up WB device state for {self.device_id}")
-            
+            success = await self.wb_service.cleanup_wb_device(self.device_id)
+            if success:
+                logger.debug(f"Cleaned up WB device state for {self.device_id}")
+            else:
+                logger.warning(f"Failed to cleanup WB device state for {self.device_id}")
+                
         except Exception as e:
             logger.warning(f"Error cleaning up WB device state for {self.device_id}: {str(e)}")
     
@@ -679,59 +176,26 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
         if self.should_publish_wb_virtual_device():
             await self._setup_wb_virtual_device()
     
-    async def refresh_wb_control_states(self):
-        """
-        Refresh all WB control states by republishing current device state.
-        Useful after MQTT reconnection to ensure state persistence.
-        """
-        if not self.should_publish_wb_virtual_device():
-            return
-            
-        try:
-            # Republish all current state values to WB controls
-            current_state = self.state.dict(exclude_unset=True)
-            await self._sync_state_to_wb_controls(current_state)
-            
-            # Also republish any handler-specific states that might not be in main state
-            for handler_name in self._action_handlers:
-                if not handler_name.startswith('_'):
-                    # Check if we have a current state for this handler
-                    if hasattr(self.state, handler_name):
-                        value = getattr(self.state, handler_name)
-                        wb_value = self._convert_state_to_wb_value(handler_name, value)
-                        if wb_value is not None:
-                            control_topic = f"/devices/{self.device_id}/controls/{handler_name}"
-                            await self.mqtt_client.publish(control_topic, str(wb_value), retain=True)
-            
-            logger.debug(f"Refreshed WB control states for {self.device_id}")
-            
-        except Exception as e:
-            logger.warning(f"Error refreshing WB control states for {self.device_id}: {str(e)}")
+    # WB control state refresh is now handled by WBVirtualDeviceService
     
     async def handle_mqtt_reconnection(self):
         """
-        Handle MQTT reconnection by republishing all WB device metadata and states.
+        Handle MQTT reconnection using WB service.
         This ensures retained messages are restored after connection loss.
         """
         if not self.should_publish_wb_virtual_device():
             return
             
+        if not self.wb_service:
+            logger.warning(f"Cannot handle MQTT reconnection for WB device {self.device_id}: no WB service")
+            return
+            
         try:
-            logger.info(f"Handling MQTT reconnection for WB device {self.device_id}")
-            
-            # Republish device metadata
-            await self._publish_wb_device_meta()
-            
-            # Republish control metadata
-            await self._publish_wb_control_metas()
-            
-            # Refresh all control states
-            await self.refresh_wb_control_states()
-            
-            # Re-setup Last Will Testament
-            await self._setup_wb_last_will()
-            
-            logger.info(f"Successfully restored WB device state for {self.device_id}")
+            success = await self.wb_service.handle_mqtt_reconnection(self.device_id)
+            if success:
+                logger.info(f"Successfully restored WB device state for {self.device_id}")
+            else:
+                logger.error(f"Failed to handle MQTT reconnection for WB device {self.device_id}")
             
         except Exception as e:
             logger.error(f"Error handling MQTT reconnection for {self.device_id}: {str(e)}")
@@ -868,14 +332,9 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
         """Define the MQTT topics this device should subscribe to."""
         topics = []
         
-        # For WB-enabled devices, subscribe ONLY to WB command topics (/on suffix)
-        if self.should_publish_wb_virtual_device():
-            available_commands = self.get_available_commands()
-            for cmd_name, cmd_config in available_commands.items():
-                # Only add WB command topics for commands that have handlers
-                if cmd_config.action and cmd_config.action in self._action_handlers:
-                    command_topic = f"/devices/{self.device_id}/controls/{cmd_name}/on"
-                    topics.append(command_topic)
+        # For WB-enabled devices, use the WB service to get subscription topics
+        if self.should_publish_wb_virtual_device() and self.wb_service:
+            topics = self.wb_service.get_subscription_topics_from_config(self.config)
         else:
             # For non-WB devices, use legacy topic subscription for backward compatibility
             for cmd_name, cmd in self.get_available_commands().items():
@@ -897,10 +356,15 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
         # DEBUG: Enhanced logging for all device messages
         logger.debug(f"[BASE_DEVICE_DEBUG] handle_message for {self.device_id}: topic={topic}, payload='{payload}'")
         
-        # Check if this is a WB command topic
-        if self._is_wb_command_topic(topic):
-            await self._handle_wb_command(topic, payload)
-            return
+        # Check if this is a WB command topic and handle it via service
+        if self.should_publish_wb_virtual_device() and self.wb_service:
+            try:
+                handled = await self.wb_service.handle_wb_message(topic, payload, self.device_id)
+                if handled:
+                    return
+            except Exception as e:
+                logger.error(f"Error handling WB message via service for {self.device_id}: {str(e)}")
+                # Continue to legacy handling as fallback
         
         # Find matching command configuration based on topic
         matching_commands = []
@@ -987,236 +451,13 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
             logger.error(f"Failed to send MQTT command '{command}' to device {self.device_id}: {e}")
             return {"success": False, "error": str(e)}
     
-    def _is_wb_command_topic(self, topic: str) -> bool:
-        """Check if topic is a WB command topic."""
-        pattern = f"/devices/{re.escape(self.device_id)}/controls/(.+)/on"
-        return bool(re.match(pattern, topic))
-
-    async def _handle_wb_command(self, topic: str, payload: str):
-        """Handle WB command topic messages."""
-        # Extract control name (command name) from topic
-        match = re.match(f"/devices/{re.escape(self.device_id)}/controls/(.+)/on", topic)
-        if not match:
-            return
-        
-        cmd_name = match.group(1)
-        
-        # Find corresponding command configuration
-        available_commands = self.get_available_commands()
-        if cmd_name not in available_commands:
-            logger.warning(f"No command configuration found for WB control: {cmd_name}")
-            return
-        
-        cmd_config = available_commands[cmd_name]
-        
-        # Check if command has a handler
-        if not cmd_config.action or cmd_config.action not in self._action_handlers:
-            logger.warning(f"No handler found for WB control: {cmd_name} (action: {cmd_config.action})")
-            return
-        
-        # Process parameters from payload using command configuration
-        params = self._process_wb_command_payload_from_config(cmd_name, cmd_config, payload)
-        
-        # Execute the handler using the action name
-        await self._execute_single_action(cmd_config.action, cmd_config, params, source="wb_command")
-        
-        # Update WB control state to reflect the command
-        await self._update_wb_control_state(cmd_name, payload)
+    # WB command topic handling is now handled by WBVirtualDeviceService
     
-    def _process_wb_command_payload_from_config(self, cmd_name: str, cmd_config, payload: str) -> Dict[str, Any]:
-        """Process WB command payload into parameters using command configuration."""
-        params = {}
-        
-        # If no parameters defined, it's a simple pushbutton
-        if not hasattr(cmd_config, 'params') or not cmd_config.params:
-            return params
-        
-        # Process the first parameter (WB controls typically map to one parameter)
-        first_param = cmd_config.params[0]
-        param_name = first_param.name
-        param_type = getattr(first_param, 'type', 'string')
-        
-        try:
-            if param_type == "boolean":
-                # Convert payload to boolean
-                params[param_name] = payload.lower() in ["1", "true", "on", "yes"]
-            elif param_type in ["range", "integer", "float"]:
-                # Convert payload to numeric value
-                if param_type == "integer":
-                    params[param_name] = int(float(payload))  # Handle "1.0" -> 1
-                elif param_type == "float" or param_type == "range":
-                    params[param_name] = float(payload)
-            elif param_type == "string":
-                # Use payload as string
-                params[param_name] = payload
-            else:
-                # Fallback to string
-                params[param_name] = payload
-                
-        except (ValueError, TypeError) as e:
-            logger.warning(f"Failed to convert WB payload '{payload}' for parameter {param_name} (type: {param_type}): {e}")
-            # Use default value if available
-            if hasattr(first_param, 'default') and first_param.default is not None:
-                params[param_name] = first_param.default
-        
-        return params
-
-    def _process_wb_command_payload(self, control_name: str, payload: str) -> Dict[str, Any]:
-        """Process WB command payload into parameters."""
-        params = {}
-        
-        # For range controls, the payload is the value
-        handler_lower = control_name.lower()
-        if 'volume' in handler_lower or 'set_' in handler_lower:
-            try:
-                # Try to parse as numeric value
-                value = float(payload)
-                # Map volume to a generic parameter name
-                if 'volume' in handler_lower:
-                    params['volume'] = int(value)
-                else:
-                    params['value'] = value
-            except ValueError:
-                # If not numeric, treat as string
-                params['value'] = payload
-        
-        return params
+    # WB state synchronization is now handled by WBVirtualDeviceService
     
-    async def _update_wb_control_state(self, control_name: str, payload: str):
-        """Update WB control state topic with the new value."""
-        if self.mqtt_client:
-            state_topic = f"/devices/{self.device_id}/controls/{control_name}"
-            await self.mqtt_client.publish(state_topic, payload, retain=True)
+    # WB control mappings are now handled by WBVirtualDeviceService
     
-    async def _sync_state_to_wb_controls(self, state_updates: Dict[str, Any]):
-        """Synchronize state changes to WB control topics with bidirectional mapping."""
-        if not self.mqtt_client:
-            return
-        
-        try:
-            # Get state field to WB control mappings for this device
-            control_mappings = self._get_wb_control_mappings()
-            
-            for state_field, value in state_updates.items():
-                # Skip internal fields and non-relevant updates
-                if state_field in ['last_command', 'device_id', 'device_name']:
-                    continue
-                
-                # Check if this state field maps to any WB controls
-                if state_field in control_mappings:
-                    wb_controls = control_mappings[state_field]
-                    if isinstance(wb_controls, str):
-                        wb_controls = [wb_controls]
-                    
-                    # Update all mapped WB controls
-                    for wb_control in wb_controls:
-                        if wb_control in self._action_handlers:
-                            wb_value = self._convert_state_to_wb_value(state_field, value)
-                            if wb_value is not None:
-                                control_topic = f"/devices/{self.device_id}/controls/{wb_control}"
-                                await self.mqtt_client.publish(control_topic, str(wb_value), retain=True)
-                                logger.debug(f"Synced {state_field}={value} to WB control {wb_control}={wb_value}")
-                
-                # Also check for direct handler name matches
-                if state_field in self._action_handlers:
-                    wb_value = self._convert_state_to_wb_value(state_field, value)
-                    if wb_value is not None:
-                        control_topic = f"/devices/{self.device_id}/controls/{state_field}"
-                        await self.mqtt_client.publish(control_topic, str(wb_value), retain=True)
-                        logger.debug(f"Synced direct {state_field}={value} to WB control {state_field}={wb_value}")
-                        
-        except Exception as e:
-            logger.warning(f"Error syncing state to WB controls for {self.device_id}: {str(e)}")
-    
-    def _get_wb_control_mappings(self) -> Dict[str, Union[str, List[str]]]:
-        """Get state field to WB control mappings for this device."""
-        # Default mappings for common state fields
-        mappings = {
-            # Power state mappings
-            'power': ['power_state', 'get_power', 'power_status'],
-            'connected': ['connection_status', 'get_connection_status'],
-            'connection_status': ['get_connection_status'],
-            
-            # Audio state mappings  
-            'volume': ['set_volume', 'get_volume', 'volume_level'],
-            'mute': ['mute', 'toggle_mute', 'get_mute'],
-            
-            # Input/source mappings
-            'input_source': ['set_input', 'get_input', 'input'],
-            'current_app': ['get_app', 'current_app'],
-            'app': ['get_app', 'current_app'],
-            
-            # Playback state mappings
-            'playback_state': ['get_playback_state', 'playback_status'],
-            'media_type': ['get_media_type'],
-            'title': ['get_title'],
-            'artist': ['get_artist'],
-            'album': ['get_album'],
-            
-            # Kitchen hood specific
-            'light': ['light', 'set_light'],
-            'speed': ['speed', 'set_speed', 'fan_speed'],
-            
-            # Environment specific
-            'temperature': ['set_temperature', 'get_temperature'],
-            'brightness': ['set_brightness', 'get_brightness'],
-            'contrast': ['set_contrast', 'get_contrast'],
-            
-            # Network info
-            'ip_address': ['get_ip_address'],
-            'mac_address': ['get_mac_address'],
-            
-            # Error/status
-            'error': ['get_error', 'error_status'],
-        }
-        
-        # Allow devices to override mappings via configuration
-        if hasattr(self.config, 'wb_state_mappings') and self.config.wb_state_mappings:
-            mappings.update(self.config.wb_state_mappings)
-        
-        return mappings
-    
-    def _convert_state_to_wb_value(self, state_field: str, value: Any) -> Optional[str]:
-        """Convert a device state value to a WB control value."""
-        if value is None:
-            return None
-        
-        # Handle boolean values
-        if isinstance(value, bool):
-            return "1" if value else "0"
-        
-        # Handle string values
-        if isinstance(value, str):
-            # Special handling for power states
-            if state_field in ['power', 'connection_status'] and value.lower() in ['on', 'connected', 'true']:
-                return "1"
-            elif state_field in ['power', 'connection_status'] and value.lower() in ['off', 'disconnected', 'false']:
-                return "0"
-            else:
-                return value
-        
-        # Handle numeric values
-        if isinstance(value, (int, float)):
-            # Volume, brightness, etc. should be in 0-100 range
-            if state_field in ['volume', 'brightness', 'contrast'] and 0 <= value <= 100:
-                return str(int(value))
-            # Temperature values
-            elif state_field in ['temperature'] and isinstance(value, (int, float)):
-                return str(int(value))
-            # Speed/level values
-            elif state_field in ['speed', 'level']:
-                return str(int(value))
-            else:
-                return str(value)
-        
-        # Handle enum values
-        if hasattr(value, 'value'):
-            return str(value.value)
-        elif hasattr(value, 'name'):
-            return str(value.name)
-        
-        # Fallback to string conversion
-        return str(value)
+    # WB value conversion is now handled by WBVirtualDeviceService
 
     def _process_mqtt_payload(self, payload: str, param_defs: List[CommandParameterDefinition]) -> Dict[str, Any]:
         """
