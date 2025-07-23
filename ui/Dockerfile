@@ -3,9 +3,14 @@ FROM node:20 AS builder
 
 WORKDIR /app
 
-# Install Python 3.9 and pip for package-based imports
+# Install Python 3.11 and pip for package-based imports
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip python3-venv && \
+    apt-get install -y software-properties-common && \
+    add-apt-repository ppa:deadsnakes/ppa && \
+    apt-get update && \
+    apt-get install -y python3.11 python3.11-pip python3.11-venv python3.11-distutils && \
+    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
+    update-alternatives --install /usr/bin/pip3 pip3 /usr/bin/pip3.11 1 && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy package files first for better caching

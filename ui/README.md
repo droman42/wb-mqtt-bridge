@@ -28,7 +28,7 @@ A modern, responsive web application for controlling smart home devices and scen
 ### Prerequisites
 
 - Node.js 18+ 
-- Python 3.9+
+- Python 3.11+
 - npm or pnpm
 - wb-mqtt-bridge package (backend)
 

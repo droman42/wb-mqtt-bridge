@@ -208,16 +208,21 @@ npm run type-check
 **Workflow Updates**:
 ```yaml
 # Example workflow changes
+- name: Set up Python 3.11
+  uses: actions/setup-python@v4
+  with:
+    python-version: '3.11'  # wb-mqtt-bridge requires Python 3.11+
+
 - name: Install backend package
   run: pip install -e ../wb-mqtt-bridge  # monorepo
   # or
   run: pip install wb-mqtt-bridge>=1.0.0  # separate repos
 
 - name: Generate types
-  run: npm run generate
+  run: npm run gen:device-pages
 
 - name: Validate generated types
-  run: npm run type-check
+  run: npm run typecheck:all
 ```
 
 ### 4.2 Documentation Updates

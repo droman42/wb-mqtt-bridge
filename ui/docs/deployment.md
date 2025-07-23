@@ -18,7 +18,7 @@ This guide covers the automated Docker build and deployment process for wb-mqtt-
 The workflow (`.github/workflows/build-arm.yml`) automatically:
 
 1. **Checks out repositories**: Frontend repo + wb-mqtt-bridge config repo
-2. **Sets up Python environment**: Installs Python 3.9 with package caching
+2. **Sets up Python environment**: Installs Python 3.11 with package caching
 3. **Installs wb-mqtt-bridge package**: In development mode for type generation
 4. **Validates imports**: Tests package installation and model imports
 5. **Sets up Node.js**: With npm dependency caching
