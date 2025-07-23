@@ -2,23 +2,30 @@
 
 ## Overview
 
-This guide covers the automated Docker build and deployment process for wb-mqtt-ui on ARM v7 devices (Wirenboard 7).
+This guide covers the automated Docker build and deployment process for wb-mqtt-ui on ARM v7 devices (Wirenboard 7) using the new package-based wb-mqtt-bridge integration.
 
 ## Architecture
 
-- **Two-stage Docker build**: Node.js build stage → nginx production stage
-- **GitHub Actions**: Automated ARM builds triggered on push
+- **Two-stage Docker build**: Node.js + Python build stage → nginx production stage
+- **Package-based imports**: Uses installed wb-mqtt-bridge Python package
+- **GitHub Actions**: Automated ARM builds with Python package installation
 - **Artifacts**: Compressed Docker images stored as GitHub artifacts
 - **Port 3000**: Avoids conflicts with system nginx on port 80
+- **TypeScript validation**: Ensures type safety during build
 
 ## GitHub Actions Workflow
 
 The workflow (`.github/workflows/build-arm.yml`) automatically:
 
 1. **Checks out repositories**: Frontend repo + wb-mqtt-bridge config repo
-2. **Sets up Docker Buildx**: For cross-platform ARM builds
-3. **Builds ARM image**: Two-stage build with device page generation
-4. **Publishes artifacts**: Compressed Docker image for download
+2. **Sets up Python environment**: Installs Python 3.9 with package caching
+3. **Installs wb-mqtt-bridge package**: In development mode for type generation
+4. **Validates imports**: Tests package installation and model imports
+5. **Sets up Node.js**: With npm dependency caching
+6. **Generates TypeScript types**: From Python models using package imports
+7. **Validates TypeScript**: Ensures type safety before Docker build
+8. **Builds ARM image**: Two-stage build with package-based type generation
+9. **Publishes artifacts**: Compressed Docker image for download
 
 ### Triggered on:
 - Push to `main` or `develop` branches
@@ -41,17 +48,39 @@ Before using, update the repository reference in `.github/workflows/build-arm.ym
 
 ### Device Configuration Mapping
 
-The build uses `config/device-state-mapping.json` with relative paths:
+The build uses `config/device-state-mapping.json` with package-based imports:
 
 ```json
 {
   "WirenboardIRDevice": {
-    "stateFile": "wb-mqtt-bridge/app/schemas.py",
-    "stateClass": "WirenboardIRState",
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:WirenboardIRState",
     "deviceConfigs": [
       "wb-mqtt-bridge/config/devices/ld_player.json",
       "wb-mqtt-bridge/config/devices/mf_amplifier.json"
-    ]
+    ],
+    "description": "IR-controlled devices via Wirenboard"
+  },
+  "ScenarioDevice": {
+    "stateClassImport": "wb_mqtt_bridge.infrastructure.scenarios.models:ScenarioWBConfig",
+    "scenarioConfigs": ["wb-mqtt-bridge/config/scenarios/*.json"],
+    "description": "Virtual WB device configurations for scenarios"
+  }
+}
+```
+
+### Legacy Fallback Support
+
+During transition, both import methods are supported:
+
+```json
+{
+  "WirenboardIRDevice": {
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:WirenboardIRState",
+    "deviceConfigs": ["wb-mqtt-bridge/config/devices/ld_player.json"],
+    
+    // Legacy fallback (will be removed in future versions)
+    "stateFile": "wb-mqtt-bridge/app/schemas.py",
+    "stateClass": "WirenboardIRState"
   }
 }
 ```
@@ -136,17 +165,42 @@ docker inspect wb-ui | grep -A5 Health
 
 ### Build Issues
 
+**Python package import errors:**
+```bash
+# Check GitHub Actions logs for package installation
+gh run list --repo YOUR_USERNAME/wb-mqtt-ui
+gh run view RUN_ID --log
+
+# Look for "Install wb-mqtt-bridge package" step
+# Should show: "✅ Device models import successful"
+```
+
+**Type generation failures:**
+```bash
+# Check the "Validate type generation" step in GitHub Actions
+# Should show: "✅ Type generation successful"
+
+# For local debugging:
+git clone https://github.com/YOUR_USERNAME/wb-mqtt-bridge.git
+cd wb-mqtt-bridge
+pip install -e .
+cd ../wb-mqtt-ui
+npm run gen:device-pages --mode=package
+```
+
 **Config repo not found:**
 ```bash
 # Verify repository is public and accessible
 curl -s https://api.github.com/repos/YOUR_USERNAME/wb-mqtt-bridge
 ```
 
-**Device generation fails:**
+**TypeScript validation errors:**
 ```bash
-# Check GitHub Actions logs for detailed errors
-gh run list --repo YOUR_USERNAME/wb-mqtt-ui
-gh run view RUN_ID --log
+# Check "Run TypeScript validation" step
+# Should show: "✅ TypeScript validation successful"
+
+# For local debugging:
+npm run typecheck:all
 ```
 
 ### Deployment Issues
@@ -158,6 +212,9 @@ docker logs wb-ui
 
 # Verify image loaded correctly
 docker images | grep wb-mqtt-ui
+
+# Check if image was built with package support
+docker run --rm wb-mqtt-ui:latest cat /usr/share/nginx/html/index.html | grep -i "generated"
 ```
 
 **Port already in use:**
@@ -181,15 +238,38 @@ docker port wb-ui
 curl http://localhost:3000/
 ```
 
+### Package-Related Issues
+
+**Missing Python models:**
+```bash
+# Test package installation locally
+python -c "from wb_mqtt_bridge.domain.devices.models import WirenboardIRState; print('✅ OK')"
+python -c "from wb_mqtt_bridge.infrastructure.scenarios.models import ScenarioWBConfig; print('✅ OK')"
+```
+
+**Type generation with old config format:**
+```bash
+# Update config to use stateClassImport instead of stateFile/stateClass
+# See "Device Configuration Mapping" section above
+```
+
 ## Manual Build (Development)
 
-For local testing of the Docker build:
+For local testing of the Docker build with package support:
 
 ```bash
 # Clone config repo locally
 git clone https://github.com/YOUR_USERNAME/wb-mqtt-bridge.git
 
-# Build Docker image
+# Install package locally (for validation)
+cd wb-mqtt-bridge
+pip install -e .
+
+# Test imports
+python -c "from wb_mqtt_bridge.domain.devices.models import WirenboardIRState; print('✅ Package ready')"
+
+# Return to frontend and build Docker image
+cd ../wb-mqtt-ui
 docker build -t wb-mqtt-ui:local .
 
 # Run locally
@@ -200,8 +280,11 @@ docker run -d --name wb-ui-local -p 3000:3000 wb-mqtt-ui:local
 
 ### Automated Updates
 1. Push changes to `main` branch
-2. GitHub Actions builds new ARM image
-3. Download and deploy new artifact
+2. GitHub Actions installs wb-mqtt-bridge package
+3. GitHub Actions generates types using package imports
+4. GitHub Actions validates TypeScript compilation
+5. GitHub Actions builds new ARM image
+6. Download and deploy new artifact
 
 ### Manual Updates
 ```bash
@@ -215,9 +298,48 @@ docker stop wb-ui && docker rm wb-ui
 docker run -d --name wb-ui --restart unless-stopped -p 3000:3000 wb-mqtt-ui:latest
 ```
 
+## Migration from File-Based to Package-Based
+
+If migrating from an older version:
+
+### 1. Update Configuration Format
+```bash
+# Replace stateFile/stateClass with stateClassImport
+# Old format:
+{
+  "WirenboardIRDevice": {
+    "stateFile": "wb-mqtt-bridge/app/schemas.py",
+    "stateClass": "WirenboardIRState"
+  }
+}
+
+# New format:
+{
+  "WirenboardIRDevice": {
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:WirenboardIRState"
+  }
+}
+```
+
+### 2. Test Locally
+```bash
+# Install package
+pip install -e ../wb-mqtt-bridge
+
+# Generate with new format
+npm run gen:device-pages --mode=package
+
+# Validate
+npm run typecheck:all
+```
+
+### 3. Update GitHub Actions
+Use the updated workflow from this guide that includes Python setup and package installation.
+
 ## Security Considerations
 
 - **Public repositories**: Config repo must be public for GitHub Actions
 - **No secrets in configs**: Device configurations should not contain sensitive data
 - **Container isolation**: UI container runs with minimal privileges
-- **Network security**: Only port 3000 exposed, API proxy for backend communication 
+- **Network security**: Only port 3000 exposed, API proxy for backend communication
+- **Package integrity**: wb-mqtt-bridge package verified during build process 

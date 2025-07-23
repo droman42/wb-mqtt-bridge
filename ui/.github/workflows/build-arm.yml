@@ -2,7 +2,7 @@ name: Build ARM Docker Image
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, code_structure ]
   pull_request:
     branches: [ main ]
 
@@ -21,6 +21,37 @@ jobs:
         path: wb-mqtt-bridge
         ref: main
 
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Cache Python packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('wb-mqtt-bridge/pyproject.toml', 'wb-mqtt-bridge/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install wb-mqtt-bridge package
+      run: |
+        echo "Installing wb-mqtt-bridge package..."
+        cd wb-mqtt-bridge
+        pip install -e .
+        echo "Package installation complete. Testing imports..."
+        python -c "from wb_mqtt_bridge.domain.devices.models import WirenboardIRState; print('✅ Device models import successful')"
+        python -c "from wb_mqtt_bridge.infrastructure.scenarios.models import ScenarioWBConfig; print('✅ Scenario models import successful')" || echo "⚠️ Scenario models not available (optional)"
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install Node.js dependencies
+      run: npm ci
+
     - name: Verify directory structure
       run: |
         echo "Build context structure:"
@@ -30,6 +61,18 @@ jobs:
         echo "Python schemas:"
         ls -la wb-mqtt-bridge/app/
         echo "Total config files: $(ls wb-mqtt-bridge/config/devices/*.json | wc -l)"
+
+    - name: Validate type generation
+      run: |
+        echo "Generating TypeScript types from Python models..."
+        npm run gen:device-pages -- --batch --mode=package
+        echo "✅ Type generation successful"
+
+    - name: Run TypeScript validation
+      run: |
+        echo "Running TypeScript type checking..."
+        npm run typecheck:all
+        echo "✅ TypeScript validation successful"
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -41,6 +84,8 @@ jobs:
         platforms: linux/arm/v7
         tags: wb-mqtt-ui:latest
         outputs: type=docker,dest=/tmp/wb-mqtt-ui.tar
+        build-args: |
+          BUILDKIT_INLINE_CACHE=1
 
     - name: Compress Docker image
       run: |
@@ -51,4 +96,14 @@ jobs:
       with:
         name: wb-mqtt-ui-image
         path: /tmp/wb-mqtt-ui.tar.gz
-        retention-days: 30 
+        retention-days: 30
+
+    - name: Upload build logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs
+        path: |
+          npm-debug.log*
+          yarn-error.log*
+        retention-days: 7 
