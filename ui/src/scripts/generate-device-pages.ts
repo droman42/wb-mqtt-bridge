@@ -6,6 +6,7 @@ import { BroadlinkKitchenHoodHandler } from '../lib/deviceHandlers/BroadlinkKitc
 import { AppleTVDeviceHandler } from '../lib/deviceHandlers/AppleTVDeviceHandler';
 import { AuralicDeviceHandler } from '../lib/deviceHandlers/AuralicDeviceHandler';
 import { RevoxA77ReelToReelHandler } from '../lib/deviceHandlers/RevoxA77ReelToReelHandler';
+import { ScenarioVirtualDeviceHandler } from '../lib/deviceHandlers/ScenarioVirtualDeviceHandler';
 import { RemoteControlTemplate } from '../lib/generators/RemoteControlTemplate';
 import { DataValidator } from '../lib/DataValidator';
 import { BatchProcessor } from '../lib/BatchProcessor';
@@ -76,7 +77,8 @@ export class DevicePageGenerator {
       ['BroadlinkKitchenHood', new BroadlinkKitchenHoodHandler()],
       ['AppleTVDevice', new AppleTVDeviceHandler()],
       ['AuralicDevice', new AuralicDeviceHandler()],
-      ['RevoxA77ReelToReel', new RevoxA77ReelToReelHandler()]
+      ['RevoxA77ReelToReel', new RevoxA77ReelToReelHandler()],
+      ['ScenarioDevice', new ScenarioVirtualDeviceHandler()]
     ]);
     
     // Validation and generation components

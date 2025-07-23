@@ -85,6 +85,56 @@ export interface ActionRequest {
   params?: { [key: string]: any };
 }
 
+// Phase 2: Scenario Virtual Device Configuration Types
+export interface ScenarioWBConfig {
+  device_id: string;
+  device_name: string;
+  device_class: string;
+  scenario_id: string;
+  commands: WBCommandDefinition[];
+  controls: WBControlDefinition[];
+  meta?: { [key: string]: any } | null;
+}
+
+export interface WBCommandDefinition {
+  id: string;
+  title: string;
+  type: 'switch' | 'pushbutton' | 'range' | 'text' | 'value';
+  role?: string | null;
+  action?: string | null;
+  meta?: WBCommandMeta | null;
+  order?: number;
+}
+
+export interface WBCommandMeta {
+  max?: number | null;
+  min?: number | null;
+  step?: number | null;
+  units?: string | null;
+  enum?: string[] | null;
+  readonly?: boolean;
+}
+
+export interface WBControlDefinition {
+  topic: string;
+  title: string;
+  type: 'switch' | 'pushbutton' | 'range' | 'text' | 'value';
+  value?: any | null;
+  meta?: WBCommandMeta | null;
+  order?: number;
+}
+
+export interface ScenarioVirtualConfigResponse {
+  scenario_id: string;
+  config: ScenarioWBConfig;
+  generated_at: string;
+  version: string;
+}
+
+export interface ScenarioVirtualConfigsResponse {
+  [scenario_id: string]: ScenarioVirtualConfigResponse;
+}
+
 // Group Related Types
 export interface Group {
   id: string;

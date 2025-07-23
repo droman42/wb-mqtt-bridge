@@ -99,6 +99,24 @@ export class StateTypeGenerator {
     }
   }
 
+  /**
+   * Phase 2: Generate TypeScript state definition for scenario virtual devices
+   * @param scenarioId - Scenario ID to generate virtual device state for
+   * @returns Promise<StateDefinition>
+   */
+  async generateFromScenarioWBConfig(scenarioId: string): Promise<StateDefinition> {
+    try {
+      console.log(`🎮 Generating virtual device state for scenario: ${scenarioId}`);
+      
+      // For now, we'll generate a basic virtual device state structure
+      // In the future, this could fetch from the actual ScenarioWBConfig API
+      return this.generateScenarioVirtualDeviceState(scenarioId);
+    } catch (error) {
+      console.warn(`Scenario virtual device state generation failed for ${scenarioId}: ${error.message}`);
+      return this.generateBasicVirtualDeviceState(scenarioId);
+    }
+  }
+
   async generateFromDeviceConfig(config: DeviceConfig): Promise<StateDefinition> {
     const className = `${config.device_class}State`;
     
@@ -525,5 +543,110 @@ print(json.dumps(result))
       return `'${field.defaultValue}'`;
     }
     return String(field.defaultValue);
+  }
+
+  /**
+   * Phase 2: Generate state definition for scenario virtual devices
+   * @param scenarioId - Scenario ID
+   * @returns StateDefinition
+   */
+  private generateScenarioVirtualDeviceState(scenarioId: string): StateDefinition {
+    const interfaceName = `${this.formatScenarioClassName(scenarioId)}VirtualState`;
+    
+    // Common virtual device state fields based on WB device patterns
+    const fields: StateField[] = [
+      {
+        name: 'scenario_id',
+        type: 'string',
+        optional: false,
+        description: 'Scenario identifier',
+        defaultValue: scenarioId
+      },
+      {
+        name: 'scenario_active',
+        type: 'boolean',
+        optional: false,
+        description: 'Whether the scenario is currently active',
+        defaultValue: false
+      },
+      {
+        name: 'virtual_controls',
+        type: 'Record<string, any>',
+        optional: true,
+        description: 'Virtual control states for WB integration',
+        defaultValue: {}
+      },
+      {
+        name: 'last_command_result',
+        type: 'string | null',
+        optional: true,
+        description: 'Result of the last executed command',
+        defaultValue: null
+      },
+      {
+        name: 'startup_sequence_complete',
+        type: 'boolean',
+        optional: true,
+        description: 'Whether the startup sequence has completed',
+        defaultValue: false
+      },
+      {
+        name: 'shutdown_sequence_complete',
+        type: 'boolean',
+        optional: true,
+        description: 'Whether the shutdown sequence has completed',
+        defaultValue: true
+      }
+    ];
+
+    return {
+      interfaceName,
+      fields,
+      imports: ['BaseDeviceState'],
+      extends: ['BaseDeviceState']
+    };
+  }
+
+  /**
+   * Generate basic virtual device state as fallback
+   * @param scenarioId - Scenario ID
+   * @returns StateDefinition
+   */
+  private generateBasicVirtualDeviceState(scenarioId: string): StateDefinition {
+    const interfaceName = `${this.formatScenarioClassName(scenarioId)}VirtualState`;
+    
+    return {
+      interfaceName,
+      fields: [
+        {
+          name: 'scenario_id',
+          type: 'string',
+          optional: false,
+          description: 'Scenario identifier',
+          defaultValue: scenarioId
+        },
+        {
+          name: 'status',
+          type: 'string',
+          optional: false,
+          description: 'Virtual device status',
+          defaultValue: 'unknown'
+        }
+      ],
+      imports: ['BaseDeviceState'],
+      extends: ['BaseDeviceState']
+    };
+  }
+
+  /**
+   * Format scenario ID to valid TypeScript class name
+   * @param scenarioId - Scenario ID to format
+   * @returns Formatted class name
+   */
+  private formatScenarioClassName(scenarioId: string): string {
+    return scenarioId
+      .split(/[-_]/)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+      .join('');
   }
 } 

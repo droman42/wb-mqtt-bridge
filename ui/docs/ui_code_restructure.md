@@ -98,10 +98,10 @@ cls = getattr(module, "${className}")
 **Estimated Time**: 4-6 hours
 
 **Tasks**:
-- [ ] Add `ScenarioWBConfig` to type generation pipeline
-- [ ] Create TypeScript interfaces for scenario virtual configurations
-- [ ] Add UI components for scenario virtual device controls
-- [ ] Implement state management for virtual devices
+- [x] Add `ScenarioWBConfig` to type generation pipeline
+- [x] Create TypeScript interfaces for scenario virtual configurations
+- [x] Add UI components for scenario virtual device controls
+- [x] Implement state management for virtual devices
 
 ### 2.2 New API Endpoints Integration
 **Files**: 
@@ -111,12 +111,12 @@ cls = getattr(module, "${className}")
 **Estimated Time**: 2-3 hours
 
 **Tasks**:
-- [ ] Add TypeScript types for new scenario endpoints
-- [ ] Implement API hooks for scenario virtual configurations:
+- [x] Add TypeScript types for new scenario endpoints
+- [x] Implement API hooks for scenario virtual configurations:
   - `GET /scenario/virtual_config/{scenario_id}`
   - `GET /scenario/virtual_configs`
-- [ ] Add error handling and loading states
-- [ ] Update existing API integration patterns
+- [x] Add error handling and loading states
+- [x] Update existing API integration patterns
 
 **New API Types**:
 ```typescript
