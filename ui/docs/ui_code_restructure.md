@@ -173,22 +173,22 @@ npm run type-check
 **Estimated Time**: 3-4 hours
 
 **Tasks**:
-- [ ] Test all existing device configurations with new import paths
-- [ ] Verify TypeScript generation for all device models
-- [ ] Test scenario virtual configuration generation
-- [ ] Validate UI components work with generated types
-- [ ] Test error handling for invalid import paths
-- [ ] Verify backward compatibility during transition
+- [x] Test all existing device configurations with new import paths
+- [x] Verify TypeScript generation for all device models
+- [x] Test scenario virtual configuration generation
+- [x] Validate UI components work with generated types
+- [x] Test error handling for invalid import paths
+- [x] Verify backward compatibility during transition
 
 ### 3.3 Integration Testing
 **Priority**: Medium
 **Estimated Time**: 2-3 hours
 
 **Tasks**:
-- [ ] Test with live wb-mqtt-bridge backend
-- [ ] Verify new API endpoints integration
-- [ ] Test scenario virtual device controls
-- [ ] Validate end-to-end device control flows
+- [x] Test with live wb-mqtt-bridge backend
+- [x] Verify new API endpoints integration
+- [x] Test scenario virtual device controls
+- [x] Validate end-to-end device control flows
 
 ---
 
