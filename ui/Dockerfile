@@ -4,13 +4,26 @@ FROM node:20 AS builder
 WORKDIR /app
 
 # Install Python 3.11 and pip for package-based imports
+# First check if Python 3.11+ is already available, otherwise install it
 RUN apt-get update && \
-    apt-get install -y software-properties-common && \
-    add-apt-repository ppa:deadsnakes/ppa && \
-    apt-get update && \
-    apt-get install -y python3.11 python3.11-pip python3.11-venv python3.11-distutils && \
-    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
-    update-alternatives --install /usr/bin/pip3 pip3 /usr/bin/pip3.11 1 && \
+    apt-get install -y software-properties-common wget && \
+    python3 --version && \
+    if ! python3 -c "import sys; exit(0 if sys.version_info >= (3, 11) else 1)"; then \
+        echo "Installing Python 3.11..." && \
+        (add-apt-repository ppa:deadsnakes/ppa || echo "PPA failed, trying alternative...") && \
+        apt-get update && \
+        (apt-get install -y python3.11 python3.11-pip python3.11-venv python3.11-distutils || \
+         (echo "Deadsnakes failed, using system Python..." && apt-get install -y python3-pip python3-venv)) && \
+        if command -v python3.11 >/dev/null 2>&1; then \
+            update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1; \
+            if command -v pip3.11 >/dev/null 2>&1; then \
+                update-alternatives --install /usr/bin/pip3 pip3 /usr/bin/pip3.11 1; \
+            fi; \
+        fi; \
+    else \
+        echo "Python 3.11+ already available, installing pip..."; \
+        apt-get install -y python3-pip python3-venv; \
+    fi && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy package files first for better caching
