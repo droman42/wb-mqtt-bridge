@@ -34,31 +34,39 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pip-
 
-    - name: Install wb-mqtt-bridge package with robust environment
+    - name: Install and test wb-mqtt-bridge package
+      shell: bash
       run: |
-        # Create and activate virtual environment for isolation
-        python3 -m venv /tmp/wb-mqtt-env
-        source /tmp/wb-mqtt-env/bin/activate
+        set -e  # Exit on any error
         
-        # Upgrade essential tools
-        pip install --upgrade pip setuptools wheel
+        # Create virtual environment
+        python3 -m venv /tmp/wb-mqtt-env
+        
+        # Use explicit paths to virtual environment executables
+        VENV_PYTHON="/tmp/wb-mqtt-env/bin/python3"
+        VENV_PIP="/tmp/wb-mqtt-env/bin/pip"
+        
+        echo "Created virtual environment with Python: $VENV_PYTHON"
+        
+        # Upgrade essential tools using explicit paths
+        $VENV_PIP install --upgrade pip setuptools wheel
         
         # Install wb-mqtt-bridge package in editable mode
         cd wb-mqtt-bridge
-        pip install -e .
+        $VENV_PIP install -e .
         cd ..
         
         # Verify package installation
         echo "Verifying package installation..."
-        pip show wb-mqtt-bridge || echo "Package not found in pip show"
+        $VENV_PIP show wb-mqtt-bridge
         
-        # Test imports
-        python3 -c "import wb_mqtt_bridge; print('✅ Package imported:', wb_mqtt_bridge.__file__)"
-        python3 -c "from wb_mqtt_bridge.domain.devices.models import WirenboardIRState; print('✅ Device models imported')"
+        # Test imports using explicit Python path
+        echo "Testing package imports..."
+        $VENV_PYTHON -c "import wb_mqtt_bridge; print('✅ Package imported:', wb_mqtt_bridge.__file__)"
+        $VENV_PYTHON -c "from wb_mqtt_bridge.domain.devices.models import WirenboardIRState; print('✅ Device models imported')"
         
-        # Make virtual environment available to subsequent steps
-        echo "VIRTUAL_ENV=/tmp/wb-mqtt-env" >> $GITHUB_ENV
-        echo "/tmp/wb-mqtt-env/bin" >> $GITHUB_PATH
+        # Export the Python executable path for subsequent steps
+        echo "VENV_PYTHON=$VENV_PYTHON" >> $GITHUB_ENV
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
@@ -70,21 +78,20 @@ jobs:
       run: npm ci
 
     - name: Generate types and validate
+      shell: bash
       run: |
-        # Activate virtual environment
-        source /tmp/wb-mqtt-env/bin/activate
+        set -e  # Exit on any error
         
-        # Verify we're using the virtual environment
-        echo "Active Python: $(which python3)"
-        echo "Virtual environment: $VIRTUAL_ENV"
+        # Verify virtual environment Python is available
+        echo "Using virtual environment Python: $VENV_PYTHON"
         
-        # Final verification of package imports
+        # Final verification of package imports using explicit path
         echo "Final package verification:"
-        python3 -c "import wb_mqtt_bridge; print('✅ Package location:', wb_mqtt_bridge.__file__)"
-        python3 -c "from wb_mqtt_bridge.domain.devices.models import WirenboardIRState; print('✅ Device models ready')"
+        $VENV_PYTHON -c "import wb_mqtt_bridge; print('✅ Package location:', wb_mqtt_bridge.__file__)"
+        $VENV_PYTHON -c "from wb_mqtt_bridge.domain.devices.models import WirenboardIRState; print('✅ Device models ready')"
         
-        # Set environment for npm scripts to use same Python
-        export PYTHON_EXECUTABLE="$(which python3)"
+        # Set environment for npm scripts to use virtual environment Python
+        export PYTHON_EXECUTABLE="$VENV_PYTHON"
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
         
         echo "Using Python executable: $PYTHON_EXECUTABLE"
