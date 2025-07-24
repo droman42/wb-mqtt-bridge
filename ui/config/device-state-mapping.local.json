@@ -1,8 +1,6 @@
 {
   "WirenboardIRDevice": {
     "stateClassImport": "wb_mqtt_bridge.domain.devices.models:WirenboardIRState",
-    "stateFile": "/home/droman42/development/wb-mqtt-bridge/app/schemas.py",
-    "stateClass": "WirenboardIRState",
     "deviceConfigs": [
       "/home/droman42/development/wb-mqtt-bridge/config/devices/ld_player.json",
       "/home/droman42/development/wb-mqtt-bridge/config/devices/mf_amplifier.json",
@@ -13,8 +11,6 @@
   },
   "LgTv": {
     "stateClassImport": "wb_mqtt_bridge.domain.devices.models:LgTvState",
-    "stateFile": "/home/droman42/development/wb-mqtt-bridge/app/schemas.py",
-    "stateClass": "LgTvState",
     "deviceConfigs": [
       "/home/droman42/development/wb-mqtt-bridge/config/devices/lg_tv_children.json",
       "/home/droman42/development/wb-mqtt-bridge/config/devices/lg_tv_living.json"
@@ -22,24 +18,18 @@
   },
   "EMotivaXMC2": {
     "stateClassImport": "wb_mqtt_bridge.domain.devices.models:EmotivaXMC2State",
-    "stateFile": "/home/droman42/development/wb-mqtt-bridge/app/schemas.py",
-    "stateClass": "EmotivaXMC2State",
     "deviceConfigs": [
       "/home/droman42/development/wb-mqtt-bridge/config/devices/emotiva_xmc2.json"
     ]
   },
   "BroadlinkKitchenHood": {
     "stateClassImport": "wb_mqtt_bridge.domain.devices.models:KitchenHoodState",
-    "stateFile": "/home/droman42/development/wb-mqtt-bridge/app/schemas.py",
-    "stateClass": "KitchenHoodState",
     "deviceConfigs": [
       "/home/droman42/development/wb-mqtt-bridge/config/devices/kitchen_hood.json"
     ]
   },
   "AppleTVDevice": {
     "stateClassImport": "wb_mqtt_bridge.domain.devices.models:AppleTVState",
-    "stateFile": "/home/droman42/development/wb-mqtt-bridge/app/schemas.py",
-    "stateClass": "AppleTVState",
     "deviceConfigs": [
       "/home/droman42/development/wb-mqtt-bridge/config/devices/appletv_children.json",
       "/home/droman42/development/wb-mqtt-bridge/config/devices/appletv_living.json"
@@ -47,16 +37,12 @@
   },
   "AuralicDevice": {
     "stateClassImport": "wb_mqtt_bridge.domain.devices.models:AuralicDeviceState",
-    "stateFile": "/home/droman42/development/wb-mqtt-bridge/app/schemas.py",
-    "stateClass": "AuralicDeviceState",
     "deviceConfigs": [
       "/home/droman42/development/wb-mqtt-bridge/config/devices/streamer.json"
     ]
   },
   "RevoxA77ReelToReel": {
     "stateClassImport": "wb_mqtt_bridge.domain.devices.models:RevoxA77ReelToReelState",
-    "stateFile": "/home/droman42/development/wb-mqtt-bridge/app/schemas.py",
-    "stateClass": "RevoxA77ReelToReelState",
     "deviceConfigs": [
       "/home/droman42/development/wb-mqtt-bridge/config/devices/reel_to_reel.json"
     ]

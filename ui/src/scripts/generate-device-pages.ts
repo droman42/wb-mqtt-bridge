@@ -90,8 +90,6 @@ export class DevicePageGenerator {
   }
   
   async generateDevicePage(deviceId: string, options?: { 
-    stateFile?: string; 
-    stateClass?: string; 
     stateClassImport?: string; 
   }): Promise<GenerationResult> {
     console.log(`🔄 Generating page for device: ${deviceId}`);
@@ -148,27 +146,15 @@ export class DevicePageGenerator {
       // Generate Python state types if requested or available from mapping
       let customStateInterface: string | null = null;
       
-      // Determine state generation method - prefer stateClassImport over legacy options
-      let stateOptions: { importPath?: string; filePath?: string; className?: string } = {};
-      let stateClass: string | undefined = undefined;
-      
+      // Generate Python state types if stateClassImport is provided
       if (options?.stateClassImport) {
-        // Use new package-based import method (highest priority)
-        stateOptions.importPath = options.stateClassImport;
-        stateClass = options.stateClassImport.split(':')[1]; // Extract class name from import path
+        const stateClass = options.stateClassImport.split(':')[1]; // Extract class name from import path
         console.log(`🐍 Using package import: ${options.stateClassImport}`);
-      } else if (options?.stateFile && options?.stateClass) {
-        // Use legacy file-based method
-        stateOptions.filePath = options.stateFile;
-        stateOptions.className = options.stateClass;
-        stateClass = options.stateClass;
-        console.log(`🐍 Using legacy file method: ${options.stateFile}::${options.stateClass}`);
-      }
-      
-      if (stateOptions.importPath || (stateOptions.filePath && stateOptions.className)) {
         try {
           console.log(`🔄 Generating TypeScript state types...`);
-          const stateDefinition = await this.stateGenerator.generateFromPythonState(stateOptions);
+          const stateDefinition = await this.stateGenerator.generateFromPythonState({ 
+            importPath: options.stateClassImport 
+          });
           
           // Create shared types directory
           const sharedTypesDir = 'src/types/generated';
@@ -444,11 +430,6 @@ async function runCLI() {
   // Phase 1: Local Configuration Mode options
   const mode = (args.find(arg => arg.startsWith('--mode='))?.split('=')[1] as 'api' | 'local' | 'package') || 'api';
   const mappingFile = args.find(arg => arg.startsWith('--mapping-file='))?.split('=')[1];
-  const configFile = args.find(arg => arg.startsWith('--config-file='))?.split('=')[1];
-  
-  // Python state generation options
-  const stateFile = args.find(arg => arg.startsWith('--state-file='))?.split('=')[1];
-  const stateClass = args.find(arg => arg.startsWith('--state-class='))?.split('=')[1];
   
   // Phase 3 options
   const validateCode = args.includes('--validate-code');
@@ -548,59 +529,7 @@ Supported Device Classes (Phase 2):
     process.exit(0);
   }
   
-  // Handle direct config file mode 
-  if (configFile && deviceId) {
-    console.log(`🔄 Generating page for device: ${deviceId} using config file: ${configFile}`);
-    
-    try {
-      // Read config file directly
-      const { readFileSync } = await import('fs');
-      const configData = JSON.parse(readFileSync(configFile, 'utf8'));
-      
-      // Create temporary local client for this specific config
-      const tempMappingFile = '/tmp/temp-mapping.json';
-      const tempMapping = {
-        [configData.device_class]: {
-          stateFile: stateFile || 'wb-mqtt-bridge/app/schemas.py',
-          stateClass: stateClass || 'DefaultState',
-          deviceConfigs: [configFile]
-        }
-      };
-      
-      const { writeFileSync } = await import('fs');
-      writeFileSync(tempMappingFile, JSON.stringify(tempMapping, null, 2));
-      
-      const generator = new DevicePageGenerator(apiBaseUrl, outputDir, { 
-        mode: 'local', 
-        mappingFile: tempMappingFile 
-      });
-      
-      const result = await generator.generateDevicePage(deviceId, { stateFile, stateClass });
-      
-      // Cleanup temp file
-      const { unlinkSync } = await import('fs');
-      try { 
-        unlinkSync(tempMappingFile); 
-      } catch {
-        // Ignore cleanup errors
-      }
-      
-      if (result.success) {
-        console.log('\n🎉 Generation completed successfully!');
-        console.log(`📄 File: ${result.outputPath}`);
-        console.log(`⚡ Device Class: ${result.deviceClass}`);
-        console.log(`📊 UI Sections: ${result.sectionsGenerated}`);
-        console.log(`⏱️  Duration: ${result.duration}ms`);
-      }
-      
-      process.exit(result.success ? 0 : 1);
-      
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`❌ Direct config generation failed: ${errorMessage}`);
-      process.exit(1);
-    }
-  }
+
 
   const generator = new DevicePageGenerator(apiBaseUrl, outputDir, { mode, mappingFile });
   
@@ -674,18 +603,11 @@ Supported Device Classes (Phase 2):
           for (const [deviceClass, config] of Object.entries(mappingData)) {
             const configData = config as any;
             
-            // Prefer stateClassImport over legacy stateFile/stateClass
             if (configData.stateClassImport) {
               stateConfigByDeviceClass.set(deviceClass, {
                 stateClassImport: configData.stateClassImport
               });
               console.log(`  📦 ${deviceClass}: ${configData.stateClassImport} (package import)`);
-            } else if (configData.stateFile && configData.stateClass) {
-              stateConfigByDeviceClass.set(deviceClass, {
-                stateFile: configData.stateFile,
-                stateClass: configData.stateClass
-              });
-              console.log(`  📝 ${deviceClass}: ${configData.stateFile}::${configData.stateClass} (legacy)`);
             }
           }
           
@@ -783,13 +705,6 @@ Supported Device Classes (Phase 2):
       process.exit(1);
     }
     
-    // Validate Python state options
-    if ((stateFile && !stateClass) || (!stateFile && stateClass)) {
-      console.error('❌ Both --state-file and --state-class must be provided together');
-      console.error('Use --help for usage information');
-      process.exit(1);
-    }
-    
     console.log('🎯 Device Page Generator - Phase 2');
     if (mode === 'local') {
       console.log(`📁 Mode: Local (${mappingFile || 'config/device-state-mapping.json'})`);
@@ -798,12 +713,9 @@ Supported Device Classes (Phase 2):
     }
     console.log(`📁 Output: ${outputDir}`);
     console.log(`🔧 Device: ${deviceId}`);
-    if (stateFile && stateClass) {
-      console.log(`🐍 Python State: ${stateFile}::${stateClass}`);
-    }
     console.log('');
     
-    const result = await generator.generateDevicePage(deviceId, { stateFile, stateClass });
+    const result = await generator.generateDevicePage(deviceId);
     
     // Handle router generation for single device
     if (result.success && generateRouter) {

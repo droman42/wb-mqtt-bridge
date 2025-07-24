@@ -1,8 +1,6 @@
 {
   "WirenboardIRDevice": {
     "stateClassImport": "wb_mqtt_bridge.domain.devices.models:WirenboardIRState",
-    "stateFile": "wb-mqtt-bridge/app/schemas.py",
-    "stateClass": "WirenboardIRState",
     "deviceConfigs": [
       "wb-mqtt-bridge/config/devices/ld_player.json",
       "wb-mqtt-bridge/config/devices/mf_amplifier.json",
@@ -13,8 +11,6 @@
   },
   "LgTv": {
     "stateClassImport": "wb_mqtt_bridge.domain.devices.models:LgTvState",
-    "stateFile": "wb-mqtt-bridge/app/schemas.py",
-    "stateClass": "LgTvState",
     "deviceConfigs": [
       "wb-mqtt-bridge/config/devices/lg_tv_children.json",
       "wb-mqtt-bridge/config/devices/lg_tv_living.json"
@@ -22,24 +18,18 @@
   },
   "EMotivaXMC2": {
     "stateClassImport": "wb_mqtt_bridge.domain.devices.models:EmotivaXMC2State",
-    "stateFile": "wb-mqtt-bridge/app/schemas.py",
-    "stateClass": "EmotivaXMC2State",
     "deviceConfigs": [
       "wb-mqtt-bridge/config/devices/emotiva_xmc2.json"
     ]
   },
   "BroadlinkKitchenHood": {
     "stateClassImport": "wb_mqtt_bridge.domain.devices.models:KitchenHoodState",
-    "stateFile": "wb-mqtt-bridge/app/schemas.py",
-    "stateClass": "KitchenHoodState",
     "deviceConfigs": [
       "wb-mqtt-bridge/config/devices/kitchen_hood.json"
     ]
   },
   "AppleTVDevice": {
     "stateClassImport": "wb_mqtt_bridge.domain.devices.models:AppleTVState",
-    "stateFile": "wb-mqtt-bridge/app/schemas.py",
-    "stateClass": "AppleTVState",
     "deviceConfigs": [
       "wb-mqtt-bridge/config/devices/appletv_children.json",
       "wb-mqtt-bridge/config/devices/appletv_living.json"
@@ -47,16 +37,12 @@
   },
   "AuralicDevice": {
     "stateClassImport": "wb_mqtt_bridge.domain.devices.models:AuralicDeviceState",
-    "stateFile": "wb-mqtt-bridge/app/schemas.py",
-    "stateClass": "AuralicDeviceState",
     "deviceConfigs": [
       "wb-mqtt-bridge/config/devices/streamer.json"
     ]
   },
   "RevoxA77ReelToReel": {
     "stateClassImport": "wb_mqtt_bridge.domain.devices.models:RevoxA77ReelToReelState",
-    "stateFile": "wb-mqtt-bridge/app/schemas.py",
-    "stateClass": "RevoxA77ReelToReelState",
     "deviceConfigs": [
       "wb-mqtt-bridge/config/devices/reel_to_reel.json"
     ]

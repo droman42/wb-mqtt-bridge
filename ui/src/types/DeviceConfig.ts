@@ -46,8 +46,6 @@ export interface GroupAction {
 // Phase 1: Local Configuration Mode Types
 export interface DeviceStateMapping {
   [deviceClass: string]: {
-    stateFile?: string;
-    stateClass?: string;
     stateClassImport?: string;
     deviceConfigs?: string[];
     scenarioConfigPath?: string;

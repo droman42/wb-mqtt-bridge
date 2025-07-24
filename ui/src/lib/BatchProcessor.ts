@@ -270,8 +270,6 @@ export class BatchProcessor {
   private async processDeviceWithStateConfigAndErrorHandling(
     deviceId: string, 
     stateConfigByDeviceClass: Map<string, {
-      stateFile?: string; 
-      stateClass?: string; 
       stateClassImport?: string;
     }>
   ): Promise<GenerationResult> {
@@ -288,23 +286,12 @@ export class BatchProcessor {
       // Get state configuration for this device class
       const stateConfig = stateConfigByDeviceClass.get(deviceClass);
       let options: { 
-        stateFile?: string; 
-        stateClass?: string; 
         stateClassImport?: string; 
       } | undefined = undefined;
       
-      if (stateConfig) {
-        // Prefer stateClassImport over legacy stateFile/stateClass
-        if (stateConfig.stateClassImport) {
-          options = { stateClassImport: stateConfig.stateClassImport };
-          console.log(`  📦 Using package import: ${stateConfig.stateClassImport}`);
-        } else if (stateConfig.stateFile && stateConfig.stateClass) {
-          options = { 
-            stateFile: stateConfig.stateFile, 
-            stateClass: stateConfig.stateClass 
-          };
-          console.log(`  📝 Using legacy config: ${stateConfig.stateFile}::${stateConfig.stateClass}`);
-        }
+      if (stateConfig && stateConfig.stateClassImport) {
+        options = { stateClassImport: stateConfig.stateClassImport };
+        console.log(`  📦 Using package import: ${stateConfig.stateClassImport}`);
       }
       
       const result = await this.generator.generateDevicePage(deviceId, options);

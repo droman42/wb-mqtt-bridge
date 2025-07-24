@@ -37,9 +37,17 @@ jobs:
     - name: Install wb-mqtt-bridge package
       run: |
         cd wb-mqtt-bridge
+        # Install in editable mode with dependencies
+        pip install --upgrade pip setuptools wheel
         pip install -e .
-        # Verify package installation
-        python -c "from wb_mqtt_bridge.domain.devices.models import WirenboardIRState; print('Package installed successfully')"
+        cd ..
+        
+    - name: Verify package installation
+      run: |
+        # Verify the package can be imported
+        python3 -c "import wb_mqtt_bridge; print('✅ Package imported successfully')"
+        python3 -c "from wb_mqtt_bridge.domain.devices.models import WirenboardIRState; print('✅ Device models import successful')"
+        python3 -c "from wb_mqtt_bridge.infrastructure.scenarios.models import ScenarioWBConfig; print('✅ Scenario models import successful')"
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
@@ -52,6 +60,24 @@ jobs:
 
     - name: Validate type generation
       run: |
+        # Debug Python environment
+        echo "Python executable: $(which python3)"
+        echo "Python version: $(python3 --version)"
+        echo "Python path: $PYTHONPATH"
+        python3 -c "import sys; print('Python sys.path:', sys.path)"
+        
+        # Test package availability one more time before generation
+        python3 -c "from wb_mqtt_bridge.domain.devices.models import WirenboardIRState; print('Final verification: Package available')"
+        
+        # Ensure npm scripts use the same Python executable and environment
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHON_EXECUTABLE="$(which python3)"
+        export PATH="$(dirname $(which python3)):$PATH"
+        
+        # Final debug before generation
+        echo "Using Python executable: $PYTHON_EXECUTABLE"
+        
+        # Run type generation
         npm run gen:device-pages -- --batch --mode=package --mapping-file=config/device-state-mapping.json --generate-router
 
     - name: Run TypeScript validation

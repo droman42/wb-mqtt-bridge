@@ -25,12 +25,22 @@ export interface PythonParsingResult {
 }
 
 export class StateTypeGenerator {
+  private importCache = new Map<string, StateDefinition>();
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  
   /**
    * Generate TypeScript state definition from Python class using package import path
    * @param importPath - Package import path in format "module.path:ClassName"
    * @returns Promise<StateDefinition>
    */
   async generateFromImportPath(importPath: string): Promise<StateDefinition> {
+    // Check cache first
+    const cached = this.importCache.get(importPath);
+    if (cached) {
+      console.log(`⚡ Using cached types for: ${importPath}`);
+      return cached;
+    }
+    
     try {
       console.log(`🐍 Generating types from package import: ${importPath}`);
       
@@ -46,59 +56,39 @@ export class StateTypeGenerator {
       
       if (pythonResult.success) {
         console.log(`✅ Successfully parsed ${className} from ${modulePath}`);
-        return this.convertToStateDefinition(className, pythonResult.fields);
+        const stateDefinition = this.convertToStateDefinition(className, pythonResult.fields);
+        // Cache the result
+        this.importCache.set(importPath, stateDefinition);
+        return stateDefinition;
       } else {
         console.warn(`Python parsing failed for ${importPath}: ${pythonResult.error}`);
         // Fallback to basic state generation
-        return this.generateBasicStateDefinition(className);
+        const basicDefinition = this.generateBasicStateDefinition(className);
+        this.importCache.set(importPath, basicDefinition);
+        return basicDefinition;
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.warn(`Import-based state generation failed for ${importPath}: ${errorMessage}`);
       // Extract class name from import path for fallback
       const className = importPath.split(':')[1] || 'UnknownState';
-      return this.generateBasicStateDefinition(className);
+      const fallbackDefinition = this.generateBasicStateDefinition(className);
+      this.importCache.set(importPath, fallbackDefinition);
+      return fallbackDefinition;
     }
   }
 
-  async generateFromPythonClass(filePath: string, className: string): Promise<StateDefinition> {
-    try {
-      // Try to parse Python class first
-      const pythonResult = await this.parsePythonClass(filePath, className);
-      
-      if (pythonResult.success) {
-        return this.convertToStateDefinition(className, pythonResult.fields);
-      } else {
-        // Fallback to basic state generation
-        console.warn(`Python parsing failed for ${className}: ${pythonResult.error}`);
-        return this.generateBasicStateDefinition(className);
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.warn(`State generation failed for ${className}: ${errorMessage}`);
-      return this.generateBasicStateDefinition(className);
-    }
-  }
+
 
   /**
-   * Enhanced method that supports both import path and file-based generation
-   * @param options - Generation options with either importPath or filePath/className
+   * Generate TypeScript state definition from Python class using package import path
+   * @param options - Generation options with importPath
    * @returns Promise<StateDefinition>
    */
   async generateFromPythonState(options: {
-    importPath?: string;
-    filePath?: string;
-    className?: string;
+    importPath: string;
   }): Promise<StateDefinition> {
-    if (options.importPath) {
-      // Use new package-based import method
-      return this.generateFromImportPath(options.importPath);
-    } else if (options.filePath && options.className) {
-      // Use legacy file-based method
-      return this.generateFromPythonClass(options.filePath, options.className);
-    } else {
-      throw new Error('Either importPath or both filePath and className must be provided');
-    }
+    return this.generateFromImportPath(options.importPath);
   }
 
   /**
@@ -313,19 +303,21 @@ result = extract_class_fields_from_import(sys.argv[1], sys.argv[2])
 print(json.dumps(result))
       `;
 
-      const process = spawn('python3', ['-c', pythonScript, modulePath, className]);
+      // Use environment-specified Python executable or default to python3
+      const pythonExecutable = process.env.PYTHON_EXECUTABLE || 'python3';
+      const pythonProcess = spawn(pythonExecutable, ['-c', pythonScript, modulePath, className]);
       let output = '';
       let errorOutput = '';
 
-      process.stdout.on('data', (data) => {
+      pythonProcess.stdout.on('data', (data) => {
         output += data.toString();
       });
 
-      process.stderr.on('data', (data) => {
+      pythonProcess.stderr.on('data', (data) => {
         errorOutput += data.toString();
       });
 
-      process.on('close', (code) => {
+      pythonProcess.on('close', (code) => {
         if (code === 0 && output) {
           try {
             const result = JSON.parse(output);
@@ -347,100 +339,15 @@ print(json.dumps(result))
         }
       });
 
-      // Set a timeout to prevent hanging
+      // Set a timeout to prevent hanging - optimized for package imports
       setTimeout(() => {
-        process.kill();
+        pythonProcess.kill();
         resolve({ success: false, fields: [], error: 'Python execution timeout' });
-      }, 15000); // Increased timeout for import operations
+      }, 10000); // Reduced timeout since package imports are faster
     });
   }
 
-  private async parsePythonClass(filePath: string, className: string): Promise<PythonParsingResult> {
-    return new Promise((resolve) => {
-      const pythonScript = `
-import ast
-import sys
-import json
 
-def extract_class_fields(file_path, class_name):
-    try:
-        with open(file_path, 'r') as f:
-            tree = ast.parse(f.read())
-        
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ClassDef) and node.name == class_name:
-                fields = []
-                for item in node.body:
-                    if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name):
-                        field_type = 'Any'
-                        try:
-                            field_type = ast.unparse(item.annotation)
-                        except:
-                            pass
-                        
-                        default_value = None
-                        if item.value:
-                            try:
-                                default_value = ast.literal_eval(item.value)
-                            except:
-                                default_value = str(item.value)
-                        
-                        fields.append({
-                            'name': item.target.id,
-                            'type': field_type,
-                            'optional': default_value is not None,
-                            'default': default_value
-                        })
-                return fields
-        return []
-    except Exception as e:
-        return {'error': str(e)}
-
-result = extract_class_fields(sys.argv[1], sys.argv[2])
-print(json.dumps(result))
-      `;
-
-      const process = spawn('python3', ['-c', pythonScript, filePath, className]);
-      let output = '';
-      let errorOutput = '';
-
-      process.stdout.on('data', (data) => {
-        output += data.toString();
-      });
-
-      process.stderr.on('data', (data) => {
-        errorOutput += data.toString();
-      });
-
-      process.on('close', (code) => {
-        if (code === 0 && output) {
-          try {
-            const result = JSON.parse(output);
-            if (result.error) {
-              resolve({ success: false, fields: [], error: result.error });
-            } else {
-              resolve({ success: true, fields: result, error: undefined });
-            }
-          } catch (parseError) {
-            const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
-            resolve({ success: false, fields: [], error: `JSON parse error: ${errorMessage}` });
-          }
-        } else {
-          resolve({ 
-            success: false, 
-            fields: [], 
-            error: `Python execution failed (code ${code}): ${errorOutput || 'Unknown error'}` 
-          });
-        }
-      });
-
-      // Set a timeout to prevent hanging
-      setTimeout(() => {
-        process.kill();
-        resolve({ success: false, fields: [], error: 'Python execution timeout' });
-      }, 10000);
-    });
-  }
 
   private convertToStateDefinition(className: string, fields: any[]): StateDefinition {
     return {
