@@ -201,7 +201,8 @@ export class DevicePageGenerator {
           console.log(`✅ Generated device hook: ${stateHookPath}`);
           
         } catch (error) {
-          console.warn(`⚠️  Failed to generate Python state types: ${error.message}`);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.warn(`⚠️  Failed to generate Python state types: ${errorMessage}`);
           if (this.mode === 'local') {
             console.warn('   💡 Check if wb-mqtt-bridge package is installed: pip install -e ../wb-mqtt-bridge');
           }
@@ -690,7 +691,8 @@ Supported Device Classes (Phase 2):
           
           console.log(`✅ Loaded state configuration for ${stateConfigByDeviceClass.size} device classes`);
         } catch (error) {
-          console.warn(`⚠️  Could not read state configuration from mapping file: ${error.message}`);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.warn(`⚠️  Could not read state configuration from mapping file: ${errorMessage}`);
           console.warn('   Continuing without state type generation...');
         }
       }
@@ -737,7 +739,8 @@ Supported Device Classes (Phase 2):
               deviceStructures.push(structure);
             }
           } catch (error) {
-            console.warn(`⚠️  Could not collect structure for ${deviceId}: ${error.message}`);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.warn(`⚠️  Could not collect structure for ${deviceId}: ${errorMessage}`);
           }
         }
 
@@ -826,7 +829,8 @@ Supported Device Classes (Phase 2):
           console.warn(`⚠️  No handler found for device class: ${validatedConfig.device_class}`);
         }
       } catch (error) {
-        console.error('❌ Router generation failed:', error.message);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error('❌ Router generation failed:', errorMessage);
       }
     }
     

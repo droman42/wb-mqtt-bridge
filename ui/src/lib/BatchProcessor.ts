@@ -141,7 +141,8 @@ export class BatchProcessor {
       
       return this.processDeviceList(deviceIds, config);
     } catch (error) {
-      console.error('❌ Failed to discover devices:', (error as Error).message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('❌ Failed to discover devices:', errorMessage);
       return {
         totalProcessed: 0,
         successful: 0,
@@ -149,7 +150,7 @@ export class BatchProcessor {
         skipped: 0,
         successRate: 0,
         processingTime: 0,
-        failedDevices: [{ deviceId: 'discovery', error: (error as Error).message, action: 'failed' }],
+        failedDevices: [{ deviceId: 'discovery', error: errorMessage, action: 'failed' }],
         generatedFiles: [],
         performance: this.performanceMonitor.getMetrics()
       };
@@ -182,7 +183,8 @@ export class BatchProcessor {
       
       return this.processDeviceListWithStateConfig(deviceIds, stateConfigByDeviceClass, config);
     } catch (error) {
-      console.error('❌ Failed to discover devices:', (error as Error).message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('❌ Failed to discover devices:', errorMessage);
       return {
         totalProcessed: 0,
         successful: 0,
@@ -190,7 +192,7 @@ export class BatchProcessor {
         skipped: 0,
         successRate: 0,
         processingTime: 0,
-        failedDevices: [{ deviceId: 'discovery', error: (error as Error).message, action: 'failed' }],
+        failedDevices: [{ deviceId: 'discovery', error: errorMessage, action: 'failed' }],
         generatedFiles: [],
         performance: this.performanceMonitor.getMetrics()
       };
@@ -388,7 +390,8 @@ export class BatchProcessor {
               device_class: config.device_class
             });
           } catch (error) {
-            console.warn(`⚠️  Could not load config for device ${deviceId}: ${error.message}`);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.warn(`⚠️  Could not load config for device ${deviceId}: ${errorMessage}`);
             // Skip devices with invalid configs
           }
         }
@@ -406,7 +409,7 @@ export class BatchProcessor {
         if (!response.ok) {
           throw new Error(`Failed to discover devices: ${response.status}`);
         }
-        const devices = await response.json();
+        const devices = await response.json() as Array<{ device_id: string; device_class: string }>;
         console.log(`📋 API discovery found ${devices.length} devices`);
         return devices;
       } catch (error) {

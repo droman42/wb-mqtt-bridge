@@ -88,10 +88,11 @@ export class CodeValidator {
         filePath
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       return {
         success: false,
         errors: [{
-          message: `Compilation validation failed: ${error.message}`,
+          message: `Compilation validation failed: ${errorMessage}`,
           line: 0,
           column: 0,
           severity: 'error',
@@ -128,9 +129,10 @@ export class CodeValidator {
         filePath
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       return {
         allImportsResolved: false,
-        missingImports: [`Error reading file: ${error.message}`],
+        missingImports: [`Error reading file: ${errorMessage}`],
         circularDependencies: [],
         filePath
       };

@@ -8,7 +8,7 @@ export class DeviceConfigurationClient {
     if (!response.ok) {
       throw new Error(`API Error: ${response.status} - ${response.statusText}`);
     }
-    return response.json();
+    return await response.json() as DeviceConfig;
   }
   
   async fetchDeviceGroups(deviceId: string): Promise<DeviceGroups> {
@@ -16,7 +16,7 @@ export class DeviceConfigurationClient {
     if (!response.ok) {
       throw new Error(`API Error: ${response.status} - ${response.statusText}`);
     }
-    return response.json();
+    return await response.json() as DeviceGroups;
   }
   
   async validateConnectivity(): Promise<boolean> {
@@ -70,7 +70,7 @@ export class LocalDeviceConfigurationClient implements IDeviceConfigurationClien
       
       return config;
     } catch (error) {
-      if (error.code === 'ENOENT') {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
         throw new Error(`Device config file not found for device_id: ${deviceId}. Please check the mapping file: ${this.mappingFile}`);
       }
       throw error;
@@ -98,7 +98,8 @@ export class LocalDeviceConfigurationClient implements IDeviceConfigurationClien
       const data = await fs.readFile(this.mappingFile, 'utf8');
       return JSON.parse(data);
     } catch (error) {
-      throw new Error(`Failed to load mapping file ${this.mappingFile}: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to load mapping file ${this.mappingFile}: ${errorMessage}`);
     }
   }
   
@@ -193,7 +194,8 @@ export class LocalDeviceConfigurationClient implements IDeviceConfigurationClien
           deviceIds.push(configData.device_id);
         }
       } catch (error) {
-        console.warn(`Warning: Could not read config file ${configPath}: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.warn(`Warning: Could not read config file ${configPath}: ${errorMessage}`);
       }
     }
     

@@ -53,7 +53,8 @@ export class StateTypeGenerator {
         return this.generateBasicStateDefinition(className);
       }
     } catch (error) {
-      console.warn(`Import-based state generation failed for ${importPath}: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`Import-based state generation failed for ${importPath}: ${errorMessage}`);
       // Extract class name from import path for fallback
       const className = importPath.split(':')[1] || 'UnknownState';
       return this.generateBasicStateDefinition(className);
@@ -73,7 +74,8 @@ export class StateTypeGenerator {
         return this.generateBasicStateDefinition(className);
       }
     } catch (error) {
-      console.warn(`State generation failed for ${className}: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`State generation failed for ${className}: ${errorMessage}`);
       return this.generateBasicStateDefinition(className);
     }
   }
@@ -112,7 +114,8 @@ export class StateTypeGenerator {
       // In the future, this could fetch from the actual ScenarioWBConfig API
       return this.generateScenarioVirtualDeviceState(scenarioId);
     } catch (error) {
-      console.warn(`Scenario virtual device state generation failed for ${scenarioId}: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`Scenario virtual device state generation failed for ${scenarioId}: ${errorMessage}`);
       return this.generateBasicVirtualDeviceState(scenarioId);
     }
   }
@@ -332,7 +335,8 @@ print(json.dumps(result))
               resolve({ success: true, fields: result, error: undefined });
             }
           } catch (parseError) {
-            resolve({ success: false, fields: [], error: `JSON parse error: ${parseError.message}` });
+            const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
+            resolve({ success: false, fields: [], error: `JSON parse error: ${errorMessage}` });
           }
         } else {
           resolve({ 
@@ -418,7 +422,8 @@ print(json.dumps(result))
               resolve({ success: true, fields: result, error: undefined });
             }
           } catch (parseError) {
-            resolve({ success: false, fields: [], error: `JSON parse error: ${parseError.message}` });
+            const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
+            resolve({ success: false, fields: [], error: `JSON parse error: ${errorMessage}` });
           }
         } else {
           resolve({ 
