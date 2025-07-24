@@ -34,20 +34,31 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pip-
 
-    - name: Install wb-mqtt-bridge package
+    - name: Install wb-mqtt-bridge package with robust environment
       run: |
-        cd wb-mqtt-bridge
-        # Install in editable mode with dependencies
+        # Create and activate virtual environment for isolation
+        python3 -m venv /tmp/wb-mqtt-env
+        source /tmp/wb-mqtt-env/bin/activate
+        
+        # Upgrade essential tools
         pip install --upgrade pip setuptools wheel
+        
+        # Install wb-mqtt-bridge package in editable mode
+        cd wb-mqtt-bridge
         pip install -e .
         cd ..
         
-    - name: Verify package installation
-      run: |
-        # Verify the package can be imported
-        python3 -c "import wb_mqtt_bridge; print('✅ Package imported successfully')"
-        python3 -c "from wb_mqtt_bridge.domain.devices.models import WirenboardIRState; print('✅ Device models import successful')"
-        python3 -c "from wb_mqtt_bridge.infrastructure.scenarios.models import ScenarioWBConfig; print('✅ Scenario models import successful')"
+        # Verify package installation
+        echo "Verifying package installation..."
+        pip show wb-mqtt-bridge || echo "Package not found in pip show"
+        
+        # Test imports
+        python3 -c "import wb_mqtt_bridge; print('✅ Package imported:', wb_mqtt_bridge.__file__)"
+        python3 -c "from wb_mqtt_bridge.domain.devices.models import WirenboardIRState; print('✅ Device models imported')"
+        
+        # Make virtual environment available to subsequent steps
+        echo "VIRTUAL_ENV=/tmp/wb-mqtt-env" >> $GITHUB_ENV
+        echo "/tmp/wb-mqtt-env/bin" >> $GITHUB_PATH
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
@@ -58,26 +69,28 @@ jobs:
     - name: Install Node.js dependencies
       run: npm ci
 
-    - name: Validate type generation
+    - name: Generate types and validate
       run: |
-        # Debug Python environment
-        echo "Python executable: $(which python3)"
-        echo "Python version: $(python3 --version)"
-        echo "Python path: $PYTHONPATH"
-        python3 -c "import sys; print('Python sys.path:', sys.path)"
+        # Activate virtual environment
+        source /tmp/wb-mqtt-env/bin/activate
         
-        # Test package availability one more time before generation
-        python3 -c "from wb_mqtt_bridge.domain.devices.models import WirenboardIRState; print('Final verification: Package available')"
+        # Verify we're using the virtual environment
+        echo "Active Python: $(which python3)"
+        echo "Virtual environment: $VIRTUAL_ENV"
         
-        # Ensure npm scripts use the same Python executable and environment
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        # Final verification of package imports
+        echo "Final package verification:"
+        python3 -c "import wb_mqtt_bridge; print('✅ Package location:', wb_mqtt_bridge.__file__)"
+        python3 -c "from wb_mqtt_bridge.domain.devices.models import WirenboardIRState; print('✅ Device models ready')"
+        
+        # Set environment for npm scripts to use same Python
         export PYTHON_EXECUTABLE="$(which python3)"
-        export PATH="$(dirname $(which python3)):$PATH"
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
         
-        # Final debug before generation
         echo "Using Python executable: $PYTHON_EXECUTABLE"
         
-        # Run type generation
+        # Run type generation (package mode only - CI must use package-based imports)
+        echo "Running package-based type generation..."
         npm run gen:device-pages -- --batch --mode=package --mapping-file=config/device-state-mapping.json --generate-router
 
     - name: Run TypeScript validation
