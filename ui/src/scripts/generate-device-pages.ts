@@ -37,7 +37,7 @@ export class DevicePageGenerator {
   private outputDir: string;
   private handlers: Map<string, any>;
   private apiBaseUrl: string;
-  private mode: 'api' | 'local';
+  private mode: 'api' | 'local' | 'package';
   private mappingFile?: string;
   private codeValidator: CodeValidator;
   private componentValidator: ComponentValidator;
@@ -49,7 +49,7 @@ export class DevicePageGenerator {
     apiBaseUrl: string, 
     outputDir: string,
     options?: { 
-      mode?: 'api' | 'local'; 
+      mode?: 'api' | 'local' | 'package'; 
       mappingFile?: string;
     }
   ) {
@@ -59,7 +59,7 @@ export class DevicePageGenerator {
     this.mappingFile = options?.mappingFile;
     
     // Phase 1: Choose client based on mode
-    if (this.mode === 'local') {
+    if (this.mode === 'local' || this.mode === 'package') {
       this.client = new LocalDeviceConfigurationClient(
         this.mappingFile || 'config/device-state-mapping.json'
       );
@@ -441,7 +441,7 @@ async function runCLI() {
   const maxConcurrency = parseInt(args.find(arg => arg.startsWith('--max-concurrency='))?.split('=')[1] || '3');
   
   // Phase 1: Local Configuration Mode options
-  const mode = (args.find(arg => arg.startsWith('--mode='))?.split('=')[1] as 'api' | 'local') || 'api';
+  const mode = (args.find(arg => arg.startsWith('--mode='))?.split('=')[1] as 'api' | 'local' | 'package') || 'api';
   const mappingFile = args.find(arg => arg.startsWith('--mapping-file='))?.split('=')[1];
   const configFile = args.find(arg => arg.startsWith('--config-file='))?.split('=')[1];
   
@@ -476,7 +476,7 @@ Batch Processing Options:
   --max-concurrency=<n>   Max concurrent generations (default: 3)
 
 Phase 1: Local Configuration Mode Options:
-  --mode=<api|local>      Generation mode: 'api' (default) or 'local'
+  --mode=<api|local|package>      Generation mode: 'api' (default), 'local', or 'package'
   --mapping-file=<path>   Path to device state mapping file (for local mode)
   --config-file=<path>    Path to specific device config file (direct mode)
 
