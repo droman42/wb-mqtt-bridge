@@ -1,7 +1,6 @@
 {
   "WirenboardIRDevice": {
-    "stateFile": "wb-mqtt-bridge/app/schemas.py",
-    "stateClass": "WirenboardIRState",
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:WirenboardIRState",
     "deviceConfigs": [
       "wb-mqtt-bridge/config/devices/ld_player.json",
       "wb-mqtt-bridge/config/devices/mf_amplifier.json",
@@ -11,47 +10,47 @@
     ]
   },
   "LgTv": {
-    "stateFile": "wb-mqtt-bridge/app/schemas.py",
-    "stateClass": "LgTvState",
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:LgTvState",
     "deviceConfigs": [
       "wb-mqtt-bridge/config/devices/lg_tv_children.json",
       "wb-mqtt-bridge/config/devices/lg_tv_living.json"
     ]
   },
   "EMotivaXMC2": {
-    "stateFile": "wb-mqtt-bridge/app/schemas.py",
-    "stateClass": "EmotivaXMC2State",
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:EmotivaXMC2State",
     "deviceConfigs": [
       "wb-mqtt-bridge/config/devices/emotiva_xmc2.json"
     ]
   },
   "BroadlinkKitchenHood": {
-    "stateFile": "wb-mqtt-bridge/app/schemas.py",
-    "stateClass": "KitchenHoodState",
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:KitchenHoodState",
     "deviceConfigs": [
       "wb-mqtt-bridge/config/devices/kitchen_hood.json"
     ]
   },
   "AppleTVDevice": {
-    "stateFile": "wb-mqtt-bridge/app/schemas.py",
-    "stateClass": "AppleTVState",
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:AppleTVState",
     "deviceConfigs": [
       "wb-mqtt-bridge/config/devices/appletv_children.json",
       "wb-mqtt-bridge/config/devices/appletv_living.json"
     ]
   },
   "AuralicDevice": {
-    "stateFile": "wb-mqtt-bridge/app/schemas.py",
-    "stateClass": "AuralicDeviceState",
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:AuralicDeviceState",
     "deviceConfigs": [
       "wb-mqtt-bridge/config/devices/streamer.json"
     ]
   },
   "RevoxA77ReelToReel": {
-    "stateFile": "wb-mqtt-bridge/app/schemas.py",
-    "stateClass": "RevoxA77ReelToReelState",
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:RevoxA77ReelToReelState",
     "deviceConfigs": [
       "wb-mqtt-bridge/config/devices/reel_to_reel.json"
     ]
+  },
+  "ScenarioDevice": {
+    "stateClassImport": "wb_mqtt_bridge.infrastructure.scenarios.models:ScenarioWBConfig",
+    "scenarioConfigPath": "wb-mqtt-bridge/config/scenarios",
+    "resolverType": "scenario_virtual_device",
+    "description": "Virtual WB device configurations for scenarios"
   }
 } 

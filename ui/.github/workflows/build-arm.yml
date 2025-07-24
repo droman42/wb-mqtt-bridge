@@ -2,7 +2,7 @@ name: Build ARM Docker Image
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, code_structure ]
   pull_request:
     branches: [ main ]
 
@@ -21,6 +21,88 @@ jobs:
         path: wb-mqtt-bridge
         ref: main
 
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Cache Python packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('wb-mqtt-bridge/pyproject.toml', 'wb-mqtt-bridge/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install wb-mqtt-bridge package
+      run: |
+        echo "Installing wb-mqtt-bridge package..."
+        cd wb-mqtt-bridge
+        pip install -e .
+        echo "Package installation complete. Diagnosing package structure..."
+        
+        # Check installed packages
+        pip list | grep wb-mqtt
+        
+        # Check Python path and available modules
+        python -c "import sys; print('Python path:', sys.path)"
+        
+        # Try to find the actual module structure
+        python -c "
+        import pkg_resources
+        try:
+            dist = pkg_resources.get_distribution('wb-mqtt-bridge')
+            print(f'Package found: {dist.project_name} {dist.version}')
+            print(f'Location: {dist.location}')
+        except:
+            print('Package not found in pkg_resources')
+        
+        # Try different import patterns
+        import importlib
+        for module_name in ['wb_mqtt_bridge', 'wb-mqtt-bridge', 'wbmqttbridge']:
+            try:
+                mod = importlib.import_module(module_name)
+                print(f'✅ Successfully imported {module_name}')
+                print(f'Module path: {mod.__file__ if hasattr(mod, \"__file__\") else \"built-in\"}')
+                break
+            except ImportError as e:
+                print(f'❌ Failed to import {module_name}: {e}')
+        else:
+            print('❌ No valid module name found')
+        "
+        
+        # Try to import from the actual package structure
+        echo "Testing specific imports..."
+        python -c "
+        import sys, os
+        sys.path.insert(0, os.getcwd())
+        
+        # Try importing from local structure
+        try:
+            from app.schemas import WirenboardIRState
+            print('✅ Found WirenboardIRState in app.schemas (local import)')
+        except ImportError as e:
+            print(f'❌ Local import failed: {e}')
+            
+        # List available Python files
+        print('Available Python files in app/:')
+        if os.path.exists('app'):
+            for f in os.listdir('app'):
+                if f.endswith('.py'):
+                    print(f'  - {f}')
+        else:
+            print('  app/ directory not found')
+        "
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install Node.js dependencies
+      run: npm ci
+
     - name: Verify directory structure
       run: |
         echo "Build context structure:"
@@ -30,6 +112,18 @@ jobs:
         echo "Python schemas:"
         ls -la wb-mqtt-bridge/app/
         echo "Total config files: $(ls wb-mqtt-bridge/config/devices/*.json | wc -l)"
+
+    - name: Validate type generation
+      run: |
+        echo "Generating TypeScript types and router integration..."
+        npm run gen:device-pages -- --batch --mode=package --mapping-file=config/device-state-mapping.json --generate-router
+        echo "✅ Type generation successful with package mode"
+
+    - name: Run TypeScript validation
+      run: |
+        echo "Running TypeScript type checking..."
+        npm run typecheck:all
+        echo "✅ TypeScript validation successful"
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -41,6 +135,8 @@ jobs:
         platforms: linux/arm/v7
         tags: wb-mqtt-ui:latest
         outputs: type=docker,dest=/tmp/wb-mqtt-ui.tar
+        build-args: |
+          BUILDKIT_INLINE_CACHE=1
 
     - name: Compress Docker image
       run: |
@@ -51,4 +147,13 @@ jobs:
       with:
         name: wb-mqtt-ui-image
         path: /tmp/wb-mqtt-ui.tar.gz
-        retention-days: 30 
+        retention-days: 30
+
+    - name: Upload build logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs
+        path: |
+          npm-debug.log*
+          yarn-error.log* 

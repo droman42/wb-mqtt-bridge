@@ -99,7 +99,8 @@ export class RouterIntegration {
         console.warn(`Could not find generated section markers in ${routerFilePath}`);
       }
     } catch (error) {
-      console.error(`Failed to update router at ${routerFilePath}:`, error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`Failed to update router at ${routerFilePath}:`, errorMessage);
     }
   }
 
@@ -268,7 +269,8 @@ ${devices.map(device => `  { path: '${device.route}', component: ${device.compon
       }
     } catch (error) {
       // File doesn't exist or can't be read - that's fine for first generation
-      console.log(`📝 No existing router manifest found (${error.message})`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.log(`📝 No existing router manifest found (${errorMessage})`);
     }
     
     return [];

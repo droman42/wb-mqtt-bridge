@@ -68,13 +68,15 @@ export class ComponentValidator {
         filePath: componentPath
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
       return {
         rendersWithoutCrash: false,
         hasRequiredElements: false,
         missingComponents: [],
         renderErrors: [{
-          message: `Component validation failed: ${error.message}`,
-          stack: error.stack,
+          message: `Component validation failed: ${errorMessage}`,
+          stack: errorStack,
           severity: 'error'
         }],
         filePath: componentPath

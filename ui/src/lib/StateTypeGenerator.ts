@@ -1,3 +1,4 @@
+/* global process */
 import { spawn } from 'child_process';
 import * as _fs from 'fs/promises';
 import * as _path from 'path';
@@ -25,21 +26,88 @@ export interface PythonParsingResult {
 }
 
 export class StateTypeGenerator {
-  async generateFromPythonClass(filePath: string, className: string): Promise<StateDefinition> {
+  private importCache = new Map<string, StateDefinition>();
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  
+  /**
+   * Generate TypeScript state definition from Python class using package import path
+   * @param importPath - Package import path in format "module.path:ClassName"
+   * @returns Promise<StateDefinition>
+   */
+  async generateFromImportPath(importPath: string): Promise<StateDefinition> {
+    // Check cache first
+    const cached = this.importCache.get(importPath);
+    if (cached) {
+      console.log(`⚡ Using cached types for: ${importPath}`);
+      return cached;
+    }
+    
     try {
-      // Try to parse Python class first
-      const pythonResult = await this.parsePythonClass(filePath, className);
+      console.log(`🐍 Generating types from package import: ${importPath}`);
+      
+      // Parse import path (e.g., "wb_mqtt_bridge.domain.devices.models:WirenboardIRState")
+      const [modulePath, className] = importPath.split(':');
+      
+      if (!modulePath || !className) {
+        throw new Error(`Invalid import path format: ${importPath}. Expected format: "module.path:ClassName"`);
+      }
+
+      // Try to parse Python class using importlib
+      const pythonResult = await this.parsePythonClassFromImport(modulePath, className);
       
       if (pythonResult.success) {
-        return this.convertToStateDefinition(className, pythonResult.fields);
+        console.log(`✅ Successfully parsed ${className} from ${modulePath}`);
+        const stateDefinition = this.convertToStateDefinition(className, pythonResult.fields);
+        // Cache the result
+        this.importCache.set(importPath, stateDefinition);
+        return stateDefinition;
       } else {
+        console.warn(`Python parsing failed for ${importPath}: ${pythonResult.error}`);
         // Fallback to basic state generation
-        console.warn(`Python parsing failed for ${className}: ${pythonResult.error}`);
-        return this.generateBasicStateDefinition(className);
+        const basicDefinition = this.generateBasicStateDefinition(className);
+        this.importCache.set(importPath, basicDefinition);
+        return basicDefinition;
       }
     } catch (error) {
-      console.warn(`State generation failed for ${className}: ${error.message}`);
-      return this.generateBasicStateDefinition(className);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`Import-based state generation failed for ${importPath}: ${errorMessage}`);
+      // Extract class name from import path for fallback
+      const className = importPath.split(':')[1] || 'UnknownState';
+      const fallbackDefinition = this.generateBasicStateDefinition(className);
+      this.importCache.set(importPath, fallbackDefinition);
+      return fallbackDefinition;
+    }
+  }
+
+
+
+  /**
+   * Generate TypeScript state definition from Python class using package import path
+   * @param options - Generation options with importPath
+   * @returns Promise<StateDefinition>
+   */
+  async generateFromPythonState(options: {
+    importPath: string;
+  }): Promise<StateDefinition> {
+    return this.generateFromImportPath(options.importPath);
+  }
+
+  /**
+   * Phase 2: Generate TypeScript state definition for scenario virtual devices
+   * @param scenarioId - Scenario ID to generate virtual device state for
+   * @returns Promise<StateDefinition>
+   */
+  async generateFromScenarioWBConfig(scenarioId: string): Promise<StateDefinition> {
+    try {
+      console.log(`🎮 Generating virtual device state for scenario: ${scenarioId}`);
+      
+      // For now, we'll generate a basic virtual device state structure
+      // In the future, this could fetch from the actual ScenarioWBConfig API
+      return this.generateScenarioVirtualDeviceState(scenarioId);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`Scenario virtual device state generation failed for ${scenarioId}: ${errorMessage}`);
+      return this.generateBasicVirtualDeviceState(scenarioId);
     }
   }
 
@@ -160,64 +228,97 @@ export function ${hookName}(deviceId: string = '${deviceId}') {
 }`;
   }
 
-  private async parsePythonClass(filePath: string, className: string): Promise<PythonParsingResult> {
+  private async parsePythonClassFromImport(modulePath: string, className: string): Promise<PythonParsingResult> {
     return new Promise((resolve) => {
       const pythonScript = `
+import importlib
 import ast
 import sys
 import json
+import inspect
 
-def extract_class_fields(file_path, class_name):
+def extract_class_fields_from_import(module_path, class_name):
     try:
-        with open(file_path, 'r') as f:
-            tree = ast.parse(f.read())
+        # Import the module using importlib
+        module = importlib.import_module(module_path)
         
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ClassDef) and node.name == class_name:
-                fields = []
-                for item in node.body:
-                    if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name):
-                        field_type = 'Any'
-                        try:
-                            field_type = ast.unparse(item.annotation)
-                        except:
-                            pass
-                        
-                        default_value = None
-                        if item.value:
+        # Get the class from the module
+        cls = getattr(module, class_name)
+        
+        # Try to get source and parse with AST if possible
+        try:
+            import inspect
+            source = inspect.getsource(cls)
+            tree = ast.parse(source)
+            
+            fields = []
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ClassDef) and node.name == class_name:
+                    for item in node.body:
+                        if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name):
+                            field_type = 'Any'
                             try:
-                                default_value = ast.literal_eval(item.value)
+                                field_type = ast.unparse(item.annotation)
                             except:
-                                default_value = str(item.value)
-                        
-                        fields.append({
-                            'name': item.target.id,
-                            'type': field_type,
-                            'optional': default_value is not None,
-                            'default': default_value
-                        })
-                return fields
-        return []
+                                pass
+                            
+                            default_value = None
+                            if item.value:
+                                try:
+                                    default_value = ast.literal_eval(item.value)
+                                except:
+                                    default_value = str(item.value)
+                            
+                            fields.append({
+                                'name': item.target.id,
+                                'type': field_type,
+                                'optional': default_value is not None,
+                                'default': default_value
+                            })
+            return fields
+            
+        except Exception as ast_error:
+            # Fallback: try to extract fields from class annotations if available
+            try:
+                if hasattr(cls, '__annotations__'):
+                    fields = []
+                    for field_name, field_type in cls.__annotations__.items():
+                        # Skip private fields
+                        if not field_name.startswith('_'):
+                            fields.append({
+                                'name': field_name,
+                                'type': str(field_type),
+                                'optional': hasattr(cls, field_name) and getattr(cls, field_name) is not None,
+                                'default': getattr(cls, field_name, None) if hasattr(cls, field_name) else None
+                            })
+                    return fields
+                else:
+                    return []
+            except Exception as annotation_error:
+                return {'error': f'AST parsing failed: {ast_error}, Annotation parsing failed: {annotation_error}'}
+        
     except Exception as e:
         return {'error': str(e)}
 
-result = extract_class_fields(sys.argv[1], sys.argv[2])
+result = extract_class_fields_from_import(sys.argv[1], sys.argv[2])
 print(json.dumps(result))
       `;
 
-      const process = spawn('python3', ['-c', pythonScript, filePath, className]);
+      // Use environment-specified Python executable or default to python3
+      const pythonExecutable = process.env.PYTHON_EXECUTABLE || 'python3';
+      const pythonProcess = spawn(pythonExecutable, ['-c', pythonScript, modulePath, className]);
       let output = '';
       let errorOutput = '';
 
-      process.stdout.on('data', (data) => {
+      pythonProcess.stdout.on('data', (data) => {
         output += data.toString();
       });
 
-      process.stderr.on('data', (data) => {
+      pythonProcess.stderr.on('data', (data) => {
         errorOutput += data.toString();
       });
 
-      process.on('close', (code) => {
+      pythonProcess.on('close', (code) => {
         if (code === 0 && output) {
           try {
             const result = JSON.parse(output);
@@ -227,7 +328,8 @@ print(json.dumps(result))
               resolve({ success: true, fields: result, error: undefined });
             }
           } catch (parseError) {
-            resolve({ success: false, fields: [], error: `JSON parse error: ${parseError.message}` });
+            const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
+            resolve({ success: false, fields: [], error: `JSON parse error: ${errorMessage}` });
           }
         } else {
           resolve({ 
@@ -238,13 +340,15 @@ print(json.dumps(result))
         }
       });
 
-      // Set a timeout to prevent hanging
+      // Set a timeout to prevent hanging - optimized for package imports
       setTimeout(() => {
-        process.kill();
+        pythonProcess.kill();
         resolve({ success: false, fields: [], error: 'Python execution timeout' });
-      }, 10000);
+      }, 10000); // Reduced timeout since package imports are faster
     });
   }
+
+
 
   private convertToStateDefinition(className: string, fields: any[]): StateDefinition {
     return {
@@ -352,5 +456,110 @@ print(json.dumps(result))
       return `'${field.defaultValue}'`;
     }
     return String(field.defaultValue);
+  }
+
+  /**
+   * Phase 2: Generate state definition for scenario virtual devices
+   * @param scenarioId - Scenario ID
+   * @returns StateDefinition
+   */
+  private generateScenarioVirtualDeviceState(scenarioId: string): StateDefinition {
+    const interfaceName = `${this.formatScenarioClassName(scenarioId)}VirtualState`;
+    
+    // Common virtual device state fields based on WB device patterns
+    const fields: StateField[] = [
+      {
+        name: 'scenario_id',
+        type: 'string',
+        optional: false,
+        description: 'Scenario identifier',
+        defaultValue: scenarioId
+      },
+      {
+        name: 'scenario_active',
+        type: 'boolean',
+        optional: false,
+        description: 'Whether the scenario is currently active',
+        defaultValue: false
+      },
+      {
+        name: 'virtual_controls',
+        type: 'Record<string, any>',
+        optional: true,
+        description: 'Virtual control states for WB integration',
+        defaultValue: {}
+      },
+      {
+        name: 'last_command_result',
+        type: 'string | null',
+        optional: true,
+        description: 'Result of the last executed command',
+        defaultValue: null
+      },
+      {
+        name: 'startup_sequence_complete',
+        type: 'boolean',
+        optional: true,
+        description: 'Whether the startup sequence has completed',
+        defaultValue: false
+      },
+      {
+        name: 'shutdown_sequence_complete',
+        type: 'boolean',
+        optional: true,
+        description: 'Whether the shutdown sequence has completed',
+        defaultValue: true
+      }
+    ];
+
+    return {
+      interfaceName,
+      fields,
+      imports: ['BaseDeviceState'],
+      extends: ['BaseDeviceState']
+    };
+  }
+
+  /**
+   * Generate basic virtual device state as fallback
+   * @param scenarioId - Scenario ID
+   * @returns StateDefinition
+   */
+  private generateBasicVirtualDeviceState(scenarioId: string): StateDefinition {
+    const interfaceName = `${this.formatScenarioClassName(scenarioId)}VirtualState`;
+    
+    return {
+      interfaceName,
+      fields: [
+        {
+          name: 'scenario_id',
+          type: 'string',
+          optional: false,
+          description: 'Scenario identifier',
+          defaultValue: scenarioId
+        },
+        {
+          name: 'status',
+          type: 'string',
+          optional: false,
+          description: 'Virtual device status',
+          defaultValue: 'unknown'
+        }
+      ],
+      imports: ['BaseDeviceState'],
+      extends: ['BaseDeviceState']
+    };
+  }
+
+  /**
+   * Format scenario ID to valid TypeScript class name
+   * @param scenarioId - Scenario ID to format
+   * @returns Formatted class name
+   */
+  private formatScenarioClassName(scenarioId: string): string {
+    return scenarioId
+      .split(/[-_]/)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+      .join('');
   }
 } 
