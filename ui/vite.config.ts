@@ -15,12 +15,12 @@ export default defineConfig({
     proxy: {
       // API proxy for regular requests
       '/api': {
-        target: 'http://192.168.110.250:8000',
+        target: 'http://localhost:8000',
         changeOrigin: true,
       },
       // SSE proxy with special handling for text/event-stream
       '/events': {
-        target: 'http://192.168.110.250:8000',
+        target: 'http://localhost:8000',
         changeOrigin: true,
         ws: false, // Disable WebSocket upgrades for SSE
         // Critical: Configure proxy for SSE streaming

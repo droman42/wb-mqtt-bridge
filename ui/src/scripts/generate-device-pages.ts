@@ -419,7 +419,7 @@ async function runCLI() {
   const deviceId = args.find(arg => arg.startsWith('--device-id='))?.split('=')[1];
   const deviceIds = args.find(arg => arg.startsWith('--device-ids='))?.split('=')[1]?.split(',');
   const deviceClasses = args.find(arg => arg.startsWith('--device-classes='))?.split('=')[1]?.split(',');
-  const apiBaseUrl = args.find(arg => arg.startsWith('--api-base-url='))?.split('=')[1] || 'http://192.168.110.250:8000';
+  const apiBaseUrl = args.find(arg => arg.startsWith('--api-base-url='))?.split('=')[1] || 'http://localhost:8000';
   const outputDir = args.find(arg => arg.startsWith('--output-dir='))?.split('=')[1] || 'src/pages/devices';
   const testConnection = args.includes('--test-connection');
   const listClasses = args.includes('--list-classes');
@@ -471,7 +471,7 @@ Phase 3 Validation & Integration Options:
   --full-system           Generate complete system with all Phase 3 features
 
 General Options:
-  --api-base-url=<url>    API base URL (default: http://192.168.110.250:8000)
+  --api-base-url=<url>    API base URL (default: http://localhost:8000)
   --output-dir=<path>     Output directory (default: src/pages/devices)
   --test-connection       Test API connection only
   --list-classes         List supported device classes
