@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wb-mqtt-bridge"
-version = "0.4.0"
+version = "0.5.0"
 description = "A Python-based web service that acts as an MQTT client to manage multiple devices using a plugin-based architecture"
 readme = "README.md"
 authors = [
@@ -73,14 +73,33 @@ Homepage = "https://github.com/droman42/wb-mqtt-bridge"
 Issues = "https://github.com/droman42/wb-mqtt-bridge/issues"
 
 [project.scripts]
-wb-mqtt-bridge = "app.main:main"
+wb-mqtt-bridge = "wb_mqtt_bridge.app.main:main"
+wb-api = "wb_mqtt_bridge.app.main:main"
+mqtt-sniffer = "wb_mqtt_bridge.cli.mqtt_sniffer:main"
+device-test = "wb_mqtt_bridge.cli.device_test:main"
+broadlink-cli = "wb_mqtt_bridge.cli.broadlink_cli:main"
+broadlink-discovery = "wb_mqtt_bridge.cli.broadlink_discovery:main"
+
+[project.entry-points."wb_mqtt_bridge.devices"]
+lg_tv = "wb_mqtt_bridge.infrastructure.devices.lg_tv.driver:LgTv"
+apple_tv = "wb_mqtt_bridge.infrastructure.devices.apple_tv.driver:AppleTVDevice"
+auralic = "wb_mqtt_bridge.infrastructure.devices.auralic.driver:AuralicDevice"
+emotiva_xmc2 = "wb_mqtt_bridge.infrastructure.devices.emotiva_xmc2.driver:EMotivaXMC2"
+broadlink_hood = "wb_mqtt_bridge.infrastructure.devices.broadlink_kitchen_hood.driver:BroadlinkKitchenHood"
+wirenboard_ir = "wb_mqtt_bridge.infrastructure.devices.wirenboard_ir_device.driver:WirenboardIRDevice"
+revox_a77 = "wb_mqtt_bridge.infrastructure.devices.revox_a77_reel_to_reel.driver:RevoxA77ReelToReel"
 
 [tool.setuptools]
-packages = ["app", "devices"]
 
 # Simplified package structure
 [tool.setuptools.package-dir]
-"" = "."
+"" = "src"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-v --tb=short"
 
 [tool.black]
 line-length = 88

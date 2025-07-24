@@ -1,10 +1,6 @@
 import os
 import sys
 import pytest
-import tempfile
-import asyncio
-import json
-from pathlib import Path
 import pytest_asyncio
 
 # Add the app directory to sys.path for importing
@@ -17,7 +13,7 @@ from tests import mock_sqlite
 if not mock_sqlite.HAS_AIOSQLITE:
     pytest.skip("aiosqlite is not available", allow_module_level=True)
 
-from app.state_store import SQLiteStateStore
+from wb_mqtt_bridge.infrastructure.persistence.sqlite import SQLiteStateStore
 
 
 @pytest_asyncio.fixture

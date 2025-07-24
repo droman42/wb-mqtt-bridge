@@ -1,11 +1,9 @@
 import json
 import pytest
 import pytest_asyncio
-import asyncio
 from unittest.mock import MagicMock, patch
 import base64
-from devices.broadlink_kitchen_hood import BroadlinkKitchenHood
-from app.schemas import KitchenHoodState
+from wb_mqtt_bridge.infrastructure.devices.broadlink_kitchen_hood.driver import BroadlinkKitchenHood
 
 
 @pytest.fixture

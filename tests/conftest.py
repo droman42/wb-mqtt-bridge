@@ -5,10 +5,9 @@ Pytest configuration for all tests.
 import os
 import sys
 import pytest
-import asyncio
-from unittest.mock import MagicMock, AsyncMock, patch
-from app.scenario import Scenario
-from app.scenario_models import ScenarioDefinition, CommandStep
+from unittest.mock import MagicMock, AsyncMock
+from wb_mqtt_bridge.domain.scenarios.scenario import Scenario
+from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition
 
 # Add the parent directory to path to allow imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))

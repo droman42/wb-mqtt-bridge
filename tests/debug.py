@@ -5,8 +5,8 @@ import os
 # Add current directory to Python path
 sys.path.append('.')
 
-from app.config_manager import ConfigManager
-from app.mqtt_client import MQTTClient
+from wb_mqtt_bridge.infrastructure.config.manager import ConfigManager
+from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
 
 def main():
     # Initialize config manager
@@ -17,7 +17,7 @@ def main():
     print(f"1. MQTT Broker Config from ConfigManager: {mqtt_broker_config}")
     
     # Check environment variables
-    print(f"2. Environment variables:")
+    print("2. Environment variables:")
     print(f"   MQTT_BROKER_HOST = {os.getenv('MQTT_BROKER_HOST', 'not set')}")
     print(f"   MQTT_BROKER_PORT = {os.getenv('MQTT_BROKER_PORT', 'not set')}")
     print(f"   MQTT_USERNAME = {os.getenv('MQTT_USERNAME', 'not set')}")
@@ -25,7 +25,7 @@ def main():
     
     # Initialize MQTT client with converted config
     mqtt_client = MQTTClient(mqtt_broker_config.model_dump())
-    print(f"3. MQTT Client initialized with:")
+    print("3. MQTT Client initialized with:")
     print(f"   host = {mqtt_client.host}")
     print(f"   port = {mqtt_client.port}")
     print(f"   client_id = {mqtt_client.client_id}")
@@ -45,7 +45,7 @@ def main():
             'password': mqtt_client.password
         })
     
-    print(f"4. Client args that would be passed to aiomqtt.Client:")
+    print("4. Client args that would be passed to aiomqtt.Client:")
     print(f"   {client_args}")
 
 if __name__ == "__main__":

@@ -9,16 +9,14 @@ This test suite validates:
 """
 
 import pytest
-import asyncio
 import logging
-from unittest.mock import Mock, AsyncMock, patch
-from typing import Dict, Any, List
+from unittest.mock import Mock, AsyncMock
 
-from devices.base_device import BaseDevice
-from app.schemas import BaseDeviceConfig, BaseCommandConfig, StandardCommandConfig
-from app.mqtt_client import MQTTClient
-from app.config_manager import ConfigManager
-from app.maintenance import WirenboardMaintenanceGuard
+from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
+from wb_mqtt_bridge.infrastructure.config.models import BaseDeviceConfig, StandardCommandConfig
+from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
+from wb_mqtt_bridge.infrastructure.config.manager import ConfigManager
+from wb_mqtt_bridge.infrastructure.maintenance.wirenboard_guard import WirenboardMaintenanceGuard
 
 
 class MockDeviceForTesting(BaseDevice):
@@ -27,7 +25,7 @@ class MockDeviceForTesting(BaseDevice):
     def __init__(self, config: BaseDeviceConfig, mqtt_client=None):
         # Add default command configurations if not provided
         if not hasattr(config, 'commands') or not config.commands:
-            from app.schemas import StandardCommandConfig, CommandParameterDefinition
+            from wb_mqtt_bridge.infrastructure.config.models import StandardCommandConfig, CommandParameterDefinition
             config.commands = {
                 'power_on': StandardCommandConfig(
                     action='power_on',
@@ -89,7 +87,6 @@ class TestLastWillTestamentIntegration:
     
     def test_mqtt_client_lwt_support(self):
         """Test that MQTTClient supports LWT functionality."""
-        from aiomqtt import Will
         
         mqtt_client = MQTTClient({'host': 'localhost', 'port': 1883, 'client_id': 'test'})
         
@@ -99,7 +96,7 @@ class TestLastWillTestamentIntegration:
         assert len(mqtt_client._will_messages) == 1
         assert mqtt_client._will_messages[0].topic == '/test/topic'
         assert mqtt_client._will_messages[0].payload == 'offline'
-        assert mqtt_client._will_messages[0].retain == True
+        assert mqtt_client._will_messages[0].retain
         
         # Test device registry
         assert 'test_device' in mqtt_client._device_lwt_registry
@@ -252,7 +249,7 @@ class TestConfigurationValidation:
     def test_wb_state_mappings_validation(self):
         """Test WB state mappings validation."""
         # First test valid configuration
-        valid_config = BaseDeviceConfig(
+        BaseDeviceConfig(
             device_id='test_device',
             device_name='Test Device',
             device_class='MockDeviceForTesting',
@@ -305,7 +302,7 @@ class TestConfigurationValidation:
         is_valid, results = await device.validate_wb_configuration()
         
         # Should be valid with mock MQTT client
-        assert is_valid == True
+        assert is_valid
         assert 'wb_controls_errors' in results
         assert 'wb_state_mappings_errors' in results
         assert 'handler_validation' in results

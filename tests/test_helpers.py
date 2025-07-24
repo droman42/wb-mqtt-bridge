@@ -3,20 +3,30 @@ Test helpers for converting dictionary configurations to Pydantic models.
 This allows us to run tests that use dictionary configuration with code that expects Pydantic models.
 """
 
-from typing import Dict, Any, List, Optional, Type, TypeVar, cast
-from pydantic import BaseModel, Field, create_model
-from app.schemas import (
+from typing import Dict, Any, List, Optional, TypeVar
+from wb_mqtt_bridge.infrastructure.config.models import (
     BaseDeviceConfig,
+    BaseCommandConfig,
     StandardCommandConfig,
     IRCommandConfig,
     LgTvConfig,
+    LgTvDeviceConfig,
     BroadlinkConfig,
+    BroadlinkKitchenHoodConfig,
     EmotivaConfig,
+    EmotivaXMC2DeviceConfig,
     AppleTVConfig,
-    AppleTVProtocolConfig,
-    BaseCommandConfig,
+    AppleTVDeviceConfig,
+    RevoxA77ReelToReelConfig,
+    WirenboardIRDeviceConfig,
     CommandParameterDefinition
 )
+# Import additional models that might be used
+try:
+    from wb_mqtt_bridge.infrastructure.config.models import RevoxA77ReelToReelParams
+except ImportError:
+    # This might be in a different location
+    from wb_mqtt_bridge.infrastructure.config.models import RevoxA77ReelToReelParams
 
 T = TypeVar('T')
 
@@ -64,45 +74,32 @@ def dict_to_device_config(config_dict: Dict[str, Any]) -> BaseDeviceConfig:
     
     # Determine the appropriate device config class based on content
     if "tv" in config:
-        from app.schemas import LgTvDeviceConfig
         # Ensure the 'tv' is a LgTvConfig
         if isinstance(config["tv"], dict):
             config["tv"] = LgTvConfig(**config["tv"])
         return LgTvDeviceConfig(**config)
     elif "broadlink" in config:
-        from app.schemas import BroadlinkKitchenHoodConfig
         # Ensure 'broadlink' is a BroadlinkConfig
         if isinstance(config["broadlink"], dict):
             config["broadlink"] = BroadlinkConfig(**config["broadlink"])
         return BroadlinkKitchenHoodConfig(**config)
     elif "emotiva" in config:
-        from app.schemas import EmotivaXMC2DeviceConfig
         # Ensure 'emotiva' is an EmotivaConfig
         if isinstance(config["emotiva"], dict):
             config["emotiva"] = EmotivaConfig(**config["emotiva"])
         return EmotivaXMC2DeviceConfig(**config)
     elif "apple_tv" in config:
-        from app.schemas import AppleTVDeviceConfig
-        # Process apple_tv.protocols if it exists
-        if isinstance(config["apple_tv"], dict) and "protocols" in config["apple_tv"]:
-            protocols = {}
-            for proto_name, proto_config in config["apple_tv"]["protocols"].items():
-                if isinstance(proto_config, dict):
-                    protocols[proto_name] = AppleTVProtocolConfig(**proto_config)
-                else:
-                    protocols[proto_name] = proto_config
-            config["apple_tv"]["protocols"] = protocols
+        # Process apple_tv config - simplified without protocols handling for now
+        if isinstance(config["apple_tv"], dict):
             config["apple_tv"] = AppleTVConfig(**config["apple_tv"])
         return AppleTVDeviceConfig(**config)
     elif "reel_to_reel" in config:
-        from app.schemas import RevoxA77ReelToReelConfig, RevoxA77ReelToReelParams
         # Ensure 'reel_to_reel' is a RevoxA77ReelToReelParams
         if isinstance(config["reel_to_reel"], dict):
             config["reel_to_reel"] = RevoxA77ReelToReelParams(**config["reel_to_reel"])
         return RevoxA77ReelToReelConfig(**config)
     else:
         # Default to a simple device config with IRCommandConfig
-        from app.schemas import WirenboardIRDeviceConfig
         return WirenboardIRDeviceConfig(**config)
 
 def wrap_device_init(original_cls):

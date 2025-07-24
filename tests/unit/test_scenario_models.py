@@ -1,6 +1,6 @@
 import pytest
 from pydantic import ValidationError
-from app.scenario_models import (
+from wb_mqtt_bridge.domain.scenarios.models import (
     ManualInstructions,
     CommandStep,
     ScenarioDefinition,

@@ -1,18 +1,19 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from devices.auralic_device import AuralicDevice
-from app.schemas import AuralicDeviceConfig, AuralicConfig, BaseCommandConfig, StandardCommandConfig
+from wb_mqtt_bridge.infrastructure.devices.auralic.driver import AuralicDevice
+from wb_mqtt_bridge.infrastructure.config.models import AuralicDeviceConfig, AuralicConfig, BaseCommandConfig, StandardCommandConfig
 
 
 class TestAuralicDevice:
     @pytest.fixture
     def mock_setup(self):
         # Create mock config
-        config = AuralicDeviceConfig(
+        config = AuralicDeviceConfig(device_class="AuralicDevice", config_class="AuralicDeviceConfig", 
             device_id="test_auralic",
             device_name="Test Auralic",
-            device_type="auralic",
+            device_class="AuralicDevice",
+            config_class="AuralicDeviceConfig", 
             commands={
                 "power_on": StandardCommandConfig(command="power_on", action="power_on"),
                 "power_off": StandardCommandConfig(command="power_off", action="power_off")
@@ -29,7 +30,7 @@ class TestAuralicDevice:
         mqtt_client = MagicMock()
         
         # Patch OpenHomeDevice
-        with patch('devices.auralic_device.OpenHomeDevice') as mock_openhome_class:
+        with patch('wb_mqtt_bridge.infrastructure.devices.auralic.driver.OpenHomeDevice') as mock_openhome_class:
             mock_openhome = AsyncMock()
             mock_openhome_class.return_value = mock_openhome
             

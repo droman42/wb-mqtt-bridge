@@ -1,10 +1,7 @@
 import os
 import sys
 import pytest
-import tempfile
 import asyncio
-import json
-from pathlib import Path
 from typing import Dict, Any, Optional
 import pytest_asyncio
 
@@ -18,17 +15,15 @@ from tests import mock_sqlite
 if not mock_sqlite.HAS_AIOSQLITE:
     pytest.skip("aiosqlite is not available", allow_module_level=True)
 
-from app.state_store import SQLiteStateStore
-from app.device_manager import DeviceManager
-from app.config_manager import ConfigManager
-from app.schemas import (
+from wb_mqtt_bridge.infrastructure.persistence.sqlite import SQLiteStateStore
+from wb_mqtt_bridge.domain.devices.service import DeviceManager
+from wb_mqtt_bridge.infrastructure.config.models import (
     BaseDeviceConfig, 
-    PersistenceConfig, 
     IRCommandConfig, 
     WirenboardIRDeviceConfig,
     BaseDeviceState
 )
-from devices.base_device import BaseDevice
+from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 from pydantic import Field
 
 

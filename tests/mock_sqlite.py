@@ -1,5 +1,4 @@
 import sys
-import importlib.util
 
 # Check if native sqlite3 module works
 try:
@@ -21,7 +20,7 @@ if not HAS_SQLITE:
 
 # Now import aiosqlite (which will use either native sqlite3 or our patched version)
 try:
-    import aiosqlite
+    import aiosqlite  # noqa: F401
     HAS_AIOSQLITE = True
 except ImportError:
     HAS_AIOSQLITE = False

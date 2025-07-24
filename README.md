@@ -40,6 +40,42 @@ A Python-based web service that integrates as an MQTT client with Wirenboard wb-
   - Automatic device class detection for migration
   - Command processing specific to device types
 
+## Project Structure
+
+The project follows a domain-centric (DDD/Hexagonal) architecture for better maintainability and testability:
+
+```
+src/wb_mqtt_bridge/
+├── app/                     # Application bootstrap and configuration
+│   ├── __init__.py         # FastAPI app export
+│   ├── bootstrap.py        # Dependency injection and app setup
+│   └── main.py             # Entry point for console scripts
+├── cli/                     # Command-line utilities
+│   ├── mqtt_sniffer.py     # MQTT traffic monitoring
+│   ├── device_test.py      # Device testing utility
+│   └── broadlink_*.py      # Broadlink discovery tools
+├── domain/                  # Pure business logic (no I/O dependencies)
+│   ├── devices/            # Device management domain
+│   ├── scenarios/          # Scenario system domain  
+│   └── rooms/              # Room management domain
+├── infrastructure/         # External adapters and implementations
+│   ├── mqtt/               # MQTT client implementation
+│   ├── persistence/        # Database storage (SQLite)
+│   ├── config/             # Configuration management
+│   └── devices/            # Device driver implementations
+│       ├── lg_tv/driver.py
+│       ├── apple_tv/driver.py
+│       └── ...
+└── presentation/           # HTTP API layer
+    └── api/                # FastAPI routers and schemas
+```
+
+**Key principles:**
+- **Domain layer** contains pure business logic with no external dependencies
+- **Infrastructure layer** implements interfaces defined by the domain
+- **Presentation layer** handles HTTP requests and responses
+- **App layer** wires everything together with dependency injection
+
 ## Installation
 
 1. Clone the repository:
@@ -60,6 +96,12 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -e .
 ```
 
+After installation, the following console scripts will be available:
+- `wb-mqtt-bridge` / `wb-api` - Start the web service
+- `mqtt-sniffer` - Monitor MQTT traffic
+- `device-test` - Test device configurations
+- `broadlink-cli` / `broadlink-discovery` - Broadlink utilities
+
 3. Configure the application:
    - Edit `.env` for environment variables
    - Edit `config/system.json` for MQTT broker settings
@@ -69,43 +111,67 @@ pip install -e .
 
 The application can be deployed using Docker on various platforms including Wirenboard 7 (ARMv7 architecture).
 
-### Basic Docker Deployment
+### Docker Container Management
 
-1. **Clone and setup**:
+The application uses `manage_docker.sh` for comprehensive Docker container management on the target platform (Wirenboard).
+
+#### Deployment Workflow
+
+1. **Deploy from GitHub artifacts**:
 ```bash
-git clone https://github.com/droman42/wb-mqtt-bridge.git
-cd wb-mqtt-bridge
+# Deploy the wb-mqtt-bridge container
+./manage_docker.sh deploy wb-mqtt-bridge
+
+# Deploy all containers
+./manage_docker.sh deploy all
+
+# Deploy only UI containers
+./manage_docker.sh deploy ui
+
+# Deploy only backend containers  
+./manage_docker.sh deploy backend
 ```
 
-2. **Configure the application**:
+2. **Full redeploy** (stop, clean, download, install, start):
 ```bash
-# Copy and edit environment variables
-cp .env.example .env
-nano .env
+# Full redeploy of specific container
+./manage_docker.sh redeploy wb-mqtt-bridge
 
-# Create device configurations directory
-mkdir -p config/devices data logs
-# Add your device configuration files to config/devices/
+# Full redeploy of all containers
+./manage_docker.sh redeploy all
 ```
 
-3. **Build and start** (optimized build by default):
+3. **Container management**:
 ```bash
-./docker_deploy.sh --build
-```
+# Start containers
+./manage_docker.sh start wb-mqtt-bridge
+./manage_docker.sh start all
 
-4. **Management commands**:
-```bash
 # Stop containers
-./docker_deploy.sh --down
+./manage_docker.sh stop wb-mqtt-bridge
+./manage_docker.sh stop all
 
-# Restart containers  
-./docker_deploy.sh --restart
+# Restart containers
+./manage_docker.sh restart wb-mqtt-bridge
 
-# Build without optimizations (for debugging)
-./docker_deploy.sh --build --no-lean
+# Show status and resource usage
+./manage_docker.sh status
+./manage_docker.sh status wb-mqtt-bridge
+
+# View container logs
+./manage_docker.sh logs wb-mqtt-bridge 100
 ```
 
-The web service will be available at http://localhost:8000.
+4. **System maintenance**:
+```bash
+# Docker system cleanup
+./manage_docker.sh cleanup
+
+# Create/edit configuration file
+./manage_docker.sh config
+```
+
+The web service will be available at http://localhost:8000 (using host networking).
 
 #### Dependency Optimization for Lean Images
 
@@ -186,25 +252,26 @@ The application is optimized for deployment on Wirenboard 7 controllers, which u
 
 **👍 Recommended: Use GitHub Actions** for fastest builds and easier management.
 
-#### Option 1: Direct Build on Wirenboard 7
+#### Option 1: Direct Deployment on Wirenboard 7
 
 If you're running the deployment directly on your Wirenboard 7:
 
 ```bash
-git clone https://github.com/droman42/wb-mqtt-bridge.git
-cd wb-mqtt-bridge
+# Download and setup the management script
+wget https://raw.githubusercontent.com/droman42/wb-mqtt-bridge/main/manage_docker.sh
+chmod +x manage_docker.sh
 
-# Configure your deployment
-cp .env.example .env
-nano .env
+# Deploy the container from GitHub artifacts
+./manage_docker.sh deploy wb-mqtt-bridge
 
-# Set up device configurations
-mkdir -p config/devices
-# Add your device configuration files to config/devices/
-
-# Build and deploy (optimized build by default)
-./docker_deploy.sh --build
+# Or deploy all containers in the stack
+./manage_docker.sh deploy all
 ```
+
+The script will:
+- Download Docker images from GitHub artifacts
+- Extract configuration files to `/opt/wb-bridge/`
+- Start containers with proper resource limits
 
 #### Option 2: GitHub Actions Build (Recommended for Speed)
 
@@ -280,54 +347,37 @@ ssh root@192.168.1.100 '
 - 💻 **Saves local resources**: No impact on your development machine
 - 🔒 **Cached builds**: Subsequent builds are even faster due to GitHub's cache
 
-#### Option 3: Local Cross-Platform Build and Transfer
+#### Configuration Management
 
-For building on a development machine and deploying to Wirenboard:
+The `manage_docker.sh` script provides comprehensive configuration management:
 
-1. **Setup on development machine**:
+1. **Configuration file setup**:
 ```bash
-git clone https://github.com/droman42/wb-mqtt-bridge.git
-cd wb-mqtt-bridge
-
-# Configure for your Wirenboard
-cp .env.example .env
-nano .env
-
-# Add device configurations
-mkdir -p config/devices
-# Copy your device configuration files to config/devices/
+# Create/edit configuration file  
+./manage_docker.sh config
 ```
 
-2. **Build, save, and transfer in one step**:
+2. **GitHub credentials setup** (for artifact download):
 ```bash
-# Replace 192.168.1.100 with your Wirenboard's IP address
-./docker_deploy.sh -b --save --transfer 192.168.1.100
+# Set via environment variables
+export GITHUB_USERNAME="your_username"
+export GITHUB_PAT="your_personal_access_token"
+
+# Or store in configuration file (managed by the script)
+./manage_docker.sh config
 ```
 
-3. **Or build and save for later transfer**:
+3. **Container resource customization**:
+The script supports custom resource limits, memory allocation, and CPU constraints defined in the configuration file.
+
+4. **Multi-container orchestration**:
 ```bash
-# Build optimized images and save to ./images directory
-./docker_deploy.sh -b --save ./images
+# Deploy specific container types
+./manage_docker.sh deploy backend  # All backend services
+./manage_docker.sh deploy ui       # All UI services
 
-# Later transfer the saved images to Wirenboard
-./docker_deploy.sh --transfer 192.168.1.100
-```
-
-#### Advanced Deployment Options
-
-**Custom target directory on Wirenboard**:
-```bash
-./docker_deploy.sh -b --save --transfer 192.168.1.100 --target-dir /opt/mqtt-bridge
-```
-
-**Disable optimizations** (for debugging):
-```bash
-./docker_deploy.sh -b --no-lean --save --transfer 192.168.1.100
-```
-
-**Save to custom directory**:
-```bash
-./docker_deploy.sh -b --save /path/to/custom/directory
+# Dependency-aware deployment
+./manage_docker.sh deploy all      # Deploys in correct dependency order
 ```
 
 #### What Gets Deployed
@@ -432,67 +482,47 @@ mkdir -p /opt/mqtt-bridge/logs
 mkdir -p /opt/mqtt-bridge/data
 ```
 
-**2. Transfer configuration files to custom location:**
-```bash
-# Transfer to custom directory
-./docker_deploy.sh --transfer 192.168.1.100 --target-dir /opt/mqtt-bridge
+**2. Customize resource directories in configuration:**
 
-# Then move configs to desired locations
-ssh root@192.168.1.100 '
-  cd /opt/mqtt-bridge
-  cp -r config/* /mnt/data/wb-mqtt-bridge/config/
-  # Keep logs and data directories where you want them
-'
+The `manage_docker.sh` script uses configurable resource directories:
+
+```bash
+# Create/edit configuration file  
+./manage_docker.sh config
+
+# Edit the JSON configuration to specify custom paths:
+{
+  "containers": {
+    "wb-mqtt-bridge": {
+      "type": "backend",
+      "repo": "droman42/wb-mqtt-bridge", 
+      "resource_dir": "/mnt/data/wb-mqtt-bridge"  // Custom path
+    }
+  }
+}
 ```
 
-**3. Modify the Docker run command:**
-
-After transfer, modify the container startup on the Wirenboard:
+**3. Deploy with custom configuration:**
 
 ```bash
-# SSH into Wirenboard
-ssh root@192.168.1.100
+# Deploy using the custom configuration
+./manage_docker.sh deploy wb-mqtt-bridge
 
-# Stop the auto-started container
-docker stop wb-mqtt-bridge
-docker rm wb-mqtt-bridge
-
-# Start with custom volume locations
-docker run -d \
-  --name wb-mqtt-bridge \
-  --restart unless-stopped \
-  -p 8000:8000 \
-  -v /mnt/data/wb-mqtt-bridge/config:/app/config:ro \
-  -v /mnt/data/wb-mqtt-bridge/logs:/app/logs \
-  -v /mnt/data/wb-mqtt-bridge/data:/app/data \
-  --memory=256M \
-  --cpus=0.5 \
-  wb-mqtt-bridge:latest
+# The script will:
+# - Extract configs to /mnt/data/wb-mqtt-bridge/config/
+# - Create logs directory at /mnt/data/wb-mqtt-bridge/logs/
+# - Create data directory at /mnt/data/wb-mqtt-bridge/data/
+# - Start container with proper volume mounts
 ```
 
-**4. Alternative: Modify the deployment script:**
-
-Create a custom deployment script for your specific volume layout:
+**4. Verify deployment:**
 
 ```bash
-# Copy the original script
-cp docker_deploy.sh docker_deploy_custom.sh
+# Check container status and resource usage
+./manage_docker.sh status wb-mqtt-bridge
 
-# Edit the SSH_COMMAND section in transfer_images function:
-nano docker_deploy_custom.sh
-
-# Change the docker run command to use your custom paths:
-SSH_COMMAND="cd $target_dir && \
-    tar -xzf wb-mqtt-bridge-config.tar.gz && \
-    docker load -i wb-mqtt-bridge.tar.gz && \
-    cp -r config/* /mnt/data/wb-mqtt-bridge/config/ && \
-    docker stop wb-mqtt-bridge 2>/dev/null || true && \
-    docker rm wb-mqtt-bridge 2>/dev/null || true && \
-    docker run -d --name wb-mqtt-bridge --restart unless-stopped -p 8000:8000 \
-    -v /mnt/data/wb-mqtt-bridge/config:/app/config:ro \
-    -v /mnt/data/wb-mqtt-bridge/logs:/app/logs \
-    -v /mnt/data/wb-mqtt-bridge/data:/app/data \
-    --memory=256M --cpus=0.5 wb-mqtt-bridge:latest"
+# View container logs
+./manage_docker.sh logs wb-mqtt-bridge
 ```
 
 **5. Recommended Wirenboard storage locations:**
@@ -507,44 +537,71 @@ SSH_COMMAND="cd $target_dir && \
 ssh root@192.168.1.100 'docker inspect wb-mqtt-bridge | grep -A 10 "Mounts"'
 ```
 
-#### Deployment Script Reference
+#### Container Management Script Reference
 
-The `docker_deploy.sh` script supports the following options:
+The `manage_docker.sh` script provides comprehensive Docker container management:
 
 ```bash
-Usage: ./docker_deploy.sh [options]
+Usage: ./manage_docker.sh <command> [arguments]
 
-Options:
-  -b, --build               Rebuild containers (with lean optimizations by default)
-  -d, --down                Stop and remove containers
-  -r, --restart             Restart containers
-  --save [path]             After building, save images to tar files for transfer
-  --transfer [ip]           Transfer saved images to Wirenboard at specified IP
-  --target-dir [dir]        Specify target directory on Wirenboard (default: /mnt/data/docker_exchange)
-  --no-lean                 Disable lean optimizations (build larger, unoptimized images)
-  --help                    Show help message
+Commands:
+  deploy <container|all|ui|backend>     Deploy container(s) from GitHub artifacts
+  redeploy <container|all|ui|backend>   Full redeploy: stop, clean, download, install, start
+  start <container|all>                 Start container(s)
+  stop <container|all>                  Stop container(s)
+  restart <container|all>               Restart container(s)
+  status [container]                    Show container status and stats
+  logs <container> [lines]              Show container logs
+  cleanup                               Docker system cleanup
+  config                                Create/edit configuration file
+
+Available Containers:
+  wb-mqtt-bridge                        Backend service (port 8000)
+  wb-mqtt-ui                           UI service (port 3000)
+
+Container Groups:
+  all                                   All defined containers
+  ui                                    All UI containers
+  backend                               All backend containers
 
 Examples:
-  ./docker_deploy.sh -b                                    # Build optimized containers locally
-  ./docker_deploy.sh -b --save                             # Build and save images to current directory
-  ./docker_deploy.sh --save ./images                       # Save images to ./images directory
-  ./docker_deploy.sh --transfer 192.168.1.100              # Transfer previously saved images
-  ./docker_deploy.sh -b --save --transfer 192.168.1.100    # Build, save, and transfer in one step
-  ./docker_deploy.sh -b --no-lean                          # Build larger, unoptimized images
+  ./manage_docker.sh deploy all                    # Deploy entire stack
+  ./manage_docker.sh deploy wb-mqtt-bridge         # Deploy specific container
+  ./manage_docker.sh redeploy wb-mqtt-bridge       # Full redeploy with cleanup
+  ./manage_docker.sh status                        # Show all container status
+  ./manage_docker.sh logs wb-mqtt-bridge 50        # Show last 50 log lines
+  ./manage_docker.sh cleanup                       # Clean Docker system
 ```
 
 ## Running the Application
 
-Start the web service:
+Start the web service using the console script:
 
 ```bash
-python -m app.main
+# Using the main console script
+wb-mqtt-bridge
+
+# Or using the API-specific script
+wb-api
 ```
 
 Or use uvicorn directly:
 
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+uvicorn wb_mqtt_bridge.app:app --host 0.0.0.0 --port 8000
+```
+
+Other available console scripts:
+```bash
+# MQTT monitoring tool
+mqtt-sniffer --help
+
+# Device testing utility  
+device-test --help
+
+# Broadlink utilities
+broadlink-cli --help
+broadlink-discovery --help
 ```
 
 ## Device Management
@@ -623,22 +680,23 @@ The system organizes device actions into functional groups for easier management
 
 To add support for a new device type:
 
-1. Create a new Python file in the `devices/` directory
+1. Create a new directory and driver file: `src/wb_mqtt_bridge/infrastructure/devices/{device_name}/driver.py`
 2. Create a class that inherits from `BaseDevice`
-3. Implement the required abstract methods:
+3. Register the device in `pyproject.toml` under `[project.entry-points."wb_mqtt_bridge.devices"]`
+4. Implement the required abstract methods:
    - `async setup()` - Initialize the device
    - `async shutdown()` - Clean up device resources
    - `subscribe_topics()` - Return MQTT topics to subscribe to
    - `async handle_message(topic, payload)` - Process incoming MQTT messages
-4. Implement action handlers with the standardized signature:
+5. Implement action handlers with the standardized signature:
    ```python
    async def handle_action_name(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
    ```
 
-Example:
+Example (`src/wb_mqtt_bridge/infrastructure/devices/my_device/driver.py`):
 ```python
-from devices.base_device import BaseDevice
-from app.schemas import StandardCommandConfig
+from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
+from wb_mqtt_bridge.domain.devices.models import StandardCommandConfig
 from typing import Dict, Any, List
 
 class MyCustomDevice(BaseDevice):
@@ -670,6 +728,14 @@ class MyCustomDevice(BaseDevice):
             return True
         return False
 ```
+
+6. Register the device in `pyproject.toml`:
+```toml
+[project.entry-points."wb_mqtt_bridge.devices"]
+my_custom_device = "wb_mqtt_bridge.infrastructure.devices.my_device.driver:MyCustomDevice"
+```
+
+7. Create a configuration file in `config/devices/my_custom_device.json`
 
 ## Implementation Status
 
@@ -767,10 +833,10 @@ LOG_LEVEL=INFO
 
 ## Deployment
 
-The project is deployed using Docker:
+The project is deployed using Docker on the target platform:
 
-- Use the provided Dockerfile and docker-compose.yml
-- Run `docker_deploy.sh` with appropriate options (see Docker Deployment section)
+- Download and use `manage_docker.sh` for container management
+- Deploy containers directly from GitHub artifacts (see Docker Container Management section)
 
 ## Development Tools
 

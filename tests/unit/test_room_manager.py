@@ -1,10 +1,10 @@
 import pytest
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import patch
 
-from app.room_manager import RoomManager
-from app.scenario_models import RoomDefinition
+from wb_mqtt_bridge.domain.rooms.service import RoomManager
+from wb_mqtt_bridge.domain.scenarios.models import RoomDefinition
 
 # Sample room data for testing
 SAMPLE_ROOMS = {
@@ -173,7 +173,7 @@ class TestRoomManager:
         
         with patch("json.loads", return_value=SAMPLE_ROOMS):
             with patch("pathlib.Path.read_text", return_value=json.dumps(SAMPLE_ROOMS)):
-                with patch("logging.Logger.error") as mock_error:
+                with patch("logging.Logger.error"):
                     # Patch the _validate_devices_exist method to not raise exception but still log errors
                     with patch.object(RoomManager, '_validate_devices_exist', side_effect=lambda room: None):
                         manager = RoomManager(mock_config_dir, device_manager)

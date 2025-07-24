@@ -1,9 +1,8 @@
 import os
 import json
 import pytest
-from typing import Dict, Any
-from app.config_manager import ConfigManager
-from app.schemas import BroadlinkKitchenHoodConfig, BaseDeviceConfig
+from wb_mqtt_bridge.infrastructure.config.manager import ConfigManager
+from wb_mqtt_bridge.infrastructure.config.models import BroadlinkKitchenHoodConfig, BaseDeviceConfig
 
 @pytest.fixture
 def config_manager(tmpdir):

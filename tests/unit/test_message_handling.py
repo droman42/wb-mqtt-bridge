@@ -3,15 +3,12 @@ from unittest.mock import MagicMock, patch, AsyncMock
 import sys
 import os
 import json
-import inspect
-from typing import Dict, Any, Optional
-import logging
+from typing import Dict, Any
 
 # Add parent directory to path to allow importing from app
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from devices.base_device import BaseDevice
-from app.schemas import LastCommand, BaseCommandConfig
+from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 
 # Mock implementation of _try_parse_json_payload for testing
 def mock_try_parse_json_payload(payload: str) -> Dict[str, Any]:
@@ -272,7 +269,7 @@ class TestMessageHandling(unittest.IsolatedAsyncioTestCase):
         params = {"volume": 50}
         
         # Call execute_action
-        result = await self.device.execute_action(action, params, source="test")
+        await self.device.execute_action(action, params, source="test")
 
 
 if __name__ == '__main__':

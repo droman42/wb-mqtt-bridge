@@ -3,15 +3,14 @@
 import asyncio
 import json
 import os
-import sys
 import argparse
 import socket
-from typing import Dict, List, Optional, Any, Set
+from typing import Dict, List, Optional, Any
 
 import pyatv
 import pyatv.interface
 from pyatv import scan, connect
-from pyatv.interface import BaseConfig, PairingHandler
+from pyatv.interface import BaseConfig
 from pyatv.const import Protocol as ProtocolType
 
 class AppleTVManager:

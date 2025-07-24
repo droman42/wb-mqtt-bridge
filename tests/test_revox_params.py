@@ -1,11 +1,9 @@
 import pytest
 import asyncio
-import json
 from unittest.mock import MagicMock, patch
-from datetime import datetime, timedelta
 
-from devices.revox_a77_reel_to_reel import RevoxA77ReelToReel
-from app.mqtt_client import MQTTClient
+from wb_mqtt_bridge.infrastructure.devices.revox_a77_reel_to_reel.driver import RevoxA77ReelToReel
+from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
 
 
 @pytest.fixture
@@ -100,7 +98,7 @@ async def test_sequence_execution(revox_device):
         
         # Call execute_sequence for play
         play_config = revox_device.get_available_commands()["play"]
-        result = await revox_device._execute_sequence(play_config, "play")
+        await revox_device._execute_sequence(play_config, "play")
         
         # Verify it called the methods correctly
         assert mock_send.call_count == 2
@@ -125,7 +123,7 @@ async def test_mqtt_message_handling(revox_device):
         try:
             # Call handle_message with play topic
             play_topic = revox_device.get_available_commands()["play"]["topic"]
-            result = await revox_device.handle_message(play_topic, "1")
+            await revox_device.handle_message(play_topic, "1")
             
             # Verify handle_play was called with the right parameters
             mock_handle.assert_called_once()

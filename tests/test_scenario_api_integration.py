@@ -1,18 +1,12 @@
-import asyncio
-import json
 import pytest
-from typing import Dict, Any, List, Optional
-from pathlib import Path
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 from fastapi.testclient import TestClient
-from fastapi import FastAPI
 
-from app.main import app as main_app
-from app.routers import scenarios, rooms
-from app.scenario_models import ScenarioDefinition, ScenarioState, DeviceState
-from app.scenario import Scenario
-from app.scenario_manager import ScenarioManager
+from wb_mqtt_bridge.app import app as main_app
+from wb_mqtt_bridge.presentation.api.routers import scenarios, rooms
+from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition, ScenarioState, DeviceState
+from wb_mqtt_bridge.domain.scenarios.scenario import Scenario
 
 # Sample scenario data for testing
 SAMPLE_SCENARIOS = {
