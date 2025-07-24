@@ -115,20 +115,9 @@ jobs:
 
     - name: Validate type generation
       run: |
-        echo "Attempting TypeScript type generation..."
-        
-        # Try package mode first
-        if npm run gen:device-pages -- --batch --mode=package; then
-          echo "✅ Type generation successful with package mode"
-        else
-          echo "⚠️ Package mode failed, trying local mode as fallback..."
-          if npm run gen:device-pages -- --batch --mode=local; then
-            echo "✅ Type generation successful with local mode (fallback)"
-          else
-            echo "❌ Both package and local mode failed"
-            exit 1
-          fi
-        fi
+        echo "Generating TypeScript types and router integration..."
+        npm run gen:device-pages -- --batch --mode=package --mapping-file=config/device-state-mapping.json --generate-router
+        echo "✅ Type generation successful with package mode"
 
     - name: Run TypeScript validation
       run: |
