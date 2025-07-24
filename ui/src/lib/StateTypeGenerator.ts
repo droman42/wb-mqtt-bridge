@@ -1,5 +1,5 @@
+/* global process */
 import { spawn } from 'child_process';
-import process from 'node:process';
 import * as _fs from 'fs/promises';
 import * as _path from 'path';
 import { DeviceConfig, CommandParameter } from '../types/DeviceConfig';
