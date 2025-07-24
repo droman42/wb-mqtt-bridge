@@ -204,6 +204,8 @@ npm run type-check
 - [x] Add artifact-based integration for cross-repo setup
 - [x] Implement caching strategy for Python packages
 - [x] Add validation steps for type generation
+- [x] Implement fallback logic for package vs local mode
+- [x] Add scenario virtual device discovery support
 
 **Workflow Updates**:
 ```yaml
@@ -234,6 +236,26 @@ npm run type-check
 - [x] Document new development workflow
 - [x] Add troubleshooting section for common import issues
 - [x] Update deployment documentation
+- [x] Document scenario virtual device implementation
+- [x] Add local vs CI mode configuration guide
+
+### 4.3 Local Testing and Validation
+**Priority**: High
+**Estimated Time**: 1-2 hours
+
+**Tasks**:
+- [x] Test scenario virtual device discovery and generation
+- [x] Validate TypeScript compilation for generated files
+- [x] Test router generation with scenario devices
+- [x] Verify selective enablement functionality
+- [x] Fix ActionHandler structure in generated files
+
+**Local Testing Results**:
+- ✅ **100% Success Rate**: All 16 devices generated successfully
+- ✅ **Scenario Discovery**: Found and processed 3 scenario virtual devices
+- ✅ **Router Integration**: Generated complete router manifest
+- ✅ **TypeScript Validation**: All type errors resolved
+- ✅ **Performance**: 47ms average generation time
 
 ---
 

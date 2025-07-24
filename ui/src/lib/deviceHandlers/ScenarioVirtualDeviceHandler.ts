@@ -1,6 +1,6 @@
 import type { DeviceConfig, DeviceGroups } from '../../types/DeviceConfig';
 import type { RemoteDeviceStructure } from '../../types/RemoteControlLayout';
-import type { ProcessedAction, ActionIcon } from '../../types/ProcessedDevice';
+import type { ProcessedAction, ActionIcon, ActionHandler } from '../../types/ProcessedDevice';
 import { ZoneDetection } from '../ZoneDetection';
 
 export class ScenarioVirtualDeviceHandler {
@@ -10,13 +10,16 @@ export class ScenarioVirtualDeviceHandler {
   analyzeStructure(config: DeviceConfig, groups: DeviceGroups): RemoteDeviceStructure {
     console.log(`🎮 [ScenarioDevice] Analyzing virtual device structure for ${config.device_id}`);
 
-    // Process virtual device actions
-    const allActions = this.processVirtualDeviceActions(config, groups);
+    // Process scenario device actions with selective enablement
+    const allActions = this.processScenarioDeviceActions(config, groups);
     
-    // Use zone detection to generate proper remote zones
+    // Use zone detection to generate standard remote zones
     const remoteZones = this.zoneDetection.analyzeDeviceGroups(groups, allActions);
 
-    console.log(`🎯 [ScenarioDevice] Generated ${remoteZones.length} virtual control zones`);
+    // Apply selective enablement to zones based on available groups
+    this.applySelectiveEnablement(remoteZones, groups);
+
+    console.log(`🎯 [ScenarioDevice] Generated ${remoteZones.length} scenario control zones`);
 
     return {
       deviceId: config.device_id,
@@ -24,7 +27,7 @@ export class ScenarioVirtualDeviceHandler {
       deviceClass: this.deviceClass,
       remoteZones,
       stateInterface: {
-        interfaceName: `${config.device_id}VirtualState`,
+        interfaceName: `${config.device_id}ScenarioState`,
         fields: [
           {
             name: 'scenario_active',
@@ -33,10 +36,10 @@ export class ScenarioVirtualDeviceHandler {
             description: 'Whether the scenario is currently active'
           },
           {
-            name: 'virtual_controls',
-            type: 'Record<string, any>',
+            name: 'last_scenario_action',
+            type: 'string',
             optional: true,
-            description: 'Virtual control states'
+            description: 'Last scenario action executed'
           }
         ],
         imports: ['BaseDeviceState'],
@@ -45,61 +48,103 @@ export class ScenarioVirtualDeviceHandler {
       actionHandlers: this.createScenarioActionHandlers(config),
       specialCases: [{
         deviceClass: this.deviceClass,
-        caseType: 'lg-tv-inputs-apps', // Reuse similar case type
-        configuration: { virtual: true, scenarioBased: true }
+        caseType: 'lg-tv-inputs-apps', // Reuse existing case type for scenario devices
+        configuration: { 
+          scenarioBased: true,
+          powerGroupMapsToScenario: true,
+          selectiveEnablement: true
+        }
       }]
     };
   }
 
-  private processVirtualDeviceActions(config: DeviceConfig, groups: DeviceGroups): ProcessedAction[] {
+  private processScenarioDeviceActions(config: DeviceConfig, groups: DeviceGroups): ProcessedAction[] {
     const actions: ProcessedAction[] = [];
 
-    // Add standard scenario actions
+    // Add scenario power actions (mapped to start/stop)
     actions.push({
-      actionName: 'scenario_activate',
-      displayName: 'Activate Scenario',
-      description: 'Activate this virtual scenario',
+      actionName: 'power_on',
+      displayName: 'Start Scenario',
+      description: `Start ${config.device_name}`,
       parameters: [],
-      group: 'scenario-control',
+      group: 'power',
       icon: this.createIcon('PlayArrow'),
       uiHints: { buttonStyle: 'primary' }
     });
 
     actions.push({
-      actionName: 'scenario_deactivate',
-      displayName: 'Deactivate Scenario',
-      description: 'Deactivate this virtual scenario',
+      actionName: 'power_off',
+      displayName: 'Stop Scenario',
+      description: `Stop ${config.device_name}`,
       parameters: [],
-      group: 'scenario-control',
+      group: 'power',
       icon: this.createIcon('Stop'),
       uiHints: { buttonStyle: 'secondary' }
     });
 
-    // Process commands from config
+    // Process commands from config (role-mapped device controls)
     Object.entries(config.commands || {}).forEach(([commandKey, command]) => {
+      // Skip power commands as they're handled specially above
+      if (commandKey === 'power_on' || commandKey === 'power_off') {
+        return;
+      }
+      
       actions.push({
         actionName: commandKey,
         displayName: command.description || commandKey,
-        description: command.description || `Virtual command: ${commandKey}`,
+        description: command.description || `Control: ${commandKey}`,
         parameters: this.convertParamsToParameters(command.params || []),
-        group: 'virtual-commands',
-        icon: this.createIcon('Settings'),
+        group: command.group || 'controls',
+        icon: this.createIcon(this.getIconForGroup(command.group || 'controls')),
         uiHints: { hasParameters: !!(command.params && command.params.length > 0) }
       });
     });
 
-    console.log(`📊 [ScenarioDevice] Processed ${actions.length} virtual device actions`);
+    console.log(`📊 [ScenarioDevice] Processed ${actions.length} scenario device actions`);
     return actions;
   }
 
-  private createScenarioActionHandlers(config: DeviceConfig): any[] {
+  private applySelectiveEnablement(remoteZones: any[], groups: DeviceGroups): void {
+    // Get available group IDs from the device groups
+    const availableGroups = new Set(groups.groups.map(group => group.group_id));
+    
+    console.log(`🔧 [ScenarioDevice] Available groups: ${Array.from(availableGroups).join(', ')}`);
+    
+    // Apply enablement to zones based on available groups
+    remoteZones.forEach(zone => {
+      if (zone.zoneId === 'power') {
+        // Power zone always enabled for scenarios
+        zone.enabled = true;
+        console.log(`✅ [ScenarioDevice] Power zone enabled`);
+      } else {
+        // Other zones enabled only if corresponding group exists
+        zone.enabled = availableGroups.has(zone.zoneId);
+        const status = zone.enabled ? '✅' : '❌';
+        console.log(`${status} [ScenarioDevice] Zone '${zone.zoneId}' ${zone.enabled ? 'enabled' : 'disabled'}`);
+      }
+    });
+  }
+
+  private getIconForGroup(group: string): string {
+    const iconMap: Record<string, string> = {
+      'power': 'PowerSettings',
+      'volume': 'VolumeUp',
+      'playback': 'PlayArrow',
+      'navigation': 'Navigation',
+      'tracks': 'Album',
+      'menu': 'Menu',
+      'screen': 'AspectRatio',
+      'controls': 'Settings'
+    };
+    
+    return iconMap[group] || 'Settings';
+  }
+
+  private createScenarioActionHandlers(config: DeviceConfig): ActionHandler[] {
     return [{
       actionName: 'scenario_activate',
-      handler: 'executeDeviceAction',
-      config: {
-        deviceId: config.device_id,
-        action: 'scenario_activate'
-      }
+      handlerCode: `executeDeviceAction(${JSON.stringify(config.device_id)}, 'scenario_activate')`,
+      dependencies: ['executeDeviceAction']
     }];
   }
 

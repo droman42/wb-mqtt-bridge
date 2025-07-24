@@ -63,9 +63,8 @@
   },
   "ScenarioDevice": {
     "stateClassImport": "wb_mqtt_bridge.infrastructure.scenarios.models:ScenarioWBConfig",
-    "scenarioConfigs": [
-      "wb-mqtt-bridge/config/scenarios/*.json"
-    ],
+    "scenarioConfigPath": "wb-mqtt-bridge/config/scenarios",
+    "resolverType": "scenario_virtual_device",
     "description": "Virtual WB device configurations for scenarios"
   }
 } 
