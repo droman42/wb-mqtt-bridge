@@ -168,8 +168,23 @@ class WBVirtualDeviceService:
             if not enable_wb:
                 return topics
             
+            # UI-only groups that should not generate MQTT topics
+            excluded_groups = {"pointer", "gestures", "noops", "media"}
+            
             # Generate WB command topics for all commands (use virtual WB device ID)
             for cmd_name, cmd_config in commands.items():
+                # Extract group from command config
+                group = None
+                if hasattr(cmd_config, 'group'):
+                    group = cmd_config.group
+                elif isinstance(cmd_config, dict):
+                    group = cmd_config.get('group')
+                
+                # Skip commands in excluded groups
+                if group and group.lower() in excluded_groups:
+                    logger.debug(f"Skipping MQTT topic generation for UI-only command: {cmd_name} (group: {group})")
+                    continue
+                
                 # Only add WB command topics for commands that have actions
                 if hasattr(cmd_config, 'action') and cmd_config.action:
                     command_topic = f"/devices/{wb_device_id}/controls/{cmd_name}/on"
@@ -331,7 +346,22 @@ class WBVirtualDeviceService:
             else:
                 commands = config.commands
             
+            # UI-only groups that should not generate MQTT topics or controls
+            excluded_groups = {"pointer", "gestures", "noops", "media"}
+            
             for cmd_name, cmd_config in commands.items():
+                # Extract group from command config
+                group = None
+                if hasattr(cmd_config, 'group'):
+                    group = cmd_config.group
+                elif isinstance(cmd_config, dict):
+                    group = cmd_config.get('group')
+                
+                # Skip commands in excluded groups
+                if group and group.lower() in excluded_groups:
+                    logger.debug(f"Skipping WB control metadata for UI-only command: {cmd_name} (group: {group})")
+                    continue
+                
                 # Only create WB controls for commands that have actions
                 action = None
                 if hasattr(cmd_config, 'action'):
@@ -400,31 +430,31 @@ class WBVirtualDeviceService:
     def _determine_wb_control_type_from_config(self, cmd_config) -> str:
         """Determine WB control type from command configuration."""
         
-        # Extract group from command config
+        # Extract group and parameters from command config
         group = None
+        params = None
+        
         if hasattr(cmd_config, 'group'):
             group = cmd_config.group
         elif isinstance(cmd_config, dict):
             group = cmd_config.get('group')
-        
-        # Group-based overrides take precedence
-        if group:
-            group_type = self._get_control_type_from_group(group, cmd_config)
-            if group_type:
-                return group_type
-        
-        # Extract parameters from command config
-        params = None
+            
         if hasattr(cmd_config, 'params'):
             params = cmd_config.params
         elif isinstance(cmd_config, dict):
             params = cmd_config.get('params')
         
-        # Parameter-based type detection
+        # PRIORITY FIX: Parameter-based type detection takes precedence
         if params:
             return self._get_control_type_from_parameters(params)
         
-        # No parameters - default to pushbutton
+        # Group-based overrides for parameterless commands only
+        if group:
+            group_type = self._get_control_type_from_group(group, cmd_config)
+            if group_type:
+                return group_type
+        
+        # No parameters and no group override - default to pushbutton
         return "pushbutton"
     
     def _get_control_type_from_group(self, group: str, cmd_config) -> Optional[str]:
@@ -443,21 +473,23 @@ class WBVirtualDeviceService:
         
         action_lower = action.lower() if action else ""
         
-        # Group-based type detection
+        # Group-based type detection (for parameterless commands only)
         if group_lower == "volume":
-            if any(x in action_lower for x in ["set_volume", "set_level", "volume"]):
+            # Only specific actions should be range - more precise matching
+            if any(x in action_lower for x in ["set_volume", "set_level"]) and not any(x in action_lower for x in ["up", "down"]):
                 return "range"
             elif any(x in action_lower for x in ["mute", "unmute"]):
                 return "switch"
+            # volume_up, volume_down should fall through to None -> pushbutton
         elif group_lower == "power":
             return "pushbutton"
         elif group_lower in ["playback", "navigation", "menu"]:
             return "pushbutton"
         elif group_lower in ["inputs", "apps"]:
-            if "set_" in action_lower:
+            # Only explicit setter actions should be text
+            if any(x in action_lower for x in ["set_input", "set_source", "launch_app"]):
                 return "text"
-            else:
-                return "text"
+            # input_cd, input_usb, get_available_* should fall through to None -> pushbutton
         
         return None
     

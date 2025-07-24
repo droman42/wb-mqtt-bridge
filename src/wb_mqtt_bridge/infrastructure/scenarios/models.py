@@ -77,7 +77,7 @@ class ScenarioWBConfig(BaseModel):
         """Generate virtual commands from scenario structure.
         
         Creates startup/shutdown commands as critical power group commands,
-        and role-based commands inherited from devices based on their groups.
+        and role-based commands inherited from devices with preserved typing.
         
         Args:
             scenario: Scenario definition
@@ -103,19 +103,32 @@ class ScenarioWBConfig(BaseModel):
             params=[]
         )
         
-        # Role-based inheritance with proper typing
+        # Role-based inheritance with preserved command structure
         for role, device_id in scenario.roles.items():
             device = device_manager.get_device(device_id)
             if device:
                 role_commands = ScenarioWBConfig._extract_role_commands(device, role)
                 for cmd_name, cmd_config in role_commands.items():
                     virtual_name = f"{role}_{cmd_name}"
-                    commands[virtual_name] = StandardCommandConfig(
-                        action="delegate_to_role_device",
-                        description=f"{role.title()} {cmd_config.description or cmd_name}",
-                        group=role,  # Role becomes the group
-                        params=cmd_config.params or []
-                    )
+                    
+                    # Preserve the original command configuration structure
+                    # Copy all properties from the original command to maintain WB control type detection
+                    if hasattr(cmd_config, 'model_copy'):
+                        # If it's a Pydantic model, use model_copy with updates
+                        virtual_cmd = cmd_config.model_copy(update={
+                            'action': "delegate_to_role_device",
+                            'description': f"{role.title()} {cmd_config.description or cmd_name}",
+                            'group': role  # Role becomes the group
+                        })
+                        commands[virtual_name] = virtual_cmd
+                    else:
+                        # For non-Pydantic configs, create new StandardCommandConfig with all preserved properties
+                        commands[virtual_name] = StandardCommandConfig(
+                            action="delegate_to_role_device",
+                            description=f"{role.title()} {cmd_config.description or cmd_name}",
+                            group=role,  # Role becomes the group
+                            params=getattr(cmd_config, 'params', []) or []  # Preserve original parameters
+                        )
         
         return commands
     

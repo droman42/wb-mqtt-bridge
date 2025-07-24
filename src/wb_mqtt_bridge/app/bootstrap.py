@@ -245,19 +245,11 @@ def create_app() -> FastAPI:
         )
         logger.info("Scenario WB adapter initialized")
         
-        # Set up WB device for current scenario if any (after MQTT is connected)
-        if scenario_manager.current_scenario and connection_success:
-            try:
-                logger.info(f"Setting up WB virtual device for active scenario: {scenario_manager.current_scenario.definition.scenario_id}")
-                success = await scenario_wb_adapter.setup_wb_virtual_device_for_scenario(
-                    scenario_manager.current_scenario
-                )
-                if success:
-                    logger.info("Scenario WB virtual device setup completed")
-                else:
-                    logger.warning("Failed to setup scenario WB virtual device")
-            except Exception as e:
-                logger.error(f"Error setting up scenario WB virtual device: {str(e)}")
+        # Set up WB virtual devices for all scenarios (after MQTT is connected)
+        if connection_success:
+            await scenario_manager.setup_wb_emulation_for_all_scenarios(scenario_wb_adapter, mqtt_client)
+        else:
+            logger.warning("MQTT connection failed - skipping scenario WB virtual device setup")
         
         # Initialize routers with dependencies
         system.initialize(config_manager, device_manager, mqtt_client, state_store, scenario_manager, room_manager)

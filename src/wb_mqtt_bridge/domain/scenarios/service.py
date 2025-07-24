@@ -323,4 +323,85 @@ class ScenarioManager:
                 logger.error(f"Error shutting down scenario: {str(e)}")
             finally:
                 self.current_scenario = None
-                self.scenario_state = None 
+                self.scenario_state = None
+
+    async def setup_wb_emulation_for_all_scenarios(self, scenario_wb_adapter, mqtt_client) -> None:
+        """
+        Set up WB virtual device emulation for all scenarios.
+        
+        This method creates WB virtual devices for ALL declared scenarios during startup,
+        allowing them to be visible in the WB interface regardless of which one is active.
+        Only the currently active scenario can receive and execute commands.
+        
+        Args:
+            scenario_wb_adapter: The scenario WB adapter for managing virtual devices
+            mqtt_client: MQTT client for subscription management
+        """
+        if not self.scenario_map:
+            logger.info("No scenarios found - skipping scenario WB virtual device setup")
+            return
+            
+        logger.info(f"Setting up WB virtual devices for {len(self.scenario_map)} scenarios")
+        scenario_setup_success_count = 0
+        
+        # Set up WB virtual device for each scenario
+        for scenario_id, scenario in self.scenario_map.items():
+            try:
+                logger.info(f"Setting up WB virtual device for scenario: {scenario_id}")
+                success = await scenario_wb_adapter.setup_wb_virtual_device_for_scenario(scenario)
+                if success:
+                    scenario_setup_success_count += 1
+                    logger.debug(f"Scenario WB virtual device setup completed for {scenario_id}")
+                else:
+                    logger.warning(f"Failed to setup scenario WB virtual device for {scenario_id}")
+            except Exception as e:
+                logger.error(f"Error setting up scenario WB virtual device for {scenario_id}: {str(e)}")
+        
+        logger.info(f"Scenario WB virtual device setup completed: {scenario_setup_success_count}/{len(self.scenario_map)} scenarios")
+        
+        # Set up MQTT subscriptions for all scenarios
+        await self._setup_mqtt_subscriptions_for_all_scenarios(scenario_wb_adapter, mqtt_client)
+    
+    async def _setup_mqtt_subscriptions_for_all_scenarios(self, scenario_wb_adapter, mqtt_client) -> None:
+        """
+        Set up MQTT subscriptions for all scenarios.
+        
+        Args:
+            scenario_wb_adapter: The scenario WB adapter for getting subscription topics
+            mqtt_client: MQTT client for subscription management
+        """
+        logger.info("Setting up MQTT subscriptions for scenarios")
+        scenario_subscription_handlers = {}
+        
+        for scenario_id, scenario in self.scenario_map.items():
+            try:
+                topics = scenario_wb_adapter.get_scenario_subscription_topics(scenario)
+                logger.debug(f"Scenario {scenario_id} subscription topics: {topics}")
+                
+                # Create message handler for this scenario
+                async def create_scenario_handler(scenario_instance):
+                    async def scenario_message_handler(topic: str, payload: str):
+                        return await scenario_wb_adapter.handle_scenario_wb_message(
+                            topic, payload, scenario_instance
+                        )
+                    return scenario_message_handler
+                
+                scenario_handler = await create_scenario_handler(scenario)
+                
+                # Add topics and handlers to subscription map
+                for topic in topics:
+                    scenario_subscription_handlers[topic] = scenario_handler
+                    
+            except Exception as e:
+                logger.error(f"Error setting up MQTT subscriptions for scenario {scenario_id}: {str(e)}")
+        
+        # Subscribe to scenario topics
+        if scenario_subscription_handlers:
+            try:
+                for topic, handler in scenario_subscription_handlers.items():
+                    await mqtt_client.subscribe(topic, handler)
+                logger.info(f"Subscribed to {len(scenario_subscription_handlers)} scenario MQTT topics")
+            except Exception as e:
+                logger.error(f"Error subscribing to scenario MQTT topics: {str(e)}")
+        else:
+            logger.info("No scenario MQTT topics to subscribe to") 

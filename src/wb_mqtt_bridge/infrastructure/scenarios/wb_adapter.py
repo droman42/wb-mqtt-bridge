@@ -147,13 +147,31 @@ class ScenarioWBAdapter:
         Args:
             topic: MQTT topic
             payload: MQTT payload
-            scenario: Scenario instance
+            scenario: Scenario instance the command was sent to
             
         Returns:
             Result of command execution
         """
         try:
-            # Use shared service for message handling (pass virtual WB device ID)
+            # Check if the target scenario is the currently active one
+            target_scenario_id = scenario.definition.scenario_id
+            current_scenario_id = self.scenario_manager.current_scenario.scenario_id if self.scenario_manager.current_scenario else None
+            
+            if not self.scenario_manager.current_scenario:
+                logger.warning(f"Command sent to scenario '{target_scenario_id}' but no scenario is currently active")
+                raise ScenarioError("No scenario is currently active", "no_active_scenario", True)
+                
+            if target_scenario_id != current_scenario_id:
+                logger.warning(f"Command sent to inactive scenario '{target_scenario_id}' (active: '{current_scenario_id}')")
+                raise ScenarioError(
+                    f"Scenario '{target_scenario_id}' is not currently active. "
+                    f"Only the active scenario ('{current_scenario_id}') can receive commands. "
+                    f"Switch to '{target_scenario_id}' first to control it.",
+                    "scenario_not_active", 
+                    True
+                )
+            
+            # Target scenario is active, proceed with command execution
             return await self.wb_service.handle_wb_message(
                 topic, 
                 payload, 
@@ -168,7 +186,7 @@ class ScenarioWBAdapter:
         """Command executor callback for scenario WB service.
         
         This method routes scenario WB commands to the appropriate scenario methods.
-        Follows the same pattern as device commands - direct calls to entity methods.
+        Called only for the currently active scenario (validation done in handle_scenario_wb_message).
         
         Args:
             control_name: WB control name (e.g., "startup", "shutdown", "playback_play")
@@ -181,7 +199,7 @@ class ScenarioWBAdapter:
         try:
             logger.debug(f"Executing scenario command: {control_name} with params: {params}")
             
-            # Check if we have an active scenario
+            # Check if we have an active scenario (should always be true due to earlier validation)
             if not self.scenario_manager.current_scenario:
                 raise ScenarioError("No scenario is currently active", "no_active_scenario", True)
             
