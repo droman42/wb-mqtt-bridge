@@ -45,7 +45,8 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
           configuration: {
             usesAppsAPI: true,
             hasMediaControls: true,
-            hasDirectionalNav: true
+            hasDirectionalNav: true,
+            hasPointerControl: true
           }
         }]
       };
@@ -71,12 +72,68 @@ export class AppleTVDeviceHandler implements DeviceClassHandler {
         console.log(`⚠️  [AppleTV] No actions found in group: ${group.group_name}`);
         continue;
       }
-      const groupActions = this.processGroupActions(group.actions);
-      allActions.push(...groupActions);
+      
+      // Identify pointer groups and process differently
+      if (this.isPointerGroup(group)) {
+        const pointerActions = this.processPointerActions(group.actions);
+        allActions.push(...pointerActions);
+      } else {
+        const groupActions = this.processGroupActions(group.actions);
+        allActions.push(...groupActions);
+      }
     }
     
     console.log(`📊 [AppleTV] Processed ${allActions.length} total actions from ${groups.groups.length} groups`);
     return allActions;
+  }
+  
+  private isPointerGroup(group: DeviceGroup): boolean {
+    const pointerActions = ['pointer_gesture', 'touch_at_position', 'pointer', 'gesture', 'touch'];
+    return group.actions.some(action => 
+      pointerActions.some(pointer => action.name.toLowerCase().includes(pointer))
+    );
+  }
+  
+  private processPointerActions(actions: GroupAction[]): ProcessedAction[] {
+    return actions.map(action => ({
+      actionName: action.name,
+      displayName: this.formatPointerAction(action.name),
+      description: action.description,
+      parameters: action.params || [],
+      group: 'pointer',
+      icon: this.getPointerIcon(action.name),
+      uiHints: { isPointerAction: true }
+    }));
+  }
+  
+  private formatPointerAction(actionName: string): string {
+    const pointerMappings: Record<string, string> = {
+      'pointer_gesture': 'Pointer Gesture',
+      'touch_at_position': 'Touch Position',
+      'swipe': 'Swipe',
+      'gesture': 'Gesture'
+    };
+    
+    return pointerMappings[actionName] || this.formatDisplayName(actionName);
+  }
+  
+  private getPointerIcon(actionName: string): import('../../types/ProcessedDevice').ActionIcon {
+    const pointerIconMappings: Record<string, string> = {
+      'pointer_gesture': 'PanTool',
+      'touch_at_position': 'TouchApp',
+      'swipe': 'Swipe',
+      'gesture': 'CropFree'
+    };
+    
+    const iconName = pointerIconMappings[actionName] || 'CursorArrowRaysIcon';
+    
+    return {
+      iconLibrary: 'material',
+      iconName,
+      iconVariant: 'outlined',
+      fallbackIcon: 'cursor',
+      confidence: 0.9
+    };
   }
   
   private processGroupActions(actions: GroupAction[]): ProcessedAction[] {
