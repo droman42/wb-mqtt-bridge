@@ -35,6 +35,7 @@ export class DevicePageGenerator {
   private client: IDeviceConfigurationClient;
   private validator: DataValidator;
   private outputDir: string;
+  private scenariosOutputDir: string;
   private handlers: Map<string, any>;
   private apiBaseUrl: string;
   private mode: 'api' | 'local' | 'package';
@@ -51,10 +52,12 @@ export class DevicePageGenerator {
     options?: { 
       mode?: 'api' | 'local' | 'package'; 
       mappingFile?: string;
+      scenariosOutputDir?: string;
     }
   ) {
     this.apiBaseUrl = apiBaseUrl;
     this.outputDir = outputDir;
+    this.scenariosOutputDir = options?.scenariosOutputDir || outputDir.replace('/devices', '/scenarios');
     this.mode = options?.mode || 'api';
     this.mappingFile = options?.mappingFile;
     
@@ -162,7 +165,11 @@ export class DevicePageGenerator {
           
           // Use state class name for file naming, not device ID
           const stateInterfacePath = path.join(sharedTypesDir, `${stateClass}.state.ts`);
-          const stateHookPath = path.join(this.outputDir, `${deviceId}.hooks.ts`);
+          
+          // Determine hook output directory based on device class (same logic as main component)
+          const isScenario = structure.deviceClass === 'ScenarioDevice';
+          const hookOutputDir = isScenario ? this.scenariosOutputDir : this.outputDir;
+          const stateHookPath = path.join(hookOutputDir, `${deviceId}.hooks.ts`);
           
           // Check if state interface already exists
           let stateAlreadyExists = false;
@@ -183,6 +190,10 @@ export class DevicePageGenerator {
           
           // Always generate device-specific hook (but update imports to shared state)
           const stateHook = await this.stateGenerator.generateStateHook(stateDefinition, deviceId, stateClass);
+          
+          // Ensure hook output directory exists
+          await fs.mkdir(hookOutputDir, { recursive: true });
+          
           await fs.writeFile(stateHookPath, stateHook, 'utf8');
           console.log(`✅ Generated device hook: ${stateHookPath}`);
           
@@ -208,15 +219,20 @@ export class DevicePageGenerator {
       const template = new RemoteControlTemplate();
       const componentCode = template.generateComponent(structure);
       
+      // Determine output directory based on device class
+      const isScenario = structure.deviceClass === 'ScenarioDevice';
+      const actualOutputDir = isScenario ? this.scenariosOutputDir : this.outputDir;
+      const pageType = isScenario ? 'scenario' : 'device';
+      
       // Ensure output directory exists
-      await fs.mkdir(this.outputDir, { recursive: true });
+      await fs.mkdir(actualOutputDir, { recursive: true });
       
       // Write file
-      const outputPath = path.join(this.outputDir, `${deviceId}.gen.tsx`);
+      const outputPath = path.join(actualOutputDir, `${deviceId}.gen.tsx`);
       await fs.writeFile(outputPath, componentCode, 'utf8');
       
       const duration = Date.now() - startTime;
-      console.log(`✅ Generated: ${outputPath} (${duration}ms)`);
+      console.log(`✅ Generated ${pageType}: ${outputPath} (${duration}ms)`);
       
       return { 
         success: true, 
@@ -330,9 +346,13 @@ export class DevicePageGenerator {
   async generateRouterManifest(deviceStructures: any[]): Promise<void> {
     console.log('🗺️ Generating router manifest...');
     
-    const deviceEntries = deviceStructures.map(structure => 
-      this.routerIntegration.createDevicePageEntry(structure, path.join(this.outputDir, `${structure.deviceId}.gen.tsx`))
-    );
+    const deviceEntries = deviceStructures.map(structure => {
+      // Determine output path based on device class
+      const isScenario = structure.deviceClass === 'ScenarioDevice';
+      const actualOutputDir = isScenario ? this.scenariosOutputDir : this.outputDir;
+      const outputPath = path.join(actualOutputDir, `${structure.deviceId}.gen.tsx`);
+      return this.routerIntegration.createDevicePageEntry(structure, outputPath);
+    });
 
     const manifest = await this.routerIntegration.generateRouterManifest(deviceEntries);
 

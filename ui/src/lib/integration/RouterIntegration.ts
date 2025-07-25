@@ -30,24 +30,63 @@ export interface RouterManifest {
 }
 
 export class RouterIntegration {
-  async generateRouterManifest(devices: DevicePageEntry[]): Promise<GeneratedFile> {
-    const manifest: RouterManifest = {
-      devices,
+  async generateRouterManifest(entries: DevicePageEntry[]): Promise<GeneratedFile> {
+    // Separate devices and scenarios
+    const devices = entries.filter(entry => entry.deviceClass !== 'ScenarioDevice');
+    const scenarios = entries.filter(entry => entry.deviceClass === 'ScenarioDevice');
+    
+    // Generate device router manifest
+    if (devices.length > 0) {
+      const deviceManifest: RouterManifest = {
+        devices,
+        generatedAt: new Date().toISOString(),
+        apiVersion: '1.0',
+        totalDevices: devices.length,
+        deviceClasses: Array.from(new Set(devices.map(d => d.deviceClass)))
+      };
+
+      const deviceRouterCode = this.generateRouterCode(devices, deviceManifest, 'devices');
+      
+      await fs.writeFile('src/pages/devices/index.gen.ts', deviceRouterCode, 'utf8');
+      console.log(`✅ Generated device router: src/pages/devices/index.gen.ts (${devices.length} devices)`);
+    }
+    
+    // Generate scenario router manifest
+    if (scenarios.length > 0) {
+      const scenarioManifest: RouterManifest = {
+        devices: scenarios, // Keep same interface but these are scenarios
+        generatedAt: new Date().toISOString(),
+        apiVersion: '1.0',
+        totalDevices: scenarios.length,
+        deviceClasses: Array.from(new Set(scenarios.map(s => s.deviceClass)))
+      };
+
+      const scenarioRouterCode = this.generateRouterCode(scenarios, scenarioManifest, 'scenarios');
+      
+      // Ensure scenarios directory exists
+      await fs.mkdir('src/pages/scenarios', { recursive: true });
+      await fs.writeFile('src/pages/scenarios/index.gen.ts', scenarioRouterCode, 'utf8');
+      console.log(`✅ Generated scenario router: src/pages/scenarios/index.gen.ts (${scenarios.length} scenarios)`);
+    }
+    
+    // Return combined manifest for backwards compatibility
+    const combinedManifest: RouterManifest = {
+      devices: entries,
       generatedAt: new Date().toISOString(),
       apiVersion: '1.0',
-      totalDevices: devices.length,
-      deviceClasses: Array.from(new Set(devices.map(d => d.deviceClass)))
+      totalDevices: entries.length,
+      deviceClasses: Array.from(new Set(entries.map(d => d.deviceClass)))
     };
 
-    const routerCode = this.generateRouterCode(devices, manifest);
+    const combinedRouterCode = this.generateRouterCode(devices, combinedManifest, 'devices');
     
     return {
       filepath: 'src/pages/devices/index.gen.ts',
-      content: routerCode,
+      content: combinedRouterCode,
       dependencies: devices.map(d => `./devices/${d.id}.gen`),
-      checksum: this.generateChecksum(routerCode),
+      checksum: this.generateChecksum(combinedRouterCode),
       generatedAt: new Date(),
-      sourceHash: this.generateChecksum(JSON.stringify(manifest))
+      sourceHash: this.generateChecksum(JSON.stringify(combinedManifest))
     };
   }
 
@@ -105,12 +144,15 @@ export class RouterIntegration {
   }
 
   createDevicePageEntry(structure: RemoteDeviceStructure, outputPath: string): DevicePageEntry {
+    const isScenario = structure.deviceClass === 'ScenarioDevice';
+    const routePrefix = isScenario ? '/scenario' : '/devices';
+    
     return {
       id: structure.deviceId,
       name: structure.deviceName,
       deviceClass: structure.deviceClass,
       componentName: this.formatComponentName(structure.deviceId),
-      route: `/devices/${structure.deviceId}`,
+      route: `${routePrefix}/${structure.deviceId}`,
       filePath: outputPath,
       generatedAt: new Date(),
       checksum: this.generateChecksum(structure.deviceId + structure.deviceName)
@@ -119,23 +161,29 @@ export class RouterIntegration {
 
 
 
-  private generateRouterCode(devices: DevicePageEntry[], manifest: RouterManifest): string {
-    return `// Auto-generated router manifest - DO NOT EDIT
+  private generateRouterCode(devices: DevicePageEntry[], manifest: RouterManifest, type: 'devices' | 'scenarios' = 'devices'): string {
+    const entityType = type === 'scenarios' ? 'scenario' : 'device';
+    const entityTypePlural = type === 'scenarios' ? 'scenarios' : 'devices';
+    const getterFunctionName = type === 'scenarios' ? 'getScenarioComponent' : 'getDeviceComponent';
+    const exportName = type === 'scenarios' ? 'generatedScenarioPages' : 'generatedDevicePages';
+    const manifestName = type === 'scenarios' ? 'scenarioPageManifest' : 'devicePageManifest';
+    
+    return `// Auto-generated ${entityType} router manifest - DO NOT EDIT
 // Generated at: ${manifest.generatedAt}
-// Total devices: ${manifest.totalDevices}
+// Total ${entityTypePlural}: ${manifest.totalDevices}
 // Device classes: ${manifest.deviceClasses.join(', ')}
 
 import React from 'react';
 
 ${devices.map(device => `import ${device.componentName}Page from './${device.id}.gen';`).join('\n')}
 
-export const generatedDevicePages: Record<string, React.ComponentType> = {
+export const ${exportName}: Record<string, React.ComponentType> = {
 ${devices.map(device => `  '${device.id}': ${device.componentName}Page`).join(',\n')}
 };
 
-export const devicePageManifest = ${JSON.stringify(manifest, null, 2)};
+export const ${manifestName} = ${JSON.stringify(manifest, null, 2)};
 
-export const deviceRoutes = [
+export const ${entityType}Routes = [
 ${devices.map(device => `  {
     path: '${device.route}',
     component: ${device.componentName}Page,
@@ -145,12 +193,12 @@ ${devices.map(device => `  {
   }`).join(',\n')}
 ];
 
-export function getDeviceComponent(deviceId: string): React.ComponentType | undefined {
-  return generatedDevicePages[deviceId];
+export function ${getterFunctionName}(${entityType}Id: string): React.ComponentType | undefined {
+  return ${exportName}[${entityType}Id];
 }
 
-export function getDeviceRoute(deviceId: string): string | undefined {
-  const route = deviceRoutes.find(r => r.deviceId === deviceId);
+export function get${entityType.charAt(0).toUpperCase() + entityType.slice(1)}Route(${entityType}Id: string): string | undefined {
+  const route = ${entityType}Routes.find(r => r.deviceId === ${entityType}Id);
   return route?.path;
 }`;
   }

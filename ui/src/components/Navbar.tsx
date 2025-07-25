@@ -61,6 +61,9 @@ function Navbar() {
   const handleScenarioSelect = (scenarioId: string) => {
     selectScenario(scenarioId);
     setDropdownOpen(null);
+    
+    // Navigate to scenario page
+    navigate(`/scenario/${scenarioId}`);
   };
 
   return (

@@ -2,10 +2,12 @@ import type { DeviceConfig, DeviceGroups } from '../../types/DeviceConfig';
 import type { RemoteDeviceStructure } from '../../types/RemoteControlLayout';
 import type { ProcessedAction, ActionIcon, ActionHandler } from '../../types/ProcessedDevice';
 import { ZoneDetection } from '../ZoneDetection';
+import { IconResolver } from '../IconResolver';
 
 export class ScenarioVirtualDeviceHandler {
   public readonly deviceClass = 'ScenarioDevice';
   private zoneDetection = new ZoneDetection();
+  private iconResolver = new IconResolver();
 
   analyzeStructure(config: DeviceConfig, groups: DeviceGroups): RemoteDeviceStructure {
     console.log(`🎮 [ScenarioDevice] Analyzing virtual device structure for ${config.device_id}`);
@@ -68,7 +70,7 @@ export class ScenarioVirtualDeviceHandler {
       description: `Start ${config.device_name}`,
       parameters: [],
       group: 'power',
-      icon: this.createIcon('PlayArrow'),
+      icon: this.iconResolver.selectIconForAction('power_on'),
       uiHints: { buttonStyle: 'primary' }
     });
 
@@ -78,7 +80,7 @@ export class ScenarioVirtualDeviceHandler {
       description: `Stop ${config.device_name}`,
       parameters: [],
       group: 'power',
-      icon: this.createIcon('Stop'),
+      icon: this.iconResolver.selectIconForAction('power_off'),
       uiHints: { buttonStyle: 'secondary' }
     });
 
@@ -95,7 +97,7 @@ export class ScenarioVirtualDeviceHandler {
         description: command.description || `Control: ${commandKey}`,
         parameters: this.convertParamsToParameters(command.params || []),
         group: command.group || 'controls',
-        icon: this.createIcon(this.getIconForGroup(command.group || 'controls')),
+        icon: this.getIconForScenarioAction(commandKey, command.group || 'controls', command.location),
         uiHints: { hasParameters: !!(command.params && command.params.length > 0) }
       });
     });
@@ -125,19 +127,64 @@ export class ScenarioVirtualDeviceHandler {
     });
   }
 
-  private getIconForGroup(group: string): string {
-    const iconMap: Record<string, string> = {
-      'power': 'PowerSettings',
-      'volume': 'VolumeUp',
-      'playback': 'PlayArrow',
-      'navigation': 'Navigation',
-      'tracks': 'Album',
-      'menu': 'Menu',
-      'screen': 'AspectRatio',
-      'controls': 'Settings'
+  private getIconForScenarioAction(actionName: string, group: string, sourceDevice?: string): ActionIcon {
+    // Use IconResolver for the action first (this handles device-specific mappings)
+    let icon = this.iconResolver.selectIconForAction(actionName);
+    
+    // If IconResolver doesn't have a good match (low confidence), use device-specific logic
+    if (icon.confidence < 0.7) {
+      icon = this.getDeviceSpecificIcon(actionName, group, sourceDevice);
+    }
+    
+    return icon;
+  }
+
+  private getDeviceSpecificIcon(actionName: string, group: string, sourceDevice?: string): ActionIcon {
+    // Device-specific icon mappings based on source device type
+    // This mimics what each device handler would do for the same action
+    
+    const cleanName = actionName.toLowerCase();
+    
+    // TV-specific actions (LG TV, etc.)
+    if (sourceDevice?.includes('tv')) {
+      if (cleanName.includes('input')) return { iconLibrary: 'material', iconName: 'Input', iconVariant: 'outlined', fallbackIcon: 'input', confidence: 0.9 };
+      if (cleanName.includes('channel')) return { iconLibrary: 'material', iconName: 'Tag', iconVariant: 'outlined', fallbackIcon: 'channel', confidence: 0.9 };
+      if (cleanName.includes('aspect')) return { iconLibrary: 'custom', iconName: 'aspect-ratio', iconVariant: 'outlined', fallbackIcon: 'aspect-ratio', confidence: 0.9 };
+    }
+    
+    // Apple TV specific actions
+    if (sourceDevice?.includes('appletv')) {
+      if (cleanName.includes('siri')) return { iconLibrary: 'material', iconName: 'Mic', iconVariant: 'outlined', fallbackIcon: 'microphone', confidence: 0.9 };
+      if (cleanName.includes('airplay')) return { iconLibrary: 'material', iconName: 'Cast', iconVariant: 'outlined', fallbackIcon: 'wifi', confidence: 0.9 };
+      if (cleanName.includes('app')) return { iconLibrary: 'material', iconName: 'Apps', iconVariant: 'outlined', fallbackIcon: 'apps', confidence: 0.9 };
+    }
+    
+    // Audio device specific actions (amplifier, streamer, etc.)
+    if (sourceDevice?.includes('amplifier') || sourceDevice?.includes('streamer')) {
+      if (cleanName.includes('input')) return { iconLibrary: 'material', iconName: 'Input', iconVariant: 'outlined', fallbackIcon: 'input', confidence: 0.9 };
+      if (cleanName.includes('preset')) return { iconLibrary: 'material', iconName: 'Bookmark', iconVariant: 'outlined', fallbackIcon: 'preset', confidence: 0.9 };
+      if (cleanName.includes('filter')) return { iconLibrary: 'material', iconName: 'FilterList', iconVariant: 'outlined', fallbackIcon: 'filter', confidence: 0.9 };
+    }
+    
+    // Fall back to group-based mapping with proper IconResolver usage
+    return this.getIconForGroup(group);
+  }
+
+  private getIconForGroup(group: string): ActionIcon {
+    // Use IconResolver for consistent group-based mapping
+    const groupActions: Record<string, string> = {
+      'power': 'power',
+      'volume': 'volume_up', 
+      'playback': 'play',
+      'navigation': 'up',
+      'tracks': 'next',
+      'menu': 'menu',
+      'screen': 'input',
+      'controls': 'settings'
     };
     
-    return iconMap[group] || 'Settings';
+    const actionName = groupActions[group] || 'settings';
+    return this.iconResolver.selectIconForAction(actionName);
   }
 
   private createScenarioActionHandlers(config: DeviceConfig): ActionHandler[] {
@@ -148,15 +195,7 @@ export class ScenarioVirtualDeviceHandler {
     }];
   }
 
-  private createIcon(iconName: string): ActionIcon {
-    return {
-      iconLibrary: 'material',
-      iconName: iconName,
-      iconVariant: 'filled',
-      fallbackIcon: 'Settings',
-      confidence: 0.8
-    };
-  }
+
 
   private convertParamsToParameters(params: any[]): any[] {
     return params.map(param => ({

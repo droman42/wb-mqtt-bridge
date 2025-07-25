@@ -154,3 +154,9 @@ docs/devices/
 src/types/generated/
 .venv/
 
+# Generated scenario files
+src/pages/scenarios/*.gen.tsx
+src/pages/scenarios/*.gen.ts
+src/pages/scenarios/*.hooks.ts
+src/pages/scenarios/index.gen.ts
+
