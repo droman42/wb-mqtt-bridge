@@ -64,9 +64,12 @@ export class LgTvHandler implements DeviceClassHandler {
       return [];
     }
     
+    // Filter out excluded groups before processing
+    const filteredGroups = this.filterExcludedGroups(groups);
+    
     const allActions: ProcessedAction[] = [];
     
-    for (const group of groups.groups) {
+    for (const group of filteredGroups.groups!) {
       if (!group.actions) {
         console.log(`⚠️  [LgTv] No actions found in group: ${group.group_name}`);
         continue;
@@ -82,8 +85,41 @@ export class LgTvHandler implements DeviceClassHandler {
       }
     }
     
-    console.log(`📊 [LgTv] Processed ${allActions.length} total actions from ${groups.groups.length} groups`);
+    console.log(`📊 [LgTv] Processed ${allActions.length} total actions from ${filteredGroups.groups!.length} groups`);
     return allActions;
+  }
+  
+  /**
+   * Filter out groups that should not be displayed in the UI
+   */
+  private filterExcludedGroups(groups: DeviceGroups): DeviceGroups {
+    const excludedGroupNames = ['noops', 'hidden', 'internal', 'debug'];
+    
+    if (!groups.groups) {
+      return groups;
+    }
+    
+    const originalCount = groups.groups.length;
+    const filteredGroups = groups.groups.filter(group => {
+      const shouldExclude = excludedGroupNames.some(excludedName => 
+        group.group_name.toLowerCase().includes(excludedName.toLowerCase())
+      );
+      
+      if (shouldExclude) {
+        console.log(`🚫 [LgTv] Excluding group '${group.group_name}' from UI (${group.actions.length} actions)`);
+      }
+      
+      return !shouldExclude;
+    });
+    
+    if (filteredGroups.length !== originalCount) {
+      console.log(`🔍 [LgTv] Filtered groups: ${originalCount} → ${filteredGroups.length} (excluded ${originalCount - filteredGroups.length} groups)`);
+    }
+    
+    return {
+      ...groups,
+      groups: filteredGroups
+    };
   }
   
   private isPointerGroup(group: DeviceGroup): boolean {
