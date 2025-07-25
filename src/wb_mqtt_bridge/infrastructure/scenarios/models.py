@@ -103,8 +103,15 @@ class ScenarioWBConfig(BaseModel):
             params=[]
         )
         
+        # Roles that should only be used for startup/shutdown sequences, not exposed as virtual commands
+        startup_only_roles = {"inputs"}
+        
         # Role-based inheritance with preserved command structure
         for role, device_id in scenario.roles.items():
+            # Skip roles that should only be used in startup/shutdown sequences
+            if role in startup_only_roles:
+                continue
+                
             device = device_manager.get_device(device_id)
             if device:
                 role_commands = ScenarioWBConfig._extract_role_commands(device, role)
