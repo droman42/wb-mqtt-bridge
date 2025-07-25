@@ -109,8 +109,8 @@ jobs:
         ls -la
         echo "Config files found:"
         ls -la wb-mqtt-bridge/config/devices/
-        echo "Python schemas:"
-        ls -la wb-mqtt-bridge/app/
+        echo "Python package structure:"
+        ls -la wb-mqtt-bridge/
         echo "Total config files: $(ls wb-mqtt-bridge/config/devices/*.json | wc -l)"
 
     - name: Validate type generation
