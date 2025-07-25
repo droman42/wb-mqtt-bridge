@@ -52,7 +52,7 @@ ENV VITE_MQTT_URL="ws://192.168.110.250:9001"
 # Verify all paths are accessible
 RUN echo "Verifying config structure:" && \
     ls -la wb-mqtt-bridge/config/devices/ && \
-    ls -la wb-mqtt-bridge/app/ && \
+    ls -la wb-mqtt-bridge/ && \
     echo "Found $(ls wb-mqtt-bridge/config/devices/*.json | wc -l) device configs"
 
 # Generate device pages using package-based imports
