@@ -151,7 +151,7 @@
     "pointer_gesture": {
       "action": "pointer_gesture",
       "description": "Pointer/Swipe Gesture",
-      "group": "gestures",
+      "group": "pointer",
       "params": [
         {
           "name": "deltaX",
@@ -174,7 +174,7 @@
     "touch_at_position": {
       "action": "touch_at_position",
       "description": "Touch at Position",
-      "group": "gestures",
+      "group": "pointer",
       "params": [
         {
           "name": "x",
