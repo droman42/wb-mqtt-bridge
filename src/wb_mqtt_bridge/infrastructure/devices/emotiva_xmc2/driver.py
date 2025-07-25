@@ -10,7 +10,7 @@ from pymotivaxmc2.enums import Property, Input, Zone
 
 from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 from wb_mqtt_bridge.domain.devices.models import EmotivaXMC2State, LastCommand
-from wb_mqtt_bridge.infrastructure.config.models import EmotivaConfig as AppEmotivaConfig, EmotivaXMC2DeviceConfig, StandardCommandConfig
+from wb_mqtt_bridge.infrastructure.config.models import EmotivaConfig as AppEmotivaConfig, EmotivaXMC2DeviceConfig, StandardCommandConfig, CommandParameterDefinition
 from wb_mqtt_bridge.utils.types import CommandResult
 
 logger = logging.getLogger(__name__)
@@ -445,6 +445,26 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         # Store the LastCommand model directly in the state
         self.update_state(last_command=last_command)
         
+    def _get_parameter_definition(self, cmd_config: StandardCommandConfig, param_name: str) -> Optional[CommandParameterDefinition]:
+        """
+        Get parameter definition by name from command configuration.
+        
+        Args:
+            cmd_config: Command configuration object
+            param_name: Name of the parameter to find
+            
+        Returns:
+            CommandParameterDefinition if found, None otherwise
+        """
+        if not cmd_config.params:
+            return None
+            
+        for param_def in cmd_config.params:
+            if param_def.name == param_name:
+                return param_def
+                
+        return None
+
     def _validate_parameter(self, 
                            param_name: str, 
                            param_value: Any, 
@@ -628,7 +648,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         zone_id = 1  # Default to main zone
         
         if params and "zone" in params:
-            zone_param = cmd_config.get_parameter("zone")
+            zone_param = self._get_parameter_definition(cmd_config, "zone")
             is_valid, zone_value, error_msg = self._validate_parameter(
                 param_name="zone",
                 param_value=params.get("zone"),
@@ -792,7 +812,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         zone_id = 1  # Default to main zone
         
         if params and "zone" in params:
-            zone_param = cmd_config.get_parameter("zone")
+            zone_param = self._get_parameter_definition(cmd_config, "zone")
             is_valid, zone_value, error_msg = self._validate_parameter(
                 param_name="zone",
                 param_value=params.get("zone"),
@@ -971,7 +991,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             return self.create_command_result(success=False, error="Missing input parameters")
         
         # Get and validate input parameter
-        input_param = cmd_config.get_parameter("input")
+        input_param = self._get_parameter_definition(cmd_config, "input")
         is_valid, input_id, error_msg = self._validate_parameter(
             param_name="input",
             param_value=params.get("input"),
@@ -1118,7 +1138,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             return self.create_command_result(success=False, error="Missing volume parameters")
         
         # Get and validate level parameter
-        level_param = cmd_config.get_parameter("level")
+        level_param = self._get_parameter_definition(cmd_config, "level")
         is_valid, level, error_msg = self._validate_parameter(
             param_name="level",
             param_value=params.get("level"),
@@ -1132,7 +1152,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             return self.create_command_result(success=False, error=error_msg)
             
         # Get zone parameter if specified
-        zone_param = cmd_config.get_parameter("zone")
+        zone_param = self._get_parameter_definition(cmd_config, "zone")
         zone_id = 1  # Default to main zone
         
         if zone_param and "zone" in params:
@@ -1257,7 +1277,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         zone_id = 1  # Default to main zone
         
         if params and "zone" in params:
-            zone_param = cmd_config.get_parameter("zone")
+            zone_param = self._get_parameter_definition(cmd_config, "zone")
             is_valid, zone_value, error_msg = self._validate_parameter(
                 param_name="zone",
                 param_value=params.get("zone"),

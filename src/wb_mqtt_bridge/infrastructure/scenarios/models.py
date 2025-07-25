@@ -111,24 +111,14 @@ class ScenarioWBConfig(BaseModel):
                 for cmd_name, cmd_config in role_commands.items():
                     virtual_name = f"{role}_{cmd_name}"
                     
-                    # Preserve the original command configuration structure
-                    # Copy all properties from the original command to maintain WB control type detection
-                    if hasattr(cmd_config, 'model_copy'):
-                        # If it's a Pydantic model, use model_copy with updates
-                        virtual_cmd = cmd_config.model_copy(update={
-                            'action': "delegate_to_role_device",
-                            'description': f"{role.title()} {cmd_config.description or cmd_name}",
-                            'group': role  # Role becomes the group
-                        })
-                        commands[virtual_name] = virtual_cmd
-                    else:
-                        # For non-Pydantic configs, create new StandardCommandConfig with all preserved properties
-                        commands[virtual_name] = StandardCommandConfig(
-                            action="delegate_to_role_device",
-                            description=f"{role.title()} {cmd_config.description or cmd_name}",
-                            group=role,  # Role becomes the group
-                            params=getattr(cmd_config, 'params', []) or []  # Preserve original parameters
-                        )
+                    # ✅ Always convert to StandardCommandConfig regardless of source type
+                    # This preserves the essential command information while ensuring type consistency
+                    commands[virtual_name] = StandardCommandConfig(
+                        action=cmd_config.action,  # Preserve original action name for delegation
+                        description=f"{role.title()} {cmd_config.description or cmd_name}",
+                        group=role,  # Role becomes the group
+                        params=getattr(cmd_config, 'params', []) or []  # Preserve original parameters
+                    )
         
         return commands
     
