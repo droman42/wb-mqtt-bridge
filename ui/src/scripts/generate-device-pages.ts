@@ -81,7 +81,7 @@ export class DevicePageGenerator {
       ['AppleTVDevice', new AppleTVDeviceHandler()],
       ['AuralicDevice', new AuralicDeviceHandler()],
       ['RevoxA77ReelToReel', new RevoxA77ReelToReelHandler()],
-      ['ScenarioDevice', new ScenarioVirtualDeviceHandler()]
+      ['ScenarioDevice', new ScenarioVirtualDeviceHandler(this.client)]
     ]);
     
     // Validation and generation components
@@ -142,7 +142,9 @@ export class DevicePageGenerator {
       console.log(`🔧 Using ${handler.deviceClass} handler`);
       
       // Process device structure - now returns RemoteDeviceStructure directly
-      const structure: RemoteDeviceStructure = handler.analyzeStructure(validatedConfig, groups);
+      const structure: RemoteDeviceStructure = validatedConfig.device_class === 'ScenarioDevice' 
+        ? await handler.analyzeStructure(validatedConfig, groups)
+        : handler.analyzeStructure(validatedConfig, groups);
       
       console.log(`📊 Generated ${structure.remoteZones.length} remote control zones`);
       
@@ -677,7 +679,9 @@ Supported Device Classes (Phase 2):
             const handler = generator['handlers'].get(validatedConfig.device_class);
             
             if (handler) {
-              const structure = handler.analyzeStructure(validatedConfig, groups);
+              const structure = validatedConfig.device_class === 'ScenarioDevice'
+                ? await handler.analyzeStructure(validatedConfig, groups)
+                : handler.analyzeStructure(validatedConfig, groups);
               deviceStructures.push(structure);
             }
           } catch (error) {
@@ -751,7 +755,9 @@ Supported Device Classes (Phase 2):
         const handler = generator['handlers'].get(validatedConfig.device_class);
         
         if (handler) {
-          const structure = handler.analyzeStructure(validatedConfig, groups);
+          const structure = validatedConfig.device_class === 'ScenarioDevice'
+            ? await handler.analyzeStructure(validatedConfig, groups)
+            : handler.analyzeStructure(validatedConfig, groups);
           const deviceEntry = generator['routerIntegration'].createDevicePageEntry(structure, result.outputPath!);
           
           // Use incremental router generation to merge with existing entries

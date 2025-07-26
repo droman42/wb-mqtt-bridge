@@ -12,6 +12,7 @@ export interface RemoteZone {
   zoneType: ZoneType;
   showHide: boolean; // true = show/hide based on device config, false = always present
   isEmpty: boolean;
+  enabled?: boolean; // Controls whether the zone should be rendered
   content: ZoneContent;
   layout: ZoneLayoutConfig;
 }

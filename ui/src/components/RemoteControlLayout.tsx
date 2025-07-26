@@ -971,7 +971,7 @@ export function RemoteControlLayout({
         {/* Zone Layout */}
         <div className="remote-zones">
           {/* Power Zone (①) - Show/Hide */}
-          {zones.power && !zones.power.isEmpty && (
+          {zones.power && (zones.power.enabled !== false) && !zones.power.isEmpty && (
             <PowerZone
               zone={zones.power}
               deviceStructure={deviceStructure}
@@ -983,7 +983,7 @@ export function RemoteControlLayout({
           )}
 
           {/* Media Stack Zone (②) - Show/Hide */}
-          {zones['media-stack'] && !zones['media-stack'].isEmpty && (
+          {zones['media-stack'] && (zones['media-stack'].enabled !== false) && !zones['media-stack'].isEmpty && (
             <MediaStackZone
               zone={zones['media-stack']}
               deviceStructure={deviceStructure}
@@ -1015,14 +1015,16 @@ export function RemoteControlLayout({
             />
 
             {/* Volume Zone (④) - Always Present (Right) */}
-            <VolumeZone
-              zone={zones.volume}
-              deviceStructure={deviceStructure}
-              onAction={handleAction}
-              className="zone-volume"
-              isActionPending={isActionPending}
-              lastAction={lastAction}
-            />
+            {zones.volume && (zones.volume.enabled !== false) && (
+              <VolumeZone
+                zone={zones.volume}
+                deviceStructure={deviceStructure}
+                onAction={handleAction}
+                className="zone-volume"
+                isActionPending={isActionPending}
+                lastAction={lastAction}
+              />
+            )}
           </div>
 
           {/* Apps Zone (⑤) - Always Present */}

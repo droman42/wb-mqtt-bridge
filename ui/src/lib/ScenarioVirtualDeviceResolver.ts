@@ -165,122 +165,19 @@ export class ScenarioVirtualDeviceResolver {
   private generateRoleBasedCommands(config: ScenarioConfig): Record<string, any> {
     const commands: Record<string, any> = {};
     
-    // Generate placeholder commands for each possible group
-    // These will be enabled/disabled in the UI based on roles
-    const standardGroups = ['volume', 'playback', 'navigation', 'tracks', 'menu', 'screen'];
-    
-    for (const group of standardGroups) {
-      if (config.roles[group]) {
-        // This group is enabled for this scenario
-        const targetDevice = config.roles[group];
-        
-        // Add common commands for this group
-        switch (group) {
-          case 'volume':
-            commands.volume_up = {
-              action: 'volume_up',
-              location: targetDevice,
-              description: 'Volume Up',
-              group: 'volume',
-              params: null
-            };
-            commands.volume_down = {
-              action: 'volume_down',
-              location: targetDevice, 
-              description: 'Volume Down',
-              group: 'volume',
-              params: null
-            };
-            commands.mute = {
-              action: 'mute',
-              location: targetDevice,
-              description: 'Mute',
-              group: 'volume',
-              params: null
-            };
-            break;
-            
-          case 'playback':
-            commands.play = {
-              action: 'play',
-              location: targetDevice,
-              description: 'Play',
-              group: 'playback',
-              params: null
-            };
-            commands.pause = {
-              action: 'pause',
-              location: targetDevice,
-              description: 'Pause', 
-              group: 'playback',
-              params: null
-            };
-            commands.stop = {
-              action: 'stop',
-              location: targetDevice,
-              description: 'Stop',
-              group: 'playback',
-              params: null
-            };
-            break;
-            
-          case 'navigation':
-            commands.up = {
-              action: 'up',
-              location: targetDevice,
-              description: 'Up',
-              group: 'navigation',
-              params: null
-            };
-            commands.down = {
-              action: 'down',
-              location: targetDevice,
-              description: 'Down',
-              group: 'navigation',
-              params: null
-            };
-            commands.left = {
-              action: 'left',
-              location: targetDevice,
-              description: 'Left',
-              group: 'navigation',
-              params: null
-            };
-            commands.right = {
-              action: 'right',
-              location: targetDevice,
-              description: 'Right',
-              group: 'navigation',
-              params: null
-            };
-            commands.ok = {
-              action: 'ok',
-              location: targetDevice,
-              description: 'OK',
-              group: 'navigation',
-              params: null
-            };
-            break;
-            
-          case 'tracks':
-            commands.next_track = {
-              action: 'next_track',
-              location: targetDevice,
-              description: 'Next Track',
-              group: 'tracks',
-              params: null
-            };
-            commands.prev_track = {
-              action: 'prev_track',
-              location: targetDevice,
-              description: 'Previous Track',
-              group: 'tracks',
-              params: null
-            };
-            break;
-        }
-      }
-    }
+    // Generate simple placeholder commands that map groups to devices
+    // The actual commands will be inherited from the real device configs
+    Object.entries(config.roles).forEach(([groupId, deviceId]) => {
+      // Create a single placeholder command for each role to establish the mapping
+      const commandName = `${groupId}_placeholder`;
+      commands[commandName] = {
+        action: commandName,
+        location: deviceId,
+        description: `${groupId} control`,
+        group: groupId,
+        params: null
+      };
+    });
     
     return commands;
   }
