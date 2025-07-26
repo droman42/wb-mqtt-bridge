@@ -6,18 +6,22 @@ import type { RemoteDeviceStructure } from '../../types/RemoteControlLayout';
 export class RemoteControlTemplate {
   
   generateComponent(structure: RemoteDeviceStructure): string {
+    const isScenarioDevice = structure.deviceClass === 'ScenarioDevice';
+    
     return `
 // Auto-generated from device config - Remote Control Layout - DO NOT EDIT
 import React, { useMemo, useEffect } from 'react';
 import { useLogStore } from '../../stores/useLogStore';
-import { useExecuteDeviceAction } from '../../hooks/useApi';
+import { useExecuteDeviceAction${isScenarioDevice ? ', useStartScenario, useShutdownScenario' : ''} } from '../../hooks/useApi';
 import { useSettingsStore } from '../../stores/useSettingsStore';
 import { useRoomStore } from '../../stores/useRoomStore';
 import { RemoteControlLayout } from '../../components/RemoteControlLayout';
 
 function ${this.formatComponentName(structure.deviceId)}Page() {
   const { addLog } = useLogStore();
-  const executeAction = useExecuteDeviceAction();
+  const executeAction = useExecuteDeviceAction();${isScenarioDevice ? `
+  const startScenario = useStartScenario();
+  const shutdownScenario = useShutdownScenario();` : ''}
   const { statePanelOpen } = useSettingsStore();
   const { selectDevice } = useRoomStore();
 
@@ -35,7 +39,29 @@ function ${this.formatComponentName(structure.deviceId)}Page() {
     // Use targetDeviceId if provided (for inherited scenario actions), otherwise use this device
     const deviceId = targetDeviceId || '${structure.deviceId}';
     
-    executeAction.mutate({ 
+    ${isScenarioDevice ? `// For scenario devices, use dedicated scenario endpoints for power actions
+    if (action === 'power_on') {
+      startScenario.mutate(deviceId);
+      addLog({
+        level: 'info',
+        message: \`Starting scenario: \${deviceId}\`,
+        details: params
+      });
+      return;
+    }
+    
+    if (action === 'power_off') {
+      shutdownScenario.mutate({ scenarioId: deviceId, graceful: true });
+      addLog({
+        level: 'info',
+        message: \`Shutting down scenario: \${deviceId}\`,
+        details: params
+      });
+      return;
+    }
+    
+    // For other actions, use the regular device action endpoint
+    ` : ''}executeAction.mutate({ 
       deviceId: deviceId, 
       action: { action: action, params: params } 
     });
@@ -57,8 +83,8 @@ function ${this.formatComponentName(structure.deviceId)}Page() {
       <RemoteControlLayout
         deviceStructure={deviceStructure}
         onAction={handleAction}
-        isActionPending={executeAction.isPending}
-        actionError={executeAction.error}
+        isActionPending={executeAction.isPending${isScenarioDevice ? ' || startScenario.isPending || shutdownScenario.isPending' : ''}}
+        actionError={executeAction.error${isScenarioDevice ? ' || startScenario.error || shutdownScenario.error' : ''}}
         lastAction={executeAction.variables?.action.action}
         className="w-full"
       />

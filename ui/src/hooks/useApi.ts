@@ -211,6 +211,31 @@ export const useExecuteRoleAction = () => {
   });
 };
 
+// Scenario start/shutdown hooks
+export const useStartScenario = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (scenarioId: string) =>
+      api.post<ScenarioResponse>('/scenario/start', { id: scenarioId }).then(res => res.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['scenario', 'state'] });
+      queryClient.invalidateQueries({ queryKey: ['devices'] });
+    },
+  });
+};
+
+export const useShutdownScenario = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ scenarioId, graceful = true }: { scenarioId: string; graceful?: boolean }) =>
+      api.post<ScenarioResponse>('/scenario/shutdown', { id: scenarioId, graceful }).then(res => res.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['scenario', 'state'] });
+      queryClient.invalidateQueries({ queryKey: ['devices'] });
+    },
+  });
+};
+
 // Phase 2: Scenario Virtual Device Configuration hooks
 export const useScenarioVirtualConfig = (scenarioId: string) => {
   return useQuery({

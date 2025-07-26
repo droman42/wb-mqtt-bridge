@@ -60,11 +60,74 @@ export function createScenarioTooltip(actionName: string, actionDescription: str
 }
 
 /**
+ * Creates HTTP request details for scenario start actions
+ */
+export function createScenarioStartHTTPDetails(scenarioId: string): HTTPRequestDetails {
+  const baseUrl = runtimeConfig.apiBaseUrl || '/api';
+  
+  return {
+    method: 'POST',
+    url: `${baseUrl}/scenario/start`,
+    body: {
+      id: scenarioId
+    }
+  };
+}
+
+/**
+ * Creates HTTP request details for scenario shutdown actions
+ */
+export function createScenarioShutdownHTTPDetails(scenarioId: string, graceful: boolean = true): HTTPRequestDetails {
+  const baseUrl = runtimeConfig.apiBaseUrl || '/api';
+  
+  return {
+    method: 'POST',
+    url: `${baseUrl}/scenario/shutdown`,
+    body: {
+      id: scenarioId,
+      graceful
+    }
+  };
+}
+
+/**
+ * Creates enhanced tooltip for scenario start actions
+ */
+export function createScenarioStartTooltip(actionDescription: string, scenarioId: string): string {
+  const displayName = actionDescription || 'Start Scenario';
+  const httpDetails = createScenarioStartHTTPDetails(scenarioId);
+  const httpFormatted = formatHTTPRequestForTooltip(httpDetails);
+  
+  return `${displayName}\n\n${httpFormatted}`;
+}
+
+/**
+ * Creates enhanced tooltip for scenario shutdown actions
+ */
+export function createScenarioShutdownTooltip(actionDescription: string, scenarioId: string, graceful: boolean = true): string {
+  const displayName = actionDescription || 'Shutdown Scenario';
+  const httpDetails = createScenarioShutdownHTTPDetails(scenarioId, graceful);
+  const httpFormatted = formatHTTPRequestForTooltip(httpDetails);
+  
+  return `${displayName}\n\n${httpFormatted}`;
+}
+
+/**
  * Creates enhanced tooltip for actions with optional source device routing
  */
 export function createActionTooltip(actionName: string, actionDescription: string, deviceId: string, action: string, params?: any, sourceDeviceId?: string): string {
   const isScenario = !!sourceDeviceId;
   const targetDeviceId = sourceDeviceId || deviceId;
+  
+  // Check if this is a scenario device power action - use new scenario endpoints
+  if (deviceId.startsWith('movie_') || deviceId.includes('scenario')) {
+    if (action === 'power_on') {
+      return createScenarioStartTooltip(actionDescription, deviceId);
+    }
+    if (action === 'power_off') {
+      return createScenarioShutdownTooltip(actionDescription, deviceId);
+    }
+  }
   
   if (isScenario) {
     return createScenarioTooltip(actionName, actionDescription, targetDeviceId, action, params);
