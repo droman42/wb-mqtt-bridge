@@ -306,11 +306,12 @@ export class ScenarioVirtualDeviceHandler {
             hasParameters: !!(command.params && command.params.length > 0),
             buttonSize: 'medium',
             buttonStyle: 'secondary'
-          }
+          },
+          sourceDeviceId: deviceId // Store source device for HTTP request routing
         };
         
         actions.push(action);
-        console.log(`✅ [ScenarioDevice] Inherited command '${commandName}' from ${deviceId}`);
+        console.log(`✅ [ScenarioDevice] Inherited command '${commandName}' from ${deviceId} -> will route to ${deviceId}`);
       }
 
       return actions;
@@ -346,7 +347,7 @@ export class ScenarioVirtualDeviceHandler {
   /**
    * Extract actions from a zone for a specific group
    */
-  private extractActionsFromZone(zone: any, groupId: string): ProcessedAction[] {
+  private extractActionsFromZone(zone: any, groupId: string, sourceDeviceId?: string): ProcessedAction[] {
     const actions: ProcessedAction[] = [];
     
     if (!zone.content) {
@@ -362,7 +363,8 @@ export class ScenarioVirtualDeviceHandler {
         if (contentValue.actions && Array.isArray(contentValue.actions)) {
           actions.push(...contentValue.actions.map((action: any) => ({
             ...action,
-            group: groupId // Ensure group is set correctly for inheritance
+            group: groupId, // Ensure group is set correctly for inheritance
+            sourceDeviceId: sourceDeviceId // Preserve source device for inherited actions
           })));
         }
         
@@ -373,7 +375,8 @@ export class ScenarioVirtualDeviceHandler {
               if (volumeButton[actionKey]) {
                 actions.push({
                   ...volumeButton[actionKey],
-                  group: groupId
+                  group: groupId,
+                  sourceDeviceId: sourceDeviceId
                 });
               }
             });
@@ -384,12 +387,14 @@ export class ScenarioVirtualDeviceHandler {
         if (contentKey === 'volumeSlider' && contentValue.action) {
           actions.push({
             ...contentValue.action,
-            group: groupId
+            group: groupId,
+            sourceDeviceId: sourceDeviceId
           });
           if (contentValue.muteAction) {
             actions.push({
               ...contentValue.muteAction,
-              group: groupId
+              group: groupId,
+              sourceDeviceId: sourceDeviceId
             });
           }
         }
@@ -400,7 +405,8 @@ export class ScenarioVirtualDeviceHandler {
             if (contentValue[actionKey]) {
               actions.push({
                 ...contentValue[actionKey],
-                group: groupId
+                group: groupId,
+                sourceDeviceId: sourceDeviceId
               });
             }
           });
@@ -416,7 +422,8 @@ export class ScenarioVirtualDeviceHandler {
               parameters: option.parameters || [],
               group: groupId,
               icon: option.icon || { iconLibrary: 'material', iconName: 'Apps', iconVariant: 'outlined', fallbackIcon: 'apps', confidence: 0.8 },
-              uiHints: option.uiHints || { buttonSize: 'medium', buttonStyle: 'secondary' }
+              uiHints: option.uiHints || { buttonSize: 'medium', buttonStyle: 'secondary' },
+              sourceDeviceId: sourceDeviceId
             });
           });
         }
@@ -425,7 +432,8 @@ export class ScenarioVirtualDeviceHandler {
         if (contentValue.action) {
           actions.push({
             ...contentValue.action,
-            group: groupId
+            group: groupId,
+            sourceDeviceId: sourceDeviceId
           });
         }
       }

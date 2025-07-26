@@ -7,9 +7,10 @@ import { Icon } from './icons';
 import type { RemoteZone, RemoteDeviceStructure, PowerButtonConfig, VolumeButtonConfig } from '../types/RemoteControlLayout';
 import { useInputsData, useAppsData, useInputSelection, useAppLaunching } from '../hooks/useRemoteControlData';
 import { useDeviceState as useDeviceStateQuery } from '../hooks/useApi';
+import { createActionTooltip } from '../utils/tooltipUtils';
 
 // Power Zone - 3-button layout with EMotiva special case
-const PowerZone = ({ zone, deviceStructure, onAction, className, isActionPending = false, lastAction }: { zone?: RemoteZone; deviceStructure: RemoteDeviceStructure; onAction: (action: string, payload?: any) => void; className?: string; isActionPending?: boolean; lastAction?: string }) => {
+const PowerZone = ({ zone, deviceStructure, onAction, className, isActionPending = false, lastAction }: { zone?: RemoteZone; deviceStructure: RemoteDeviceStructure; onAction: (action: string, payload?: any, targetDeviceId?: string) => void; className?: string; isActionPending?: boolean; lastAction?: string }) => {
   // Get device state for zone2 power state
   const { data: deviceState } = useDeviceStateQuery(deviceStructure.deviceId);
 
@@ -29,7 +30,19 @@ const PowerZone = ({ zone, deviceStructure, onAction, className, isActionPending
   const rightButton = powerButtons.find(btn => btn.position === 'right');
 
   const handlePowerAction = (button: PowerButtonConfig) => {
-    onAction(button.action.actionName, button.action.parameters || {});
+    // Use sourceDeviceId if available (for inherited actions), otherwise use scenario device
+    const targetDeviceId = button.action.sourceDeviceId || deviceStructure.deviceId;
+    onAction(button.action.actionName, button.action.parameters || {}, targetDeviceId);
+  };
+
+  // Helper function to create enhanced tooltip
+  const createEnhancedTooltip = (button: PowerButtonConfig) => {
+    const actionName = button.action.actionName;
+    const description = button.action.description || button.action.displayName;
+    const params = button.action.parameters || {};
+    const sourceDeviceId = button.action.sourceDeviceId;
+    
+    return createActionTooltip(actionName, description, deviceStructure.deviceId, actionName, params, sourceDeviceId);
   };
 
   // Helper function to get icon color based on button type and device state
@@ -66,7 +79,7 @@ const PowerZone = ({ zone, deviceStructure, onAction, className, isActionPending
           onClick={() => handlePowerAction(leftButton)}
           disabled={isActionPending}
           className="h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
-          title={leftButton.action.description || leftButton.action.displayName}
+          title={createEnhancedTooltip(leftButton)}
         >
           {isActionPending && lastAction === leftButton.action.actionName ? (
             <Icon
@@ -98,7 +111,7 @@ const PowerZone = ({ zone, deviceStructure, onAction, className, isActionPending
           onClick={() => handlePowerAction(middleButton)}
           disabled={isActionPending}
           className="h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
-          title={middleButton.action.description || middleButton.action.displayName}
+          title={createEnhancedTooltip(middleButton)}
         >
           {isActionPending && lastAction === middleButton.action.actionName ? (
             <Icon
@@ -130,7 +143,7 @@ const PowerZone = ({ zone, deviceStructure, onAction, className, isActionPending
           onClick={() => handlePowerAction(rightButton)}
           disabled={isActionPending}
           className="h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
-          title={rightButton.action.description || rightButton.action.displayName}
+          title={createEnhancedTooltip(rightButton)}
         >
           {isActionPending && lastAction === rightButton.action.actionName ? (
             <Icon
@@ -161,7 +174,7 @@ const PowerZone = ({ zone, deviceStructure, onAction, className, isActionPending
 const MediaStackZone = ({ zone, deviceStructure, onAction, className, isActionPending = false, lastAction }: { 
   zone?: RemoteZone; 
   deviceStructure: RemoteDeviceStructure;
-  onAction: (action: string, payload?: any) => void; 
+  onAction: (action: string, payload?: any, targetDeviceId?: string) => void; 
   className?: string;
   isActionPending?: boolean;
   lastAction?: string;
@@ -192,7 +205,19 @@ const MediaStackZone = ({ zone, deviceStructure, onAction, className, isActionPe
   };
 
   const handlePlaybackAction = (action: any) => {
-    onAction(action.actionName, action.parameters || {});
+    // Use sourceDeviceId if available (for inherited actions), otherwise use scenario device
+    const targetDeviceId = action.sourceDeviceId || deviceStructure.deviceId;
+    onAction(action.actionName, action.parameters || {}, targetDeviceId);
+  };
+
+  // Helper function to create enhanced tooltip for media actions
+  const createMediaTooltip = (action: any) => {
+    const actionName = action.actionName;
+    const description = action.description || action.displayName;
+    const params = action.parameters || {};
+    const sourceDeviceId = action.sourceDeviceId;
+    
+    return createActionTooltip(actionName, description, deviceStructure.deviceId, actionName, params, sourceDeviceId);
   };
 
   return (
@@ -253,7 +278,7 @@ const MediaStackZone = ({ zone, deviceStructure, onAction, className, isActionPe
                   onClick={() => handlePlaybackAction(action)}
                   disabled={isActionPending}
                   className="h-10 px-2 flex-1 min-w-fit bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
-                  title={action.description || action.displayName}
+                  title={createMediaTooltip(action)}
                 >
                   {isActionPending && lastAction === action.actionName ? (
                     <Icon
@@ -293,7 +318,7 @@ const MediaStackZone = ({ zone, deviceStructure, onAction, className, isActionPe
                   onClick={() => handlePlaybackAction(action)}
                   disabled={isActionPending}
                   className="h-10 px-2 flex-1 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
-                  title={action.description || action.displayName}
+                  title={createMediaTooltip(action)}
                 >
                   {isActionPending && lastAction === action.actionName ? (
                     <Icon
@@ -323,7 +348,7 @@ const MediaStackZone = ({ zone, deviceStructure, onAction, className, isActionPe
 };
 
 // Screen Zone - Vertical button alignment
-const ScreenZone = ({ zone, onAction, className, isActionPending = false, lastAction }: { zone?: RemoteZone; onAction: (action: string, payload?: any) => void; className?: string; isActionPending?: boolean; lastAction?: string }) => {
+const ScreenZone = ({ zone, deviceStructure, onAction, className, isActionPending = false, lastAction }: { zone?: RemoteZone; deviceStructure: RemoteDeviceStructure; onAction: (action: string, payload?: any, targetDeviceId?: string) => void; className?: string; isActionPending?: boolean; lastAction?: string }) => {
   if (!zone?.content?.screenActions || zone.isEmpty) {
     return (
       <div className={cn("zone-empty", className)}>
@@ -335,7 +360,19 @@ const ScreenZone = ({ zone, onAction, className, isActionPending = false, lastAc
   const { screenActions } = zone.content;
 
   const handleScreenAction = (action: any) => {
-    onAction(action.actionName, action.parameters || {});
+    // Use sourceDeviceId if available (for inherited actions), otherwise use scenario device
+    const targetDeviceId = action.sourceDeviceId || deviceStructure.deviceId;
+    onAction(action.actionName, action.parameters || {}, targetDeviceId);
+  };
+
+  // Helper function to create enhanced tooltip for screen actions
+  const createScreenTooltip = (action: any) => {
+    const actionName = action.actionName;
+    const description = action.description || action.displayName;
+    const params = action.parameters || {};
+    const sourceDeviceId = action.sourceDeviceId;
+    
+    return createActionTooltip(actionName, description, deviceStructure.deviceId, actionName, params, sourceDeviceId);
   };
 
   return (
@@ -349,7 +386,7 @@ const ScreenZone = ({ zone, onAction, className, isActionPending = false, lastAc
             onClick={() => handleScreenAction(action)}
             disabled={isActionPending}
             className="h-10 w-10 justify-center bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
-            title={action.description || action.displayName}
+            title={createScreenTooltip(action)}
           >
             <div className="w-6 h-6 text-white flex items-center justify-center">
               {isActionPending && lastAction === action.actionName ? (
@@ -378,7 +415,7 @@ const ScreenZone = ({ zone, onAction, className, isActionPending = false, lastAc
 };
 
 // Volume Zone - Priority-based (slider vs buttons) with vertical orientation
-const VolumeZone = ({ zone, deviceStructure, onAction, className, isActionPending = false, lastAction }: { zone?: RemoteZone; deviceStructure: RemoteDeviceStructure; onAction: (action: string, payload?: any) => void; className?: string; isActionPending?: boolean; lastAction?: string }) => {
+const VolumeZone = ({ zone, deviceStructure, onAction, className, isActionPending = false, lastAction }: { zone?: RemoteZone; deviceStructure: RemoteDeviceStructure; onAction: (action: string, payload?: any, targetDeviceId?: string) => void; className?: string; isActionPending?: boolean; lastAction?: string }) => {
   const [isDragging, setIsDragging] = useState(false);
   
   // Get device state for volume synchronization
@@ -454,12 +491,26 @@ const VolumeZone = ({ zone, deviceStructure, onAction, className, isActionPendin
   const handleVolumeSlider = (newVolume: number) => {
     setVolume(newVolume);
     if (volumeSlider?.action) {
-      onAction(volumeSlider.action.actionName, { level: newVolume });
+      // Use sourceDeviceId if available (for inherited actions), otherwise use scenario device
+      const targetDeviceId = volumeSlider.action.sourceDeviceId || deviceStructure.deviceId;
+      onAction(volumeSlider.action.actionName, { level: newVolume }, targetDeviceId);
     }
   };
 
   const handleVolumeButton = (action: any) => {
-    onAction(action.actionName, action.parameters || {});
+    // Use sourceDeviceId if available (for inherited actions), otherwise use scenario device
+    const targetDeviceId = action.sourceDeviceId || deviceStructure.deviceId;
+    onAction(action.actionName, action.parameters || {}, targetDeviceId);
+  };
+
+  // Helper function to create enhanced tooltip for volume actions
+  const createVolumeTooltip = (action: any, fallbackText?: string) => {
+    const actionName = action.actionName;
+    const description = action.description || action.displayName || fallbackText;
+    const params = action.parameters || {};
+    const sourceDeviceId = action.sourceDeviceId;
+    
+    return createActionTooltip(actionName, description, deviceStructure.deviceId, actionName, params, sourceDeviceId);
   };
 
   const handleSliderInteraction = (e: React.MouseEvent | React.TouchEvent) => {
@@ -669,7 +720,7 @@ const VolumeZone = ({ zone, deviceStructure, onAction, className, isActionPendin
               onClick={() => handleVolumeButton(buttons.upAction)}
               disabled={isActionPending}
               className="h-10 w-12 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
-              title={buttons.upAction.description || buttons.upAction.displayName || "Volume Up"}
+              title={createVolumeTooltip(buttons.upAction, "Volume Up")}
             >
               {isActionPending && lastAction === buttons.upAction.actionName ? (
                 <Icon
@@ -699,7 +750,7 @@ const VolumeZone = ({ zone, deviceStructure, onAction, className, isActionPendin
               onClick={() => handleVolumeButton(buttons.downAction)}
               disabled={isActionPending}
               className="h-10 w-12 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
-              title={buttons.downAction.description || buttons.downAction.displayName || "Volume Down"}
+              title={createVolumeTooltip(buttons.downAction, "Volume Down")}
             >
               {isActionPending && lastAction === buttons.downAction.actionName ? (
                 <Icon
@@ -729,7 +780,7 @@ const VolumeZone = ({ zone, deviceStructure, onAction, className, isActionPendin
               onClick={() => handleVolumeButton(buttons.muteAction)}
               disabled={isActionPending}
               className="h-10 w-12 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
-              title={buttons.muteAction.description || buttons.muteAction.displayName || "Mute"}
+              title={createVolumeTooltip(buttons.muteAction, "Mute")}
             >
               {isActionPending && lastAction === buttons.muteAction.actionName ? (
                 <Icon
@@ -831,7 +882,7 @@ const AppsZone = ({ zone, deviceStructure, className }: {
 };
 
 // Menu Navigation Zone - NavCluster integration with styling adjustments
-const MenuZone = ({ zone, onAction, className, isActionPending = false, lastAction }: { zone?: RemoteZone; onAction: (action: string, payload?: any) => void; className?: string; isActionPending?: boolean; lastAction?: string }) => {
+const MenuZone = ({ zone, deviceStructure, onAction, className, isActionPending = false, lastAction }: { zone?: RemoteZone; deviceStructure: RemoteDeviceStructure; onAction: (action: string, payload?: any, targetDeviceId?: string) => void; className?: string; isActionPending?: boolean; lastAction?: string }) => {
   if (!zone?.content?.navigationCluster) {
     return (
       <div className={cn("zone-empty", className)}>
@@ -843,7 +894,23 @@ const MenuZone = ({ zone, onAction, className, isActionPending = false, lastActi
   const { navigationCluster } = zone.content;
 
   const createHandler = (action: any) => {
-    return action ? () => onAction(action.actionName, action.parameters || {}) : undefined;
+    return action ? () => {
+      // Use sourceDeviceId if available (for inherited actions), otherwise use scenario device
+      const targetDeviceId = action.sourceDeviceId || deviceStructure.deviceId;
+      onAction(action.actionName, action.parameters || {}, targetDeviceId);
+    } : undefined;
+  };
+
+  // Helper function to create enhanced tooltip for navigation actions
+  const createNavTooltip = (action: any, fallbackText: string) => {
+    if (!action) return fallbackText;
+    
+    const actionName = action.actionName;
+    const description = action.description || action.displayName || fallbackText;
+    const params = action.parameters || {};
+    const sourceDeviceId = action.sourceDeviceId;
+    
+    return createActionTooltip(actionName, description, deviceStructure.deviceId, actionName, params, sourceDeviceId);
   };
 
   return (
@@ -862,6 +929,15 @@ const MenuZone = ({ zone, onAction, className, isActionPending = false, lastActi
         aux2Action={navigationCluster.aux2Action}
         aux3Action={navigationCluster.aux3Action}
         aux4Action={navigationCluster.aux4Action}
+        upTooltip={createNavTooltip(navigationCluster.upAction, "Navigate Up")}
+        downTooltip={createNavTooltip(navigationCluster.downAction, "Navigate Down")}
+        leftTooltip={createNavTooltip(navigationCluster.leftAction, "Navigate Left")}
+        rightTooltip={createNavTooltip(navigationCluster.rightAction, "Navigate Right")}
+        okTooltip={createNavTooltip(navigationCluster.okAction, "Select / OK")}
+        aux1Tooltip={createNavTooltip(navigationCluster.aux1Action, "Home")}
+        aux2Tooltip={createNavTooltip(navigationCluster.aux2Action, "Menu")}
+        aux3Tooltip={createNavTooltip(navigationCluster.aux3Action, "Back")}
+        aux4Tooltip={createNavTooltip(navigationCluster.aux4Action, "Exit")}
         className="scale-75 transform"
       />
     </div>
@@ -869,7 +945,7 @@ const MenuZone = ({ zone, onAction, className, isActionPending = false, lastActi
 };
 
 // Pointer Zone - PointerPad with lighter theme styling
-const PointerZone = ({ zone, onAction, className, isActionPending = false, lastAction }: { zone?: RemoteZone; onAction: (action: string, payload?: any) => void; className?: string; isActionPending?: boolean; lastAction?: string }) => {
+const PointerZone = ({ zone, deviceStructure, onAction, className, isActionPending = false, lastAction }: { zone?: RemoteZone; deviceStructure: RemoteDeviceStructure; onAction: (action: string, payload?: any, targetDeviceId?: string) => void; className?: string; isActionPending?: boolean; lastAction?: string }) => {
   if (!zone?.content?.pointerPad || zone?.isEmpty) {
     return (
       <div className={cn("zone-pointer", className)}>
@@ -885,13 +961,17 @@ const PointerZone = ({ zone, onAction, className, isActionPending = false, lastA
 
   const handleMove = (deltaX: number, deltaY: number) => {
     if (pointerPad.moveAction) {
-      onAction(pointerPad.moveAction.actionName, { deltaX, deltaY });
+      // Use sourceDeviceId if available (for inherited actions), otherwise use scenario device
+      const targetDeviceId = pointerPad.moveAction.sourceDeviceId || deviceStructure.deviceId;
+      onAction(pointerPad.moveAction.actionName, { deltaX, deltaY }, targetDeviceId);
     }
   };
 
   const _handleClick = () => {
     if (pointerPad.clickAction) {
-      onAction(pointerPad.clickAction.actionName, {});
+      // Use sourceDeviceId if available (for inherited actions), otherwise use scenario device
+      const targetDeviceId = pointerPad.clickAction.sourceDeviceId || deviceStructure.deviceId;
+      onAction(pointerPad.clickAction.actionName, {}, targetDeviceId);
     }
   };
 
@@ -911,7 +991,7 @@ const PointerZone = ({ zone, onAction, className, isActionPending = false, lastA
 
 interface RemoteControlLayoutProps {
   deviceStructure: RemoteDeviceStructure;
-  onAction: (actionName: string, payload?: any) => void;
+  onAction: (actionName: string, payload?: any, targetDeviceId?: string) => void;
   isActionPending?: boolean;
   actionError?: Error | null;
   lastAction?: string;
@@ -999,6 +1079,7 @@ export function RemoteControlLayout({
               {/* Screen Zone (③) - Always Present (Left) */}
             <ScreenZone
               zone={zones.screen}
+              deviceStructure={deviceStructure}
               onAction={handleAction}
               className="zone-screen"
               isActionPending={isActionPending}
@@ -1008,6 +1089,7 @@ export function RemoteControlLayout({
             {/* Menu Navigation Zone (⑦) - Always Present (Center) */}
             <MenuZone
               zone={zones.menu}
+              deviceStructure={deviceStructure}
               onAction={handleAction}
               className="zone-menu"
               isActionPending={isActionPending}
@@ -1037,6 +1119,7 @@ export function RemoteControlLayout({
           {/* Pointer Zone (⑥) - Always Present */}
           <PointerZone
             zone={zones.pointer}
+            deviceStructure={deviceStructure}
             onAction={handleAction}
             className="zone-pointer"
             isActionPending={isActionPending}

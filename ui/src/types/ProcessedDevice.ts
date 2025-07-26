@@ -8,6 +8,7 @@ export interface ProcessedAction {
   group: string;
   icon: ActionIcon;
   uiHints: UIHints;
+  sourceDeviceId?: string; // For scenario inherited actions - which device to actually send the HTTP request to
 }
 
 export interface ProcessedParameter {

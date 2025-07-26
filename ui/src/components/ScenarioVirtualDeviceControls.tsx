@@ -4,6 +4,7 @@ import { cn } from '../lib/utils';
 import { useScenarioWBConfig, useExecuteDeviceAction } from '../hooks/useApi';
 import { useLogStore } from '../stores/useLogStore';
 import type { WBCommandDefinition } from '../types/api';
+import { createScenarioTooltip } from '../utils/tooltipUtils';
 
 interface ScenarioVirtualDeviceControlsProps {
   scenarioId: string;
@@ -13,15 +14,29 @@ interface ScenarioVirtualDeviceControlsProps {
 interface WBControlProps {
   command: WBCommandDefinition;
   scenarioId: string;
+  config: any; // Config object containing device_id
   onExecute: (commandId: string, value?: any) => void;
   disabled?: boolean;
 }
 
-const WBControl: React.FC<WBControlProps> = ({ command, scenarioId, onExecute, disabled = false }) => {
+const WBControl: React.FC<WBControlProps> = ({ command, scenarioId, config, onExecute, disabled = false }) => {
   const [value, setValue] = useState<any>(null);
 
   const handleExecute = () => {
     onExecute(command.id, value);
+  };
+
+  // Create enhanced tooltip showing scenario device info
+  const createEnhancedTooltip = (actionName: string, params?: any) => {
+    // For ScenarioVirtualDeviceControls, always use the virtual device ID
+    // This component handles non-inherited scenario actions
+    return createScenarioTooltip(
+      actionName,
+      command.title || actionName,
+      config?.device_id || scenarioId,
+      actionName,
+      params
+    );
   };
 
   switch (command.type) {
@@ -38,6 +53,7 @@ const WBControl: React.FC<WBControlProps> = ({ command, scenarioId, onExecute, d
               onExecute(command.id, newValue);
             }}
             disabled={disabled}
+            title={createEnhancedTooltip(command.id, value)}
           >
             {value ? 'ON' : 'OFF'}
           </Button>
@@ -53,6 +69,7 @@ const WBControl: React.FC<WBControlProps> = ({ command, scenarioId, onExecute, d
             size="sm"
             onClick={handleExecute}
             disabled={disabled}
+            title={createEnhancedTooltip(command.id)}
           >
             Execute
           </Button>
@@ -88,6 +105,7 @@ const WBControl: React.FC<WBControlProps> = ({ command, scenarioId, onExecute, d
               size="sm"
               onClick={handleExecute}
               disabled={disabled}
+              title={createEnhancedTooltip(command.id, value)}
             >
               Set
             </Button>
@@ -114,6 +132,7 @@ const WBControl: React.FC<WBControlProps> = ({ command, scenarioId, onExecute, d
               size="sm"
               onClick={handleExecute}
               disabled={disabled}
+              title={createEnhancedTooltip(command.id, value)}
             >
               Send
             </Button>
@@ -244,6 +263,7 @@ export const ScenarioVirtualDeviceControls: React.FC<ScenarioVirtualDeviceContro
             key={command.id}
             command={command}
             scenarioId={scenarioId}
+            config={config}
             onExecute={handleCommandExecute}
             disabled={executeAction.isPending}
           />

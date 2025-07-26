@@ -26,19 +26,22 @@ function ${this.formatComponentName(structure.deviceId)}Page() {
     selectDevice('${structure.deviceId}');
   }, [selectDevice]);
 
-  const handleAction = (action: string, payload?: any) => {
+  const handleAction = (action: string, payload?: any, targetDeviceId?: string) => {
     // Convert payload to proper params format: ensure it's an object, not an array
     const params = payload === undefined || payload === null || Array.isArray(payload) && payload.length === 0 
       ? {} 
       : payload;
     
+    // Use targetDeviceId if provided (for inherited scenario actions), otherwise use this device
+    const deviceId = targetDeviceId || '${structure.deviceId}';
+    
     executeAction.mutate({ 
-      deviceId: '${structure.deviceId}', 
+      deviceId: deviceId, 
       action: { action: action, params: params } 
     });
     addLog({
       level: 'info',
-      message: \`Action: \${action}\`,
+      message: \`Action: \${action} -> \${deviceId}\`,
       details: params
     });
   };
