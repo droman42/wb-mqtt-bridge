@@ -11,7 +11,7 @@ const getApiBaseUrl = () => {
 const getSSEBaseUrl = () => {
   const envURL = import.meta.env.VITE_SSE_BASE_URL;
   if (envURL === undefined || envURL === null) {
-    return 'http://localhost:8000'; // Development fallback
+    return 'http://localhost:8000'; // Development: bypass proxy, use direct backend
   }
   return envURL === '' ? '' : envURL; // Empty string means use relative URLs
 };

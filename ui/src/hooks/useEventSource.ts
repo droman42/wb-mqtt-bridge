@@ -1,19 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { runtimeConfig, getSSEUrl } from '@/config/runtime';
 
-// 🔧 CRITICAL: Stable, frozen array references to prevent multiple SSE subscriptions
-// These MUST be at the top and frozen to prevent React useEffect from seeing them as new references
-const DEVICE_EVENT_TYPES = Object.freeze(['state_change', 'action_success', 'action_error', 'action_progress', 'test', 'connected', 'keepalive']);
-const SCENARIO_EVENT_TYPES = Object.freeze(['test', 'connected', 'keepalive']);
-const SYSTEM_EVENT_TYPES = Object.freeze(['test', 'connected', 'keepalive']);
-
 export interface SSEOptions {
   withCredentials?: boolean;
   headers?: Record<string, string>;
   retryInterval?: number;
   maxRetries?: number;
   enabled?: boolean;
-  eventTypes?: readonly string[]; // Allow readonly arrays for stable references
 }
 
 export interface SSEState<T> {
@@ -34,7 +27,6 @@ export function useEventSource<T = any>(
     retryInterval = 5_000,
     maxRetries = 10,
     enabled = true,
-    eventTypes = [], // Default to empty array - specific listeners must be specified
   }: SSEOptions = {}
 ): SSEState<T> {
   const [data, setData] = useState<T | null>(null);
@@ -54,10 +46,6 @@ export function useEventSource<T = any>(
 
   useEffect(() => {
     if (!enabled || !url) {
-      return;
-    }
-
-    if (!eventTypes || eventTypes.length === 0) {
       return;
     }
 
@@ -81,13 +69,10 @@ export function useEventSource<T = any>(
         const es = new EventSource(fullUrl);
         esRef.current = es;
 
-        // Generic message listener to catch ALL events
-        es.onmessage = (event) => {
-          console.log(`GENERIC SSE message on ${url}:`, event);
-        };
-
         es.onopen = () => {
           if (!cancelledRef.current) {
+            console.log(`🟢 SSE connection opened for ${fullUrl}`);
+            console.log(`🔧 DEBUG: onmessage handler attached:`, typeof es.onmessage);
             setConnected(true);
             setError(null);
             
@@ -98,22 +83,29 @@ export function useEventSource<T = any>(
           }
         };
 
-        // Create specific event handler for each event type
-        const createEventHandler = (eventType: string) => (event: MessageEvent) => {
-          console.log(`SSE ${eventType} event received on ${url}:`, event);
+        // 🔧 NEW: Single generic message handler for all events
+        es.onmessage = (event) => {
           if (!cancelledRef.current) {
             try {
               const eventData = JSON.parse(event.data);
-              console.log(`SSE ${eventType} parsed data:`, eventData);
+              
+              // Extract event type from data payload (new backend format)
+              const eventType = eventData.eventType || 'message';
+              
+              // 🔇 Skip logging for keepalive events to reduce console noise
+              if (eventType !== 'keepalive') {
+                console.log(`📨 SSE message received on ${url}:`, event);
+                console.log(`📋 SSE parsed data:`, eventData);
+              }
               
               // Update connection status
               setConnected(true);
               setError(null);
               
-              // 🔧 FIX: Reset reconnection counters on successful event
+              // Reset reconnection counters on successful event
               reconnectAttemptsRef.current = 0;
               setReconnectAttempts(0);
-
+              
               // Update state with event data and type
               setData({ ...eventData, eventType });
               setLastEventType(eventType);
@@ -126,19 +118,16 @@ export function useEventSource<T = any>(
                   console.error(`Handler error for ${eventType}:`, handlerError);
                 }
               });
+              
             } catch (parseError) {
-              console.error(`Failed to parse ${eventType} event data:`, parseError, event.data);
+              console.error(`Failed to parse SSE event data:`, parseError, event.data);
             }
           }
         };
 
-        // Register specific event listeners for each event type
-        eventTypes.forEach(eventType => {
-          const handler = createEventHandler(eventType);
-          es.addEventListener(eventType, handler);
-        });
-
         es.onerror = (e) => {
+          console.error(`🔴 SSE connection error for ${fullUrl}:`, e);
+          console.log(`🔴 SSE readyState: ${es.readyState}, URL: ${es.url}`);
           setError(e);
           setConnected(false);
           es.close();
@@ -185,7 +174,7 @@ export function useEventSource<T = any>(
       
       setConnected(false);
     };
-  }, [url, enabled, maxRetries, eventTypes, retryInterval, withCredentials]);
+  }, [url, enabled, maxRetries, retryInterval, withCredentials]);
 
   // Add event handler function
   const addHandler = (handler: (data: any) => void) => {
@@ -208,13 +197,13 @@ export function useEventSource<T = any>(
   };
 }
 
-// Backend data structures based on the SSE specification
+// Backend data structures based on the new SSE specification
 export interface DeviceEventData {
+  eventType: string; // Now embedded in data payload by backend
   device_id: string;
   device_name: string;
   message: string;
   timestamp: string;
-  eventType?: string; // Added by frontend
   // For test events, which have nested data structure
   data?: {
     device_id: string;
@@ -239,39 +228,36 @@ export interface DeviceEventData {
 }
 
 export interface ScenarioEventData {
+  eventType: string; // Now embedded in data payload by backend
   scenario_id: string;
   scenario_name?: string;
   message: string;
   timestamp: string;
   progress?: number;
-  eventType?: string; // Added by frontend
 }
 
 export interface SystemEventData {
+  eventType: string; // Now embedded in data payload by backend
   message: string;
   timestamp: string;
   level?: 'info' | 'warn' | 'error';
-  eventType?: string; // Added by frontend
 }
 
-// Specialized hooks for different event types
+// Specialized hooks for different event types - now much simpler
 export function useDeviceSSE(enabled: boolean = true) {
   return useEventSource<DeviceEventData>(getSSEUrl(runtimeConfig.sseDevicesPath), { 
-    enabled,
-    eventTypes: DEVICE_EVENT_TYPES
+    enabled
   });
 }
 
 export function useScenarioSSE(enabled: boolean = true) {
   return useEventSource<ScenarioEventData>(getSSEUrl(runtimeConfig.sseScenariosPath), { 
-    enabled,
-    eventTypes: SCENARIO_EVENT_TYPES
+    enabled
   });
 }
 
 export function useSystemSSE(enabled: boolean = true) {
   return useEventSource<SystemEventData>(getSSEUrl(runtimeConfig.sseSystemPath), { 
-    enabled,
-    eventTypes: SYSTEM_EVENT_TYPES
+    enabled
   });
 } 

@@ -43,9 +43,13 @@ export default defineConfig({
             proxyRes.headers['access-control-allow-origin'] = '*';
             proxyRes.headers['access-control-allow-headers'] = 'Cache-Control';
             
-            // Disable buffering completely
+            // Critical: Disable ALL buffering for SSE
             delete proxyRes.headers['content-length'];
+            delete proxyRes.headers['content-encoding'];
             proxyRes.headers['x-accel-buffering'] = 'no';
+            
+            // Force no compression
+            delete proxyRes.headers['transfer-encoding'];
           });
           
           proxy.on('error', (err, req, res) => {
