@@ -1,8 +1,30 @@
-from typing import Any, Dict, List, Optional
+import json
+from typing import Dict, List, Optional, Any, Union
 from pydantic import BaseModel, Field, field_validator, model_validator
 import logging
 
 logger = logging.getLogger(__name__)
+
+class ScenarioConfigurationError(Exception):
+    """Raised when a scenario configuration is invalid during loading."""
+    
+    def __init__(self, scenario_id: str, errors: List[str]):
+        self.scenario_id = scenario_id
+        self.errors = errors
+        error_details = '\n'.join(f"  - {error}" for error in errors)
+        super().__init__(f"Scenario '{scenario_id}' configuration is invalid:\n{error_details}")
+
+class ScenarioValidationError(Exception):
+    """Raised when scenario validation fails with detailed context."""
+    
+    def __init__(self, scenario_id: str, validation_type: str, detail: str, location: str = ""):
+        self.scenario_id = scenario_id
+        self.validation_type = validation_type
+        self.detail = detail
+        self.location = location
+        
+        location_info = f" in {location}" if location else ""
+        super().__init__(f"Scenario '{scenario_id}' {validation_type} validation failed{location_info}: {detail}")
 
 class ManualInstructions(BaseModel):
     """Instructions that require human intervention (cannot be automated)."""

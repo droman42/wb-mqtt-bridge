@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import RootModel
@@ -155,4 +155,39 @@ async def get_scenario_state():
     if not scenario_manager.scenario_state:
         raise HTTPException(status_code=404, detail="No active scenario")
     
-    return scenario_manager.scenario_state 
+    return scenario_manager.scenario_state
+
+@router.get("/scenario/{scenario_id}/state", response_model=ScenarioState)
+async def get_specific_scenario_state(scenario_id: str):
+    """
+    Get the state of a specific scenario by ID.
+    
+    Returns the scenario state including device states if the scenario is currently active,
+    or a basic state structure with empty device states if the scenario is inactive.
+    
+    Args:
+        scenario_id: The ID of the scenario to retrieve state for
+        
+    Returns:
+        ScenarioState: The scenario state with device information
+        
+    Raises:
+        HTTPException: If scenario is not found or service not initialized
+    """
+    logger = logging.getLogger(__name__)
+    if not scenario_manager:
+        raise HTTPException(status_code=503, detail="Service not fully initialized")
+    
+    try:
+        scenario_state = scenario_manager.get_scenario_state(scenario_id)
+        return scenario_state
+        
+    except ValueError as e:
+        # scenario_id doesn't exist
+        logger.error(f"Scenario not found: {str(e)}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error getting scenario state for {scenario_id}: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}") 

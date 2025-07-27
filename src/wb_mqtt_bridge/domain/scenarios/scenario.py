@@ -75,7 +75,7 @@ class Scenario:
             raise ScenarioError(f"Device '{device_id}' not found for role '{role}'", "missing_device", True)
             
         try:
-            result = await device.execute_command(command, params)
+            result = await device.execute_action(command, params, source="scenario")
             return result
         except Exception as e:
             msg = f"Failed to execute {command} on {device_id}: {str(e)}"
@@ -122,7 +122,7 @@ class Scenario:
             try:
                 if await self._evaluate_condition(step.condition, dev):
                     logger.info(f"Executing {step.command} on {step.device}")
-                    await dev.execute_command(step.command, step.params)
+                    await dev.execute_action(step.command, step.params, source="scenario")
                     if step.delay_after_ms:
                         await asyncio.sleep(step.delay_after_ms / 1000)
                 else:
@@ -146,7 +146,7 @@ class Scenario:
             try:
                 if await self._evaluate_condition(step.condition, dev):
                     logger.info(f"Executing {step.command} on {step.device}")
-                    await dev.execute_command(step.command, step.params)
+                    await dev.execute_action(step.command, step.params, source="scenario")
                     if step.delay_after_ms:
                         await asyncio.sleep(step.delay_after_ms / 1000)
                 else:
@@ -194,7 +194,7 @@ class Scenario:
             logger.error(f"Error evaluating condition '{condition}': {str(e)}")
             return False
             
-    def _safe_evaluate_condition(self, condition: str, device_state: Dict[str, Any]) -> bool:
+    def _safe_evaluate_condition(self, condition: str, device_state) -> bool:
         """
         Safely evaluate a simple condition without using eval().
         
@@ -206,7 +206,7 @@ class Scenario:
         
         Args:
             condition: The condition string to evaluate
-            device_state: The device state to evaluate against
+            device_state: The Pydantic device state model to evaluate against
             
         Returns:
             bool: The result of the condition
@@ -220,31 +220,20 @@ class Scenario:
             right = right.strip()
             
             if left.startswith("device."):
-                key = left[7:].strip()  # remove "device."
-                if key in device_state:
-                    # Handle string literal with quotes
-                    if (right.startswith("'") and right.endswith("'")) or \
-                       (right.startswith('"') and right.endswith('"')):
-                        right = right[1:-1]  # Remove quotes
+                field_name = left[7:].strip()  # remove "device."
+                device_value = self._safe_get_device_field(device_state, field_name)
+                
+                if device_value is not None:
+                    # Convert right-hand side value to appropriate type
+                    comparison_value = self._parse_condition_value(right)
                     
-                    # Handle boolean literals
-                    if right.lower() == "true":
-                        right = True
-                    elif right.lower() == "false":
-                        right = False
+                    # Handle string power states by converting to boolean for comparison
+                    if field_name in ["power", "power_state"] and isinstance(device_value, str):
+                        device_bool = device_value.lower() in ("on", "true", "1", "powered_on", "active")
+                        if isinstance(comparison_value, bool):
+                            return device_bool == comparison_value
                     
-                    # Handle numeric literals
-                    try:
-                        # Check if it's a number
-                        if isinstance(right, str):
-                            if "." in right:
-                                right = float(right)
-                            else:
-                                right = int(right)
-                    except ValueError:
-                        pass
-                        
-                    return device_state[key] == right
+                    return device_value == comparison_value
             
             return False
             
@@ -255,89 +244,276 @@ class Scenario:
             right = right.strip()
             
             if left.startswith("device."):
-                key = left[7:].strip()  # remove "device."
-                if key in device_state:
-                    # Handle string literal with quotes
-                    if (right.startswith("'") and right.endswith("'")) or \
-                       (right.startswith('"') and right.endswith('"')):
-                        right = right[1:-1]  # Remove quotes
+                field_name = left[7:].strip()  # remove "device."
+                device_value = self._safe_get_device_field(device_state, field_name)
+                
+                if device_value is not None:
+                    # Convert right-hand side value to appropriate type
+                    comparison_value = self._parse_condition_value(right)
                     
-                    # Handle boolean literals
-                    if right.lower() == "true":
-                        right = True
-                    elif right.lower() == "false":
-                        right = False
+                    # Handle string power states by converting to boolean for comparison
+                    if field_name in ["power", "power_state"] and isinstance(device_value, str):
+                        device_bool = device_value.lower() in ("on", "true", "1", "powered_on", "active")
+                        if isinstance(comparison_value, bool):
+                            return device_bool != comparison_value
                     
-                    # Handle numeric literals
-                    try:
-                        # Check if it's a number
-                        if isinstance(right, str):
-                            if "." in right:
-                                right = float(right)
-                            else:
-                                right = int(right)
-                    except ValueError:
-                        pass
-                        
-                    return device_state[key] != right
+                    return device_value != comparison_value
             
             return True
             
         # Default: condition not supported
         logger.warning(f"Unsupported condition format: {condition}")
         return True
-
-    def validate(self) -> List[str]:
+    
+    def _safe_get_device_field(self, device_state, field_name: str, default=None):
         """
-        Validate the scenario definition against system state.
+        Safely get a field value from a device's Pydantic state model.
         
-        This checks that all devices referenced in the scenario exist in the system,
-        all commands in sequences are valid, and that the scenario configuration is consistent.
+        Handles field name variations and type conversions consistently
+        with the state refresh logic.
         
+        Args:
+            device_state: Pydantic device state model
+            field_name: Field name to retrieve
+            default: Default value if field not found
+            
         Returns:
-            List[str]: List of validation errors, empty if valid
+            Field value or default
         """
+        # Direct field access
+        if hasattr(device_state, field_name):
+            return getattr(device_state, field_name)
+        
+        # Handle common field name variations
+        field_mappings = {
+            "input": ["input", "input_source", "video_input", "audio_input"],
+            "power": ["power", "power_state"],
+        }
+        
+        # If the requested field has known variations, try them
+        variations = field_mappings.get(field_name, [field_name])
+        for variation in variations:
+            if hasattr(device_state, variation):
+                return getattr(device_state, variation)
+        
+        return default
+    
+    def _parse_condition_value(self, value_str: str):
+        """
+        Parse a condition value string into the appropriate Python type.
+        
+        Handles string literals, boolean literals, and numeric literals.
+        Ensures True/False from scenario configs become proper booleans.
+        
+        Args:
+            value_str: String representation of the value
+            
+        Returns:
+            Parsed value with appropriate type
+        """
+        value_str = value_str.strip()
+        
+        # Handle string literals with quotes
+        if (value_str.startswith("'") and value_str.endswith("'")) or \
+           (value_str.startswith('"') and value_str.endswith('"')):
+            return value_str[1:-1]  # Remove quotes
+        
+        # Handle boolean literals - ensure True/False become actual booleans
+        if value_str.lower() == "true":
+            return True
+        elif value_str.lower() == "false":
+            return False
+        
+        # Handle numeric literals
+        try:
+            # Check if it's a number
+            if "." in value_str:
+                return float(value_str)
+            else:
+                return int(value_str)
+        except ValueError:
+            # Return as string if not a recognized format
+            return value_str
+
+    def validate_configuration(self) -> None:
+        """
+        Comprehensively validate the scenario configuration.
+        
+        Validates that all device IDs exist, all commands/actions are valid,
+        parameters match schemas, and condition expressions are correct.
+        
+        Raises:
+            ScenarioConfigurationError: If any validation errors are found
+        """
+        from wb_mqtt_bridge.domain.scenarios.models import ScenarioConfigurationError
+        
         errors = []
         
-        # Get all unique device IDs from the scenario
-        device_ids = set(self.definition.devices)
+        # 1. Validate device IDs
+        errors.extend(self._validate_device_ids())
         
-        # 1. Validate device existence
-        for device_id in device_ids:
-            if not self.device_manager.get_device(device_id):
-                errors.append(f"Device '{device_id}' referenced in scenario does not exist")
+        # 2. Validate actions and parameters
+        errors.extend(self._validate_startup_sequence())
+        errors.extend(self._validate_shutdown_sequence())
         
-        # 2. Validate roles
-        for role, device_id in self.definition.roles.items():
-            if not self.device_manager.get_device(device_id):
-                errors.append(f"Device '{device_id}' for role '{role}' does not exist")
+        # 3. Validate condition expressions
+        errors.extend(self._validate_conditions())
         
-        # 3. Validate room containment if room_id is specified
-        if self.definition.room_id:
-            room_mgr = getattr(self.device_manager, "room_manager", None)
-            if room_mgr:
-                room = room_mgr.get_room(self.definition.room_id)
-                if not room:
-                    errors.append(f"Room '{self.definition.room_id}' referenced by scenario does not exist")
-                else:
-                    room_device_ids = set(room.devices)
-                    non_room_devices = device_ids - room_device_ids
-                    if non_room_devices:
-                        errors.append(
-                            f"Devices {', '.join(non_room_devices)} are used in scenario but not in room '{self.definition.room_id}'"
-                        )
-            else:
-                errors.append("Room manager not available to validate room containment")
+        # 4. Validate roles
+        errors.extend(self._validate_roles())
         
-        # 4. Validate command execution steps
+        # If any errors found, raise exception with all details
+        if errors:
+            raise ScenarioConfigurationError(self.scenario_id, errors)
+    
+    def _validate_device_ids(self) -> List[str]:
+        """Validate all device IDs exist in DeviceManager."""
+        errors = []
+        
+        # Check devices in main device list
+        for device_id in self.definition.devices:
+            device = self.device_manager.get_device(device_id)
+            if not device:
+                errors.append(f"Device '{device_id}' in devices list does not exist in DeviceManager")
+        
+        # Check devices in startup sequence
         for i, step in enumerate(self.definition.startup_sequence):
             device = self.device_manager.get_device(step.device)
-            if device and not device.supports_command(step.command):
-                errors.append(f"Device '{step.device}' does not support command '{step.command}' in startup sequence")
+            if not device:
+                errors.append(f"Device '{step.device}' in startup sequence step {i+1} does not exist in DeviceManager")
         
+        # Check devices in shutdown sequence  
         for i, step in enumerate(self.definition.shutdown_sequence):
             device = self.device_manager.get_device(step.device)
-            if device and not device.supports_command(step.command):
-                errors.append(f"Device '{step.device}' does not support command '{step.command}' in shutdown sequence")
+            if not device:
+                errors.append(f"Device '{step.device}' in shutdown sequence step {i+1} does not exist in DeviceManager")
+        
+        return errors
+    
+    def _validate_startup_sequence(self) -> List[str]:
+        """Validate startup sequence commands and parameters."""
+        errors = []
+        
+        for i, step in enumerate(self.definition.startup_sequence):
+            step_location = f"startup sequence step {i+1} (device: {step.device})"
+            device = self.device_manager.get_device(step.device)
+            
+            if device:  # Only validate if device exists (device existence checked separately)
+                # Validate action exists
+                available_commands = device.get_available_commands()
+                if step.command not in available_commands:
+                    available_actions = list(available_commands.keys())
+                    errors.append(f"Action '{step.command}' not found in {step_location}. Available actions: {available_actions}")
+                else:
+                    # Validate parameters
+                    param_errors = self._validate_parameters(device, step.command, step.params, step_location)
+                    errors.extend(param_errors)
+        
+        return errors
+    
+    def _validate_shutdown_sequence(self) -> List[str]:
+        """Validate shutdown sequence commands and parameters."""
+        errors = []
+        
+        for i, step in enumerate(self.definition.shutdown_sequence):
+            step_location = f"shutdown sequence step {i+1} (device: {step.device})"
+            device = self.device_manager.get_device(step.device)
+            
+            if device:  # Only validate if device exists (device existence checked separately)
+                # Validate action exists
+                available_commands = device.get_available_commands()
+                if step.command not in available_commands:
+                    available_actions = list(available_commands.keys())
+                    errors.append(f"Action '{step.command}' not found in {step_location}. Available actions: {available_actions}")
+                else:
+                    # Validate parameters
+                    param_errors = self._validate_parameters(device, step.command, step.params, step_location)
+                    errors.extend(param_errors)
+        
+        return errors
+    
+    def _validate_parameters(self, device, action_name: str, params: dict, location: str) -> List[str]:
+        """Validate parameters against device action schema."""
+        errors = []
+        
+        try:
+            # Get the command configuration
+            available_commands = device.get_available_commands()
+            command_config = available_commands[action_name]
+            
+            # Check if device has parameter validation method
+            if hasattr(command_config, 'parameters') and command_config.parameters:
+                # Validate each parameter
+                for param_name, param_value in params.items():
+                    if param_name not in command_config.parameters:
+                        available_params = list(command_config.parameters.keys())
+                        errors.append(f"Unknown parameter '{param_name}' for action '{action_name}' in {location}. Available parameters: {available_params}")
+                
+                # Check required parameters
+                for param_name, param_config in command_config.parameters.items():
+                    if hasattr(param_config, 'required') and param_config.required and param_name not in params:
+                        errors.append(f"Required parameter '{param_name}' missing for action '{action_name}' in {location}")
+                        
+        except Exception as e:
+            errors.append(f"Error validating parameters for action '{action_name}' in {location}: {str(e)}")
+            
+        return errors
+    
+    def _validate_conditions(self) -> List[str]:
+        """Validate condition expressions reference valid device state fields."""
+        errors = []
+        
+        # Validate startup sequence conditions
+        for i, step in enumerate(self.definition.startup_sequence):
+            if step.condition:
+                step_location = f"startup sequence step {i+1} (device: {step.device})"
+                condition_errors = self._validate_condition_expression(step.device, step.condition, step_location)
+                errors.extend(condition_errors)
+        
+        # Validate shutdown sequence conditions
+        for i, step in enumerate(self.definition.shutdown_sequence):
+            if step.condition:
+                step_location = f"shutdown sequence step {i+1} (device: {step.device})"
+                condition_errors = self._validate_condition_expression(step.device, step.condition, step_location)
+                errors.extend(condition_errors)
+        
+        return errors
+    
+    def _validate_condition_expression(self, device_id: str, condition: str, location: str) -> List[str]:
+        """Validate a specific condition expression."""
+        errors = []
+        
+        device = self.device_manager.get_device(device_id)
+        if not device:
+            return []  # Device existence validated separately
+        
+        try:
+            # Get device state to understand available fields
+            state = device.get_current_state()
+            
+            # Extract field references from condition (simple regex-based approach)
+            import re
+            field_pattern = r'device\.(\w+)'
+            referenced_fields = re.findall(field_pattern, condition)
+            
+            # Check each referenced field exists in device state
+            for field_name in referenced_fields:
+                if not hasattr(state, field_name):
+                    available_fields = [attr for attr in dir(state) if not attr.startswith('_') and not callable(getattr(state, attr))]
+                    errors.append(f"Condition references unknown field 'device.{field_name}' in {location}. Available fields: {available_fields}")
+            
+        except Exception as e:
+            errors.append(f"Error validating condition '{condition}' in {location}: {str(e)}")
+        
+        return errors
+    
+    def _validate_roles(self) -> List[str]:
+        """Validate role assignments."""
+        errors = []
+        
+        for role_name, device_id in self.definition.roles.items():
+            device = self.device_manager.get_device(device_id)
+            if not device:
+                errors.append(f"Role '{role_name}' assigned to non-existent device '{device_id}'")
         
         return errors 

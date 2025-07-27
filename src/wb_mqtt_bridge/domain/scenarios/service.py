@@ -89,13 +89,21 @@ class ScenarioManager:
                 scenario_data = json.loads(scenario_file.read_text(encoding="utf-8"))
                 definition = ScenarioDefinition.model_validate(scenario_data)
                 
-                self.scenario_definitions[definition.scenario_id] = definition
+                # Create scenario instance
                 scenario = Scenario(definition, self.device_manager)
+                
+                # Validate scenario configuration - this will raise ScenarioConfigurationError if invalid
+                scenario.validate_configuration()
+                
+                # Only add to maps if validation passes
+                self.scenario_definitions[definition.scenario_id] = definition
                 self.scenario_map[definition.scenario_id] = scenario
                 
-                logger.info(f"Loaded scenario: {definition.scenario_id}")
+                logger.info(f"Loaded and validated scenario: {definition.scenario_id}")
             except Exception as e:
-                logger.error(f"Error loading scenario from {scenario_file}: {str(e)}")
+                # This will catch both JSON parsing, Pydantic validation, and scenario configuration errors
+                logger.error(f"FATAL: Failed to load scenario from {scenario_file}: {str(e)}")
+                raise SystemExit(f"Scenario configuration error in {scenario_file.name}: {str(e)}")
         
         logger.info(f"Loaded {len(self.scenario_map)} scenarios")
     
@@ -180,7 +188,7 @@ class ScenarioManager:
                             # DEBUG: Log individual device shutdown
                             logger.debug(f"[SCENARIO_DEBUG] Shutting down non-shared device: {device_id}")
                             try:
-                                await dev.execute_command("power_off", {})
+                                await dev.execute_action("power_off", {}, source="scenario")
                             except Exception as e:
                                 logger.error(f"Error shutting down device {device_id}: {str(e)}")
                     else:
@@ -262,13 +270,7 @@ class ScenarioManager:
             device = self.device_manager.get_device(dev_id)
             if device:
                 state = device.get_current_state()
-                device_states[dev_id] = DeviceState(
-                    power=state.get("power"),
-                    input=state.get("input"),
-                    output=state.get("output"),
-                    extra={k: v for k, v in state.items() 
-                          if k not in ("power", "input", "output")}
-                )
+                device_states[dev_id] = self._convert_device_state(state)
         
         self.scenario_state = ScenarioState(
             scenario_id=self.current_scenario.scenario_id,
@@ -404,4 +406,100 @@ class ScenarioManager:
             except Exception as e:
                 logger.error(f"Error subscribing to scenario MQTT topics: {str(e)}")
         else:
-            logger.info("No scenario MQTT topics to subscribe to") 
+            logger.info("No scenario MQTT topics to subscribe to")
+    
+    def get_scenario_state(self, scenario_id: str) -> ScenarioState:
+        """
+        Get the state of a specific scenario.
+        
+        Args:
+            scenario_id: ID of the scenario to get state for
+            
+        Returns:
+            ScenarioState: Current state if scenario is active, or basic state with empty devices if inactive
+            
+        Raises:
+            ValueError: If scenario_id doesn't exist
+        """
+        # Check if scenario exists
+        if scenario_id not in self.scenario_map:
+            raise ValueError(f"Scenario '{scenario_id}' not found")
+        
+        # If this is the currently active scenario, return its state
+        if (self.current_scenario and 
+            self.current_scenario.scenario_id == scenario_id and 
+            self.scenario_state):
+            return self.scenario_state
+        
+        # For inactive scenarios, return a basic state without device states
+        # since we can't get real-time device states for inactive scenarios
+        return ScenarioState(
+            scenario_id=scenario_id,
+            devices={}  # Empty device states for inactive scenarios
+        )
+    
+    def _convert_device_state(self, state) -> DeviceState:
+        """
+        Convert a device's Pydantic state model to a standardized DeviceState.
+        
+        This reuses the safe field access logic from the Scenario class
+        to ensure consistent handling across the system.
+        
+        Args:
+            state: Pydantic device state model (e.g., LgTvState, EmotivaXMC2State)
+            
+        Returns:
+            DeviceState: Standardized state representation
+        """
+        # Use the current scenario's safe field access if available, otherwise fallback
+        if self.current_scenario:
+            scenario = self.current_scenario
+        else:
+            # Fallback: create a temporary scenario instance for field access
+            # This shouldn't happen often, but provides safety
+            from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition
+            temp_def = ScenarioDefinition(
+                scenario_id="temp",
+                name="temp",
+                roles={},
+                devices=[],
+                startup_sequence=[],
+                shutdown_sequence=[]
+            )
+            scenario = Scenario(temp_def, self.device_manager)
+        
+        # Extract and convert power state using scenario's safe field access
+        power_value = None
+        raw_power = scenario._safe_get_device_field(state, "power")
+        if raw_power is not None:
+            if isinstance(raw_power, bool):
+                power_value = raw_power
+            elif isinstance(raw_power, str):
+                # Convert string power states to boolean
+                power_value = raw_power.lower() in ("on", "true", "1", "powered_on", "active")
+        
+        # Extract input using safe field access (handles variations automatically)
+        input_value = scenario._safe_get_device_field(state, "input")
+        
+        # Extract output - not all devices have this
+        output_value = scenario._safe_get_device_field(state, "output")
+        
+        # Build extra dict with all other fields, excluding base fields and already mapped ones
+        base_fields = {"device_id", "device_name", "last_command", "error"}
+        mapped_fields = {"power", "input", "input_source", "video_input", "audio_input", "output"}
+        excluded_fields = base_fields | mapped_fields
+        
+        extra = {}
+        if hasattr(state, "model_dump"):
+            # Get all fields from the Pydantic model
+            all_fields = state.model_dump()
+            for field_name, field_value in all_fields.items():
+                if field_name not in excluded_fields and field_value is not None:
+                    extra[field_name] = field_value
+        
+        return DeviceState(
+            power=power_value,
+            input=input_value,
+            output=output_value,
+            extra=extra
+        ) 
