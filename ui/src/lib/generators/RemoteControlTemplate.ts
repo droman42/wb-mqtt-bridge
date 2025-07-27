@@ -23,12 +23,12 @@ function ${this.formatComponentName(structure.deviceId)}Page() {
   const startScenario = useStartScenario();
   const shutdownScenario = useShutdownScenario();` : ''}
   const { statePanelOpen } = useSettingsStore();
-  const { selectDevice } = useRoomStore();
+  const { ${isScenarioDevice ? 'selectScenario' : 'selectDevice'} } = useRoomStore();
 
-  // Automatically select this device when the page loads
+  // Automatically select this ${isScenarioDevice ? 'scenario' : 'device'} when the page loads
   useEffect(() => {
-    selectDevice('${structure.deviceId}');
-  }, [selectDevice]);
+    ${isScenarioDevice ? 'selectScenario' : 'selectDevice'}('${structure.deviceId}');
+  }, [${isScenarioDevice ? 'selectScenario' : 'selectDevice'}]);
 
   const handleAction = (action: string, payload?: any, targetDeviceId?: string) => {
     // Convert payload to proper params format: ensure it's an object, not an array

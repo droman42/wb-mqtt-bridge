@@ -187,6 +187,15 @@ export const useScenarioState = () => {
   });
 };
 
+// New hook for specific scenario state
+export const useSpecificScenarioState = (scenarioId: string) => {
+  return useQuery({
+    queryKey: queryKeys.scenarios.specificState(scenarioId),
+    queryFn: () => api.get<ScenarioState>(`/scenario/${scenarioId}/state`).then(res => res.data),
+    enabled: !!scenarioId,
+  });
+};
+
 export const useSwitchScenario = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -318,6 +327,7 @@ export const queryKeys = {
     all: (roomId?: string) => ['scenarios', roomId] as const,
     detail: (scenarioId: string) => ['scenarios', 'definition', scenarioId] as const,
     state: ['scenario', 'state'] as const,
+    specificState: (scenarioId: string) => ['scenarios', 'state', scenarioId] as const,
     virtualConfig: (scenarioId: string) => ['scenarios', 'virtual-config', scenarioId] as const,
     virtualConfigs: ['scenarios', 'virtual-configs'] as const,
     wbConfig: (scenarioId: string) => ['scenarios', 'wb-config', scenarioId] as const,

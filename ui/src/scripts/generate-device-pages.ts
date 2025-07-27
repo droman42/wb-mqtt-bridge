@@ -191,7 +191,7 @@ export class DevicePageGenerator {
           }
           
           // Always generate device-specific hook (but update imports to shared state)
-          const stateHook = await this.stateGenerator.generateStateHook(stateDefinition, deviceId, stateClass);
+          const stateHook = await this.stateGenerator.generateStateHook(stateDefinition, deviceId, stateClass, structure.deviceClass);
           
           // Ensure hook output directory exists
           await fs.mkdir(hookOutputDir, { recursive: true });

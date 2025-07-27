@@ -3,6 +3,7 @@ import { Icon } from './icons';
 import { useRoomStore } from '../stores/useRoomStore';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import { useDeviceState } from '../hooks/useDeviceState';
+import { useScenarioState } from '../hooks/useScenarioState';
 import { useExecuteDeviceAction } from '../hooks/useApi';
 import { Button } from './ui/button';
 import { CollapsibleSection } from './ui/collapsible-section';
@@ -90,11 +91,19 @@ const getFieldIcon = (fieldName: string): string => {
 };
 
 function DeviceStatePanel({ isOpen, className, sseState }: DeviceStatePanelProps) {
-  const { selectedDeviceId } = useRoomStore();
+  const { selectedDeviceId, selectedScenarioId } = useRoomStore();
   const { setStatePanelOpen } = useSettingsStore();
 
-  // Use the enhanced device state hook
-  const { state: deviceState, isLoading, error, isConnected } = useDeviceState(selectedDeviceId || '');
+  // Use appropriate state hook based on selection
+  const { state: deviceState, isLoading: deviceLoading, error: deviceError, isConnected: deviceConnected } = useDeviceState(selectedDeviceId || '');
+  const { state: scenarioState, isLoading: scenarioLoading, error: scenarioError, isConnected: scenarioConnected } = useScenarioState(selectedScenarioId || '');
+  
+  // Determine which state to use
+  const isScenario = !!selectedScenarioId;
+  const state = isScenario ? scenarioState : deviceState;
+  const isLoading = isScenario ? scenarioLoading : deviceLoading;
+  const error = isScenario ? scenarioError : deviceError;
+  const isConnected = isScenario ? scenarioConnected : deviceConnected;
   
   // Get device action status
   const executeAction = useExecuteDeviceAction();
@@ -113,7 +122,7 @@ function DeviceStatePanel({ isOpen, className, sseState }: DeviceStatePanelProps
   if (!isOpen) return null;
 
   const renderDeviceSpecificState = () => {
-    if (!deviceStructure?.stateInterface?.fields || !deviceState) {
+    if (!deviceStructure?.stateInterface?.fields || !state) {
       return null;
     }
 
@@ -129,7 +138,7 @@ function DeviceStatePanel({ isOpen, className, sseState }: DeviceStatePanelProps
     return (
       <CollapsibleSection title="Device State" defaultOpen={true}>
         {deviceSpecificFields.map((field) => {
-          const value = (deviceState as any)[field.name];
+          const value = (state as any)[field.name];
           const formattedValue = formatStateValue(value, field.type);
           const iconName = getFieldIcon(field.name);
           
@@ -225,7 +234,7 @@ function DeviceStatePanel({ isOpen, className, sseState }: DeviceStatePanelProps
             <p className="text-destructive">Error loading device state</p>
             <p className="text-xs text-muted-foreground mt-1">{error.message}</p>
           </div>
-        ) : deviceState ? (
+        ) : state ? (
           <div className="space-y-6">
             {/* Connection Status */}
             <CollapsibleSection title="Connection Status" defaultOpen={true}>
@@ -263,7 +272,7 @@ function DeviceStatePanel({ isOpen, className, sseState }: DeviceStatePanelProps
                   />
                   <span className="text-sm font-medium">Device ID</span>
                 </div>
-                <span className="text-sm font-mono text-foreground">{deviceState.device_id}</span>
+                <span className="text-sm font-mono text-foreground">{isScenario ? (state as any).scenario_id : (state as any).device_id}</span>
               </div>
 
               <div className="flex items-center justify-between p-2 rounded-md bg-muted/30">
@@ -277,7 +286,7 @@ function DeviceStatePanel({ isOpen, className, sseState }: DeviceStatePanelProps
                   />
                   <span className="text-sm font-medium">Device Name</span>
                 </div>
-                <span className="text-sm text-foreground">{deviceState.device_name || 'Unknown'}</span>
+                <span className="text-sm text-foreground">{isScenario ? (selectedScenarioId || 'Unknown') : ((state as any).device_name || 'Unknown')}</span>
               </div>
 
               {deviceStructure && (
@@ -369,28 +378,28 @@ function DeviceStatePanel({ isOpen, className, sseState }: DeviceStatePanelProps
             {renderDeviceSpecificState()}
 
             {/* Last Command Section */}
-            {deviceState.last_command && (
+                          {!isScenario && (state as any).last_command && (
               <CollapsibleSection title="Last Command" defaultOpen={false}>
                 <div className="p-3 rounded-md bg-muted/30 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Action</span>
-                    <span className="text-sm font-mono text-foreground">{deviceState.last_command.action}</span>
+                    <span className="text-sm font-mono text-foreground">{(state as any).last_command.action}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Source</span>
-                    <span className="text-sm text-foreground">{deviceState.last_command.source}</span>
+                    <span className="text-sm text-foreground">{(state as any).last_command.source}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Time</span>
                     <span className="text-xs text-muted-foreground">
-                      {new Date(deviceState.last_command.timestamp).toLocaleString()}
+                      {new Date((state as any).last_command.timestamp).toLocaleString()}
                     </span>
                   </div>
-                  {deviceState.last_command.params && (
+                                      {(state as any).last_command.params && (
                     <div className="mt-2">
                       <span className="text-sm font-medium">Parameters</span>
                       <pre className="text-xs text-muted-foreground mt-1 p-2 bg-background rounded border">
-                        {JSON.stringify(deviceState.last_command.params, null, 2)}
+                        {JSON.stringify((state as any).last_command.params, null, 2)}
                       </pre>
                     </div>
                   )}
@@ -399,10 +408,10 @@ function DeviceStatePanel({ isOpen, className, sseState }: DeviceStatePanelProps
             )}
 
             {/* Error Section */}
-            {deviceState.error && (
+                          {!isScenario && (state as any).error && (
               <CollapsibleSection title="Error" defaultOpen={true}>
                 <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20">
-                  <p className="text-sm text-destructive">{deviceState.error}</p>
+                  <p className="text-sm text-destructive">{(state as any).error}</p>
                 </div>
               </CollapsibleSection>
             )}

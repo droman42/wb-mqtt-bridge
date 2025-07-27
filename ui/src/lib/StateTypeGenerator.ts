@@ -184,22 +184,68 @@ ${allDefaults.join(',\n')}
 };`;
   }
 
-  async generateStateHook(stateDefinition: StateDefinition, deviceId: string, stateClassName?: string): Promise<string> {
+  async generateStateHook(stateDefinition: StateDefinition, deviceId: string, stateClassName?: string, deviceClass?: string): Promise<string> {
     const { interfaceName } = stateDefinition;
     const hookName = `use${interfaceName.replace('State', '')}`;
+    const isScenario = deviceClass === 'ScenarioDevice';
     
     // Determine import path based on whether we have a shared state class
     const importPath = stateClassName 
       ? `../../types/generated/${stateClassName}.state`
       : `../types/${interfaceName}`;
 
-    return `import { useState, useEffect } from 'react';
+    // Use appropriate state hook based on device type
+    const stateHookImport = isScenario ? 'useScenarioState' : 'useDeviceState';
+    const stateHookPath = isScenario ? '../../hooks/useScenarioState' : '../../hooks/useDeviceState';
+    
+    if (isScenario) {
+      // Generate scenario-specific hook
+      return `import { useState, useEffect } from 'react';
 import { ${interfaceName}, default${interfaceName} } from '${importPath}';
-import { useDeviceState } from '../../hooks/useDeviceState';
+import { ${stateHookImport} } from '${stateHookPath}';
+
+export function ${hookName}(scenarioId: string = '${deviceId}') {
+  const [state, setState] = useState<${interfaceName}>(default${interfaceName});
+  const { state: scenarioState, isLoading, error } = ${stateHookImport}(scenarioId);
+
+  // Update local state when scenario state changes
+  useEffect(() => {
+    if (scenarioState && scenarioState.devices) {
+      // Map scenario devices to local config state if needed
+      // For now, we'll just keep the default state structure
+      setState(prevState => ({ ...prevState }));
+    }
+  }, [scenarioState]);
+
+  const updateField = <K extends keyof ${interfaceName}>(
+    field: K, 
+    value: ${interfaceName}[K]
+  ) => {
+    setState(prevState => ({ ...prevState, [field]: value }));
+    // Note: For scenarios, we may need different update logic
+    // This depends on how scenario config updates are handled
+  };
+
+  return {
+    state,
+    updateField,
+    setState: (newState: Partial<${interfaceName}>) => {
+      setState(prevState => ({ ...prevState, ...newState }));
+    },
+    scenarioState,
+    isLoading,
+    error
+  };
+}`;
+    } else {
+      // Generate device-specific hook
+      return `import { useState, useEffect } from 'react';
+import { ${interfaceName}, default${interfaceName} } from '${importPath}';
+import { ${stateHookImport} } from '${stateHookPath}';
 
 export function ${hookName}(deviceId: string = '${deviceId}') {
   const [state, setState] = useState<${interfaceName}>(default${interfaceName});
-  const { subscribeToState, updateState } = useDeviceState(deviceId);
+  const { subscribeToState, updateState } = ${stateHookImport}(deviceId);
 
   useEffect(() => {
     const subscription = subscribeToState((newState: Partial<${interfaceName}>) => {
@@ -226,6 +272,7 @@ export function ${hookName}(deviceId: string = '${deviceId}') {
     }
   };
 }`;
+    }
   }
 
   private async parsePythonClassFromImport(modulePath: string, className: string): Promise<PythonParsingResult> {
