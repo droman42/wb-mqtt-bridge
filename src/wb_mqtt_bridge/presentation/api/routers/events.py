@@ -121,8 +121,7 @@ async def devices_stream(request: Request):
     
     **Event Format:**
     ```
-    event: device_state_change
-    data: {"device_id": "tv_1", "property": "power", "value": true, "timestamp": "2024-01-01T12:00:00Z"}
+    data: {"eventType": "state_change", "device_id": "tv_1", "device_name": "Living Room TV", "state": {"power": true}, "timestamp": "2024-01-01T12:00:00Z"}
     ```
     
     Args:

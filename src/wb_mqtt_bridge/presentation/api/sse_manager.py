@@ -26,26 +26,36 @@ class SSEEvent:
         self.timestamp = datetime.now()
     
     def format(self) -> str:
-        """Format the event for SSE transmission"""
+        """Format the event for SSE transmission with embedded event type"""
         lines = []
         
         if self.id:
             lines.append(f"id: {self.id}")
         
-        lines.append(f"event: {self.event_type}")
-        
-        # Convert data to JSON if it's not already a string
+        # Embed event type in the data payload instead of separate event field
         if isinstance(self.data, str):
-            data_str = self.data
+            # If data is already a string, try to parse it as JSON and add eventType
+            try:
+                parsed_data = json.loads(self.data)
+                payload = {"eventType": self.event_type, **parsed_data}
+            except json.JSONDecodeError:
+                # If not valid JSON, wrap the string in an object
+                payload = {"eventType": self.event_type, "message": self.data}
+        elif isinstance(self.data, dict):
+            # If data is a dict, embed eventType at the top level
+            payload = {"eventType": self.event_type, **self.data}
         else:
-            data_str = json.dumps(self.data)
+            # For other data types, wrap in an object
+            payload = {"eventType": self.event_type, "data": self.data}
         
-        # Handle multi-line data
-        for line in data_str.split('\n'):
+        data_str = json.dumps(payload, separators=(",", ":"))
+        
+        # Handle multi-line data (future-proof against pretty-printed JSON)
+        for line in data_str.splitlines():
             lines.append(f"data: {line}")
         
-        lines.append("")  # Empty line to end the event
-        return "\n".join(lines)
+        # SSE events must end with CRLF double newline for proxy compatibility
+        return "\r\n".join(lines) + "\r\n\r\n"
 
 class SSEManager:
     """Manages Server-Sent Event connections and broadcasting"""
