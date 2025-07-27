@@ -23,28 +23,28 @@
         "device": "living_room_tv",
         "command": "power_on",
         "params": {},
-        "condition": "device.power != True",
+        "condition": "device.power != 'on'",
         "delay_after_ms": 5000
       },
       {
         "device": "processor",
         "command": "power_on",
         "params": {"zone": 1},
-        "condition": "device.power != True",
+        "condition": "device.power != 'on'",
         "delay_after_ms": 3000
       },
       {
         "device": "appletv_living",
         "command": "power_on",
         "params": {},
-        "condition": "device.power != True",
+        "condition": "device.power != 'on'",
         "delay_after_ms": 1000
       },
       {
         "device": "mf_amplifier",
-        "command": "power_on",
+        "command": "power",
         "params": {},
-        "condition": "device.power != True",
+        "condition": "device.power != 'on'",
         "delay_after_ms": 1000
       },
       {
@@ -72,7 +72,6 @@
         "device": "mf_amplifier",
         "command": "input_aux2",
         "params": {},
-        "condition": "device.input != 'aux2'",
         "delay_after_ms": 1000
       }
     ],
@@ -88,20 +87,20 @@
         "device": "living_room_tv",
         "command": "power_off",
         "params": {},
-        "condition": "device.power == True",
+        "condition": "device.power == 'on'",
         "delay_after_ms": 1000
       },
       {
         "device": "processor",
         "command": "power_off",
         "params": {},
-        "condition": "device.power == True"
+        "condition": "device.power == 'on'"
       },
       {
         "device": "mf_amplifier",
-        "command": "power_off",
+        "command": "power",
         "params": {},
-        "condition": "device.power == True"
+        "condition": "device.power == 'on'"
       }
     ],
     "manual_instructions": {

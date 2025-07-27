@@ -65,7 +65,6 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             device_name=config.device_name,
             ip_address=config.auralic.ip_address,
             # Initialize all remaining fields from the schema
-            power="unknown",
             volume=0,
             mute=False,
             source=None,
@@ -587,12 +586,12 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                     error="Failed to send IR power on command"
                 )
             
-            # Update state to indicate we're waiting for the device to boot
+            # Update state to indicate device is powering on
             self.update_state(
                 connected=False,
-                power="booting",
+                power="off",
                 message="Device is powering on via IR command",
-                deep_sleep=False  # No longer in deep sleep, now booting
+                deep_sleep=False  # No longer in deep sleep, now powering on
             )
             
             # Start delayed discovery to connect to the device once it's booted
@@ -658,12 +657,12 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                     error="Failed to send IR power on command"
                 )
             
-            # Update state to indicate we're waiting for the device to boot
+            # Update state to indicate device is powering on
             self.update_state(
                 connected=False,
-                power="booting",
+                power="off",
                 message="Device is powering on via IR command",
-                deep_sleep=False  # No longer in deep sleep, now booting
+                deep_sleep=False  # No longer in deep sleep, now powering on
             )
             
             # Start delayed discovery

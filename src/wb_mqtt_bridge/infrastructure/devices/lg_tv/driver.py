@@ -37,7 +37,6 @@ class LgTv(BaseDevice[LgTvState]):
         self.state = LgTvState(
             device_id=self.config.device_id,
             device_name=self.config.device_name,
-            power="unknown",
             volume=None,  # Changed from 0 to None to indicate unknown initial volume
             mute=False,
             current_app=None,
@@ -520,7 +519,7 @@ class LgTv(BaseDevice[LgTvState]):
                 self._cached_input_sources = []
             
             # Set final state for reporting purposes
-            self.state.power = "unknown"  # Power state is unknown after disconnection
+            self.state.power = "off"  # Power state is off after disconnection
             
             return True
         except Exception as e:

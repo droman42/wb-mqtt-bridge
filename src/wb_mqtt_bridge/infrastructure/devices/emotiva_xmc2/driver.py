@@ -67,7 +67,6 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         self.state: EmotivaXMC2State = EmotivaXMC2State(
             device_id=self.config.device_id,
             device_name=self.config.device_name,
-            power=None,
             zone2_power=None,
             input_source=None,
             video_input=None,
@@ -387,7 +386,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         if property_name in ["power", "zone2_power"]:
             # Convert power values to our PowerState enum
             if isinstance(value, str):
-                return PowerState.ON if value.lower() == "on" else PowerState.OFF if value.lower() == "off" else PowerState.UNKNOWN
+                return PowerState.ON if value.lower() == "on" else PowerState.OFF
             return value  # Already converted
         elif property_name in ["volume", "zone2_volume"]:
             # Convert volume to float
@@ -419,11 +418,11 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         # Convert string power states to enum values if needed
         if 'power' in kwargs and isinstance(kwargs['power'], str):
             power_value = kwargs['power'].lower()
-            kwargs['power'] = PowerState.ON if power_value == 'on' else PowerState.OFF if power_value == 'off' else PowerState.UNKNOWN
+            kwargs['power'] = PowerState.ON if power_value == 'on' else PowerState.OFF
             
         if 'zone2_power' in kwargs and isinstance(kwargs['zone2_power'], str):
             zone2_value = kwargs['zone2_power'].lower()
-            kwargs['zone2_power'] = PowerState.ON if zone2_value == 'on' else PowerState.OFF if zone2_value == 'off' else PowerState.UNKNOWN
+            kwargs['zone2_power'] = PowerState.ON if zone2_value == 'on' else PowerState.OFF
             
         # Call the parent update_state method
         super().update_state(**kwargs)
@@ -673,8 +672,8 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         elif zone == Zone.ZONE2:
             current_power = self.state.zone2_power
                 
-        # If state is unknown or stale, synchronize it
-        if current_power is None or current_power == PowerState.UNKNOWN:
+        # If state is None, synchronize it
+        if current_power is None:
             try:
                 # Synchronize state for this zone using _refresh_device_state for main zone
                 # or _synchronize_state for zone2
@@ -845,8 +844,8 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 zone=zone_id
             )
             
-        # If state is unknown, request an update
-        if current_power is None or current_power == PowerState.UNKNOWN:
+        # If state is None, request an update
+        if current_power is None:
             try:
                 # Synchronize state for this zone using _synchronize_state
                 await self._synchronize_state(zone_id)
@@ -1008,8 +1007,8 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             
             # Check if device is powered on - can't change input if off
             if self.state.power != PowerState.ON:
-                # If power state is unknown, try to synchronize
-                if self.state.power is None or self.state.power == PowerState.UNKNOWN:
+                # If power state is None, try to synchronize
+                if self.state.power is None:
                     try:
                         # Use _refresh_device_state to update multiple properties at once
                         await self._refresh_device_state()
@@ -1025,7 +1024,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                     return self.create_command_result(
                         success=False,
                         error=error_message,
-                        power=self.state.power.value if self.state.power else "unknown",
+                        power=self.state.power.value if self.state.power else "off",
                         input=normalized_input
                     )
             

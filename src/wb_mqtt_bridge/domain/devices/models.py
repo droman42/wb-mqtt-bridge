@@ -61,6 +61,7 @@ class BaseDeviceState(BaseModel):
     device_name: str
     last_command: Optional[LastCommand] = None
     error: Optional[str] = None
+    power: str = "off"  # Standardized power state: "on" or "off" (default)
     
     def model_dump(
         self,
@@ -301,7 +302,6 @@ class KitchenHoodState(BaseDeviceState):
 
 class LgTvState(BaseDeviceState):
     """Schema for LG TV state."""
-    power: str
     volume: Optional[int] = None
     mute: bool
     current_app: Optional[str]
@@ -321,7 +321,6 @@ class RevoxA77ReelToReelState(BaseDeviceState):
 class AppleTVState(BaseDeviceState):
     """Schema for Apple TV device state."""
     connected: bool = False
-    power: str = "unknown"
     app: Optional[str] = None
     playback_state: Optional[str] = None
     media_type: Optional[str] = None
@@ -376,12 +375,9 @@ class AuralicDeviceState(BaseDeviceState):
     The power state can have the following values:
     - "on": Device is powered on and operational
     - "off": Device is in standby mode (UPnP control) or deep sleep mode (IR control)
-    - "booting": Device is in the process of booting up after IR power on
-    - "unknown": Device state is unknown
     
     When the device is in deep sleep mode, connected will be False and power will be "off".
     """
-    power: str = "unknown"  # on/off/booting/unknown
     volume: int = 0
     mute: bool = False
     source: Optional[str] = None
@@ -415,7 +411,6 @@ class AuralicDeviceState(BaseDeviceState):
         data.update({
             "device_id": self.device_id,
             "device_name": self.device_name,
-            "power": self.power,
             "volume": self.volume,
             "mute": self.mute,
             "source": self.source,
@@ -444,7 +439,6 @@ class AuralicDeviceState(BaseDeviceState):
 
 class EmotivaXMC2State(BaseDeviceState):
     """Schema for eMotiva XMC2 device state."""
-    power: Optional[str] = None
     zone2_power: Optional[str] = None
     input_source: Optional[str] = None
     video_input: Optional[str] = None
@@ -467,7 +461,7 @@ class EmotivaXMC2State(BaseDeviceState):
         Generate a dictionary representation of EmotivaXMC2State with special handling.
         
         This override adds specific handling for EmotivaXMC2State fields like
-        power and zone2_power which might be enums or special types.
+        zone2_power which might be enums or special types.
         
         Returns:
             Dict[str, Any]: Dictionary representation of the state.
@@ -475,10 +469,7 @@ class EmotivaXMC2State(BaseDeviceState):
         # Get basic serialization from parent class
         data = super().model_dump(**kwargs)
         
-        # Special handling for power states that might be enums
-        if self.power and not isinstance(self.power, str):
-            data["power"] = str(self.power)
-            
+        # Special handling for zone2_power that might be enum
         if self.zone2_power and not isinstance(self.zone2_power, str):
             data["zone2_power"] = str(self.zone2_power)
         

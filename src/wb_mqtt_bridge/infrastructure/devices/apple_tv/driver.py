@@ -44,29 +44,21 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
         self.atv_config = None # pyatv config object (renamed from self.config)
         self._app_list: Dict[str, str] = {} # Maps lowercase app name to app identifier
 
-        # Initialize state using the AppleTVState Pydantic model
+        # Initialize state with typed Pydantic model
         self.state = AppleTVState(
-            device_id=self.device_id,
-            device_name=self.device_name,
+            device_id=config.device_id,
+            device_name=config.device_name,
             connected=False,
-            power="unknown",  # Corresponds to PowerState (on, off, unknown)
             app=None,
-            playback_state=None,  # Corresponds to DeviceState (idle, playing, paused, etc.)
-            media_type=None,  # Corresponds to MediaType (music, video, tv, unknown)
+            playback_state=None,
+            media_type=None,
             title=None,
             artist=None,
             album=None,
             position=None,
             total_time=None,
-            volume=None,  # 0-100
-            error=None,
-            ip_address=self.apple_tv_config.ip_address,
-            last_command=LastCommand(
-                action="init",
-                source="system",
-                timestamp=datetime.now(),
-                params=None
-            )
+            volume=None,
+            ip_address=config.apple_tv.ip_address
         )
         
         # Log instance creation
@@ -349,7 +341,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             elif power_info == PowerState.Off:
                 power_state = "off"
             else:
-                power_state = "unknown"
+                power_state = "off"
             
             # If power is off, no point checking media etc.
             if power_state != "on":
