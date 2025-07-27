@@ -35,7 +35,7 @@
     },
     {
       "device": "ld_player",
-      "command": "power_on",
+      "command": "power",
       "params": {},
       "condition": "device.power != 'on'",
       "delay_after_ms": 1000
@@ -72,7 +72,7 @@
       "device": "processor",
       "command": "set_input",
       "params": {"input": "hdmi3"},
-      "condition": "device.input != 'hdmi3'",
+      "condition": "device.input_source != 'hdmi3'",
       "delay_after_ms": 1000
     },
     {
@@ -91,7 +91,7 @@
   "shutdown_sequence": [
     {
       "device": "ld_player",
-      "command": "power_off",
+      "command": "power",
       "params": {},
       "condition": "device.power == 'on'"
     },

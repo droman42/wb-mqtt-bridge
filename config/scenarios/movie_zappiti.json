@@ -63,7 +63,7 @@
       "device": "processor",
       "command": "set_input",
       "params": {"input": "hdmi1"},
-      "condition": "device.input != 'hdmi1'",
+      "condition": "device.input_source != 'hdmi1'",
       "delay_after_ms": 1000
     },
     {
