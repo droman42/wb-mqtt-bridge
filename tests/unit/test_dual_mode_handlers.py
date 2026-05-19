@@ -10,7 +10,10 @@ from typing import Dict, Any, Optional, Callable, Awaitable
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
-from wb_mqtt_bridge.infrastructure.config.models import LastCommand
+from wb_mqtt_bridge.domain.devices.models import LastCommand
+import pytest
+
+pytestmark = pytest.mark.unit
 
 # Mock implementations for missing methods
 async def mock_call_action_handler(

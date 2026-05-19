@@ -9,6 +9,8 @@ from wb_mqtt_bridge.domain.scenarios.models import (
     RoomDefinition
 )
 
+pytestmark = pytest.mark.unit
+
 class TestManualInstructions:
     def test_default_values(self):
         instructions = ManualInstructions()

@@ -100,6 +100,13 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 addopts = "-v --tb=short"
+markers = [
+    "unit: pure unit test (no I/O, all mocked)",
+    "integration: integration test with mocked externals (safe for CI)",
+    "requires_mqtt: needs a running MQTT broker",
+    "requires_device: needs real device hardware on the LAN",
+    "slow: takes more than ~5 seconds",
+]
 
 [tool.black]
 line-length = 88

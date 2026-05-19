@@ -6,6 +6,8 @@ from unittest.mock import patch
 from wb_mqtt_bridge.domain.rooms.service import RoomManager
 from wb_mqtt_bridge.domain.scenarios.models import RoomDefinition
 
+pytestmark = pytest.mark.unit
+
 # Sample room data for testing
 SAMPLE_ROOMS = {
     "living_room": {

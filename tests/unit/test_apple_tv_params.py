@@ -11,6 +11,9 @@ from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 from pyatv.const import PowerState
 from pyatv.interface import Playing
 from tests.test_helpers import wrap_device_init
+import pytest
+
+pytestmark = pytest.mark.integration
 
 # Wrap the AppleTVDevice class to handle dictionary configs
 wrap_device_init(AppleTVDevice)

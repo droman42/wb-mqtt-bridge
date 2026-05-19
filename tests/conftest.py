@@ -69,11 +69,11 @@ def pytest_configure(config):
 def mock_device_manager():
     """Create a mock device manager with mock devices."""
     tv = MagicMock()
-    tv.execute_command = AsyncMock()
+    tv.execute_action = AsyncMock()
     tv.get_current_state = MagicMock(return_value={"power": False})
     
     soundbar = MagicMock()
-    soundbar.execute_command = AsyncMock()
+    soundbar.execute_action = AsyncMock()
     soundbar.get_current_state = MagicMock(return_value={"power": False})
     
     device_manager = MagicMock()

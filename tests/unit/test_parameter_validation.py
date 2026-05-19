@@ -8,6 +8,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 from wb_mqtt_bridge.infrastructure.config.models import CommandParameterDefinition
+import pytest
+
+pytestmark = pytest.mark.unit
 
 class TestParameterValidation(unittest.TestCase):
     """Test suite for parameter validation functionality."""
