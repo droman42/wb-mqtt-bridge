@@ -8,8 +8,12 @@ FROM ${ARCH:+$ARCH/}python:3.11-slim-bullseye AS builder
 # Set working directory
 WORKDIR /build
 
-# Install system dependencies needed for building
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install system dependencies needed for building.
+# Acquire::Retries=3 makes apt retry transient transport errors (the Debian
+# armhf mirror reaches via Fastly's CDN and occasionally drops mid-fetch
+# with "Connection reset by peer" — see GitHub Actions build flakes 2026-05-19).
+RUN apt-get -o Acquire::Retries=3 update && \
+    apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
     build-essential \
     libffi-dev \
     libssl-dev \
@@ -54,8 +58,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONHASHSEED=1
 
-# Install minimal runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install minimal runtime dependencies (same Acquire::Retries=3 motivation as builder).
+RUN apt-get -o Acquire::Retries=3 update && \
+    apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
     libffi7 \
     && rm -rf /var/lib/apt/lists/*
 
