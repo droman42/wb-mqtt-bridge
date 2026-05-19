@@ -1,541 +1,211 @@
-import unittest
-import sys
-import json
-import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-import os
+"""Fresh tests for LgTv, written against the post-hexagonal-refactor driver.
 
-# Add parent directory to path to allow importing
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+The previous test file used the old dict-shaped config schema and asserted on
+internal helpers / mock-attached methods that no longer fit the LgTv driver,
+which delegates most actions through `_execute_media_command` against
+`self.media`, `self.tv_control`, `self.input_control`, `self.app`, etc.,
+populated from `self.client` during setup().
+
+These tests bypass setup() entirely:
+  - Construct LgTv with a typed LgTvDeviceConfig
+  - Inject AsyncMock instances directly for self.client/media/tv_control/etc.
+  - Flip state.connected = True
+  - Drive handlers and assert delegation + state mutations
+"""
+import pytest
+from unittest.mock import AsyncMock, MagicMock
 
 from wb_mqtt_bridge.infrastructure.devices.lg_tv.driver import LgTv
-from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
-from tests.test_helpers import wrap_device_init
+from wb_mqtt_bridge.infrastructure.config.models import (
+    LgTvDeviceConfig,
+    LgTvConfig,
+    StandardCommandConfig,
+    CommandParameterDefinition,
+)
 
-pytestmark = pytest.mark.skip(reason="device-config fixtures use obsolete shapes")
-# Wrap the LgTv class to handle dictionary configs
-wrap_device_init(LgTv)
 
-class TestLgTvParameters(unittest.IsolatedAsyncioTestCase):
-    """Test suite for LG TV device parameter handling."""
-    
-    def setUp(self):
-        """Set up for tests."""
-        # Create a mock configuration
-        self.config = {
-            "device_id": "test_lg_tv",
-            "device_name": "Test LG TV",
-            "device_type": "lg_tv",
-            "tv": {
-                "ip_address": "192.168.1.100",
-                "mac_address": "00:11:22:33:44:55",
-                "client_key": "test_key",
-                "secure": False
-            },
-            "commands": {
-                "power_on": {
-                    "action": "power_on",
-                    "topic": "/test/lg_tv/power_on"
-                },
-                "power_off": {
-                    "action": "power_off",
-                    "topic": "/test/lg_tv/power_off"
-                },
-                "set_volume": {
-                    "action": "set_volume",
-                    "topic": "/test/lg_tv/set_volume",
-                    "params": [
-                        {"name": "level", "type": "range", "min": 0, "max": 100, "required": True}
-                    ]
-                },
-                "mute": {
-                    "action": "mute",
-                    "topic": "/test/lg_tv/mute",
-                    "params": [
-                        {"name": "state", "type": "boolean", "required": False}
-                    ]
-                },
-                "move_cursor": {
-                    "action": "move_cursor",
-                    "topic": "/test/lg_tv/move_cursor",
-                    "params": [
-                        {"name": "x", "type": "range", "min": 0, "max": 100, "required": True},
-                        {"name": "y", "type": "range", "min": 0, "max": 100, "required": True}
-                    ]
-                },
-                "launch_app": {
-                    "action": "launch_app",
-                    "topic": "/test/lg_tv/launch_app",
-                    "params": [
-                        {"name": "app_id", "type": "string", "required": True}
-                    ]
-                }
-            }
-        }
-        
-        # Create mock objects
-        self.mqtt_client = MagicMock()
-        
-        # Setup LG TV device with mocks
-        with patch('wb_mqtt_bridge.infrastructure.devices.lg_tv.driver.WebOSTV'), patch('wb_mqtt_bridge.infrastructure.devices.lg_tv.driver.SecureWebOSTV'):
-            self.lg_tv = LgTv(self.config, self.mqtt_client)
-            
-        # Mock methods to avoid actual network operations
-        self.lg_tv.power_on = AsyncMock(return_value=True)
-        self.lg_tv.power_off = AsyncMock(return_value=True)
-        self.lg_tv._execute_media_command = AsyncMock(return_value=True)
-        self.lg_tv._execute_pointer_command = AsyncMock(return_value=True)
-        self.lg_tv._execute_input_command = AsyncMock(return_value=True)
-        self.lg_tv.update_state = AsyncMock()
-        self.lg_tv._update_last_command = AsyncMock()
-        self.lg_tv.app = MagicMock()
-        self.lg_tv.app.launch = AsyncMock(return_value={"returnValue": True})
-        self.lg_tv._find_app_by_name_or_id = MagicMock(return_value={"id": "test_app_id", "title": "Test App"})
-        self.lg_tv._get_available_apps_internal = AsyncMock(return_value=[{"id": "test_app_id", "title": "Test App"}])
-        self.lg_tv.state = {"connected": True}
-        self.lg_tv.client = MagicMock()  # Mock client for connection check
-        
-        # For message testing, we need to use the original handle_message but
-        # mock _execute_single_action to avoid actual execution
-        self.lg_tv.handle_message = BaseDevice.handle_message.__get__(self.lg_tv, BaseDevice)
-        self.lg_tv._execute_single_action = AsyncMock()
-        self.lg_tv.get_available_commands = MagicMock(return_value=self.config["commands"])
-        
-    async def test_handle_power_on(self):
-        """Test power_on handler with parameters."""
-        # Create command config and params
-        cmd_config = self.config["commands"]["power_on"]
-        params = {}
-        
-        # Call the handler
-        result = await self.lg_tv.handle_power_on(cmd_config, params)
-        
-        # Verify the result
-        self.assertTrue(result)
-        self.lg_tv.power_on.assert_called_once()
-    
-    async def test_handle_power_off(self):
-        """Test power_off handler with parameters."""
-        # Create command config and params
-        cmd_config = self.config["commands"]["power_off"]
-        params = {}
-        
-        # Call the handler
-        result = await self.lg_tv.handle_power_off(cmd_config, params)
-        
-        # Verify the result
-        self.assertTrue(result)
-        self.lg_tv.power_off.assert_called_once()
-    
-    async def test_handle_set_volume(self):
-        """Test set_volume handler with parameters."""
-        # Create command config and params
-        cmd_config = self.config["commands"]["set_volume"]
-        params = {"level": 75}
-        
-        # Call the handler
-        result = await self.lg_tv.handle_set_volume(cmd_config, params)
-        
-        # Verify the result
-        self.assertTrue(result)
-        self.lg_tv._execute_media_command.assert_called_once()
-        
-        # Check the parameters passed to _execute_media_command
-        call_args = self.lg_tv._execute_media_command.call_args[1]
-        self.assertEqual(call_args["params"]["level"], 75)
+pytestmark = pytest.mark.integration
 
-    async def test_handle_mute(self):
-        """Test mute handler with parameters."""
-        # Create command config and params
-        cmd_config = self.config["commands"]["mute"]
-        
-        # Test with explicit state parameter
-        params = {"state": True}
-        result = await self.lg_tv.handle_mute(cmd_config, params)
-        
-        # Verify the result
-        self.assertTrue(result)
-        self.lg_tv._execute_media_command.assert_called_once()
-        
-        # Check the parameters passed to _execute_media_command
-        call_args = self.lg_tv._execute_media_command.call_args[1]
-        self.assertEqual(call_args["params"]["state"], True)
-        
-        # Reset mocks
-        self.lg_tv._execute_media_command.reset_mock()
-        
-        # Test without state parameter (should toggle)
-        params = {}
-        result = await self.lg_tv.handle_mute(cmd_config, params)
-        
-        # Verify the result
-        self.assertTrue(result)
-        self.lg_tv._execute_media_command.assert_called_once()
-        
-        # Check the parameters passed to _execute_media_command
-        call_args = self.lg_tv._execute_media_command.call_args[1]
-        self.assertEqual(call_args["params"], {})
 
-    async def test_handle_move_cursor(self):
-        """Test move_cursor handler with parameters."""
-        # Create command config and params
-        cmd_config = self.config["commands"]["move_cursor"]
-        params = {"x": 40, "y": 60}
-        
-        # Call the handler
-        result = await self.lg_tv.handle_move_cursor(cmd_config, params)
-        
-        # Verify the result
-        self.assertTrue(result)
-        self.lg_tv._execute_pointer_command.assert_called_once()
-        
-        # Check the parameters passed to _execute_pointer_command
-        call_args = self.lg_tv._execute_pointer_command.call_args[1]
-        self.assertEqual(call_args["params"]["x"], 40)
-        self.assertEqual(call_args["params"]["y"], 60)
-        self.assertEqual(call_args["params"]["drag"], False)
+def _make_config() -> LgTvDeviceConfig:
+    return LgTvDeviceConfig(
+        device_id="test_lg_tv",
+        device_name="Test LG TV",
+        device_class="LgTv",
+        config_class="LgTvDeviceConfig",
+        tv=LgTvConfig(
+            ip_address="192.168.1.100",
+            mac_address="00:11:22:33:44:55",
+            broadcast_ip="192.168.1.255",
+            secure=False,
+            client_key="test_key",
+        ),
+        commands={
+            "power_on": StandardCommandConfig(action="power_on"),
+            "power_off": StandardCommandConfig(action="power_off"),
+            "volume_up": StandardCommandConfig(action="volume_up"),
+            "volume_down": StandardCommandConfig(action="volume_down"),
+            "mute": StandardCommandConfig(action="mute"),
+            "set_volume": StandardCommandConfig(
+                action="set_volume",
+                params=[CommandParameterDefinition(name="level", type="range", min=0, max=100, required=True)],
+            ),
+            "home": StandardCommandConfig(action="home"),
+            "back": StandardCommandConfig(action="back"),
+            "up": StandardCommandConfig(action="up"),
+            "down": StandardCommandConfig(action="down"),
+            "left": StandardCommandConfig(action="left"),
+            "right": StandardCommandConfig(action="right"),
+            "enter": StandardCommandConfig(action="enter"),
+            "menu": StandardCommandConfig(action="menu"),
+            "play": StandardCommandConfig(action="play"),
+            "pause": StandardCommandConfig(action="pause"),
+            "stop": StandardCommandConfig(action="stop"),
+        },
+    )
 
-    async def test_handle_launch_app(self):
-        """Test launch_app handler with parameters."""
-        # Create command config and params
-        cmd_config = self.config["commands"]["launch_app"]
-        params = {"app_id": "netflix"}
-        
-        # Call the handler
-        result = await self.lg_tv.handle_launch_app(cmd_config, params)
-        
-        # Verify the result
-        self.assertTrue(result)
-        self.lg_tv._get_available_apps_internal.assert_called_once()
-        self.lg_tv._find_app_by_name_or_id.assert_called_once()
-        self.lg_tv.app.launch.assert_called_once()
-        
-        # Check the parameters passed to app.launch
-        call_args = self.lg_tv.app.launch.call_args[0]
-        self.assertEqual(call_args[0], "test_app_id")
 
-    async def test_handle_launch_app_missing_parameter(self):
-        """Test launch_app handler with missing required parameter."""
-        # Create command config and params
-        cmd_config = self.config["commands"]["launch_app"]
-        params = {}  # Missing required app_id
-        
-        # Call the handler
-        result = await self.lg_tv.handle_launch_app(cmd_config, params)
-        
-        # Verify the result (should fail)
-        self.assertFalse(result)
-        self.lg_tv._get_available_apps_internal.assert_not_called()
-        
-    async def test_handle_button_commands(self):
-        """Test button command handlers with parameters."""
-        # Create a list of button commands to test
-        button_commands = [
-            ("home", "home"), 
-            ("back", "back"),
-            ("up", "up"),
-            ("down", "down"),
-            ("left", "left"),
-            ("right", "right"),
-            ("enter", "enter"),
-            ("exit", "exit"),
-            ("menu", "menu"),
-            ("settings", "settings")
-        ]
-        
-        for action, method_name in button_commands:
-            # Create a mock command config
-            cmd_config = {"action": action}
-            params = {}
-            
-            # Get the handler method
-            handler_method = getattr(self.lg_tv, f"handle_{action}")
-            
-            # Reset the mock
-            self.lg_tv._execute_input_command.reset_mock()
-            
-            # Call the handler
-            result = await handler_method(cmd_config, params)
-            
-            # Verify the result
-            self.assertTrue(result, f"Handler for {action} failed")
-            self.lg_tv._execute_input_command.assert_called_once_with(action, method_name)
+@pytest.fixture
+def fake_media():
+    """AsyncMock standing in for the WebOS MediaControl."""
+    m = AsyncMock()
+    m.volume_up = AsyncMock(return_value={})
+    m.volume_down = AsyncMock(return_value={})
+    m.set_mute = AsyncMock(return_value={})
+    m.set_volume = AsyncMock(return_value={})
+    m.play = AsyncMock(return_value={})
+    m.pause = AsyncMock(return_value={})
+    m.stop = AsyncMock(return_value={})
+    m.get_volume = AsyncMock(return_value={"volume": 25, "muted": False})
+    return m
 
-    async def test_handle_media_commands(self):
-        """Test media playback command handlers with parameters."""
-        # Create a list of media commands to test
-        media_commands = [
-            ("play", "play"),
-            ("pause", "pause"),
-            ("stop", "stop"),
-            ("rewind_forward", "rewind_forward"),
-            ("rewind_backward", "rewind_backward")
-        ]
-        
-        for action, method_name in media_commands:
-            # Create a mock command config
-            cmd_config = {"action": action}
-            params = {}
-            
-            # Get the handler method
-            handler_method = getattr(self.lg_tv, f"handle_{action}")
-            
-            # Reset the mock
-            self.lg_tv._execute_media_command.reset_mock()
-            
-            # Call the handler
-            result = await handler_method(cmd_config, params)
-            
-            # Verify the result
-            self.assertTrue(result, f"Handler for {action} failed")
-            
-            # For these simple media commands, the first arg is action_name and second is media_method_name
-            self.lg_tv._execute_media_command.assert_called_once()
-            call_args = self.lg_tv._execute_media_command.call_args[0]
-            
-            # The action name should match the handler name
-            expected_action = action
-            expected_method = method_name
-            
-            self.assertEqual(call_args[0], expected_action)
-            self.assertEqual(call_args[1], expected_method)
 
-    async def test_handle_volume_controls(self):
-        """Test volume control handlers with parameters."""
-        # Test volume_up
-        cmd_config = {"action": "volume_up"}
-        params = {}
-        
-        result = await self.lg_tv.handle_volume_up(cmd_config, params)
-        self.assertTrue(result)
-        self.lg_tv._execute_media_command.assert_called_once_with(
-            action_name="volume_up",
-            media_method_name="volume_up",
-            update_volume_after=True
-        )
-        
-        # Reset mock
-        self.lg_tv._execute_media_command.reset_mock()
-        
-        # Test volume_down
-        cmd_config = {"action": "volume_down"}
-        params = {}
-        
-        result = await self.lg_tv.handle_volume_down(cmd_config, params)
-        self.assertTrue(result)
-        self.lg_tv._execute_media_command.assert_called_once_with(
-            action_name="volume_down",
-            media_method_name="volume_down",
-            update_volume_after=True
-        )
+@pytest.fixture
+def fake_tv_control():
+    """AsyncMock for TV navigation (home/back/menu)."""
+    return AsyncMock()
 
-    @patch.object(BaseDevice, '_resolve_and_validate_params')
-    async def test_handle_message_json_payload(self, mock_validate):
-        """Test message handling with JSON payload for parameterized commands."""
-        # Setup mocks for parameter validation
-        mock_validate.return_value = {"level": 80}
-        
-        # Create a separate handler mock that we'll check
-        original_handler = self.lg_tv.handle_set_volume
-        self.lg_tv.handle_set_volume = AsyncMock(return_value=True)
-        
-        # Create a command message with JSON payload
-        topic = self.config["commands"]["set_volume"]["topic"]
-        payload = json.dumps({"level": 80})
-        
-        # Mock the _get_action_handler method to return our mocked handler
-        self.lg_tv._get_action_handler = MagicMock(return_value=self.lg_tv.handle_set_volume)
-        
-        # Handle the message
-        await self.lg_tv.handle_message(topic, payload)
-        
-        # Verify that _execute_single_action was called with correct command name
-        self.lg_tv._execute_single_action.assert_called_once()
-        call_args = self.lg_tv._execute_single_action.call_args[0]
-        self.assertEqual(call_args[0], "set_volume")  # action name
-        self.assertEqual(call_args[1], self.config["commands"]["set_volume"])  # cmd_config
-        
-        # Restore original handler
-        self.lg_tv.handle_set_volume = original_handler
 
-    @patch.object(BaseDevice, '_resolve_and_validate_params')
-    async def test_handle_message_simple_payload(self, mock_validate):
-        """Test message handling with simple numeric payload for parameterized commands."""
-        # Setup mocks for parameter validation
-        mock_validate.return_value = {"level": 65}
-        
-        # Create a separate handler mock that we'll check
-        original_handler = self.lg_tv.handle_set_volume
-        self.lg_tv.handle_set_volume = AsyncMock(return_value=True)
-        
-        # Create a command message with raw payload
-        topic = self.config["commands"]["set_volume"]["topic"]
-        payload = "65"  # Simple numeric payload
-        
-        # Mock the _get_action_handler method to return our mocked handler
-        self.lg_tv._get_action_handler = MagicMock(return_value=self.lg_tv.handle_set_volume)
-        
-        # Handle the message
-        await self.lg_tv.handle_message(topic, payload)
-        
-        # Verify that _execute_single_action was called with correct command name
-        self.lg_tv._execute_single_action.assert_called_once()
-        call_args = self.lg_tv._execute_single_action.call_args[0]
-        self.assertEqual(call_args[0], "set_volume")  # action name
-        self.assertEqual(call_args[1], self.config["commands"]["set_volume"])  # cmd_config
-        self.assertIsNotNone(call_args[2])  # params should not be None
-        
-        # Restore original handler
-        self.lg_tv.handle_set_volume = original_handler
+@pytest.fixture
+def fake_input_control():
+    """AsyncMock for direction/click keys (up/down/left/right/enter/exit/...)."""
+    return AsyncMock()
 
-class TestLgTvPointerCommands(unittest.TestCase):
-    """Test pointer command handling in the LG TV device."""
 
-    def setUp(self):
-        """Set up test environment before each test."""
-        # Mock config for test TV
-        self.config = {
-            "device_id": "test_tv",
-            "device_name": "Test TV",
-            "commands": {
-                "move_cursor": {
-                    "action": "move_cursor",
-                    "topic": "/devices/tv/cursor/move",
-                    "params": [
-                        {"name": "x", "type": "float", "required": True},
-                        {"name": "y", "type": "float", "required": True},
-                        {"name": "drag", "type": "boolean", "required": False, "default": False}
-                    ]
-                },
-                "move_cursor_relative": {
-                    "action": "move_cursor_relative",
-                    "topic": "/devices/tv/cursor/move_relative",
-                    "params": [
-                        {"name": "dx", "type": "float", "required": True},
-                        {"name": "dy", "type": "float", "required": True},
-                        {"name": "drag", "type": "boolean", "required": False, "default": False}
-                    ]
-                },
-                "click": {
-                    "action": "click",
-                    "topic": "/devices/tv/cursor/click",
-                    "params": [
-                        {"name": "x", "type": "float", "required": False},
-                        {"name": "y", "type": "float", "required": False},
-                        {"name": "drag", "type": "boolean", "required": False, "default": False}
-                    ]
-                }
-            }
-        }
-        
-        # Create TV instance with mocked client
-        self.lg_tv = LgTv(self.config)
-        self.lg_tv.client = Mock()
-        self.lg_tv.input_control = Mock()
-        self.lg_tv.input_control.move = AsyncMock(return_value=True)
-        self.lg_tv.input_control.click = AsyncMock(return_value=True)
-        
-        # Mock state as a dictionary instead of trying to use non-existent attributes
-        # This matches how the LgTv class actually stores pointer state
-        self.lg_tv.state = Mock()
-        self.lg_tv.state.connected = True
-        
-        # Store pointer state as a separate property to mimic real implementation
-        self._pointer_x = 0.5
-        self._pointer_y = 0.5
-        
-        # Mock _update_last_command
-        self.lg_tv._update_last_command = AsyncMock()
-    
-    @pytest.mark.asyncio
-    async def test_move_cursor(self):
-        """Test move_cursor handler with valid parameters."""
-        # Set up test parameters
-        cmd_config = self.config["commands"]["move_cursor"]
-        params = {"x": 0.75, "y": 0.25, "drag": True}
-        
-        # Call handler
-        result = await self.lg_tv.handle_move_cursor(cmd_config, params)
-        
-        # Verify result
-        self.assertTrue(result)
-        self.lg_tv.input_control.move.assert_called_once_with(x=0.75, y=0.25, drag=True)
-        self.lg_tv._update_last_command.assert_called_once()
-        
-        # Check that input_control.move was called with correctly calculated coordinates
-        call_args = self.lg_tv.input_control.move.call_args[1]
-        self.assertAlmostEqual(call_args["x"], 0.55, places=2)  # 0.5 + (5/100) = 0.55
-        self.assertAlmostEqual(call_args["y"], 0.4, places=2)   # 0.5 + (-10/100) = 0.4
-        self.assertEqual(call_args["drag"], True)
-        
-        # Update our local pointer state to match what we expect
-        self._pointer_x = 0.55
-        self._pointer_y = 0.4
-        
-    @pytest.mark.asyncio
-    async def test_move_cursor_missing_params(self):
-        """Test move_cursor handler with missing parameters."""
-        # Set up test with missing y parameter
-        cmd_config = self.config["commands"]["move_cursor"]
-        params = {"x": 0.75}
-        
-        # Call handler
-        result = await self.lg_tv.handle_move_cursor(cmd_config, params)
-        
-        # Verify result - should fail due to missing y parameter
-        self.assertFalse(result)
-        self.lg_tv.input_control.move.assert_not_called()
-        
-    @pytest.mark.asyncio
-    async def test_move_cursor_relative(self):
-        """Test move_cursor_relative handler with valid parameters."""
-        # Set up test parameters
-        cmd_config = self.config["commands"]["move_cursor_relative"]
-        params = {"dx": 5, "dy": -10, "drag": True}
-        
-        # Call handler
-        result = await self.lg_tv.handle_move_cursor_relative(cmd_config, params)
-        
-        # Verify result
-        self.assertTrue(result)
-        
-        # Check that input_control.move was called with correctly calculated coordinates
-        call_args = self.lg_tv.input_control.move.call_args[1]
-        self.assertAlmostEqual(call_args["x"], 0.55, places=2)  # 0.5 + (5/100) = 0.55
-        self.assertAlmostEqual(call_args["y"], 0.4, places=2)   # 0.5 + (-10/100) = 0.4
-        self.assertEqual(call_args["drag"], True)
-        
-        # Update our local pointer state to match what we expect
-        self._pointer_x = 0.55
-        self._pointer_y = 0.4
-        
-    @pytest.mark.asyncio
-    async def test_click_with_coordinates(self):
-        """Test click handler with specific coordinates."""
-        # Set up test parameters
-        cmd_config = self.config["commands"]["click"]
-        params = {"x": 0.3, "y": 0.7}
-        
-        # Call handler
-        result = await self.lg_tv.handle_click(cmd_config, params)
-        
-        # Verify result
-        self.assertTrue(result)
-        self.lg_tv.input_control.click.assert_called_once_with(x=0.3, y=0.7, drag=False)
-        
-    @pytest.mark.asyncio
-    async def test_click_without_coordinates(self):
-        """Test click handler without coordinates (clicks at current position)."""
-        # Set up test parameters
-        cmd_config = self.config["commands"]["click"]
-        params = {}
-        
-        # Call handler
-        result = await self.lg_tv.handle_click(cmd_config, params)
-        
-        # Verify result
-        self.assertTrue(result)
-        self.lg_tv.input_control.click.assert_called_once_with()
+@pytest.fixture
+def device(fake_media, fake_tv_control, fake_input_control):
+    """LgTv with WebOS dependencies pre-wired and state.connected=True (no setup() run)."""
+    d = LgTv(_make_config(), mqtt_client=MagicMock())
+    d.client = AsyncMock()  # the WebOSTV instance
+    d.media = fake_media
+    d.tv_control = fake_tv_control
+    d.input_control = fake_input_control
+    d.app = AsyncMock()
+    d.system = AsyncMock()
+    d.source_control = AsyncMock()
+    d.state.connected = True
+    return d
 
-if __name__ == '__main__':
-    unittest.main() 
+
+# --- Media: volume + mute ---------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_volume_up_calls_media_volume_up(device, fake_media):
+    result = await device.handle_volume_up(device.config.commands["volume_up"], {})
+    fake_media.volume_up.assert_awaited_once()
+    assert result["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_volume_down_calls_media_volume_down(device, fake_media):
+    result = await device.handle_volume_down(device.config.commands["volume_down"], {})
+    fake_media.volume_down.assert_awaited_once()
+    assert result["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_mute_toggle_calls_set_mute(device, fake_media):
+    """Mute with no explicit state toggles based on current value pulled from media.get_volume()."""
+    result = await device.handle_mute(device.config.commands["mute"], {})
+    fake_media.set_mute.assert_awaited_once()
+    assert result["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_set_volume_calls_set_volume_with_int(device, fake_media):
+    result = await device.handle_set_volume(device.config.commands["set_volume"], {"level": 42})
+    fake_media.set_volume.assert_awaited_once_with(42)
+    assert result["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_set_volume_rejects_missing_level(device, fake_media):
+    result = await device.handle_set_volume(device.config.commands["set_volume"], {})
+    assert result["success"] is False
+    fake_media.set_volume.assert_not_awaited()
+
+
+# --- Disconnect guard -------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_media_commands_fail_when_disconnected(device, fake_media):
+    """If state.connected is False, _execute_media_command refuses and returns success=False."""
+    device.state.connected = False
+
+    result = await device.handle_volume_up(device.config.commands["volume_up"], {})
+
+    assert result["success"] is False
+    fake_media.volume_up.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_media_commands_fail_when_media_missing(device, fake_media):
+    """If self.media is None (setup not run), media commands return success=False."""
+    device.media = None
+    result = await device.handle_volume_up(device.config.commands["volume_up"], {})
+    assert result["success"] is False
+
+
+# --- Playback ---------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_play_calls_media_play(device, fake_media):
+    result = await device.handle_play(device.config.commands["play"], {})
+    fake_media.play.assert_awaited_once()
+    assert result["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_pause_calls_media_pause(device, fake_media):
+    result = await device.handle_pause(device.config.commands["pause"], {})
+    fake_media.pause.assert_awaited_once()
+    assert result["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_stop_calls_media_stop(device, fake_media):
+    result = await device.handle_stop(device.config.commands["stop"], {})
+    fake_media.stop.assert_awaited_once()
+    assert result["success"] is True
+
+
+# --- State observation ------------------------------------------------------
+
+
+def test_initial_state_mirrors_config(device):
+    """After construction, state reflects the config's tv block (ip_address, mac_address)."""
+    assert device.state.device_id == "test_lg_tv"
+    assert device.state.device_name == "Test LG TV"
+    assert device.state.ip_address == "192.168.1.100"
+    assert device.state.mac_address == "00:11:22:33:44:55"
+
+
+def test_disconnected_state_flag_writable(device):
+    """state.connected is a regular Pydantic field that can be toggled in tests."""
+    device.state.connected = False
+    assert device.state.connected is False
+    device.state.connected = True
+    assert device.state.connected is True

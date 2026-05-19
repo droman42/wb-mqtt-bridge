@@ -25,7 +25,17 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from wb_mqtt_bridge.infrastructure.devices.lg_tv.driver import LgTv
 import pytest
 
-pytestmark = pytest.mark.skip(reason="collection errors; pending repair")
+# Note: this file is primarily a CLI diagnostic tool, not a pytest test suite —
+# its core helpers (_check_natural_initialization, _check_direct_power_on,
+# _check_power_functions, _run_lg_tv_diagnostic) are intended to be invoked
+# manually via `python tests/test_lg_tv.py <config.json>` against a real TV
+# on the LAN. They were previously prefixed `test_` which made pytest try
+# to collect them as tests (without fixtures, this errored). They've been
+# renamed to underscore-prefixed names so pytest leaves them alone.
+# The unit-level handler tests for LgTv live in tests/unit/test_lg_tv_params.py.
+pytestmark = pytest.mark.integration
+
+
 def setup_logging() -> None:
     """Configure logging for the test script."""
     logging.basicConfig(
@@ -55,7 +65,7 @@ def load_config(config_path: str) -> Dict[str, Any]:
         return json.load(f)
 
 
-async def test_natural_initialization(tv: LgTv) -> bool:
+async def _check_natural_initialization(tv: LgTv) -> bool:
     """
     Test the TV's natural initialization process, including Wake-on-LAN if needed.
     This tests the device's ability to automatically wake and connect to the TV.
@@ -156,7 +166,7 @@ async def test_natural_initialization(tv: LgTv) -> bool:
         return False
 
 
-async def test_direct_power_on(tv: LgTv) -> bool:
+async def _check_direct_power_on(tv: LgTv) -> bool:
     """
     Test direct power-on functionality, which should use WoL if the TV is off.
     
@@ -227,7 +237,7 @@ async def test_direct_power_on(tv: LgTv) -> bool:
     return result
 
 
-async def test_power_functions(tv: LgTv) -> Dict[str, Any]:
+async def _check_power_functions(tv: LgTv) -> Dict[str, Any]:
     """
     Test power-related functionality of the TV.
     
@@ -290,7 +300,7 @@ async def test_power_functions(tv: LgTv) -> Dict[str, Any]:
     return results
 
 
-async def test_lg_tv(config_path: str) -> None:
+async def _run_lg_tv_diagnostic(config_path: str) -> None:
     """
     Main test function for LG TV device.
     
@@ -323,13 +333,13 @@ async def test_lg_tv(config_path: str) -> None:
         # If not connected, first test direct power-on functionality
         if not tv.state.get("connected", False):
             logger.info("\n--- Testing Direct Power-On (should use WoL) ---")
-            power_on_result = await test_direct_power_on(tv)
+            power_on_result = await _check_direct_power_on(tv)
             logger.info(f"Direct power-on test {'succeeded' if power_on_result else 'failed'}")
             
             # If still not connected, test natural initialization
             if not tv.state.get("connected", False):
                 logger.warning("Device is still not connected. Testing natural initialization process...")
-                init_result = await test_natural_initialization(tv)
+                init_result = await _check_natural_initialization(tv)
                 logger.info(f"Natural initialization {'succeeded' if init_result else 'failed'}")
         
         # Report on initialized controls
@@ -357,7 +367,7 @@ async def test_lg_tv(config_path: str) -> None:
         # Test power functions if TV is connected
         if tv.state.get("connected", False):
             logger.info("\n--- Testing Power Functions ---")
-            power_results = await test_power_functions(tv)
+            power_results = await _check_power_functions(tv)
             logger.info(f"Power function tests completed: {power_results}")
         
         # Shutdown the device
@@ -385,7 +395,7 @@ def main() -> None:
     setup_logging()
     
     # Run the test
-    asyncio.run(test_lg_tv(args.config))
+    asyncio.run(_run_lg_tv_diagnostic(args.config))
 
 
 if __name__ == "__main__":
