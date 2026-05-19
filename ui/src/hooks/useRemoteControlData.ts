@@ -52,9 +52,9 @@ export function useInputsData(deviceStructure: RemoteDeviceStructure): UseInputs
     return { hasInputsCapability, isWirenboardIR, usesCommands, inputsFromCommands };
   }, [
     // Only depend on JSON strings of arrays to ensure stability
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     JSON.stringify(deviceStructure.remoteZones),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     JSON.stringify(deviceStructure.specialCases),
     deviceClass
   ]);
@@ -62,7 +62,7 @@ export function useInputsData(deviceStructure: RemoteDeviceStructure): UseInputs
   // Extract only the specific state fields that matter for inputs logic
   // Use memoization to prevent re-renders when irrelevant fields like last_command change
   const { devicePower, deviceConnected, hasDeviceState } = useMemo(() => {
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     return {
       devicePower: (deviceState as any)?.power,
       deviceConnected: (deviceState as any)?.connected,
@@ -209,16 +209,16 @@ export function useAppsData(deviceStructure: RemoteDeviceStructure): UseAppsData
     return { hasAppsCapability, usesAppsAPI };
   }, [
     // Only depend on JSON strings of arrays to ensure stability
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     JSON.stringify(deviceStructure.remoteZones),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     JSON.stringify(deviceStructure.specialCases)
   ]);
 
   // Extract only the specific state fields that matter for apps logic
   // Use memoization to prevent re-renders when irrelevant fields like last_command change
   const { devicePower: appDevicePower, deviceConnected: appDeviceConnected, hasDeviceState: appHasDeviceState } = useMemo(() => {
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     return {
       devicePower: (deviceState as any)?.power,
       deviceConnected: (deviceState as any)?.connected,

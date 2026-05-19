@@ -2,7 +2,7 @@ name: Build ARM Docker Image
 
 on:
   push:
-    branches: [ main, code_structure ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -124,6 +124,15 @@ jobs:
         echo "Running TypeScript type checking..."
         npm run typecheck:all
         echo "✅ TypeScript validation successful"
+
+    - name: Run ESLint
+      run: npm run lint
+
+    - name: Validate generated code
+      run: npm run validate:generated-code
+
+    - name: Validate generated components
+      run: npm run validate:components
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React from 'react';
 import { MaterialIcon } from './MaterialIcon';
 import { CustomIcon } from './CustomIcon';
