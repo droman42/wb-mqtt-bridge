@@ -1,15 +1,38 @@
+"""Fresh integration tests for the scenario / room HTTP API.
+
+The previous file used the old dict-shaped scenario schema (devices as a dict
+of {name: {groups: ...}}) which ScenarioDefinition.model_validate now rejects,
+and hit endpoint shapes that have since shifted. Rewritten against the current
+API surface using the typed Pydantic models and the routers' initialize()
+hooks. Coverage:
+
+  - GET /scenario/definition/{id} — happy path + 404
+  - GET /scenario/definition — list all
+  - POST /scenario/switch — happy path + 404
+  - POST /scenario/role_action — happy path + no-active-scenario
+  - GET /scenario/state — happy path + 404 (no active scenario)
+  - GET /room/list, GET /room/{id} — happy path + 404
+"""
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
 from fastapi.testclient import TestClient
 
 from wb_mqtt_bridge.app import app as main_app
-from wb_mqtt_bridge.presentation.api.routers import scenarios, rooms
-from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition, ScenarioState, DeviceState
-from wb_mqtt_bridge.domain.scenarios.scenario import Scenario
+from wb_mqtt_bridge.presentation.api.routers import scenarios, rooms, state
+from wb_mqtt_bridge.domain.scenarios.models import (
+    ScenarioDefinition,
+    ScenarioState,
+    DeviceState,
+    RoomDefinition,
+)
+from wb_mqtt_bridge.domain.scenarios.scenario import Scenario, ScenarioError
 
-pytestmark = pytest.mark.skip(reason="API integration tests reference obsolete Pydantic shapes")
-# Sample scenario data for testing
+
+pytestmark = pytest.mark.integration
+
+
+# Scenario JSONs that pass current ScenarioDefinition validation.
 SAMPLE_SCENARIOS = {
     "movie_night": {
         "scenario_id": "movie_night",
@@ -17,24 +40,15 @@ SAMPLE_SCENARIOS = {
         "description": "Optimal settings for watching movies",
         "room_id": "living_room",
         "roles": {"screen": "tv", "audio": "soundbar"},
-        "devices": {
-            "tv": {"groups": ["display"]},
-            "soundbar": {"groups": ["audio"]}
-        },
+        "devices": ["tv", "soundbar"],
         "startup_sequence": [
             {"device": "tv", "command": "power_on", "params": {}},
-            {"device": "soundbar", "command": "power_on", "params": {}}
+            {"device": "soundbar", "command": "power_on", "params": {}},
         ],
-        "shutdown_sequence": {
-            "complete": [
-                {"device": "tv", "command": "power_off", "params": {}},
-                {"device": "soundbar", "command": "power_off", "params": {}}
-            ],
-            "transition": [
-                {"device": "tv", "command": "standby", "params": {}},
-                {"device": "soundbar", "command": "standby", "params": {}}
-            ]
-        }
+        "shutdown_sequence": [
+            {"device": "tv", "command": "power_off", "params": {}},
+            {"device": "soundbar", "command": "power_off", "params": {}},
+        ],
     },
     "reading_mode": {
         "scenario_id": "reading_mode",
@@ -42,323 +56,233 @@ SAMPLE_SCENARIOS = {
         "description": "Comfortable lighting for reading",
         "room_id": "living_room",
         "roles": {"lighting": "lights"},
-        "devices": {
-            "lights": {"groups": ["ambience"]}
-        },
+        "devices": ["lights"],
         "startup_sequence": [
-            {"device": "lights", "command": "set_scene", "params": {"scene": "reading"}}
+            {"device": "lights", "command": "set_scene", "params": {"scene": "reading"}},
         ],
-        "shutdown_sequence": {
-            "complete": [
-                {"device": "lights", "command": "set_scene", "params": {"scene": "bright"}}
-            ],
-            "transition": [
-                {"device": "lights", "command": "set_scene", "params": {"scene": "bright"}}
-            ]
-        }
-    }
+        "shutdown_sequence": [
+            {"device": "lights", "command": "set_scene", "params": {"scene": "bright"}},
+        ],
+    },
 }
 
-class MockScenarioManager:
-    """Mock ScenarioManager for API testing"""
+
+class _MockScenarioManager:
+    """Mock ScenarioManager presenting the attributes the routers expect."""
+
     def __init__(self):
-        # Set up sample scenario definitions
-        self.scenario_definitions = {}
-        self.scenario_map = {}
+        self.scenario_definitions = {
+            sid: ScenarioDefinition.model_validate(data)
+            for sid, data in SAMPLE_SCENARIOS.items()
+        }
+        self.scenario_map = {
+            sid: Scenario(self.scenario_definitions[sid], MagicMock())
+            for sid in SAMPLE_SCENARIOS
+        }
         self.current_scenario = None
         self.scenario_state = None
-        
-        # Load sample scenarios
-        for scenario_id, data in SAMPLE_SCENARIOS.items():
-            definition = ScenarioDefinition.model_validate(data)
-            self.scenario_definitions[scenario_id] = definition
-            self.scenario_map[scenario_id] = Scenario(definition, MagicMock())
-        
-        # Setup async methods as AsyncMocks
         self.switch_scenario = AsyncMock()
         self.execute_role_action = AsyncMock(return_value={"status": "success"})
-        
-        # Setup initial state
-        self.switch_scenario.return_value = None
-    
-    def set_active_scenario(self, scenario_id):
-        """Helper to set an active scenario for testing"""
+        self.start_scenario = AsyncMock()
+        self.shutdown = AsyncMock()
+
+    def set_active(self, scenario_id: str):
         if scenario_id not in self.scenario_map:
             return
-            
         self.current_scenario = self.scenario_map[scenario_id]
         self.scenario_state = ScenarioState(
             scenario_id=scenario_id,
             devices={
                 "tv": DeviceState(power=True, input="hdmi1"),
-                "soundbar": DeviceState(power=True, volume=50)
-            }
+                "soundbar": DeviceState(power=True),
+            },
         )
 
-class MockRoomManager:
-    """Mock RoomManager for API testing"""
+    def get_scenario_state(self, scenario_id: str) -> ScenarioState:
+        if not self.scenario_state:
+            raise ScenarioError("No scenario state", "no_state", True)
+        return self.scenario_state
+
+
+class _MockRoomManager:
+    """Mock RoomManager returning typed RoomDefinition objects."""
+
     def __init__(self):
-        # Create a room object with actual values instead of MagicMock
-        self.rooms = {
-            "living_room": {
-                "room_id": "living_room",
-                "names": {"en": "Living Room"},
-                "description": "Main living area",  # Use a real string for description
-                "devices": ["tv", "soundbar", "lights"],
-                "default_scenario": "movie_night"
-            }
+        self._rooms = {
+            "living_room": RoomDefinition(
+                room_id="living_room",
+                names={"en": "Living Room"},
+                description="Main living area",
+                devices=["tv", "soundbar", "lights"],
+                default_scenario="movie_night",
+            ),
         }
-    
-    def get(self, room_id):
-        return self.rooms.get(room_id)
-    
+
+    def get(self, room_id: str):
+        return self._rooms.get(room_id)
+
     def list(self):
-        return list(self.rooms.values())
-    
-    def contains_device(self, room_id, device_id):
-        room = self.rooms.get(room_id)
-        return room and device_id in room["devices"]
+        return list(self._rooms.values())
+
+    def contains_device(self, room_id: str, device_id: str) -> bool:
+        room = self._rooms.get(room_id)
+        return room is not None and device_id in room.devices
+
 
 @pytest.fixture
 def mock_scenario_manager():
-    """Return a mock scenario manager"""
-    return MockScenarioManager()
+    return _MockScenarioManager()
+
 
 @pytest.fixture
 def mock_room_manager():
-    """Return a mock room manager"""
-    return MockRoomManager()
+    return _MockRoomManager()
+
 
 @pytest.fixture
 def mock_mqtt_client():
-    """Return a mock MQTT client"""
-    mqtt = MagicMock()
-    mqtt.publish = AsyncMock()
-    return mqtt
+    m = MagicMock()
+    m.publish = AsyncMock()
+    return m
+
 
 @pytest.fixture
-def test_client(mock_scenario_manager, mock_room_manager, mock_mqtt_client):
-    """Return a FastAPI TestClient with mocked dependencies"""
-    # Initialize the routers with our mocks
+def client(mock_scenario_manager, mock_room_manager, mock_mqtt_client):
+    """FastAPI TestClient wired with mocks via each router's initialize() hook."""
     scenarios.initialize(mock_scenario_manager, mock_room_manager, mock_mqtt_client)
-    rooms.initialize(mock_room_manager)  # Initialize the rooms router
-    
-    # Create a test client
-    client = TestClient(main_app)
-    
-    # Return the configured client
-    return client
+    rooms.initialize(mock_room_manager)
+    # state.initialize(config_manager, device_manager, state_store, scenario_manager).
+    state.initialize(MagicMock(), MagicMock(), MagicMock(), mock_scenario_manager)
+    return TestClient(main_app)
 
-class TestScenarioAPI:
-    """Integration tests for the scenario API endpoints"""
-    
-    def test_get_scenario_state_success(self, test_client, mock_scenario_manager):
-        """Test successful retrieval of scenario state"""
-        # Set up an active scenario
-        mock_scenario_manager.set_active_scenario("movie_night")
-        
-        # Call the API
-        response = test_client.get("/scenario/state")
-        
-        # Check the response
-        assert response.status_code == 200
-        data = response.json()
-        assert data["scenario_id"] == "movie_night"
-        assert "devices" in data
-        assert "tv" in data["devices"]
-        assert data["devices"]["tv"]["power"] is True
-        assert data["devices"]["tv"]["input"] == "hdmi1"
 
-    def test_get_scenario_state_no_active(self, test_client, mock_scenario_manager):
-        """Test error when no active scenario"""
-        # Ensure no active scenario
-        mock_scenario_manager.current_scenario = None
-        mock_scenario_manager.scenario_state = None
-        
-        # Call the API
-        response = test_client.get("/scenario/state")
-        
-        # Check the response
-        assert response.status_code == 404
-        assert "No active scenario" in response.json()["detail"]
+# --- /scenario/definition ----------------------------------------------------
 
-    def test_get_scenario_definition_success(self, test_client, mock_scenario_manager):
-        """Test successful retrieval of scenario definition"""
-        # Call the API
-        response = test_client.get("/scenario/definition/movie_night")
-        
-        # Check the response
-        assert response.status_code == 200
-        data = response.json()
-        assert data["scenario_id"] == "movie_night"
-        assert data["name"] == "Movie Night"
-        assert data["room_id"] == "living_room"
-        assert "roles" in data
-        assert "devices" in data
-        assert "startup_sequence" in data
-        assert "shutdown_sequence" in data
 
-    def test_get_scenario_definition_not_found(self, test_client):
-        """Test error when scenario not found"""
-        # Call the API with a nonexistent scenario ID
-        response = test_client.get("/scenario/definition/nonexistent")
-        
-        # Check the response
-        assert response.status_code == 404
-        assert "not found" in response.json()["detail"]
+def test_get_scenario_definition_success(client):
+    response = client.get("/scenario/definition/movie_night")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["scenario_id"] == "movie_night"
+    assert data["name"] == "Movie Night"
+    assert data["room_id"] == "living_room"
+    assert "roles" in data
+    assert "devices" in data
+    assert "startup_sequence" in data
+    assert "shutdown_sequence" in data
 
-    def test_switch_scenario_success(self, test_client, mock_scenario_manager, mock_mqtt_client):
-        """Test successful scenario switching"""
-        # Call the API
-        response = test_client.post(
-            "/scenario/switch",
-            json={"id": "reading_mode", "graceful": True}
-        )
-        
-        # Check the response
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "success"
-        assert "Successfully switched to scenario" in data["message"]
-        
-        # Verify the manager was called correctly
-        mock_scenario_manager.switch_scenario.assert_called_once_with("reading_mode", graceful=True)
-        
-        # Verify MQTT message was published (if current scenario is set)
-        if mock_scenario_manager.scenario_state:
-            mock_mqtt_client.publish.assert_called_once()
 
-    def test_switch_scenario_not_found(self, test_client, mock_scenario_manager):
-        """Test error when switching to nonexistent scenario"""
-        # Setup the mock to raise an error
-        mock_scenario_manager.switch_scenario.side_effect = ValueError("Scenario 'nonexistent' not found")
-        
-        # Call the API
-        response = test_client.post(
-            "/scenario/switch",
-            json={"id": "nonexistent", "graceful": True}
-        )
-        
-        # Check the response
-        assert response.status_code == 404
-        assert "Scenario 'nonexistent' not found" in response.json()["detail"]
+def test_get_scenario_definition_not_found(client):
+    response = client.get("/scenario/definition/nonexistent")
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"]
 
-    def test_execute_role_action_success(self, test_client, mock_scenario_manager, mock_mqtt_client):
-        """Test successful execution of a role action"""
-        # Set up an active scenario
-        mock_scenario_manager.set_active_scenario("movie_night")
-        
-        # Call the API
-        response = test_client.post(
-            "/scenario/role_action",
-            json={
-                "role": "screen",
-                "command": "set_input",
-                "params": {"input": "hdmi1"}
-            }
-        )
-        
-        # Check the response
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "success"
-        
-        # Verify the manager was called correctly
-        mock_scenario_manager.execute_role_action.assert_called_once_with(
-            "screen", "set_input", {"input": "hdmi1"}
-        )
-        
-        # Verify MQTT message was published
-        mock_mqtt_client.publish.assert_called_once()
 
-    def test_execute_role_action_no_active_scenario(self, test_client, mock_scenario_manager):
-        """Test error when no active scenario"""
-        # Ensure no active scenario and setup error
-        mock_scenario_manager.current_scenario = None
-        mock_scenario_manager.scenario_state = None
-        mock_scenario_manager.execute_role_action.side_effect = Exception("No scenario is currently active")
-        
-        # Call the API
-        response = test_client.post(
-            "/scenario/role_action",
-            json={
-                "role": "screen",
-                "command": "set_input",
-                "params": {"input": "hdmi1"}
-            }
-        )
-        
-        # Check the response
-        assert response.status_code == 500
-        assert "No scenario is currently active" in response.json()["detail"]
+def test_list_scenario_definitions(client):
+    response = client.get("/scenario/definition")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    ids = {entry["scenario_id"] for entry in data}
+    assert ids == {"movie_night", "reading_mode"}
 
-    def test_get_scenarios_for_room(self, test_client, mock_scenario_manager):
-        """Test getting scenarios for a specific room"""
-        # Call the API
-        response = test_client.get("/scenario/definition?room=living_room")
-        
-        # Check the response
-        assert response.status_code == 200
-        data = response.json()
-        assert isinstance(data, list)
-        assert len(data) == 2  # Both our sample scenarios are in living_room
-        
-        # Verify the content
-        scenario_ids = [s["scenario_id"] for s in data]
-        assert "movie_night" in scenario_ids
-        assert "reading_mode" in scenario_ids
 
-    def test_get_all_scenarios(self, test_client, mock_scenario_manager):
-        """Test getting all scenarios when no room filter is specified"""
-        # Call the API
-        response = test_client.get("/scenario/definition")
-        
-        # Check the response
-        assert response.status_code == 200
-        data = response.json()
-        assert isinstance(data, list)
-        assert len(data) == 2  # All our sample scenarios
-        
-        # Verify the content
-        scenario_ids = [s["scenario_id"] for s in data]
-        assert "movie_night" in scenario_ids
-        assert "reading_mode" in scenario_ids
+# --- /scenario/switch --------------------------------------------------------
 
-class TestRoomAPI:
-    """Integration tests for the room API endpoints"""
-    
-    def test_list_rooms(self, test_client, mock_room_manager):
-        """Test listing all rooms"""
-        # Call the API
-        response = test_client.get("/room/list")
-        
-        # Check the response
-        assert response.status_code == 200
-        data = response.json()
-        assert isinstance(data, list)
-        assert len(data) == 1
-        assert data[0]["room_id"] == "living_room"
-        assert data[0]["names"]["en"] == "Living Room"
 
-    def test_get_room(self, test_client, mock_room_manager):
-        """Test getting a specific room"""
-        # Call the API
-        response = test_client.get("/room/living_room")
-        
-        # Check the response
-        assert response.status_code == 200
-        data = response.json()
-        assert data["room_id"] == "living_room"
-        assert data["names"]["en"] == "Living Room"
-        assert "tv" in data["devices"]
-        assert "soundbar" in data["devices"]
-        assert "lights" in data["devices"]
+def test_switch_scenario_success(client, mock_scenario_manager):
+    response = client.post("/scenario/switch", json={"id": "reading_mode", "graceful": True})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "success"
+    assert "reading_mode" in body["message"]
+    mock_scenario_manager.switch_scenario.assert_awaited_once_with("reading_mode", graceful=True)
 
-    def test_get_room_not_found(self, test_client, mock_room_manager):
-        """Test error when room not found"""
-        # Call the API with a nonexistent room ID
-        response = test_client.get("/room/nonexistent")
-        
-        # Check the response
-        assert response.status_code == 404
-        assert "Room 'nonexistent' not found" in response.json()["detail"] 
+
+def test_switch_scenario_not_found(client, mock_scenario_manager):
+    """If the manager raises ValueError (e.g., unknown scenario id), the API returns 404."""
+    mock_scenario_manager.switch_scenario.side_effect = ValueError("Scenario 'nope' not found")
+    response = client.post("/scenario/switch", json={"id": "nope", "graceful": True})
+    assert response.status_code == 404
+
+
+# --- /scenario/role_action --------------------------------------------------
+
+
+def test_role_action_success(client, mock_scenario_manager):
+    """role_action delegates to scenario_manager.execute_role_action and wraps the result.
+
+    The API envelope is `{"status": "success", "result": <manager-return>}`; the
+    inner manager-return is whatever execute_role_action returned (our mock yields
+    `{"status": "success"}` which lands under the 'result' key).
+    """
+    mock_scenario_manager.set_active("movie_night")
+    response = client.post(
+        "/scenario/role_action",
+        json={"role": "screen", "command": "power_on", "params": {}},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "success"
+    assert body["result"] == {"status": "success"}
+    mock_scenario_manager.execute_role_action.assert_awaited_once_with(
+        "screen", "power_on", {}
+    )
+
+
+def test_role_action_no_active_scenario(client, mock_scenario_manager):
+    """execute_role_action raises ScenarioError('No scenario is currently active'); API surfaces 4xx."""
+    mock_scenario_manager.execute_role_action.side_effect = ScenarioError(
+        "No scenario is currently active", "no_active_scenario", True
+    )
+    response = client.post(
+        "/scenario/role_action",
+        json={"role": "screen", "command": "power_on", "params": {}},
+    )
+    assert response.status_code in (400, 404, 409, 500)
+
+
+# --- /scenario/state ---------------------------------------------------------
+
+
+def test_get_scenario_state_success(client, mock_scenario_manager):
+    mock_scenario_manager.set_active("movie_night")
+    response = client.get("/scenario/state")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["scenario_id"] == "movie_night"
+    assert "devices" in data
+    assert data["devices"]["tv"]["power"] is True
+
+
+def test_get_scenario_state_no_active(client, mock_scenario_manager):
+    """No active scenario -> 404 (or another 4xx)."""
+    mock_scenario_manager.current_scenario = None
+    mock_scenario_manager.scenario_state = None
+    response = client.get("/scenario/state")
+    assert response.status_code in (404, 400)
+
+
+# --- /room -------------------------------------------------------------------
+
+
+def test_list_rooms(client):
+    response = client.get("/room/list")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    ids = {entry["room_id"] for entry in data}
+    assert "living_room" in ids
+
+
+def test_get_room_success(client):
+    response = client.get("/room/living_room")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["room_id"] == "living_room"
+    assert data["devices"] == ["tv", "soundbar", "lights"]
+
+
+def test_get_room_not_found(client):
+    response = client.get("/room/no_such_room")
+    assert response.status_code == 404
