@@ -4,41 +4,39 @@ from unittest.mock import MagicMock, patch
 
 from wb_mqtt_bridge.infrastructure.devices.revox_a77_reel_to_reel.driver import RevoxA77ReelToReel
 from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
+from wb_mqtt_bridge.infrastructure.config.models import (
+    RevoxA77ReelToReelConfig,
+    RevoxA77ReelToReelParams,
+    IRCommandConfig,
+)
 
-pytestmark = pytest.mark.skip(reason="collection errors; pending repair")
+pytestmark = pytest.mark.integration
+
+
 @pytest.fixture
 def revox_config():
-    return {
-        "name": "Test Revox A77",
-        "type": "RevoxA77ReelToReel",
-        "id": "test_revox",
-        "alias": "Revox A77",
-        "parameters": {
-            "sequence_delay": 3
+    """Typed Pydantic config matching the current production schema."""
+    def _ir_cmd(action: str, topic: str, rom_position: str) -> IRCommandConfig:
+        return IRCommandConfig(
+            action=action,
+            topic=topic,
+            location="revox_ir",
+            rom_position=rom_position,
+        )
+
+    return RevoxA77ReelToReelConfig(
+        device_id="test_revox",
+        device_name="Test Revox A77",
+        device_class="RevoxA77ReelToReel",
+        config_class="RevoxA77ReelToReelConfig",
+        reel_to_reel=RevoxA77ReelToReelParams(sequence_delay=3),
+        commands={
+            "play": _ir_cmd("play", "/devices/test_revox/controls/play", "1"),
+            "stop": _ir_cmd("stop", "/devices/test_revox/controls/stop", "2"),
+            "rewind_forward": _ir_cmd("rewind_forward", "/devices/test_revox/controls/rewind_forward", "3"),
+            "rewind_backward": _ir_cmd("rewind_backward", "/devices/test_revox/controls/rewind_backward", "4"),
         },
-        "commands": {
-            "play": {
-                "topic": "/devices/test_revox/controls/play",
-                "location": "revox_ir",
-                "rom_position": "1"
-            },
-            "stop": {
-                "topic": "/devices/test_revox/controls/stop",
-                "location": "revox_ir",
-                "rom_position": "2"
-            },
-            "rewind_forward": {
-                "topic": "/devices/test_revox/controls/rewind_forward",
-                "location": "revox_ir",
-                "rom_position": "3"
-            },
-            "rewind_backward": {
-                "topic": "/devices/test_revox/controls/rewind_backward",
-                "location": "revox_ir",
-                "rom_position": "4"
-            }
-        }
-    }
+    )
 
 
 @pytest.fixture
