@@ -1,6 +1,7 @@
 {
   "device_name": "Kitchen Hood",
   "device_id": "kitchen_hood",
+  "device_category": "appliance",
   "alias": "kitchen_hood",
   "device_class": "BroadlinkKitchenHood",
   "config_class": "BroadlinkKitchenHoodConfig",

@@ -1,6 +1,12 @@
 from typing import Dict, Any, List, Optional, Union
 from pydantic import BaseModel, Field, validator
+from enum import Enum
 import os
+
+class DeviceCategory(str, Enum):
+    """Enumeration for device categories."""
+    DEVICE = "device"
+    APPLIANCE = "appliance"
 
 class MQTTBrokerConfig(BaseModel):
     """Schema for MQTT broker configuration."""
@@ -124,6 +130,7 @@ class BaseDeviceConfig(BaseModel):
     """Base schema for device configuration."""
     device_id: str
     device_name: str
+    device_category: DeviceCategory = Field(DeviceCategory.DEVICE, description="The category of the device (e.g., 'device' or 'appliance')")
     # New required fields for dynamic class loading
     device_class: str = Field(..., description="The device implementation class name (e.g., 'LgTv')")
     config_class: str = Field(..., description="The configuration model class name (e.g., 'LgTvDeviceConfig')")

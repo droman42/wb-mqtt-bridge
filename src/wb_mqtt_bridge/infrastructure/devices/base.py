@@ -70,7 +70,7 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
             logger.warning(f"Cannot setup WB virtual device for {self.device_id}: no MQTT client")
             return
         
-        # Use WB service to set up virtual device
+        # Use WB service to set up virtual device - clean delegation
         success = await self.wb_service.setup_wb_device_from_config(
             config=self.config,
             command_executor=self._execute_wb_command_from_service,
@@ -105,52 +105,9 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
         except Exception as e:
             logger.error(f"Error executing WB command {control_name} for device {self.device_id}: {str(e)}")
             raise
-    
-    # WB device metadata and control publishing is now handled by WBVirtualDeviceService
-    
-    # WB control metadata generation is now handled by WBVirtualDeviceService
-        """Get initial state value for WB control from command configuration."""
-        
-        # If no parameters, it's a pushbutton (always 0)
-        if not hasattr(cmd_config, 'params') or not cmd_config.params:
-            return "0"
-        
-        first_param = cmd_config.params[0]
-        param_type = getattr(first_param, 'type', 'string')
-        
-        # Use default value if specified
-        if hasattr(first_param, 'default') and first_param.default is not None:
-            if param_type == "boolean":
-                return "1" if first_param.default else "0"
-            else:
-                return str(first_param.default)
-        
-        # Type-based defaults
-        if param_type == "boolean":
-            return "0"  # False
-        elif param_type in ["range", "integer", "float"]:
-            # Use minimum value or 0
-            if hasattr(first_param, 'min') and first_param.min is not None:
-                return str(first_param.min)
-            else:
-                return "0"
-        elif param_type == "string":
-            return ""  # Empty string
-        else:
-            return "0"  # Fallback
 
-    # Legacy WB control metadata generation is now handled by WBVirtualDeviceService
-    
-    # WB control title generation and ordering are now handled by WBVirtualDeviceService
-    
-    # WB control state generation is now handled by WBVirtualDeviceService
-    
-    # WB Last Will Testament setup is now handled by WBVirtualDeviceService
-    
     async def cleanup_wb_device_state(self):
-        """
-        Clean up WB device state on shutdown using WB service.
-        """
+        """Clean up WB device state on shutdown using WB service."""
         if not self.should_publish_wb_virtual_device():
             return
             
@@ -169,20 +126,14 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
             logger.warning(f"Error cleaning up WB device state for {self.device_id}: {str(e)}")
     
     async def setup_wb_emulation_if_enabled(self):
-        """
-        Helper method for subclasses to call during their setup() method.
-        Sets up WB virtual device emulation if enabled.
-        """
+        """Helper method for subclasses to call during their setup() method.
+        Sets up WB virtual device emulation if enabled."""
         if self.should_publish_wb_virtual_device():
             await self._setup_wb_virtual_device()
-    
-    # WB control state refresh is now handled by WBVirtualDeviceService
-    
+
     async def handle_mqtt_reconnection(self):
-        """
-        Handle MQTT reconnection using WB service.
-        This ensures retained messages are restored after connection loss.
-        """
+        """Handle MQTT reconnection using WB service.
+        This ensures retained messages are restored after connection loss."""
         if not self.should_publish_wb_virtual_device():
             return
             
@@ -201,8 +152,7 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
             logger.error(f"Error handling MQTT reconnection for {self.device_id}: {str(e)}")
 
     def _register_handlers(self) -> None:
-        """
-        Register all action handlers for this device.
+        """Register all action handlers for this device.
         
         This method should be overridden by all device subclasses to register
         their action handlers in a standardized way.
@@ -222,8 +172,7 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
         error: Optional[str] = None, 
         **extra_fields
     ) -> CommandResult:
-        """
-        Create a standardized CommandResult.
+        """Create a standardized CommandResult.
         
         Args:
             success: Whether the command was successful
@@ -251,8 +200,7 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
         return result
         
     def set_error(self, error_message: str) -> None:
-        """
-        Set an error message in the device state.
+        """Set an error message in the device state.
         
         Args:
             error_message: The error message to set
@@ -450,18 +398,9 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
         except Exception as e:
             logger.error(f"Failed to send MQTT command '{command}' to device {self.device_id}: {e}")
             return {"success": False, "error": str(e)}
-    
-    # WB command topic handling is now handled by WBVirtualDeviceService
-    
-    # WB state synchronization is now handled by WBVirtualDeviceService
-    
-    # WB control mappings are now handled by WBVirtualDeviceService
-    
-    # WB value conversion is now handled by WBVirtualDeviceService
 
     def _process_mqtt_payload(self, payload: str, param_defs: List[CommandParameterDefinition]) -> Dict[str, Any]:
-        """
-        Process an MQTT payload into a parameters dictionary based on parameter definitions.
+        """Process an MQTT payload into a parameters dictionary based on parameter definitions.
         
         Args:
             payload: The MQTT payload string
@@ -577,8 +516,7 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
         return None
     
     def _auto_register_handlers(self) -> None:
-        """
-        Automatically register handler methods based on naming convention.
+        """Automatically register handler methods based on naming convention.
         
         This method discovers all methods named handle_<action> and registers them 
         as action handlers for <action>. It will not override existing handlers.
@@ -597,8 +535,7 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
         params: Dict[str, Any] = None,
         source: str = "unknown"
     ) -> Optional[CommandResult]:
-        """
-        Execute a single action with the provided configuration and parameters.
+        """Execute a single action with the provided configuration and parameters.
         
         Args:
             action_name: Name of the action to execute
@@ -666,8 +603,7 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
         return cast(StateT, self.state)
     
     def _validate_state_updates(self, updates: Dict[str, Any]) -> Tuple[bool, List[str]]:
-        """
-        Validate that state updates contain only JSON serializable values.
+        """Validate that state updates contain only JSON serializable values.
         
         This validation helps catch serialization issues early, before they cause 
         problems when attempting to persist state.
@@ -706,8 +642,7 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
         return len(errors) == 0, errors
     
     def update_state(self, **updates):
-        """
-        Update the device state using keyword arguments.
+        """Update the device state using keyword arguments.
         Each keyword argument will update the corresponding attribute in the state.
         
         This method now includes validation to detect non-serializable fields early.
@@ -901,8 +836,7 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
             )
     
     def get_broadcast_ip(self) -> str:
-        """
-        Auto-detect the broadcast IP address for the local network.
+        """Auto-detect the broadcast IP address for the local network.
         
         Prefers non-virtual, active network interfaces and filters out loopback.
         Detects Docker bridge networks and warns about their limitations.
@@ -987,8 +921,7 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
             return "255.255.255.255"
 
     async def send_wol_packet(self, mac_address: str, ip_address: str, port: int = 9) -> bool:
-        """
-        Send a Wake-on-LAN magic packet to the specified MAC address.
+        """Send a Wake-on-LAN magic packet to the specified MAC address.
         
         Args:
             mac_address: MAC address of the target device (format: xx:xx:xx:xx:xx:xx)
@@ -1028,8 +961,7 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
         return self.config.commands
     
     async def emit_progress(self, message: str, event_type: str = "progress") -> bool:
-        """
-        Emit a progress message via Server-Sent Events.
+        """Emit a progress message via Server-Sent Events.
         
         Args:
             message: The message to emit
@@ -1067,8 +999,7 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
     
     def _resolve_and_validate_params(self, param_defs: List[CommandParameterDefinition], 
                                    provided_params: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Resolves and validates command parameters against their definitions.
+        """Resolves and validates command parameters against their definitions.
         
         Args:
             param_defs: List of parameter definitions
@@ -1152,8 +1083,7 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
         error: Optional[str] = None, 
         **extra_fields
     ) -> CommandResult:
-        """
-        Create a standardized CommandResult with MQTT command.
+        """Create a standardized CommandResult with MQTT command.
         
         Args:
             success: Whether the command was successful
@@ -1188,233 +1118,3 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
         )
         
         return result
-    
-    def _validate_wb_controls_config(self) -> Dict[str, List[str]]:
-        """
-        Validate the wb_controls configuration and return any errors found.
-        
-        Returns:
-            Dict[str, List[str]]: Dictionary mapping control names to lists of error messages
-        """
-        errors = {}
-        
-        if not hasattr(self.config, 'wb_controls') or not self.config.wb_controls:
-            return errors  # No controls to validate
-        
-        valid_types = {'switch', 'range', 'value', 'text', 'pushbutton'}
-        
-        for control_name, control_config in self.config.wb_controls.items():
-            control_errors = []
-            
-            # Validate control name
-            if not control_name or not isinstance(control_name, str):
-                control_errors.append("Control name must be a non-empty string")
-            elif control_name.startswith('_'):
-                control_errors.append("Control name cannot start with underscore")
-            elif control_name not in self._action_handlers:
-                control_errors.append(f"No handler found for control '{control_name}'")
-            
-            # Validate control config structure
-            if not isinstance(control_config, dict):
-                control_errors.append("Control configuration must be a dictionary")
-                errors[control_name] = control_errors
-                continue
-            
-            # Validate type field
-            control_type = control_config.get('type')
-            if not control_type:
-                control_errors.append("Control type is required")
-            elif control_type not in valid_types:
-                control_errors.append(f"Invalid control type '{control_type}'. Valid types: {valid_types}")
-            
-            # Validate range-specific fields
-            if control_type == 'range':
-                min_val = control_config.get('min')
-                max_val = control_config.get('max')
-                
-                if min_val is not None and not isinstance(min_val, (int, float)):
-                    control_errors.append("'min' value must be a number")
-                if max_val is not None and not isinstance(max_val, (int, float)):
-                    control_errors.append("'max' value must be a number")
-                if min_val is not None and max_val is not None and min_val >= max_val:
-                    control_errors.append("'min' value must be less than 'max' value")
-            
-            # Validate title field
-            title = control_config.get('title')
-            if title is not None:
-                if isinstance(title, dict):
-                    if 'en' not in title:
-                        control_errors.append("Title dictionary must contain 'en' key")
-                    elif not isinstance(title['en'], str):
-                        control_errors.append("Title 'en' value must be a string")
-                elif not isinstance(title, str):
-                    control_errors.append("Title must be a string or dictionary with 'en' key")
-            
-            # Validate order field
-            order = control_config.get('order')
-            if order is not None and not isinstance(order, int):
-                control_errors.append("Order must be an integer")
-            
-            # Validate readonly field
-            readonly = control_config.get('readonly')
-            if readonly is not None and not isinstance(readonly, bool):
-                control_errors.append("Readonly must be a boolean")
-            
-            if control_errors:
-                errors[control_name] = control_errors
-        
-        return errors
-    
-    def _validate_wb_state_mappings(self) -> List[str]:
-        """
-        Validate the wb_state_mappings configuration and return any errors found.
-        
-        Returns:
-            List[str]: List of error messages
-        """
-        errors = []
-        
-        if not hasattr(self.config, 'wb_state_mappings') or not self.config.wb_state_mappings:
-            return errors  # No mappings to validate
-        
-        if not isinstance(self.config.wb_state_mappings, dict):
-            errors.append("wb_state_mappings must be a dictionary")
-            return errors
-        
-        for state_field, wb_controls in self.config.wb_state_mappings.items():
-            # Validate state field name
-            if not isinstance(state_field, str) or not state_field:
-                errors.append(f"Invalid state field name: {state_field}")
-                continue
-            
-            # Validate wb_controls value
-            if isinstance(wb_controls, str):
-                # Single control mapping
-                if wb_controls not in self._action_handlers:
-                    errors.append(f"State field '{state_field}' maps to unknown control '{wb_controls}'")
-            elif isinstance(wb_controls, list):
-                # Multiple control mapping
-                for control in wb_controls:
-                    if not isinstance(control, str):
-                        errors.append(f"State field '{state_field}' contains non-string control name: {control}")
-                    elif control not in self._action_handlers:
-                        errors.append(f"State field '{state_field}' maps to unknown control '{control}'")
-            else:
-                errors.append(f"State field '{state_field}' mapping must be string or list of strings")
-        
-        return errors
-    
-    async def validate_wb_configuration(self) -> Tuple[bool, Dict[str, Any]]:
-        """
-        Comprehensive validation of WB emulation configuration.
-        
-        Returns:
-            Tuple[bool, Dict[str, Any]]: (is_valid, validation_results)
-        """
-        validation_results = {
-            'wb_controls_errors': {},
-            'wb_state_mappings_errors': [],
-            'handler_validation': {},
-            'warnings': []
-        }
-        
-        try:
-            # Validate wb_controls configuration
-            validation_results['wb_controls_errors'] = self._validate_wb_controls_config()
-            
-            # Validate wb_state_mappings configuration
-            validation_results['wb_state_mappings_errors'] = self._validate_wb_state_mappings()
-            
-            # Validate that all handlers have reasonable WB control mappings
-            for handler_name in self._action_handlers:
-                if not handler_name.startswith('_'):
-                    handler_validation = self._validate_handler_wb_compatibility(handler_name)
-                    if handler_validation:
-                        validation_results['handler_validation'][handler_name] = handler_validation
-            
-            # Check for potential issues
-            warnings = []
-            
-            # Warn about missing MQTT client
-            if not self.mqtt_client:
-                warnings.append("MQTT client not available - WB emulation will be disabled")
-            
-            # Warn about disabled WB emulation
-            if not self.should_publish_wb_virtual_device():
-                warnings.append("WB emulation is disabled in configuration")
-            
-            # Warn about missing IR topics for devices that might need them
-            if hasattr(self.config, 'auralic') and self.should_publish_wb_virtual_device():
-                if not getattr(self.config.auralic, 'ir_power_on_topic', None):
-                    warnings.append("IR power control not configured - power operations may be limited")
-            
-            validation_results['warnings'] = warnings
-            
-            # Determine if configuration is valid
-            has_errors = (
-                bool(validation_results['wb_controls_errors']) or
-                bool(validation_results['wb_state_mappings_errors']) or
-                bool(validation_results['handler_validation'])
-            )
-            
-            is_valid = not has_errors
-            
-            # Log validation results
-            if not is_valid:
-                logger.warning(f"WB configuration validation failed for device {self.device_id}")
-                for control, errors in validation_results['wb_controls_errors'].items():
-                    for error in errors:
-                        logger.warning(f"WB control '{control}': {error}")
-                for error in validation_results['wb_state_mappings_errors']:
-                    logger.warning(f"WB state mappings: {error}")
-                for handler, issues in validation_results['handler_validation'].items():
-                    for issue in issues:
-                        logger.warning(f"Handler '{handler}': {issue}")
-            
-            if warnings:
-                for warning in warnings:
-                    logger.info(f"WB configuration warning for {self.device_id}: {warning}")
-            
-            return is_valid, validation_results
-            
-        except Exception as e:
-            logger.error(f"Error during WB configuration validation for {self.device_id}: {str(e)}")
-            validation_results['validation_error'] = str(e)
-            return False, validation_results
-    
-    def _validate_handler_wb_compatibility(self, handler_name: str) -> List[str]:
-        """
-        Validate that a handler is compatible with WB control generation.
-        
-        Args:
-            handler_name: Name of the handler to validate
-            
-        Returns:
-            List[str]: List of compatibility issues
-        """
-        issues = []
-        
-        # Check if handler exists
-        if handler_name not in self._action_handlers:
-            issues.append("Handler method not found")
-            return issues
-        
-        handler = self._action_handlers[handler_name]
-        
-        # Validate handler is callable
-        if not callable(handler):
-            issues.append("Handler is not callable")
-        
-        # Check if handler name suggests it needs parameters but no command config exists
-        param_suggesting_names = ['set_', 'move_', 'launch_', 'click_']
-        if any(handler_name.startswith(prefix) for prefix in param_suggesting_names):
-            # Check if there's a command configuration for this handler
-            command_configs = self.get_available_commands()
-            if handler_name not in command_configs:
-                issues.append("Handler suggests parameter usage but no command configuration found")
-            else:
-                cmd_config = command_configs[handler_name]
-                if not hasattr(cmd_config, 'params') or not cmd_config.params:
-                    issues.append("Handler suggests parameter usage but no parameters defined in configuration")
-        
-        return issues
