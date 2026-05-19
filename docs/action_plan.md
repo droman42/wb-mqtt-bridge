@@ -140,9 +140,9 @@ Ordered by **value / effort**. Each item sized for one focused PR.
 
 | # | Task | Effort |
 |---|------|--------|
-| 0a | **UI WIP triage.** The UI repo has 8 modified files + 3 untracked. `src/scripts/generate-device-pages.ts` adds an `appliance` branch keyed on `validatedConfig.device_category` — **this is paired with the backend `device_category` WIP and must be committed together** (or both rolled back together) to avoid an inconsistent intermediate state. The other 7 modified UI files are an unrelated layout refresh (`Layout.tsx`, `Navbar.tsx`, `useRoomStore.ts`, etc.) — commit or revert as a separate concern. Untracked: `docs/appliances.md` (see #6), `config/system.json` (probably runtime, decide), `data/state_store.db` (gitignore — runtime artifact). | 30 min |
-| 0b | **Delete stale feature branches.** Both `code_structure` and `feature/wb-virtual-device-emulation` are fully merged into backend `main` with zero unmerged commits; both are 5 commits stale. UI's `code_structure` is fully merged into UI `main`. Delete locally and on origin (3 branches total). | 5 min |
-| 1 | Commit the WIP refactor as a single commit, including deletion of `tests/test_wb_virtual_device_phase3.py`. **Coordinated with #0a's codegen change** — same logical change, lands together. | 30 min |
+| 0a | **DONE** 2026-05-19 — backend `ab5402d`, UI `8ab2cfa`. On survey, the 8 modified UI files turned out to be one coherent appliance-category feature (not an unrelated layout refresh as initially thought) plus two unrelated SSE console-log cleanups; `docs/appliances.md` was the matching design doc. Shipped as a single paired commit per repo. `config/system.json` (UI) left untracked pending later check; `data/` added to UI `.gitignore`. | 30 min |
+| 0b | **DONE** 2026-05-19. Deleted local + origin: backend `code_structure`, backend `feature/wb-virtual-device-emulation`, UI `code_structure`. Both repos now have only `main`. | 5 min |
+| 1 | **DONE** 2026-05-19 — `ab5402d`. Shipped together with #0a as the backend half of the paired change. | 30 min |
 | 2 | Wire tests into CI. Add a `test` job to backend `build-arm.yml` (`pytest` on amd64). Add `npm run typecheck:all && npm test` to UI CI. | 1 hour |
 
 ### P1 — Reduce coupling without changing architecture
@@ -159,7 +159,7 @@ Ordered by **value / effort**. Each item sized for one focused PR.
 | # | Task | Effort |
 |---|------|--------|
 | 5 | Archive `docs/TODO.md` (move to `docs/history/phase1-2-done.md`); delete the Roborock bullet from the backend README. | 15 min |
-| 6 | Decide what to do with `wb-mqtt-ui/docs/appliances.md`. **It is untracked, not stale-committed** — it has never been in git, it just exists on disk (10.7KB). Three choices: (a) delete if it no longer reflects intent; (b) commit as-is if still accurate; (c) commit after retitling/trimming so it doesn't read as a current plan. Resolved together with #0a's untracked-file decisions. | 15 min |
+| 6 | **DONE** 2026-05-19 — committed as-is in UI `8ab2cfa` as part of the appliance-category feature. The doc accurately describes the current code direction. | 15 min |
 
 ### P3 — Real ops improvements (later, optional)
 
@@ -195,6 +195,7 @@ Ordered by **value / effort**. Each item sized for one focused PR.
 - **2026-05-19** — Initial draft. Captures research from a deep survey of both repos plus WIP and CI/CD analysis.
 - **2026-05-19** — Added §7 (Codegen Alternatives) after deep-dive into the device-page generation pipeline. Inserted P1 items #3.5 (eliminate Python AST coupling) and #4.5 (relocate `device-state-mapping.json`). Added a new Open Question about runtime-driven UI.
 - **2026-05-19** — Branch audit. Confirmed `main` is the source of truth in both repos; all feature branches are fully merged. Discovered the UI repo has 8 modified + 3 untracked files, including a `generate-device-pages.ts` change paired with the backend `device_category` WIP. Added P0 items #0a (UI WIP triage) and #0b (delete stale branches). Revised P2 #6 — `wb-mqtt-ui/docs/appliances.md` is untracked rather than stale-committed; action is now "decide whether to commit at all."
+- **2026-05-19** — Executed #0a, #1, #0b. Backend `ab5402d` + `b7aa246` (this doc) pushed to `origin/main`; UI `8ab2cfa` pushed to `origin/main`. Three stale branches deleted (local + origin): backend `code_structure`, backend `feature/wb-virtual-device-emulation`, UI `code_structure`. Both repos now have only `main`. `appliances.md` shipped as part of the paired feature, resolving P2 #6 as "commit as-is" (design doc reflects current code).
 
 ---
 
