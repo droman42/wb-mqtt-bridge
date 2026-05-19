@@ -129,88 +129,79 @@ class TestWBVirtualDeviceService:
         
         assert topics == []
     
-    @pytest.mark.skip(reason="WBVirtualDeviceService.handle_wb_message signature changed")
-    
     async def test_handle_wb_message_success(self, wb_service, mock_message_bus, sample_device_config, sample_command_executor):
-        """Test successful WB message handling."""
+        """Test successful WB message handling.
+
+        Note: production renamed the kwarg `device_id` -> `wb_device_id` on
+        WBVirtualDeviceService.handle_wb_message (to disambiguate the WB-side
+        device id from internal device IDs).
+        """
         # Setup device first
         await wb_service.setup_wb_device_from_config(
             config=sample_device_config,
             command_executor=sample_command_executor
         )
-        
+
         # Handle a command message
         result = await wb_service.handle_wb_message(
             topic="/devices/test_device/controls/power_on/on",
             payload="1",
-            device_id="test_device"
+            wb_device_id="test_device",
         )
-        
+
         assert result is True
-        
+
         # Verify command executor was called
         sample_command_executor.assert_called_once_with("power_on", "1", {})
-        
+
         # Verify control state was updated
         update_call = None
         for call in mock_message_bus.publish.call_args_list:
             if "/devices/test_device/controls/power_on" in call[0] and not "/meta" in call[0]:
                 update_call = call
                 break
-        
+
         assert update_call is not None
-    
-    @pytest.mark.skip(reason="same")
-    
+
     async def test_handle_wb_message_with_parameters(self, wb_service, mock_message_bus, sample_device_config, sample_command_executor):
         """Test WB message handling with parameters."""
-        # Setup device first
         await wb_service.setup_wb_device_from_config(
             config=sample_device_config,
             command_executor=sample_command_executor
         )
-        
-        # Handle a command message with parameters
+
         result = await wb_service.handle_wb_message(
             topic="/devices/test_device/controls/set_volume/on",
             payload="75",
-            device_id="test_device"
+            wb_device_id="test_device",
         )
-        
+
         assert result is True
-        
-        # Verify command executor was called with parsed parameters
         sample_command_executor.assert_called_once_with("set_volume", "75", {"level": 75.0})
-    
-    @pytest.mark.skip(reason="same")
-    
+
     async def test_handle_wb_message_unknown_device(self, wb_service):
-        """Test WB message handling for unknown device."""
+        """Unknown device id is rejected (returns False, no command executor invocation)."""
         result = await wb_service.handle_wb_message(
             topic="/devices/unknown_device/controls/power_on/on",
             payload="1",
-            device_id="unknown_device"
+            wb_device_id="unknown_device",
         )
-        
+
         assert result is False
-    
-    @pytest.mark.skip(reason="same")
-    
+
     async def test_handle_wb_message_invalid_topic(self, wb_service, sample_device_config, sample_command_executor):
-        """Test WB message handling with invalid topic."""
-        # Setup device first
+        """Topics that don't fit the WB pattern are rejected (returns False)."""
         await wb_service.setup_wb_device_from_config(
             config=sample_device_config,
             command_executor=sample_command_executor
         )
-        
-        # Handle invalid topic
+
         result = await wb_service.handle_wb_message(
             topic="/devices/test_device/invalid/topic",
             payload="1",
-            device_id="test_device"
+            wb_device_id="test_device",
         )
-        
+
         assert result is False
     
     async def test_cleanup_wb_device_success(self, wb_service, mock_message_bus, sample_device_config, sample_command_executor):
