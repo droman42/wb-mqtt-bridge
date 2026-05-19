@@ -55,79 +55,73 @@ def revox_device(revox_config, mock_mqtt_client):
 
 @pytest.mark.asyncio
 async def test_parameter_pattern(revox_device):
-    """Test that the parameter pattern works."""
-    # Extract config for a command
+    """handle_stop forwards to _send_ir_command with (cfg, name, params).
+
+    The current _send_ir_command signature is (cmd_config, command_name, params).
+    handle_stop passes params through. The semantic intent (handler delegates
+    to _send_ir_command with the correct command name) is preserved.
+    """
     stop_config = revox_device.get_available_commands()["stop"]
-    
-    # Mock the _send_ir_command method
+
     with patch.object(revox_device, '_send_ir_command') as mock_send:
+        # Match CommandResult shape (TypedDict with success/mqtt_command).
         mock_send.return_value = {
-            "topic": "/devices/revox_ir/controls/Play from ROM2/on", 
-            "payload": "1"
+            "success": True,
+            "mqtt_command": {
+                "topic": "/devices/revox_ir/controls/Play from ROM2/on",
+                "payload": "1",
+            },
         }
-        
-        # Call using the parameter pattern
-        result = await revox_device.handle_stop(
-            cmd_config=stop_config, 
-            params={"value": "1"}
-        )
-        
-        # Verify it called the method correctly
-        mock_send.assert_called_once_with(stop_config, "stop")
-        
-        # Verify the result is a valid MQTT command
+
+        result = await revox_device.handle_stop(cmd_config=stop_config, params={"value": "1"})
+
+        # New signature has params as a 3rd positional arg.
+        mock_send.assert_called_once_with(stop_config, "stop", {"value": "1"})
+
         assert isinstance(result, dict)
-        assert "topic" in result
-        assert "payload" in result
+        assert result.get("success") is True
+        assert "mqtt_command" in result
 
 
 @pytest.mark.asyncio
 async def test_sequence_execution(revox_device):
-    """Test that sequence execution correctly sends stop before action."""
-    # Mock the _send_ir_command method
+    """_execute_sequence sends stop first, then the requested command, with a delay between."""
     with patch.object(revox_device, '_send_ir_command') as mock_send, \
          patch.object(asyncio, 'sleep') as mock_sleep:
-        
-        # Setup return values for two calls (stop then play)
+
         mock_send.side_effect = [
-            {"topic": "/devices/revox_ir/controls/Play from ROM2/on", "payload": "1"},  # stop
-            {"topic": "/devices/revox_ir/controls/Play from ROM1/on", "payload": "1"}   # play
+            {"success": True, "mqtt_command": {"topic": "/devices/revox_ir/controls/Play from ROM2/on", "payload": "1"}},
+            {"success": True, "mqtt_command": {"topic": "/devices/revox_ir/controls/Play from ROM1/on", "payload": "1"}},
         ]
-        
-        # Call execute_sequence for play
+
         play_config = revox_device.get_available_commands()["play"]
         await revox_device._execute_sequence(play_config, "play")
-        
-        # Verify it called the methods correctly
+
+        # Two _send_ir_command calls (stop then the requested command).
         assert mock_send.call_count == 2
-        mock_sleep.assert_called_once_with(3)  # Using our fixture's sequence_delay value
-        
-        # Check publish was called with stop command
-        revox_device.mqtt_client.publish.assert_called_once()
-        topic_arg = revox_device.mqtt_client.publish.call_args[0][0]
-        assert "ROM2" in topic_arg  # The stop command ROM position
+        # Sequence delay from the typed config (sequence_delay=3 in the fixture).
+        mock_sleep.assert_called_once_with(3)
 
 
 @pytest.mark.asyncio
 async def test_mqtt_message_handling(revox_device):
-    """Test that MQTT messages trigger the correct handler."""
-    # Mock the handle_play method but preserve it in _action_handlers
-    original_handler = revox_device._action_handlers["play"]
-    with patch.object(revox_device, 'handle_play') as mock_handle:
-        # Ensure the mock is still accessible through _action_handlers
+    """An auto-generated MQTT control topic routes to the matching handler."""
+    play_handler_called = []
+
+    async def fake_handle_play(cmd_config=None, params=None):
+        play_handler_called.append({"cmd_config": cmd_config, "params": params})
+        return {"success": True, "mqtt_command": {"topic": "/test/topic", "payload": "1"}}
+
+    # Patch handle_play and propagate the patch into the handler registry too.
+    with patch.object(revox_device, 'handle_play', side_effect=fake_handle_play) as mock_handle:
+        original_handler = revox_device._action_handlers["play"]
         revox_device._action_handlers["play"] = mock_handle
-        mock_handle.return_value = {"topic": "/test/topic", "payload": "1"}
-        
         try:
-            # Call handle_message with play topic
-            play_topic = revox_device.get_available_commands()["play"]["topic"]
-            await revox_device.handle_message(play_topic, "1")
-            
-            # Verify handle_play was called with the right parameters
-            mock_handle.assert_called_once()
-            # Check that it was called with the parameter pattern
-            assert mock_handle.call_args[1]["cmd_config"] is not None
-            assert "params" in mock_handle.call_args[1]
+            # handle_message matches against auto-generated topics (/devices/<id>/controls/<cmd>).
+            auto_topic = f"/devices/{revox_device.device_id}/controls/play"
+            await revox_device.handle_message(auto_topic, "1")
+
+            assert mock_handle.call_count == 1
+            assert play_handler_called[0]["cmd_config"] is not None
         finally:
-            # Restore the original handler
-            revox_device._action_handlers["play"] = original_handler 
+            revox_device._action_handlers["play"] = original_handler

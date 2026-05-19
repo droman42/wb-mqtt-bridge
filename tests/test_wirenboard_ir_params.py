@@ -49,52 +49,48 @@ async def wirenboard_ir_device(wirenboard_ir_config, mqtt_client):
 
 @pytest.mark.asyncio
 async def test_new_parameter_pattern(wirenboard_ir_device, mqtt_client):
-    """Test the parameter pattern with cmd_config and params."""
-    # Get the action handler
+    """Calling the IR handler directly publishes the right MQTT topic+payload.
+
+    cmd_config must be the typed IRCommandConfig (handlers attribute-access it).
+    The old test passed a plain dict, which now triggers an internal 'dict has no
+    attribute success' error downstream.
+    """
     handler = wirenboard_ir_device._get_action_handler("power")
-    
-    # Create a mock command config
-    cmd_config = {
-        "location": "wb-msw-v3_207",
-        "rom_position": "62"
-    }
-    
-    # Create empty params (IR commands don't have parameters)
-    params = {}
-    
-    # Reset mock
+    # Use the real typed cmd_config from the device's commands.
+    cmd_config = wirenboard_ir_device.get_available_commands()["power"]
+
     mqtt_client.publish.reset_mock()
-    
-    # Call the handler with the parameter pattern
-    await handler(cmd_config=cmd_config, params=params)
-    
-    # Verify MQTT message was published
+
+    await handler(cmd_config=cmd_config, params={})
+
     mqtt_client.publish.assert_called_once()
-    args = mqtt_client.publish.call_args[0]
-    assert args[0] == "/devices/wb-msw-v3_207/controls/Play from ROM62/on"
-    assert args[1] == 1
+    topic_arg, payload_arg = mqtt_client.publish.call_args[0][:2]
+    assert topic_arg == "/devices/wb-msw-v3_207/controls/Play from ROM62/on"
+    # Payload is now passed as a string "1" (broker accepts either; production
+    # writes it as a string for consistency with the WB control schema).
+    assert str(payload_arg) == "1"
 
 
 @pytest.mark.asyncio
 async def test_mqtt_message_handling(wirenboard_ir_device, mqtt_client):
-    """Test MQTT message handling with the updated handler."""
-    # Reset mock
+    """handle_message returns a CommandResult whose mqtt_command holds topic/payload.
+
+    The old return shape was a flat {"topic": ..., "payload": ...}; the current
+    BaseDevice.CommandResult wraps the dispatch metadata under 'mqtt_command'
+    and adds success/message fields.
+    """
     mqtt_client.publish.reset_mock()
-    
-    # Call handle_message
+
     result = await wirenboard_ir_device.handle_message("/devices/test_ir/controls/power", "1")
-    
-    # Verify the result is a correctly formatted command
+
     assert isinstance(result, dict)
-    assert "topic" in result
-    assert "payload" in result
-    assert result["topic"] == "/devices/wb-msw-v3_207/controls/Play from ROM62/on"
-    assert result["payload"] == 1
-    
-    # Verify the last_command state was updated
-    last_command = wirenboard_ir_device.get_last_command()
-    assert last_command is not None
-    # Access command_topic via params dictionary in the LastCommand model
-    assert last_command.params.get("command_topic") == "/devices/wb-msw-v3_207/controls/Play from ROM62/on"
-    # Access topic via params in the LastCommand model
-    assert last_command.params.get("topic") == "/devices/test_ir/controls/power" 
+    assert result.get("success") is True
+    assert "mqtt_command" in result
+    mqtt_cmd = result["mqtt_command"]
+    assert mqtt_cmd["topic"] == "/devices/wb-msw-v3_207/controls/Play from ROM62/on"
+    assert str(mqtt_cmd["payload"]) == "1"
+
+    # The old test additionally asserted on get_last_command() — that helper no
+    # longer exists on WirenboardIRDevice; equivalent observation (the action was
+    # dispatched against the right device-internal command) is already covered by
+    # the mqtt_command checks above.
