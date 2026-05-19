@@ -13,7 +13,8 @@ def config_manager(tmpdir):
     config_dir = tmpdir.mkdir("config")
     devices_dir = config_dir.mkdir("devices")
     
-    # Create a simple system.json
+    # system.json — device discovery happens via the devices/ subdir, so the
+    # "devices" section at the top level is no longer needed.
     system_config = {
         "mqtt_broker": {
             "host": "localhost",
@@ -26,27 +27,19 @@ def config_manager(tmpdir):
         },
         "log_level": "DEBUG",
         "log_file": "logs/test.log",
-        "devices": {
-            "test_kitchen_hood": {
-                "class": "BroadlinkKitchenHood",
-                "config_file": "kitchen_hood.json"
-            },
-            "test_standard_device": {
-                "class": "StandardDevice",
-                "config_file": "standard_device.json"
-            }
-        }
     }
-    
-    # Write system.json
+
     with open(os.path.join(config_dir, "system.json"), "w") as f:
         json.dump(system_config, f)
-    
-    # Create device config files
+
+    # Kitchen hood config in the current schema (device_class + config_class
+    # required by BaseDeviceConfig; broadlink/rf_codes are required by
+    # BroadlinkKitchenHoodConfig).
     kitchen_hood_config = {
+        "device_id": "test_kitchen_hood",
         "device_name": "Test Kitchen Hood",
-        "device_type": "broadlink_kitchen_hood",
-        
+        "device_class": "BroadlinkKitchenHood",
+        "config_class": "BroadlinkKitchenHoodConfig",
         "broadlink": {
             "host": "192.168.1.100",
             "mac": "AA:BB:CC:DD:EE:FF",
@@ -72,77 +65,50 @@ def config_manager(tmpdir):
             }
         }
     }
-    
-    standard_device_config = {
-        "device_name": "Test Standard Device",
-        "device_type": "standard_device",
-        
-        "commands": {}
+
+    # A device whose config_class doesn't resolve — used to verify the
+    # ConfigManager rejects unknown classes (replaces the old
+    # test_standard_device_config behavior).
+    unknown_class_config = {
+        "device_id": "test_unknown_class",
+        "device_name": "Test Unknown Class Device",
+        "device_class": "DeviceClassThatDoesNotExist",
+        "config_class": "ConfigClassThatDoesNotExist",
+        "commands": {},
     }
-    
-    # Write device configs
+
     with open(os.path.join(devices_dir, "kitchen_hood.json"), "w") as f:
         json.dump(kitchen_hood_config, f)
-    
-    with open(os.path.join(devices_dir, "standard_device.json"), "w") as f:
-        json.dump(standard_device_config, f)
-    
-    # Create and return the config manager
+
+    with open(os.path.join(devices_dir, "unknown_class.json"), "w") as f:
+        json.dump(unknown_class_config, f)
+
     return ConfigManager(config_dir=str(config_dir))
 
-@pytest.mark.skip(reason="ConfigManager._config_models attribute removed")
-
-def test_config_models():
-    """Test that the config models mapping is set up correctly."""
-    # Get the models from the ConfigManager
-    models = ConfigManager._config_models
-    assert "BroadlinkKitchenHood" in models
-    assert models["BroadlinkKitchenHood"] == BroadlinkKitchenHoodConfig
-
-@pytest.mark.skip(reason="test fixture references obsolete kitchen_hood config shape")
 
 def test_load_kitchen_hood_config(config_manager):
-    """Test that a kitchen hood config is loaded with the correct class."""
-    # Get the kitchen hood config
+    """A kitchen-hood JSON in the devices/ dir is loaded with the right Pydantic class."""
     kitchen_hood_config = config_manager.get_device_config("test_kitchen_hood")
-    
-    # Check that it's loaded with the correct class
+
     assert isinstance(kitchen_hood_config, BroadlinkKitchenHoodConfig)
-    
-    # Check that rf_codes are present
+    assert kitchen_hood_config.device_name == "Test Kitchen Hood"
+    assert kitchen_hood_config.device_class == "BroadlinkKitchenHood"
+    assert kitchen_hood_config.config_class == "BroadlinkKitchenHoodConfig"
+
+    # rf_codes round-trip
     assert "light" in kitchen_hood_config.rf_codes
     assert "speed" in kitchen_hood_config.rf_codes
     assert kitchen_hood_config.rf_codes["light"]["on"] == "test_code_on"
     assert kitchen_hood_config.rf_codes["speed"]["0"] == "test_code_speed_0"
-    
-    # Check that other fields are preserved
-    assert kitchen_hood_config.device_name == "Test Kitchen Hood"
-    
-    # Access commands directly
+
+    # commands parsed into Pydantic objects
     commands = kitchen_hood_config.commands
     assert isinstance(commands, dict)
     assert "set_light" in commands
     assert commands["set_light"].action == "set_light"
 
-def test_standard_device_config(config_manager):
-    """Test that standard device config fails to load without a specific model."""
-    # This device should not be loaded because there's no StandardDevice config model
-    standard_config = config_manager.get_device_config("test_standard_device")
-    
-    # The config should not be loaded
-    assert standard_config is None
 
-@pytest.mark.skip(reason="ConfigManager.register_config_model removed")
-
-def test_register_config_model():
-    """Test registering a new config model."""
-    # Create a test config class
-    class TestDeviceConfig(BaseDeviceConfig):
-        test_field: str = "test"
-    
-    # Register it
-    ConfigManager.register_config_model("TestDevice", TestDeviceConfig)
-    
-    # Check it was registered
-    assert "TestDevice" in ConfigManager._config_models
-    assert ConfigManager._config_models["TestDevice"] == TestDeviceConfig 
+def test_unknown_config_class_skipped(config_manager):
+    """A device JSON pointing at a config_class that doesn't resolve must not load."""
+    cfg = config_manager.get_device_config("test_unknown_class")
+    assert cfg is None

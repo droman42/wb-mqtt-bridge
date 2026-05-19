@@ -285,44 +285,44 @@ class TestScenario:
             assert result is False
             assert mock_error.called
 
-    @pytest.mark.skip(reason="validate() removed; production now uses validate_configuration() that raises on error")
-
     def test_validate_valid_scenario(self, scenario, mock_device_manager):
-        """Test validation of a valid scenario"""
-        errors = scenario.validate()
-        assert errors == []
+        """A valid scenario passes validate_configuration() silently.
 
-    @pytest.mark.skip(reason="same as test_validate_valid_scenario")
+        The old API returned an error list; the current API raises
+        ScenarioConfigurationError on errors and returns None on success.
+        """
+        # Production: validate_configuration() returns None on success.
+        result = scenario.validate_configuration()
+        assert result is None
 
     def test_validate_missing_devices(self, scenario, mock_device_manager):
-        """Test validation when devices are missing"""
-        # Remove all devices
+        """validate_configuration() raises ScenarioConfigurationError when devices are missing.
+
+        Semantic intent (preserved from the original test): a scenario referencing
+        devices that the DeviceManager does not know about must be rejected at
+        validation time, with the offending device IDs surfaced in the error.
+        """
+        from wb_mqtt_bridge.domain.scenarios.models import ScenarioConfigurationError
+
+        # Strip all devices so the scenario's tv/soundbar references become invalid.
         mock_device_manager.devices.clear()
-        
-        errors = scenario.validate()
-        
-        assert len(errors) > 0
-        assert any("Device 'tv' referenced in scenario does not exist" in error for error in errors)
-        assert any("Device 'soundbar' referenced in scenario does not exist" in error for error in errors)
 
-    @pytest.mark.skip(reason="same as test_validate_valid_scenario")
+        with pytest.raises(ScenarioConfigurationError) as excinfo:
+            scenario.validate_configuration()
 
-    def test_validate_with_room_manager(self, scenario, mock_device_manager):
-        """Test validation with room manager for scenario-room containment"""
-        # Add room_id to the scenario
-        scenario.definition.room_id = "living_room"
-        
-        # Create a mock room manager with contains_device method
-        room_manager = MagicMock()
-        room_manager.contains_device.return_value = False
-        
-        # Attach room_manager to device_manager
-        mock_device_manager.room_manager = room_manager
-        
-        errors = scenario.validate()
-        
-        assert any("Device 'tv' is not in room 'living_room'" in error for error in errors)
-        assert any("Device 'soundbar' is not in room 'living_room'" in error for error in errors)
+        # ScenarioConfigurationError exposes `errors` (List[str]); each missing
+        # device should be mentioned by ID somewhere in that list.
+        errors = excinfo.value.errors
+        flattened = "\n".join(errors)
+        assert "'tv'" in flattened
+        assert "'soundbar'" in flattened
+
+    # The old test_validate_with_room_manager checked that a Scenario object
+    # validates "this device is in the room declared by room_id". That responsibility
+    # moved out of Scenario.validate_configuration() (which now only validates
+    # internal definition references; room-vs-device containment is handled by
+    # ScenarioManager / RoomManager). No replacement test in this file — the
+    # responsibility is exercised at the manager layer.
 
     @pytest.mark.asyncio
     async def test_execute_startup_sequence_with_power_skipping(self, scenario, mock_device_manager):
