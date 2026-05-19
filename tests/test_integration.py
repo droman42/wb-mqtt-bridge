@@ -33,7 +33,8 @@ from fastapi.testclient import TestClient
 from wb_mqtt_bridge.app import app
 import pytest
 
-pytestmark = pytest.mark.skip(reason="fixtures need updates for refactored device/state APIs")
+pytestmark = pytest.mark.integration
+
 class TestStateTypePreservation(unittest.TestCase):
     """Test that state concrete types are preserved through updates."""
     
@@ -209,9 +210,16 @@ class TestAPIResponse(unittest.TestCase):
         # Create a TestClient instance
         self.client = TestClient(app)
         
-        # Prepare patches
-        self.device_manager_patch = patch('app.main.device_manager')
-        self.mqtt_client_patch = patch('app.main.mqtt_client')
+        # Prepare patches — the router modules each hold module-level
+        # device_manager / mqtt_client globals that are set during bootstrap.
+        # We patch them on the devices router specifically since that's what
+        # the /devices endpoints use.
+        self.device_manager_patch = patch(
+            'wb_mqtt_bridge.presentation.api.routers.devices.device_manager'
+        )
+        self.mqtt_client_patch = patch(
+            'wb_mqtt_bridge.presentation.api.routers.devices.mqtt_client'
+        )
         
         # Start patches
         self.mock_device_manager = self.device_manager_patch.start()
@@ -250,21 +258,33 @@ class TestAPIResponse(unittest.TestCase):
         self.mqtt_client_patch.stop()
     
     def test_get_device_returns_typed_state(self):
-        """Test that GET /devices/{device_id} returns properly typed state."""
+        """GET /devices/{device_id}/state returns the device's typed state directly (no 'state' wrapper).
+
+        The endpoint moved from /devices/{id} to /devices/{id}/state (state.py router).
+        The semantic intent — verify the response IS the typed state object (with
+        device-specific fields like light/speed at the top level) and is NOT wrapped
+        in a {"state": ...} envelope — is preserved.
+
+        The state router uses its own module-level `device_manager` global, so we
+        also need to patch it there for this endpoint.
+        """
         # Configure mock
         self.mock_device.get_current_state.return_value = self.mock_state
-        
-        # Make request
-        response = self.client.get("/devices/kitchen_hood")
-        
-        # Verify response
+
+        # The state router has its own `device_manager` global.
+        with patch(
+            "wb_mqtt_bridge.presentation.api.routers.state.device_manager",
+            self.mock_device_manager,
+        ):
+            response = self.client.get("/devices/kitchen_hood/state")
+
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        
-        # Verify it's not wrapped (no 'state' field at the top level)
+
+        # No 'state' wrapper at the top level.
         self.assertNotIn("state", data)
-        
-        # Verify fields are directly accessible
+
+        # Device-specific fields are directly accessible.
         self.assertEqual(data["device_id"], "kitchen_hood")
         self.assertEqual(data["device_name"], "Kitchen Hood")
         self.assertEqual(data["light"], "on")
@@ -272,31 +292,35 @@ class TestAPIResponse(unittest.TestCase):
         self.assertEqual(data["connection_status"], "connected")
     
     def test_execute_action_returns_command_response(self):
-        """Test that POST /devices/{device_id}/action returns CommandResponse."""
-        # Configure mock
-        self.mock_device.execute_action = AsyncMock(return_value=self.mock_command_response)
-        
-        # Make request
+        """POST /devices/{device_id}/action returns a CommandResponse with the typed state inline.
+
+        The endpoint now calls device_manager.perform_action(...) (a coroutine on
+        the manager itself) rather than fetching the device and calling its
+        execute_action. We mock perform_action accordingly. The semantic intent
+        — verify the response carries success/device_id/action plus state and
+        mqtt_command at the top level (no envelope) — is preserved.
+        """
+        # Mock perform_action on the manager (the method actually invoked by the route).
+        self.mock_device_manager.perform_action = AsyncMock(return_value=self.mock_command_response)
+
         response = self.client.post(
             "/devices/kitchen_hood/action",
             json={"action": "set_light", "params": {"state": "on"}}
         )
-        
-        # Verify response
+
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        
-        # Verify response structure
+
         self.assertEqual(data["success"], True)
         self.assertEqual(data["device_id"], "kitchen_hood")
         self.assertEqual(data["action"], "set_light")
-        
-        # Verify state is included directly (not wrapped)
+
+        # State is inline (not wrapped in a sub-envelope).
         self.assertIsInstance(data["state"], dict)
         self.assertEqual(data["state"]["light"], "on")
         self.assertEqual(data["state"]["speed"], 2)
-        
-        # Verify mqtt_command is included
+
+        # MQTT command surfaced inline too.
         self.assertIn("mqtt_command", data)
         self.assertEqual(data["mqtt_command"]["topic"], "kitchen_hood/light/state")
         self.assertEqual(data["mqtt_command"]["payload"], "on")
