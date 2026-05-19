@@ -67,6 +67,7 @@ export const useDataSync = () => {
           },
           roomId: roomId, // Use the mapped room ID
           type: config.device_class || 'unknown',
+          category: config.device_category || 'device', // Map device_category to category, default to 'device'
         };
       });
       setDevices(devices);

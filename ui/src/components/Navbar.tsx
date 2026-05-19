@@ -14,28 +14,33 @@ function Navbar() {
     scenarios, 
     selectedRoomId, 
     selectedDeviceId, 
+    selectedApplianceId,
     selectedScenarioId,
     selectRoom,
     selectDevice,
+    selectAppliance,
     selectScenario,
     getFilteredDevices,
+    getFilteredAppliances,
     getFilteredScenarios
   } = useRoomStore();
   
   const { toggleStatePanel, toggleLogPanel } = useSettingsStore();
 
   // Local state for dropdown visibility
-  const [dropdownOpen, setDropdownOpen] = useState<'rooms' | 'devices' | 'scenarios' | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState<'rooms' | 'devices' | 'appliances' | 'scenarios' | null>(null);
 
   const selectedRoom = rooms.find(r => r.id === selectedRoomId);
   const selectedDevice = devices.find(d => d.id === selectedDeviceId);
+  const selectedAppliance = devices.find(d => d.id === selectedApplianceId);
   const selectedScenario = scenarios.find(s => s.id === selectedScenarioId);
 
   // Use the filtered data from the store
   const filteredDevices = getFilteredDevices();
+  const filteredAppliances = getFilteredAppliances();
   const filteredScenarios = getFilteredScenarios();
 
-  const handleDropdownToggle = (dropdown: 'rooms' | 'devices' | 'scenarios') => {
+  const handleDropdownToggle = (dropdown: 'rooms' | 'devices' | 'appliances' | 'scenarios') => {
     setDropdownOpen(dropdownOpen === dropdown ? null : dropdown);
   };
 
@@ -55,6 +60,20 @@ function Navbar() {
     } else {
       // Fallback to standard route if not in registry
       navigate(`/device/${deviceId}`);
+    }
+  };
+
+  const handleApplianceSelect = (applianceId: string) => {
+    selectAppliance(applianceId);
+    setDropdownOpen(null);
+    
+    // Navigate using generated device route for appliances too
+    const applianceRoute = getDeviceRoute(applianceId);
+    if (applianceRoute) {
+      navigate(applianceRoute);
+    } else {
+      // Fallback to standard route if not in registry
+      navigate(`/device/${applianceId}`);
     }
   };
 
@@ -144,6 +163,42 @@ function Navbar() {
                 {filteredDevices.length === 0 && (
                   <div className="px-3 py-2 text-sm text-muted-foreground">
                     {selectedRoomId ? 'No devices in this room' : 'No devices available'}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Appliance Dropdown */}
+        <div className="relative">
+          <Button 
+            variant="outline" 
+            className="flex items-center space-x-2"
+            onClick={() => handleDropdownToggle('appliances')}
+          >
+            <span>{selectedAppliance?.name.en || 'Select Appliance'}</span>
+            <Icon library="material" name="KeyboardArrowDown" size="sm" fallback="arrow-down" className="h-4 w-4" />
+          </Button>
+          
+          {dropdownOpen === 'appliances' && (
+            <div className="absolute top-full left-0 mt-1 w-48 bg-popover border border-border rounded-md shadow-lg z-50">
+              <div className="py-1">
+                {filteredAppliances.map((appliance) => (
+                  <button
+                    key={appliance.id}
+                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground text-sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleApplianceSelect(appliance.id);
+                    }}
+                  >
+                    {appliance.name.en}
+                  </button>
+                ))}
+                {filteredAppliances.length === 0 && (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    {selectedRoomId ? 'No appliances in this room' : 'No appliances available'}
                   </div>
                 )}
               </div>

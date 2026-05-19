@@ -3,6 +3,7 @@ export interface DeviceConfig {
   device_name: string;
   device_class: string;
   config_class: string;
+  device_category?: "device" | "appliance"; // New field from backend API
   commands: Record<string, DeviceCommand>;
 }
 

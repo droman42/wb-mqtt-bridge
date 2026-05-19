@@ -8,16 +8,19 @@ function HomePage() {
   const { 
     selectedRoomId, 
     selectedDeviceId, 
+    selectedApplianceId,
     selectedScenarioId, 
     rooms, 
     devices, 
     scenarios,
     getFilteredDevices,
+    getFilteredAppliances,
     getFilteredScenarios
   } = useRoomStore();
   const { addLog } = useLogStore();
 
   const filteredDevices = getFilteredDevices();
+  const filteredAppliances = getFilteredAppliances();
   const filteredScenarios = getFilteredScenarios();
   const selectedRoom = rooms.find(r => r.id === selectedRoomId);
 
@@ -49,7 +52,8 @@ function HomePage() {
           <div>
             <h4 className="font-medium">Data Counts:</h4>
             <p>Rooms: {rooms.length}</p>
-            <p>Devices: {devices.length} (filtered: {filteredDevices.length})</p>
+            <p>📱 Devices: {devices.filter(d => d.category !== 'appliance').length} (filtered: {filteredDevices.length})</p>
+            <p>🏠 Appliances: {devices.filter(d => d.category === 'appliance').length} (filtered: {filteredAppliances.length})</p>
             <p>Scenarios: {scenarios.length} (filtered: {filteredScenarios.length})</p>
             {selectedRoom && <p>Selected Room: {selectedRoom.name.en}</p>}
           </div>
@@ -93,6 +97,10 @@ function HomePage() {
             <div className="flex justify-between">
               <span className="text-muted-foreground">Selected Device:</span>
               <span>{selectedDeviceId || 'None'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Selected Appliance:</span>
+              <span>{selectedApplianceId || 'None'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Selected Scenario:</span>

@@ -221,10 +221,14 @@ export class DevicePageGenerator {
       const template = new RemoteControlTemplate();
       const componentCode = template.generateComponent(structure);
       
-      // Determine output directory based on device class
+      // Determine output directory based on device class and category
       const isScenario = structure.deviceClass === 'ScenarioDevice';
+      const isAppliance = validatedConfig.device_category === 'appliance';
+      
+      // For now, appliances use same processing path as devices (as requested)
+      // In the future, this can be modified to use different templates/handlers
       const actualOutputDir = isScenario ? this.scenariosOutputDir : this.outputDir;
-      const pageType = isScenario ? 'scenario' : 'device';
+      const pageType = isScenario ? 'scenario' : (isAppliance ? 'appliance' : 'device');
       
       // Ensure output directory exists
       await fs.mkdir(actualOutputDir, { recursive: true });

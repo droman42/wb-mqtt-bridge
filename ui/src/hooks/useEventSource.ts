@@ -65,14 +65,12 @@ export function useEventSource<T = any>(
         const fullUrl = url.startsWith('http') ? url : url;
         
         // For SSE, we need to create the EventSource with specific options
-        console.log(`Creating EventSource for ${fullUrl}`);
         const es = new EventSource(fullUrl);
         esRef.current = es;
 
         es.onopen = () => {
           if (!cancelledRef.current) {
             console.log(`🟢 SSE connection opened for ${fullUrl}`);
-            console.log(`🔧 DEBUG: onmessage handler attached:`, typeof es.onmessage);
             setConnected(true);
             setError(null);
             
@@ -94,8 +92,7 @@ export function useEventSource<T = any>(
               
               // 🔇 Skip logging for keepalive events to reduce console noise
               if (eventType !== 'keepalive') {
-                console.log(`📨 SSE message received on ${url}:`, event);
-                console.log(`📋 SSE parsed data:`, eventData);
+                console.log(`📨 SSE ${eventType} event:`, eventData);
               }
               
               // Update connection status
@@ -126,8 +123,7 @@ export function useEventSource<T = any>(
         };
 
         es.onerror = (e) => {
-          console.error(`🔴 SSE connection error for ${fullUrl}:`, e);
-          console.log(`🔴 SSE readyState: ${es.readyState}, URL: ${es.url}`);
+          console.error(`🔴 SSE connection error for ${fullUrl}`);
           setError(e);
           setConnected(false);
           es.close();

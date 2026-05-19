@@ -24,22 +24,17 @@ function Layout({ children }: LayoutProps) {
   // Handle device events - only handle specified event types per specification
   useEffect(() => {
     if (deviceSSE.data) {
-      console.log('[Layout] Device SSE data received:', deviceSSE.data);
-      
       const { device_id, device_name, message, eventType, timestamp } = deviceSSE.data;
+      
+      // Skip logging for keepalive events to reduce console noise
+      if (eventType !== 'keepalive') {
+        console.log('[Layout] Device SSE data received:', deviceSSE.data);
+      }
       
       // Handle test events which have a different structure
       if (eventType === 'test') {
         const testData = deviceSSE.data.data;
         if (testData && testData.device_id) {
-          console.log('[Layout] Adding test device progress message:', {
-            type: 'device',
-            deviceId: testData.device_id,
-            deviceName: testData.device_name,
-            message: testData.message,
-            eventType: 'test'
-          });
-          
           addMessage({
             type: 'device',
             deviceId: testData.device_id,
@@ -93,14 +88,6 @@ function Layout({ children }: LayoutProps) {
         }
         
         if (shouldAddToProgress) {
-          console.log('[Layout] Adding device progress message:', {
-            type: 'device',
-            deviceId: device_id,
-            deviceName: device_name,
-            message: progressMessage,
-            eventType: eventType
-          });
-          
           addMessage({
             type: 'device',
             deviceId: device_id,
