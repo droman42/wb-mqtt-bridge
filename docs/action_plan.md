@@ -235,7 +235,7 @@ These were the only **unfinished** items in `docs/TODO.md` when it was archived 
 - **2026-05-20** — **Decided to adopt GSD** (added **P2.6 #11**; removed it from "out of scope"). Re-studied the framework: solo-friendly, brownfield path, multi-repo via workspaces. Audited all documentation in both repos against current code (two subagents) and executed the doc-reconciliation prerequisites:
   - **Step A (archive):** moved 28 backend + 6 UI superseded design/implementation plans to `docs/archive/` with a "not current, don't ingest" header (backend `124ca55`, UI `8bb360b`). The live `docs/` surface is now 13 backend + 5 UI docs.
   - **Step B (fix living docs):** backend README de-stale'd + trimmed 1146→878 (`55ca7e6`); backend living-doc batch + emotiva (`db5c18b`, `0493df4`); UI README rewritten 299→121 for the Python-free contract build (`16b95dc`); UI deployment + network-config rewritten for runtime env-var config (`9d0745b`); remote_layout trimmed to the spec + accurate impl note, page_instructions + appliances corrected (`b8a15e9`).
-  - **Step C/D pending** — see #11.
+  - **Step C started:** authored the **UI↔backend CONTRACT** (`docs/ui_backend_contract.md`, `50e94b0`) — the first of the four GSD-seed docs; pointer added from the UI README (`f4d0e7b`). Remaining seed docs: PROJECT vision, ARCHITECTURE, CONVENTIONS, + ADRs. **Step D pending** — see #11.
 
 ---
 
