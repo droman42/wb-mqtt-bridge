@@ -1,3 +1,10 @@
+# Phase 1 / Phase 2 task log (archived)
+
+> **Archived 2026-05-20.** This is the original Russian Phase 1/2 checklist, kept
+> for history. It is **no longer the live backlog** — the items that were still
+> open when it was archived have been migrated to `docs/action_plan.md` §5.
+> The Miele line was dropped (integration abandoned; `asyncmiele` dependency removed).
+
 ## PHASE 1
 - [x] Доработка FastAPI - описательная часть (переход на схемы) + проверить все функции
 - [x] BaseDevice - зачем вся конфига является частью state?
