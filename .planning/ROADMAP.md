@@ -45,7 +45,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Re-pin git deps to immutable refs (openhomedevice→SHA, pyatv→PyPI 0.17.0); add upper bounds to direct PyPI deps; regenerate `uv.lock` (DEP-01, DEP-03)
+- [x] 01-01-PLAN.md — Re-pin git deps to immutable refs (openhomedevice→SHA, pyatv→PyPI 0.17.0); add upper bounds to direct PyPI deps; regenerate `uv.lock` (DEP-01, DEP-03)
 - [ ] 01-02-PLAN.md — Verify: pin-guard test (no moving refs, lxml-free, bounds present) + Auralic/Apple TV driver tests + full suite green on amd64 (DEP-01)
 - [ ] 01-03-PLAN.md — Document the recovery runbook + record dependency-pinning policy as ADR 0006 (DEP-02)
 
@@ -144,7 +144,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Dependency Reproducibility Hardening | 0/3 | Not started | - |
+| 1. Dependency Reproducibility Hardening | 1/3 | In Progress|  |
 | 2. Fix the Scenario Layer | 0/3 | Not started | - |
 | 3. Button-Placement Contract | 0/2 | Not started | - |
 | 4. CI Quality Gates | 0/2 | Not started | - |

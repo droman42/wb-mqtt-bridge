@@ -35,9 +35,9 @@ Open scope. Each maps to exactly one roadmap phase.
 
 ### Dependency Hardening (foundation — Phase 1)
 
-- [ ] **DEP-01**: No dependency tracks a moving git ref — `openhomedevice` (currently branch `remove-lxml-dependency`) is pinned to an immutable commit/tag and resolves deterministically via `uv.lock`; `pyatv` stays on an immutable ref
+- [x] **DEP-01**: No dependency tracks a moving git ref — `openhomedevice` (currently branch `remove-lxml-dependency`) is pinned to an immutable commit/tag and resolves deterministically via `uv.lock`; `pyatv` stays on an immutable ref
 - [ ] **DEP-02**: A documented recovery path exists for the git-sourced deps (`openhomedevice`, `pyatv`) if upstream disappears — upstream-and-move-to-PyPI, tag, or mirror/vendor of the exact ref
-- [ ] **DEP-03**: Direct PyPI dependencies carry upper bounds (e.g. `pydantic>=2.11.0,<3`) so a breaking major release can't be pulled silently
+- [x] **DEP-03**: Direct PyPI dependencies carry upper bounds (e.g. `pydantic>=2.11.0,<3`) so a breaking major release can't be pulled silently
 
 ### Scenarios (top functional priority)
 
@@ -96,9 +96,9 @@ Which phases cover which requirements.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DEP-01 | Phase 1 | Pending |
+| DEP-01 | Phase 1 | Complete |
 | DEP-02 | Phase 1 | Pending |
-| DEP-03 | Phase 1 | Pending |
+| DEP-03 | Phase 1 | Complete |
 | SCEN-01 | Phase 2 | Pending |
 | SCEN-02 | Phase 2 | Pending |
 | SCEN-03 | Phase 2 | Pending |

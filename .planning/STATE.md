@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-stopped_at: Phase 1 context gathered
-last_updated: "2026-05-20T10:11:18.345Z"
-last_activity: 2026-05-20 — inserted Phase 1 (Dependency Reproducibility Hardening) before the scenario fix; phases renumbered 2–7
+status: executing
+stopped_at: Completed Phase 01 Plan 01 — dependency re-pinning and upper bounds
+last_updated: "2026-05-20T10:52:09.352Z"
+last_activity: 2026-05-20
 progress:
   total_phases: 7
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 3
+  completed_plans: 1
   percent: 0
 ---
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-05-20)
 
 ## Current Position
 
-Phase: 1 of 7 (Dependency Reproducibility Hardening)
-Plan: 0 of 3 in current phase
-Status: Ready to plan
-Last activity: 2026-05-20 — inserted Phase 1 (Dependency Reproducibility Hardening) before the scenario fix; phases renumbered 2–7
+Phase: 1 (Dependency Reproducibility Hardening) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-05-20
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: —
 
 *Updated after each plan completion*
+| Phase 01-dependency-reproducibility-hardening P01 | 2 | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -64,6 +65,9 @@ Recent decisions affecting current work:
 - Dependency hardening is Phase 1 (inserted 2026-05-20) — reproducible build before functional work, since two libs are git-pinned to a moving branch / bare commit
 - Scenario fix is Phase 2 — the #1 success criterion and headline gap (follows dependency hardening)
 - P1/P2 hardening + test-CI work recorded as completed context, not open phases
+- [Phase ?]: openhomedevice: keep fork at SHA 6e862a1022f59a21c57c501dcf040f81d12ebfaf — upstream PyPI 2.3.1 still has lxml, ARMv7 constraint preserved (DEP-01)
+- [Phase ?]: pyatv: migrated from git commit f75e718 to PyPI pyatv==0.17.0 — protobuf fix shipped in 0.16.1+, no API breaks for AppleTVDevice driver (DEP-01)
+- [Phase ?]: paho-mqtt capped at <2: 2.x has breaking callback-signature changes; cap at 1.x forced aiomqtt 2.3.2 to 2.0.1 (cascading constraint, aiomqtt 2.0.1 + paho 1.6.1 work with existing code)
 
 ### Pending Todos
 
@@ -88,6 +92,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-05-20T10:11:18.336Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-dependency-reproducibility-hardening/01-CONTEXT.md
+Last session: 2026-05-20T10:52:09.345Z
+Stopped at: Completed Phase 01 Plan 01 — dependency re-pinning and upper bounds
+Resume file: None
