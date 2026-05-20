@@ -1,15 +1,18 @@
 # Smart Home Remote UI v2
 
-A modern, responsive web application for controlling smart home devices and scenarios. Built with React 18, TypeScript, and Tailwind CSS.
+A modern, responsive web application for controlling smart home devices and
+scenarios. Built with React 18, TypeScript, and Tailwind CSS. It renders a
+remote-control-style page per device, generated at build time from the
+`wb-mqtt-bridge` backend's OpenAPI contract.
 
 ## Features
 
-- **Device Control**: Intuitive interfaces for smart home devices
+- **Device Control**: Remote-control-style interfaces per device
 - **Scenario Management**: Execute complex automation sequences
-- **Real-time Updates**: Live device state monitoring and system logs
-- **Responsive Design**: Works on desktop, tablet, and mobile devices
-- **Build-time Generation**: Pages generated from Python model imports
-- **Multi-transport**: Supports both REST API and MQTT communication
+- **Real-time Updates**: Live device state via Server-Sent Events (SSE)
+- **Responsive Design**: Optimized for iPad-portrait, works on desktop/tablet/mobile
+- **Contract-driven generation**: Device pages + types generated from the backend's
+  `openapi.json` (no Python in the build)
 - **Internationalization**: English and Russian language support
 
 ## Technology Stack
@@ -18,370 +21,189 @@ A modern, responsive web application for controlling smart home devices and scen
 - **Styling**: Tailwind CSS v3 + shadcn/ui components
 - **State Management**: Zustand + Immer
 - **Data Fetching**: TanStack Query 5
-- **Icons**: Material Design Icons (@mui/icons-material) + Custom SVG fallbacks
-- **Testing**: Jest + React Testing Library
-- **Deployment**: Docker + Nginx
-- **Type Generation**: Python package imports via wb-mqtt-bridge
+- **Icons**: Material Design Icons (@mui/icons-material) + custom SVG fallbacks
+- **Type generation**: `openapi-typescript` against the backend `openapi.json`
+- **Deployment**: Docker + Nginx (ARMv7 for Wirenboard)
+
+## How code generation works
+
+The UI consumes the backend purely as a **contract** — there is no Python in the
+build. At build time it reads, from a sibling `wb-mqtt-bridge` checkout:
+
+- `wb-mqtt-bridge/openapi.json` — the committed OpenAPI snapshot (device-state model
+  shapes live in `components.schemas`).
+- `wb-mqtt-bridge/config/device-state-mapping.json` — maps each device class to its
+  state model + device config files (owned by the backend repo).
+- `wb-mqtt-bridge/config/devices/*.json` — device configurations.
+
+Two generators:
+
+- `npm run gen:api-types` → `src/types/api.gen.ts` (REST request/response types from
+  `openapi.json`).
+- `npm run gen:device-pages` → per-device `*.gen.tsx` pages, `*.hooks.ts`, and
+  `src/types/generated/*.state.ts` (device-state types read from `components.schemas`).
+
+> Generated artifacts (`src/pages/**/*.gen.tsx`, `*.hooks.ts`,
+> `src/types/generated/*.state.ts`, `index.gen.ts`) are **gitignored** — they are
+> built fresh in CI/Docker, not committed. `src/types/api.gen.ts` is committed.
 
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ 
-- Python 3.11+
-- npm or pnpm
-- wb-mqtt-bridge package (backend)
+- Node.js 20+
+- A sibling `wb-mqtt-bridge` checkout (for device configs + `openapi.json`) — **no
+  Python required**
 
 ### Installation
 
 ```bash
-# Clone the repositories
-git clone <frontend-repository-url>
-cd wb-mqtt-ui
-
-# Clone the backend (for local development)
+# Clone both repos side by side
+git clone <frontend-repository-url> wb-mqtt-ui
 git clone https://github.com/droman42/wb-mqtt-bridge.git
 
-# Install backend package in development mode
-cd wb-mqtt-bridge
-pip install -e .
-
-# Test backend installation
-python -c "from wb_mqtt_bridge.domain.devices.models import WirenboardIRState; print('✅ Backend package installed successfully')"
-
-# Return to frontend and install dependencies
-cd ../wb-mqtt-ui
+cd wb-mqtt-ui
 npm install
 
-# Generate pages from Python models
-npm run gen:device-pages
+# Generate API types + device pages from the sibling backend's openapi.json + mapping
+npm run gen:api-types
+npm run gen:device-pages -- --batch --mode=local \
+  --mapping-file=../wb-mqtt-bridge/config/device-state-mapping.json --generate-router
 
-# Start development server
+# Start the dev server
 npm run dev
 ```
 
 The application will be available at `http://localhost:3000`.
 
-### Alternative Setup (Package-only)
+> If the backend's `openapi.json` changes, regenerate it on the backend side with
+> `wb-openapi` (committed there), then re-run the generators above.
 
-If wb-mqtt-bridge is installed as a system package:
+## Configuration
 
-```bash
-# Install wb-mqtt-bridge from package manager or pip
-pip install wb-mqtt-bridge
+### Device-state mapping (owned by the backend)
 
-# Clone frontend only
-git clone <frontend-repository-url>
-cd wb-mqtt-ui
-
-# Install dependencies
-npm install
-
-# Generate pages using package imports
-npm run gen:device-pages --mode=package
-
-# Start development server
-npm run dev
-```
-
-## Project Structure
-
-```
-src/
-├── api/                # Swagger-generated clients
-├── app/                # Entry point & root layout
-├── components/         # Reusable UI components
-│   ├── NavCluster.tsx
-│   ├── SliderControl.tsx
-│   ├── PointerPad.tsx
-│   ├── DeviceStatePanel.tsx
-│   └── LogPanel.tsx
-├── pages/              # Generated React pages
-├── scripts/            # Build-time generators
-├── stores/             # Zustand state slices
-├── hooks/              # Custom React hooks
-├── config/             # Runtime configuration
-└── types/              # TypeScript definitions
-```
-
-## Development Workflow
-
-### Type Generation
-
-The application generates TypeScript interfaces from Python model classes using two methods:
-
-#### 1. Package-based (Recommended)
-Uses installed wb-mqtt-bridge package:
-
-```bash
-# Generate types from package imports
-npm run gen:device-pages --mode=package
-
-# Configuration uses stateClassImport field:
-{
-  "WirenboardIRDevice": {
-    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:WirenboardIRState",
-    "deviceConfigs": ["config/devices/ld_player.json"]
-  }
-}
-```
-
-#### 2. Local Development (Fallback)
-Uses local file paths for development:
-
-```bash
-# Generate types from local files
-npm run gen:device-pages --mode=local
-
-# Configuration uses legacy stateFile/stateClass fields:
-{
-  "WirenboardIRDevice": {
-    "stateFile": "app/schemas.py",
-    "stateClass": "WirenboardIRState"
-  }
-}
-```
-
-### Configuration Files
-
-Device configurations are defined in `config/device-state-mapping.json`:
+The mapping lives in the **backend** repo at
+`wb-mqtt-bridge/config/device-state-mapping.json`. Paths inside it are resolved
+relative to the mapping file's own directory, so the same file works for both the
+local sibling layout and the CI/Docker subdir layout. Format:
 
 ```json
 {
   "WirenboardIRDevice": {
     "stateClassImport": "wb_mqtt_bridge.domain.devices.models:WirenboardIRState",
-    "deviceConfigs": ["config/devices/ld_player.json"],
-    "description": "IR-controlled devices via Wirenboard"
+    "deviceConfigs": ["devices/ld_player.json"]
   },
   "ScenarioDevice": {
     "stateClassImport": "wb_mqtt_bridge.infrastructure.scenarios.models:ScenarioWBConfig",
-    "scenarioConfigs": ["config/scenarios/*.json"],
-    "description": "Virtual WB device configurations for scenarios"
+    "scenarioConfigPath": "scenarios",
+    "resolverType": "scenario_virtual_device"
   }
 }
 ```
 
-### Available Scripts
+Only the `ClassName` segment of `stateClassImport` is used (looked up in
+`openapi.json`); the module path is vestigial.
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run gen:device-pages` - Generate pages from Python models
-- `npm run preview` - Preview production build
-- `npm run test` - Run tests
-- `npm run lint` - Lint code
-- `npm run typecheck` - Type check frontend only
-- `npm run typecheck:all` - Type check all TypeScript files
-- `npm run validate:all` - Validate generated code and components
-- `npm run gen:favicon` - Generate favicon assets
+### Runtime configuration
 
-### Troubleshooting
+Backend URLs are resolved at **container start**, not baked into the bundle:
 
-#### Python Import Errors
+- **API/SSE proxy target**: nginx is rendered from `nginx.conf.template` by
+  `docker-entrypoint.sh`, substituting `BACKEND_HOST` / `BACKEND_PORT`
+  (defaults `192.168.110.250` / `8000`).
+- **MQTT broker URL**: written to `/runtime-config.js` (`window.RUNTIME_CONFIG`) by
+  the entrypoint from the `MQTT_URL` env var, consumed by `src/config/runtime.ts`.
 
-**Error**: `ModuleNotFoundError: No module named 'wb_mqtt_bridge'`
+For local `vite dev`, `src/config/runtime.ts` falls back to `VITE_*` build-time env:
 
-**Solution**:
 ```bash
-# Install the backend package
-pip install -e ../wb-mqtt-bridge
-
-# Or install from package manager
-pip install wb-mqtt-bridge
-
-# Verify installation
-python -c "import wb_mqtt_bridge; print(wb_mqtt_bridge.__version__)"
+# .env (local dev only)
+VITE_API_BASE_URL=        # empty = use the /api proxy
+VITE_MQTT_URL=ws://localhost:9001
+VITE_SSE_BASE_URL=        # empty = relative URLs (proxy)
 ```
 
-#### Type Generation Failures
+## Available Scripts
 
-**Error**: Type generation fails with import errors
+- `npm run dev` / `npm run build` / `npm run preview`
+- `npm run gen:api-types` — generate `src/types/api.gen.ts` from `openapi.json`
+- `npm run gen:device-pages` — generate device pages + state types (see Quick Start)
+- `npm run lint` / `npm run lint:fix`
+- `npm run typecheck` / `npm run typecheck:scripts` / `npm run typecheck:all`
+- `npm run validate:generated-code` / `npm run validate:components` / `npm run validate:all`
+- `npm run gen:favicon`
 
-**Solutions**:
-1. **Check Python environment**:
-```bash
-# Verify Python path and installed packages
-python -c "import sys; print(sys.path)"
-pip list | grep wb-mqtt-bridge
+## Project Structure
+
 ```
-
-2. **Use fallback mode**:
-```bash
-# Generate using local files as fallback
-npm run gen:device-pages --mode=local
-```
-
-3. **Check configuration format**:
-```bash
-# Validate configuration syntax
-npm run validate:all
-```
-
-#### Missing Device Configurations
-
-**Error**: Device configs not found
-
-**Solution**:
-```bash
-# Check if wb-mqtt-bridge is properly cloned/installed
-ls -la wb-mqtt-bridge/config/devices/
-
-# Verify configuration file paths
-cat config/device-state-mapping.json
-```
-
-#### Docker Build Issues
-
-**Error**: Docker build fails during type generation
-
-**Solution**:
-```bash
-# Build locally first to test
-npm install
-npm run gen:device-pages --mode=package
-npm run build
-
-# Check Docker build logs
-docker build --no-cache -t wb-mqtt-ui:test .
+src/
+├── app/                # Entry point & root layout
+├── components/         # Reusable UI components (NavCluster, SliderControl,
+│                       #   PointerPad, RemoteControlLayout, DeviceStatePanel, ...)
+├── lib/                # Generators + device handlers (StateTypeGenerator, ZoneDetection)
+├── pages/              # Generated device/scenario pages (*.gen.tsx — gitignored)
+├── scripts/            # Build-time generator entry (generate-device-pages.ts)
+├── stores/             # Zustand state slices
+├── hooks/              # Custom React hooks
+├── config/             # Runtime configuration (runtime.ts)
+└── types/              # TypeScript definitions (api.gen.ts, generated/*.state.ts)
 ```
 
 ## Docker Deployment
 
-### Automated ARM Builds (Phase 2)
-
-The project now supports automated ARM v7 Docker builds via GitHub Actions for Wirenboard 7 deployment:
+ARM v7 images are built via GitHub Actions for Wirenboard 7 (Node-only build, no
+Python). See [docs/deployment.md](docs/deployment.md) and
+[docs/deployment-network-config.md](docs/deployment-network-config.md).
 
 ```bash
-# Download latest build from GitHub Actions
-gh run download --repo YOUR_USERNAME/wb-mqtt-ui --name wb-mqtt-ui-image
+# Download the latest build artifact and load it
+gunzip wb-mqtt-ui.tar.gz && docker load < wb-mqtt-ui.tar
 
-# Deploy to Wirenboard 7
-gunzip wb-mqtt-ui.tar.gz
-docker load < wb-mqtt-ui.tar
-docker run -d --name wb-ui --restart unless-stopped -p 3000:3000 wb-mqtt-ui:latest
-
+# Run, pointing at your backend + MQTT broker (defaults shown)
+docker run -d --name wb-ui --restart unless-stopped -p 3000:3000 \
+  -e BACKEND_HOST=192.168.110.250 -e BACKEND_PORT=8000 \
+  -e MQTT_URL=ws://192.168.110.250:9001 \
+  wb-mqtt-ui:latest
 # Access at http://WIRENBOARD_IP:3000
 ```
 
-**Key Features:**
-- ✅ **ARM v7 optimized** for Wirenboard 7
-- ✅ **Package-based imports** - uses wb-mqtt-bridge Python package
-- ✅ **GitHub artifacts** - no container registry needed
-- ✅ **Two-stage builds** - ~30MB final image (nginx:alpine)
-- ✅ **Port 3000** - avoids system nginx conflicts
-- ✅ **Automated device page generation** during build
-- ✅ **TypeScript validation** - ensures type safety
-
-See [docs/deployment.md](docs/deployment.md) for complete deployment guide.
-
-### Manual Docker Build
-
-For local development and testing:
-
-```bash
-# Ensure wb-mqtt-bridge is available
-git clone https://github.com/droman42/wb-mqtt-bridge.git
-
-# Build image locally
-docker build -t wb-mqtt-ui:local .
-
-# Run locally
-docker run -d --name wb-ui-local -p 3000:3000 wb-mqtt-ui:local
-```
-
-## Configuration
-
-Runtime configuration is managed in `src/config/runtime.ts`:
-
-```typescript
-export const runtimeConfig = {
-  statePollIntervalSec: 5,
-  apiBaseUrl: '/api',
-  mqttUrl: 'ws://localhost:9001',
-  sseBaseUrl: '', // Environment-driven SSE configuration
-  defaultLanguage: 'en',
-  maxLogEntries: 1000,
-  debounceDelaySec: 0.3,
-};
-```
-
-### Environment Variables
-
-Create a `.env` file in the project root to customize configuration:
-
-```bash
-# API Base URL for regular HTTP requests
-VITE_API_BASE_URL=http://localhost:8000
-
-# MQTT WebSocket URL  
-VITE_MQTT_URL=ws://localhost:9001
-
-# SSE (Server-Sent Events) Configuration
-# Leave empty to use relative URLs (proxy mode - recommended)
-VITE_SSE_BASE_URL=
-
-# Alternative: Use absolute URL for direct backend connection
-# VITE_SSE_BASE_URL=http://192.168.110.250:8000
-
-# Alternative: For production with different backend
-# VITE_SSE_BASE_URL=https://api.yourdomain.com
-```
-
-**SSE Behavior:**
-- **Empty `VITE_SSE_BASE_URL`**: Uses relative URLs (`/events/devices`) → Works with Vite proxy (dev) or nginx proxy (production)
-- **Set `VITE_SSE_BASE_URL`**: Uses absolute URLs (`http://backend:8000/events/devices`) → Direct backend connection
+For a local build, ensure a sibling `wb-mqtt-bridge` checkout is present (the
+Dockerfile copies it into the build context), then `docker build -t wb-mqtt-ui:local .`.
 
 ## Component Library
 
-### Core Components
-
-- **NavCluster**: 3x3 navigation matrix with directional controls
-- **SliderControl**: Debounced slider with icon and tick marks
-- **PointerPad**: Touch/mouse gesture input (relative/absolute modes)
-- **DeviceStatePanel**: Collapsible device information panel
-- **LogPanel**: Collapsible system log viewer
-
-### Layout Components
-
-- **Navbar**: Top navigation with dropdowns and controls
-- **Layout**: Main application layout with panels
+- **RemoteControlLayout**: the remote-control container + 7-zone layout
+- **NavCluster**: directional navigation cluster
+- **SliderControl**: debounced slider with icon and tick marks
+- **PointerPad**: touch/mouse gesture input (relative/absolute modes)
+- **DeviceStatePanel**: collapsible device state readout
+- **LogPanel**: collapsible system log viewer
+- **Navbar** / **Layout**: navigation + main app layout with panels
 
 ## State Management
 
-The application uses Zustand for state management:
-
-- **useRoomStore**: Room, device, and scenario selection
-- **useLogStore**: System log entries
-- **useSettingsStore**: Theme, language, and panel visibility
+Zustand stores: `useRoomStore` (room/device/scenario selection), `useLogStore`
+(system log entries), `useSettingsStore` (theme, language, panel visibility).
 
 ## API Integration
 
-The application supports both REST API and MQTT transports:
+Both REST (via the nginx `/api` proxy) and SSE (`/events/*`) are used. Device state
+arrives over SSE; actions are sent via `POST /devices/{id}/action`.
 
-- REST endpoints follow the pattern `/api/devices/{id}/state`
-- MQTT topics are configurable per control
-- Device state polling occurs every 5 seconds (configurable)
+## Performance & Browser Support
 
-## Performance
-
-- Initial bundle ≤ 300 kB gzipped
-- Panel animations ≤ 200 ms
-- Time-to-interactive ≤ 100 ms on LAN
-- Optimized for ARMv7 (Wirenboard) devices
-
-## Browser Support
-
-- Chromium ≥ 110
-- Firefox ≥ 110  
-- iOS Safari ≥ 15
+- Initial bundle ≤ ~300 kB gzipped; optimized for ARMv7 (Wirenboard)
+- Chromium ≥ 110, Firefox ≥ 110, iOS Safari ≥ 15
 
 ## Contributing
 
-1. Install wb-mqtt-bridge package: `pip install -e ../wb-mqtt-bridge`
-2. Generate device pages: `npm run gen:device-pages`
-3. Test with `npm run dev`
-4. Validate: `npm run validate:all`
-5. Build: `npm run build`
+1. Ensure a sibling `wb-mqtt-bridge` checkout is present (no `pip install` needed).
+2. `npm install`
+3. Generate: `npm run gen:api-types` and `npm run gen:device-pages` (see Quick Start)
+4. `npm run dev`, then `npm run typecheck:all && npm run lint && npm run validate:all`
+5. `npm run build`
 
 ## License
 
-[Your License Here] 
+MIT
