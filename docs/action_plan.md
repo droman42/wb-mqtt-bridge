@@ -196,7 +196,7 @@ Ordered by **value / effort**. Each item sized for one focused PR.
 - [ ] **Are we keeping the project on ARMv7 / Wirenboard exclusively, or do we want a dev path on amd64 too?** Affects #2 (test target arch), #7 (multi-arch GHCR tags), #11.
 - [ ] **Is the Wirenboard the only deployment target, or do we want to deploy to a separate Linux box and talk to the WB controller over MQTT?** Affects the urgency of items #3, #4 (hardcoded IPs).
 - [ ] **Is the long-term direction one repo or two?** If "one," do #3 anyway (OpenAPI contract) and then merge — much cheaper post-contract. If "two," do #3 for sure, and the contract is the *point*.
-- [ ] **Are there device drivers planned that aren't shipped yet (Roborock, SprutHub, Apple TV app launching, IR learning UI from the old TODO)?** Affects whether §1.2 is the final list or a checkpoint. *(Miele dropped 2026-05-20 — repeated integration attempts failed; `asyncmiele` dependency removed.)*
+- [ ] **Are there device drivers planned that aren't shipped yet (Roborock, Apple TV app launching, IR learning UI from the old TODO)?** Affects whether §1.2 is the final list or a checkpoint. *(Miele dropped 2026-05-20 — repeated integration attempts failed, `asyncmiele` dependency removed. SprutHub dropped 2026-05-20 — see §5.1.)*
 - [ ] **Is `device_category` going to drive real behavior soon?** If yes — what differs between `device` and `appliance`? If not — should we even ship the enum now, or wait until we know what it gates?
 - [ ] **Do we also want to move to runtime-driven UI rendering (Codegen Alternatives — Option 2)?** Eliminates `.gen.tsx` codegen entirely; UI fetches a per-device manifest from the backend and renders dynamically. Strong industry-practice alignment (Home Assistant / ioBroker pattern). ~2–3 day refactor. Default position: defer until after #3.5 ships and we feel actual pain that justifies it.
 - [ ] **How should button/action placement be made explicit/contract-based instead of relying on config command order?** See item #10. The current implicit convention works (verified unchanged by the P1 work) but the user explicitly dislikes layout depending on undocumented config ordering. Decide between: explicit per-action `slot`/`order` fields, a backend-owned layout manifest (couples naturally with Option 2 above), or command annotations. This question and the Option-2 question are related — a runtime layout manifest could subsume both.
@@ -208,8 +208,7 @@ These were the only **unfinished** items in `docs/TODO.md` when it was archived 
 
 - [ ] **Apple TV app launching** — `Запуск приложений на AppleTV`.
 - [ ] **Re-verify the Revox reel-to-reel after the Wirenboard refactor** — `Проверить катушечник после рефакторинга Варенборда`. Device tests were rewritten in the hexagonal pass, but on-hardware behaviour is unconfirmed.
-- [ ] **SprutHub templates for the new devices and all scenarios** — `Сделать/подобрать шаблоны SprutHub для новых девайсов и всех сценариев`.
-- [ ] **Restore the SprutHub integration and connect it to Yandex Alice** — `Восстановить работу SprutHub, соединить с Алисой`.
+- **Voice control (Yandex Alisa) — out of scope here.** SprutHub was a stopgap and is **dropped** (2026-05-20). The plan is to rely on **Wirenboard's future native Alisa bridge**; because this system already exposes every foreign device as a WB virtual device, those devices become voice-controllable for free once that bridge ships. (The two former SprutHub backlog items are retired.)
 - [ ] **IR-code learning page** — capture codes from physical remotes (`Сделать страничку для обучения IR кодам с пультов`).
 
 ---
