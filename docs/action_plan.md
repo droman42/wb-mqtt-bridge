@@ -34,14 +34,16 @@ The arc of the last ~10 commits in this repo shows the focus moved from *adding 
 
 **Local lib siblings**: `../asyncwebostv` and `../pymotivaxmc2` exist but `pyproject.toml` now consumes them from PyPI. Path deps were removed during the migration; clones are for upstream debugging only.
 
-### 1.3 UI / backend coupling (today)
-- UI's Dockerfile does `pip3 install -e ./wb-mqtt-bridge` and codegen imports backend Python models directly (e.g. `wb_mqtt_bridge.domain.devices.models:WirenboardIRState`).
-- UI's `config/device-state-mapping.json` references backend paths and Python module names.
-- UI's `src/types/api.ts` is hand-maintained, not generated from OpenAPI.
-- `nginx.conf` hardcodes `192.168.110.250:8000`.
-- `VITE_MQTT_URL=ws://192.168.110.250:9001` is baked in at UI build time.
+### 1.3 UI / backend coupling
 
-We pay the tight-coupling tax already. The choice isn't "two repos vs one" — it's "loose contract vs tight contract."
+**As originally surveyed (2026-05-19):**
+- UI's Dockerfile did `pip3 install -e ./wb-mqtt-bridge` and codegen imported backend Python models directly (e.g. `wb_mqtt_bridge.domain.devices.models:WirenboardIRState`).
+- UI's `config/device-state-mapping.json` referenced backend paths and Python module names.
+- UI's `src/types/api.ts` was hand-maintained, not generated from OpenAPI.
+- `nginx.conf` hardcoded `192.168.110.250:8000`.
+- `VITE_MQTT_URL=ws://192.168.110.250:9001` was baked in at UI build time.
+
+**Resolved by P1 (2026-05-20):** Python is gone from the UI build (#3.5) — state types now come from the backend's `/openapi.json` contract (#3); the mapping file moved to the backend (#4.5); the proxy IP and MQTT URL are container-runtime config (#4). The coupling is now contract-based: the UI build still consumes a sibling backend checkout for device configs + `openapi.json`, but no longer imports Python. The choice was "loose contract vs tight contract" — we now have the loose contract.
 
 ---
 
@@ -149,10 +151,10 @@ Ordered by **value / effort**. Each item sized for one focused PR.
 
 | # | Task | Effort |
 |---|------|--------|
-| 3 | Generate OpenAPI types for the UI. Hit FastAPI's `/openapi.json` and run `openapi-typescript` to produce `src/types/api.gen.ts`. Replace `src/types/api.ts` gradually, starting with the simplest endpoints. Removes the API-surface coupling (hand-maintained types). Does **not** remove the Python AST coupling in device-page codegen — see #3.5. | ~½ day |
-| 3.5 | **Eliminate the Python AST dependency in UI codegen.** Type the backend's `/devices/{id}/persisted_state` endpoint with a discriminated union of state models (`LgTvState`, `EmotivaXMC2State`, …) so they land in `/openapi.json` automatically. Rewrite `wb-mqtt-ui/src/lib/StateTypeGenerator.ts` (the actual Python-spawning logic lives there — `spawn(python3, ['-c', importlib + ast.parse(...)])` — invoked by `src/scripts/generate-device-pages.ts`) to consume the OpenAPI schema instead of spawning a Python subprocess and AST-parsing imported Pydantic classes. Remove `pip install -e ./wb-mqtt-bridge` and Python from the UI Dockerfile. Closes the "silent break on backend rename" failure mode. See §7 (Codegen Alternatives — Option 1). | ~1 day |
-| 4 | Parameterize nginx + MQTT URLs. `envsubst` on `nginx.conf.template` at start; `/config.js` shim for `VITE_MQTT_URL` instead of build-time bake. | 2 hours |
-| 4.5 | Move `device-state-mapping.json` from the UI repo to the backend repo (or generate it from a `GET /schema/devices` endpoint). Today it sits in the UI by historical accident even though it's metadata about backend models. | 30 min |
+| 3 | **DONE** 2026-05-20 — backend `6bc30fc`, UI `312fa56`. Generate OpenAPI types for the UI. Hit FastAPI's `/openapi.json` and run `openapi-typescript` to produce `src/types/api.gen.ts`. Replace `src/types/api.ts` gradually, starting with the simplest endpoints. Removes the API-surface coupling (hand-maintained types). Does **not** remove the Python AST coupling in device-page codegen — see #3.5. | ~½ day |
+| 3.5 | **DONE** 2026-05-20 — backend `6bc30fc`, UI `5a71929`. Eliminate the Python AST dependency in UI codegen. Type the backend's `/devices/{id}/persisted_state` endpoint with a discriminated union of state models (`LgTvState`, `EmotivaXMC2State`, …) so they land in `/openapi.json` automatically. Rewrite `wb-mqtt-ui/src/lib/StateTypeGenerator.ts` (the actual Python-spawning logic lives there — `spawn(python3, ['-c', importlib + ast.parse(...)])` — invoked by `src/scripts/generate-device-pages.ts`) to consume the OpenAPI schema instead of spawning a Python subprocess and AST-parsing imported Pydantic classes. Remove `pip install -e ./wb-mqtt-bridge` and Python from the UI Dockerfile. Closes the "silent break on backend rename" failure mode. See §7 (Codegen Alternatives — Option 1). | ~1 day |
+| 4 | **DONE** 2026-05-20 — UI `395e538`. Parameterize nginx + MQTT URLs. `envsubst` on `nginx.conf.template` at start; runtime `runtime-config.js` shim for the MQTT URL instead of build-time bake. Defaults preserve `192.168.110.250` so existing deploys are unchanged. | 2 hours |
+| 4.5 | **DONE** 2026-05-20 — backend `2e5674c`, UI `7c3f3a8`. Moved `device-state-mapping.json` from the UI repo to the backend repo. Paths inside are now relative to the mapping file's own directory; the UI resolves them, so one file serves both CI and local layouts (the `.local.json` was retired). | 30 min |
 
 ### P2 — Documentation reconciliation
 
@@ -212,6 +214,11 @@ These were the only **unfinished** items in `docs/TODO.md` when it was archived 
 - **2026-05-19** — Applied the same fresh-rewrite treatment to the device test files that had only received mechanical patches earlier (kitchen_hood, wirenboard_ir, revox, apple_tv). Commit `9501ff9`. **Final state: 225 passed / 0 skipped / 0 failed.** Every device-driver test file now follows the same hexagonal pattern: typed Pydantic config in the fixture, external dependency injected as an AsyncMock, setup() bypassed, handlers driven directly. Tests added cover compensation logic (kitchen_hood speed-after-light), sequence execution with configurable delay (revox), and full handler coverage (apple_tv remote control + audio + apps). Net +26 tests vs the previous round. All originally-skipped tests are now passing or have been replaced with meaningful equivalents under the new architecture.
 - **2026-05-20** — Removed Miele appliance support (never implemented — no driver, config, or test ever existed; repeated integration attempts failed). Commit `5f63513`: dropped `asyncmiele==0.2.6` from `pyproject.toml`, regenerated `uv.lock`, removed the Miele bullet from `README.md` and the Miele task from the TODO. The Roborock bullet was **kept** — it is a planned future feature, not a false current claim (revises the original P2 #5 wording, which had called for deleting it).
 - **2026-05-20** — Completed P2 #5. Archived `docs/TODO.md` → `docs/history/phase1-2.md` (history preserved via `git mv`, header note added). Its 5 still-open items were migrated to §5.1 (Backlog) so live work stays tracked rather than buried in an archive. **P2 is now fully done.**
+- **2026-05-20** — Completed **all of P1** (#3, #3.5, #4, #4.5) in one session. The architectural prize — removing the UI build's dependency on the Python package — is shipped.
+  - **#3** (backend `6bc30fc`, UI `312fa56`): backend exposes device-state models in `/openapi.json` via an additive `app.openapi()` override (`bootstrap._install_openapi_with_state_models`) — no endpoint signature change, so runtime serialization and the custom `model_dump` overrides are untouched. New `wb-openapi` CLI dumps a committed `openapi.json` snapshot (the contract). UI added `openapi-typescript` + `gen:api-types` → `src/types/api.gen.ts`. 4 new backend tests; suite 229 pass.
+  - **#3.5** (backend in `6bc30fc`, UI `5a71929`): `StateTypeGenerator` reads state shapes from `components.schemas` instead of spawning `python3` + `ast.parse`. Discovered the prior `pip install -e` was already **dead** (state config was only loaded in `local` mode, never `package`/CI). Enabled state-gen in package mode too, then removed Python entirely from the UI Dockerfile + CI. Validated a clean package-mode build: 8 state classes, typecheck/lint/validate all green.
+  - **#4.5** (backend `2e5674c`, UI `7c3f3a8`, +`9f7da0e` untracking an accidental `system.json`): mapping now lives in the backend with directory-relative paths; the UI client resolves them, retiring the `.local.json` duplicate and the scenario handler's duplicate loaders.
+  - **#4** (UI `395e538`): nginx proxy IP via `envsubst` template + MQTT URL via the (newly-wired) `window.RUNTIME_CONFIG` runtime shim; defaults preserve current behavior. **P1 is now fully done — only P3 (ops, deferred) remains.**
 
 ---
 
