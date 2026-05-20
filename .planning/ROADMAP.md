@@ -42,12 +42,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. A recovery path for both git-sourced deps is decided and documented (upstream-and-move-to-PyPI where the needed change is released, else a mirror/vendor of the exact ref)
   3. Direct PyPI dependencies carry upper bounds (e.g. `pydantic>=2.11.0,<3`); `uv.lock` regenerated and the full suite stays green (225 pass) on amd64
   4. The Auralic (`openhomedevice`) and Apple TV (`pyatv`) drivers still pass their tests after the re-pin — no behavior regression
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Audit the two git pins; decide per-dep (immutable pin vs tag vs PyPI vs mirror/vendor) and record the decision + recovery path
-- [ ] 01-02: Re-pin git deps to immutable refs; add upper bounds to direct PyPI deps; regenerate `uv.lock`
-- [ ] 01-03: Verify — full suite green on amd64; Auralic + Apple TV driver tests pass; document the recovery path
+- [ ] 01-01-PLAN.md — Re-pin git deps to immutable refs (openhomedevice→SHA, pyatv→PyPI 0.17.0); add upper bounds to direct PyPI deps; regenerate `uv.lock` (DEP-01, DEP-03)
+- [ ] 01-02-PLAN.md — Verify: pin-guard test (no moving refs, lxml-free, bounds present) + Auralic/Apple TV driver tests + full suite green on amd64 (DEP-01)
+- [ ] 01-03-PLAN.md — Document the recovery runbook + record dependency-pinning policy as ADR 0006 (DEP-02)
 
 ### Phase 2: Fix the Scenario Layer
 **Goal**: Every shipped scenario runs end-to-end on real Wirenboard hardware — closing the headline gap to "my house works."
