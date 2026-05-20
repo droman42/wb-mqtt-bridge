@@ -1,0 +1,13 @@
+{
+  "source_path": "/home/droman42/development/wb-mqtt-bridge/docs/adr/0002-openapi-additive-state-model-injection.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 0002 — Expose device-state models via an additive app.openapi() override",
+  "summary": "Inject device-state model schemas additively via app.openapi() override to expose them in OpenAPI components without runtime serialization risk.",
+  "scope": ["device-state", "OpenAPI", "FastAPI", "response_model", "schema injection", "state models", "OPENAPI_EXTRA_MODELS"],
+  "cross_refs": ["0001-contract-based-ui-backend-coupling.md", "bootstrap._install_openapi_with_state_models", "OPENAPI_EXTRA_MODELS", "tests/unit/test_openapi_schema.py"],
+  "locked": true,
+  "precedence": 0,
+  "notes": ""
+}

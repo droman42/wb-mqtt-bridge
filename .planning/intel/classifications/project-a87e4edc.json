@@ -1,0 +1,29 @@
+{
+  "source_path": "/home/droman42/development/wb-mqtt-bridge/docs/project.md",
+  "type": "PRD",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Project Vision — wb-mqtt-bridge",
+  "summary": "Bridges non-native devices into Wirenboard's MQTT ecosystem for automation and UI control.",
+  "scope": [
+    "Wirenboard",
+    "MQTT",
+    "virtual devices",
+    "A/V devices",
+    "appliances",
+    "wb-rules",
+    "automation",
+    "device drivers",
+    "UI",
+    "scenarios",
+    "home integration"
+  ],
+  "cross_refs": [
+    "architecture.md",
+    "ui_backend_contract.md",
+    "action_plan.md"
+  ],
+  "locked": false,
+  "precedence": 2,
+  "notes": ""
+}

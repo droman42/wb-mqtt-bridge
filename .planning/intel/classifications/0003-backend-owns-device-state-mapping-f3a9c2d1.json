@@ -1,0 +1,24 @@
+{
+  "source_path": "/home/droman42/development/wb-mqtt-bridge/docs/adr/0003-backend-owns-device-state-mapping.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 0003 — Backend owns device-state-mapping.json (directory-relative paths)",
+  "summary": "Move device-state-mapping.json from UI to backend repo with directory-relative paths, retiring dual variants and centralizing metadata ownership.",
+  "scope": [
+    "device-state-mapping.json",
+    "backend repository",
+    "UI repository",
+    "device configuration",
+    "state model mapping",
+    "path resolution"
+  ],
+  "cross_refs": [
+    "config/device-state-mapping.json",
+    "wb-mqtt-bridge/config/device-state-mapping.json",
+    "openapi.json"
+  ],
+  "locked": true,
+  "precedence": 0,
+  "notes": ""
+}

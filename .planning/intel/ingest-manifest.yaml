@@ -1,0 +1,31 @@
+docs:
+  - path: docs/adr/0001-contract-based-ui-backend-coupling.md
+    type: ADR
+    precedence: 0
+  - path: docs/adr/0002-openapi-additive-state-model-injection.md
+    type: ADR
+    precedence: 0
+  - path: docs/adr/0003-backend-owns-device-state-mapping.md
+    type: ADR
+    precedence: 0
+  - path: docs/adr/0004-runtime-url-configuration.md
+    type: ADR
+    precedence: 0
+  - path: docs/adr/0005-prune-miele-spruthub-delegate-voice.md
+    type: ADR
+    precedence: 0
+  - path: docs/ui_backend_contract.md
+    type: SPEC
+    precedence: 1
+  - path: docs/project.md
+    type: PRD
+    precedence: 2
+  - path: docs/action_plan.md
+    type: PRD
+    precedence: 2
+  - path: docs/architecture.md
+    type: DOC
+    precedence: 3
+  - path: docs/conventions.md
+    type: DOC
+    precedence: 3

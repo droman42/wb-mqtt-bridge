@@ -1,0 +1,21 @@
+{
+  "source_path": "/home/droman42/development/wb-mqtt-bridge/docs/adr/0005-prune-miele-spruthub-delegate-voice.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 0005 — Drop Miele and SprutHub; delegate voice to Wirenboard's Alisa bridge",
+  "summary": "Architecture decision to remove Miele and SprutHub integrations, delegating voice control to Wirenboard's Alisa bridge.",
+  "scope": [
+    "Miele appliance support",
+    "SprutHub integration",
+    "voice control",
+    "Yandex Alisa",
+    "Wirenboard",
+    "asyncmiele dependency",
+    "documentation and scope"
+  ],
+  "cross_refs": [],
+  "locked": true,
+  "precedence": 0,
+  "notes": ""
+}

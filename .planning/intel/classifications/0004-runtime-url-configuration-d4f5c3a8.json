@@ -1,0 +1,25 @@
+{
+  "source_path": "/home/droman42/development/wb-mqtt-bridge/docs/adr/0004-runtime-url-configuration.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 0004 — Configure backend/MQTT URLs at container runtime, not build time",
+  "summary": "Resolve backend and MQTT URLs at container startup via environment variables instead of baking them into build artifacts.",
+  "scope": [
+    "backend configuration",
+    "nginx",
+    "MQTT URL",
+    "container runtime",
+    "environment variables",
+    "docker-entrypoint",
+    "UI deployment"
+  ],
+  "cross_refs": [
+    "nginx.conf.template",
+    "docker-entrypoint.sh",
+    "src/config/runtime.ts"
+  ],
+  "locked": true,
+  "precedence": 0,
+  "notes": ""
+}
