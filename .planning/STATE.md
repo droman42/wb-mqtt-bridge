@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Completed Phase 01 Plan 03 — dependency recovery runbook and ADR 0006
-last_updated: "2026-05-20T11:05:00.000Z"
+status: ready_to_plan
+stopped_at: Phase 1 complete (3/3) — ready to discuss Phase 2
+last_updated: 2026-05-20T11:05:15.893Z
 last_activity: 2026-05-20
 progress:
   total_phases: 7
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-20)
 
 **Core value:** It actually works — every device action works and every scenario runs end-to-end on real Wirenboard hardware.
-**Current focus:** Phase 1 — Dependency Reproducibility Hardening
+**Current focus:** Phase 2 — fix the scenario layer
 
 ## Current Position
 
-Phase: 1 (Dependency Reproducibility Hardening) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
+Phase: 2
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-05-20
 
 Progress: [██████████] 100%
@@ -36,7 +36,7 @@ Progress: [██████████] 100%
 
 **Velocity:**
 
-- Total plans completed: 0
+- Total plans completed: 3
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -44,7 +44,7 @@ Progress: [██████████] 100%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 1 | 3 | - | - |
 
 **Recent Trend:**
 

@@ -144,7 +144,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Dependency Reproducibility Hardening | 3/3 | Complete   | 2026-05-20 |
+| 1. Dependency Reproducibility Hardening | 3/3 | Complete    | 2026-05-20 |
 | 2. Fix the Scenario Layer | 0/3 | Not started | - |
 | 3. Button-Placement Contract | 0/2 | Not started | - |
 | 4. CI Quality Gates | 0/2 | Not started | - |
