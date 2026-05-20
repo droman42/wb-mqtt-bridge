@@ -28,7 +28,9 @@ remote-control-style page per device, generated at build time from the
 ## How code generation works
 
 The UI consumes the backend purely as a **contract** — there is no Python in the
-build. At build time it reads, from a sibling `wb-mqtt-bridge` checkout:
+build. The full cross-repo contract (artifacts, invariants, change playbook) is
+documented in the backend repo at `wb-mqtt-bridge/docs/ui_backend_contract.md`. At
+build time the UI reads, from a sibling `wb-mqtt-bridge` checkout:
 
 - `wb-mqtt-bridge/openapi.json` — the committed OpenAPI snapshot (device-state model
   shapes live in `components.schemas`).
