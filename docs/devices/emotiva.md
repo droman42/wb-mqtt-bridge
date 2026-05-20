@@ -23,7 +23,6 @@ Sample configuration in `config/devices/emotiva_xmc2.json`:
   "commands": {
     "power_on": {
       "action": "power_on",
-      "topic": "/devices/processor/controls/power_on",
       "group": "power",
       "description": "Turn on the processor",
       "params": [
@@ -32,7 +31,6 @@ Sample configuration in `config/devices/emotiva_xmc2.json`:
     },
     "power_off": {
       "action": "power_off",
-      "topic": "/devices/processor/controls/power_off",
       "group": "power",
       "description": "Turn off the processor",
       "params": [
@@ -41,7 +39,6 @@ Sample configuration in `config/devices/emotiva_xmc2.json`:
     },
     "zone2_on": {
       "action": "power_on",
-      "topic": "/devices/processor/controls/zone2_on",
       "group": "power",
       "description": "Turn on zone 2",
       "params": [
@@ -50,7 +47,6 @@ Sample configuration in `config/devices/emotiva_xmc2.json`:
     },
     "zone2_off": {
       "action": "power_off",
-      "topic": "/devices/processor/controls/zone2_off",
       "group": "power",
       "description": "Turn off zone 2",
       "params": [
@@ -59,7 +55,6 @@ Sample configuration in `config/devices/emotiva_xmc2.json`:
     },
     "set_input": {
       "action": "set_input",
-      "topic": "/devices/processor/controls/set_input",
       "group": "inputs",
       "description": "Switch input source",
       "params": [
@@ -68,7 +63,6 @@ Sample configuration in `config/devices/emotiva_xmc2.json`:
     },
     "set_volume": {
       "action": "set_volume",
-      "topic": "/devices/processor/controls/volume",
       "group": "volume",
       "description": "Set the volume level",
       "params": [
@@ -78,7 +72,6 @@ Sample configuration in `config/devices/emotiva_xmc2.json`:
     },
     "zone2_volume": {
       "action": "set_volume",
-      "topic": "/devices/processor/controls/zone2_volume",
       "group": "volume",
       "description": "Set the zone 2 volume level",
       "params": [
@@ -88,7 +81,6 @@ Sample configuration in `config/devices/emotiva_xmc2.json`:
     },
     "mute_toggle": {
       "action": "mute_toggle",
-      "topic": "/devices/processor/controls/mute_toggle",
       "group": "volume",
       "description": "Toggle mute state",
       "params": [
@@ -97,7 +89,6 @@ Sample configuration in `config/devices/emotiva_xmc2.json`:
     },
     "zone2_mute_toggle": {
       "action": "mute_toggle",
-      "topic": "/devices/processor/controls/zone2_mute_toggle",
       "group": "volume",
       "description": "Toggle zone 2 mute state",
       "params": [
