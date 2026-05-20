@@ -115,14 +115,14 @@ wheels = [
 
 [[package]]
 name = "aiomqtt"
-version = "2.3.2"
+version = "2.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "paho-mqtt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6c/30/d5f54aa34cb2c3829253fce3888235fcd9ff42cc51fe38cfa8b171f4d836/aiomqtt-2.3.2.tar.gz", hash = "sha256:96d979aeac930f031b0efa4c8e71ab337b3b330cf175b9329905419a38d8509c", size = 82709 }
+sdist = { url = "https://files.pythonhosted.org/packages/1c/93/d8aae771d12ab974112868e46921215668f1d612a739e11a8b59b4ce9e33/aiomqtt-2.0.1.tar.gz", hash = "sha256:60f6451c8ab7235cfb392b1b0cab398e9bc6040f4b140628c0615371abcde15f", size = 16940 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b1/3a/79145a555dc79ca5c79fc128723a7aa83f5d80c1067b25e3c9ab426f84e6/aiomqtt-2.3.2-py3-none-any.whl", hash = "sha256:e67f877454b04437732a7eb005d8f8751df1ba7931b2eb1b7a7d8bf7e50c96e7", size = 15627 },
+    { url = "https://files.pythonhosted.org/packages/c8/ce/e2353bb4f2d4232981e5aff348c0bf8e2ca1e3abaff4278960952e603825/aiomqtt-2.0.1-py3-none-any.whl", hash = "sha256:7c26a867212366ae0841571e6c2d06cebc00c2de029475b920c2cd7396aeacea", size = 16028 },
 ]
 
 [[package]]
@@ -1035,7 +1035,7 @@ wheels = [
 [[package]]
 name = "openhomedevice"
 version = "2.2.1"
-source = { git = "https://github.com/droman42/openhomedevice.git?branch=remove-lxml-dependency#6e862a1022f59a21c57c501dcf040f81d12ebfaf" }
+source = { git = "https://github.com/droman42/openhomedevice.git?rev=6e862a1022f59a21c57c501dcf040f81d12ebfaf#6e862a1022f59a21c57c501dcf040f81d12ebfaf" }
 dependencies = [
     { name = "async-upnp-client" },
 ]
@@ -1051,12 +1051,9 @@ wheels = [
 
 [[package]]
 name = "paho-mqtt"
-version = "2.1.0"
+version = "1.6.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/39/15/0a6214e76d4d32e7f663b109cf71fb22561c2be0f701d67f93950cd40542/paho_mqtt-2.1.0.tar.gz", hash = "sha256:12d6e7511d4137555a3f6ea167ae846af2c7357b10bc6fa4f7c3968fc1723834", size = 148848 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c4/cb/00451c3cf31790287768bb12c6bec834f5d292eaf3022afc88e14b8afc94/paho_mqtt-2.1.0-py3-none-any.whl", hash = "sha256:6db9ba9b34ed5bc6b6e3812718c7e06e2fd7444540df2455d2c51bd58808feee", size = 67219 },
-]
+sdist = { url = "https://files.pythonhosted.org/packages/f8/dd/4b75dcba025f8647bc9862ac17299e0d7d12d3beadbf026d8c8d74215c12/paho-mqtt-1.6.1.tar.gz", hash = "sha256:2a8291c81623aec00372b5a85558a372c747cbca8e9934dfe218638b8eefc26f", size = 99373 }
 
 [[package]]
 name = "pathspec"
@@ -1160,16 +1157,17 @@ wheels = [
 
 [[package]]
 name = "protobuf"
-version = "6.30.2"
+version = "7.35.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/c8/8c/cf2ac658216eebe49eaedf1e06bc06cbf6a143469236294a1171a51357c3/protobuf-6.30.2.tar.gz", hash = "sha256:35c859ae076d8c56054c25b59e5e59638d86545ed6e2b6efac6be0b6ea3ba048", size = 429315 }
+sdist = { url = "https://files.pythonhosted.org/packages/60/fd/5b1491d9e4b586d621c54f4c36b888714164b6875f8d6afa3f9072906a51/protobuf-7.35.0.tar.gz", hash = "sha256:a2efd84605f41e559f1881b0912b44099d0a2ac9bf46b3474823f10fb393b0e6", size = 458677 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/be/85/cd53abe6a6cbf2e0029243d6ae5fb4335da2996f6c177bb2ce685068e43d/protobuf-6.30.2-cp310-abi3-win32.whl", hash = "sha256:b12ef7df7b9329886e66404bef5e9ce6a26b54069d7f7436a0853ccdeb91c103", size = 419148 },
-    { url = "https://files.pythonhosted.org/packages/97/e9/7b9f1b259d509aef2b833c29a1f3c39185e2bf21c9c1be1cd11c22cb2149/protobuf-6.30.2-cp310-abi3-win_amd64.whl", hash = "sha256:7653c99774f73fe6b9301b87da52af0e69783a2e371e8b599b3e9cb4da4b12b9", size = 431003 },
-    { url = "https://files.pythonhosted.org/packages/8e/66/7f3b121f59097c93267e7f497f10e52ced7161b38295137a12a266b6c149/protobuf-6.30.2-cp39-abi3-macosx_10_9_universal2.whl", hash = "sha256:0eb523c550a66a09a0c20f86dd554afbf4d32b02af34ae53d93268c1f73bc65b", size = 417579 },
-    { url = "https://files.pythonhosted.org/packages/d0/89/bbb1bff09600e662ad5b384420ad92de61cab2ed0f12ace1fd081fd4c295/protobuf-6.30.2-cp39-abi3-manylinux2014_aarch64.whl", hash = "sha256:50f32cc9fd9cb09c783ebc275611b4f19dfdfb68d1ee55d2f0c7fa040df96815", size = 317319 },
-    { url = "https://files.pythonhosted.org/packages/28/50/1925de813499546bc8ab3ae857e3ec84efe7d2f19b34529d0c7c3d02d11d/protobuf-6.30.2-cp39-abi3-manylinux2014_x86_64.whl", hash = "sha256:4f6c687ae8efae6cf6093389a596548214467778146b7245e886f35e1485315d", size = 316212 },
-    { url = "https://files.pythonhosted.org/packages/e5/a1/93c2acf4ade3c5b557d02d500b06798f4ed2c176fa03e3c34973ca92df7f/protobuf-6.30.2-py3-none-any.whl", hash = "sha256:ae86b030e69a98e08c77beab574cbcb9fff6d031d57209f574a5aea1445f4b51", size = 167062 },
+    { url = "https://files.pythonhosted.org/packages/83/ee/93d06e358a4aa32280b00e722d3ea0a1f25fc3cc5778d80581c9cca2c10e/protobuf-7.35.0-cp310-abi3-macosx_10_9_universal2.whl", hash = "sha256:66be6c513931c794fa92c080ffee41671390da3d79da219cf9c0c0907f035dda", size = 433225 },
+    { url = "https://files.pythonhosted.org/packages/8b/39/1c76c2da93f3c507e958e0aecee2391cc44d4625de6c728bbc555195b5a8/protobuf-7.35.0-cp310-abi3-manylinux2014_aarch64.whl", hash = "sha256:fcbe42a4ac09d3ec9c987ddfcd956afd0b15f1ff613bd8371bde9405ffd5c8e5", size = 328847 },
+    { url = "https://files.pythonhosted.org/packages/91/1a/39f7ce90a238c1a987a4d81ec26379e02ca0aff367de68e4a1fa474215b9/protobuf-7.35.0-cp310-abi3-manylinux2014_s390x.whl", hash = "sha256:4cbf5cc286130e06a6c9bbefac442431173906dfcc979712183d4adcc01b37ee", size = 344030 },
+    { url = "https://files.pythonhosted.org/packages/70/5b/6baf9008817964454055ff3fe65f1de0b5f1e26c80c82f7fb108b7cd4ea3/protobuf-7.35.0-cp310-abi3-manylinux2014_x86_64.whl", hash = "sha256:6c0f98f10c8a05ea30f8993dfef2de093d27b490fdae78bb60c8343795d55011", size = 327130 },
+    { url = "https://files.pythonhosted.org/packages/8e/e5/e46adb0badc388bfb84877a5f9f026aff63f60e611016cf64dbe77e05446/protobuf-7.35.0-cp310-abi3-win32.whl", hash = "sha256:4c4617b83ade0e279d1d2bfe04025a1adb87f9ed657de038620dc0ff959357f6", size = 428946 },
+    { url = "https://files.pythonhosted.org/packages/a7/ab/547fbd9e16d879dd13c167478f8ae0a83a428008ca07a5e06acdc23ad473/protobuf-7.35.0-cp310-abi3-win_amd64.whl", hash = "sha256:f05bcadf9a2a6b8dda047007075135fb7d08c73d9177aabc067e1be46881a201", size = 439996 },
+    { url = "https://files.pythonhosted.org/packages/b8/ef/50433d346c56657a70d27f156c7b349ac59a068b01de4eb796e747eecc43/protobuf-7.35.0-py3-none-any.whl", hash = "sha256:c13f325cf242bad135c350629eeb5d54b24228eb472fb3e2e9ebbd4c5dc20ca0", size = 171659 },
 ]
 
 [[package]]
@@ -1189,11 +1187,10 @@ wheels = [
 
 [[package]]
 name = "pyatv"
-version = "0.16.0"
-source = { git = "https://github.com/postlund/pyatv.git?rev=f75e718bc0bdaf0a3ff06eb00086f781b3f06347#f75e718bc0bdaf0a3ff06eb00086f781b3f06347" }
+version = "0.17.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
-    { name = "async-timeout" },
     { name = "chacha20poly1305-reuseable" },
     { name = "cryptography" },
     { name = "ifaddr" },
@@ -1205,6 +1202,10 @@ dependencies = [
     { name = "tabulate" },
     { name = "tinytag" },
     { name = "zeroconf" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/51/98/cbe72f386c0dcfa1d815aef12216315d59870bbb349925cf89ed64efa4e8/pyatv-0.17.0.tar.gz", hash = "sha256:3408bfb442d1676ee4cde4d71d7715d3083e577a088be2ce9d96b86d0e0adec5", size = 1692508 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/89/5d/fd555dab9405c9238c5c01335d2ea70f12887d41273057355fe1c509e13d/pyatv-0.17.0-py3-none-any.whl", hash = "sha256:39d4000f19ab402808a7a098d4bc1d0f92959542b2d4c40a138be5b5832f4f8f", size = 462629 },
 ]
 
 [[package]]
@@ -1870,35 +1871,35 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiohttp", specifier = ">=3.8.1" },
-    { name = "aiomqtt", specifier = ">=1.0.0" },
-    { name = "aiosqlite", specifier = ">=0.19.0" },
+    { name = "aiohttp", specifier = ">=3.8.1,<4" },
+    { name = "aiomqtt", specifier = ">=2.0,<3" },
+    { name = "aiosqlite", specifier = ">=0.19.0,<1" },
     { name = "asyncwebostv", specifier = "==0.2.7" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=21.0" },
-    { name = "broadlink", specifier = ">=0.18.0" },
-    { name = "fastapi", specifier = ">=0.103.0" },
+    { name = "broadlink", specifier = ">=0.18.0,<1" },
+    { name = "fastapi", specifier = ">=0.103.0,<1" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=3.9" },
-    { name = "httpx" },
-    { name = "jsonschema", specifier = ">=4.4.0" },
+    { name = "httpx", specifier = ">=0.27.0,<1" },
+    { name = "jsonschema", specifier = ">=4.4.0,<5" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=0.9" },
-    { name = "openhomedevice", git = "https://github.com/droman42/openhomedevice.git?branch=remove-lxml-dependency" },
-    { name = "paho-mqtt", specifier = ">=1.6.1" },
-    { name = "psutil", specifier = ">=7.0.0" },
-    { name = "pyatv", git = "https://github.com/postlund/pyatv.git?rev=f75e718bc0bdaf0a3ff06eb00086f781b3f06347" },
-    { name = "pydantic", specifier = ">=2.11.0" },
+    { name = "openhomedevice", git = "https://github.com/droman42/openhomedevice.git?rev=6e862a1022f59a21c57c501dcf040f81d12ebfaf" },
+    { name = "paho-mqtt", specifier = ">=1.6.1,<2" },
+    { name = "psutil", specifier = ">=7.0.0,<8" },
+    { name = "pyatv", specifier = "==0.17.0" },
+    { name = "pydantic", specifier = ">=2.11.0,<3" },
     { name = "pymotivaxmc2", specifier = "==0.6.7" },
-    { name = "pyopenssl", specifier = ">=23.2.0" },
+    { name = "pyopenssl", specifier = ">=23.2.0,<27" },
     { name = "pysqlite3-binary", marker = "extra == 'dev'", specifier = ">=0.5.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.18.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=2.0" },
     { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.7.0" },
-    { name = "python-dotenv", specifier = ">=1.0.0" },
-    { name = "pyyaml", specifier = ">=6.0" },
-    { name = "requests" },
-    { name = "typing-extensions", specifier = ">=4.7.0" },
-    { name = "uvicorn", specifier = ">=0.23.2" },
-    { name = "websockets", specifier = ">=15.0.1" },
+    { name = "python-dotenv", specifier = ">=1.0.0,<2" },
+    { name = "pyyaml", specifier = ">=6.0,<7" },
+    { name = "requests", specifier = ">=2.30.0,<3" },
+    { name = "typing-extensions", specifier = ">=4.7.0,<5" },
+    { name = "uvicorn", specifier = ">=0.23.2,<1" },
+    { name = "websockets", specifier = ">=15.0.1,<16" },
 ]
 provides-extras = ["dev"]
 
