@@ -151,14 +151,14 @@ export class DevicePageGenerator {
       // Generate Python state types if requested or available from mapping
       let customStateInterface: string | null = null;
       
-      // Generate Python state types if stateClassImport is provided
+      // Generate state types from the OpenAPI contract if a state class is mapped
       if (options?.stateClassImport) {
         const stateClass = options.stateClassImport.split(':')[1]; // Extract class name from import path
-        console.log(`🐍 Using package import: ${options.stateClassImport}`);
+        console.log(`📗 Using state model from OpenAPI: ${stateClass}`);
         try {
           console.log(`🔄 Generating TypeScript state types...`);
-          const stateDefinition = await this.stateGenerator.generateFromPythonState({ 
-            importPath: options.stateClassImport 
+          const stateDefinition = await this.stateGenerator.generateFromPythonState({
+            importPath: options.stateClassImport
           });
           
           // Create shared types directory
@@ -201,10 +201,8 @@ export class DevicePageGenerator {
           
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          console.warn(`⚠️  Failed to generate Python state types: ${errorMessage}`);
-          if (this.mode === 'local') {
-            console.warn('   💡 Check if wb-mqtt-bridge package is installed: pip install -e ../wb-mqtt-bridge');
-          }
+          console.warn(`⚠️  Failed to generate state types: ${errorMessage}`);
+          console.warn('   💡 Ensure the OpenAPI snapshot is reachable (WB_OPENAPI_SCHEMA or the sibling wb-mqtt-bridge/openapi.json checkout)');
           console.warn('   Continuing with default state generation...');
         }
       }
@@ -618,7 +616,7 @@ Supported Device Classes (Phase 2):
         stateClassImport?: string;
       }> = new Map();
       
-      if (mode === 'local' && mappingFile) {
+      if ((mode === 'local' || mode === 'package') && mappingFile) {
         console.log(`📋 Loading state configuration from mapping file: ${mappingFile}`);
         try {
           const { readFileSync } = await import('fs');

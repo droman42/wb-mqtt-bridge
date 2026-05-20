@@ -5,7 +5,9 @@ module.exports = {
     'eslint:recommended',
     'plugin:react-hooks/recommended',
   ],
-  ignorePatterns: ['dist', '.eslintrc.cjs'],
+  // 'wb-mqtt-bridge' is the sibling backend repo checked into the build context
+  // (for device configs + openapi.json); it is not part of this app's lint scope.
+  ignorePatterns: ['dist', '.eslintrc.cjs', 'wb-mqtt-bridge'],
   parser: '@typescript-eslint/parser',
   plugins: ['react-refresh', '@typescript-eslint'],
   rules: {

@@ -1,44 +1,17 @@
-# Stage 1: Build Stage (Node.js 20 + Python for ARM compatibility)
+# Stage 1: Build Stage (Node.js 20 — no Python)
 FROM node:20 AS builder
 
 WORKDIR /app
-
-# Install Python 3.11 and pip for package-based imports
-# First check if Python 3.11+ is already available, otherwise install it
-RUN apt-get update && \
-    apt-get install -y software-properties-common wget && \
-    python3 --version && \
-    if ! python3 -c "import sys; exit(0 if sys.version_info >= (3, 11) else 1)"; then \
-        echo "Installing Python 3.11..." && \
-        (add-apt-repository ppa:deadsnakes/ppa || echo "PPA failed, trying alternative...") && \
-        apt-get update && \
-        (apt-get install -y python3.11 python3.11-pip python3.11-venv python3.11-distutils || \
-         (echo "Deadsnakes failed, using system Python..." && apt-get install -y python3-pip python3-venv)) && \
-        if command -v python3.11 >/dev/null 2>&1; then \
-            update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1; \
-            if command -v pip3.11 >/dev/null 2>&1; then \
-                update-alternatives --install /usr/bin/pip3 pip3 /usr/bin/pip3.11 1; \
-            fi; \
-        fi; \
-    else \
-        echo "Python 3.11+ already available, installing pip..."; \
-        apt-get install -y python3-pip python3-venv; \
-    fi && \
-    rm -rf /var/lib/apt/lists/*
 
 # Copy package files first for better caching
 COPY package*.json ./
 RUN npm ci
 
-# Copy config repo (now in build context)
+# Copy the sibling backend repo (in the build context). Used at codegen time for
+# device configs (config/devices/*.json) and the API contract (openapi.json).
+# No Python / pip is needed: device-state types come from openapi.json, not from
+# importing the package and AST-parsing Pydantic classes (action_plan P1 #3.5).
 COPY wb-mqtt-bridge/ ./wb-mqtt-bridge/
-
-# Install wb-mqtt-bridge package
-RUN cd wb-mqtt-bridge && \
-    pip3 install -e . && \
-    echo "Testing package imports..." && \
-    python3 -c "from wb_mqtt_bridge.domain.devices.models import WirenboardIRState; print('✅ Device models import successful')" && \
-    python3 -c "from wb_mqtt_bridge.infrastructure.scenarios.models import ScenarioWBConfig; print('✅ Scenario models import successful')" || echo "⚠️ Scenario models not available (optional)"
 
 # Copy frontend source code
 COPY . .

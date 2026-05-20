@@ -1,7 +1,5 @@
 /* global process */
-import { spawn } from 'child_process';
-import * as _fs from 'fs/promises';
-import * as _path from 'path';
+import { readFileSync, existsSync } from 'fs';
 import { DeviceConfig, CommandParameter } from '../types/DeviceConfig';
 
 export interface StateDefinition {
@@ -19,19 +17,29 @@ export interface StateField {
   defaultValue?: any;
 }
 
-export interface PythonParsingResult {
-  success: boolean;
-  fields: any[];
-  error?: string;
-}
+// Fields contributed by the TypeScript BaseDeviceState interface (src/BaseDeviceState.ts).
+// They are inherited via `extends BaseDeviceState`, so they must be excluded from each
+// device-specific interface to avoid redeclaration. Note `power` is intentionally NOT
+// here: it lives on the backend BaseDeviceState but not the TS one, so it flows through
+// as a device-specific field (matching the previous generator's output).
+const TS_BASE_STATE_FIELDS = new Set(['device_id', 'device_name', 'last_command', 'error']);
 
 export class StateTypeGenerator {
   private importCache = new Map<string, StateDefinition>();
+  private openApiCache: any | null = null;
   private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-  
+
   /**
-   * Generate TypeScript state definition from Python class using package import path
-   * @param importPath - Package import path in format "module.path:ClassName"
+   * Generate a TypeScript state definition for a backend state model by reading its
+   * JSON Schema from the committed OpenAPI snapshot (wb-mqtt-bridge/openapi.json).
+   *
+   * This replaces the previous approach of spawning python3 to importlib-import the
+   * package and AST-parse the Pydantic class — which forced Python + `pip install -e
+   * ./wb-mqtt-bridge` into the UI build and broke silently on a backend rename
+   * (action_plan P1 #3.5). The OpenAPI contract is now the single source of truth.
+   *
+   * @param importPath - Legacy import path in format "module.path:ClassName"; only the
+   *   ClassName segment is used now (the module path is ignored).
    * @returns Promise<StateDefinition>
    */
   async generateFromImportPath(importPath: string): Promise<StateDefinition> {
@@ -41,38 +49,39 @@ export class StateTypeGenerator {
       console.log(`⚡ Using cached types for: ${importPath}`);
       return cached;
     }
-    
+
     try {
-      console.log(`🐍 Generating types from package import: ${importPath}`);
-      
-      // Parse import path (e.g., "wb_mqtt_bridge.domain.devices.models:WirenboardIRState")
-      const [modulePath, className] = importPath.split(':');
-      
-      if (!modulePath || !className) {
-        throw new Error(`Invalid import path format: ${importPath}. Expected format: "module.path:ClassName"`);
+      // Accept both "module.path:ClassName" and bare "ClassName".
+      const className = importPath.includes(':') ? importPath.split(':')[1] : importPath;
+
+      if (!className) {
+        throw new Error(`Invalid import path format: ${importPath}. Expected "module.path:ClassName" or "ClassName"`);
       }
 
-      // Try to parse Python class using importlib
-      const pythonResult = await this.parsePythonClassFromImport(modulePath, className);
-      
-      if (pythonResult.success) {
-        console.log(`✅ Successfully parsed ${className} from ${modulePath}`);
-        const stateDefinition = this.convertToStateDefinition(className, pythonResult.fields);
-        // Cache the result
+      console.log(`📗 Generating types for ${className} from OpenAPI schema`);
+      const fields = this.extractFieldsFromOpenApi(className);
+
+      if (fields) {
+        console.log(`✅ Resolved ${className} from OpenAPI (${fields.length} device-specific fields)`);
+        const stateDefinition: StateDefinition = {
+          interfaceName: `${className}State`,
+          fields,
+          imports: ['BaseDeviceState'],
+          extends: ['BaseDeviceState'],
+        };
         this.importCache.set(importPath, stateDefinition);
         return stateDefinition;
-      } else {
-        console.warn(`Python parsing failed for ${importPath}: ${pythonResult.error}`);
-        // Fallback to basic state generation
-        const basicDefinition = this.generateBasicStateDefinition(className);
-        this.importCache.set(importPath, basicDefinition);
-        return basicDefinition;
       }
+
+      console.warn(`${className} not found as a device-state model in OpenAPI; using basic definition`);
+      const basicDefinition = this.generateBasicStateDefinition(className);
+      this.importCache.set(importPath, basicDefinition);
+      return basicDefinition;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.warn(`Import-based state generation failed for ${importPath}: ${errorMessage}`);
+      console.warn(`OpenAPI-based state generation failed for ${importPath}: ${errorMessage}`);
       // Extract class name from import path for fallback
-      const className = importPath.split(':')[1] || 'UnknownState';
+      const className = (importPath.includes(':') ? importPath.split(':')[1] : importPath) || 'UnknownState';
       const fallbackDefinition = this.generateBasicStateDefinition(className);
       this.importCache.set(importPath, fallbackDefinition);
       return fallbackDefinition;
@@ -275,141 +284,109 @@ export function ${hookName}(deviceId: string = '${deviceId}') {
     }
   }
 
-  private async parsePythonClassFromImport(modulePath: string, className: string): Promise<PythonParsingResult> {
-    return new Promise((resolve) => {
-      const pythonScript = `
-import importlib
-import ast
-import sys
-import json
-import inspect
+  /**
+   * Load and cache the backend OpenAPI snapshot. Resolves the path from the
+   * WB_OPENAPI_SCHEMA env var, then well-known sibling-checkout locations
+   * (CI/Docker layout `wb-mqtt-bridge/openapi.json`, local sibling
+   * `../wb-mqtt-bridge/openapi.json`). Returns null if none is found.
+   */
+  private loadOpenApiSchema(): any | null {
+    if (this.openApiCache) return this.openApiCache;
 
-def extract_class_fields_from_import(module_path, class_name):
-    try:
-        # Import the module using importlib
-        module = importlib.import_module(module_path)
-        
-        # Get the class from the module
-        cls = getattr(module, class_name)
-        
-        # Try to get source and parse with AST if possible
-        try:
-            import inspect
-            source = inspect.getsource(cls)
-            tree = ast.parse(source)
-            
-            fields = []
-            for node in ast.walk(tree):
-                if isinstance(node, ast.ClassDef) and node.name == class_name:
-                    for item in node.body:
-                        if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name):
-                            field_type = 'Any'
-                            try:
-                                field_type = ast.unparse(item.annotation)
-                            except:
-                                pass
-                            
-                            default_value = None
-                            if item.value:
-                                try:
-                                    default_value = ast.literal_eval(item.value)
-                                except:
-                                    default_value = str(item.value)
-                            
-                            fields.append({
-                                'name': item.target.id,
-                                'type': field_type,
-                                'optional': default_value is not None,
-                                'default': default_value
-                            })
-            return fields
-            
-        except Exception as ast_error:
-            # Fallback: try to extract fields from class annotations if available
-            try:
-                if hasattr(cls, '__annotations__'):
-                    fields = []
-                    for field_name, field_type in cls.__annotations__.items():
-                        # Skip private fields
-                        if not field_name.startswith('_'):
-                            fields.append({
-                                'name': field_name,
-                                'type': str(field_type),
-                                'optional': hasattr(cls, field_name) and getattr(cls, field_name) is not None,
-                                'default': getattr(cls, field_name, None) if hasattr(cls, field_name) else None
-                            })
-                    return fields
-                else:
-                    return []
-            except Exception as annotation_error:
-                return {'error': f'AST parsing failed: {ast_error}, Annotation parsing failed: {annotation_error}'}
-        
-    except Exception as e:
-        return {'error': str(e)}
+    const candidates = [
+      process.env.WB_OPENAPI_SCHEMA,
+      'wb-mqtt-bridge/openapi.json',
+      '../wb-mqtt-bridge/openapi.json',
+      'openapi.json',
+    ].filter(Boolean) as string[];
 
-result = extract_class_fields_from_import(sys.argv[1], sys.argv[2])
-print(json.dumps(result))
-      `;
-
-      // Use environment-specified Python executable or default to python3
-      const pythonExecutable = process.env.PYTHON_EXECUTABLE || 'python3';
-      const pythonProcess = spawn(pythonExecutable, ['-c', pythonScript, modulePath, className]);
-      let output = '';
-      let errorOutput = '';
-
-      pythonProcess.stdout.on('data', (data) => {
-        output += data.toString();
-      });
-
-      pythonProcess.stderr.on('data', (data) => {
-        errorOutput += data.toString();
-      });
-
-      pythonProcess.on('close', (code) => {
-        if (code === 0 && output) {
-          try {
-            const result = JSON.parse(output);
-            if (result.error) {
-              resolve({ success: false, fields: [], error: result.error });
-            } else {
-              resolve({ success: true, fields: result, error: undefined });
-            }
-          } catch (parseError) {
-            const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
-            resolve({ success: false, fields: [], error: `JSON parse error: ${errorMessage}` });
-          }
-        } else {
-          resolve({ 
-            success: false, 
-            fields: [], 
-            error: `Python execution failed (code ${code}): ${errorOutput || 'Unknown error'}` 
-          });
+    for (const candidate of candidates) {
+      try {
+        if (existsSync(candidate)) {
+          this.openApiCache = JSON.parse(readFileSync(candidate, 'utf8'));
+          console.log(`📗 Loaded OpenAPI schema from: ${candidate}`);
+          return this.openApiCache;
         }
-      });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`Failed to read OpenAPI schema at ${candidate}: ${message}`);
+      }
+    }
 
-      // Set a timeout to prevent hanging - optimized for package imports
-      setTimeout(() => {
-        pythonProcess.kill();
-        resolve({ success: false, fields: [], error: 'Python execution timeout' });
-      }, 10000); // Reduced timeout since package imports are faster
-    });
+    console.warn('⚠️  OpenAPI schema not found (set WB_OPENAPI_SCHEMA or check the sibling checkout)');
+    return null;
   }
 
+  /**
+   * Extract device-specific state fields for a model from the OpenAPI schema.
+   * Returns null when the schema is unavailable or the model is not a device-state
+   * model (heuristic: a device-state schema carries the base `last_command` and
+   * `error` fields — config models like ScenarioWBConfig do not, so they fall back
+   * to the basic definition, preserving prior behavior).
+   */
+  private extractFieldsFromOpenApi(className: string): StateField[] | null {
+    const schema = this.loadOpenApiSchema();
+    const model = schema?.components?.schemas?.[className];
+    const properties = model?.properties;
+    if (!properties) return null;
 
+    // Device-state heuristic — must look like it extends BaseDeviceState.
+    if (!('last_command' in properties) || !('error' in properties)) return null;
 
-  private convertToStateDefinition(className: string, fields: any[]): StateDefinition {
-    return {
-      interfaceName: `${className}State`,
-      fields: fields.map(field => ({
-        name: field.name,
-        type: this.mapPythonTypeToTypeScript(field.type),
-        optional: field.optional,
-        description: `State field for ${field.name}`,
-        defaultValue: field.default
-      })),
-      imports: ['BaseDeviceState'],
-      extends: ['BaseDeviceState']
-    };
+    const required = new Set<string>(model.required || []);
+    const fields: StateField[] = [];
+
+    for (const [name, node] of Object.entries(properties as Record<string, any>)) {
+      if (TS_BASE_STATE_FIELDS.has(name)) continue;
+      fields.push({
+        name,
+        type: this.mapJsonSchemaToTypeScript(node),
+        // Match the previous generator: device-specific fields are emitted as
+        // required (the generated default object always provides a value).
+        optional: false,
+        description: `State field for ${name}`,
+        defaultValue: 'default' in node ? node.default : (required.has(name) ? undefined : null),
+      });
+    }
+
+    return fields;
+  }
+
+  /** Map a JSON Schema property node to a TypeScript type string. */
+  private mapJsonSchemaToTypeScript(node: any): string {
+    if (!node) return 'any';
+
+    if (node.$ref) {
+      // Referenced models aren't imported into the .state.ts file; keep it safe.
+      return 'Record<string, any>';
+    }
+
+    if (Array.isArray(node.anyOf) || Array.isArray(node.oneOf)) {
+      const variants = (node.anyOf || node.oneOf).map((n: any) => this.mapJsonSchemaToTypeScript(n));
+      return Array.from(new Set(variants)).join(' | ');
+    }
+
+    if (Array.isArray(node.allOf) && node.allOf.length > 0) {
+      return this.mapJsonSchemaToTypeScript(node.allOf[0]);
+    }
+
+    switch (node.type) {
+      case 'string':
+        return 'string';
+      case 'integer':
+      case 'number':
+        return 'number';
+      case 'boolean':
+        return 'boolean';
+      case 'null':
+        return 'null';
+      case 'array':
+        return `${node.items ? this.mapJsonSchemaToTypeScript(node.items) : 'any'}[]`;
+      case 'object':
+        return 'Record<string, any>';
+      default:
+        return 'any';
+    }
   }
 
   private generateBasicStateDefinition(className: string): StateDefinition {
@@ -428,27 +405,6 @@ print(json.dumps(result))
       imports: ['BaseDeviceState'],
       extends: ['BaseDeviceState']
     };
-  }
-
-  private mapPythonTypeToTypeScript(pythonType: string): string {
-    const typeMap: Record<string, string> = {
-      'str': 'string',
-      'int': 'number',
-      'float': 'number',
-      'bool': 'boolean',
-      'list': 'any[]',
-      'dict': 'Record<string, any>',
-      'Any': 'any',
-      'Optional[str]': 'string | null',
-      'Optional[int]': 'number | null',
-      'Optional[float]': 'number | null',
-      'Optional[bool]': 'boolean | null',
-      'List[str]': 'string[]',
-      'List[int]': 'number[]',
-      'Dict[str, Any]': 'Record<string, any>'
-    };
-
-    return typeMap[pythonType] || 'any';
   }
 
   private mapParameterTypeToTypeScript(param: CommandParameter): string {
