@@ -31,12 +31,12 @@ features.
 - ✓ Backend owns `config/device-state-mapping.json` with directory-relative paths (P1, ADR 0003)
 - ✓ Test suite repaired and wired into CI on amd64 — 225 pass / 0 skip / 0 fail (P2)
 - ✓ Docs reconciled to reality; Miele and SprutHub pruned, voice delegated to WB's future Alisa bridge (P2, ADR 0005)
+- ✓ Reproducible/recoverable build — immutable git pins (openhomedevice@SHA, pyatv→PyPI 0.17.0), upper bounds on all direct PyPI deps, recovery runbook + ADR 0006 (Validated in Phase 1, DEP-01..03)
 
 ### Active
 
 <!-- Open scope. Building toward these. Maps to roadmap phases. -->
 
-- [ ] **DEP-01..03**: Put the build on a reproducible footing — immutable git pins, PyPI upper bounds, a documented recovery path if upstream disappears (Phase 1 — foundation, do first)
 - [ ] **SCEN-01..04**: Fix the broken scenario layer so every scenario runs end-to-end on hardware (Phase 2 — top functional priority)
 - [ ] **PLACE-01..02**: Design and adopt an explicit, contract-based button/action placement (Phase 3 — design first)
 - [ ] **CI-01..02**: Add lint/mypy/ruff quality gates to backend CI; wire UI tests (Phase 4)
