@@ -25,34 +25,34 @@ classifiers = [
 requires-python = ">=3.11"
 dependencies = [
     # Core web framework
-    "fastapi>=0.103.0",
-    "uvicorn>=0.23.2",
+    "fastapi>=0.103.0,<1",
+    "uvicorn>=0.23.2,<1",
     # MQTT and core functionality
-    "aiomqtt>=1.0.0",
-    "pydantic>=2.11.0",
-    "python-dotenv>=1.0.0",
-    "typing_extensions>=4.7.0",
-    "paho-mqtt>=1.6.1",
+    "aiomqtt>=2.0,<3",
+    "pydantic>=2.11.0,<3",
+    "python-dotenv>=1.0.0,<2",
+    "typing_extensions>=4.7.0,<5",
+    "paho-mqtt>=1.6.1,<2",
     # Device-specific libraries (PyPI versions - Phase 1 migration)
-    "broadlink>=0.18.0",
+    "broadlink>=0.18.0,<1",
     "pymotivaxmc2==0.6.7", # Migrated from Git to PyPI
     "asyncwebostv==0.2.7", # Migrated from Git to PyPI
     # Network and HTTP libraries
-    "websockets>=15.0.1",
-    "pyOpenSSL>=23.2.0",
-    "aiohttp>=3.8.1",
-    "httpx",
-    "requests",
+    "websockets>=15.0.1,<16",
+    "pyOpenSSL>=23.2.0,<27",
+    "aiohttp>=3.8.1,<4",
+    "httpx>=0.27.0,<1",
+    "requests>=2.30.0,<3",
     # Data handling
-    "pyyaml>=6.0",
-    "jsonschema>=4.4.0",
-    "aiosqlite>=0.19.0",
+    "pyyaml>=6.0,<7",
+    "jsonschema>=4.4.0,<5",
+    "aiosqlite>=0.19.0,<1",
     # Auralic device support (fork with ARM lxml fix, pinned to immutable SHA)
     "openhomedevice @ git+https://github.com/droman42/openhomedevice.git@6e862a1022f59a21c57c501dcf040f81d12ebfaf",
     # Apple TV support (migrated to PyPI — protobuf fix shipped in 0.16.1+)
     "pyatv==0.17.0",
     # Note: asyncio>=3.4.3 removed - built into Python 3.11+
-    "psutil>=7.0.0",
+    "psutil>=7.0.0,<8",
 ]
 
 [project.optional-dependencies]
