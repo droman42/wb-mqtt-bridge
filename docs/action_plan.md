@@ -163,6 +163,12 @@ Ordered by **value / effort**. Each item sized for one focused PR.
 | 5 | Archive `docs/TODO.md` (move to `docs/history/phase1-2-done.md`); delete the Roborock bullet from the backend README. | 15 min |
 | 6 | **DONE** 2026-05-19 — committed as-is in UI `8ab2cfa` as part of the appliance-category feature. The doc accurately describes the current code direction. | 15 min |
 
+### P2.5 — UI architecture (design discussion, then implement)
+
+| # | Task | Effort |
+|---|------|--------|
+| 10 | **Design a contract-based button/action placement.** Today, *where* a control renders inside its remote zone is governed by an **implicit, undocumented convention**, not a contract — and we want to replace it. Two mechanisms, both verified in code (2026-05-20): (a) **slot zones** (power / volume / nav-cluster / pointer) fill fixed slots by **action-name substring matching** (`ZoneDetection.createPowerButtonsConfig`, `createMenuZone`, `createVolumeZone`, `createPointerZone` — e.g. name contains `off`→left, `on`→right; `up/down/left/right/ok`→D-pad); (b) **array-order zones** (screen vertical stack, playback row, tracks row) render in the order actions appear, which traces back through `deriveGroupsFromConfig` → `processAllGroupActions` to the **key order of `config/devices/*.json` commands**. This is fragile (reordering a config silently moves buttons; renaming/retyping an action can drop it from a slot or land it in the wrong one) and surprising. **Action: discuss options and design an explicit placement contract.** Candidate directions to weigh — (1) explicit per-action `slot`/`position`/`order` fields in the device config; (2) a dedicated **layout manifest** owned by the backend and served/consumed as a contract (aligns with §7 Codegen Option 2, runtime-driven UI); (3) command-level UI annotations (`x-ui-*`-style). Trade-off: authoring effort vs. determinism + reviewability. Touches both repos. **Design first — not yet scoped for implementation.** | TBD (design) |
+
 ### P3 — Real ops improvements (later, optional)
 
 | # | Task | Effort |
@@ -188,6 +194,7 @@ Ordered by **value / effort**. Each item sized for one focused PR.
 - [ ] **Are there device drivers planned that aren't shipped yet (Roborock, SprutHub, Apple TV app launching, IR learning UI from the old TODO)?** Affects whether §1.2 is the final list or a checkpoint. *(Miele dropped 2026-05-20 — repeated integration attempts failed; `asyncmiele` dependency removed.)*
 - [ ] **Is `device_category` going to drive real behavior soon?** If yes — what differs between `device` and `appliance`? If not — should we even ship the enum now, or wait until we know what it gates?
 - [ ] **Do we also want to move to runtime-driven UI rendering (Codegen Alternatives — Option 2)?** Eliminates `.gen.tsx` codegen entirely; UI fetches a per-device manifest from the backend and renders dynamically. Strong industry-practice alignment (Home Assistant / ioBroker pattern). ~2–3 day refactor. Default position: defer until after #3.5 ships and we feel actual pain that justifies it.
+- [ ] **How should button/action placement be made explicit/contract-based instead of relying on config command order?** See item #10. The current implicit convention works (verified unchanged by the P1 work) but the user explicitly dislikes layout depending on undocumented config ordering. Decide between: explicit per-action `slot`/`order` fields, a backend-owned layout manifest (couples naturally with Option 2 above), or command annotations. This question and the Option-2 question are related — a runtime layout manifest could subsume both.
 - [ ] _Add others as we discuss._
 
 ### 5.1 Backlog carried over from the old TODO
@@ -219,6 +226,7 @@ These were the only **unfinished** items in `docs/TODO.md` when it was archived 
   - **#3.5** (backend in `6bc30fc`, UI `5a71929`): `StateTypeGenerator` reads state shapes from `components.schemas` instead of spawning `python3` + `ast.parse`. Discovered the prior `pip install -e` was already **dead** (state config was only loaded in `local` mode, never `package`/CI). Enabled state-gen in package mode too, then removed Python entirely from the UI Dockerfile + CI. Validated a clean package-mode build: 8 state classes, typecheck/lint/validate all green.
   - **#4.5** (backend `2e5674c`, UI `7c3f3a8`, +`9f7da0e` untracking an accidental `system.json`): mapping now lives in the backend with directory-relative paths; the UI client resolves them, retiring the `.local.json` duplicate and the scenario handler's duplicate loaders.
   - **#4** (UI `395e538`): nginx proxy IP via `envsubst` template + MQTT URL via the (newly-wired) `window.RUNTIME_CONFIG` runtime shim; defaults preserve current behavior. **P1 is now fully done — only P3 (ops, deferred) remains.**
+- **2026-05-20** — Verified the P1 codegen changes did **not** alter the remote-control layout: regenerated all layout artifacts at the pre-change baseline (`5be5bd2`) vs HEAD — all 17 `.gen.tsx` files (13 device + 4 scenario) byte-identical; `index.gen.ts` identical apart from `generatedAt` timestamps. Traced the within-zone placement mechanism in code (slot-by-action-name for power/volume/nav/pointer; array-order for screen/playback/tracks, sourced from `config/devices/*.json` command key order). The alphabetized `openapi.json`/`*.state.ts` feeds only the `.hooks.ts` typing layer, never the layout. Added **P2.5 #10** (design a contract-based placement) + a matching §5 open question — the user dislikes layout depending on an implicit config-order convention and wants an explicit contract designed before any change.
 
 ---
 
