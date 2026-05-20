@@ -132,10 +132,11 @@ Wirenboard); the browser and backend meet at the broker, not via the API.
    keys in `device-state-mapping.json`.
 3. **Regenerate + commit `openapi.json` on any API or state-model change.** The
    committed snapshot — not a running server — is what the UI build consumes.
-4. **Command order in `config/devices/*.json` is load-bearing for layout.** Within-zone
-   placement of array-order zones (screen/playback/tracks) follows command key order.
-   This implicit convention is slated to become an explicit contract — see
-   `action_plan.md` P2.5 #10.
+4. **Command order in `config/devices/*.json` is load-bearing for layout** *(build-time contract
+   only)*. Within-zone placement of array-order zones (screen/playback/tracks) follows command key
+   order. This implicit convention is **removed** by the runtime Layout Manifest (see below):
+   placement becomes an explicit contract (capability declaration order + per-action `placement`
+   hints).
 5. **The sibling checkout layout** is assumed by the UI build (`../wb-mqtt-bridge`
    local, `./wb-mqtt-bridge` in CI/Docker). The mapping's relative paths depend on it.
 
@@ -156,7 +157,110 @@ Wirenboard); the browser and backend meet at the broker, not via the API.
 | Added a device driver | add config in `config/devices/`, entry-point, mapping entry, UI handler; regenerate `openapi.json` |
 | A device's commands/order | nothing on the backend; UI regenerates pages at build |
 
+## Layout Manifest & Runtime Rendering (DRAFT — planned; supersedes build-time codegen)
+
+**Status:** DRAFT (2026-05-20), agreed in the scenario-redesign discussion. When implemented this
+**replaces** the build-time codegen contract above (the `.gen.tsx` / `StateTypeGenerator` /
+`generate-device-pages` pipeline): device **and** scenario pages are built at **runtime** from a
+backend-served manifest. It is **Layer 3** of `docs/scenarios/scenario_system_redesign.md`, and it
+subsumes action_plan P2.5 #10 (placement contract) and Codegen Option 2. Until the migration
+completes, the build-time contract above remains authoritative.
+
+### Why
+Build-time generation forced the UI to *re-derive* device structure, scenario inheritance, and
+control placement from raw configs — producing duplicate logic (a second scenario inheritance + a
+stale taxonomy in the UI) and an implicit, config-order-dependent placement convention. Runtime
+construction makes the **backend the single source of truth** for page structure: identical
+look-and-feel (one renderer), placement as an explicit/fixable contract, and no duplication.
+
+### The manifest
+The backend computes and serves a **layout manifest** per entity — the same `RemoteDeviceStructure`
+the UI bakes today, produced server-side and published in `openapi.json`. The backend Pydantic
+model mirrors `wb-mqtt-ui/src/types/RemoteControlLayout.ts`, so the existing `RemoteControlLayout`
+renderer consumes it unchanged:
+
+```
+LayoutManifest
+  entity_id, display_name
+  entity_kind:     "device" | "scenario"
+  device_category: "device" | "appliance"   # v1 manifest = remote layout (device + scenario)
+  state_schema:    str                        # openapi components.schemas name for live state binding
+  zones: [ Zone ]
+
+Zone
+  zone_type: "power"|"media-stack"|"screen"|"volume"|"apps"|"menu"|"pointer"
+  zone_name, enabled
+  content: ZoneContent     # typed per zone (powerButtons | inputsDropdown | playbackSection |
+                           # tracksSection | screenActions | volumeSlider/volumeButtons |
+                           # appsDropdown | navigationCluster | pointerPad) — exactly as today
+  layout:  { columns?, spacing?, alignment?, orientation?, priority? }
+
+Control (inside ZoneContent) references:
+  action: str              # device command, or canonical role.action for scenarios
+  target_device_id?: str   # for scenario-inherited controls (HTTP routing)
+  params: [ ParamSpec ]
+  icon:   IconHint
+  state_binding?: { field, … }
+```
+
+### Placement engine (hybrid — the explicit contract = P2.5 #10)
+The backend assigns each action a zone + position, two-tier:
+
+- **Derive (default):** capability **domain → zone** (power→power, input→media-stack inputs,
+  volume→volume, playback/tracks→media-stack, menu→menu, screen→screen, apps→apps, pointer→pointer).
+  In **slot zones** (power/volume/menu/pointer) the canonical action picks the slot
+  (`power.off`→left, `power.on`→right; `menu.up/down/left/right/ok`→D-pad). In **ordered zones**
+  (screen/playback/tracks) order follows **capability declaration order — not raw config key order**
+  (this retires the implicit convention in Invariant #4). The `DEFAULT_ZONE_DETECTION` taxonomy
+  moves to the backend, re-keyed off capability **domains** instead of name-matching.
+- **Override (explicit hint, wins):** any capability/action may declare placement:
+
+  ```jsonc
+  "placement": { "zone": "menu", "slot": "ok", "order": 3 }   // slot for slot-zones; order for ordered-zones
+  ```
+
+  This is how a misplacement gets **fixed**: edit the hint, refetch — no rebuild ("discuss → adjust
+  hint → reload").
+
+### Endpoints
+- `GET /devices/{id}/layout` → `LayoutManifest`
+- `GET /scenario/{id}/layout` → `LayoutManifest` (scenario resolved once server-side via roles +
+  topology)
+- (optional) `GET /layouts` for prefetch. Manifests are in `openapi.json`, so TS types generate
+  like any response.
+
+### UI consumption
+One **generic renderer** — the existing `RemoteControlLayout` — fed by the fetched manifest. Live
+state via SSE (unchanged); state types from `openapi.json` (unchanged). Retires per-device
+`.gen.tsx`, `StateTypeGenerator`, `generate-device-pages`, the sibling-checkout build coupling, and
+the UI scenario re-derivation.
+
+### Scenarios = devices (blocker resolved)
+A scenario's manifest comes from the **same** engine: reconciler-resolved roles + capability
+inheritance + topology give the composite control set; placement runs identically. The UI's
+`ScenarioVirtualDeviceHandler` / `ScenarioVirtualDeviceResolver` + their stale taxonomy are
+**deleted**. One inheritance, one placement, one source of truth.
+
+### Icons & appliances
+- **Icons:** `icon` hints live in the manifest (today's `ProcessedAction.icon`) so rendering is
+  data-driven; the UI `IconResolver` is ported to the backend (or kept UI-side as a pure fallback).
+  Open sub-decision — lean: in manifest.
+- **Appliances:** v1 manifest targets the remote layout (`device_category=device` + scenarios).
+  Appliance bespoke pages get a separate manifest variant later — out of scope for v1.
+
+### Fidelity strategy
+The current `.gen.tsx` set is the **regression oracle**: the backend engine must reproduce each
+device's structure zone-by-zone / control-by-control before the runtime renderer replaces the
+static page. Port + diff per device class.
+
+### Migration (incremental, app stays runnable)
+1. Manifest Pydantic + `/layout` endpoints; placement engine reproducing one device's `.gen.tsx`.
+2. UI generic runtime renderer behind a flag for that device; visual diff vs. today.
+3. Roll across device classes; then scenarios.
+4. Delete build-time generators + UI scenario duplication; update Invariants + playbook here.
+
 ## Related
+- `docs/scenarios/scenario_system_redesign.md` — the scenario redesign; this manifest is its Layer 3.
 - `wb-mqtt-ui/README.md` and `wb-mqtt-ui/docs/page_instructions.md` — running the codegen.
 - `wb-mqtt-ui/docs/deployment-network-config.md` — runtime URL configuration.
 - `action_plan.md` §7 (Codegen Alternatives) and P2.5 #10 (placement contract).
