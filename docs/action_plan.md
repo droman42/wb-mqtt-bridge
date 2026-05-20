@@ -147,6 +147,12 @@ Ordered by **value / effort**. Each item sized for one focused PR.
 | 1 | **DONE** 2026-05-19 — `ab5402d`. Shipped together with #0a as the backend half of the paired change. | 30 min |
 | 2 | **DONE** 2026-05-19 — backend `36b54d8`, UI `5be5bd2`. Wired tests into CI on amd64, gated ARM build. Final state: 107 pass / 109 skip / 0 fail. **109 tests skipped with explicit `reason=`** are pre-existing API drift / collection hangs from the scenario+state-store refactors — deferred to a future cleanup PR, not deleted. UI side wires `npm run lint + typecheck:all + validate:generated-code + validate:components`; did **not** wire `npm test` (jest preset misconfigured, no test files exist). See commit body for the full skip inventory. | 1 hour planned → ~2 hrs |
 
+### P0.5 — Functional correctness (top functional priority)
+
+| # | Task | Effort |
+|---|------|--------|
+| 12 | **Investigate and fix the scenario layer — currently broken.** Per the project vision, the #1 success criterion is "it actually works": every device action + every scenario, end-to-end on real hardware. Device actions mostly work; **scenarios do not** (confirmed by the user 2026-05-20). This is the headline gap between today and "done = my house works", and is distinct from the architecture/docs/GSD track. Scope: reproduce the failure(s), determine whether it's startup/shutdown sequencing, condition evaluation, role-action dispatch, WB-adapter, or state — then fix and verify on hardware. | TBD (investigation first) |
+
 ### P1 — Reduce coupling without changing architecture
 
 | # | Task | Effort |
@@ -184,7 +190,7 @@ Ordered by **value / effort**. Each item sized for one focused PR.
 | 9 | Decide on monorepo vs. shared contract. **Defer until after P1.** | — |
 
 ### Explicitly out of scope (for now)
-- **Multi-arch builds** — only matters if dev moves off the ARMv7 target.
+- **Multi-arch builds** — *time-limited* out-of-scope. Deployment is Wirenboard-only, but the planned move to **Wirenboard 8+ (arm64/64-bit)** will require an **arm64** image alongside (or replacing) the current ARMv7 one. Revisit when the WB8+ migration is scheduled. (amd64 stays CI/dev-only — not a deploy target.)
 - **Rewriting `manage_docker.sh`** — works fine; touch it only when GHCR lands.
 
 ---
@@ -234,7 +240,8 @@ These were the only **unfinished** items in `docs/TODO.md` when it was archived 
 - **2026-05-20** — **Decided to adopt GSD** (added **P2.6 #11**; removed it from "out of scope"). Re-studied the framework: solo-friendly, brownfield path, multi-repo via workspaces. Audited all documentation in both repos against current code (two subagents) and executed the doc-reconciliation prerequisites:
   - **Step A (archive):** moved 28 backend + 6 UI superseded design/implementation plans to `docs/archive/` with a "not current, don't ingest" header (backend `124ca55`, UI `8bb360b`). The live `docs/` surface is now 13 backend + 5 UI docs.
   - **Step B (fix living docs):** backend README de-stale'd + trimmed 1146→878 (`55ca7e6`); backend living-doc batch + emotiva (`db5c18b`, `0493df4`); UI README rewritten 299→121 for the Python-free contract build (`16b95dc`); UI deployment + network-config rewritten for runtime env-var config (`9d0745b`); remote_layout trimmed to the spec + accurate impl note, page_instructions + appliances corrected (`b8a15e9`).
-  - **Step C in progress** (GSD-seed docs): ✅ **UI↔backend CONTRACT** (`docs/ui_backend_contract.md`, `50e94b0`; UI pointer `f4d0e7b`); ✅ **ARCHITECTURE** (`docs/architecture.md`, `a2456bc`). Remaining: PROJECT vision, CONVENTIONS, + ADRs. **Step D pending** — see #11.
+  - **Step C in progress** (GSD-seed docs): ✅ **UI↔backend CONTRACT** (`docs/ui_backend_contract.md`, `50e94b0`; UI pointer `f4d0e7b`); ✅ **ARCHITECTURE** (`docs/architecture.md`, `a2456bc`); ✅ **PROJECT vision** (`docs/project.md`, `ef4421e`). Remaining: CONVENTIONS + ADRs. **Step D pending** — see #11.
+- **2026-05-20** — Vision-gathering surfaced two items folded into the plan: **P0.5 #12** (scenarios are broken — top functional priority) and a revised "multi-arch" note (WB8+/arm64 is the planned hardware trajectory, so an arm64 image will be needed). SprutHub dropped; Yandex Alisa delegated to Wirenboard's future native bridge.
 
 ---
 
