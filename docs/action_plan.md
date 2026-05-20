@@ -179,28 +179,38 @@ Ordered by **value / effort**. Each item sized for one focused PR.
 
 | # | Task | Effort |
 |---|------|--------|
-| 11 | **Adopt GSD** ([gsd-build/get-shit-done](https://github.com/gsd-build/get-shit-done)) as the dev workflow. *(Reverses the earlier "out of scope" verdict — re-study 2026-05-20 found GSD is built for solo devs, has a brownfield path (`/gsd-map-codebase` + `/gsd-ingest-docs`), and handles multi-repo via `/gsd-workspace --repos`.)* Sequencing: **(A) archive stale docs — DONE**; **(B) fix living docs to match code — DONE**; **(C) author the GSD-seed artifacts** (PROJECT vision, ARCHITECTURE, the UI↔backend CONTRACT, CONVENTIONS) + a few ADRs for decisions already made (OpenAPI additive-injection, backend-owned mapping, runtime config, Miele removal); **(D) install GSD** (`npx get-shit-done-cc@latest`), run `/gsd-map-codebase` then `/gsd-ingest-docs` to bootstrap `.planning/`. Decide whether `.planning/` is tracked or gitignored, and whether to use `/gsd-workspace` across both repos. | C: ~½–1 day; D: ~½ day |
+| 11 | **DONE** 2026-05-20 — backend `b931430`, `4223f39`, `98664f3`. **Adopt GSD** ([gsd-build/get-shit-done](https://github.com/gsd-build/get-shit-done)) as the dev workflow. *(Reverses the earlier "out of scope" verdict — re-study 2026-05-20 found GSD is built for solo devs, has a brownfield path (`/gsd-map-codebase` + `/gsd-ingest-docs`), and handles multi-repo via `/gsd-workspace --repos`.)* Sequencing: **(A) archive stale docs — DONE**; **(B) fix living docs to match code — DONE**; **(C) author the GSD-seed artifacts** (PROJECT vision, ARCHITECTURE, the UI↔backend CONTRACT, CONVENTIONS) + ADRs 0001–0005 — DONE; **(D) install GSD + map-codebase + ingest-docs — DONE.** Outcome: backend-primary, `.planning/` **tracked** in git (no `/gsd-workspace`). 6-phase ROADMAP generated; **Phase 1 = Fix the Scenario Layer** (= P0.5 #12). See the Step D runbook below for the as-run sequence. | DONE |
 
-#### Step D runbook — GSD bootstrap (after install; run in this backend repo)
+#### Step D runbook — GSD bootstrap (DONE 2026-05-20; as-run record)
 
-GSD is installed (2026-05-20). Start **backend-primary** (`.planning/` lives here; UI
-referenced via the contract doc; revisit `/gsd-workspace` only if two-repo coordination
-gets painful). Run, in order (commands are interactive — answer the prompts; if a name
-doesn't resolve, use `/gsd-help` or the colon form e.g. `/gsd:map-codebase`):
+Bootstrapped **backend-primary** (`.planning/` lives here and is **tracked** in git; UI
+referenced via the contract doc; no `/gsd-workspace` — revisit only if two-repo
+coordination gets painful). As-run sequence:
 
-1. `/gsd-config` *(optional)* — model profile **balanced**, mode **interactive**,
-   **auto-branching OFF** (we push to `main`); decide **`.planning/` tracked vs gitignored**
-   (lean: tracked).
-2. `/gsd-map-codebase` — writes `.planning/codebase/{STACK,ARCHITECTURE,CONVENTIONS,CONCERNS}.md`
-   (`--fast` for a quicker first pass).
-3. `/gsd-ingest-docs` — bootstraps `.planning/` from the curated docs (`project.md`,
-   `architecture.md`, `ui_backend_contract.md`, `conventions.md`, `docs/adr/*`,
-   `action_plan.md`); review any `INGEST-CONFLICTS.md`.
-4. `/gsd-progress` — routes to the correct next step (likely `/gsd-new-project` to finalize
-   ROADMAP/STATE, then the phase loop).
+1. `/gsd-config` → committed `b931430`. model profile **balanced**, **branching off**
+   (push to `main`), `commit_docs=true` (`.planning/` tracked), `auto_advance=false`.
+   ⚠️ **Ordering gotcha:** in the installed SDK version `/gsd-config` **cannot create
+   `.planning/` on its own** — `config-ensure-section` / `config-set` both require the
+   file to pre-exist. The config workflow must bootstrap via
+   `gsd-sdk query config-new-project '{"commit_docs": true}'` (creates `.planning/` +
+   canonical `config.json`). So config is only "step 1" *after* something creates
+   `.planning/`; either run it via `config-new-project` (as done) or run step 2/3 first.
+2. `/gsd-map-codebase` → committed `4223f39`. 4 parallel mapper agents wrote 7 docs:
+   `.planning/codebase/{STACK,INTEGRATIONS,ARCHITECTURE,STRUCTURE,CONVENTIONS,TESTING,CONCERNS}.md`.
+3. `/gsd-ingest-docs` (mode=new) → committed `98664f3`. Used a **curated 10-doc manifest**
+   (5 ADRs + `ui_backend_contract` SPEC + `project`/`action_plan` PRDs +
+   `architecture`/`conventions` DOCs) to stay on-intent and under the 50-doc cap — the raw
+   `docs/` tree (53 `.md`) would have swept in the 29 archived "don't ingest" docs.
+   Pipeline: 10 classifier agents → synthesizer → roadmapper. 0 conflicts. Produced
+   `.planning/{PROJECT,REQUIREMENTS,ROADMAP,STATE}.md` + `intel/`. **Subsystem specs
+   (`docs/scenarios/*`, `docs/devices/*`, etc.) were intentionally excluded** — read them
+   at plan-time, or merge-ingest later with a narrow manifest.
+4. `/gsd-progress` — **next** (routes onward). ROADMAP already finalized by ingest, so a
+   separate `/gsd-new-project` is not needed.
 
-First real phase to tackle via GSD: **P0.5 #12 (fix broken scenarios)** — the top
-functional priority (`/gsd-discuss-phase` → `/gsd-plan-phase` → `/gsd-execute-phase`).
+First real phase to tackle via GSD: **ROADMAP Phase 1 = Fix the Scenario Layer**
+(= P0.5 #12), the top functional priority
+(`/gsd-discuss-phase 1` → `/gsd-plan-phase 1` → `/gsd-execute-phase 1`).
 
 ### P3 — Real ops improvements (later, optional)
 
@@ -261,8 +271,12 @@ These were the only **unfinished** items in `docs/TODO.md` when it was archived 
 - **2026-05-20** — **Decided to adopt GSD** (added **P2.6 #11**; removed it from "out of scope"). Re-studied the framework: solo-friendly, brownfield path, multi-repo via workspaces. Audited all documentation in both repos against current code (two subagents) and executed the doc-reconciliation prerequisites:
   - **Step A (archive):** moved 28 backend + 6 UI superseded design/implementation plans to `docs/archive/` with a "not current, don't ingest" header (backend `124ca55`, UI `8bb360b`). The live `docs/` surface is now 13 backend + 5 UI docs.
   - **Step B (fix living docs):** backend README de-stale'd + trimmed 1146→878 (`55ca7e6`); backend living-doc batch + emotiva (`db5c18b`, `0493df4`); UI README rewritten 299→121 for the Python-free contract build (`16b95dc`); UI deployment + network-config rewritten for runtime env-var config (`9d0745b`); remote_layout trimmed to the spec + accurate impl note, page_instructions + appliances corrected (`b8a15e9`).
-  - **Step C DONE** (GSD-seed docs): ✅ **CONTRACT** (`docs/ui_backend_contract.md`, `50e94b0`; UI pointer `f4d0e7b`); ✅ **ARCHITECTURE** (`docs/architecture.md`, `a2456bc`); ✅ **PROJECT vision** (`docs/project.md`, `ef4421e`); ✅ **CONVENTIONS** (`docs/conventions.md`, `b1f4543`); ✅ **ADRs 0001–0005** (`docs/adr/`, `531a5bb`). **Step D pending** (install GSD + `map-codebase` + `ingest-docs`) — see #11.
+  - **Step C DONE** (GSD-seed docs): ✅ **CONTRACT** (`docs/ui_backend_contract.md`, `50e94b0`; UI pointer `f4d0e7b`); ✅ **ARCHITECTURE** (`docs/architecture.md`, `a2456bc`); ✅ **PROJECT vision** (`docs/project.md`, `ef4421e`); ✅ **CONVENTIONS** (`docs/conventions.md`, `b1f4543`); ✅ **ADRs 0001–0005** (`docs/adr/`, `531a5bb`). **Step D DONE** — see next entry.
 - **2026-05-20** — Vision-gathering surfaced two items folded into the plan: **P0.5 #12** (scenarios are broken — top functional priority) and a revised "multi-arch" note (WB8+/arm64 is the planned hardware trajectory, so an arm64 image will be needed). SprutHub dropped; Yandex Alisa delegated to Wirenboard's future native bridge.
+- **2026-05-20** — **Completed P2.6 #11 Step D — GSD is now bootstrapped** (`.planning/` tracked, backend-primary). Three commits:
+  - **D.1 `/gsd-config`** (`b931430`): balanced profile, branching off, `commit_docs=true`, `auto_advance=false`. Found that `/gsd-config` can't create `.planning/` in this SDK version (`config-ensure-section`/`config-set` need a pre-existing file) — bootstrapped via `gsd-sdk query config-new-project`. The Step D runbook was corrected to note this ordering.
+  - **D.2 `/gsd-map-codebase`** (`4223f39`): 4 parallel mapper agents wrote 7 docs to `.planning/codebase/` (STACK, INTEGRATIONS, ARCHITECTURE, STRUCTURE, CONVENTIONS, TESTING, CONCERNS; 1720 lines).
+  - **D.3 `/gsd-ingest-docs`** (mode=new, `98664f3`): curated 10-doc manifest (5 ADR + ui_backend_contract SPEC + project/action_plan PRD + architecture/conventions DOC) → classifier×10 → synthesizer → roadmapper. 0 conflicts. Generated `.planning/{PROJECT,REQUIREMENTS,ROADMAP,STATE}.md` + `intel/`. ROADMAP = **6 phases (4 active + 2 deferred)**: 1 Fix Scenario Layer · 2 Button-Placement Contract · 3 CI Quality Gates · 4 Planned Device Features · 5 Ops/GHCR (deferred) · 6 arm64 for WB8+ (deferred). P1/P2 recorded as completed context, not phases. Subsystem specs (`docs/scenarios/*` etc.) deliberately not ingested. **Next: `/gsd-progress`, then the Phase 1 loop (`/gsd-discuss-phase 1` → `plan` → `execute`) to fix scenarios.**
 
 ---
 
