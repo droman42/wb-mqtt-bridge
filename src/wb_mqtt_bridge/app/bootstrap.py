@@ -7,7 +7,19 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 
+from wb_mqtt_bridge.domain.devices.models import (
+    BaseDeviceState,
+    KitchenHoodState,
+    LgTvState,
+    WirenboardIRState,
+    RevoxA77ReelToReelState,
+    AppleTVState,
+    AuralicDeviceState,
+    EmotivaXMC2State,
+)
+from wb_mqtt_bridge.infrastructure.scenarios.models import ScenarioWBConfig
 from wb_mqtt_bridge.infrastructure.config.manager import ConfigManager
 from wb_mqtt_bridge.domain.devices.service import DeviceManager
 from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
@@ -386,4 +398,63 @@ def create_app() -> FastAPI:
     app.include_router(state.router)
     app.include_router(events.router)
 
-    return app 
+    _install_openapi_with_state_models(app)
+
+    return app
+
+
+# Device-state models that must be present in /openapi.json so the UI's
+# build-time codegen can read state shapes from the API contract instead of
+# importing the Python package and AST-parsing these classes (action_plan P1 #3.5).
+# These are runtime-typed states returned by /devices/{id}/state and persisted by
+# the state store; the codegen maps each by class name via device-state-mapping.json.
+OPENAPI_EXTRA_MODELS = [
+    BaseDeviceState,
+    KitchenHoodState,
+    LgTvState,
+    WirenboardIRState,
+    RevoxA77ReelToReelState,
+    AppleTVState,
+    AuralicDeviceState,
+    EmotivaXMC2State,
+    ScenarioWBConfig,
+]
+
+
+def _install_openapi_with_state_models(app: FastAPI) -> None:
+    """Override app.openapi() to inject device-state model schemas.
+
+    These models are not the response_model of any operation (the live endpoints
+    return plain dicts / instances and keep their custom serialization), so they
+    would not otherwise appear in components.schemas. We add them as standalone
+    schemas — purely additive, no endpoint behavior changes — so both
+    openapi-typescript (api.gen.ts) and the device-page StateTypeGenerator can
+    consume them from the contract.
+    """
+
+    def custom_openapi():
+        if app.openapi_schema:
+            return app.openapi_schema
+
+        openapi_schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            description=app.description,
+            routes=app.routes,
+        )
+
+        schemas = openapi_schema.setdefault("components", {}).setdefault("schemas", {})
+        for model in OPENAPI_EXTRA_MODELS:
+            model_schema = model.model_json_schema(
+                ref_template="#/components/schemas/{model}"
+            )
+            # Pydantic emits nested/referenced models under "$defs"; lift them to
+            # components.schemas so the $ref pointers resolve.
+            for dep_name, dep_schema in model_schema.pop("$defs", {}).items():
+                schemas.setdefault(dep_name, dep_schema)
+            schemas[model.__name__] = model_schema
+
+        app.openapi_schema = openapi_schema
+        return openapi_schema
+
+    app.openapi = custom_openapi 

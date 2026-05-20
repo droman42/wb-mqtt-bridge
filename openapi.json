@@ -1,0 +1,3675 @@
+{
+  "components": {
+    "schemas": {
+      "ActionGroup": {
+        "description": "Schema for a group of actions.",
+        "properties": {
+          "actions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "group_id": {
+            "title": "Group Id",
+            "type": "string"
+          },
+          "group_name": {
+            "title": "Group Name",
+            "type": "string"
+          },
+          "status": {
+            "default": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "group_id",
+          "group_name",
+          "actions"
+        ],
+        "title": "ActionGroup",
+        "type": "object"
+      },
+      "ActionRequest": {
+        "description": "Request model for executing a role action.",
+        "properties": {
+          "command": {
+            "title": "Command",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": true,
+            "default": {},
+            "title": "Params",
+            "type": "object"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "command"
+        ],
+        "title": "ActionRequest",
+        "type": "object"
+      },
+      "AppleTVState": {
+        "description": "Schema for Apple TV device state.",
+        "properties": {
+          "album": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Album"
+          },
+          "app": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "App"
+          },
+          "artist": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Artist"
+          },
+          "connected": {
+            "default": false,
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "device_id": {
+            "title": "Device Id",
+            "type": "string"
+          },
+          "device_name": {
+            "title": "Device Name",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Error"
+          },
+          "ip_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ip Address"
+          },
+          "last_command": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LastCommand"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "media_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Media Type"
+          },
+          "playback_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Playback State"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Position"
+          },
+          "power": {
+            "default": "off",
+            "title": "Power",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          },
+          "total_time": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Total Time"
+          },
+          "volume": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Volume"
+          }
+        },
+        "required": [
+          "device_id",
+          "device_name"
+        ],
+        "title": "AppleTVState",
+        "type": "object"
+      },
+      "AuralicDeviceState": {
+        "description": "Schema for Auralic device state.\n\nThe power state can have the following values:\n- \"on\": Device is powered on and operational\n- \"off\": Device is in standby mode (UPnP control) or deep sleep mode (IR control)\n\nWhen the device is in deep sleep mode, connected will be False and power will be \"off\".",
+        "properties": {
+          "connected": {
+            "default": false,
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "deep_sleep": {
+            "default": false,
+            "title": "Deep Sleep",
+            "type": "boolean"
+          },
+          "device_id": {
+            "title": "Device Id",
+            "type": "string"
+          },
+          "device_name": {
+            "title": "Device Name",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Error"
+          },
+          "ip_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ip Address"
+          },
+          "last_command": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LastCommand"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Message"
+          },
+          "mute": {
+            "default": false,
+            "title": "Mute",
+            "type": "boolean"
+          },
+          "power": {
+            "default": "off",
+            "title": "Power",
+            "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Source"
+          },
+          "track_album": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Track Album"
+          },
+          "track_artist": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Track Artist"
+          },
+          "track_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Track Title"
+          },
+          "transport_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Transport State"
+          },
+          "volume": {
+            "default": 0,
+            "title": "Volume",
+            "type": "integer"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Warning"
+          }
+        },
+        "required": [
+          "device_id",
+          "device_name"
+        ],
+        "title": "AuralicDeviceState",
+        "type": "object"
+      },
+      "BaseCommandConfig": {
+        "description": "Base schema for command configuration.",
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Action identifier for this command",
+            "title": "Action"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable description of the command",
+            "title": "Description"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Functional group this command belongs to",
+            "title": "Group"
+          },
+          "params": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CommandParameterDefinition"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Parameter definitions for this command",
+            "title": "Params"
+          }
+        },
+        "title": "BaseCommandConfig",
+        "type": "object"
+      },
+      "BaseDeviceConfig": {
+        "description": "Base schema for device configuration.",
+        "properties": {
+          "commands": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/BaseCommandConfig"
+            },
+            "title": "Commands",
+            "type": "object"
+          },
+          "config_class": {
+            "description": "The configuration model class name (e.g., 'LgTvDeviceConfig')",
+            "title": "Config Class",
+            "type": "string"
+          },
+          "device_category": {
+            "$ref": "#/components/schemas/DeviceCategory",
+            "default": "device",
+            "description": "The category of the device (e.g., 'device' or 'appliance')"
+          },
+          "device_class": {
+            "description": "The device implementation class name (e.g., 'LgTv')",
+            "title": "Device Class",
+            "type": "string"
+          },
+          "device_id": {
+            "title": "Device Id",
+            "type": "string"
+          },
+          "device_name": {
+            "title": "Device Name",
+            "type": "string"
+          },
+          "enable_wb_emulation": {
+            "default": true,
+            "description": "Enable Wirenboard virtual device emulation",
+            "title": "Enable Wb Emulation",
+            "type": "boolean"
+          },
+          "wb_controls": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Custom Wirenboard control definitions",
+            "title": "Wb Controls"
+          },
+          "wb_state_mappings": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    }
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Custom state field to WB control mappings",
+            "title": "Wb State Mappings"
+          }
+        },
+        "required": [
+          "device_id",
+          "device_name",
+          "device_class",
+          "config_class"
+        ],
+        "title": "BaseDeviceConfig",
+        "type": "object"
+      },
+      "BaseDeviceState": {
+        "description": "Base schema for device state.",
+        "properties": {
+          "device_id": {
+            "title": "Device Id",
+            "type": "string"
+          },
+          "device_name": {
+            "title": "Device Name",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Error"
+          },
+          "last_command": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LastCommand"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "power": {
+            "default": "off",
+            "title": "Power",
+            "type": "string"
+          }
+        },
+        "required": [
+          "device_id",
+          "device_name"
+        ],
+        "title": "BaseDeviceState",
+        "type": "object"
+      },
+      "BroadcastResponse": {
+        "description": "Response model for test broadcast operations",
+        "properties": {
+          "active_connections": {
+            "description": "Number of active connections that received the event",
+            "example": 3,
+            "title": "Active Connections",
+            "type": "integer"
+          },
+          "message": {
+            "description": "Descriptive message about the operation",
+            "example": "Test event broadcasted to devices channel",
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "description": "Operation status",
+            "example": "success",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "message",
+          "active_connections"
+        ],
+        "title": "BroadcastResponse",
+        "type": "object"
+      },
+      "CommandParameterDefinition": {
+        "description": "Schema for command parameter definition.",
+        "properties": {
+          "default": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Default value if parameter is not provided and not required",
+            "title": "Default"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable description",
+            "title": "Description"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Maximum allowed value (used with type: 'range')",
+            "title": "Max"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Minimum allowed value (used with type: 'range')",
+            "title": "Min"
+          },
+          "name": {
+            "description": "Parameter name",
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "description": "Whether this parameter must be provided",
+            "title": "Required",
+            "type": "boolean"
+          },
+          "type": {
+            "description": "Data type (e.g., 'string', 'integer', 'float', 'boolean', 'range')",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "required"
+        ],
+        "title": "CommandParameterDefinition",
+        "type": "object"
+      },
+      "CommandResponse": {
+        "description": "Return type for BaseDevice.execute_action.\n\nThis combines required fields (success, device_id, action, state)\nwith optional fields (error, mqtt_command, data) to match FastAPI validation\nrequirements while maintaining proper typing.",
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "device_id": {
+            "title": "Device Id",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "mqtt_command": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mqtt Command"
+          },
+          "state": {
+            "$ref": "#/components/schemas/BaseDeviceState"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "device_id",
+          "action",
+          "state"
+        ],
+        "title": "CommandResponse",
+        "type": "object"
+      },
+      "CommandStep": {
+        "description": "A step in a scenario sequence (startup or shutdown).",
+        "properties": {
+          "command": {
+            "description": "Command name to execute",
+            "title": "Command",
+            "type": "string"
+          },
+          "condition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Expression to evaluate against device state, run only if True",
+            "title": "Condition"
+          },
+          "delay_after_ms": {
+            "default": 0,
+            "description": "Delay in milliseconds after executing this command",
+            "minimum": 0.0,
+            "title": "Delay After Ms",
+            "type": "integer"
+          },
+          "device": {
+            "description": "Device ID to execute the command on",
+            "title": "Device",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": true,
+            "description": "Command parameters",
+            "title": "Params",
+            "type": "object"
+          }
+        },
+        "required": [
+          "device",
+          "command"
+        ],
+        "title": "CommandStep",
+        "type": "object"
+      },
+      "DeviceAction": {
+        "description": "Schema for device action requests.",
+        "examples": [
+          {
+            "action": "power_on"
+          },
+          {
+            "action": "set_volume",
+            "params": {
+              "volume": 50
+            }
+          }
+        ],
+        "properties": {
+          "action": {
+            "description": "Action to execute on the device",
+            "title": "Action",
+            "type": "string"
+          },
+          "params": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional parameters for the action",
+            "title": "Params"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "DeviceAction",
+        "type": "object"
+      },
+      "DeviceCategory": {
+        "description": "Enumeration for device categories.",
+        "enum": [
+          "device",
+          "appliance"
+        ],
+        "title": "DeviceCategory",
+        "type": "string"
+      },
+      "DeviceState": {
+        "description": "Runtime state of a device.",
+        "properties": {
+          "extra": {
+            "additionalProperties": true,
+            "description": "Additional device-specific state fields",
+            "title": "Extra",
+            "type": "object"
+          },
+          "input": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Active input port",
+            "title": "Input"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Active output port",
+            "title": "Output"
+          },
+          "power": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "True = ON, False = OFF",
+            "title": "Power"
+          }
+        },
+        "title": "DeviceState",
+        "type": "object"
+      },
+      "EmotivaXMC2State": {
+        "description": "Schema for eMotiva XMC2 device state.",
+        "properties": {
+          "audio_bitstream": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Audio Bitstream"
+          },
+          "audio_input": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Audio Input"
+          },
+          "audio_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Audio Mode"
+          },
+          "connected": {
+            "default": false,
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "device_id": {
+            "title": "Device Id",
+            "type": "string"
+          },
+          "device_name": {
+            "title": "Device Name",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Error"
+          },
+          "input_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Input Source"
+          },
+          "ip_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ip Address"
+          },
+          "last_command": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LastCommand"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "mac_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mac Address"
+          },
+          "mute": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mute"
+          },
+          "notifications": {
+            "default": false,
+            "title": "Notifications",
+            "type": "boolean"
+          },
+          "power": {
+            "default": "off",
+            "title": "Power",
+            "type": "string"
+          },
+          "startup_complete": {
+            "default": false,
+            "title": "Startup Complete",
+            "type": "boolean"
+          },
+          "video_input": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Video Input"
+          },
+          "volume": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Volume"
+          },
+          "zone2_mute": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Zone2 Mute"
+          },
+          "zone2_power": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Zone2 Power"
+          },
+          "zone2_volume": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Zone2 Volume"
+          }
+        },
+        "required": [
+          "device_id",
+          "device_name"
+        ],
+        "title": "EmotivaXMC2State",
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "description": "Schema for error responses.",
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "Group": {
+        "description": "Schema for a function group.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Group",
+        "type": "object"
+      },
+      "GroupActionsResponse": {
+        "description": "Schema for API responses that return actions for a specific group with status information.",
+        "properties": {
+          "actions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "device_id": {
+            "title": "Device Id",
+            "type": "string"
+          },
+          "group_id": {
+            "title": "Group Id",
+            "type": "string"
+          },
+          "group_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Name"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "device_id",
+          "group_id",
+          "status"
+        ],
+        "title": "GroupActionsResponse",
+        "type": "object"
+      },
+      "GroupedActionsResponse": {
+        "description": "Schema for API responses that return actions grouped by function.",
+        "properties": {
+          "default_included": {
+            "default": false,
+            "title": "Default Included",
+            "type": "boolean"
+          },
+          "device_id": {
+            "title": "Device Id",
+            "type": "string"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/ActionGroup"
+            },
+            "title": "Groups",
+            "type": "array"
+          }
+        },
+        "required": [
+          "device_id",
+          "groups"
+        ],
+        "title": "GroupedActionsResponse",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "KitchenHoodState": {
+        "description": "Schema for kitchen hood state.",
+        "properties": {
+          "connection_status": {
+            "title": "Connection Status",
+            "type": "string"
+          },
+          "device_id": {
+            "title": "Device Id",
+            "type": "string"
+          },
+          "device_name": {
+            "title": "Device Name",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Error"
+          },
+          "last_command": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LastCommand"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "light": {
+            "title": "Light",
+            "type": "string"
+          },
+          "power": {
+            "default": "off",
+            "title": "Power",
+            "type": "string"
+          },
+          "speed": {
+            "title": "Speed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "device_id",
+          "device_name",
+          "light",
+          "speed",
+          "connection_status"
+        ],
+        "title": "KitchenHoodState",
+        "type": "object"
+      },
+      "LastCommand": {
+        "description": "Schema for last executed command.",
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "params": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Params"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "source",
+          "timestamp"
+        ],
+        "title": "LastCommand",
+        "type": "object"
+      },
+      "LgTvState": {
+        "description": "Schema for LG TV state.",
+        "properties": {
+          "connected": {
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "current_app": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current App"
+          },
+          "device_id": {
+            "title": "Device Id",
+            "type": "string"
+          },
+          "device_name": {
+            "title": "Device Name",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Error"
+          },
+          "input_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Source"
+          },
+          "ip_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ip Address"
+          },
+          "last_command": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LastCommand"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "mac_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mac Address"
+          },
+          "mute": {
+            "title": "Mute",
+            "type": "boolean"
+          },
+          "power": {
+            "default": "off",
+            "title": "Power",
+            "type": "string"
+          },
+          "volume": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Volume"
+          }
+        },
+        "required": [
+          "device_id",
+          "device_name",
+          "mute",
+          "current_app",
+          "input_source",
+          "connected",
+          "ip_address",
+          "mac_address"
+        ],
+        "title": "LgTvState",
+        "type": "object"
+      },
+      "MQTTBrokerConfig": {
+        "description": "Schema for MQTT broker configuration.",
+        "properties": {
+          "auth": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auth"
+          },
+          "client_id": {
+            "title": "Client Id",
+            "type": "string"
+          },
+          "host": {
+            "title": "Host",
+            "type": "string"
+          },
+          "keepalive": {
+            "default": 60,
+            "title": "Keepalive",
+            "type": "integer"
+          },
+          "port": {
+            "title": "Port",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "host",
+          "port",
+          "client_id"
+        ],
+        "title": "MQTTBrokerConfig",
+        "type": "object"
+      },
+      "MQTTMessage": {
+        "description": "Schema for MQTT messages.",
+        "examples": [
+          {
+            "payload": "on",
+            "qos": 1,
+            "retain": false,
+            "topic": "/devices/light/set"
+          },
+          {
+            "payload": 22.5,
+            "qos": 1,
+            "retain": true,
+            "topic": "/devices/thermostat/set_temp"
+          },
+          {
+            "payload": {
+              "action": "channel",
+              "value": 5
+            },
+            "qos": 0,
+            "retain": false,
+            "topic": "/devices/tv/command"
+          }
+        ],
+        "properties": {
+          "payload": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Message payload to publish. Can be string, number, boolean, object, or array. If not provided, defaults to 1.",
+            "title": "Payload"
+          },
+          "qos": {
+            "default": 0,
+            "description": "Quality of Service level (0, 1, or 2)",
+            "maximum": 2.0,
+            "minimum": 0.0,
+            "title": "Qos",
+            "type": "integer"
+          },
+          "retain": {
+            "default": false,
+            "description": "Whether to retain the message on the broker",
+            "title": "Retain",
+            "type": "boolean"
+          },
+          "topic": {
+            "description": "MQTT topic to publish the message to",
+            "title": "Topic",
+            "type": "string"
+          }
+        },
+        "required": [
+          "topic"
+        ],
+        "title": "MQTTMessage",
+        "type": "object"
+      },
+      "MQTTPublishResponse": {
+        "description": "Schema for MQTT publish response.",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "topic": {
+            "title": "Topic",
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "topic"
+        ],
+        "title": "MQTTPublishResponse",
+        "type": "object"
+      },
+      "MaintenanceConfig": {
+        "description": "Configuration for system maintenance settings.",
+        "properties": {
+          "duration": {
+            "description": "Maintenance duration in minutes",
+            "title": "Duration",
+            "type": "integer"
+          },
+          "topic": {
+            "description": "MQTT topic to monitor for maintenance status",
+            "title": "Topic",
+            "type": "string"
+          }
+        },
+        "required": [
+          "duration",
+          "topic"
+        ],
+        "title": "MaintenanceConfig",
+        "type": "object"
+      },
+      "ManualInstructions": {
+        "description": "Instructions that require human intervention (cannot be automated).",
+        "properties": {
+          "shutdown": {
+            "description": "Steps to perform when shutting down the scenario",
+            "items": {
+              "type": "string"
+            },
+            "title": "Shutdown",
+            "type": "array"
+          },
+          "startup": {
+            "description": "Steps to perform when starting the scenario",
+            "items": {
+              "type": "string"
+            },
+            "title": "Startup",
+            "type": "array"
+          }
+        },
+        "title": "ManualInstructions",
+        "type": "object"
+      },
+      "PersistedStatesResponse": {
+        "additionalProperties": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "description": "Model for the collection of persisted device states.",
+        "title": "PersistedStatesResponse",
+        "type": "object"
+      },
+      "PersistenceConfig": {
+        "description": "Configuration for the persistence layer.",
+        "properties": {
+          "db_path": {
+            "default": "data/state_store.db",
+            "description": "Path to the SQLite database file",
+            "title": "Db Path",
+            "type": "string"
+          }
+        },
+        "title": "PersistenceConfig",
+        "type": "object"
+      },
+      "ReloadResponse": {
+        "description": "Schema for system reload response.",
+        "properties": {
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "ReloadResponse",
+        "type": "object"
+      },
+      "RevoxA77ReelToReelState": {
+        "description": "Schema for Revox A77 reel-to-reel state.",
+        "properties": {
+          "connection_status": {
+            "title": "Connection Status",
+            "type": "string"
+          },
+          "device_id": {
+            "title": "Device Id",
+            "type": "string"
+          },
+          "device_name": {
+            "title": "Device Name",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Error"
+          },
+          "last_command": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LastCommand"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "power": {
+            "default": "off",
+            "title": "Power",
+            "type": "string"
+          }
+        },
+        "required": [
+          "device_id",
+          "device_name",
+          "connection_status"
+        ],
+        "title": "RevoxA77ReelToReelState",
+        "type": "object"
+      },
+      "RoomDefinitionResponse": {
+        "description": "Response model for room definitions.",
+        "properties": {
+          "default_scenario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Scenario"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "devices": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Devices",
+            "type": "array"
+          },
+          "names": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Names",
+            "type": "object"
+          },
+          "room_id": {
+            "title": "Room Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "room_id",
+          "names",
+          "description",
+          "devices"
+        ],
+        "title": "RoomDefinitionResponse",
+        "type": "object"
+      },
+      "SSEStats": {
+        "description": "SSE connection statistics response model",
+        "properties": {
+          "active_connections": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Number of active connections per channel",
+            "example": {
+              "devices": 3,
+              "scenarios": 1,
+              "system": 2
+            },
+            "title": "Active Connections",
+            "type": "object"
+          },
+          "channels": {
+            "description": "List of available SSE channels",
+            "example": [
+              "devices",
+              "scenarios",
+              "system"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "title": "Channels",
+            "type": "array"
+          },
+          "total_connections": {
+            "description": "Total number of active connections across all channels",
+            "example": 6,
+            "title": "Total Connections",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "active_connections",
+          "total_connections",
+          "channels"
+        ],
+        "title": "SSEStats",
+        "type": "object"
+      },
+      "ScenarioDefinition": {
+        "description": "Declarative definition of a scenario.",
+        "properties": {
+          "description": {
+            "default": "",
+            "description": "Description of the scenario's purpose",
+            "title": "Description",
+            "type": "string"
+          },
+          "devices": {
+            "description": "List of device IDs used in the scenario",
+            "items": {
+              "type": "string"
+            },
+            "title": "Devices",
+            "type": "array"
+          },
+          "manual_instructions": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ManualInstructions"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Instructions requiring human intervention"
+          },
+          "name": {
+            "description": "Human-readable name",
+            "title": "Name",
+            "type": "string"
+          },
+          "roles": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Mapping of role name to device ID",
+            "title": "Roles",
+            "type": "object"
+          },
+          "room_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "If set, declares the primary room this scenario runs in. All devices must be in this room.",
+            "title": "Room Id"
+          },
+          "scenario_id": {
+            "description": "Unique identifier for the scenario",
+            "minLength": 1,
+            "title": "Scenario Id",
+            "type": "string"
+          },
+          "shutdown_sequence": {
+            "description": "Sequence of commands to run when shutting down",
+            "items": {
+              "$ref": "#/components/schemas/CommandStep"
+            },
+            "title": "Shutdown Sequence",
+            "type": "array"
+          },
+          "startup_sequence": {
+            "description": "Sequence of commands to run when starting",
+            "items": {
+              "$ref": "#/components/schemas/CommandStep"
+            },
+            "title": "Startup Sequence",
+            "type": "array"
+          }
+        },
+        "required": [
+          "scenario_id",
+          "name",
+          "roles",
+          "devices",
+          "startup_sequence",
+          "shutdown_sequence"
+        ],
+        "title": "ScenarioDefinition",
+        "type": "object"
+      },
+      "ScenarioResponse": {
+        "description": "Base response model for scenario operations.",
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "message"
+        ],
+        "title": "ScenarioResponse",
+        "type": "object"
+      },
+      "ScenarioState": {
+        "description": "Runtime state of a scenario.",
+        "properties": {
+          "devices": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DeviceState"
+            },
+            "description": "Current state of all devices in the scenario",
+            "title": "Devices",
+            "type": "object"
+          },
+          "scenario_id": {
+            "description": "ID of the active scenario",
+            "title": "Scenario Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scenario_id"
+        ],
+        "title": "ScenarioState",
+        "type": "object"
+      },
+      "ScenarioWBConfig": {
+        "description": "Virtual WB configuration generated from scenario definition.\n\nThis model creates a virtual BaseDeviceConfig-compatible configuration\nfrom scenario definitions without modifying scenario config files.\nUses scenario_id as device_id and name as device_name for virtual abstraction.",
+        "properties": {
+          "commands": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/StandardCommandConfig"
+            },
+            "description": "Virtual commands generated from scenario structure",
+            "title": "Commands",
+            "type": "object"
+          },
+          "config_class": {
+            "default": "ScenarioWBConfig",
+            "description": "Config type identifier",
+            "title": "Config Class",
+            "type": "string"
+          },
+          "device_class": {
+            "default": "Scenario",
+            "description": "Virtual device class",
+            "title": "Device Class",
+            "type": "string"
+          },
+          "device_id": {
+            "description": "Maps to scenario_id",
+            "title": "Device Id",
+            "type": "string"
+          },
+          "device_name": {
+            "description": "Maps to scenario.name",
+            "title": "Device Name",
+            "type": "string"
+          },
+          "enable_wb_emulation": {
+            "default": true,
+            "description": "Enable WB virtual device",
+            "title": "Enable Wb Emulation",
+            "type": "boolean"
+          },
+          "wb_controls": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Custom WB control overrides",
+            "title": "Wb Controls"
+          },
+          "wb_state_mappings": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    }
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "State synchronization mappings",
+            "title": "Wb State Mappings"
+          }
+        },
+        "required": [
+          "device_id",
+          "device_name"
+        ],
+        "title": "ScenarioWBConfig",
+        "type": "object"
+      },
+      "ServiceInfo": {
+        "description": "Schema for service information.",
+        "properties": {
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service",
+          "version",
+          "status"
+        ],
+        "title": "ServiceInfo",
+        "type": "object"
+      },
+      "ShutdownScenarioRequest": {
+        "description": "Request model for shutting down a scenario.",
+        "properties": {
+          "graceful": {
+            "default": true,
+            "title": "Graceful",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "ShutdownScenarioRequest",
+        "type": "object"
+      },
+      "StandardCommandConfig": {
+        "description": "Standard command configuration with no additional fields.",
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Action identifier for this command",
+            "title": "Action"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable description of the command",
+            "title": "Description"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Functional group this command belongs to",
+            "title": "Group"
+          },
+          "params": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CommandParameterDefinition"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Parameter definitions for this command",
+            "title": "Params"
+          }
+        },
+        "title": "StandardCommandConfig",
+        "type": "object"
+      },
+      "StartScenarioRequest": {
+        "description": "Request model for starting a scenario.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "StartScenarioRequest",
+        "type": "object"
+      },
+      "SwitchScenarioRequest": {
+        "description": "Request model for switching scenarios.",
+        "properties": {
+          "graceful": {
+            "default": true,
+            "title": "Graceful",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "SwitchScenarioRequest",
+        "type": "object"
+      },
+      "SystemConfig": {
+        "description": "Schema for system configuration.",
+        "properties": {
+          "device_directory": {
+            "default": "devices",
+            "description": "Directory containing device configuration files",
+            "title": "Device Directory",
+            "type": "string"
+          },
+          "devices": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Devices"
+          },
+          "groups": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Groups",
+            "type": "object"
+          },
+          "log_file": {
+            "title": "Log File",
+            "type": "string"
+          },
+          "log_level": {
+            "title": "Log Level",
+            "type": "string"
+          },
+          "loggers": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loggers"
+          },
+          "maintenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MaintenanceConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Maintenance configuration settings"
+          },
+          "mqtt_broker": {
+            "$ref": "#/components/schemas/MQTTBrokerConfig"
+          },
+          "persistence": {
+            "$ref": "#/components/schemas/PersistenceConfig"
+          },
+          "service_name": {
+            "default": "MQTT Web Service",
+            "description": "Name of the service",
+            "title": "Service Name",
+            "type": "string"
+          },
+          "web_service": {
+            "additionalProperties": true,
+            "title": "Web Service",
+            "type": "object"
+          }
+        },
+        "required": [
+          "mqtt_broker",
+          "web_service",
+          "log_level",
+          "log_file"
+        ],
+        "title": "SystemConfig",
+        "type": "object"
+      },
+      "SystemInfo": {
+        "description": "Schema for system information.",
+        "properties": {
+          "devices": {
+            "description": "List of available devices",
+            "items": {
+              "type": "string"
+            },
+            "title": "Devices",
+            "type": "array"
+          },
+          "mqtt_broker": {
+            "additionalProperties": true,
+            "title": "Mqtt Broker",
+            "type": "object"
+          },
+          "rooms": {
+            "description": "List of available rooms",
+            "items": {
+              "type": "string"
+            },
+            "title": "Rooms",
+            "type": "array"
+          },
+          "scenarios": {
+            "description": "List of available scenarios",
+            "items": {
+              "type": "string"
+            },
+            "title": "Scenarios",
+            "type": "array"
+          },
+          "version": {
+            "default": "0.5.0",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mqtt_broker"
+        ],
+        "title": "SystemInfo",
+        "type": "object"
+      },
+      "TestEventData": {
+        "description": "Test event data model for broadcasting",
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional additional data",
+            "example": {
+              "key": "value",
+              "number": 42
+            },
+            "title": "Data"
+          },
+          "message": {
+            "description": "Test message content",
+            "example": "This is a test event",
+            "title": "Message",
+            "type": "string"
+          },
+          "timestamp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional timestamp for the event",
+            "example": "2024-01-01T12:00:00Z",
+            "title": "Timestamp"
+          }
+        },
+        "required": [
+          "message",
+          "timestamp",
+          "data"
+        ],
+        "title": "TestEventData",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "WirenboardIRState": {
+        "description": "Schema for Wirenboard IR device state.",
+        "properties": {
+          "alias": {
+            "title": "Alias",
+            "type": "string"
+          },
+          "device_id": {
+            "title": "Device Id",
+            "type": "string"
+          },
+          "device_name": {
+            "title": "Device Name",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Error"
+          },
+          "last_command": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LastCommand"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "power": {
+            "default": "off",
+            "title": "Power",
+            "type": "string"
+          }
+        },
+        "required": [
+          "device_id",
+          "device_name",
+          "alias"
+        ],
+        "title": "WirenboardIRState",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "A web service that manages MQTT devices with typed configurations",
+    "title": "MQTT Web Service",
+    "version": "0.5.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/": {
+      "get": {
+        "description": "Root endpoint - service information.",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Root",
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/config/device/{device_id}": {
+      "get": {
+        "description": "Get full configuration for a specific device.",
+        "operationId": "get_device_config_config_device__device_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseDeviceConfig"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Device Config",
+        "tags": [
+          "Devices"
+        ]
+      }
+    },
+    "/config/devices": {
+      "get": {
+        "description": "Get configurations for all devices.\n\nReturns a dictionary where:\n- Keys are device IDs (strings)\n- Values are device configuration objects with all device-specific settings\n\nEach device configuration includes:\n- Basic device information (device_id, device_name, device_class, config_class)\n- MQTT topics and settings\n- Available commands and their parameters\n- Device-specific configuration sections (e.g., tv, emotiva, broadlink settings)\n\nReturns:\n    Dict[str, BaseDeviceConfig]: Dictionary mapping device IDs to their configurations",
+        "operationId": "get_all_device_configs_config_devices_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/BaseDeviceConfig"
+                  },
+                  "title": "Response Get All Device Configs Config Devices Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get All Device Configs",
+        "tags": [
+          "Devices"
+        ]
+      }
+    },
+    "/config/system": {
+      "get": {
+        "description": "Get system configuration.",
+        "operationId": "get_system_config_config_system_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemConfig"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get System Config",
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/devices/persisted_states": {
+      "get": {
+        "description": "Get the persisted states of all devices from the state store.\n\nReturns:\n    Dict[str, Any]: Dictionary mapping device IDs to their persisted states\n    \nRaises:\n    HTTPException: If state persistence is not available",
+        "operationId": "get_all_persisted_states_devices_persisted_states_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersistedStatesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get All Persisted States",
+        "tags": [
+          "State"
+        ]
+      }
+    },
+    "/devices/{device_id}/action": {
+      "post": {
+        "description": "Execute an action on a specific device.\n\nThis endpoint allows executing various actions on devices. The available actions depend on the device type.\n\n## LG TV Actions:\n\n* **move_cursor** - Move cursor to absolute position x,y\n  ```json\n  {\n    \"action\": \"move_cursor\",\n    \"params\": {\n      \"x\": 500,\n      \"y\": 300,\n      \"drag\": false\n    }\n  }\n  ```\n\n* **move_cursor_relative** - Move cursor by dx,dy relative to current position\n  ```json\n  {\n    \"action\": \"move_cursor_relative\",\n    \"params\": {\n      \"dx\": 100,\n      \"dy\": -50,\n      \"drag\": false\n    }\n  }\n  ```\n\n* **click** - Click at position x,y\n  ```json\n  {\n    \"action\": \"click\",\n    \"params\": {\n      \"x\": 500,\n      \"y\": 300\n    }\n  }\n  ```\n\n* **launch_app** - Launch an app by name\n  ```json\n  {\n    \"action\": \"launch_app\",\n    \"params\": {\n      \"app_name\": \"Netflix\"\n    }\n  }\n  ```\n\n* **wake_on_lan** - Wake the TV using Wake-on-LAN\n  ```json\n  {\n    \"action\": \"wake_on_lan\",\n    \"params\": {}\n  }\n  ```\n\n## Emotiva XMC2 Actions:\n\n* **power_on** - Turn the device on (supports zones)\n  ```json\n  {\n    \"action\": \"power_on\",\n    \"params\": {\n      \"zone\": 1  # 1 for main zone, 2 for zone2\n    }\n  }\n  ```\n\n* **power_off** - Turn the device off (supports zones)\n  ```json\n  {\n    \"action\": \"power_off\",\n    \"params\": {\n      \"zone\": 2  # This powers off zone 2\n    }\n  }\n  ```\n  \n* **set_volume** - Set volume level (supports zones)\n  ```json\n  {\n    \"action\": \"set_volume\",\n    \"params\": {\n      \"level\": -35.5,  # Volume in dB from -96.0 to 0.0\n      \"zone\": 1  # 1 for main zone, 2 for zone2\n    }\n  }\n  ```\n  \n* **mute_toggle** - Toggle mute state (supports zones)\n  ```json\n  {\n    \"action\": \"mute_toggle\",\n    \"params\": {\n      \"zone\": 2  # This toggles mute for zone 2\n    }\n  }\n  ```\n  \n* **set_input** - Change input source\n  ```json\n  {\n    \"action\": \"set_input\",\n    \"params\": {\n      \"input\": \"hdmi1\"  # Input name (hdmi1-hdmi8, optical1-optical4, etc.)\n    }\n  }\n  ```\n\n## Common Actions for Other Devices:\n* **power_on** - Turn the device on\n* **power_off** - Turn the device off\n* **set_volume** - Set device volume (params: volume)\n* **set_mute** - Set device mute state (params: mute)\n* **set_input_source** - Change input source (params: input_source)\n* **send_action** - Send remote control command (params: command)",
+        "operationId": "execute_device_action_devices__device_id__action_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceAction"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Execute Device Action",
+        "tags": [
+          "Devices"
+        ]
+      }
+    },
+    "/devices/{device_id}/groups": {
+      "get": {
+        "description": "Get all actions for a device organized by groups, including empty groups.",
+        "operationId": "get_device_actions_by_groups_devices__device_id__groups_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupedActionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Device Actions By Groups",
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/devices/{device_id}/groups/{group_id}/actions": {
+      "get": {
+        "description": "List all actions in a group for a device, with status information.",
+        "operationId": "get_actions_by_group_devices__device_id__groups__group_id__actions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "title": "Device Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupActionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Actions By Group",
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/devices/{device_id}/persisted_state": {
+      "get": {
+        "description": "Get the persisted state of a specific device from the state store.\n\nArgs:\n    device_id: The ID of the device to retrieve state for\n    \nReturns:\n    JSON: The persisted device state\n    \nRaises:\n    HTTPException: If state persistence is not available or no state found",
+        "operationId": "get_device_persisted_state_devices__device_id__persisted_state_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Device Persisted State Devices  Device Id  Persisted State Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Device Persisted State",
+        "tags": [
+          "State"
+        ]
+      }
+    },
+    "/devices/{device_id}/state": {
+      "get": {
+        "description": "Get information about a specific device's current state.\n\nArgs:\n    device_id: The ID of the device to retrieve\n    \nReturns:\n    Device-specific state (e.g., LgTvState, AppleTVState, EmotivaXMC2State, etc.)\n    that extends BaseDeviceState with device-specific fields like volume, power,\n    input sources, playback information, and other operational data.\n    \nRaises:\n    HTTPException: If device is not found or an error occurs",
+        "operationId": "get_device_state_devices__device_id__state_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Device State",
+        "tags": [
+          "State"
+        ]
+      }
+    },
+    "/events/devices": {
+      "get": {
+        "description": "Subscribe to real-time device events via Server-Sent Events",
+        "operationId": "devices_stream_events_devices_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": "SSE service not initialized"
+                }
+              }
+            },
+            "description": "Service Unavailable - SSE service not initialized"
+          }
+        },
+        "summary": "Device Events Stream",
+        "tags": [
+          "Server-Sent Events"
+        ]
+      }
+    },
+    "/events/scenarios": {
+      "get": {
+        "description": "Subscribe to real-time scenario events via Server-Sent Events",
+        "operationId": "scenarios_stream_events_scenarios_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": "SSE service not initialized"
+                }
+              }
+            },
+            "description": "Service Unavailable - SSE service not initialized"
+          }
+        },
+        "summary": "Scenario Events Stream",
+        "tags": [
+          "Server-Sent Events"
+        ]
+      }
+    },
+    "/events/stats": {
+      "get": {
+        "description": "Get current statistics about active Server-Sent Events connections",
+        "operationId": "get_sse_stats_events_stats_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "active_connections": {
+                    "devices": 3,
+                    "scenarios": 1,
+                    "system": 2
+                  },
+                  "channels": [
+                    "devices",
+                    "scenarios",
+                    "system"
+                  ],
+                  "total_connections": 6
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/SSEStats"
+                }
+              }
+            },
+            "description": "Connection statistics retrieved successfully"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": "SSE service not initialized"
+                }
+              }
+            },
+            "description": "Service Unavailable - SSE service not initialized"
+          }
+        },
+        "summary": "SSE Connection Statistics",
+        "tags": [
+          "Server-Sent Events"
+        ]
+      }
+    },
+    "/events/system": {
+      "get": {
+        "description": "Subscribe to real-time system-wide events via Server-Sent Events",
+        "operationId": "system_stream_events_system_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": "SSE service not initialized"
+                }
+              }
+            },
+            "description": "Service Unavailable - SSE service not initialized"
+          }
+        },
+        "summary": "System Events Stream",
+        "tags": [
+          "Server-Sent Events"
+        ]
+      }
+    },
+    "/events/test/{channel}": {
+      "post": {
+        "description": "Send a test event to a specific SSE channel for development and testing",
+        "operationId": "test_broadcast_events_test__channel__post",
+        "parameters": [
+          {
+            "description": "SSE channel to broadcast to",
+            "example": "devices",
+            "in": "path",
+            "name": "channel",
+            "required": true,
+            "schema": {
+              "description": "SSE channel to broadcast to",
+              "pattern": "^(devices|scenarios|system)$",
+              "title": "Channel",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "data": {
+                  "sequence": 1,
+                  "test": true
+                },
+                "message": "This is a test event",
+                "timestamp": "2024-01-01T12:00:00Z"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/TestEventData",
+                "description": "Test event data to broadcast to connected clients"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "active_connections": 3,
+                  "message": "Test event broadcasted to devices channel",
+                  "status": "success"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/BroadcastResponse"
+                }
+              }
+            },
+            "description": "Test event broadcasted successfully"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": "Invalid channel: invalid_channel"
+                }
+              }
+            },
+            "description": "Invalid channel name provided"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": "SSE service not initialized"
+                }
+              }
+            },
+            "description": "Service Unavailable - SSE service not initialized"
+          }
+        },
+        "summary": "Broadcast Test Event",
+        "tags": [
+          "Server-Sent Events"
+        ]
+      }
+    },
+    "/groups": {
+      "get": {
+        "description": "List all available function groups.",
+        "operationId": "get_groups_groups_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Group"
+                  },
+                  "title": "Response Get Groups Groups Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Groups",
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/publish": {
+      "post": {
+        "description": "Publish a message to an MQTT topic.\n\nThis endpoint allows publishing messages to an MQTT topic with the following features:\n\n- **Optional payload**: If payload is not provided (null), it defaults to 1 (which will be sent as \"1\")\n- **Multiple payload types**: Payload can be a string, number, boolean, object, or array\n- **Type conversion**: \n    - Dict/object payloads are JSON serialized\n    - Boolean payloads are converted to \"true\"/\"false\" strings\n    - Numeric payloads are converted to strings\n\n### Parameter-based Commands\n\nFor devices with commands that accept parameters, the payload should be a JSON object\nwith properties matching the parameter names defined in the device configuration:\n\n- **Set volume example**: For a command with a 'level' parameter\n  ```json\n  {\n    \"level\": 50\n  }\n  ```\n\n- **Launch app example**: For a command with an 'app' parameter\n  ```json\n  {\n    \"app\": \"Netflix\"\n  }\n  ```\n\n- **Multiple parameters example**: For commands with multiple parameters\n  ```json\n  {\n    \"temperature\": 22.5,\n    \"mode\": \"heat\"\n  }\n  ```\n  \n### Device-Specific Command Examples\n\n#### LG TV Commands\n\n- **Move cursor to position**:\n  ```json\n  {\n    \"x\": 500,\n    \"y\": 300,\n    \"drag\": false\n  }\n  ```\n\n- **Click at position**:\n  ```json\n  {\n    \"x\": 500,\n    \"y\": 300\n  }\n  ```\n\n#### Audio/Video Receiver Commands\n\n- **Set volume with zone selection**:\n  ```json\n  {\n    \"level\": -35.5,\n    \"zone\": 1\n  }\n  ```\n\n- **Change input source**:\n  ```json\n  {\n    \"input\": \"hdmi1\"\n  }\n  ```\n\n#### Wirenboard IR Commands\n\n- **Send IR command with parameters**:\n  ```json\n  {\n    \"code\": \"POWER_ON\",\n    \"repeat\": 2\n  }\n  ```\n\n### Alternative Format\n\nSome implementations may use a format that includes both action name and parameters:\n\n```json\n{\n  \"action\": \"set_volume\",\n  \"params\": {\n    \"level\": -35.5,\n    \"zone\": 1\n  }\n}\n```\n\nThe parameters will be validated according to their definitions in the device configuration.\n\nArgs:\n    message: The MQTT message to publish\n    background_tasks: FastAPI background tasks manager\n    \nReturns:\n    MQTTPublishResponse with status of the operation\n    \nRaises:\n    HTTPException: If service is not initialized or an error occurs",
+        "operationId": "publish_message_publish_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MQTTMessage"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MQTTPublishResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service not fully initialized"
+          }
+        },
+        "summary": "Publish Message",
+        "tags": [
+          "MQTT"
+        ]
+      }
+    },
+    "/reload": {
+      "post": {
+        "description": "Reload configurations and device modules.",
+        "operationId": "reload_system_reload_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReloadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Reload System",
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/room/list": {
+      "get": {
+        "description": "Get a list of all room definitions.\n\nReturns:\n    List[RoomDefinitionResponse]: List of room definitions\n    \nRaises:\n    HTTPException: If service not initialized",
+        "operationId": "list_rooms_room_list_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RoomDefinitionResponse"
+                  },
+                  "title": "Response List Rooms Room List Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Rooms",
+        "tags": [
+          "Rooms"
+        ]
+      }
+    },
+    "/room/{room_id}": {
+      "get": {
+        "description": "Get a specific room definition.\n\nArgs:\n    room_id: The ID of the room to retrieve\n    \nReturns:\n    RoomDefinitionResponse: The room definition\n    \nRaises:\n    HTTPException: If room not found or service not initialized",
+        "operationId": "get_room_room__room_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "room_id",
+            "required": true,
+            "schema": {
+              "title": "Room Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomDefinitionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Room",
+        "tags": [
+          "Rooms"
+        ]
+      }
+    },
+    "/scenario/definition": {
+      "get": {
+        "description": "Get definitions of scenarios, optionally filtered by room.\n\nArgs:\n    room: Optional room ID to filter scenarios by\n    \nReturns:\n    List[ScenarioDefinition]: List of scenario definitions\n    \nRaises:\n    HTTPException: If service not initialized",
+        "operationId": "get_scenarios_for_room_scenario_definition_get",
+        "parameters": [
+          {
+            "description": "Filter scenarios by room ID",
+            "in": "query",
+            "name": "room",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter scenarios by room ID",
+              "title": "Room"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ScenarioDefinition"
+                  },
+                  "title": "Response Get Scenarios For Room Scenario Definition Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Scenarios For Room",
+        "tags": [
+          "Scenarios"
+        ]
+      }
+    },
+    "/scenario/definition/{id}": {
+      "get": {
+        "description": "Get the definition of a specific scenario.\n\nReturns:\n    ScenarioDefinition: The scenario definition\n    \nRaises:\n    HTTPException: If scenario not found or service not initialized",
+        "operationId": "get_scenario_definition_scenario_definition__id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioDefinition"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Scenario Definition",
+        "tags": [
+          "Scenarios"
+        ]
+      }
+    },
+    "/scenario/role_action": {
+      "post": {
+        "description": "Execute an action on a device bound to a role in the current scenario.\n\nArgs:\n    data: The role action request with role, command and params\n    \nReturns:\n    Dict[str, Any]: The result of the command execution\n    \nRaises:\n    HTTPException: If no active scenario or an error occurs",
+        "operationId": "execute_role_action_scenario_role_action_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Execute Role Action Scenario Role Action Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Execute Role Action",
+        "tags": [
+          "Scenarios"
+        ]
+      }
+    },
+    "/scenario/shutdown": {
+      "post": {
+        "description": "Shutdown the currently active scenario.\n\nThis endpoint shuts down the currently active scenario if it matches the provided ID.\nIf no scenario is active or the active scenario doesn't match the provided ID, \nit returns an appropriate error.\n\nArgs:\n    data: The shutdown scenario request with scenario ID and graceful flag\n    \nReturns:\n    ScenarioResponse: Status of the operation\n    \nRaises:\n    HTTPException: If no active scenario, scenario mismatch, or an error occurs",
+        "operationId": "shutdown_scenario_scenario_shutdown_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShutdownScenarioRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Shutdown Scenario",
+        "tags": [
+          "Scenarios"
+        ]
+      }
+    },
+    "/scenario/start": {
+      "post": {
+        "description": "Start a scenario if no scenario is currently active.\n\nThis endpoint starts a scenario only if there is no currently active scenario.\nIf a scenario is already running, it returns an error.\n\nArgs:\n    data: The start scenario request with scenario ID\n    \nReturns:\n    ScenarioResponse: Status of the operation\n    \nRaises:\n    HTTPException: If scenario not found, another scenario is active, or an error occurs",
+        "operationId": "start_scenario_scenario_start_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartScenarioRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Scenario",
+        "tags": [
+          "Scenarios"
+        ]
+      }
+    },
+    "/scenario/state": {
+      "get": {
+        "description": "Get the current scenario state.\n\nReturns information about the active scenario and the state of all\ndevices that are part of it.\n\nReturns:\n    ScenarioState: Current scenario state\n    \nRaises:\n    HTTPException: If no active scenario or service not initialized",
+        "operationId": "get_scenario_state_scenario_state_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Scenario State",
+        "tags": [
+          "State"
+        ]
+      }
+    },
+    "/scenario/switch": {
+      "post": {
+        "description": "Switch to a different scenario.\n\nThis endpoint performs a transition between scenarios, handling\ndevice state changes efficiently.\n\nArgs:\n    data: The switch scenario request with scenario ID and graceful flag\n    \nReturns:\n    ScenarioResponse: Status of the operation\n    \nRaises:\n    HTTPException: If scenario not found or an error occurs",
+        "operationId": "switch_scenario_scenario_switch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SwitchScenarioRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Switch Scenario",
+        "tags": [
+          "Scenarios"
+        ]
+      }
+    },
+    "/scenario/virtual_config/{id}": {
+      "get": {
+        "description": "Get the virtual WB device configuration for a specific scenario.\n\nThis endpoint returns the virtual BaseDeviceConfig-compatible configuration\nthat represents how a scenario appears as a WB virtual device. The configuration\nis generated dynamically from the scenario definition and includes:\n- Virtual commands (startup/shutdown and role-based commands)\n- WB control metadata and types\n- Parameter definitions inherited from role devices\n\nArgs:\n    id: Scenario ID to get virtual config for\n    \nReturns:\n    ScenarioWBConfig: The virtual WB device configuration\n    \nRaises:\n    HTTPException: If scenario not found, service not initialized, or error occurs",
+        "operationId": "get_scenario_virtual_config_scenario_virtual_config__id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioWBConfig"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Scenario Virtual Config",
+        "tags": [
+          "Scenarios"
+        ]
+      }
+    },
+    "/scenario/virtual_configs": {
+      "get": {
+        "description": "Get virtual WB device configurations for all available scenarios.\n\nThis endpoint returns a mapping of scenario IDs to their virtual WB device\nconfigurations. For scenarios that are currently active, it returns the\ncached configuration. For inactive scenarios, it generates the configuration\non-demand.\n\nReturns:\n    Dict[str, ScenarioWBConfig]: Mapping of scenario ID to virtual config\n    \nRaises:\n    HTTPException: If service not initialized or error occurs",
+        "operationId": "get_all_scenario_virtual_configs_scenario_virtual_configs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/ScenarioWBConfig"
+                  },
+                  "title": "Response Get All Scenario Virtual Configs Scenario Virtual Configs Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get All Scenario Virtual Configs",
+        "tags": [
+          "Scenarios"
+        ]
+      }
+    },
+    "/scenario/{scenario_id}/state": {
+      "get": {
+        "description": "Get the state of a specific scenario by ID.\n\nReturns the scenario state including device states if the scenario is currently active,\nor a basic state structure with empty device states if the scenario is inactive.\n\nArgs:\n    scenario_id: The ID of the scenario to retrieve state for\n    \nReturns:\n    ScenarioState: The scenario state with device information\n    \nRaises:\n    HTTPException: If scenario is not found or service not initialized",
+        "operationId": "get_specific_scenario_state_scenario__scenario_id__state_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scenario_id",
+            "required": true,
+            "schema": {
+              "title": "Scenario Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Specific Scenario State",
+        "tags": [
+          "State"
+        ]
+      }
+    },
+    "/system": {
+      "get": {
+        "description": "Get system information.",
+        "operationId": "get_system_info_system_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get System Info",
+        "tags": [
+          "System"
+        ]
+      }
+    }
+  }
+}
