@@ -2,13 +2,21 @@
 
 ## Overview
 
-This document provides complete instructions for generating device-specific UI pages using the automated device page generation system. The system creates React components, TypeScript interfaces, and hooks from device configurations via API calls.
+This document provides instructions for generating device-specific UI pages using the device-page generation system. It creates React components, TypeScript interfaces, and hooks from device configurations and the backend's OpenAPI contract.
 
 ## Prerequisites
 
-1. **Backend API Running**: Ensure the backend API is accessible at the configured URL
-2. **Device Configured**: Target device must be properly configured in the backend
-3. **Dependencies Installed**: Run `npm install` to ensure all dependencies are available
+The generator has two source modes:
+
+- **`--mode=local` / `--mode=package`** (default for builds): reads files from a
+  sibling `wb-mqtt-bridge` checkout — device configs, the `device-state-mapping.json`,
+  and `openapi.json`. **No backend needs to be running**, and no Python is required.
+- **`--mode=api`**: fetches device configs from a running backend at the configured URL.
+
+For the common (file-based) path you need:
+
+1. **A `wb-mqtt-bridge` checkout** containing `config/`, `config/device-state-mapping.json`, and a committed `openapi.json` (sibling `../wb-mqtt-bridge` locally, or `./wb-mqtt-bridge` in CI/Docker).
+2. **Dependencies Installed**: `npm install`.
 
 ## Basic Device Page Generation
 
@@ -25,21 +33,19 @@ npm run gen:device-pages -- --device-id=living_room_tv
 **What gets generated:**
 - `src/pages/devices/<device_id>.gen.tsx` - React component for the device
 
-### With Python State Class (Advanced)
+### With device-state types
+
+State types are produced automatically when the device's class is present in the
+mapping file (`stateClassImport`). The generator reads the named state model from the
+backend `openapi.json` (`components.schemas`) — there is no `--state-file` /
+`--state-class` flag and no Python.
 
 ```bash
-# Generate page with custom Python state class
-npm run gen:device-pages -- --device-id=<device_id> \
-  --state-file=<path_to_python_file> \
-  --state-class=<python_class_name>
-
-# Example
-npm run gen:device-pages -- --device-id=living_room_tv \
-  --state-file=backend/devices/lg_tv_state.py \
-  --state-class=LgTvState
+npm run gen:device-pages -- --batch --mode=local \
+  --mapping-file=../wb-mqtt-bridge/config/device-state-mapping.json --generate-router
 ```
 
-**What gets generated:**
+**What gets generated** (all gitignored — built fresh, not committed):
 - `src/pages/devices/<device_id>.gen.tsx` - React component
 - `src/types/generated/<StateClass>.state.ts` - Shared TypeScript state interface
 - `src/pages/devices/<device_id>.hooks.ts` - Device-specific React state hook
@@ -134,9 +140,9 @@ src/
 ```
 src/
 ├── pages/devices/
-│   ├── index.gen.ts                 # Router manifest
-│   ├── registry.gen.ts              # Device registry
-│   └── lazy-routes.gen.ts           # Lazy-loaded routes
+│   └── index.gen.ts                 # Device router manifest
+├── pages/scenarios/
+│   └── index.gen.ts                 # Scenario router manifest
 └── config/
     └── device-navigation.gen.ts     # Navigation configuration
 ```
@@ -337,9 +343,9 @@ npm run gen:device-pages -- --batch
 npm run gen:device-pages -- --test-connection
 npm run gen:device-pages -- --help
 
-# With Python state
-npm run gen:device-pages -- --device-id=<device_id> \
-  --state-file=<path> --state-class=<class>
+# Source mode + mapping (state types resolved from the backend openapi.json)
+npm run gen:device-pages -- --batch --mode=local \
+  --mapping-file=../wb-mqtt-bridge/config/device-state-mapping.json --generate-router
 
 # Validation
 npm run gen:device-pages -- --validate-code

@@ -1,5 +1,11 @@
 # Appliance Pages Architecture
 
+> **Status: design proposal — not yet implemented.** The backend pieces this relies
+> on exist (the `device_category: "appliance"` field, the shared `/config/device/{id}`
+> + action + SSE APIs). The dedicated UI side — an `AppliancePage`, its registry, and
+> an `/appliance/:id` route — has **not** been built yet. Treat the "Completed" /
+> "Current Status" notes below as the intended design, not shipped state.
+
 ## Overview
 
 This document outlines the architectural approach for appliance pages in the Smart Home UI v2 system. Unlike devices (TVs, streamers, processors) which use generated pages with `RemoteControlLayout`, appliances require static, hand-crafted pages due to their diverse and specialized UI requirements.
