@@ -1,0 +1,56 @@
+{
+  "WirenboardIRDevice": {
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:WirenboardIRState",
+    "deviceConfigs": [
+      "devices/ld_player.json",
+      "devices/mf_amplifier.json",
+      "devices/vhs_player.json",
+      "devices/upscaler.json",
+      "devices/video.json"
+    ]
+  },
+  "LgTv": {
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:LgTvState",
+    "deviceConfigs": [
+      "devices/lg_tv_children.json",
+      "devices/lg_tv_living.json"
+    ]
+  },
+  "EMotivaXMC2": {
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:EmotivaXMC2State",
+    "deviceConfigs": [
+      "devices/emotiva_xmc2.json"
+    ]
+  },
+  "BroadlinkKitchenHood": {
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:KitchenHoodState",
+    "deviceConfigs": [
+      "devices/kitchen_hood.json"
+    ]
+  },
+  "AppleTVDevice": {
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:AppleTVState",
+    "deviceConfigs": [
+      "devices/appletv_children.json",
+      "devices/appletv_living.json"
+    ]
+  },
+  "AuralicDevice": {
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:AuralicDeviceState",
+    "deviceConfigs": [
+      "devices/streamer.json"
+    ]
+  },
+  "RevoxA77ReelToReel": {
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:RevoxA77ReelToReelState",
+    "deviceConfigs": [
+      "devices/reel_to_reel.json"
+    ]
+  },
+  "ScenarioDevice": {
+    "stateClassImport": "wb_mqtt_bridge.infrastructure.scenarios.models:ScenarioWBConfig",
+    "scenarioConfigPath": "scenarios",
+    "resolverType": "scenario_virtual_device",
+    "description": "Virtual WB device configurations for scenarios"
+  }
+}
