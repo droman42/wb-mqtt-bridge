@@ -12,6 +12,7 @@ authoritative "why" behind choices that the code alone doesn't explain — and t
 | [0003](0003-backend-owns-device-state-mapping.md) | Backend owns `device-state-mapping.json` (directory-relative paths) | Accepted |
 | [0004](0004-runtime-url-configuration.md) | Configure backend/MQTT URLs at container runtime, not build time | Accepted |
 | [0005](0005-prune-miele-spruthub-delegate-voice.md) | Drop Miele and SprutHub; delegate voice to Wirenboard's Alisa bridge | Accepted |
+| [0006](0006-dependency-pinning-policy.md) | Dependency pinning policy (immutable git refs, bounded PyPI, lockfile as record) | Accepted |
 
 Format: each ADR has **Context**, **Decision**, **Consequences**, and (where useful)
 **Alternatives considered**.
