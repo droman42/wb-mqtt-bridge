@@ -47,10 +47,10 @@ dependencies = [
     "pyyaml>=6.0",
     "jsonschema>=4.4.0",
     "aiosqlite>=0.19.0",
-    # Auralic device support (using your Git branch with ARM lxml fix)
-    "openhomedevice @ git+https://github.com/droman42/openhomedevice.git@remove-lxml-dependency",
-    # Apple TV support (keeping specific commit hash)
-    "pyatv @ git+https://github.com/postlund/pyatv.git@f75e718bc0bdaf0a3ff06eb00086f781b3f06347",
+    # Auralic device support (fork with ARM lxml fix, pinned to immutable SHA)
+    "openhomedevice @ git+https://github.com/droman42/openhomedevice.git@6e862a1022f59a21c57c501dcf040f81d12ebfaf",
+    # Apple TV support (migrated to PyPI — protobuf fix shipped in 0.16.1+)
+    "pyatv==0.17.0",
     # Note: asyncio>=3.4.3 removed - built into Python 3.11+
     "psutil>=7.0.0",
 ]
@@ -133,5 +133,4 @@ disallow_incomplete_defs = false
 [tool.uv]
 # Git sources for dependencies
 [tool.uv.sources]
-pyatv = { git = "https://github.com/postlund/pyatv.git", rev = "f75e718bc0bdaf0a3ff06eb00086f781b3f06347" }
-openhomedevice = { git = "https://github.com/droman42/openhomedevice.git", branch = "remove-lxml-dependency" } 
+openhomedevice = { git = "https://github.com/droman42/openhomedevice.git", rev = "6e862a1022f59a21c57c501dcf040f81d12ebfaf" }
