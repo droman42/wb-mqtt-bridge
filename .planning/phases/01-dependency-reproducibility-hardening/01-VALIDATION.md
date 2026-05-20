@@ -47,7 +47,7 @@ created: 2026-05-20
 | 01-01.T1 | 01-01 | 1 | DEP-01 | T-1-01, T-1-03 | git deps resolve to immutable refs (no `branch =`; pyatv on PyPI) | cmd | grep guard on `pyproject.toml` | ✅ | ⬜ pending |
 | 01-01.T2 | 01-01 | 1 | DEP-03 | T-1-02 | every direct PyPI dep carries an upper bound | cmd | grep bounded-pattern count >= 17 | ✅ | ⬜ pending |
 | 01-01.T3 | 01-01 | 1 | DEP-01 | T-1-01, T-1-03 | lockfile consistent; openhomedevice on SHA rev, pyatv 0.17.0 from PyPI | cmd | `uv lock && uv sync && uv lock --locked` + grep uv.lock | ✅ | ⬜ pending |
-| 01-02.T1 | 01-02 | 2 | DEP-01 | T-1-04 | pin-guard: no `branch =`, lxml-free openhomedevice, bounds present | unit | `uv run pytest tests/test_dependency_pins.py -v` | ✅ (created in 01-02.T1) | ⬜ pending |
+| 01-02.T1 | 01-02 | 2 | DEP-01, DEP-03 | T-1-04 | pin-guard: no `branch =`, lxml-free openhomedevice, upper bounds present (DEP-03 regression guard) | unit | `uv run pytest tests/test_dependency_pins.py -v` | ✅ (created in 01-02.T1) | ⬜ pending |
 | 01-02.T2 | 01-02 | 2 | DEP-01 | T-1-05 | Auralic + Apple TV drivers unaffected by re-pin; full suite green | unit | quick driver tests + `uv run pytest -q` | ✅ | ⬜ pending |
 | 01-03.T1 | 01-03 | 2 | DEP-02 | T-1-06 | recovery runbook documents per-source restore + `uv sync --frozen` | doc/cmd | grep `docs/maintenance/dependency-recovery.md` | ✅ (created in 01-03.T1) | ⬜ pending |
 | 01-03.T2 | 01-03 | 2 | DEP-02 | T-1-07 | dependency-pinning policy recorded as ADR 0006 + indexed | doc/cmd | grep `docs/adr/0006-*.md` + index row | ✅ (created in 01-03.T2) | ⬜ pending |

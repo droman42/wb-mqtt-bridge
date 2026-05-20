@@ -320,7 +320,7 @@ Latest versions verified via `pip3 index versions` on 2026-05-20. [VERIFIED: PyP
 |---------|---------|--------|------------------------|-------|
 | fastapi | `>=0.103.0` | `0.136.1` | `>=0.103.0,<1` | 1.0 not yet released; cap at major |
 | uvicorn | `>=0.23.2` | `0.47.0` | `>=0.23.2,<1` | Still 0.x; cap at 1 |
-| aiomqtt | `>=1.0.0` | `2.5.1` | `>=1.0.0,<2` | **2.x exists with API changes; cap at current major** |
+| aiomqtt | `>=1.0.0` | `2.5.1` | `>=2.0,<3` | **CORRECTED: uv.lock already locks 2.3.2 — cap at `<3`, NOT `<2` (a `<2` cap would force a downgrade of the installed 2.x). See A3 (resolved).** |
 | pydantic | `>=2.11.0` | `2.13.4` | `>=2.11.0,<3` | v3 not released; standard cap |
 | python-dotenv | `>=1.0.0` | (stable 1.x) | `>=1.0.0,<2` | Stable 1.x series |
 | typing_extensions | `>=4.7.0` | (stable 4.x) | `>=4.7.0,<5` | Rarely breaking |
@@ -337,7 +337,7 @@ Latest versions verified via `pip3 index versions` on 2026-05-20. [VERIFIED: PyP
 | psutil | `>=7.0.0` | `7.2.2` | `>=7.0.0,<8` | Cap at major |
 
 **Notable risks at current lower bounds without upper bounds:**
-- `aiomqtt>=1.0.0` — 2.5.1 is available; 2.x renamed/restructured the client API.
+- `aiomqtt>=1.0.0` — 2.x renamed/restructured the client API. The repo is ALREADY on 2.3.2 (uv.lock), so the working cap is `>=2.0,<3` (not `<2`).
 - `paho-mqtt>=1.6.1` — 2.x changed callback signatures (on_connect, on_message) and connection
   methods in a backwards-incompatible way. Without a cap, `pip install` could pull 2.x.
 - `websockets>=15.0.1` — jumped from 14 to 15 to 16 rapidly; each major removes deprecated APIs.
@@ -514,26 +514,27 @@ No new test files needed — existing device tests are the primary gate for DEP-
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **openhomedevice upstream release timing**
+All three questions below are closed for Phase 1 planning. Q1 and Q2 are advisory
+monitoring notes (no execution impact); Q3 is resolved with a corrected constraint.
+
+1. **openhomedevice upstream release timing** — *advisory, no Phase 1 impact.*
    - What we know: upstream removed lxml from main on 2025-06-07; no new PyPI release yet.
-   - What's unclear: when/whether upstream will publish 2.4.0 or equivalent.
-   - Recommendation: Track upstream tag `bazwilliams/openhomedevice` for new releases.
-     Add a note in CONVENTIONS.md about the migration trigger.
+   - Resolution: Keep the fork pinned to the SHA this phase. Track upstream
+     `bazwilliams/openhomedevice` for a future lxml-free release; the migration trigger is
+     documented in the recovery runbook / ADR 0006 (plan 01-03), not a blocker now.
 
-2. **pyatv 0.17.0 pydantic version floor**
-   - What we know: 0.17.0 requires `pydantic>=2.0.0` (from wheel metadata).
-   - What's unclear: whether any pyatv public API now returns pydantic v2 model types
-     that the `AppleTVDevice` driver might receive.
-   - Recommendation: The driver uses pyatv only for Apple TV control; it receives plain
-     Python types (`PowerState` enum, `Playing` object). Low risk, covered by driver mock tests.
+2. **pyatv 0.17.0 pydantic version floor** — *advisory, low risk.*
+   - What we know: 0.17.0 requires `pydantic>=2.0.0` (compatible — repo is on pydantic 2.x).
+   - Resolution: The driver uses pyatv for control only and receives plain Python types
+     (`PowerState` enum, `Playing` object). Covered by the driver mock tests in plan 01-02.
 
-3. **aiomqtt 2.x compatibility**
-   - What we know: aiomqtt 2.x exists; current pin is `>=1.0.0`.
-   - What's unclear: whether the project's MQTT client uses any 1.x-specific API.
-   - Recommendation: Add `<2` cap now (this phase). Investigation of 2.x migration is out
-     of scope for Phase 1.
+3. **aiomqtt 2.x compatibility** — **RESOLVED.**
+   - A3 check run: `uv.lock` locks `aiomqtt==2.3.2` — the project is ALREADY on 2.x and
+     green (225 tests pass), so no 1.x-specific API is in use.
+   - Resolution: cap at `>=2.0,<3` (NOT `<2`, which would force a downgrade of the working
+     2.3.2). The Upper Bounds table and plan 01-01 Task 2 both reflect this.
 
 ---
 
@@ -543,10 +544,11 @@ No new test files needed — existing device tests are the primary gate for DEP-
 |---|-------|---------|---------------|
 | A1 | pyatv 0.17.0 has no breaking changes for the existing `AppleTVDevice` driver imports | D-02 resolution | Driver import errors at test time; would need API migration |
 | A2 | The protobuf UserWarning (issue #2645) was the original "protobuf contradiction" bug that motivated the commit pin, not a harder incompatibility | D-02 resolution | If there was a harder bug, it may or may not be in 0.17.0 — tests would catch it |
-| A3 | aiomqtt `>=1.0.0` currently resolves to a 1.x version in the locked environment | Upper bounds | If uv already locked to 2.x, the `<2` cap would force a downgrade |
+| A3 | ~~aiomqtt `>=1.0.0` currently resolves to a 1.x version~~ — **DISPROVEN/RESOLVED**: uv.lock locks `aiomqtt==2.3.2` | Upper bounds | N/A — cap corrected to `>=2.0,<3` |
 
-**A3 check:** `grep "aiomqtt" /home/droman42/development/wb-mqtt-bridge/uv.lock` should be
-run by the executor before committing bounds to confirm the currently-locked aiomqtt version.
+**A3 check (DONE):** `grep "aiomqtt" uv.lock` → `version = "2.3.2"`. The repo is already on 2.x
+and green, so the cap is `>=2.0,<3` (a `<2` cap would force a downgrade). Applied in the
+Upper Bounds table and plan 01-01 Task 2.
 
 ---
 
