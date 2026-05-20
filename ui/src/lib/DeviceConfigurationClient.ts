@@ -1,3 +1,4 @@
+/* global process */
 import type { DeviceConfig, DeviceGroups } from '../types/DeviceConfig';
 
 export class DeviceConfigurationClient {
@@ -32,13 +33,36 @@ export class DeviceConfigurationClient {
 // Phase 1: Local Configuration Mode Support
 import type { DeviceStateMapping } from '../types/DeviceConfig';
 import * as fs from 'fs/promises';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
+import * as path from 'path';
 import { ScenarioVirtualDeviceResolver } from './ScenarioVirtualDeviceResolver';
 
 export interface IDeviceConfigurationClient {
   fetchDeviceConfig(deviceId: string): Promise<DeviceConfig>;
   fetchDeviceGroups(deviceId: string): Promise<DeviceGroups>;
   validateConnectivity(): Promise<boolean>;
+}
+
+/**
+ * Resolve the device-state mapping file. The mapping now lives in the backend repo
+ * (action_plan P1 #4.5) — it is metadata about backend models. It is read from the
+ * sibling checkout: `wb-mqtt-bridge/config/...` in the CI/Docker build context, or
+ * `../wb-mqtt-bridge/config/...` for local sibling repos. Override with the
+ * WB_DEVICE_MAPPING env var.
+ */
+export function resolveDefaultMappingFile(): string {
+  const candidates = [
+    process.env.WB_DEVICE_MAPPING,
+    'wb-mqtt-bridge/config/device-state-mapping.json',
+    '../wb-mqtt-bridge/config/device-state-mapping.json',
+  ].filter(Boolean) as string[];
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate;
+  }
+  // Fall back to the canonical sibling path even if missing, so error messages
+  // point at the expected location.
+  return candidates[candidates.length - 1];
 }
 
 /**
@@ -96,7 +120,25 @@ export class LocalDeviceConfigurationClient implements IDeviceConfigurationClien
   private async loadMapping(): Promise<DeviceStateMapping> {
     try {
       const data = await fs.readFile(this.mappingFile, 'utf8');
-      return JSON.parse(data);
+      const mapping = JSON.parse(data) as DeviceStateMapping;
+
+      // deviceConfigs / scenarioConfigPath are stored relative to the mapping file's
+      // own directory (the backend repo owns the mapping — action_plan P1 #4.5), so
+      // the same file works in both the CI/Docker subdir layout and a local sibling
+      // checkout. Resolve them to absolute paths here; absolute paths pass through.
+      const baseDir = path.dirname(this.mappingFile);
+      const resolve = (p: string) => (path.isAbsolute(p) ? p : path.resolve(baseDir, p));
+
+      for (const classInfo of Object.values(mapping)) {
+        if (Array.isArray(classInfo.deviceConfigs)) {
+          classInfo.deviceConfigs = classInfo.deviceConfigs.map(resolve);
+        }
+        if (classInfo.scenarioConfigPath) {
+          classInfo.scenarioConfigPath = resolve(classInfo.scenarioConfigPath);
+        }
+      }
+
+      return mapping;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to load mapping file ${this.mappingFile}: ${errorMessage}`);

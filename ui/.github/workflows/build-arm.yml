@@ -47,7 +47,7 @@ jobs:
     - name: Validate type generation
       run: |
         echo "Generating TypeScript types and router integration..."
-        npm run gen:device-pages -- --batch --mode=package --mapping-file=config/device-state-mapping.json --generate-router
+        npm run gen:device-pages -- --batch --mode=package --mapping-file=wb-mqtt-bridge/config/device-state-mapping.json --generate-router
         echo "✅ Type generation successful with package mode"
 
     - name: Run TypeScript validation

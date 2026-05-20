@@ -32,7 +32,7 @@ RUN echo "Verifying config structure:" && \
 RUN npm run gen:device-pages -- \
     --batch \
     --mode=package \
-    --mapping-file=config/device-state-mapping.json \
+    --mapping-file=wb-mqtt-bridge/config/device-state-mapping.json \
     --generate-router
 
 # Validate TypeScript compilation

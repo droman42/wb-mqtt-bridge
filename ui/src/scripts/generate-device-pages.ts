@@ -1,4 +1,4 @@
-import { DeviceConfigurationClient, LocalDeviceConfigurationClient, IDeviceConfigurationClient } from '../lib/DeviceConfigurationClient';
+import { DeviceConfigurationClient, LocalDeviceConfigurationClient, IDeviceConfigurationClient, resolveDefaultMappingFile } from '../lib/DeviceConfigurationClient';
 import { WirenboardIRHandler } from '../lib/deviceHandlers/WirenboardIRHandler';
 import { LgTvHandler } from '../lib/deviceHandlers/LgTvHandler';
 import { EMotivaXMC2Handler } from '../lib/deviceHandlers/EMotivaXMC2Handler';
@@ -64,7 +64,7 @@ export class DevicePageGenerator {
     // Phase 1: Choose client based on mode
     if (this.mode === 'local' || this.mode === 'package') {
       this.client = new LocalDeviceConfigurationClient(
-        this.mappingFile || 'config/device-state-mapping.json'
+        this.mappingFile || resolveDefaultMappingFile()
       );
     } else {
       this.client = new DeviceConfigurationClient(apiBaseUrl);
@@ -505,24 +505,21 @@ Examples:
   # API Mode (default)
   npm run gen:device-pages -- --device-id=living_room_tv --mode=api
 
-  # Local development (uses absolute paths)
-  npm run gen:device-pages -- --device-id=children_room_tv --mode=local --mapping-file=config/device-state-mapping.local.json
+  # Local development (sibling backend checkout). The mapping lives in the backend
+  # repo; paths inside it are resolved relative to the mapping file's directory.
+  npm run gen:device-pages -- --device-id=children_room_tv --mode=local --mapping-file=../wb-mqtt-bridge/config/device-state-mapping.json
 
-  # Generate for all devices of a class using local configs
-  npm run gen:device-pages -- --device-classes=LgTv --mode=local --mapping-file=config/device-state-mapping.local.json
+  # Generate for all devices of a class
+  npm run gen:device-pages -- --device-classes=LgTv --mode=local --mapping-file=../wb-mqtt-bridge/config/device-state-mapping.json
 
-  # Generate for all devices in local mapping file
-  npm run gen:device-pages -- --batch --mode=local --mapping-file=config/device-state-mapping.local.json
+  # Generate for all devices in the mapping file
+  npm run gen:device-pages -- --batch --mode=local --mapping-file=../wb-mqtt-bridge/config/device-state-mapping.json
 
-  # CI/Docker builds (uses relative paths)
-  npm run gen:device-pages -- --batch --mode=local --mapping-file=config/device-state-mapping.json
+  # CI/Docker builds (backend checked out under ./wb-mqtt-bridge)
+  npm run gen:device-pages -- --batch --mode=package --mapping-file=wb-mqtt-bridge/config/device-state-mapping.json
 
   # Generate using specific config file (for testing)
   npm run gen:device-pages -- --config-file=/path/to/config.json --device-id=device_name --mode=local
-
-  # Generate page with custom Python state class
-  npm run gen:device-pages -- --device-id=living_room_tv \\
-    --state-file=backend/devices/lg_tv_state.py --state-class=LgTvState
 
   # Process multiple specific devices
   npm run gen:device-pages -- --device-ids=tv1,tv2,soundbar1

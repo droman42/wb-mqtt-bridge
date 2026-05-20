@@ -65,7 +65,7 @@ echo "-------------------------------"
 # Try to generate types for a test device using local mode
 echo "Testing type generation with local configuration..."
 
-if npm run gen:device-pages -- --mode=local --mapping-file=config/device-state-mapping.local.json --test-connection; then
+if npm run gen:device-pages -- --mode=local --mapping-file=../wb-mqtt-bridge/config/device-state-mapping.json --test-connection; then
     echo "✅ Local configuration access successful"
 else
     echo "❌ Local configuration access failed"
@@ -90,7 +90,7 @@ echo "🎉 All validation tests passed!"
 echo "==============================="
 echo ""
 echo "Next steps:"
-echo "• Try generating a device page: npm run gen:device-pages -- --device-id=<device-id> --mode=local --mapping-file=config/device-state-mapping.local.json"
+echo "• Try generating a device page: npm run gen:device-pages -- --device-id=<device-id> --mode=local --mapping-file=../wb-mqtt-bridge/config/device-state-mapping.json"
 echo "• Start development server: npm run dev"
 echo "• Run full type generation: npm run gen:pages"
 echo ""

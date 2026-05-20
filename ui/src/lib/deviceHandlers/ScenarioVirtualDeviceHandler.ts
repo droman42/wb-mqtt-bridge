@@ -3,7 +3,7 @@ import type { RemoteDeviceStructure } from '../../types/RemoteControlLayout';
 import type { ProcessedAction, ActionIcon, ActionHandler } from '../../types/ProcessedDevice';
 import { ZoneDetection } from '../ZoneDetection';
 import { IconResolver } from '../IconResolver';
-import { LocalDeviceConfigurationClient } from '../DeviceConfigurationClient';
+import { LocalDeviceConfigurationClient, resolveDefaultMappingFile } from '../DeviceConfigurationClient';
 import type { IDeviceConfigurationClient } from '../DeviceConfigurationClient';
 import { WirenboardIRHandler } from './WirenboardIRHandler';
 import { LgTvHandler } from './LgTvHandler';
@@ -12,8 +12,6 @@ import { BroadlinkKitchenHoodHandler } from './BroadlinkKitchenHoodHandler';
 import { AppleTVDeviceHandler } from './AppleTVDeviceHandler';
 import { AuralicDeviceHandler } from './AuralicDeviceHandler';
 import { RevoxA77ReelToReelHandler } from './RevoxA77ReelToReelHandler';
-import * as fs from 'fs/promises';
-import { readFileSync } from 'fs';
 
 export interface ScenarioConfig {
   scenario_id: string;
@@ -39,7 +37,7 @@ export class ScenarioVirtualDeviceHandler {
 
   constructor(client?: IDeviceConfigurationClient) {
     // Use provided client or create a default one
-    this.client = client || new LocalDeviceConfigurationClient('config/device-state-mapping.json');
+    this.client = client || new LocalDeviceConfigurationClient(resolveDefaultMappingFile());
     
     // Initialize device handlers
     this.deviceHandlers = new Map<string, any>();
@@ -53,69 +51,17 @@ export class ScenarioVirtualDeviceHandler {
   }
 
   /**
-   * Read device config file directly from disk using the mapping file
+   * Read a source device's config for scenario inheritance. Delegates to the shared
+   * configuration client, which resolves deviceConfigs paths relative to the mapping
+   * file's directory (the mapping now lives in the backend repo — action_plan #4.5).
    */
   private async readDeviceConfigFile(deviceId: string): Promise<DeviceConfig> {
     try {
-      // Use the existing LocalDeviceConfigurationClient logic to find the config path
-      const mapping = await this.loadMapping();
-      const configPath = this.findConfigPathByDeviceId(mapping, deviceId);
-      
-      // Read and parse the config file
-      const data = await fs.readFile(configPath, 'utf8');
-      const config = JSON.parse(data);
-      
-      // Validate that device_id matches what we're looking for
-      if (config.device_id !== deviceId) {
-        throw new Error(`Device ID mismatch: expected '${deviceId}', found '${config.device_id}' in ${configPath}`);
-      }
-      
-      return config;
+      return await this.client.fetchDeviceConfig(deviceId);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to read device config for ${deviceId}: ${errorMessage}`);
     }
-  }
-
-  /**
-   * Load the device state mapping file
-   */
-  private async loadMapping(): Promise<Record<string, any>> {
-    try {
-      const mappingFile = (this.client as any).mappingFile || 'config/device-state-mapping.json';
-      const data = await fs.readFile(mappingFile, 'utf8');
-      return JSON.parse(data);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to load mapping file: ${errorMessage}`);
-    }
-  }
-
-  /**
-   * Find device config file path by searching through all deviceConfigs arrays
-   */
-  private findConfigPathByDeviceId(mapping: Record<string, any>, deviceId: string): string {
-    // Search all deviceConfigs arrays for matching device_id
-    for (const [_deviceClass, classInfo] of Object.entries(mapping)) {
-      // Skip device classes without deviceConfigs
-      if (!classInfo || typeof classInfo !== 'object' || !classInfo.deviceConfigs || !Array.isArray(classInfo.deviceConfigs)) {
-        continue;
-      }
-      
-      for (const configPath of classInfo.deviceConfigs) {
-        try {
-          const configData = JSON.parse(readFileSync(configPath, 'utf8'));
-          if (configData.device_id === deviceId) {
-            return configPath;
-          }
-        } catch (error) {
-          // Skip invalid config files and continue searching
-          console.warn(`Warning: Could not read config file ${configPath}: ${error instanceof Error ? error.message : String(error)}`);
-          continue;
-        }
-      }
-    }
-    throw new Error(`Device config not found for device_id: ${deviceId}`);
   }
 
   async analyzeStructure(config: DeviceConfig, groups: DeviceGroups): Promise<RemoteDeviceStructure> {
