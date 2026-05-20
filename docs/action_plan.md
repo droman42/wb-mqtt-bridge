@@ -181,6 +181,27 @@ Ordered by **value / effort**. Each item sized for one focused PR.
 |---|------|--------|
 | 11 | **Adopt GSD** ([gsd-build/get-shit-done](https://github.com/gsd-build/get-shit-done)) as the dev workflow. *(Reverses the earlier "out of scope" verdict — re-study 2026-05-20 found GSD is built for solo devs, has a brownfield path (`/gsd-map-codebase` + `/gsd-ingest-docs`), and handles multi-repo via `/gsd-workspace --repos`.)* Sequencing: **(A) archive stale docs — DONE**; **(B) fix living docs to match code — DONE**; **(C) author the GSD-seed artifacts** (PROJECT vision, ARCHITECTURE, the UI↔backend CONTRACT, CONVENTIONS) + a few ADRs for decisions already made (OpenAPI additive-injection, backend-owned mapping, runtime config, Miele removal); **(D) install GSD** (`npx get-shit-done-cc@latest`), run `/gsd-map-codebase` then `/gsd-ingest-docs` to bootstrap `.planning/`. Decide whether `.planning/` is tracked or gitignored, and whether to use `/gsd-workspace` across both repos. | C: ~½–1 day; D: ~½ day |
 
+#### Step D runbook — GSD bootstrap (after install; run in this backend repo)
+
+GSD is installed (2026-05-20). Start **backend-primary** (`.planning/` lives here; UI
+referenced via the contract doc; revisit `/gsd-workspace` only if two-repo coordination
+gets painful). Run, in order (commands are interactive — answer the prompts; if a name
+doesn't resolve, use `/gsd-help` or the colon form e.g. `/gsd:map-codebase`):
+
+1. `/gsd-config` *(optional)* — model profile **balanced**, mode **interactive**,
+   **auto-branching OFF** (we push to `main`); decide **`.planning/` tracked vs gitignored**
+   (lean: tracked).
+2. `/gsd-map-codebase` — writes `.planning/codebase/{STACK,ARCHITECTURE,CONVENTIONS,CONCERNS}.md`
+   (`--fast` for a quicker first pass).
+3. `/gsd-ingest-docs` — bootstraps `.planning/` from the curated docs (`project.md`,
+   `architecture.md`, `ui_backend_contract.md`, `conventions.md`, `docs/adr/*`,
+   `action_plan.md`); review any `INGEST-CONFLICTS.md`.
+4. `/gsd-progress` — routes to the correct next step (likely `/gsd-new-project` to finalize
+   ROADMAP/STATE, then the phase loop).
+
+First real phase to tackle via GSD: **P0.5 #12 (fix broken scenarios)** — the top
+functional priority (`/gsd-discuss-phase` → `/gsd-plan-phase` → `/gsd-execute-phase`).
+
 ### P3 — Real ops improvements (later, optional)
 
 | # | Task | Effort |
