@@ -22,7 +22,8 @@ A Python-based web service that integrates as an MQTT client with Wirenboard wb-
   - Revox A77 Reel-to-Reel tape recorder
   - eMotiva XMC2 Device - using [pymotivaxmc2](https://github.com/droman42/pymotivaxmc2) library
   - Auralic Altair G1 - using [openhomedevice](https://github.com/bazwilliams/openhomedevice) library in combination with Wirenboard MSW V3 IR interface
-  - Roborock S8 vacuum cleaner - using [python-roborock](https://github.com/Python-roborock/python-roborock) library
+
+  **Planned (not yet implemented):** Roborock S8 vacuum cleaner ([python-roborock](https://github.com/Python-roborock/python-roborock)).
 
 ## Architecture
 
@@ -632,7 +633,6 @@ Example parameter definition in a device configuration:
 ```json
 "setVolume": {
   "action": "set_volume",
-  "topic": "/devices/living_room_tv/controls/set",
   "description": "Set Volume Level",
   "group": "volume",
   "params": [
@@ -652,28 +652,15 @@ The system organizes device actions into functional groups for easier management
 
 ### Supported Device Types
 
-1. **LG TV (lg_tv.py)**
-   - LG webOS TV control via WebSocket connection
-   - Commands for power, volume, app launching, etc.
+Seven device drivers ship today, each under `src/wb_mqtt_bridge/infrastructure/devices/<name>/driver.py`:
 
-2. **Broadlink Kitchen Hood (broadlink_kitchen_hood.py)**
-   - Controls kitchen hood via Broadlink RF commands
-   - Support for light and fan speed control
-
-3. **Wirenboard IR Device (wirenboard_ir_device.py)**
-   - IR device control through Wirenboard MQTT interface
-   - Custom command mapping
-
-4. **Revox A77 Reel-to-Reel (revox_a77_reel_to_reel.py)**
-   - Control for Revox A77 tape recorder
-   - Support for transport controls and tape operations
-
-5. **eMotiva XMC2 Device (emotiva_xmc2.py)**
-   - Manages eMotiva XMC2 processor device
-   - Supports power on/off and Zone 2 power management
-   - Handles notifications for power, volume, input, and more
-   - Maintains device state including power and source status
-   - Logs errors and updates state with error messages
+1. **LG TV** (`lg_tv/driver.py`, class `LgTv`) — webOS TV over WebSocket (asyncwebostv); power, volume, app launching, input switching, pointer.
+2. **eMotiva XMC2** (`emotiva_xmc2/driver.py`, class `EMotivaXMC2`) — dual-zone AV processor (pymotivaxmc2); power/Zone-2 power, volume, input, notifications.
+3. **Apple TV** (`apple_tv/driver.py`, class `AppleTVDevice`) — pyatv; remote control, playback, app launching.
+4. **Auralic Altair G1** (`auralic/driver.py`, class `AuralicDevice`) — openhomedevice (UPnP) with IR fallback via Wirenboard.
+5. **Broadlink Kitchen Hood** (`broadlink_kitchen_hood/driver.py`, class `BroadlinkKitchenHood`) — RF light + fan-speed control via a Broadlink hub.
+6. **Wirenboard IR Device** (`wirenboard_ir_device/driver.py`, class `WirenboardIRDevice`) — generic IR over the Wirenboard MQTT interface.
+7. **Revox A77 Reel-to-Reel** (`revox_a77_reel_to_reel/driver.py`, class `RevoxA77ReelToReel`) — transport control for the tape deck (IR via Wirenboard).
 
 ## Creating New Device Implementations
 
@@ -738,27 +725,37 @@ my_custom_device = "wb_mqtt_bridge.infrastructure.devices.my_device.driver:MyCus
 
 ## Implementation Status
 
-The project has completed a major refactoring to implement optional parameters for device commands and introduced a strongly-typed configuration system:
+Version `0.5.0 Alpha`. The codebase has completed its move to a hexagonal
+(domain/infrastructure/presentation) architecture with strongly-typed Pydantic
+configs and per-device state models:
 
-- ✅ Parameter definition and validation infrastructure
-- ✅ BaseDevice updates for parameter handling
-- ✅ Migrated all devices to use the new parameter system
-- ✅ Standardized handler method signatures across all devices
-- ✅ Implemented strongly-typed configuration models
-- ✅ Removed backward compatibility code
-- ⏳ Finalizing documentation and preparing for release
+- ✅ Optional/required parameter handling with validation
+- ✅ Standardized handler signatures across all 7 drivers
+- ✅ Strongly-typed configuration models (`device_class` + `config_class`)
+- ✅ Per-device Pydantic state models, persisted to SQLite
+- ✅ Scenario system + Wirenboard virtual-device emulation
+- ✅ Device-state models exposed in `/openapi.json` (the contract the UI consumes)
+- ✅ Test suite runs in CI (amd64); ARM image built via GitHub Actions
+
+The OpenAPI snapshot (`openapi.json`) is regenerated with `wb-openapi` whenever the
+API surface or a device-state model changes.
 
 ## API Endpoints
 
-- `GET /` - Service information
-- `GET /system` - System information
-- `POST /reload` - Reload configurations and devices
-- `GET /devices` - List all devices
-- `GET /devices/{device_id}` - Get information about a specific device
-- `POST /devices/{device_id}/action/{action}` - Execute device action
-- `POST /publish` - Publish a message to an MQTT topic
-- `GET /api/groups` - List all available function groups
-- `GET /api/devices/{device_id}/groups/{group_id}/actions` - List all actions associated with a specific group for a given device
+The full, authoritative surface is in `openapi.json` (and at `/docs` on a running
+service). Key endpoints:
+
+- `GET /` — service information; `GET /system` — system information
+- `POST /reload` — reload configurations and devices
+- `GET /config/devices`, `GET /config/device/{device_id}`, `GET /config/system` — configuration
+- `GET /devices/{device_id}/state` — current typed device state
+- `GET /devices/{device_id}/persisted_state`, `GET /devices/persisted_states` — persisted state
+- `POST /devices/{device_id}/action` — execute a device action (body: `{"action": "...", "params": {...}}`)
+- `GET /groups`, `GET /devices/{device_id}/groups`, `GET /devices/{device_id}/groups/{group_id}/actions` — action groups
+- `POST /publish` — publish an MQTT message
+- `GET /scenario/*`, `POST /scenario/{start,switch,shutdown,role_action}` — scenario lifecycle
+- `GET /room/list`, `GET /room/{room_id}` — rooms
+- `GET /events/{devices,scenarios,system,stats}` — SSE event streams
 
 ## Configuration Files
 
@@ -839,127 +836,26 @@ The project is deployed using Docker on the target platform:
 
 ## Development Tools
 
-- `mqtt_sniffer.py` - MQTT topic monitoring tool
-- `test_LGTV_living.ipynb` - Jupyter notebook for LG TV testing
-- `test_broadlink.ipynb` - Jupyter notebook for Broadlink device testing
-
-## License
-
-MIT
-
-## MQTT Sniffer
-
-A simple utility to monitor all MQTT topic changes on a broker and log them to a file.
-
-## Installation
-
-1. Make sure you have Python 3.6+ installed
-2. Install the required dependency:
-
-```bash
-pip install paho-mqtt
-```
-
-## Usage
-
-Run the MQTT sniffer with default settings:
-
-```bash
-python mqtt_sniffer.py
-```
-
-This will connect to a local MQTT broker on port 1883 and log all topic changes to `mqtt_sniffer.log`.
-
-### Command Line Options
-
-```
-  -h, --help            Show this help message and exit
-  -b BROKER, --broker BROKER
-                        MQTT broker address (default: localhost)
-  -p PORT, --port PORT  MQTT broker port (default: 1883)
-  -u USERNAME, --username USERNAME
-                        MQTT broker username
-  -P PASSWORD, --password PASSWORD
-                        MQTT broker password
-  -l LOG_FILE, --log-file LOG_FILE
-                        Path to log file (default: mqtt_sniffer.log)
-  -t TOPIC, --topic TOPIC
-                        MQTT topic filter (default: # - all topics)
-  -f FILTER_SUBSTRING, --filter-substring FILTER_SUBSTRING
-                        Only report topics containing this substring
-  -c, --config          Use broker parameters from config/system.json
-```
-
-### Examples
-
-Connect to a remote broker:
-```bash
-python mqtt_sniffer.py -b mqtt.example.com
-```
-
-Connect with authentication:
-```bash
-python mqtt_sniffer.py -u myuser -P mypassword
-```
-
-Log only specific topics:
-```bash
-python mqtt_sniffer.py -t "home/sensors/#"
-```
-
-Filter topics containing a specific substring:
-```bash
-python mqtt_sniffer.py -f "temperature"
-```
-
-Specify a custom log file:
-```bash
-python mqtt_sniffer.py -l my_mqtt_traffic.log
-```
-
-Use configuration from system.json:
-```bash
-python mqtt_sniffer.py -c
-```
-
-## Output Format
-
-The log file contains entries in the following format:
-```
-2023-06-01 12:34:56.789 - INFO - Topic: home/temperature | Payload: 22.5
-```
-
-Each entry includes a timestamp, log level, topic name, and message payload. 
+Installed as console scripts (see Installation): `mqtt-sniffer` (MQTT traffic
+monitor), `device-test` (device config testing), `broadlink-cli` /
+`broadlink-discovery` (Broadlink utilities). Standalone test/pairing helpers live
+under `tests/` (e.g. `tests/apple_tv_util.py`, `tests/extract_lg_tv_cert.py`).
 
 ## LG TV SSL Support
 
-The project now supports secure SSL connections to LG WebOS TVs. This enhancement allows for encrypted communication between the bridge and the TV, which is important for security.
+LG webOS TVs can be controlled over a secure (`wss://`) connection. The relevant
+fields in a TV device config's `tv` block (`LgTvConfig`) are:
 
-### Features
+- `secure` (default `true`) — use a secure WebSocket connection
+- `client_key` — the persisted pairing key
+- `cert_file` — path to the TV's certificate (validated to exist when `secure` is true)
+- `ssl_options` — optional dict for finer SSL/TLS control
 
-1. **Certificate Management Tools**
-   - Added `extract_lg_tv_cert.py` script to extract and save TV certificates
-   - Certificate verification to ensure valid connections
+Use `tests/extract_lg_tv_cert.py <tv-ip> --output tv_cert.pem` to fetch a TV's
+certificate. The driver also exposes `extract_certificate` and `verify_certificate`
+actions.
 
-2. **Secure Connection Options**
-   - `secure`: Enable/disable secure WebSocket connections
-   - `cert_file`: Path to the TV's certificate file
-   - `verify_ssl`: Enable/disable SSL certificate verification
-   - `ssl_options`: Additional SSL configuration options
-
-3. **New Actions**
-   - `extract_certificate`: Extract and save the TV's SSL certificate
-   - `verify_certificate`: Verify if the current certificate matches the TV
-
-### Usage
-
-#### Extracting a Certificate
-
-```bash
-python extract_lg_tv_cert.py 192.168.1.100 --output tv_cert.pem
-```
-
-#### Configuration Example
+Example `tv` block:
 
 ```json
 {
@@ -972,175 +868,11 @@ python extract_lg_tv_cert.py 192.168.1.100 --output tv_cert.pem
     "mac_address": "AA:BB:CC:DD:EE:FF",
     "client_key": "abcdef1234567890",
     "secure": true,
-    "cert_file": "/path/to/tv_cert.pem",
-    "verify_ssl": true
+    "cert_file": "/path/to/tv_cert.pem"
   }
 }
 ```
-
-#### API Actions
-
-Extract certificate:
-```json
-{
-  "action": "extract_certificate",
-  "params": {
-    "output_file": "/path/to/save/certificate.pem"
-  }
-}
-```
-
-Verify certificate:
-```json
-{
-  "action": "verify_certificate"
-}
-```
-
-# Apple TV Utility
-
-A command-line utility for discovering, pairing, and connecting to Apple TV devices.
-
-## Features
-
-- Discover Apple TVs on your network
-- Pair with Apple TVs using PIN codes
-- Store and manage credentials for multiple devices
-- Test connections to paired devices
-- List and remove stored credentials
-
-## Requirements
-
-- Python 3.7+
-- `pyatv` library
-
-## Installation
-
-1. Install the required dependencies:
-
-```bash
-pip install pyatv
-```
-
-2. Make the script executable:
-
-```bash
-chmod +x apple_tv_util.py
-```
-
-## Usage
-
-### Scan for Apple TVs
-
-To scan your entire network for Apple TV devices:
-
-```bash
-./apple_tv_util.py scan
-```
-
-To scan specific IP addresses:
-
-```bash
-./apple_tv_util.py scan --ip 192.168.1.10 192.168.1.20
-```
-
-### Pair with an Apple TV
-
-To pair with an Apple TV at a specific IP address:
-
-```bash
-./apple_tv_util.py pair --ip 192.168.1.10
-```
-
-This will initiate the pairing process. If required, you'll be prompted to enter the PIN code displayed on your Apple TV.
-
-### Test Connection
-
-To test the connection to a paired Apple TV:
-
-```bash
-./apple_tv_util.py connect --ip 192.168.1.10
-```
-
-### List Stored Credentials
-
-To list all stored credentials:
-
-```bash
-./apple_tv_util.py list
-```
-
-### Remove Stored Credentials
-
-To remove stored credentials for a specific Apple TV:
-
-```bash
-./apple_tv_util.py remove --ip 192.168.1.10
-```
-
-## Credentials Storage
-
-All credentials are stored in a JSON file (`apple_tv_credentials.json`) in the same directory as the script. This file contains the necessary credentials to connect to your paired Apple TVs.
-
-## Integration
-
-You can import the `AppleTVManager` class in your own Python code to integrate Apple TV functionality:
-
-```python
-from apple_tv_util import AppleTVManager
-import asyncio
-
-async def example():
-    manager = AppleTVManager()
-    
-    # Discover devices
-    devices = await manager.discover_devices()
-    
-    # Connect to a device
-    if devices:
-        atv = await manager.connect_to_device(devices[0].address)
-        if atv:
-            # Do something with the connected device
-            print(f"Connected to {atv.device_info.name}")
-            await atv.close()
-
-if __name__ == "__main__":
-    asyncio.run(example())
-```
-
-## Notes
-
-- The utility will automatically select the first available protocol for pairing
-- All credentials are stored locally on your system
-- Pairing requires that your Apple TV is on the same network as your computer
 
 ## License
 
-This project is open source and available under the MIT License.
-
-# Configuration Structure Updates
-
-## System Configuration
-
-Device configuration files now include both `device_class` and `config_class` fields to support dynamic loading.
-
-Example device configuration:
-
-```json
-{
-  "device_id": "lg_tv",
-  "device_name": "Living Room TV",
-  "device_class": "LgTv",
-  "config_class": "LgTvDeviceConfig",
-  "commands": {
-    "power_on": {
-      "action": "power_on",
-      "description": "Turn TV on"
-    }
-  },
-  "tv": {
-    "ip_address": "192.168.1.100",
-    "mac_address": "AA:BB:CC:DD:EE:FF"
-  }
-}
-``` 
+MIT
