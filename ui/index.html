@@ -54,6 +54,9 @@
         --ring: 224.3 76.3% 94.1%;
       }
     </style>
+    <!-- Runtime config, overwritten by the container at startup (see docker-entrypoint.sh).
+         Loaded before the app bundle so window.RUNTIME_CONFIG is available. -->
+    <script src="/runtime-config.js"></script>
   </head>
   <body class="h-full bg-background text-foreground">
     <div id="root" class="h-full"></div>

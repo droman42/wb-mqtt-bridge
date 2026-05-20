@@ -1,3 +1,20 @@
+// Runtime configuration served by /runtime-config.js, overwritten by the container
+// at startup from environment variables (see docker-entrypoint.sh). Lets the MQTT
+// URL be set per-deployment instead of being baked into the bundle at build time
+// (action_plan P1 #4). Falls back to the Vite build-time env, then a localhost
+// default, so local `vite dev` still works.
+declare global {
+  interface Window {
+    RUNTIME_CONFIG?: {
+      API_BASE_URL?: string;
+      MQTT_URL?: string;
+      VERSION?: string;
+    };
+  }
+}
+
+const runtimeOverrides = (typeof window !== 'undefined' && window.RUNTIME_CONFIG) || {};
+
 // Helper function to get API base URL
 const getApiBaseUrl = () => {
   const envURL = import.meta.env.VITE_API_BASE_URL;
@@ -19,7 +36,7 @@ const getSSEBaseUrl = () => {
 export const runtimeConfig = {
   statePollIntervalSec: 5,
   apiBaseUrl: getApiBaseUrl(),
-  mqttUrl: import.meta.env.VITE_MQTT_URL || 'ws://localhost:9001',
+  mqttUrl: runtimeOverrides.MQTT_URL || import.meta.env.VITE_MQTT_URL || 'ws://localhost:9001',
   
   // SSE Configuration
   sseBaseUrl: getSSEBaseUrl(),

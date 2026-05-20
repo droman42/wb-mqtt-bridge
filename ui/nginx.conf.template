@@ -5,48 +5,49 @@ events {
 http {
     include       /etc/nginx/mime.types;
     default_type  application/octet-stream;
-    
+
     sendfile        on;
     keepalive_timeout  65;
-    
+
     # Disable access log for lighter footprint
     access_log off;
     error_log /var/log/nginx/error.log warn;
-    
+
     server {
         listen       3000;
         server_name  localhost;
         root         /usr/share/nginx/html;
         index        index.html;
-        
+
         # Handle SPA routing (React Router)
         location / {
             try_files $uri $uri/ /index.html;
         }
-        
+
         # Cache static assets
         location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
             expires 1y;
             add_header Cache-Control "public, immutable";
         }
-        
-        # API proxy to backend server on host machine
+
+        # API proxy to backend server. Host/port come from BACKEND_HOST/BACKEND_PORT
+        # env vars, substituted at container start by docker-entrypoint.sh.
         location /api/ {
-            proxy_pass http://192.168.110.250:8000/;
+            proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT}/;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
-        
+
         # SSE Events proxy with streaming configuration
         location /events/ {
-            proxy_pass http://192.168.110.250:8000/events/;
+            proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT}/events/;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
-            
+
             # Critical SSE configuration
             proxy_cache off;
             proxy_buffering off;
@@ -56,12 +57,12 @@ http {
             proxy_set_header Connection "";
             proxy_set_header Accept "text/event-stream";
             proxy_set_header Cache-Control "no-cache";
-            
+
             # CORS headers for SSE
             add_header Access-Control-Allow-Origin *;
             add_header Access-Control-Allow-Headers "Cache-Control";
             add_header Access-Control-Allow-Methods "GET, OPTIONS";
-            
+
             # Handle preflight requests
             if ($request_method = 'OPTIONS') {
                 add_header Access-Control-Allow-Origin *;
@@ -71,4 +72,4 @@ http {
             }
         }
     }
-} 
+}
