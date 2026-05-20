@@ -198,21 +198,6 @@ wheels = [
 ]
 
 [[package]]
-name = "asyncmiele"
-version = "0.2.6"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "aiohttp" },
-    { name = "cryptography" },
-    { name = "pydantic" },
-    { name = "requests" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/5a/9f/9eaa4e043dd6d143580400f5851b1f93cf737c225cffcd6d04c86e639ddf/asyncmiele-0.2.6.tar.gz", hash = "sha256:10d698acf579dfd44a5b49431ba2e0262cd8edb32702a692f6a9402290dcfde9", size = 143219 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/1b/26/a9deb87cd5094d0a29d0f3eeed175623a0efbfbe0517ce205fff87af05cb/asyncmiele-0.2.6-py3-none-any.whl", hash = "sha256:5ecadc3869d6618fafa56f61f87b592fd3cfeee6241a301c3c2114c7d10dbade", size = 164691 },
-]
-
-[[package]]
 name = "asyncwebostv"
 version = "0.2.7"
 source = { registry = "https://pypi.org/simple" }
@@ -1851,7 +1836,6 @@ dependencies = [
     { name = "aiohttp" },
     { name = "aiomqtt" },
     { name = "aiosqlite" },
-    { name = "asyncmiele" },
     { name = "asyncwebostv" },
     { name = "broadlink" },
     { name = "fastapi" },
@@ -1889,7 +1873,6 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.8.1" },
     { name = "aiomqtt", specifier = ">=1.0.0" },
     { name = "aiosqlite", specifier = ">=0.19.0" },
-    { name = "asyncmiele", specifier = "==0.2.6" },
     { name = "asyncwebostv", specifier = "==0.2.7" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=21.0" },
     { name = "broadlink", specifier = ">=0.18.0" },

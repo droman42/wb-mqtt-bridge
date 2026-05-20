@@ -22,7 +22,6 @@ A Python-based web service that integrates as an MQTT client with Wirenboard wb-
   - Revox A77 Reel-to-Reel tape recorder
   - eMotiva XMC2 Device - using [pymotivaxmc2](https://github.com/droman42/pymotivaxmc2) library
   - Auralic Altair G1 - using [openhomedevice](https://github.com/bazwilliams/openhomedevice) library in combination with Wirenboard MSW V3 IR interface
-  - Miele home appliances - using [asyncmiele](https://github.com/droman42/asyncmiele) library
   - Roborock S8 vacuum cleaner - using [python-roborock](https://github.com/Python-roborock/python-roborock) library
 
 ## Architecture
