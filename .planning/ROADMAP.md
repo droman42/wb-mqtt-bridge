@@ -23,7 +23,7 @@ and an **arm64 image for WB8+** (Phase 7) — are deferred and gated on open dec
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Dependency Reproducibility Hardening** - Replace moving git-branch pins with immutable refs, add upper bounds to PyPI deps, ensure the build is recoverable if an upstream repo disappears
+- [x] **Phase 1: Dependency Reproducibility Hardening** - Replace moving git-branch pins with immutable refs, add upper bounds to PyPI deps, ensure the build is recoverable if an upstream repo disappears (completed 2026-05-20)
 - [ ] **Phase 2: Fix the Scenario Layer** - Reproduce, root-cause, and fix scenarios so every one runs end-to-end on hardware (top functional priority)
 - [ ] **Phase 3: Button-Placement Contract** - Design and adopt an explicit, reviewable control-placement contract
 - [ ] **Phase 4: CI Quality Gates** - Backend lint/mypy/ruff gates + a working UI test step
@@ -47,7 +47,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 - [x] 01-01-PLAN.md — Re-pin git deps to immutable refs (openhomedevice→SHA, pyatv→PyPI 0.17.0); add upper bounds to direct PyPI deps; regenerate `uv.lock` (DEP-01, DEP-03)
 - [x] 01-02-PLAN.md — Verify: pin-guard test (no moving refs, lxml-free, bounds present) + Auralic/Apple TV driver tests + full suite green on amd64 (DEP-01)
-- [ ] 01-03-PLAN.md — Document the recovery runbook + record dependency-pinning policy as ADR 0006 (DEP-02)
+- [x] 01-03-PLAN.md — Document the recovery runbook + record dependency-pinning policy as ADR 0006 (DEP-02)
 
 ### Phase 2: Fix the Scenario Layer
 **Goal**: Every shipped scenario runs end-to-end on real Wirenboard hardware — closing the headline gap to "my house works."
@@ -144,7 +144,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Dependency Reproducibility Hardening | 2/3 | In Progress|  |
+| 1. Dependency Reproducibility Hardening | 3/3 | Complete   | 2026-05-20 |
 | 2. Fix the Scenario Layer | 0/3 | Not started | - |
 | 3. Button-Placement Contract | 0/2 | Not started | - |
 | 4. CI Quality Gates | 0/2 | Not started | - |

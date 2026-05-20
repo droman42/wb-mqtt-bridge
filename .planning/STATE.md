@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed Phase 01 Plan 01 — dependency re-pinning and upper bounds
-last_updated: "2026-05-20T10:56:51.933Z"
+status: verifying
+stopped_at: Completed Phase 01 Plan 03 — dependency recovery runbook and ADR 0006
+last_updated: "2026-05-20T11:05:00.000Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 7
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
-  percent: 0
+  completed_plans: 3
+  percent: 14
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-05-20)
 
 Phase: 1 (Dependency Reproducibility Hardening) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-05-20
 
-Progress: [███████░░░] 67%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -72,6 +72,9 @@ Recent decisions affecting current work:
 - [Phase ?]: pin-guard test
 - [Phase ?]: aiomqtt 2.0.1 + paho-mqtt 1.6.1 confirmed regression-free: all 236 amd64 tests pass
 - [Phase ?]: pyatv 0.17.0 and openhomedevice SHA 6e862a1 both confirmed API-compatible with their drivers
+- [Phase 1 Plan 03]: Recovery runbook (docs/maintenance/dependency-recovery.md) documents uv sync --frozen as pin-of-record restore and openhomedevice re-push procedure using immutable SHA (DEP-02)
+- [Phase 1 Plan 03]: ADR 0006 encodes four-rule dependency pinning policy — personal libs via PyPI exact-pin, third-party git on immutable SHA, direct PyPI deps bounded at next-major, uv.lock as pin-of-record
+- [Phase 1 Plan 03]: Migration trigger documented: drop openhomedevice fork when upstream bazwilliams/openhomedevice publishes >=2.4.0 on PyPI without lxml
 
 ### Pending Todos
 
@@ -96,6 +99,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-05-20T10:56:51.924Z
-Stopped at: Completed Phase 01 Plan 01 — dependency re-pinning and upper bounds
+Last session: 2026-05-20T11:05:00.000Z
+Stopped at: Completed Phase 01 Plan 03 — dependency recovery runbook and ADR 0006
 Resume file: None
