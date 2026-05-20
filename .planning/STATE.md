@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Completed Phase 01 Plan 01 — dependency re-pinning and upper bounds
-last_updated: "2026-05-20T10:52:09.352Z"
+last_updated: "2026-05-20T10:56:51.933Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-20)
 ## Current Position
 
 Phase: 1 (Dependency Reproducibility Hardening) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-05-20
 
-Progress: [███░░░░░░░] 33%
+Progress: [███████░░░] 67%
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [███░░░░░░░] 33%
 
 *Updated after each plan completion*
 | Phase 01-dependency-reproducibility-hardening P01 | 2 | 3 tasks | 2 files |
+| Phase 01-dependency-reproducibility-hardening P02 | 8 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,9 @@ Recent decisions affecting current work:
 - [Phase ?]: openhomedevice: keep fork at SHA 6e862a1022f59a21c57c501dcf040f81d12ebfaf — upstream PyPI 2.3.1 still has lxml, ARMv7 constraint preserved (DEP-01)
 - [Phase ?]: pyatv: migrated from git commit f75e718 to PyPI pyatv==0.17.0 — protobuf fix shipped in 0.16.1+, no API breaks for AppleTVDevice driver (DEP-01)
 - [Phase ?]: paho-mqtt capped at <2: 2.x has breaking callback-signature changes; cap at 1.x forced aiomqtt 2.3.2 to 2.0.1 (cascading constraint, aiomqtt 2.0.1 + paho 1.6.1 work with existing code)
+- [Phase ?]: pin-guard test
+- [Phase ?]: aiomqtt 2.0.1 + paho-mqtt 1.6.1 confirmed regression-free: all 236 amd64 tests pass
+- [Phase ?]: pyatv 0.17.0 and openhomedevice SHA 6e862a1 both confirmed API-compatible with their drivers
 
 ### Pending Todos
 
@@ -92,6 +96,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-05-20T10:52:09.345Z
+Last session: 2026-05-20T10:56:51.924Z
 Stopped at: Completed Phase 01 Plan 01 — dependency re-pinning and upper bounds
 Resume file: None
