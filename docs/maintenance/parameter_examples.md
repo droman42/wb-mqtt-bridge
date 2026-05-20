@@ -1,6 +1,6 @@
 # Parameter Configuration Examples
 
-This document provides examples of using parameters in device command definitions. See `optional_params.md` for the full implementation plan.
+This document provides examples of using parameters in device command definitions. See `../archive/maintenance/optional_params.md` for the original implementation plan (archived).
 
 ## Basic Parameter Definition
 
@@ -11,7 +11,6 @@ Parameters are defined in the device configuration JSON as an array of parameter
   "commands": {
     "setBrightness": {
       "action": "set_brightness",
-      "topic": "/devices/light/set",
       "description": "Set light brightness and optional transition",
       "params": [
         {
@@ -125,7 +124,6 @@ Parameters can be made optional by setting `required: false`. When doing so, you
   "commands": {
     "setInput": {
       "action": "set_input",
-      "topic": "/devices/tv/input",
       "description": "Change TV input source",
       "params": [
         {
@@ -154,7 +152,6 @@ Parameters can be made optional by setting `required: false`. When doing so, you
   "commands": {
     "setTargetTemperature": {
       "action": "set_target_temperature",
-      "topic": "/devices/thermostat/target",
       "description": "Set target temperature",
       "params": [
         {
@@ -185,7 +182,6 @@ Parameters can be made optional by setting `required: false`. When doing so, you
   "commands": {
     "setLight": {
       "action": "set_light",
-      "topic": "/devices/light/set",
       "description": "Control light properties",
       "params": [
         {

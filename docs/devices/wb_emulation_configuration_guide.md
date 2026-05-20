@@ -13,7 +13,7 @@ All device configurations now use a simplified structure without explicit topic 
   "device_name": "Living Room TV", 
   "device_id": "living_room_tv",
   "device_class": "LgTv",
-  "config_class": "LgTvConfig",
+  "config_class": "LgTvDeviceConfig",
   "enable_wb_emulation": true,
   "commands": {
     "power_on": {
@@ -193,7 +193,7 @@ Support multiple languages in control titles:
   "device_name": "Living Room TV",
   "device_id": "living_room_tv", 
   "device_class": "LgTv",
-  "config_class": "LgTvConfig",
+  "config_class": "LgTvDeviceConfig",
   "enable_wb_emulation": true,
   "commands": {
     "power_on": {

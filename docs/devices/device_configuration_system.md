@@ -8,7 +8,7 @@ The device configuration system is designed to manage and validate device config
 
 ### 1. Base Device Configuration Classes
 
-The base configuration structure is defined in `app/schemas.py`:
+The base configuration structure is defined in `wb_mqtt_bridge/infrastructure/config/models.py`:
 
 - `BaseDeviceConfig`: Abstract base class for all device configurations
 - `BaseCommandConfig`: Abstract base class for command configurations
@@ -16,15 +16,15 @@ The base configuration structure is defined in `app/schemas.py`:
 
 ### 2. Configuration Manager
 
-The `ConfigManager` class in `app/config_manager.py` handles loading, validating, and processing device configurations.
+The `ConfigManager` class in `wb_mqtt_bridge/infrastructure/config/manager.py` handles loading, validating, and processing device configurations.
 
 ### 3. Class Loader
 
-The `app/class_loader.py` module provides utilities for dynamically loading device and configuration classes based on their names.
+The `wb_mqtt_bridge/utils/class_loader.py` module provides utilities for dynamically loading device and configuration classes based on their names.
 
 ### 4. Validation System
 
-The `app/validation.py` module contains functions for validating device configurations and ensuring they meet the required format.
+The `wb_mqtt_bridge/utils/validation.py` module contains functions for validating device configurations and ensuring they meet the required format.
 
 ## Configuration File Structure
 
@@ -45,7 +45,6 @@ Device configuration files are stored in the `config/devices/` directory and fol
   "commands": {
     "command_id": {
       "action": "action_name",
-      "topic": "/devices/device_id/controls/action_name",
       "description": "Human readable description",
       "group": "command_group",
       // Optional command parameters
@@ -116,7 +115,7 @@ The configuration validation process includes:
 To add a new device type to the system:
 
 1. Create a new device class that inherits from the appropriate base device class
-2. Create a new configuration class in `app/schemas.py` that inherits from `BaseDeviceConfig`
+2. Create a new configuration class in `wb_mqtt_bridge/infrastructure/config/models.py` that inherits from `BaseDeviceConfig`
 3. Implement the required methods, especially `process_commands()`
 4. Create a device configuration file in `config/devices/`
 5. Add the device to `config/system.json`

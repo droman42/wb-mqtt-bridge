@@ -129,7 +129,7 @@ This significantly improves the user experience by providing seamless transition
 
 ## Example Scenarios
 
-See the [example.json](../config/scenarios/example.json) file for a complete reference implementation demonstrating best practices.
+See the scenario files under [`config/scenarios/`](../../config/scenarios/) for complete reference implementations.
 
 ## Managing Scenarios
 
