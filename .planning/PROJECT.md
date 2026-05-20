@@ -36,12 +36,13 @@ features.
 
 <!-- Open scope. Building toward these. Maps to roadmap phases. -->
 
-- [ ] **SCEN-01..04**: Fix the broken scenario layer so every scenario runs end-to-end on hardware (Phase 1 — top priority)
-- [ ] **PLACE-01..02**: Design and adopt an explicit, contract-based button/action placement (Phase 2 — design first)
-- [ ] **CI-01..02**: Add lint/mypy/ruff quality gates to backend CI; wire UI tests (Phase 3)
-- [ ] **DEV-01..04**: Ship planned device features — Apple TV app launching, IR-code learning page, Revox hardware re-verify, Roborock + appliance pages (Phase 4)
-- [ ] **OPS-01..02**: Distribute images via GHCR + a top-level docker-compose (Phase 5 — deferred)
-- [ ] **ARCH-01**: Produce an arm64 deployable image for the WB8+ migration (Phase 6 — deferred, revisit at migration)
+- [ ] **DEP-01..03**: Put the build on a reproducible footing — immutable git pins, PyPI upper bounds, a documented recovery path if upstream disappears (Phase 1 — foundation, do first)
+- [ ] **SCEN-01..04**: Fix the broken scenario layer so every scenario runs end-to-end on hardware (Phase 2 — top functional priority)
+- [ ] **PLACE-01..02**: Design and adopt an explicit, contract-based button/action placement (Phase 3 — design first)
+- [ ] **CI-01..02**: Add lint/mypy/ruff quality gates to backend CI; wire UI tests (Phase 4)
+- [ ] **DEV-01..04**: Ship planned device features — Apple TV app launching, IR-code learning page, Revox hardware re-verify, Roborock + appliance pages (Phase 5)
+- [ ] **OPS-01..02**: Distribute images via GHCR + a top-level docker-compose (Phase 6 — deferred)
+- [ ] **ARCH-01**: Produce an arm64 deployable image for the WB8+ migration (Phase 7 — deferred, revisit at migration)
 
 ### Out of Scope
 
@@ -65,7 +66,7 @@ features.
 - **The contract**: committed `openapi.json` (root) is the single source of truth for the REST surface AND device-state model shapes; UI codegen consumes it. `config/device-state-mapping.json` and `config/devices/*.json` are the other two contract artifacts. See `docs/ui_backend_contract.md`.
 - **Two repos in lockstep**: `wb-mqtt-bridge` (backend, here) + `wb-mqtt-ui` (sibling). Backend-primary GSD setup; `.planning/` lives here. The UI build consumes a sibling backend checkout for configs + `openapi.json` but never imports Python.
 - **Current honest state**: "unfinished, but mostly works." Device actions mostly work; **the scenario layer is broken** (confirmed 2026-05-20) — the headline gap to "done = my house works."
-- **Known scenario-layer concerns** (from codebase audit): no scenario lifecycle state machine (`domain/scenarios/scenario.py`), no end-to-end scenario tests (the bug slipped through unit tests), circular-dependency risk device↔scenario, no scenario action rollback. These inform the Phase 1 fix.
+- **Known scenario-layer concerns** (from codebase audit): no scenario lifecycle state machine (`domain/scenarios/scenario.py`), no end-to-end scenario tests (the bug slipped through unit tests), circular-dependency risk device↔scenario, no scenario action rollback. These inform the Phase 2 fix.
 - **Workflow**: solo dev, push directly to `main` on both repos, small focused commits with detailed bodies, no PR ceremony. Decisions tracked in `docs/action_plan.md` + `docs/adr/`. Adopting GSD (this bootstrap completes Step D).
 
 ## Constraints
@@ -89,8 +90,9 @@ features.
 | **ADR 0003** — Backend owns `device-state-mapping.json` with directory-relative paths | One mapping file works in both local-sibling and CI/Docker layouts; backend owns its metadata | ✓ LOCKED (P1 shipped) |
 | **ADR 0004** — Configure backend/MQTT URLs at container runtime, not build time | One image runs against any backend/broker via env vars; no rebuild per deployment | ✓ LOCKED (P1 shipped) |
 | **ADR 0005** — Drop Miele + SprutHub; delegate voice to WB's Alisa bridge | Miele never worked; voice is free once devices are WB virtual devices | ✓ LOCKED (P2 shipped) |
-| Fix the scenario layer first | It's the #1 success criterion ("my house works") and the headline gap; device actions already mostly work | — Pending (Phase 1) |
-| Design button-placement contract before implementing | User dislikes layout depending on undocumented config-command order; design must be agreed first | — Pending (Phase 2) |
+| Harden dependencies before functional work | Two libs are pinned to a moving git branch / bare commit and PyPI deps lack upper bounds; a reproducible build is the foundation for everything after | — Pending (Phase 1) |
+| Fix the scenario layer first (after dep hardening) | It's the #1 success criterion ("my house works") and the headline gap; device actions already mostly work | — Pending (Phase 2) |
+| Design button-placement contract before implementing | User dislikes layout depending on undocumented config-command order; design must be agreed first | — Pending (Phase 3) |
 | Record P1/P2 + test-CI work as completed context, not open phases | The hardening pass is done; the roadmap should only phase OPEN work | ✓ Applied here |
 
 ## Open Questions
@@ -99,14 +101,14 @@ features.
 
 These are unresolved and feed into the phases noted; they are NOT scope until decided:
 
-- **Repo structure** (one repo vs two long-term) — contract-based coupling makes either cheaper; defer (touches Phase 5 ops)
+- **Repo structure** (one repo vs two long-term) — contract-based coupling makes either cheaper; defer (touches Phase 6 ops)
 - **Deploy target** (Wirenboard only, or also a separate Linux box over MQTT) — affects urgency of runtime-URL work
 - **ARMv7-exclusive vs amd64 dev path** — affects test arch, GHCR tags
-- **`device_category` behavior** — will it drive real behavior soon, and what differs between `device` and `appliance`? (touches Phase 2/4)
-- **Runtime-driven UI rendering** (Codegen Option 2) — default: defer (related to Phase 2 placement contract)
-- **Button/action placement mechanism** — explicit per-action fields vs backend layout manifest vs `x-ui-*` annotations (Phase 2 decides this)
+- **`device_category` behavior** — will it drive real behavior soon, and what differs between `device` and `appliance`? (touches Phase 3/5)
+- **Runtime-driven UI rendering** (Codegen Option 2) — default: defer (related to Phase 3 placement contract)
+- **Button/action placement mechanism** — explicit per-action fields vs backend layout manifest vs `x-ui-*` annotations (Phase 3 decides this)
 - **Productization** — what opening to the Wirenboard community entails (long-term, undefined)
-- **WB8+ / arm64 timing** — trigger for the migration and its arm64 build (Phase 6 is gated on this)
+- **WB8+ / arm64 timing** — trigger for the migration and its arm64 build (Phase 7 is gated on this)
 
 ---
-*Last updated: 2026-05-20 after GSD ingest bootstrap (new-project from intel)*
+*Last updated: 2026-05-20 — inserted Phase 1 (Dependency Reproducibility Hardening) before the scenario fix; phases renumbered 2–7*

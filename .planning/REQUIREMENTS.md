@@ -33,7 +33,13 @@ Shipped and confirmed through the hardening pass. Locked — recorded as complet
 
 Open scope. Each maps to exactly one roadmap phase.
 
-### Scenarios (top priority)
+### Dependency Hardening (foundation — Phase 1)
+
+- [ ] **DEP-01**: No dependency tracks a moving git ref — `openhomedevice` (currently branch `remove-lxml-dependency`) is pinned to an immutable commit/tag and resolves deterministically via `uv.lock`; `pyatv` stays on an immutable ref
+- [ ] **DEP-02**: A documented recovery path exists for the git-sourced deps (`openhomedevice`, `pyatv`) if upstream disappears — upstream-and-move-to-PyPI, tag, or mirror/vendor of the exact ref
+- [ ] **DEP-03**: Direct PyPI dependencies carry upper bounds (e.g. `pydantic>=2.11.0,<3`) so a breaking major release can't be pulled silently
+
+### Scenarios (top functional priority)
 
 - [ ] **SCEN-01**: Scenario failures are reproduced and root-caused (startup/shutdown sequencing, condition evaluation, role-action dispatch, WB-adapter, or state)
 - [ ] **SCEN-02**: A scenario lifecycle state machine guards init / running / shutdown so commands cannot dispatch to uninitialized or shutting-down scenarios
@@ -59,7 +65,7 @@ Open scope. Each maps to exactly one roadmap phase.
 
 ## v2 Requirements
 
-Deferred to a future release. Tracked but only loosely in the current roadmap (Phases 5–6 are deferred).
+Deferred to a future release. Tracked but only loosely in the current roadmap (Phases 6–7 are deferred).
 
 ### Ops & Distribution
 
@@ -90,28 +96,31 @@ Which phases cover which requirements.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SCEN-01 | Phase 1 | Pending |
-| SCEN-02 | Phase 1 | Pending |
-| SCEN-03 | Phase 1 | Pending |
-| SCEN-04 | Phase 1 | Pending |
-| PLACE-01 | Phase 2 | Pending |
-| PLACE-02 | Phase 2 | Pending |
-| CI-01 | Phase 3 | Pending |
-| CI-02 | Phase 3 | Pending |
-| DEV-01 | Phase 4 | Pending |
-| DEV-02 | Phase 4 | Pending |
-| DEV-03 | Phase 4 | Pending |
-| DEV-04 | Phase 4 | Pending |
-| OPS-01 | Phase 5 (deferred) | Pending |
-| OPS-02 | Phase 5 (deferred) | Pending |
-| ARCH-01 | Phase 6 (deferred) | Pending |
+| DEP-01 | Phase 1 | Pending |
+| DEP-02 | Phase 1 | Pending |
+| DEP-03 | Phase 1 | Pending |
+| SCEN-01 | Phase 2 | Pending |
+| SCEN-02 | Phase 2 | Pending |
+| SCEN-03 | Phase 2 | Pending |
+| SCEN-04 | Phase 2 | Pending |
+| PLACE-01 | Phase 3 | Pending |
+| PLACE-02 | Phase 3 | Pending |
+| CI-01 | Phase 4 | Pending |
+| CI-02 | Phase 4 | Pending |
+| DEV-01 | Phase 5 | Pending |
+| DEV-02 | Phase 5 | Pending |
+| DEV-03 | Phase 5 | Pending |
+| DEV-04 | Phase 5 | Pending |
+| OPS-01 | Phase 6 (deferred) | Pending |
+| OPS-02 | Phase 6 (deferred) | Pending |
+| ARCH-01 | Phase 7 (deferred) | Pending |
 
 **Coverage:**
-- v1 requirements: 12 total (SCEN, PLACE, CI, DEV)
-- Mapped to phases: 12
+- v1 requirements: 15 total (DEP, SCEN, PLACE, CI, DEV)
+- Mapped to phases: 15
 - Unmapped: 0 ✓
-- v2 requirements (deferred Phases 5–6): 3 (OPS-01, OPS-02, ARCH-01) — mapped but deferred
+- v2 requirements (deferred Phases 6–7): 3 (OPS-01, OPS-02, ARCH-01) — mapped but deferred
 
 ---
 *Requirements defined: 2026-05-20*
-*Last updated: 2026-05-20 after GSD ingest bootstrap*
+*Last updated: 2026-05-20 — inserted Phase 1 (Dependency Reproducibility Hardening); DEP-01..03 added, phases renumbered +1*
