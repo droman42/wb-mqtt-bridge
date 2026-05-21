@@ -12,6 +12,7 @@ from wb_mqtt_bridge.domain.devices.models import BaseDeviceState, LastCommand
 from wb_mqtt_bridge.infrastructure.config.models import BaseDeviceConfig, BaseCommandConfig, CommandParameterDefinition
 from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
 from wb_mqtt_bridge.infrastructure.wb_device.service import WBVirtualDeviceService
+from wb_mqtt_bridge.infrastructure.capabilities.models import CapabilityMap
 from wb_mqtt_bridge.utils.types import StateT, CommandResult, CommandResponse, ActionHandler
 from wb_mqtt_bridge.presentation.api.sse_manager import sse_manager, SSEChannel
 from wb_mqtt_bridge.domain.ports import DeviceBusPort
@@ -36,6 +37,9 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
         self._action_groups: Dict[str, List[Dict[str, Any]]] = {}  # Index of actions by group
         self.mqtt_client = mqtt_client
         self.wb_service = wb_service  # Injected WB virtual device service
+        # Layer 1 capability map (canonical domain.action -> native commands). Attached at
+        # bootstrap from config/capabilities/; None until then. See scenario redesign §5.
+        self.capabilities: Optional[CapabilityMap] = None
         self._state_change_callback = None  # Callback for state changes
         
         # Register action handlers

@@ -500,8 +500,13 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
                         await self.mqtt_client.publish(topic, payload)
                         logger.info(f"Published IR command '{action_name}' to {topic}")
                         await self.emit_progress(f"IR command '{action_name}' sent successfully", "action_success")
+                        # Optimistic input tracking (IR has no feedback): record the input we
+                        # just selected so the scenario reconciler can diff it. The recorded
+                        # value matches the topology/capability value, e.g. input_aux2 -> "aux2".
+                        if getattr(original_cmd_config, "group", None) == "inputs":
+                            self.update_state(input=action_name.removeprefix("input_"))
                         return self.create_command_result(
-                            success=True, 
+                            success=True,
                             message=f"Successfully executed IR command '{action_name}'",
                             mqtt_topic=topic,
                             mqtt_payload=payload

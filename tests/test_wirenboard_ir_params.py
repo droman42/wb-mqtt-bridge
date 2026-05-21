@@ -49,12 +49,20 @@ def _make_config() -> WirenboardIRDeviceConfig:
             name="level", type="range", min=0, max=100, required=True,
         )],
     )
+    input_command = IRCommandConfig(
+        action="input_aux2",
+        topic="/devices/test_ir/controls/input_aux2",
+        location="wb-msw-v3_207",
+        rom_position="24",
+        group="inputs",
+        description="AUX2",
+    )
     return WirenboardIRDeviceConfig(
         device_id="test_ir",
         device_name="Test IR Device",
         device_class="WirenboardIRDevice",
         config_class="WirenboardIRDeviceConfig",
-        commands={"power": power_command, "set_volume": volume_command},
+        commands={"power": power_command, "set_volume": volume_command, "input_aux2": input_command},
     )
 
 
@@ -89,6 +97,14 @@ async def test_handle_message_routes_power_command(device):
     # The IR blaster topic format: /devices/<location>/controls/Play from ROM<rom>/on
     assert mqtt_cmd["topic"] == "/devices/wb-msw-v3_207/controls/Play from ROM62/on"
     assert str(mqtt_cmd["payload"]) == "1"
+
+
+@pytest.mark.asyncio
+async def test_input_command_sets_optimistic_input(device):
+    """An inputs-group IR command records optimistic state.input (no IR feedback)."""
+    resp = await device.execute_action("input_aux2", {})
+    assert resp["success"] is True
+    assert device.state.input == "aux2"
 
 
 @pytest.mark.asyncio

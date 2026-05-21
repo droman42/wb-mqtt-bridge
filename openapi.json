@@ -2453,6 +2453,18 @@
             "default": null,
             "title": "Error"
           },
+          "input": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Input"
+          },
           "last_command": {
             "anyOf": [
               {

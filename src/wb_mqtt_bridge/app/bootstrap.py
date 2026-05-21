@@ -28,6 +28,7 @@ from wb_mqtt_bridge.infrastructure.wb_device.service import WBVirtualDeviceServi
 from wb_mqtt_bridge.domain.rooms.service import RoomManager
 from wb_mqtt_bridge.domain.scenarios.service import ScenarioManager
 from wb_mqtt_bridge.infrastructure.scenarios.wb_adapter import ScenarioWBAdapter
+from wb_mqtt_bridge.infrastructure.capabilities.loader import attach_capability_maps
 from wb_mqtt_bridge.infrastructure.maintenance.wirenboard_guard import WirenboardMaintenanceGuard
 
 # Import routers
@@ -196,7 +197,11 @@ def create_app() -> FastAPI:
             device.mqtt_client = mqtt_client
             device.wb_service = wb_service
             logger.info(f"Device {device_id} initialized with typed configuration and WB service")
-        
+
+        # Attach Layer 1 capability maps from config/capabilities/ (hot-fixable JSON).
+        attach_capability_maps(device_manager.devices, Path(config_manager.config_dir) / "capabilities")
+        logger.info("Attached capability maps to devices")
+
         # Configuration Migration Phase B: Log migration guidance for deprecated topic usage
         config_manager.log_migration_guidance()
         

@@ -47,3 +47,15 @@ def load_capability_map(
         merged = _deep_merge(merged, _read(device_file))
 
     return CapabilityMap.model_validate(merged)
+
+
+def attach_capability_maps(devices: Dict[str, Any], capabilities_dir: Path) -> None:
+    """Resolve and attach a ``CapabilityMap`` to each device in ``devices``.
+
+    ``devices`` maps device_id -> device (each having ``.config.device_class`` and a
+    settable ``.capabilities``). Called from bootstrap after device construction.
+    """
+    for device_id, device in devices.items():
+        device.capabilities = load_capability_map(
+            device.config.device_class, device_id, capabilities_dir
+        )

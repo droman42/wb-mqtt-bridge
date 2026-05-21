@@ -79,3 +79,17 @@ def test_invalid_select_rejected():
 def test_action_needs_exactly_one_invocation():
     with pytest.raises(Exception):
         Capability.model_validate({"kind": "momentary", "actions": {"x": {}}})  # no command/sequence
+
+
+def test_attach_capability_maps_assigns_per_device():
+    from types import SimpleNamespace
+
+    from wb_mqtt_bridge.infrastructure.capabilities.loader import attach_capability_maps
+
+    devices = {
+        "living_room_tv": SimpleNamespace(config=SimpleNamespace(device_class="LgTv"), capabilities=None),
+        "mf_amplifier": SimpleNamespace(config=SimpleNamespace(device_class="WirenboardIRDevice"), capabilities=None),
+    }
+    attach_capability_maps(devices, CAPS)
+    assert "input" in devices["living_room_tv"].capabilities.domains()
+    assert "toggle" in devices["mf_amplifier"].capabilities.get("power").actions
