@@ -16,10 +16,14 @@ Execution is a separate concern (the ``ScenarioManager`` wires an executor aroun
 This module is pure: it reads capability maps and assumed state and returns a plan.
 """
 
+import asyncio
 import heapq
+import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set, Tuple
+
+logger = logging.getLogger(__name__)
 
 from wb_mqtt_bridge.infrastructure.topology.models import Topology, TopologyLink
 
@@ -146,7 +150,7 @@ def _power_actions(device_id, cap, state, warnings) -> List[PlannedAction]:
                 warnings.append(f"{device_id} power zone {zone_key} has no 'on' action")
                 continue
             out.append(PlannedAction(
-                device_id=device_id, domain="power", target="on",
+                device_id=device_id, domain="power", target=zone.on_value,
                 command=act.command, params=dict(act.params), feedback=cap.feedback,
                 state_field=zone.state_field, poll_timeout_ms=gate.poll_timeout_ms,
                 delay_ms=gate.delay_ms, zone=zone_key, reason=f"power zone {zone_key} on",
@@ -161,12 +165,61 @@ def _power_actions(device_id, cap, state, warnings) -> List[PlannedAction]:
         return out
     is_toggle = "on" not in cap.actions and "toggle" in cap.actions
     out.append(PlannedAction(
-        device_id=device_id, domain="power", target="on",
+        device_id=device_id, domain="power", target=cap.on_value,
         command=act.command, params=dict(act.params), feedback=cap.feedback,
         state_field=cap.state_field, poll_timeout_ms=gate.poll_timeout_ms,
         delay_ms=gate.delay_ms, reason="power on (toggle)" if is_toggle else "power on",
     ))
     return out
+
+
+def _power_off_actions(device_id, cap, state) -> List[PlannedAction]:
+    """Emit power-off actions for a device that is currently on (multi-zone/toggle aware)."""
+    out: List[PlannedAction] = []
+    gate = cap.gate
+    if cap.zones:
+        for zone_key, zone in cap.zones.items():
+            if _state_value(state, zone.state_field) != zone.on_value:
+                continue  # already off
+            act = zone.actions.get("off") or zone.actions.get("toggle")
+            if not act:
+                continue
+            out.append(PlannedAction(
+                device_id=device_id, domain="power", target="off",
+                command=act.command, params=dict(act.params), feedback=cap.feedback,
+                state_field=zone.state_field, poll_timeout_ms=gate.poll_timeout_ms,
+                delay_ms=gate.delay_ms, zone=zone_key, reason=f"power zone {zone_key} off",
+            ))
+        return out
+
+    if _state_value(state, cap.state_field) != cap.on_value:
+        return out  # already off
+    act = cap.actions.get("off") or cap.actions.get("toggle")
+    if not act:
+        return out
+    out.append(PlannedAction(
+        device_id=device_id, domain="power", target="off",
+        command=act.command, params=dict(act.params), feedback=cap.feedback,
+        state_field=cap.state_field, poll_timeout_ms=gate.poll_timeout_ms,
+        delay_ms=gate.delay_ms, reason="power off",
+    ))
+    return out
+
+
+def build_power_off_plan(device_ids, devices: Dict[str, Any]) -> ReconcilePlan:
+    """Build a teardown plan that powers off the given devices (those currently on)."""
+    plan = ReconcilePlan()
+    for device_id in device_ids:
+        device = devices.get(device_id)
+        if device is None:
+            plan.warnings.append(f"device '{device_id}' not found")
+            continue
+        cap_map = getattr(device, "capabilities", None)
+        power_cap = cap_map.get("power") if cap_map else None
+        if power_cap is None:
+            continue
+        plan.actions.extend(_power_off_actions(device_id, power_cap, device.get_current_state()))
+    return plan
 
 
 def _input_action(device_id, cap, state, target_value, warnings) -> Optional[PlannedAction]:
@@ -306,3 +359,88 @@ def build_plan(scenario, topology: Topology, devices: Dict[str, Any]) -> Reconci
 
     plan.actions = _order(raw, topology)
     return plan
+
+
+# --- execution ---------------------------------------------------------------
+
+
+@dataclass
+class ExecutionResult:
+    executed: List[PlannedAction] = field(default_factory=list)
+    failures: List[Tuple[PlannedAction, str]] = field(default_factory=list)
+    manual_steps: List[ManualStep] = field(default_factory=list)
+
+    @property
+    def success(self) -> bool:
+        return not self.failures
+
+
+def _response_ok(resp: Any) -> Tuple[bool, Optional[str]]:
+    """Read success/error from a CommandResponse (dict-like) without assuming a type."""
+    if isinstance(resp, dict):
+        return bool(resp.get("success", True)), resp.get("error")
+    return bool(getattr(resp, "success", True)), getattr(resp, "error", None)
+
+
+async def _gate(device: Any, action: PlannedAction, poll_interval_ms: int) -> bool:
+    """Wait for an action to take effect: poll feedback devices to the target value (up to
+    ``poll_timeout_ms``); otherwise wait the fixed ``delay_ms``. Returns False on poll timeout."""
+    if action.feedback and action.state_field and action.poll_timeout_ms:
+        elapsed = 0
+        while elapsed < action.poll_timeout_ms:
+            if getattr(device.get_current_state(), action.state_field, None) == action.target:
+                return True
+            await asyncio.sleep(poll_interval_ms / 1000)
+            elapsed += poll_interval_ms
+        logger.warning(
+            "gate timeout: %s.%s did not reach %r within %dms (proceeding optimistically)",
+            action.device_id, action.domain, action.target, action.poll_timeout_ms,
+        )
+        return False
+    if action.delay_ms:
+        await asyncio.sleep(action.delay_ms / 1000)
+    return True
+
+
+async def execute_plan(
+    plan: ReconcilePlan,
+    devices: Dict[str, Any],
+    *,
+    abort_on_failure: bool = False,
+    poll_interval_ms: int = 200,
+) -> ExecutionResult:
+    """Execute an ordered plan: honor pre-delays, dispatch the native command, check success
+    (failures are surfaced, not swallowed -- fixes RC2), then gate before the next step."""
+    result = ExecutionResult(manual_steps=list(plan.manual_steps))
+
+    for action in plan.actions:
+        if action.pre_delay_ms:
+            await asyncio.sleep(action.pre_delay_ms / 1000)
+
+        device = devices.get(action.device_id)
+        if device is None:
+            result.failures.append((action, "device not found"))
+            if abort_on_failure:
+                break
+            continue
+
+        try:
+            resp = await device.execute_action(action.command, action.params, source="scenario")
+            ok, err = _response_ok(resp)
+        except Exception as exc:  # noqa: BLE001 - surface any driver error as a failure
+            ok, err = False, str(exc)
+
+        if not ok:
+            result.failures.append((action, err or "command failed"))
+            logger.error(
+                "scenario step failed: %s %s(%s) -> %s",
+                action.device_id, action.command, action.params, err,
+            )
+            if abort_on_failure:
+                break
+            continue
+
+        result.executed.append(action)
+        await _gate(device, action, poll_interval_ms)
+
+    return result

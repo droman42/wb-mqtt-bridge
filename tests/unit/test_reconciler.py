@@ -11,7 +11,16 @@ from types import SimpleNamespace
 from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition
 from wb_mqtt_bridge.infrastructure.capabilities.loader import load_capability_map
 from wb_mqtt_bridge.infrastructure.capabilities.models import CapabilityMap
-from wb_mqtt_bridge.infrastructure.scenarios.reconciler import build_plan, resolve_targets
+import pytest
+
+from wb_mqtt_bridge.infrastructure.scenarios.reconciler import (
+    PlannedAction,
+    ReconcilePlan,
+    build_plan,
+    build_power_off_plan,
+    execute_plan,
+    resolve_targets,
+)
 from wb_mqtt_bridge.infrastructure.topology.loader import load_topology
 from wb_mqtt_bridge.infrastructure.topology.models import Topology
 
@@ -170,3 +179,94 @@ def test_ordering_edge_delay_becomes_pre_delay():
     sink_input = _find(plan, "sink", "input")
     assert sink_input.pre_delay_ms == 4500
     assert _idx(plan, "src", "power") < _idx(plan, "sink", "input")
+
+
+# --- execution ---------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_execute_plan_runs_actions_in_plan_order(monkeypatch):
+    import wb_mqtt_bridge.infrastructure.scenarios.reconciler as rec
+
+    async def _nosleep(*a, **k):
+        return None
+
+    monkeypatch.setattr(rec.asyncio, "sleep", _nosleep)
+
+    calls: list = []
+
+    def fake(device_id, caps, **state):
+        st = SimpleNamespace(power="off", **state)
+
+        async def execute_action(command, params, source="unknown", _id=device_id):
+            calls.append((_id, command))
+            return {"success": True}
+
+        return SimpleNamespace(capabilities=caps, get_current_state=lambda _st=st: _st,
+                               execute_action=execute_action)
+
+    devices = {
+        "appletv_living": fake("appletv_living", load_capability_map("AppleTVDevice", "appletv_living", CAPS)),
+        "processor": fake("processor", load_capability_map("EMotivaXMC2", "processor", CAPS),
+                          zone2_power=None, input_source=None),
+        "living_room_tv": fake("living_room_tv", load_capability_map("LgTv", "living_room_tv", CAPS),
+                               input_source=None),
+        "mf_amplifier": fake("mf_amplifier", load_capability_map("WirenboardIRDevice", "mf_amplifier", CAPS),
+                             input=None),
+    }
+    plan = build_plan(_scenario("movie_appletv"), TOPOLOGY, devices)
+    result = await execute_plan(plan, devices)
+
+    assert result.success
+    assert len(result.executed) == len(plan.actions)
+    # actions are dispatched in exactly the planned order
+    assert calls == [(a.device_id, a.command) for a in plan.actions]
+
+
+@pytest.mark.asyncio
+async def test_execute_plan_surfaces_failure_and_continues(monkeypatch):
+    import wb_mqtt_bridge.infrastructure.scenarios.reconciler as rec
+
+    async def _nosleep(*a, **k):
+        return None
+
+    monkeypatch.setattr(rec.asyncio, "sleep", _nosleep)
+
+    async def good(command, params, source="unknown"):
+        return {"success": True}
+
+    async def bad(command, params, source="unknown"):
+        return {"success": False, "error": "boom"}
+
+    devices = {
+        "d1": SimpleNamespace(get_current_state=lambda: SimpleNamespace(), execute_action=bad),
+        "d2": SimpleNamespace(get_current_state=lambda: SimpleNamespace(), execute_action=good),
+    }
+    plan = ReconcilePlan(actions=[
+        PlannedAction("d1", "power", "on", "power_on"),
+        PlannedAction("d2", "power", "on", "power_on"),
+    ])
+    result = await execute_plan(plan, devices)
+
+    assert not result.success
+    assert len(result.failures) == 1 and result.failures[0][1] == "boom"
+    assert len(result.executed) == 1  # d2 still ran (failures don't abort by default)
+
+
+def test_build_power_off_plan_powers_off_on_devices():
+    devices = {
+        "living_room_tv": _device("LgTv", "living_room_tv", power="on", input_source="hdmi2"),
+        "mf_amplifier": _device("WirenboardIRDevice", "mf_amplifier", power="on", input="aux2"),
+        "processor": _device("EMotivaXMC2", "processor", power="on", zone2_power="on", input_source="hdmi2"),
+    }
+    plan = build_power_off_plan(["living_room_tv", "mf_amplifier", "processor"], devices)
+    cmds = {(a.device_id, a.command) for a in plan.actions}
+    assert ("living_room_tv", "power_off") in cmds
+    assert ("mf_amplifier", "power") in cmds  # toggle off
+    assert sum(1 for a in plan.actions if a.device_id == "processor") == 2  # both zones
+
+
+def test_build_power_off_plan_skips_already_off():
+    devices = {"living_room_tv": _device("LgTv", "living_room_tv", power="off")}
+    plan = build_power_off_plan(["living_room_tv"], devices)
+    assert plan.actions == []
