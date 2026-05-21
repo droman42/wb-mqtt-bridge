@@ -1,0 +1,34 @@
+{
+  "power": {
+    "kind": "stateful", "feedback": true, "gate": { "poll_timeout_ms": 6000 },
+    "zones": {
+      "1": {
+        "state_field": "power", "on_value": "on",
+        "actions": {
+          "on": { "command": "power_on", "params": { "zone": 1 } },
+          "off": { "command": "power_off", "params": { "zone": 1 } }
+        }
+      },
+      "2": {
+        "state_field": "zone2_power", "on_value": "on",
+        "actions": {
+          "on": { "command": "power_on", "params": { "zone": 2 } },
+          "off": { "command": "power_off", "params": { "zone": 2 } }
+        }
+      }
+    }
+  },
+  "input": {
+    "kind": "stateful", "feedback": true, "state_field": "input_source",
+    "select": { "command": "set_input" },
+    "list": { "command": "get_available_inputs" },
+    "gate": { "poll_timeout_ms": 3000 }
+  },
+  "volume": {
+    "kind": "momentary",
+    "actions": {
+      "set": { "command": "set_volume", "param_map": { "level": "level" }, "params": { "zone": 2 } },
+      "mute_toggle": { "command": "mute_toggle", "params": { "zone": 2 } }
+    }
+  }
+}

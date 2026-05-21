@@ -1,0 +1,49 @@
+{
+  "power": {
+    "kind": "stateful", "feedback": true, "state_field": "power", "on_value": "on",
+    "actions": { "on": { "command": "power_on" }, "off": { "command": "power_off" } },
+    "gate": { "poll_timeout_ms": 5000 }
+  },
+  "playback": {
+    "kind": "momentary",
+    "actions": {
+      "play": { "command": "play" },
+      "pause": { "command": "pause" },
+      "stop": { "command": "stop" },
+      "next": { "command": "next" },
+      "previous": { "command": "previous" }
+    }
+  },
+  "menu": {
+    "kind": "momentary",
+    "actions": {
+      "up": { "command": "up" },
+      "down": { "command": "down" },
+      "left": { "command": "left" },
+      "right": { "command": "right" },
+      "ok": { "command": "select" },
+      "menu": { "command": "menu" },
+      "home": { "command": "home" }
+    }
+  },
+  "apps": {
+    "kind": "momentary",
+    "actions": { "launch": { "command": "launch_app" } },
+    "list": { "command": "get_available_apps" }
+  },
+  "pointer": {
+    "kind": "momentary",
+    "actions": {
+      "move": { "command": "pointer_gesture", "param_map": { "dx": "deltaX", "dy": "deltaY" } },
+      "tap": { "command": "touch_at_position", "param_map": { "x": "x", "y": "y" } }
+    }
+  },
+  "volume": {
+    "kind": "momentary",
+    "actions": {
+      "up": { "command": "volume_up" },
+      "down": { "command": "volume_down" },
+      "set": { "command": "set_volume", "param_map": { "level": "level" } }
+    }
+  }
+}
