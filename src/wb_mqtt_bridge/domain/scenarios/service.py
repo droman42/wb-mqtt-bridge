@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Dict, Optional, Any
 
@@ -8,6 +9,14 @@ from wb_mqtt_bridge.domain.scenarios.scenario import Scenario, ScenarioError
 from wb_mqtt_bridge.domain.devices.service import DeviceManager
 from wb_mqtt_bridge.domain.rooms.service import RoomManager
 from wb_mqtt_bridge.domain.ports import StateRepositoryPort
+from wb_mqtt_bridge.infrastructure.topology.loader import load_topology
+from wb_mqtt_bridge.infrastructure.topology.models import Topology
+from wb_mqtt_bridge.infrastructure.scenarios.reconciler import (
+    build_plan,
+    build_power_off_plan,
+    execute_plan,
+    resolve_targets,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +55,9 @@ class ScenarioManager:
         self.scenario_definitions: Dict[str, ScenarioDefinition] = {}  # scenario_id -> definition
         self.current_scenario: Optional[Scenario] = None
         self.scenario_state: Optional[ScenarioState] = None
+        # Layer 0 topology + reconciler flag (thin scenarios route through the reconciler).
+        self.topology: Topology = Topology()
+        self._reconciler_enabled = os.getenv("WB_SCENARIO_RECONCILER", "1") != "0"
     
     async def initialize(self) -> None:
         """
@@ -61,7 +73,14 @@ class ScenarioManager:
         
         # Load all scenario definitions
         await self.load_scenarios()
-        
+
+        # Load the signal topology (Layer 0) used by the reconciler.
+        self.topology = load_topology(self.scenario_dir.parent / "topology.json")
+        logger.info(
+            f"Loaded topology: {len(self.topology.links)} links, "
+            f"{len(self.topology.ordering)} ordering edges"
+        )
+
         # DEBUG: Log loaded scenarios
         logger.debug(f"[SCENARIO_DEBUG] Loaded scenarios: {list(self.scenario_map.keys())}")
         
@@ -149,6 +168,10 @@ class ScenarioManager:
             }
         
         logger.info(f"Switching from '{outgoing.scenario_id if outgoing else 'None'}' to '{incoming.scenario_id}'")
+
+        # Reconciler path (thin scenarios): derive + execute the plan from topology + capabilities.
+        if self._reconciler_enabled and incoming.definition.source:
+            return await self._switch_via_reconciler(outgoing, incoming, graceful=graceful)
         
         # Identify shared devices between scenarios
         shared_device_ids = set()
@@ -216,7 +239,46 @@ class ScenarioManager:
             "shared_devices": list(shared_device_ids),
             "power_cycled_devices": list(set(incoming.definition.devices) - shared_device_ids)
         }
-    
+
+    def _involved_devices(self, scenario: Scenario) -> set:
+        """Devices a scenario touches: derived from topology for thin scenarios, else the
+        explicit legacy `devices` list."""
+        if scenario.definition.source:
+            return resolve_targets(scenario.definition, self.topology)[1]
+        return set(scenario.definition.devices)
+
+    async def _switch_via_reconciler(self, outgoing, incoming, *, graceful: bool) -> Dict[str, Any]:
+        """Diff-based transition: power off outgoing-only devices, then reconcile the incoming
+        activity from topology + capabilities + assumed state."""
+        devices = self.device_manager.devices
+        incoming_involved = resolve_targets(incoming.definition, self.topology)[1]
+        outgoing_involved = self._involved_devices(outgoing) if outgoing else set()
+        to_power_off = (outgoing_involved - incoming_involved) if graceful else outgoing_involved
+
+        teardown = await execute_plan(build_power_off_plan(sorted(to_power_off), devices), devices)
+        activation = await execute_plan(build_plan(incoming.definition, self.topology, devices), devices)
+
+        self.current_scenario = incoming
+        await self._refresh_state()
+        await self._persist_state()
+
+        failures = [
+            {"device": a.device_id, "command": a.command, "error": err}
+            for a, err in (teardown.failures + activation.failures)
+        ]
+        if failures:
+            logger.warning(
+                f"Scenario '{incoming.scenario_id}' activated with {len(failures)} failed step(s); "
+                f"correct affected devices via their UI page"
+            )
+        logger.info(f"Successfully switched to scenario '{incoming.scenario_id}' (reconciler)")
+        return {
+            "success": not failures,
+            "powered_off": sorted(to_power_off),
+            "manual_steps": [{"node": m.node, "instruction": m.instruction} for m in activation.manual_steps],
+            "failures": failures,
+        }
+
     async def execute_role_action(self, role: str, command: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute an action on a device bound to a role in the current scenario.
@@ -318,9 +380,16 @@ class ScenarioManager:
         Gracefully shut down the current scenario, if any.
         """
         if self.current_scenario:
-            logger.info(f"Shutting down scenario '{self.current_scenario.scenario_id}'")
+            sc = self.current_scenario
+            logger.info(f"Shutting down scenario '{sc.scenario_id}'")
             try:
-                await self.current_scenario.execute_shutdown_sequence()
+                if self._reconciler_enabled and sc.definition.source:
+                    # Thin scenario: power off everything it involves.
+                    devices = self.device_manager.devices
+                    involved = resolve_targets(sc.definition, self.topology)[1]
+                    await execute_plan(build_power_off_plan(sorted(involved), devices), devices)
+                else:
+                    await sc.execute_shutdown_sequence()
             except Exception as e:
                 logger.error(f"Error shutting down scenario: {str(e)}")
             finally:
