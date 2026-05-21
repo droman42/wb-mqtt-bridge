@@ -1858,8 +1858,20 @@
         "type": "object"
       },
       "ScenarioDefinition": {
-        "description": "Declarative definition of a scenario.",
+        "description": "Declarative definition of a scenario.\n\nTwo formats are supported during the redesign migration:\n\n- **thin** (preferred): a ``source``/``display``/``audio`` selection. Device membership,\n  input values, and ordering are derived from ``config/topology.json`` by the reconciler;\n  ``devices`` and the sequences are left empty.\n- **legacy / escape hatch**: explicit ``devices`` + ``startup_sequence``/``shutdown_sequence``.\n\nSee docs/scenarios/scenario_system_redesign.md §6.",
         "properties": {
+          "audio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Active audio device id; binds the volume/mute roles",
+            "title": "Audio"
+          },
           "description": {
             "default": "",
             "description": "Description of the scenario's purpose",
@@ -1867,12 +1879,24 @@
             "type": "string"
           },
           "devices": {
-            "description": "List of device IDs used in the scenario",
+            "description": "Explicit device list (legacy format)",
             "items": {
               "type": "string"
             },
             "title": "Devices",
             "type": "array"
+          },
+          "display": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Primary video sink device id",
+            "title": "Display"
           },
           "manual_instructions": {
             "anyOf": [
@@ -1917,15 +1941,27 @@
             "type": "string"
           },
           "shutdown_sequence": {
-            "description": "Sequence of commands to run when shutting down",
+            "description": "Explicit shutdown steps (legacy / escape hatch)",
             "items": {
               "$ref": "#/components/schemas/CommandStep"
             },
             "title": "Shutdown Sequence",
             "type": "array"
           },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Primary content source device id",
+            "title": "Source"
+          },
           "startup_sequence": {
-            "description": "Sequence of commands to run when starting",
+            "description": "Explicit startup steps (legacy / escape hatch)",
             "items": {
               "$ref": "#/components/schemas/CommandStep"
             },
@@ -1935,11 +1971,7 @@
         },
         "required": [
           "scenario_id",
-          "name",
-          "roles",
-          "devices",
-          "startup_sequence",
-          "shutdown_sequence"
+          "name"
         ],
         "title": "ScenarioDefinition",
         "type": "object"
@@ -1947,6 +1979,15 @@
       "ScenarioResponse": {
         "description": "Base response model for scenario operations.",
         "properties": {
+          "manual_steps": {
+            "default": [],
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Manual Steps",
+            "type": "array"
+          },
           "message": {
             "title": "Message",
             "type": "string"

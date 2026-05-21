@@ -48,6 +48,9 @@ class ScenarioResponse(BaseModel):
     """Base response model for scenario operations."""
     status: str
     message: str
+    # Human-in-the-loop steps the reconciler couldn't automate (e.g. the manual Dodocus
+    # RCA hub). Each item: {"node": str, "instruction": str}. Empty for legacy scenarios.
+    manual_steps: List[Dict[str, Any]] = []
 
 class StartScenarioRequest(BaseModel):
     """Request model for starting a scenario."""
@@ -104,8 +107,9 @@ async def switch_scenario(data: SwitchScenarioRequest):
     check_initialized()
     
     try:
-        await scenario_manager.switch_scenario(data.id, graceful=data.graceful)
-        
+        result = await scenario_manager.switch_scenario(data.id, graceful=data.graceful)
+        manual_steps = result.get("manual_steps", []) if isinstance(result, dict) else []
+
         # Broadcast scenario state change via SSE
         if scenario_manager.scenario_state:
             await sse_manager.broadcast(
@@ -114,13 +118,15 @@ async def switch_scenario(data: SwitchScenarioRequest):
                 data={
                     "scenario_id": data.id,
                     "state": scenario_manager.scenario_state.model_dump(),
+                    "manual_steps": manual_steps,
                     "timestamp": datetime.now().isoformat()
                 }
             )
-        
+
         return ScenarioResponse(
             status="success",
-            message=f"Successfully switched to scenario '{data.id}'"
+            message=f"Successfully switched to scenario '{data.id}'",
+            manual_steps=manual_steps,
         )
     except ValueError as e:
         # Scenario not found
@@ -162,8 +168,9 @@ async def start_scenario(data: StartScenarioRequest):
     
     try:
         # Use switch_scenario to start the scenario (since no current scenario exists)
-        await scenario_manager.switch_scenario(data.id, graceful=True)
-        
+        result = await scenario_manager.switch_scenario(data.id, graceful=True)
+        manual_steps = result.get("manual_steps", []) if isinstance(result, dict) else []
+
         # Broadcast scenario state change via SSE
         if scenario_manager.scenario_state:
             await sse_manager.broadcast(
@@ -172,13 +179,15 @@ async def start_scenario(data: StartScenarioRequest):
                 data={
                     "scenario_id": data.id,
                     "state": scenario_manager.scenario_state.model_dump(),
+                    "manual_steps": manual_steps,
                     "timestamp": datetime.now().isoformat()
                 }
             )
-        
+
         return ScenarioResponse(
             status="success",
-            message=f"Successfully started scenario '{data.id}'"
+            message=f"Successfully started scenario '{data.id}'",
+            manual_steps=manual_steps,
         )
     except Exception as e:
         # Log the full error with traceback for server logs
