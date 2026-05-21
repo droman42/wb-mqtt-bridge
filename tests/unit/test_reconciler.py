@@ -270,3 +270,48 @@ def test_build_power_off_plan_skips_already_off():
     devices = {"living_room_tv": _device("LgTv", "living_room_tv", power="off")}
     plan = build_power_off_plan(["living_room_tv"], devices)
     assert plan.actions == []
+
+
+# --- all four scenarios, end to end -----------------------------------------
+
+
+def _all_devices():
+    return {
+        "appletv_living": _device("AppleTVDevice", "appletv_living"),
+        "processor": _device("EMotivaXMC2", "processor", zone2_power=None, input_source=None),
+        "living_room_tv": _device("LgTv", "living_room_tv", input_source=None),
+        "mf_amplifier": _device("WirenboardIRDevice", "mf_amplifier", input=None),
+        "ld_player": _device("WirenboardIRDevice", "ld_player"),
+        "vhs_player": _device("WirenboardIRDevice", "vhs_player"),
+        "video": _device("WirenboardIRDevice", "video"),
+        "upscaler": _device("WirenboardIRDevice", "upscaler", input=None),
+    }
+
+
+@pytest.mark.parametrize("name", ["movie_appletv", "movie_ld", "movie_vhs", "movie_zappiti"])
+def test_all_scenarios_build_clean_plans(name):
+    plan = build_plan(_scenario(name), TOPOLOGY, _all_devices())
+    assert plan.warnings == [], f"{name}: {plan.warnings}"
+    assert plan.actions, f"{name} produced no actions"
+
+
+def test_movie_ld_plan_uses_manual_hub_and_upscaler_delay():
+    plan = build_plan(_scenario("movie_ld"), TOPOLOGY, _all_devices())
+
+    # manual Dodocus step (audio routed via the hub to amp `cd`)
+    assert any(m.node == "dodocus" and "LD position" in m.instruction for m in plan.manual_steps)
+    assert _find(plan, "mf_amplifier", "input").command == "input_cd"
+    # upscaler input via topology (video) with the 4.5s settle; no power action (auto-powers)
+    ups_in = _find(plan, "upscaler", "input")
+    assert ups_in.target == "video" and ups_in.command == "input_video" and ups_in.pre_delay_ms == 4500
+    assert _find(plan, "upscaler", "power") is None
+    # processor routed to hdmi3; LD powered via toggle
+    assert _find(plan, "processor", "input").target == "hdmi3"
+    assert _find(plan, "ld_player", "power").command == "power"
+
+
+def test_movie_zappiti_has_no_manual_steps():
+    plan = build_plan(_scenario("movie_zappiti"), TOPOLOGY, _all_devices())
+    assert plan.manual_steps == []  # audio runs through the eMotiva, not the manual hub
+    assert _find(plan, "processor", "input").target == "hdmi1"
+    assert _find(plan, "mf_amplifier", "input").command == "input_aux2"

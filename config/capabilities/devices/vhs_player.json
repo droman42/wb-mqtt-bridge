@@ -1,0 +1,17 @@
+{
+  "power": {
+    "kind": "stateful", "feedback": false, "state_field": "power", "on_value": "on",
+    "actions": { "toggle": { "command": "power" } },
+    "gate": { "delay_ms": 1000 }
+  },
+  "playback": {
+    "kind": "momentary",
+    "actions": {
+      "play": { "command": "play" },
+      "pause": { "command": "pause" },
+      "stop": { "command": "stop" },
+      "ff": { "command": "rewind_forward" },
+      "rewind": { "command": "rewind_backward" }
+    }
+  }
+}

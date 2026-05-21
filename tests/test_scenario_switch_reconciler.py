@@ -40,10 +40,14 @@ def _devices(calls):
         "processor": fake("EMotivaXMC2", "processor", zone2_power=None, input_source=None),
         "living_room_tv": fake("LgTv", "living_room_tv", input_source=None),
         "mf_amplifier": fake("WirenboardIRDevice", "mf_amplifier", input=None),
+        "ld_player": fake("WirenboardIRDevice", "ld_player"),
+        "vhs_player": fake("WirenboardIRDevice", "vhs_player"),
+        "video": fake("WirenboardIRDevice", "video"),
+        "upscaler": fake("WirenboardIRDevice", "upscaler", input=None),
     }
 
 
-def _manager(devices):
+def _manager(devices, scenario_name="movie_appletv"):
     async def _save(*a, **k):
         return None
 
@@ -56,9 +60,9 @@ def _manager(devices):
     sm.topology = TOPOLOGY
     sm._reconciler_enabled = True
     defn = ScenarioDefinition.model_validate(
-        json.loads((ROOT / "config" / "scenarios" / "movie_appletv.json").read_text())
+        json.loads((ROOT / "config" / "scenarios" / f"{scenario_name}.json").read_text())
     )
-    sm.scenario_map = {"movie_appletv": Scenario(defn, sm.device_manager)}
+    sm.scenario_map = {scenario_name: Scenario(defn, sm.device_manager)}
     return sm
 
 
@@ -105,3 +109,18 @@ async def test_shutdown_powers_off_involved_devices():
     assert ("living_room_tv", "power_off") in calls
     assert ("mf_amplifier", "power") in calls  # toggle off
     assert sm.current_scenario is None
+
+
+@pytest.mark.asyncio
+async def test_switch_ld_surfaces_dodocus_manual_step():
+    calls: list = []
+    sm = _manager(_devices(calls), "movie_ld")
+    result = await sm.switch_scenario("movie_ld")
+
+    assert result["success"]
+    assert any("LD position" in m["instruction"] for m in result["manual_steps"])
+    # upscaler input switched (to video) but never powered (auto-powers with the source)
+    assert ("upscaler", "input_video") in calls
+    assert ("upscaler", "power_on") not in calls
+    assert ("ld_player", "power") in calls
+    assert ("mf_amplifier", "input_cd") in calls

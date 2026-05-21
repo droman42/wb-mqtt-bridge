@@ -1,0 +1,32 @@
+{
+  "input": {
+    "kind": "stateful", "feedback": false, "state_field": "input",
+    "select": {
+      "by_value": {
+        "video": { "command": "input_video" },
+        "s_vhs": { "command": "input_s_vhs" }
+      }
+    },
+    "gate": { "delay_ms": 500 }
+  },
+  "screen": {
+    "kind": "momentary",
+    "actions": {
+      "aspect_4_3": { "command": "ratio_4_3" },
+      "aspect_16_9": { "command": "ratio_16_9" },
+      "letterbox": { "command": "letterbox" }
+    }
+  },
+  "menu": {
+    "kind": "momentary",
+    "actions": {
+      "menu": { "command": "menu" },
+      "exit": { "command": "menu_exit" },
+      "up": { "command": "menu_up" },
+      "down": { "command": "menu_down" },
+      "left": { "command": "menu_left" },
+      "right": { "command": "menu_right" },
+      "ok": { "command": "menu_ok" }
+    }
+  }
+}

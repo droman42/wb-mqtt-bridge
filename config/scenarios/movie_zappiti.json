@@ -3,6 +3,9 @@
   "name": "Watch movies on Zappiti",
   "description": "Setup for watching movies with optimal audio and video settings",
   "room_id": "living_room",
+  "source": "video",
+  "display": "living_room_tv",
+  "audio": "mf_amplifier",
   "roles": {
     "volume": "mf_amplifier",
     "playback": "video",
@@ -10,97 +13,6 @@
     "menu": "video",
     "inputs": "processor"
   },
-  "devices": [
-    "living_room_tv",
-    "processor",
-    "video",
-    "mf_amplifier"
-  ],
-  "startup_sequence": [
-    {
-      "device": "living_room_tv",
-      "command": "power_on",
-      "params": {},
-      "condition": "device.power != 'on'",
-      "delay_after_ms": 5000
-    },
-    {
-      "device": "processor",
-      "command": "power_on",
-      "params": {"zone": 1},
-      "condition": "device.power != 'on'",
-      "delay_after_ms": 3000
-    },
-    {
-      "device": "video",
-      "command": "power_on",
-      "params": {},
-      "condition": "device.power != 'on'",
-      "delay_after_ms": 1000
-    },
-    {
-      "device": "mf_amplifier",
-      "command": "power",
-      "params": {},
-      "condition": "device.power != 'on'",
-      "delay_after_ms": 1000
-    },
-    {
-      "device": "processor",
-      "command": "power_on",
-      "params": {"zone": 2},
-      "condition": "device.zone2_power != True",
-      "delay_after_ms": 3000
-    },
-    {
-      "device": "living_room_tv",
-      "command": "set_input_source",
-      "params": {"input_source": "hdmi2"},
-      "condition": "device.input_source != 'hdmi2'",
-      "delay_after_ms": 1000
-    },
-    {
-      "device": "processor",
-      "command": "set_input",
-      "params": {"input": "hdmi1"},
-      "condition": "device.input_source != 'hdmi1'",
-      "delay_after_ms": 1000
-    },
-    {
-      "device": "mf_amplifier",
-      "command": "input_aux2",
-      "params": {},
-      "delay_after_ms": 1000
-    }
-  ],
-  "shutdown_sequence": [
-    {
-      "device": "video",
-      "command": "power_off",
-      "params": {},
-      "condition": "device.power == 'on'",
-      "delay_after_ms": 1000
-    },
-    {
-      "device": "living_room_tv",
-      "command": "power_off",
-      "params": {},
-      "condition": "device.power == 'on'",
-      "delay_after_ms": 1000
-    },
-    {
-      "device": "processor",
-      "command": "power_off",
-      "params": {},
-      "condition": "device.power == 'on'"
-    },
-    {
-      "device": "mf_amplifier",
-      "command": "power",
-      "params": {},
-      "condition": "device.power == 'on'"
-    }
-  ],
   "manual_instructions": {
     "startup": [
       "💡 Dim the living room lights if needed",
@@ -111,4 +23,4 @@
       "🎬 Raise the projector screen if you're done watching"
     ]
   }
-} 
+}
