@@ -135,30 +135,45 @@ The **physical truth**, declared **once**. Scenarios reference it; they never re
 ### 4.4 Pydantic model (to fill in via dialog)
 
 ```python
-from typing import List, Literal
+from typing import Dict, List, Literal
 from pydantic import BaseModel, Field, ConfigDict
 
 SignalKind = Literal["video", "audio", "arc"]
 
+class ManualNode(BaseModel):
+    """A signal-routing element switched by hand (no driver), e.g. an RCA hub."""
+    kind: Literal["manual"] = "manual"
+    name: str
+    positions: Dict[str, str] = Field(
+        default_factory=dict,
+        description="position-id -> human instruction surfaced when that position is needed",
+    )
+
 class TopologyLink(BaseModel):
     # `from` is a Python keyword → aliased; JSON keeps the natural "from"/"to".
     model_config = ConfigDict(populate_by_name=True)
-    from_: str = Field(..., alias="from", description="<device_id>:<port> upstream/source end")
-    to:    str = Field(..., description="<device_id>:<port> downstream/sink end; dst port = the input value")
+    from_: str = Field(..., alias="from", description="<node>:<port> source/output end")
+    to:    str = Field(..., description="<node>:<port> sink end; dst port = the input value to select")
     carries: List[SignalKind] = Field(..., min_length=1)
 
 class OrderingEdge(BaseModel):
-    after:  str = Field(..., description="<device_id>.<capability> that must settle first")
-    before: str = Field(..., description="<device_id>.<capability> that runs after")
-    reason: str = Field("", description="rationale (e.g. HDMI-ARC handshake)")
+    first: str = Field(..., description="<device>.<capability> that must complete first")
+    then:  str = Field(..., description="<device>.<capability> that runs after `first`")
+    delay_ms: int = Field(0, ge=0, description="extra wait after `first` before `then` (no-feedback waits)")
+    reason: str = ""
 
 class Topology(BaseModel):
+    nodes:    Dict[str, ManualNode] = Field(
+        default_factory=dict,
+        description="special (e.g. manual) nodes; ordinary device nodes are implied by links",
+    )
     links:    List[TopologyLink] = Field(default_factory=list)
     ordering: List[OrderingEdge]  = Field(default_factory=list)
 ```
 
-The actual `config/topology.json` content (devices, ports, links, ordering edges) is filled in
-collaboratively — see §14.
+The real wiring lives in `config/topology.json` (authored 2026-05-20 from the hardware interview).
+Ordering uses unambiguous `first → then` (not "after/before"). `delay_ms` covers no-feedback waits
+(e.g. the IR upscaler); feedback-capable steps are completion-polled instead.
 
 ---
 

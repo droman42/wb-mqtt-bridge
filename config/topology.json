@@ -1,0 +1,38 @@
+{
+  "_comment": "Signal topology for the living-room A/V system. Declared once; scenarios reference it. A link's destination port is the input value to select on the sink device. See docs/scenarios/scenario_system_redesign.md (Layer 0) and docs/ui_backend_contract.md.",
+
+  "nodes": {
+    "dodocus": {
+      "kind": "manual",
+      "name": "Dodocus RCA hub",
+      "positions": {
+        "ld":  "Set the Dodocus RCA hub to the LD position (ensure AMP mode is selected)",
+        "vhs": "Set the Dodocus RCA hub to the VHS position (ensure AMP mode is selected)"
+      }
+    }
+  },
+
+  "links": [
+    { "from": "appletv_living:hdmi", "to": "processor:hdmi2",       "carries": ["video", "audio"] },
+    { "from": "ld_player:av",        "to": "upscaler:video",        "carries": ["video"] },
+    { "from": "vhs_player:av",       "to": "upscaler:s_vhs",        "carries": ["video"] },
+    { "from": "upscaler:out",        "to": "processor:hdmi3",       "carries": ["video"] },
+    { "from": "video:hdmi",          "to": "processor:hdmi1",       "carries": ["video", "audio"] },
+    { "from": "processor:hdmi_out",  "to": "living_room_tv:hdmi2",  "carries": ["video"] },
+
+    { "from": "living_room_tv:arc",  "to": "processor:arc",         "carries": ["audio"] },
+    { "from": "processor:zone2",     "to": "mf_amplifier:aux2",     "carries": ["audio"] },
+    { "from": "ld_player:audio",     "to": "dodocus:ld",            "carries": ["audio"] },
+    { "from": "vhs_player:audio",    "to": "dodocus:vhs",           "carries": ["audio"] },
+    { "from": "dodocus:out",         "to": "mf_amplifier:cd",       "carries": ["audio"] }
+  ],
+
+  "ordering": [
+    { "first": "living_room_tv.power", "then": "processor.power",      "reason": "TV must be on before the eMotiva (ARC handshake)" },
+    { "first": "processor.power",      "then": "living_room_tv.input", "reason": "eMotiva on before TV switches to HDMI2, else ARC takes over the audio" },
+    { "first": "living_room_tv.input", "then": "processor.input",      "reason": "TV settles on HDMI2 before the eMotiva routes its input (HDMI-ARC)" },
+    { "first": "processor.input",      "then": "video.power",          "reason": "Zappiti powers on only after the eMotiva is on HDMI1 (observed)" },
+    { "first": "ld_player.power",      "then": "upscaler.input",       "delay_ms": 4500, "reason": "upscaler auto-powers with the LD; give it ~4-5s before switching its input" },
+    { "first": "vhs_player.power",     "then": "upscaler.input",       "delay_ms": 4500, "reason": "upscaler auto-powers with the VHS; give it ~4-5s before switching its input" }
+  ]
+}
