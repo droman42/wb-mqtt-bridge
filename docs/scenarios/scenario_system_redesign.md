@@ -553,8 +553,110 @@ Still open:
 
 ---
 
-## 14. Inputs still needed from you
+## 14. Status of inputs (updated 2026-05-20)
 
-- The **real wiring** for `topology.json` (devices, ports, links, `carries`).
-- The **ordering edges** beyond TV→eMotiva ("there are more").
-- Decisions on §13.
+- **Wiring** — gathered via the hardware interview and written to `config/topology.json`.
+- **Ordering edges** — captured (6 edges that reproduce the observed manual startup sequence); in
+  `config/topology.json`. We proceeded with **explicit `ordering` edges only** (no global default
+  rule) — resolves 13.5.
+- **§13 decisions** — 13.1–13.4 resolved. Placement-derived (capability decision 5) is
+  **tentative**, to be finalized during Layer 3 layout analysis.
+- **Capability maps** — the four `movie_appletv` devices approved; recorded in §16.
+
+## 15. Future research / known limitations
+
+- **Apple TV "Who's watching?" startup screen (tvOS-version-dependent).** Recent tvOS versions
+  show a profile-selection ("Who is watching?") screen on wake/startup that must be confirmed
+  before the Apple TV is usable for playback. This can **block a scenario's startup** (the source
+  isn't "ready" until the screen is dismissed). **Research later:** whether the Apple TV driver
+  (pyatv) can auto-select a default profile / dismiss this screen and make that a step in the
+  startup procedure. Feasibility and behavior depend on the **installed tvOS version**, so any
+  solution likely needs to be conditional (detect the screen / version-gated). Affects the
+  reconciler's "is the source ready" gating for Apple TV scenarios.
+
+## 16. Capability maps — worked examples (approved 2026-05-20)
+
+The four `movie_appletv` devices, against the §5 shape. These become **driver defaults**
+(decision 13.3: driver default + optional `config/devices/*.json` override). Conventions:
+`param_map` only for renames (identity omitted); `feedback:true` ⇒ completion-poll `state_field`
+to target (`gate.poll_timeout_ms`), `feedback:false` ⇒ fixed `gate.delay_ms`; stateful caps are
+reconciled, momentary caps are live-only.
+
+### 16.1 LG TV (`living_room_tv`) — feedback, parametric input
+```jsonc
+{
+  "power": { "kind":"stateful","feedback":true,"state_field":"power","on_value":"on",
+    "actions": { "on":{"command":"power_on"}, "off":{"command":"power_off"} }, "gate":{"poll_timeout_ms":8000} },
+  "input": { "kind":"stateful","feedback":true,"state_field":"input_source",
+    "select": { "command":"set_input_source","param_map":{"input":"source"} },   // kills RC1
+    "list":   { "command":"get_available_inputs" }, "gate":{"poll_timeout_ms":3000} },
+  "volume": { "kind":"momentary","actions": {
+    "up":{"command":"volume_up"},"down":{"command":"volume_down"},
+    "set":{"command":"set_volume","param_map":{"level":"level"}},"mute_toggle":{"command":"mute"} } },
+  "menu": { "kind":"momentary","actions": {
+    "up":{"command":"up"},"down":{"command":"down"},"left":{"command":"left"},"right":{"command":"right"},
+    "ok":{"command":"enter"},"back":{"command":"back"},"home":{"command":"home"},"menu":{"command":"menu"},"exit":{"command":"exit"} } },
+  "playback": { "kind":"momentary","actions": {
+    "play":{"command":"play"},"pause":{"command":"pause"},"stop":{"command":"stop"},
+    "ff":{"command":"rewind_forward"},"rewind":{"command":"rewind_backward"} } },
+  "apps": { "kind":"momentary","actions": {
+    "launch":{"command":"launch_app","param_map":{"app":"app_name"}},"list":{"command":"get_available_apps"} } },
+  "pointer": { "kind":"momentary","actions": {
+    "move":{"command":"move_cursor","param_map":{"x":"x","y":"y"}},
+    "move_rel":{"command":"move_cursor_relative","param_map":{"dx":"dx","dy":"dy"}},"click":{"command":"click"} } }
+}
+```
+
+### 16.2 MF amp (`mf_amplifier`) — IR, toggle power, value-mapped input
+```jsonc
+{
+  "power": { "kind":"stateful","feedback":false,"state_field":"power","on_value":"on",
+    "actions": { "toggle":{"command":"power"} }, "gate":{"delay_ms":1000} },   // toggle from assumed state
+  "input": { "kind":"stateful","feedback":false,"state_field":"input",         // requires the new optimistic input field (dec. 3)
+    "select": { "by_value": {
+      "cd":{"command":"input_cd"},"aux2":{"command":"input_aux2"},"usb":{"command":"input_usb"},
+      "phono":{"command":"input_phono"},"tuner":{"command":"input_tuner"},
+      "aux1":{"command":"input_aux1"},"balanced":{"command":"input_balanced"} } }, "gate":{"delay_ms":500} },
+  "volume": { "kind":"momentary","actions": {
+    "up":{"command":"volume_up"},"down":{"command":"volume_down"},"mute_toggle":{"command":"mute"} } }
+}
+```
+
+### 16.3 eMotiva (`processor`) — multi-zone power, parametric input, feedback
+```jsonc
+{
+  "power": { "kind":"stateful","feedback":true,"gate":{"poll_timeout_ms":6000},
+    "zones": {     // 13.1: zones via params; "power on" = all declared zones on
+      "1": { "state_field":"power",      "on_value":"on",
+             "actions": { "on":{"command":"power_on","params":{"zone":1}},"off":{"command":"power_off","params":{"zone":1}} } },
+      "2": { "state_field":"zone2_power", "on_value":"on",
+             "actions": { "on":{"command":"power_on","params":{"zone":2}},"off":{"command":"power_off","params":{"zone":2}} } } } },
+  "input": { "kind":"stateful","feedback":true,"state_field":"input_source",
+    "select": { "command":"set_input" }, "list":{"command":"get_available_inputs"}, "gate":{"poll_timeout_ms":3000} },
+  "volume": { "kind":"momentary","actions": {        // latent: volume role = amp in current scenarios; native level is dB (-96..0)
+    "set":{"command":"set_volume","param_map":{"level":"level"},"params":{"zone":2}},
+    "mute_toggle":{"command":"mute_toggle","params":{"zone":2}} } }
+}
+```
+
+### 16.4 Apple TV (`appletv_living`) — feedback, no input (pure source)
+```jsonc
+{
+  "power": { "kind":"stateful","feedback":true,"state_field":"power","on_value":"on",
+    "actions": { "on":{"command":"power_on"},"off":{"command":"power_off"} }, "gate":{"poll_timeout_ms":5000} },
+  "playback": { "kind":"momentary","actions": {
+    "play":{"command":"play"},"pause":{"command":"pause"},"stop":{"command":"stop"},
+    "next":{"command":"next"},"previous":{"command":"previous"} } },
+  "menu": { "kind":"momentary","actions": {
+    "up":{"command":"up"},"down":{"command":"down"},"left":{"command":"left"},"right":{"command":"right"},
+    "ok":{"command":"select"},"menu":{"command":"menu"},"home":{"command":"home"} } },
+  "apps": { "kind":"momentary","actions": {
+    "launch":{"command":"launch_app"},"list":{"command":"get_available_apps"} } },
+  "pointer": { "kind":"momentary","actions": {
+    "move":{"command":"pointer_gesture","param_map":{"dx":"deltaX","dy":"deltaY"}},
+    "tap":{"command":"touch_at_position","param_map":{"x":"x","y":"y"}} } },
+  "volume": { "kind":"momentary","actions": {
+    "up":{"command":"volume_up"},"down":{"command":"volume_down"},"set":{"command":"set_volume","param_map":{"level":"level"}} } }
+  // device-specific extras (outside canonical domains): screensaver, home_hold; refresh_status = internal query
+}
+```
