@@ -40,7 +40,17 @@ class CommandStep(BaseModel):
     delay_after_ms: int = Field(0, description="Delay in milliseconds after executing this command", ge=0)
 
 class ScenarioDefinition(BaseModel):
-    """Declarative definition of a scenario."""
+    """Declarative definition of a scenario.
+
+    Two formats are supported during the redesign migration:
+
+    - **thin** (preferred): a ``source``/``display``/``audio`` selection. Device membership,
+      input values, and ordering are derived from ``config/topology.json`` by the reconciler;
+      ``devices`` and the sequences are left empty.
+    - **legacy / escape hatch**: explicit ``devices`` + ``startup_sequence``/``shutdown_sequence``.
+
+    See docs/scenarios/scenario_system_redesign.md §6.
+    """
     scenario_id: str = Field(..., min_length=1, description="Unique identifier for the scenario")
     name: str = Field(..., description="Human-readable name")
     description: str = Field("", description="Description of the scenario's purpose")
@@ -48,26 +58,36 @@ class ScenarioDefinition(BaseModel):
         None,
         description="If set, declares the primary room this scenario runs in. All devices must be in this room."
     )
-    roles: Dict[str, str] = Field(..., description="Mapping of role name to device ID")
-    devices: List[str] = Field(..., description="List of device IDs used in the scenario")
-    startup_sequence: List[CommandStep] = Field(..., description="Sequence of commands to run when starting")
+    roles: Dict[str, str] = Field(default_factory=dict, description="Mapping of role name to device ID")
+    # Thin selection (preferred). The reconciler derives membership/inputs/ordering from topology.
+    source: Optional[str] = Field(None, description="Primary content source device id")
+    display: Optional[str] = Field(None, description="Primary video sink device id")
+    audio: Optional[str] = Field(None, description="Active audio device id; binds the volume/mute roles")
+    # Legacy / escape hatch.
+    devices: List[str] = Field(default_factory=list, description="Explicit device list (legacy format)")
+    startup_sequence: List[CommandStep] = Field(
+        default_factory=list, description="Explicit startup steps (legacy / escape hatch)"
+    )
     shutdown_sequence: List[CommandStep] = Field(
-        ..., 
-        description="Sequence of commands to run when shutting down"
+        default_factory=list, description="Explicit shutdown steps (legacy / escape hatch)"
     )
     manual_instructions: Optional[ManualInstructions] = Field(
-        None, 
+        None,
         description="Instructions requiring human intervention"
     )
 
     @model_validator(mode="after")
     def validate_references(self):
-        """Validates internal references but not system device existence (done at runtime)."""
+        """Validate internal references for the legacy format. Thin scenarios derive membership
+        from the topology, so there is nothing to cross-check here (validated at resolve time)."""
+        if not self.devices:
+            return self
+
         # Validate that roles reference devices in the devices list
         for role, device_id in self.roles.items():
             if device_id not in self.devices:
                 raise ValueError(f"Role '{role}' references device '{device_id}' which is not in devices list")
-        
+
         # Validate references in startup sequence
         for i, step in enumerate(self.startup_sequence):
             if step.device not in self.devices:
