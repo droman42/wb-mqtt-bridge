@@ -224,6 +224,31 @@ First real phase to tackle via GSD: **ROADMAP Phase 1 = Fix the Scenario Layer**
 - **Multi-arch builds** — *time-limited* out-of-scope. Deployment is Wirenboard-only, but the planned move to **Wirenboard 8+ (arm64/64-bit)** will require an **arm64** image alongside (or replacing) the current ARMv7 one. Revisit when the WB8+ migration is scheduled. (amd64 stays CI/dev-only — not a deploy target.)
 - **Rewriting `manage_docker.sh`** — works fine; touch it only when GHCR lands.
 
+### P4 — Final acceptance & cleanup (do this LAST, after the whole redesign lands)
+
+The scenario reconciler + monorepo + Layer 3 runtime rendering are being done **gradually**, so a
+deliberate final pass is required once all phases are in. Gradual migration always leaves stale
+code/models/config behind — budget real time for this; do not skip it.
+
+1. **All devices migrated.** Capability maps exist for **every** driver class and device instance,
+   not just the `movie_appletv` set + IR fleet built first — check `streamer` (Auralic),
+   `reel_to_reel` (Revox), `kitchen_hood` (appliance), `children_room_tv`/`appletv_children`, etc.
+2. **All scenarios migrated.** Every scenario is thin (`source/display/audio`) and reconciler-driven;
+   no legacy `startup_sequence`/`shutdown_sequence` escape-hatch left unless deliberately kept (and
+   documented why).
+3. **UI works for everything.** Every device page **and** every scenario page renders and functions
+   under the runtime model (Layer 3); `manual_steps` are displayed; nothing depends on the retired
+   build-time codegen.
+4. **Thorough code review + dead-code sweep.** Remove what the gradual migration superseded —
+   likely candidates: the legacy imperative path (`Scenario.execute_startup_sequence` /
+   `execute_shutdown_sequence`, the old shared-device `switch_scenario` branch, the string-condition
+   evaluator, the dead `_validate_parameters`, vestigial `DeviceState.output`); the UI's duplicate
+   scenario inheritance (`ScenarioVirtualDeviceHandler`/`Resolver`) + build-time generators once
+   Layer 3 is authoritative; the `WB_SCENARIO_RECONCILER` kill-switch once the reconciler is the only
+   path; any unused escape-hatch model fields; and superseded docs. Confirm the contract is clean
+   (`openapi.json` has no orphaned models/fields).
+5. **Hardware re-verification** of the whole system end-to-end after the cleanup (cleanups regress).
+
 ---
 
 ## 5. Open Questions (to be decided before acting)
