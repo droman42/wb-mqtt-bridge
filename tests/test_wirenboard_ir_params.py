@@ -1,23 +1,24 @@
-"""Fresh tests for WirenboardIRDevice, written against the post-hexagonal-refactor driver.
+"""Tests for WirenboardIRDevice (post-hexagonal-refactor driver).
 
-WirenboardIRDevice is a pure MQTT bridge — it doesn't have per-command
-handle_X handlers. Its only public surface is `handle_message(topic, payload)`,
-which:
-  1. Resolves the topic to a configured command via the auto-generated path
-     /devices/<id>/controls/<cmd>.
-  2. Parses any payload into typed params via the command's param definitions.
-  3. Builds an IR-blaster MQTT command (topic = /devices/<location>/controls/
-     Play from ROM<rom>/on, payload = 1) and returns it as a CommandResult
-     with `mqtt_command` set, so the caller (BaseDevice / scenario) can
-     publish it onto the bus.
+Two entry points actuate an IR command, and both converge on the device's action handlers,
+which publish the IR-blaster MQTT command directly, exactly once
+(topic = /devices/<location>/controls/Play from ROM<rom>/on, payload = 1):
 
-These tests verify each branch of that dispatch contract.
+  * execute_action(...)  — used by the FastAPI device-action router and the scenario reconciler.
+  * handle_message(...)  — inbound MQTT / WB-UI control. WirenboardIRDevice no longer overrides
+    this; it uses BaseDevice.handle_message, which routes WB `.../<control>/on` messages through
+    wb_service to the same handlers. (The old override matched the wrong topic — without `/on` —
+    and only *returned* an mqtt_command instead of executing, so WB-UI control never actuated.)
+
+These tests cover the handler / execute_action contract. The full WB-service control path
+(wb_service present) is verified at integration / hardware level.
 """
 import asyncio
 import pytest
 import pytest_asyncio
 from unittest.mock import MagicMock
 
+from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 from wb_mqtt_bridge.infrastructure.devices.wirenboard_ir_device.driver import WirenboardIRDevice
 from wb_mqtt_bridge.infrastructure.config.models import (
     WirenboardIRDeviceConfig,
@@ -83,20 +84,22 @@ async def device(mqtt_client):
     return d
 
 
-# --- handle_message: happy paths --------------------------------------------
+# --- handle_message: now inherited from BaseDevice (broken override removed) -----
 
 
-@pytest.mark.asyncio
-async def test_handle_message_routes_power_command(device):
-    """A WB control message for 'power' produces a CommandResult with the IR-blaster MQTT command."""
-    result = await device.handle_message("/devices/test_ir/controls/power", "1")
-    assert isinstance(result, dict)
-    assert result.get("success") is True
-    assert "mqtt_command" in result
-    mqtt_cmd = result["mqtt_command"]
-    # The IR blaster topic format: /devices/<location>/controls/Play from ROM<rom>/on
-    assert mqtt_cmd["topic"] == "/devices/wb-msw-v3_207/controls/Play from ROM62/on"
-    assert str(mqtt_cmd["payload"]) == "1"
+def test_wirenboard_ir_uses_base_handle_message():
+    """The broken handle_message override is gone.
+
+    Regression: the override matched `/devices/<id>/controls/<cmd>` (no `/on`) and only
+    returned an mqtt_command instead of executing — so WB-UI / MQTT control of IR devices hit
+    "No command configuration found for .../on" and never fired. WirenboardIRDevice now uses
+    BaseDevice.handle_message, which routes WB `.../on` controls through wb_service to the same
+    action handlers (single direct publish).
+    """
+    assert WirenboardIRDevice.handle_message is BaseDevice.handle_message
+
+
+# --- execute_action: the action handlers both entry points converge on ----------
 
 
 @pytest.mark.asyncio
@@ -145,64 +148,7 @@ async def test_execute_action_publishes_ir_once_and_no_mqtt_command(device, mqtt
         assert not resp.get("mqtt_command"), action   # nothing for the router to re-publish
 
 
-@pytest.mark.asyncio
-async def test_handle_message_routes_parameterized_command(device):
-    """A command with a 'level' param converts the raw payload to the typed value.
-
-    Note: the driver's handle_message first tries json.loads on the payload,
-    so a bare number like "42" gets parsed as the int 42 (not as the named
-    parameter 'level'). To exercise the "single-param, raw payload" branch
-    cleanly we use a string payload that fails JSON parsing — the driver
-    then falls back to mapping the raw string into the first parameter via
-    _validate_parameter, which handles range coercion.
-    """
-    result = await device.handle_message("/devices/test_ir/controls/set_volume", "50abc")
-    # "50abc" is not valid JSON; the fallback path runs and the range validator
-    # rejects "50abc" as not-a-number, so we expect a failure result.
-    assert result is not None
-    assert result.get("success") is False
-
-
-@pytest.mark.asyncio
-async def test_handle_message_parameterized_command_json_payload(device):
-    """A JSON-shaped payload for a parameterized command is parsed and the IR command emitted."""
-    result = await device.handle_message(
-        "/devices/test_ir/controls/set_volume",
-        '{"level": 50}',
-    )
-    assert result.get("success") is True
-    mqtt_cmd = result["mqtt_command"]
-    assert "Play from ROM33" in mqtt_cmd["topic"]
-
-
-# --- handle_message: ignore / refuse branches -------------------------------
-
-
-@pytest.mark.asyncio
-async def test_handle_message_unknown_topic_returns_none(device):
-    """If no command's auto-topic matches, handle_message returns None (no dispatch)."""
-    result = await device.handle_message("/devices/test_ir/controls/nonexistent", "1")
-    assert result is None
-
-
-@pytest.mark.asyncio
-async def test_handle_message_zero_payload_ignored(device):
-    """For non-parameterized commands, payloads other than '1'/'true' are no-ops (still success)."""
-    result = await device.handle_message("/devices/test_ir/controls/power", "0")
-    # The driver returns a success CommandResult with a "Command ignored" message.
-    assert result.get("success") is True
-    assert "mqtt_command" not in result or result["mqtt_command"] is None
-
-
-@pytest.mark.asyncio
-async def test_handle_message_invalid_param_rejected(device):
-    """For a parameterized command, a payload that doesn't validate yields a failure result."""
-    result = await device.handle_message("/devices/test_ir/controls/set_volume", "not-a-number")
-    assert result is not None
-    assert result.get("success") is False
-
-
-# --- direct handler invocation (auto-discovered) ----------------------------
+# --- direct handler invocation (auto-discovered) --------------------------------
 
 
 @pytest.mark.asyncio
@@ -221,7 +167,7 @@ async def test_direct_handler_for_power_publishes_to_mqtt(device, mqtt_client):
     assert str(payload_arg) == "1"
 
 
-# --- command registry -------------------------------------------------------
+# --- command registry -----------------------------------------------------------
 
 
 def test_commands_are_typed_ir_command_configs(device):
