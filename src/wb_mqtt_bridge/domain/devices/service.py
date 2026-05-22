@@ -122,17 +122,35 @@ class DeviceManager:
                 # Register state change callback if device supports it
                 if hasattr(device, 'register_state_change_callback') and self.state_repository:
                     device.register_state_change_callback(self._persist_state_callback)
-                
-                success = await device.setup()
-                
-                if not success:
-                    logger.error(f"Failed to set up device {device_id} of type {device_class_name}")
-                    continue
-                    
+
+                # Register the device up-front so a failed/offline setup does NOT drop it.
+                # Handlers, config and state come from __init__; setup() only connects to the
+                # hardware. Keeping a not-yet-connected device registered means scenarios that
+                # reference it still load, it stays visible in the API/UI, and it can reconnect
+                # later — instead of an off-at-boot device vanishing until a full restart.
                 self.devices[device_id] = device
+
+                try:
+                    success = await device.setup()
+                except Exception as e:
+                    logger.warning(
+                        f"Device {device_id} ({device_class_name}) setup raised: {str(e)}; "
+                        f"kept registered as disconnected"
+                    )
+                    success = False
+
+                if not success:
+                    logger.warning(
+                        f"Device {device_id} ({device_class_name}) failed setup; kept registered "
+                        f"as disconnected (skipping initial-state persist so the last-good assumed "
+                        f"state is preserved)"
+                    )
+                    continue
+
                 logger.info(f"Initialized device {device_id} of type {device_class_name}")
-                
-                # Immediately persist the initial state after successful setup
+
+                # Persist the initial state ONLY for successfully set-up devices, so a boot-time
+                # error/disconnected state never overwrites a device's last-good persisted state.
                 if self.state_repository:
                     try:
                         await self._persist_state(device_id)
