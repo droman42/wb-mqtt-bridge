@@ -14,6 +14,34 @@
 This is action_plan **P3 #9** (unblocked now that P1 is done) and it touches **#7** (GHCR) and
 **#8** (compose).
 
+## 0. Guiding principle (decided 2026-05-22)
+
+The **backend is the source of data & functionality truth** — it owns the API contract
+(`openapi.json`), device/state models, scenario logic, and capabilities: *what exists and what it
+does*. The **UI is the source of visual truth/goals** — layout, placement, look & feel: *how it is
+presented*. The **contract (`openapi.json`, plus the future Layer-3 layout manifest) is the
+negotiated boundary**: the backend never dictates visual layout (which is exactly what build-time
+page codegen wrongly did), and the UI never invents data or behavior. This is *why* Layer 3 moves
+rendering to runtime, and it is the invariant Phase 2 must preserve.
+
+Concretely for Phase 2:
+- A **contract-sync verification** is the **first step** and a **standing CI gate**: the UI must
+  regenerate its API types + run its codegen + type-check/lint cleanly against the *current*
+  backend `openapi.json` and configs (incl. the new thin scenarios). This is what catches backend
+  API/structure changes that haven't reached the UI (the trigger for this section).
+- The monorepo makes that gate single-repo and atomic; Layer 3 then replaces build-time codegen
+  with runtime rendering driven by the same contract.
+
+**Contract-sync verification — first run (2026-05-22):** the UI builds clean against the *current*
+backend contract. The only drift was the UI's **committed `src/types/api.gen.ts`** snapshot, stale
+since 2026-05-20 — it predated the redesign's `ScenarioDefinition` change (`devices`/`roles`/
+`startup_sequence`/`shutdown_sequence` went required→optional; thin `source`/`display`/`audio`
+added). After `gen:api-types`: `typecheck:all`, the device+scenario codegen (13 devices + **4 thin
+`ScenarioDevice` pages**, 100%), `validate:all`, and `lint` all pass — **no UI code changes
+needed**. Takeaway for the monorepo: the committed `api.gen.ts` snapshot silently drifts whenever
+the backend API changes; in the monorepo it should be **CI-generated (not committed)** like the
+other `.gen` artifacts, with the verification above as the CI gate.
+
 ---
 
 ## 1. Current state (the coupling we're removing)
