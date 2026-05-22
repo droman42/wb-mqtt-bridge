@@ -119,21 +119,32 @@ flushed on shutdown.
 `GET /events/{devices,scenarios,system,stats}`. This is how the UI receives live state.
 
 ### Wirenboard virtual-device emulation
-`WBVirtualDeviceService` (`infrastructure/wb_device/service.py`) publishes each device
-(and each scenario, via `ScenarioWBAdapter`) as a Wirenboard virtual device on MQTT, so
-the bridge's devices appear natively in the Wirenboard ecosystem. Gated by
-`enable_wb_emulation` in config; set up after MQTT connects
-(`device.setup_wb_emulation_if_enabled()`).
+`WBVirtualDeviceService` (`infrastructure/wb_device/service.py`) publishes each **device** as a
+Wirenboard virtual device on MQTT (device meta + per-control meta + value topics, retained), so
+the bridge's devices appear natively in the Wirenboard ecosystem. Gated by `enable_wb_emulation`
+in config; set up after MQTT connects (`device.setup_wb_emulation_if_enabled()`). Publishing
+**scenarios** as WB virtual devices (`ScenarioWBAdapter`) is currently **disabled** pending a
+design decision on scenario↔Wirenboard integration (see `action_plan.md` P4).
 
 ## Scenario system
 
 A scenario (Logitech-Harmony-style) coordinates several devices for an activity (e.g.
-"watch Apple TV"). `ScenarioManager` (`domain/scenarios/service.py`) loads scenario
-definitions from `config/scenarios/*.json`, runs startup/shutdown sequences, validates
-configuration and conditions, tracks `ScenarioState`, and persists active-scenario
-state via the `StateRepositoryPort`. `ScenarioWBAdapter` exposes scenarios as WB virtual
-devices. API: `GET|POST /scenario/*` (start/switch/shutdown/role_action, state,
-definitions, virtual_configs).
+"watch Apple TV"). Scenarios are **thin** (`source`/`display`/`audio` role selections); device
+membership, input routing, and ordering are **derived at runtime** by a topology- and
+capability-driven **reconciler** (`infrastructure/scenarios/reconciler.py`) rather than hardcoded
+startup/shutdown sequences. The reconciler resolves desired targets from `config/topology.json`,
+diffs them against the devices' optimistic *assumed* state (Harmony model: IR-first, optimistic,
+manual resync), orders actions (power-before-input + topology ordering edges), and executes with
+success-checked gating; capability maps (`config/capabilities/`) translate symbolic role/input
+names into device commands. `ScenarioManager` (`domain/scenarios/service.py`) loads
+`config/scenarios/*.json`, routes thin scenarios through the reconciler (behind the
+`WB_SCENARIO_RECONCILER` flag), surfaces manual steps, tracks `ScenarioState`, and persists
+active-scenario state. **Process shutdown is transparent to the hardware** — it does not power
+devices off; that's the explicit `deactivate`. A legacy sequence path remains as an escape hatch.
+API: `GET|POST /scenario/*`. (Scenario-as-WB-device publishing is disabled — see above.)
+
+> Design + as-built record: `docs/scenarios/scenario_system_redesign.md` and
+> `docs/scenarios/scenario_redesign_progress.md`.
 
 ## Configuration
 
@@ -150,10 +161,12 @@ definitions, virtual_configs).
 `app/bootstrap.py::create_app()` builds the FastAPI app and installs a `lifespan`
 context manager that, on **startup**: loads config → initializes `SQLiteStateStore` →
 creates `MQTTClient` (with optional `WirenboardMaintenanceGuard`) → `DeviceManager`
-loads drivers and initializes devices from typed configs → connects MQTT & subscribes →
-sets up WB emulation → initializes `RoomManager`, `ScenarioManager`, `ScenarioWBAdapter`
-→ injects dependencies into routers. On **shutdown**: SSE drain, cancel background
-tasks, scenario/device shutdown, final state persistence, close the store.
+loads drivers and initializes devices from typed configs (a device that fails setup is kept
+registered as disconnected, not dropped) → connects MQTT & subscribes → sets up per-device WB
+emulation → initializes `RoomManager`, `ScenarioManager`, `ScenarioWBAdapter` → injects
+dependencies into routers. On **shutdown**: SSE drain, flush pending state persistence, cancel
+background tasks, scenario/device shutdown **transparent to the hardware** (no power-off, no
+teardown-state persistence — that would corrupt the assumed state), close the store.
 
 `create_app()` also installs the OpenAPI override that injects device-state models into
 `/openapi.json` — the contract the UI consumes (`_install_openapi_with_state_models`;

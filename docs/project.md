@@ -102,7 +102,7 @@ docs were hardened in 2026-05; the remaining work is functional correctness.
 - **Deterministic, reproducible builds** (committed `openapi.json`; generated UI
   artifacts gitignored and built fresh).
 - **Solo-dev pragmatism** — small focused commits, push to `main`, decisions tracked in
-  `action_plan.md` + ADRs; adopting the GSD workflow.
+  `action_plan.md` + ADRs.
 - **Docs that match reality** — no aspirational/stale documentation.
 
 ## Open questions

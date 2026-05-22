@@ -1,12 +1,14 @@
 # Scenario System Redesign — Capability, Topology & Reconciliation Contract
 
-- **Status:** DRAFT for review (not implemented). Authored 2026-05-20.
-- **Supersedes (on acceptance):** `docs/scenarios/scenario_system_spec.md` and `docs/scenarios/scenarios.md`.
+- **Status:** IMPLEMENTED — Phase 1 landed on `main` (2026-05-22). Authored 2026-05-20. See
+  `scenario_redesign_progress.md` for the as-built record.
+- **Supersedes:** the old scenario specs, now archived under `docs/archive/scenarios/`.
 - **Scope:** Backend (`wb-mqtt-bridge`). UI consumes the resulting contract; no UI design here beyond exposure notes.
 
 This document is the agreed design from the redesign discussion. It defines **what** the
-scenario system should be and the **contracts** (file schemas + runtime behavior). It is the
-spec we will implement against; it is not yet built.
+scenario system is and the **contracts** (file schemas + runtime behavior). It is implemented —
+the reconciler, topology, and capability maps all exist in `src/`; full hardware verification of
+the reconciler is the one remaining item (see the progress doc).
 
 ---
 
