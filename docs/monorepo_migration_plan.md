@@ -2,10 +2,17 @@
 
 - **Status:** **EXECUTED / COMPLETE 2026-05-22** — increments 1-7 done (§4); structure is
   `backend/` + `ui/` + `wb-rules/` + `ops/` + `docs/`, unified CI builds both ARM images green,
-  deploy repointed to the single repo. Both histories preserved; `pre-monorepo` recovery tags
-  pushed. Authored 2026-05-20. **Remaining follow-ups:** archive old `droman42/wb-mqtt-ui`;
-  fuller `ui/docs/page_instructions.md` Python-residue cleanup; root README authoring (§3b); GHCR
-  (#7) + wb-rules GitHub→WB deploy (§3b).
+  deploy repointed to the single repo, old `droman42/wb-mqtt-ui` **archived** read-only. Both
+  histories preserved; `pre-monorepo` recovery tags pushed. Authored 2026-05-20.
+- **INTERIM CI gating (2026-05-22):** the slow QEMU arm/v7 image builds (~14 min, UI) are gated to
+  **manual-only** (`workflow_dispatch`) for the heavy-iteration period — fast checks run on every
+  push; build images with `gh workflow run "Build ARM Docker Images (backend + ui)"`. Revert by
+  deleting the two `if:` lines in `.github/workflows/build-arm.yml`.
+- **Remaining follow-ups:** fuller `ui/docs/page_instructions.md` Python-residue cleanup; root
+  README authoring (§3b); GHCR (#7) + wb-rules GitHub→WB deploy (§3b); **UI image build is slow
+  purely from arm/v7 emulation of the Node build (863s)** → optimize by building JS on amd64 +
+  assembling only the arm nginx layer (or arm runners). Deploy host: set the WB's
+  `docker_manager_config.json` ui repo → `droman42/wb-mqtt-bridge`.
 - **When:** **Phase 2** of the scenario redesign — *after* the backend scenario fix
   (Layers 0/1/2/R, done in the current two-repo structure) and *before* Layer 3
   (runtime rendering). See `docs/scenarios/scenario_system_redesign.md` and
