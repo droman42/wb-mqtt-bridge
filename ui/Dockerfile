@@ -48,8 +48,9 @@ FROM nginx:alpine
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 # nginx config is rendered from this template at startup (BACKEND_HOST/BACKEND_PORT).
-COPY nginx.conf.template /etc/nginx/nginx.conf.template
-COPY docker-entrypoint.sh /docker-entrypoint.sh
+# Build context is the monorepo root, so these UI files live under ui/.
+COPY ui/nginx.conf.template /etc/nginx/nginx.conf.template
+COPY ui/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
 EXPOSE 3000
