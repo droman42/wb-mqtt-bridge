@@ -269,16 +269,16 @@ npm run gen:device-pages -- --list-classes
 # - Ensure device is properly registered
 ```
 
-#### 3. Python State Generation Fails
+#### 3. State types not generated
 
 ```bash
-# Error: "Failed to generate Python state types"
+# Symptom: device pages build but state fields are missing or fall back to basic.
 
-# Solutions:
-# - Verify Python file exists and is readable
-# - Check Python class name is correct
-# - Ensure Python 3 is installed and accessible
-# - Verify Python file has valid syntax
+# State is derived from the backend OpenAPI contract — no Python is involved:
+# - Verify ../backend/openapi.json exists (or set WB_OPENAPI_SCHEMA)
+# - Confirm the device's schema in openapi.json has `last_command` + `error`
+#   (that is how a schema is recognized as a device-state type)
+# - Regenerate: npm run gen:api-types
 ```
 
 #### 4. TypeScript Compilation Errors
@@ -313,18 +313,18 @@ npm run gen:device-pages -- --validate-components
 - Be descriptive and unique: `kitchen_main_speaker`
 - Avoid special characters except underscores
 
-### 2. Python State Classes
+### 2. Device state types
 
-- Use descriptive class names: `LgTvState`, `AudioProcessorState`
-- Keep classes focused on single device type
-- Use type annotations for all fields
-- Provide sensible default values
+- State types come from the backend OpenAPI contract (`backend/openapi.json`), not from Python.
+- A schema is treated as a device state iff it has `last_command` + `error` fields.
+- Regenerate the committed snapshot (`src/types/api.gen.ts`) with `npm run gen:api-types` when the
+  backend API changes.
 
 ### 3. File Management
 
 - **Never edit** `.gen.tsx` files manually (they get overwritten)
-- Keep Python state files in version control
-- Use shared state classes when devices have identical state
+- Keep the committed contract snapshot (`src/types/api.gen.ts`) in sync via `gen:api-types`
+- Reuse device-state types when devices share the same backend state schema
 
 ### 4. Testing Integration
 

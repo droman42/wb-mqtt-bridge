@@ -1,7 +1,11 @@
 # Monorepo Migration Plan
 
-- **Status:** Decisions **LOCKED 2026-05-22** (§3); execution starting (Phase 1 merged to `main`,
-  `pre-monorepo` tags pushed). Authored 2026-05-20.
+- **Status:** **EXECUTED / COMPLETE 2026-05-22** — increments 1-7 done (§4); structure is
+  `backend/` + `ui/` + `wb-rules/` + `ops/` + `docs/`, unified CI builds both ARM images green,
+  deploy repointed to the single repo. Both histories preserved; `pre-monorepo` recovery tags
+  pushed. Authored 2026-05-20. **Remaining follow-ups:** archive old `droman42/wb-mqtt-ui`;
+  fuller `ui/docs/page_instructions.md` Python-residue cleanup; root README authoring (§3b); GHCR
+  (#7) + wb-rules GitHub→WB deploy (§3b).
 - **When:** **Phase 2** of the scenario redesign — *after* the backend scenario fix
   (Layers 0/1/2/R, done in the current two-repo structure) and *before* Layer 3
   (runtime rendering). See `docs/scenarios/scenario_system_redesign.md` and
