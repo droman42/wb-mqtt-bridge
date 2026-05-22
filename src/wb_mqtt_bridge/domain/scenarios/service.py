@@ -389,26 +389,53 @@ class ScenarioManager:
         except Exception as e:
             logger.error(f"Error loading active scenario from store: {str(e)}")
     
-    async def shutdown(self) -> None:
+    async def deactivate(self) -> Dict[str, Any]:
+        """Deactivate the current scenario by powering off the devices it involves.
+
+        This is the explicit user action ("turn it all off", via POST /scenario/shutdown) and is
+        DISTINCT from process ``shutdown()``: it intentionally drives the hardware off.
         """
-        Gracefully shut down the current scenario, if any.
+        if not self.current_scenario:
+            return {"success": True, "powered_off": [], "manual_steps": [], "failures": []}
+
+        sc = self.current_scenario
+        logger.info(f"Deactivating scenario '{sc.scenario_id}' (powering off its devices)")
+        result: Dict[str, Any] = {"success": True, "powered_off": [], "manual_steps": [], "failures": []}
+        try:
+            if self._reconciler_enabled and sc.definition.source:
+                devices = self.device_manager.devices
+                involved = sorted(resolve_targets(sc.definition, self.topology)[1])
+                exec_result = await execute_plan(build_power_off_plan(involved, devices), devices)
+                result["powered_off"] = involved
+                result["failures"] = [
+                    {"device": a.device_id, "command": a.command, "error": err}
+                    for a, err in exec_result.failures
+                ]
+                result["success"] = exec_result.success
+            else:
+                await sc.execute_shutdown_sequence()
+        except Exception as e:
+            logger.error(f"Error deactivating scenario '{sc.scenario_id}': {str(e)}")
+            result["success"] = False
+        finally:
+            self.current_scenario = None
+            self.scenario_state = None
+        return result
+
+    async def shutdown(self) -> None:
+        """Process shutdown: stop tracking the active scenario WITHOUT touching the hardware.
+
+        Restarting/stopping the bridge must NOT power down the user's AV gear — the scenario
+        stays active on the devices and the assumed state is preserved across the restart. Use
+        ``deactivate()`` for the explicit "turn it off" action.
         """
         if self.current_scenario:
-            sc = self.current_scenario
-            logger.info(f"Shutting down scenario '{sc.scenario_id}'")
-            try:
-                if self._reconciler_enabled and sc.definition.source:
-                    # Thin scenario: power off everything it involves.
-                    devices = self.device_manager.devices
-                    involved = resolve_targets(sc.definition, self.topology)[1]
-                    await execute_plan(build_power_off_plan(sorted(involved), devices), devices)
-                else:
-                    await sc.execute_shutdown_sequence()
-            except Exception as e:
-                logger.error(f"Error shutting down scenario: {str(e)}")
-            finally:
-                self.current_scenario = None
-                self.scenario_state = None
+            logger.info(
+                f"Bridge shutdown: leaving scenario '{self.current_scenario.scenario_id}' active "
+                f"on the hardware (call deactivate() to power off)"
+            )
+        self.current_scenario = None
+        self.scenario_state = None
 
     async def setup_wb_emulation_for_all_scenarios(self, scenario_wb_adapter, mqtt_client) -> None:
         """

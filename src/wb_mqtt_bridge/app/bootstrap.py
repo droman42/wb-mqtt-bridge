@@ -311,7 +311,17 @@ def create_app() -> FastAPI:
                 except (asyncio.TimeoutError, asyncio.CancelledError):
                     logger.warning("Background task cancellation interrupted or timed out")
             
-            # Prepare the device manager for shutdown 
+            # Flush in-flight (real) state writes BEFORE marking shutdown, so the last operating
+            # state is persisted. After this, the persistence callback stops saving — device
+            # teardown mutates state to disconnected/off, which must NOT overwrite the assumed state.
+            logger.info("Flushing pending persistence before shutdown...")
+            try:
+                await device_manager.wait_for_persistence_tasks(timeout=2.0)
+            except asyncio.CancelledError:
+                logger.warning("Persistence flush interrupted by cancellation")
+
+            # Prepare the device manager for shutdown (stops further persistence; teardown is
+            # transparent to the hardware — the active scenario stays on the devices).
             logger.info("Preparing device manager for shutdown...")
             await device_manager.prepare_for_shutdown()
             
@@ -340,20 +350,10 @@ def create_app() -> FastAPI:
             logger.info("Shutting down devices...")
             await device_manager.shutdown_devices()
             
-            # Wait for any in-flight persistence tasks to complete
-            logger.info("Waiting for persistence tasks to complete...")
-            try:
-                await device_manager.wait_for_persistence_tasks(timeout=2.0)  # Reduced timeout
-            except asyncio.CancelledError:
-                logger.warning("Persistence task wait interrupted by cancellation")
-            
-            # Perform final state persistence for all devices
-            logger.info("Performing final state persistence...")
-            try:
-                await device_manager.persist_all_device_states()
-            except asyncio.CancelledError:
-                logger.warning("Final state persistence interrupted by cancellation")
-            
+            # No post-teardown persistence: device teardown mutates state to disconnected/off,
+            # which must NOT overwrite the assumed state (already flushed above, pre-teardown).
+            # This keeps a bridge restart transparent to the hardware.
+
             # Close state store after all persistence is done
             logger.info("Closing state persistence connection...")
             try:

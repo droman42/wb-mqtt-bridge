@@ -54,3 +54,21 @@ async def test_failed_and_raising_setup_keep_device_registered():
     assert set(dm.devices) == {"good", "bad", "boom"}
     assert dm.get_device("bad") is not None
     assert dm.get_device("boom") is not None
+
+
+def test_no_persistence_during_shutdown():
+    """During shutdown the persist callback must skip — teardown states (disconnected/off)
+    must not overwrite the assumed state the reconciler relies on. (Also: the old sync path
+    here always raised 'event loop is already running'.)"""
+    saved = []
+
+    async def _save(*a, **k):
+        saved.append(a)
+
+    dm = DeviceManager(state_repository=SimpleNamespace(save=_save))
+    dm.devices["d"] = SimpleNamespace(device_id="d", get_current_state=lambda: SimpleNamespace(device_id="d"))
+
+    dm._shutting_down = True
+    dm._persist_state_callback("d")  # shutdown path: must NOT persist
+
+    assert saved == []

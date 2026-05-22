@@ -227,23 +227,27 @@ async def shutdown_scenario(data: ShutdownScenarioRequest):
     
     try:
         current_scenario_id = scenario_manager.current_scenario.scenario_id
-        
-        # Shutdown the current scenario
-        await scenario_manager.shutdown()
-        
+
+        # Deactivate the current scenario — this is the explicit "turn it all off" action and
+        # DOES power off the gear (distinct from process shutdown, which leaves hardware as-is).
+        result = await scenario_manager.deactivate()
+        manual_steps = result.get("manual_steps", []) if isinstance(result, dict) else []
+
         # Broadcast scenario state change via SSE
         await sse_manager.broadcast(
             channel=SSEChannel.SCENARIOS,
             event_type="scenario_shutdown",
             data={
                 "scenario_id": current_scenario_id,
+                "manual_steps": manual_steps,
                 "timestamp": datetime.now().isoformat()
             }
         )
-        
+
         return ScenarioResponse(
             status="success",
-            message=f"Successfully shut down scenario '{current_scenario_id}'"
+            message=f"Successfully shut down scenario '{current_scenario_id}'",
+            manual_steps=manual_steps,
         )
     except Exception as e:
         # Log the full error with traceback for server logs

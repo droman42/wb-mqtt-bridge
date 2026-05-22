@@ -95,7 +95,8 @@ async def test_switch_activates_movie_appletv_via_reconciler():
 
 
 @pytest.mark.asyncio
-async def test_shutdown_powers_off_involved_devices():
+async def test_deactivate_powers_off_involved_devices():
+    """Explicit deactivate() (the user's 'turn it all off') powers off the gear."""
     calls: list = []
     devices = _devices(calls)
     for d in devices.values():
@@ -104,10 +105,27 @@ async def test_shutdown_powers_off_involved_devices():
 
     sm = _manager(devices)
     sm.current_scenario = sm.scenario_map["movie_appletv"]
-    await sm.shutdown()
+    await sm.deactivate()
 
     assert ("living_room_tv", "power_off") in calls
     assert ("mf_amplifier", "power") in calls  # toggle off
+    assert sm.current_scenario is None
+
+
+@pytest.mark.asyncio
+async def test_process_shutdown_is_transparent_to_hardware():
+    """Process shutdown() must NOT touch the gear — restarting the bridge can't power off
+    the user's AV system. It only clears the in-memory active scenario."""
+    calls: list = []
+    devices = _devices(calls)
+    for d in devices.values():
+        d.get_current_state().power = "on"
+
+    sm = _manager(devices)
+    sm.current_scenario = sm.scenario_map["movie_appletv"]
+    await sm.shutdown()
+
+    assert calls == []  # no device commands sent on process shutdown
     assert sm.current_scenario is None
 
 

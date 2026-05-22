@@ -287,20 +287,15 @@ class DeviceManager:
             logger.debug(f"State repository not available, skipping persistence callback for device: {device_id}")
             return
             
-        # If we're shutting down, perform persistence synchronously to avoid race conditions
+        # During shutdown, do NOT persist. Device teardown mutates state to disconnected/
+        # power-off as an artifact; persisting that would overwrite the optimistic *assumed*
+        # state the reconciler relies on. Real state changes were persisted during operation
+        # and flushed before teardown (see bootstrap). (The previous synchronous
+        # run_until_complete here always raised "event loop is already running" anyway.)
         if self._shutting_down:
-            logger.debug(f"Performing synchronous persistence for {device_id} during shutdown")
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    # We're in an event loop, so we can use run_until_complete
-                    loop.run_until_complete(self._persist_state(device_id))
-                else:
-                    logger.warning(f"No event loop for synchronous persistence of {device_id} during shutdown")
-            except Exception as e:
-                logger.error(f"Failed to persist state for {device_id} during shutdown: {str(e)}")
+            logger.debug(f"Skipping persistence for {device_id} during shutdown (preserve assumed state)")
             return
-            
+
         # Normal operation mode: use asyncio.create_task to persist state asynchronously without blocking
         try:
             # DEBUG: Log task creation for all devices
