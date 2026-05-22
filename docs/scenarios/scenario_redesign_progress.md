@@ -1,8 +1,10 @@
 # Scenario Redesign — Implementation Progress & Session Notes
 
-- **Status:** Phase 1 (backend) implemented; **hardware verification pending**.
-- **Branch:** `feat/scenario-redesign` (not merged to `main`). Full test suite: **270 pass**.
-- **Last updated:** 2026-05-21.
+- **Status:** Phase 1 (backend) implemented; **partial hardware verification done** (clean boot
+  on the live system + amp control on both entry points). Full scenario reconciler run on
+  hardware still pending.
+- **Branch:** `feat/scenario-redesign` (not merged to `main`). Full test suite: **274 pass**.
+- **Last updated:** 2026-05-22.
 - **Design contracts:** `docs/scenarios/scenario_system_redesign.md` (Layers 0/1/2/R),
   `docs/ui_backend_contract.md` → "Layout Manifest & Runtime Rendering" (Layer 3),
   `docs/monorepo_migration_plan.md` (Phase 2).
@@ -60,6 +62,67 @@ d010b41 config/topology.json
 
 ---
 
+## 1a. Hardware-verification session (2026-05-22)
+
+First real-hardware run of the redesign. **The backend now boots clean on the live system** (all
+13 devices initialize, 4 thin scenarios load, topology + capability maps attach, "System startup
+complete"), and **amp control is verified end-to-end on both entry points** (FastAPI *and*
+WB-UI/MQTT). Normal SIGTERM shutdown exits cleanly in ~2 s.
+
+**Lifecycle-robustness cluster** (so the bridge survives real-world device states):
+- **Bug 2 — `load_scenarios` is non-fatal** (`e697e8f`): a scenario referencing an offline device
+  (or a malformed file) is logged + skipped, not `SystemExit`. One eMotiva in standby used to
+  brick startup.
+- **Keep failed-setup devices registered** (`9018254`): an off/unreachable/hung device stays
+  registered (disconnected) instead of being dropped — scenarios still load, it stays controllable.
+- **Hardware-transparent shutdown + correct assumed-state persistence** (`b77bafa`): split
+  `ScenarioManager.deactivate()` (explicit power-off) from `shutdown()` (process stop — leaves the
+  gear as-is, so a bridge restart never powers down the AV system); stop persisting teardown
+  states (they corrupted the optimistic assumed state); the old sync-persist-on-shutdown (which
+  always raised "event loop is already running") is gone.
+- Remaining lifecycle tails (defensive startup cleanup, teardown noise, device auto-reconnect,
+  AppleTV driver hygiene) parked in `docs/action_plan.md` P4.
+
+**Three IR-driver bugs — found ONLY on hardware, missed by the mock tests** (the amp test):
+1. `result.success` on a `CommandResult` *dict* (`e3e1cf6`): the IR fired but the command reported
+   failure and the optimistic `power` state was never updated — would mislead the reconciler.
+2. **Double IR blast on the API path** (`1717032`): the driver published the IR directly *and*
+   returned it as `mqtt_command`, which the action router (`devices.py`) re-published.
+3. **WB-UI/MQTT control silently dead** (`7f82915`): `WirenboardIRDevice` overrode `handle_message`
+   with a legacy version that matched the topic *without* `/on` and only *returned* `mqtt_command`
+   instead of executing — shadowing the working `BaseDevice.handle_message → wb_service` path.
+   Removed the override; the IR device now uses the base path like every other device.
+
+**Other findings:**
+- The **kitchen_hood** Broadlink timeout was a **hung device** (power-cycle fixed it), not a code
+  or VPN/network regression — broadlink lib unchanged (0.19.0), device reachable, ARP MAC matched.
+- **AppleTV / pyatv 0.17.0** (`eaecb7c`): the dependency pass bumped pyatv, which added the
+  abstract `AudioListener.volume_device_update` — now implemented; both Apple TVs connect.
+
+**Key lesson (testing strategy):** the mock-based reconciler/scenario tests verify plan / order /
+translation but **do not exercise real device-driver handlers**, so driver bugs (the three above)
+only surface on hardware. Added **real-driver tests** that drive `execute_action(...)` for the IR
+device (power toggle flips state, single publish, no `mqtt_command`) — prefer these for any driver.
+
+### Commits this session
+```
+7f82915 wirenboard_ir: remove broken handle_message override (WB-control path)
+1717032 wirenboard_ir: stop double-publishing IR on the API action path
+e3e1cf6 wirenboard_ir: power handlers use dict access on CommandResult
+928e296 action_plan: park lifecycle-robustness leftovers in P4
+b77bafa lifecycle: hardware-transparent shutdown + correct assumed-state persistence (#3)
+9018254 devices: keep failed-setup devices registered (don't drop)
+e697e8f scenarios: load_scenarios is non-fatal — skip, don't SystemExit (Bug 2)
+eaecb7c apple_tv: implement AudioListener.volume_device_update (pyatv 0.17.0)
+```
+
+**Still pending:** the **full scenario reconciler test on hardware** (activate a scenario with
+`WB_SCENARIO_RECONCILER=1` — drives the whole AV chain: TV + eMotiva + source + amp, with topology
+ordering + manual steps). NOTE: the amp's optimistic `power` state is currently **drifted** (the
+earlier buggy run left it stale) — resync before/at that test.
+
+---
+
 ## 2. Open items
 
 **To finish Phase 1 — hardware verification (the only blocker to merge):**
@@ -85,8 +148,10 @@ screen research (redesign §15); cross-device volume-scale normalization (latent
 
 ## 3. Caveats / things to watch
 
-- **Everything is mock-verified, not hardware-verified.** The tests prove the *plan* and the
-  *dispatch order/translation*; they do not prove real IR/HDMI behavior.
+- **Partly hardware-verified (2026-05-22): clean boot + amp control on both paths** (see §1a). The
+  **full scenario reconciler run** (power-on, input routing, gating delays, the manual Dodocus
+  prompt, HDMI-ARC ordering) is still only **mock-verified** — that's the remaining hardware test.
+  The mock tests prove plan/order/translation but not real IR/HDMI behavior or driver handlers.
 - **Optimistic gating.** Even "feedback" devices set state optimistically in `execute_action`, so
   the completion-poll usually returns immediately rather than waiting on real hardware. True
   completion-waiting needs a device-side "refresh from hardware" — a later refinement.
