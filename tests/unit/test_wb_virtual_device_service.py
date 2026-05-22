@@ -65,7 +65,66 @@ class TestWBVirtualDeviceService:
     def sample_command_executor(self):
         """Create a sample command executor."""
         return AsyncMock()
-    
+
+    def test_initial_control_state_never_empty(self, wb_service):
+        """Initial WB control value must be non-empty and matched to the control type.
+
+        Regression: input_* / set_input / launch_app / get_available_* defaulted to "" — and an
+        empty (zero-length) retained payload is the MQTT "clear retained" op, so the value topic
+        was never stored and the WB UI dropped those controls (the amp showed only 4 of 11). They
+        now default to a non-empty, type-appropriate value (pushbutton/switch -> "0", text ->
+        placeholder).
+        """
+        from wb_mqtt_bridge.infrastructure.config.models import IRCommandConfig
+
+        def cmd(action, group):
+            return IRCommandConfig(action=action, topic=f"/devices/x/controls/{action}",
+                                   location="loc", rom_position="1", group=group)
+
+        cases = {
+            "input_cd": cmd("input_cd", "inputs"),                    # pushbutton
+            "input_aux2": cmd("input_aux2", "inputs"),               # pushbutton
+            "power": cmd("power", "power"),                           # pushbutton
+            "mute": cmd("mute", "volume"),                           # switch
+            "set_input": cmd("set_input", "inputs"),                 # text setter
+            "launch_app": cmd("launch_app", "apps"),                 # text setter
+            "get_available_apps": cmd("get_available_apps", "apps"),  # pushbutton
+        }
+        for name, c in cases.items():
+            val = wb_service._get_initial_wb_control_state_from_config(name, c)
+            assert val not in ("", None), f"{name} got an empty initial value"
+
+        assert wb_service._get_initial_wb_control_state_from_config("input_cd", cases["input_cd"]) == "0"
+        assert wb_service._get_initial_wb_control_state_from_config("set_input", cases["set_input"]) == "unknown"
+
+    async def test_setup_publishes_no_empty_retained_value(self, wb_service, mock_message_bus, sample_command_executor):
+        """Every control VALUE published at setup must be non-empty (so the WB UI renders it)."""
+        import re
+        config = {
+            "device_id": "amp", "device_name": "Amp", "device_class": "WirenboardIRDevice",
+            "enable_wb_emulation": True,
+            "commands": {
+                "power": {"action": "power", "group": "power", "description": "Power"},
+                "input_cd": {"action": "input_cd", "group": "inputs", "description": "CD"},
+                "set_input": {"action": "set_input", "group": "inputs", "description": "Input"},
+            },
+        }
+        await wb_service.setup_wb_device_from_config(
+            config=config, command_executor=sample_command_executor, driver_name="d", device_type="t")
+
+        value_topic = re.compile(r"^/devices/amp/controls/[^/]+$")
+        published = {}
+        for call in mock_message_bus.publish.call_args_list:
+            topic, payload = call[0][0], call[0][1]
+            if value_topic.match(topic):
+                published[topic] = payload
+
+        assert published, "no control value topics were published"
+        for topic, payload in published.items():
+            assert payload not in ("", None), f"empty retained value published on {topic}"
+        # input_cd used to publish "" (the bug); it must now have a value.
+        assert published["/devices/amp/controls/input_cd"] == "0"
+
     async def test_setup_wb_device_from_config_success(self, wb_service, mock_message_bus, sample_device_config, sample_command_executor):
         """Test successful WB device setup from config."""
         result = await wb_service.setup_wb_device_from_config(
@@ -349,19 +408,24 @@ class TestWBVirtualDeviceService:
         state = wb_service._get_initial_wb_control_state_from_config("test_cmd", cmd_config)
         assert state == "42"
     
-    def test_get_initial_wb_control_state_from_config_name_based(self, wb_service):
-        """Test getting initial WB control state based on command name."""
-        # Volume command
-        state = wb_service._get_initial_wb_control_state_from_config("set_volume", {})
-        assert state == "50"
-        
-        # Mute command
-        state = wb_service._get_initial_wb_control_state_from_config("mute", {})
-        assert state == "0"
-        
-        # Generic command
-        state = wb_service._get_initial_wb_control_state_from_config("generic_action", {})
-        assert state == "0"
+    def test_get_initial_wb_control_state_type_based(self, wb_service):
+        """Initial WB control state is derived from the control TYPE and is never empty."""
+        from wb_mqtt_bridge.infrastructure.config.models import IRCommandConfig, CommandParameterDefinition
+
+        def cmd(action, group, params=None):
+            return IRCommandConfig(action=action, topic=f"/devices/x/controls/{action}",
+                                   location="loc", rom_position="1", group=group, params=params or [])
+
+        # Range control (set_volume with a range param) -> "50"
+        vol = cmd("set_volume", "volume",
+                  [CommandParameterDefinition(name="level", type="range", min=0, max=100, required=True)])
+        assert wb_service._get_initial_wb_control_state_from_config("set_volume", vol) == "50"
+
+        # Switch (mute) -> "0"
+        assert wb_service._get_initial_wb_control_state_from_config("mute", cmd("mute", "volume")) == "0"
+
+        # Pushbutton (generic) -> "0"
+        assert wb_service._get_initial_wb_control_state_from_config("generic_action", cmd("generic_action", "power")) == "0"
     
     def test_process_wb_command_payload_from_config_boolean(self, wb_service):
         """Test processing WB command payload for boolean parameter."""

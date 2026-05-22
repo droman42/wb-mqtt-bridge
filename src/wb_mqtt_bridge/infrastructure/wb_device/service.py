@@ -379,10 +379,11 @@ class WBVirtualDeviceService:
                     meta_topic = f"/devices/{device_id}/controls/{control_name}/meta"
                     await self.message_bus.publish(meta_topic, json.dumps(control_meta), retain=True, qos=1)
                     
-                    # Publish initial control state
+                    # Publish initial control state. Never publish an empty retained payload —
+                    # that clears the retained value and the WB UI won't render the control.
                     initial_state = self._get_initial_wb_control_state_from_config(cmd_name, cmd_config)
                     state_topic = f"/devices/{device_id}/controls/{control_name}"
-                    await self.message_bus.publish(state_topic, str(initial_state), retain=True, qos=1)
+                    await self.message_bus.publish(state_topic, str(initial_state) or "0", retain=True, qos=1)
                     
                     logger.debug(f"Published WB control meta for {device_id}/{control_name}")
         
@@ -617,8 +618,15 @@ class WBVirtualDeviceService:
         return title.title()
     
     def _get_initial_wb_control_state_from_config(self, cmd_name: str, cmd_config) -> str:
-        """Get initial state value for WB control from configuration."""
-        # First check for explicit default in command config
+        """Get the initial state value for a WB control from configuration.
+
+        MUST be non-empty and matched to the control TYPE. Publishing an empty (zero-length)
+        retained payload is the MQTT "clear retained" operation, so the value topic is never
+        stored — and the WB UI then refuses to render the control (it needs *both* a /meta and
+        a value). This is what previously hid all `input_*`/`set_input`/`launch_app`/
+        `get_available_*` controls (they used to default to "").
+        """
+        # 1) Explicit default from the command's first parameter, if any.
         if hasattr(cmd_config, 'params') and cmd_config.params:
             first_param = cmd_config.params[0]
             if hasattr(first_param, 'default') and first_param.default is not None:
@@ -627,41 +635,23 @@ class WBVirtualDeviceService:
             first_param = cmd_config['params'][0]
             if isinstance(first_param, dict) and first_param.get('default') is not None:
                 return str(first_param['default'])
-        
-        # Fallback to name-based defaults
+
+        # 2) Default by control TYPE (never empty).
+        control_type = self._determine_wb_control_type_from_config(cmd_config)
         cmd_lower = cmd_name.lower()
-        
-        # Switch controls (0 = off, 1 = on)
-        if any(x in cmd_lower for x in ['mute', 'unmute']):
-            return "0"  # Not muted
-        
-        # Range controls with appropriate defaults
-        elif any(x in cmd_lower for x in ['volume', 'vol']):
-            return "50"  # 50% volume
-        elif any(x in cmd_lower for x in ['speed', 'fan']):
-            return "0"  # Fan/speed off
-        elif any(x in cmd_lower for x in ['brightness', 'contrast']):
-            return "75"  # 75% brightness/contrast
-        elif 'level' in cmd_lower:
-            return "50"  # 50% level
-        elif any(x in cmd_lower for x in ['temp', 'temperature']):
-            return "22"  # 22°C default temperature
-        elif 'set_' in cmd_lower:
-            return "0"  # Generic setter default
-        
-        # Text controls - empty or status strings
-        elif any(x in cmd_lower for x in ['input', 'source', 'channel']):
-            return ""  # No input selected
-        elif any(x in cmd_lower for x in ['app', 'application']):
-            return ""  # No app selected
-        elif any(x in cmd_lower for x in ['status', 'state']):
-            return "unknown"  # Unknown status
-        elif any(x in cmd_lower for x in ['get_', 'list_', 'available']):
-            return ""  # Empty list/info
-        
-        # Pushbutton controls (always 0 for non-pressed state)
-        else:
-            return "0"  # Not pressed
+
+        if control_type == "range":
+            if any(x in cmd_lower for x in ['brightness', 'contrast']):
+                return "75"
+            if any(x in cmd_lower for x in ['temp', 'temperature']):
+                return "22"
+            if any(x in cmd_lower for x in ['speed', 'fan']):
+                return "0"
+            return "50"  # volume / level / generic range
+        if control_type == "text":
+            return "unknown"  # non-empty placeholder so the control renders
+        # switch / pushbutton / value / anything else: off / not-pressed
+        return "0"
     
     async def _setup_wb_last_will(self, device_id: str):
         """Setup Last Will Testament for device offline detection."""
@@ -748,8 +738,11 @@ class WBVirtualDeviceService:
         """Update WB control state topic with the new value."""
         try:
             state_topic = f"/devices/{device_id}/controls/{control_name}"
-            await self.message_bus.publish(state_topic, payload, retain=True, qos=1)
-            logger.debug(f"Updated WB control state for {device_id}/{control_name}: {payload}")
+            # Never publish an empty retained payload — it clears the retained value and the
+            # WB UI then drops the control. Substitute "0" for an empty/None state update.
+            safe_payload = payload if (payload is not None and payload != "") else "0"
+            await self.message_bus.publish(state_topic, safe_payload, retain=True, qos=1)
+            logger.debug(f"Updated WB control state for {device_id}/{control_name}: {safe_payload}")
         except Exception as e:
             logger.error(f"Error updating WB control state for {device_id}/{control_name}: {str(e)}")
     

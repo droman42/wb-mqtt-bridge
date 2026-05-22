@@ -267,6 +267,11 @@ code/models/config behind — budget real time for this; do not skip it.
      registered pyatv listener); the app-list fetch logs at ERROR + writes `state.error` when the
      device is merely asleep — defer the fetch until the device is awake (ties to §15 tvOS
      "Who's watching?").
+   - **WB virtual device offline on shutdown.** Only *scenario* WB devices are torn down at
+     bootstrap shutdown; regular-device WB virtual devices keep `meta/available=1` on the broker
+     after the bridge stops, so their cards look live in the WB UI. Wire regular-device WB cleanup
+     (mark `available=0`) into bootstrap shutdown. (Deferred companion to the empty-retained-value
+     fix, 2026-05-22.)
 
 ---
 
