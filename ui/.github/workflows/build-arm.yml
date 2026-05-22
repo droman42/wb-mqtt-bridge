@@ -1,0 +1,99 @@
+name: Build ARM Docker Image
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout frontend repo
+      uses: actions/checkout@v4
+
+    - name: Checkout config repo (public)
+      uses: actions/checkout@v4
+      with:
+        repository: droman42/wb-mqtt-bridge
+        path: wb-mqtt-bridge
+        ref: main
+
+    # No Python setup: device-state types are generated from the backend's
+    # committed openapi.json (wb-mqtt-bridge/openapi.json), not by importing the
+    # Python package and AST-parsing Pydantic classes (action_plan P1 #3.5).
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install Node.js dependencies
+      run: npm ci
+
+    - name: Verify directory structure
+      run: |
+        echo "Build context structure:"
+        ls -la
+        echo "Config files found:"
+        ls -la wb-mqtt-bridge/config/devices/
+        echo "Backend contract (openapi.json) present:"
+        ls -la wb-mqtt-bridge/openapi.json
+        echo "Total config files: $(ls wb-mqtt-bridge/config/devices/*.json | wc -l)"
+
+    - name: Validate type generation
+      run: |
+        echo "Generating TypeScript types and router integration..."
+        npm run gen:device-pages -- --batch --mode=package --mapping-file=wb-mqtt-bridge/config/device-state-mapping.json --generate-router
+        echo "✅ Type generation successful with package mode"
+
+    - name: Run TypeScript validation
+      run: |
+        echo "Running TypeScript type checking..."
+        npm run typecheck:all
+        echo "✅ TypeScript validation successful"
+
+    - name: Run ESLint
+      run: npm run lint
+
+    - name: Validate generated code
+      run: npm run validate:generated-code
+
+    - name: Validate generated components
+      run: npm run validate:components
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build ARM Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/arm/v7
+        tags: wb-mqtt-ui:latest
+        outputs: type=docker,dest=/tmp/wb-mqtt-ui.tar
+        build-args: |
+          BUILDKIT_INLINE_CACHE=1
+
+    - name: Compress Docker image
+      run: |
+        gzip /tmp/wb-mqtt-ui.tar
+
+    - name: Upload Docker image artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: wb-mqtt-ui-image
+        path: /tmp/wb-mqtt-ui.tar.gz
+        retention-days: 30
+
+    - name: Upload build logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs
+        path: |
+          npm-debug.log*
+          yarn-error.log* 
