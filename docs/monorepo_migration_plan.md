@@ -1,6 +1,7 @@
 # Monorepo Migration Plan
 
-- **Status:** DRAFT for review (not executed). Authored 2026-05-20.
+- **Status:** Decisions **LOCKED 2026-05-22** (§3); execution starting (Phase 1 merged to `main`,
+  `pre-monorepo` tags pushed). Authored 2026-05-20.
 - **When:** **Phase 2** of the scenario redesign — *after* the backend scenario fix
   (Layers 0/1/2/R, done in the current two-repo structure) and *before* Layer 3
   (runtime rendering). See `docs/scenarios/scenario_system_redesign.md` and
@@ -79,72 +80,114 @@ contract). Move each project into a subdir, preserving history:
 
 ```
 wb-mqtt-bridge/                 (monorepo)
-├── backend/                    # ← today's wb-mqtt-bridge repo
-│   ├── src/ tests/ config/ docs/ pyproject.toml uv.lock Dockerfile openapi.json …
-├── ui/                         # ← today's wb-mqtt-ui repo
-│   ├── src/ scripts/ config/ Dockerfile nginx.conf.template package.json …
-├── ops/                        # deploy glue (manage_docker.sh, docker_manager_config.* sample)
-├── docs/                       # cross-cutting docs (this file, contract, scenario redesign)
-├── .github/workflows/build-arm.yml   # one workflow, both images
+├── backend/                    # FastAPI+MQTT bridge: src tests config openapi.json pyproject uv.lock Dockerfile backend/docs …
+│                               #   logs/ + data/ are runtime dirs → gitignored (app + Docker mkdir them)
+├── ui/                         # React frontend: src scripts public package.json tsconfig* vite Dockerfile nginx … ui/docs
+├── wb-rules/                   # Wirenboard automation rules (deployed to the WB controller) + scp_wb_rules.sh
+├── ops/                        # container deploy glue (manage_docker.sh, docker_manager_config.* sample)
+├── docs/                       # cross-cutting docs (contract, scenario redesign, action_plan, project, architecture, conventions, adr/, this plan)
+│   ├── archive/                #   ALL stale docs from both repos, consolidated
+│   └── device_setup/           #   kept device-setup references (e.g. broadlink-device-setup.ipynb)
+├── .github/workflows/          # one CI, both images
 └── docker-compose.yml          # (optional, with #8)
 ```
 
-(Top-level `docs/` holds cross-repo docs — the UI↔backend contract, scenario redesign, this plan.
-Backend- or UI-specific docs stay under `backend/docs` / `ui/docs`.)
+Three deployable components as top-level peers: **backend** (container), **ui** (container),
+**wb-rules** (deployed onto the WB controller). Top-level `docs/` holds cross-repo docs; backend-
+and UI-specific docs stay under `backend/docs` / `ui/docs`; everything stale lives in one
+`docs/archive/`.
 
 ---
 
-## 3. Decisions to confirm (with leans)
+## 3. Decisions (LOCKED 2026-05-22)
 
-1. **Repo name** — keep `wb-mqtt-bridge` (GitHub redirects the old URL; least churn) vs. rename to a
-   neutral `wb-mqtt-home`/`wb-home`. **Lean: keep the name** for now; rename is cheap later.
-2. **Subdir names** — `backend/` + `ui/`. **Lean: as shown.**
-3. **Versioning** — each toolchain keeps its own manifest version (`backend/pyproject.toml`,
-   `ui/package.json`); releases tagged once at the repo level. **Lean: independent manifests, single
-   repo tag.**
-4. **GHCR fold-in (#7)** — do the structural move *only* now and keep artifact-based deploy, or
-   switch to GHCR images in the same pass. **Lean: structural move first (one change at a time);
-   GHCR as the immediate follow-on**, since it also retires the plaintext PAT.
-5. **Docker build context** — UI image built with **context = repo root**, Dockerfile `ui/Dockerfile`,
-   copying `backend/config` + `backend/openapi.json` + `ui/`. **Lean: as described.**
-6. **UI repo disposition** — archive `droman42/wb-mqtt-ui` read-only (history is preserved in the
-   monorepo). **Lean: archive, don't delete.**
+1. **Reuse this repo** as the monorepo (do *not* create a new repo). Both histories preserved:
+   backend native via `git mv`, UI grafted via subtree merge. Recovery point: `pre-monorepo` tags
+   pushed on both repos (backend → `dfd5d68`, UI → `28c5a39`). Phase 1 is already merged to `main`.
+2. **Top-level peers:** `backend/` + `ui/` + `wb-rules/` (three deployable components) + `ops/` +
+   `docs/`. `scp_wb_rules.sh` stays inside `wb-rules/` for now.
+3. **Repo name** — keep `wb-mqtt-bridge`; rename to a neutral name later (GitHub redirects).
+4. **Docs** — cross-cutting → root `docs/`; backend-specific → `backend/docs/`; UI-specific →
+   `ui/docs/`; **all stale docs → one `docs/archive/`** (contents in §3a); kept device-setup
+   references → `docs/device_setup/`.
+5. **Runtime dirs** — drop the tracked `logs/.gitkeep` + `data/.gitkeep` and **gitignore
+   `backend/logs/` + `backend/data/`**. Verified safe: the app (`bootstrap.py:49`,
+   `sqlite.py:53`) and the Docker image (`Dockerfile` `mkdir -p logs data config`, `.dockerignore`
+   already excludes them) both create them on demand.
+6. **README** — new monorepo root `README.md` leading with the `project.md` framing ("bridge
+   WB-unsupported A/V gear + appliances into Wirenboard") + `backend/README.md` + `ui/README.md` +
+   short `wb-rules/README.md`. **Authoring the root README is deferred** (§3b); create the
+   structure now, write content later.
+7. **Versioning** — each toolchain keeps its own manifest version (`backend/pyproject.toml`,
+   `ui/package.json`); release tagged once at the repo level.
+8. **GHCR fold-in (#7)** — structural move **only** in this pass; keep artifact-based deploy; GHCR
+   images as the immediate follow-on (also retires the plaintext PAT).
+9. **Docker build context** — UI image built with context = repo root, Dockerfile `ui/Dockerfile`,
+   copying `backend/config` + `backend/openapi.json` + `ui/`.
+10. **UI repo disposition** — archive `droman42/wb-mqtt-ui` read-only (history preserved here); do
+    not delete.
+11. **Increment style** — land in small reviewable commits: move backend → `backend/` · graft UI →
+    `ui/` · add `wb-rules/` · fix broken paths (UI codegen `../backend/…`, drop the CI second-
+    checkout, Dockerfile `COPY backend/`) · unify CI · verify both build.
+
+## 3a. Docs migration (from the 2026-05-22 staleness sweep)
+
+**Move to `docs/archive/`** (5 stale backend docs; the UI repo had no new archive candidates):
+- `docs/config_future.md` — config-redesign proposal never adopted
+- `docs/scenarios/scenarios.md` — old scenario format, superseded by the redesign
+- `docs/scenarios/scenario_system_spec.md` — old "merged" scenario spec, superseded
+- `docs/scenarios/scenario_system.spec.ipynb` — old scenario design notebook
+- `docs/spec_v1.ipynb` — genesis notebook (its markdown twin is already archived)
+
+**Fix in place (not archive) during the move:**
+- `docs/architecture.md` — refresh the "Scenario system" + "WB virtual-device emulation" sections
+  (now stale on `main`: the reconciler replaced startup/shutdown sequences; scenario-as-WB-device
+  publishing is disabled).
+- `ui/docs/page_instructions.md` — strip the leftover "Python state generation" troubleshooting /
+  best-practices (contradicts the Python-free build).
+- Flip the pre-implementation status headers on `docs/scenarios/scenario_system_redesign.md` and
+  this plan (both are built / in progress, not "DRAFT not implemented").
+- Minor: `docs/project.md` "adopting the GSD workflow" wording (GSD was dropped).
+
+## 3b. Deferred / backlog (captured, do later)
+
+- **Author the monorepo root `README.md`** (lead with the `project.md` framing).
+- **Automate wb-rules deployment GitHub → WB controller** (like the container deploy via
+  `manage_docker.sh` / GHCR, replacing the manual `scp_wb_rules.sh`) — ops family, with #7/#8.
 
 ---
 
 ## 4. Migration procedure (mechanical, reversible)
 
-Run on **fresh clones** (history rewriting with `git filter-repo` is destructive to the working
-clone). Nothing here changes code behavior — it's moves + path/CI edits.
+Nothing here changes code behavior — it's moves + path/CI edits. Key constraint: **do NOT rewrite
+the backend's history** (it's a public repo with the `pre-monorepo` tag + existing clones). The
+backend moves with `git mv` (native history, SHAs preserved); only a *throwaway* UI clone is
+rewritten to graft it under `ui/`.
 
-### 4.0 Pre-flight
-- Both repos: clean working trees, everything pushed, **tag a rollback point** in each
-  (`git tag pre-monorepo`).
-- Tidy untracked cruft in the backend root that shouldn't enter the monorepo (logs, `__pycache__`,
-  `*.log`, `share/`, `info/`, stray notebooks) — `.gitignore` already covers
-  `docker_manager_config.json`; confirm no secrets are staged.
-- Install `git-filter-repo`.
+### 4.0 Pre-flight  (DONE 2026-05-22, except the cruft tidy)
+- Both repos clean + pushed; **`pre-monorepo` tags created + pushed** (backend `dfd5d68`, UI
+  `28c5a39`); Phase 1 already merged to `main`. ✅
+- Drop the tracked runtime placeholders and gitignore the dirs (decision #5):
+  `git rm logs/.gitkeep data/.gitkeep` → gitignore `backend/logs/` + `backend/data/`.
+- Confirm no secrets staged (`docker_manager_config.json` is gitignored). Install `git-filter-repo`.
 
-### 4.1 Rewrite each history into its subdir
+### 4.1 Move the backend into `backend/`  (git mv — native history, NO SHA rewrite)
+On `main`, `git mv` the backend-specific top-level entries into `backend/` in one commit
+(`src tests config openapi.json pyproject.toml uv.lock Dockerfile .dockerignore .env.example` …).
+**Leave the peers at the root**: `wb-rules/`, `.github/`, and the soon-to-be `docs/` + `ops/`.
+`git log --follow backend/<file>` keeps full history; the `pre-monorepo` tag and all existing
+SHAs/clones stay valid.
+
+### 4.2 Graft the UI under `ui/`  (subtree merge — preserves UI history, backend untouched)
+Rewrite a **throwaway clone** of the UI into a `ui/` subdir, then merge it in (this only rewrites
+the disposable UI clone, never the backend):
 ```bash
-# UI → ui/
-git clone git@github.com:droman42/wb-mqtt-ui.git ui-fr && cd ui-fr
-git filter-repo --to-subdirectory-filter ui
-cd ..
-
-# Backend → backend/   (fresh clone of the monorepo-to-be)
-git clone git@github.com:droman42/wb-mqtt-bridge.git monorepo && cd monorepo
-git filter-repo --to-subdirectory-filter backend
+git clone git@github.com:droman42/wb-mqtt-ui.git ui-fr && (cd ui-fr && git filter-repo --to-subdirectory-filter ui)
+git remote add ui ./ui-fr && git fetch ui
+git merge --allow-unrelated-histories ui/main -m "chore: merge wb-mqtt-ui under ui/"
+git remote remove ui && rm -rf ui-fr
 ```
-
-### 4.2 Merge UI history into the monorepo (preserves both histories)
-```bash
-# inside monorepo/
-git remote add ui ../ui-fr
-git fetch ui
-git merge --allow-unrelated-histories ui/main -m "chore: merge wb-mqtt-ui into monorepo under ui/"
-git remote remove ui
-```
+(Equivalent: `git subtree add --prefix=ui <ui-remote> main`.)
 
 ### 4.3 Hoist cross-cutting docs + ops
 - Move the cross-repo docs to top-level `docs/` (UI↔backend contract, scenario redesign, this plan).
