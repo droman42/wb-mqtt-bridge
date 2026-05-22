@@ -1985,8 +1985,22 @@ export interface components {
         /**
          * ScenarioDefinition
          * @description Declarative definition of a scenario.
+         *
+         *     Two formats are supported during the redesign migration:
+         *
+         *     - **thin** (preferred): a ``source``/``display``/``audio`` selection. Device membership,
+         *       input values, and ordering are derived from ``config/topology.json`` by the reconciler;
+         *       ``devices`` and the sequences are left empty.
+         *     - **legacy / escape hatch**: explicit ``devices`` + ``startup_sequence``/``shutdown_sequence``.
+         *
+         *     See docs/scenarios/scenario_system_redesign.md §6.
          */
         ScenarioDefinition: {
+            /**
+             * Audio
+             * @description Active audio device id; binds the volume/mute roles
+             */
+            audio?: string | null;
             /**
              * Description
              * @description Description of the scenario's purpose
@@ -1995,9 +2009,14 @@ export interface components {
             description: string;
             /**
              * Devices
-             * @description List of device IDs used in the scenario
+             * @description Explicit device list (legacy format)
              */
-            devices: string[];
+            devices?: string[];
+            /**
+             * Display
+             * @description Primary video sink device id
+             */
+            display?: string | null;
             /** @description Instructions requiring human intervention */
             manual_instructions?: components["schemas"]["ManualInstructions"] | null;
             /**
@@ -2009,7 +2028,7 @@ export interface components {
              * Roles
              * @description Mapping of role name to device ID
              */
-            roles: {
+            roles?: {
                 [key: string]: string;
             };
             /**
@@ -2024,20 +2043,32 @@ export interface components {
             scenario_id: string;
             /**
              * Shutdown Sequence
-             * @description Sequence of commands to run when shutting down
+             * @description Explicit shutdown steps (legacy / escape hatch)
              */
-            shutdown_sequence: components["schemas"]["CommandStep"][];
+            shutdown_sequence?: components["schemas"]["CommandStep"][];
+            /**
+             * Source
+             * @description Primary content source device id
+             */
+            source?: string | null;
             /**
              * Startup Sequence
-             * @description Sequence of commands to run when starting
+             * @description Explicit startup steps (legacy / escape hatch)
              */
-            startup_sequence: components["schemas"]["CommandStep"][];
+            startup_sequence?: components["schemas"]["CommandStep"][];
         };
         /**
          * ScenarioResponse
          * @description Base response model for scenario operations.
          */
         ScenarioResponse: {
+            /**
+             * Manual Steps
+             * @default []
+             */
+            manual_steps: {
+                [key: string]: unknown;
+            }[];
             /** Message */
             message: string;
             /** Status */
@@ -2324,6 +2355,11 @@ export interface components {
              * @default null
              */
             error: string | null;
+            /**
+             * Input
+             * @default null
+             */
+            input: string | null;
             /** @default null */
             last_command: components["schemas"]["LastCommand"] | null;
             /**
