@@ -248,6 +248,25 @@ code/models/config behind — budget real time for this; do not skip it.
    path; any unused escape-hatch model fields; and superseded docs. Confirm the contract is clean
    (`openapi.json` has no orphaned models/fields).
 5. **Hardware re-verification** of the whole system end-to-end after the cleanup (cleanups regress).
+6. **Lifecycle-robustness leftovers (deferred from the 2026-05-22 hardware session).** The
+   lifecycle cluster (Bug 2 non-fatal load · keep failed-setup devices registered · hardware-
+   transparent shutdown + assumed-state persistence) shipped; these lower-value tails were
+   deferred here:
+   - **Defensive startup-failure cleanup.** The lifespan startup isn't wrapped, so a *rare/
+     unexpected* error during startup (not the now-handled device/scenario cases) leaks partial
+     resources (sockets/ports → a hung process). Wrap startup → best-effort release on failure +
+     re-raise. (The common zombie cause — `load_scenarios` `SystemExit` — is already fixed.)
+   - **Teardown noise.** `Task was destroyed but it is pending` (pyatv `CompanionAPI.disconnect`
+     not awaited to completion) and `_GatheringFuture exception was never retrieved` (the 2 s
+     cancel-gather); also tune the 2 s background-task cancellation. Cosmetic — the process exits
+     fine on SIGTERM today.
+   - **Device auto-reconnect/retry** for devices that failed setup (kept registered as
+     disconnected) — so an off-at-boot eMotiva becomes controllable once it powers on, without a
+     restart. (Follow-up to keep-registered.)
+   - **Apple TV driver hygiene:** dead `device_update` / `device_error` methods (not part of any
+     registered pyatv listener); the app-list fetch logs at ERROR + writes `state.error` when the
+     device is merely asleep — defer the fetch until the device is awake (ties to §15 tvOS
+     "Who's watching?").
 
 ---
 
