@@ -128,6 +128,24 @@ async def test_power_toggle_succeeds_and_flips_optimistic_power(device):
 
 
 @pytest.mark.asyncio
+async def test_execute_action_publishes_ir_once_and_no_mqtt_command(device, mqtt_client):
+    """The execute_action path publishes the IR directly and must NOT also return mqtt_command.
+
+    Regression (found on hardware): the driver published the IR directly AND returned it as
+    mqtt_command, so the API action router (devices.py) published the same IR a *second* time
+    — a double blast (two toggles). The result must carry no mqtt_command so the router has
+    nothing to re-publish.
+    """
+    for action in ("power", "input_aux2", "set_volume"):
+        mqtt_client.publish.reset_mock()
+        params = {"level": 50} if action == "set_volume" else {}
+        resp = await device.execute_action(action, params)
+        assert resp["success"] is True, action
+        mqtt_client.publish.assert_called_once()      # exactly one IR blast
+        assert not resp.get("mqtt_command"), action   # nothing for the router to re-publish
+
+
+@pytest.mark.asyncio
 async def test_handle_message_routes_parameterized_command(device):
     """A command with a 'level' param converts the raw payload to the typed value.
 

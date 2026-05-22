@@ -419,11 +419,14 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
                     await self.emit_progress(f"Executing IR command '{action_name}' on {self.device_name}", "action_progress")
                     await self.mqtt_client.publish(topic, payload)
                     await self.emit_progress(f"IR command '{action_name}' sent successfully", "action_success")
-                    
+
+                    # Do NOT return mqtt_command here: we just published the IR directly. If we
+                    # also returned it, the API action router (devices.py) would publish the same
+                    # IR a second time — a double blast. (The no-client fallback below still
+                    # returns it, since in that branch nothing was published.)
                     return self.create_command_result(
                         success=True,
                         message=f"IR command '{action_name}' executed successfully",
-                        mqtt_command={"topic": topic, "payload": payload}
                     )
                 except Exception as e:
                     error_msg = f"Failed to publish MQTT command: {str(e)}"
@@ -505,11 +508,11 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
                         # value matches the topology/capability value, e.g. input_aux2 -> "aux2".
                         if getattr(original_cmd_config, "group", None) == "inputs":
                             self.update_state(input=action_name.removeprefix("input_"))
+                        # No mqtt_topic/mqtt_payload: the IR was already published directly above.
+                        # Returning it would double-publish via the API action router (devices.py).
                         return self.create_command_result(
                             success=True,
                             message=f"Successfully executed IR command '{action_name}'",
-                            mqtt_topic=topic,
-                            mqtt_payload=payload
                         )
                     except Exception as e:
                         error_msg = f"Failed to publish IR command '{action_name}': {str(e)}"
