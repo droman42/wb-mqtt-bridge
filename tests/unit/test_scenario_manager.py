@@ -213,14 +213,12 @@ class TestScenarioManager:
 
     @pytest.mark.asyncio
     async def test_load_scenarios_invalid_json(self, mock_device_manager, mock_room_manager, mock_store, tmp_path):
-        """An invalid scenario JSON file must fail loud (raise SystemExit), not be silently skipped.
+        """An invalid scenario file is logged and skipped, never fatal (Bug 2).
 
-        The previous version of this test asserted that invalid JSON was tolerated
-        (log + skip) while still loading the valid file. Production behavior intentionally
-        changed to fail fast: a bad scenario file is a deployment problem and should surface
-        at startup, not be silently ignored. This is verified by
-        `service.py:load_scenarios` calling `raise SystemExit(...)` on any error during a
-        per-file scenario load.
+        A bad or currently-unavailable scenario (malformed file, or a referenced device that's
+        off/unreachable at boot) must NOT bring down the whole bridge. It is skipped and recorded
+        in `scenario_load_errors` for visibility; the rest of the system still starts. (This
+        reverses the earlier short-lived fail-fast `SystemExit` behavior.)
         """
         scenario_dir = tmp_path / "scenarios"
         scenario_dir.mkdir(exist_ok=True)
@@ -235,8 +233,11 @@ class TestScenarioManager:
             scenario_dir=scenario_dir
         )
 
-        with pytest.raises(SystemExit, match="Scenario configuration error in invalid.json"):
-            await manager.load_scenarios()
+        # Must NOT raise — scenario loading is resilient.
+        await manager.load_scenarios()
+
+        assert "invalid" in manager.scenario_load_errors
+        assert "invalid" not in manager.scenario_map
 
     @pytest.mark.asyncio
     async def test_switch_scenario_success(self, scenario_manager, mock_device_manager):

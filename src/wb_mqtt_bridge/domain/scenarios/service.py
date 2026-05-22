@@ -55,6 +55,8 @@ class ScenarioManager:
         self.scenario_definitions: Dict[str, ScenarioDefinition] = {}  # scenario_id -> definition
         self.current_scenario: Optional[Scenario] = None
         self.scenario_state: Optional[ScenarioState] = None
+        # scenario_id/filename -> reason, for scenarios skipped at load (Bug 2: never fatal).
+        self.scenario_load_errors: Dict[str, str] = {}
         # Layer 0 topology + reconciler flag (thin scenarios route through the reconciler).
         self.topology: Topology = Topology()
         self._reconciler_enabled = os.getenv("WB_SCENARIO_RECONCILER", "1") != "0"
@@ -98,33 +100,45 @@ class ScenarioManager:
         """
         self.scenario_map.clear()
         self.scenario_definitions.clear()
-        
+        self.scenario_load_errors.clear()
+
         if not self.scenario_dir.exists():
             logger.warning(f"Scenarios directory does not exist: {self.scenario_dir}")
             return
-            
+
         for scenario_file in self.scenario_dir.glob("*.json"):
             try:
                 scenario_data = json.loads(scenario_file.read_text(encoding="utf-8"))
                 definition = ScenarioDefinition.model_validate(scenario_data)
-                
+
                 # Create scenario instance
                 scenario = Scenario(definition, self.device_manager)
-                
+
                 # Validate scenario configuration - this will raise ScenarioConfigurationError if invalid
                 scenario.validate_configuration()
-                
+
                 # Only add to maps if validation passes
                 self.scenario_definitions[definition.scenario_id] = definition
                 self.scenario_map[definition.scenario_id] = scenario
-                
+
                 logger.info(f"Loaded and validated scenario: {definition.scenario_id}")
             except Exception as e:
-                # This will catch both JSON parsing, Pydantic validation, and scenario configuration errors
-                logger.error(f"FATAL: Failed to load scenario from {scenario_file}: {str(e)}")
-                raise SystemExit(f"Scenario configuration error in {scenario_file.name}: {str(e)}")
-        
-        logger.info(f"Loaded {len(self.scenario_map)} scenarios")
+                # Bug 2: a bad or currently-unavailable scenario must NOT bring down the whole
+                # bridge (e.g. a referenced device that's off/unreachable at boot). Log it loudly
+                # and skip it; the rest of the system still starts. (Catches JSON, Pydantic, and
+                # scenario-configuration errors alike.)
+                name = scenario_file.stem
+                logger.error(f"Skipping scenario '{name}' — failed to load/validate: {str(e)}")
+                self.scenario_load_errors[name] = str(e)
+                continue
+
+        if self.scenario_load_errors:
+            logger.warning(
+                f"Loaded {len(self.scenario_map)} scenario(s); skipped "
+                f"{len(self.scenario_load_errors)}: {sorted(self.scenario_load_errors)}"
+            )
+        else:
+            logger.info(f"Loaded {len(self.scenario_map)} scenarios")
     
     async def switch_scenario(self, target_id: str, *, graceful: bool = True) -> Dict[str, Any]:
         """
