@@ -7,8 +7,13 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# INTERIM (2026-05-22): the slow QEMU arm/v7 image builds (~14 min for the UI) are GATED — they run
+# only on manual dispatch or when the commit message contains [build]. The fast checks (backend
+# tests, UI codegen/typecheck/lint) run on every push. To go back to building on every push, delete
+# the `if:` lines on the backend-build-arm and ui-image jobs.
+
 jobs:
-  # ---------------------------------------------------------------- backend ---
+  # --------------------------------------------------- fast checks (every push) ---
   backend-test:
     name: Backend tests (amd64)
     runs-on: ubuntu-latest
@@ -29,10 +34,46 @@ jobs:
       - name: Run tests
         run: pytest -v -m "not requires_device" --tb=short
 
+  ui-validate:
+    name: UI validate (codegen + typecheck + lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+      - name: Install Node dependencies
+        working-directory: ui
+        run: npm ci
+      - name: Verify backend contract present
+        run: |
+          ls -la backend/config/devices/
+          ls -la backend/openapi.json
+          echo "device configs: $(ls backend/config/devices/*.json | wc -l)"
+      - name: Generate device + scenario pages (from ../backend)
+        working-directory: ui
+        run: npm run gen:device-pages -- --batch --mode=local --mapping-file=../backend/config/device-state-mapping.json --generate-router
+      - name: Typecheck
+        working-directory: ui
+        run: npm run typecheck:all
+      - name: Lint
+        working-directory: ui
+        run: npm run lint
+      - name: Validate generated code
+        working-directory: ui
+        run: npm run validate:generated-code
+      - name: Validate generated components
+        working-directory: ui
+        run: npm run validate:components
+
+  # ----------------------- gated ARM image builds (slow; manual or [build]) ---
   backend-build-arm:
     name: Backend ARM image
     runs-on: ubuntu-latest
     needs: backend-test
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build]')
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
@@ -78,41 +119,13 @@ jobs:
           path: /tmp/wb-mqtt-bridge-config.tar.gz
           retention-days: 7
 
-  # --------------------------------------------------------------------- ui ---
-  ui-build-arm:
+  ui-image:
     name: UI ARM image
     runs-on: ubuntu-latest
+    needs: ui-validate
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build]')
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: ui/package-lock.json
-      - name: Install Node dependencies
-        working-directory: ui
-        run: npm ci
-      # No second checkout: the backend lives in this monorepo at ../backend.
-      - name: Verify backend contract present
-        run: |
-          ls -la backend/config/devices/
-          ls -la backend/openapi.json
-          echo "device configs: $(ls backend/config/devices/*.json | wc -l)"
-      - name: Generate device + scenario pages (from ../backend)
-        working-directory: ui
-        run: npm run gen:device-pages -- --batch --mode=local --mapping-file=../backend/config/device-state-mapping.json --generate-router
-      - name: Typecheck
-        working-directory: ui
-        run: npm run typecheck:all
-      - name: Lint
-        working-directory: ui
-        run: npm run lint
-      - name: Validate generated code
-        working-directory: ui
-        run: npm run validate:generated-code
-      - name: Validate generated components
-        working-directory: ui
-        run: npm run validate:components
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - name: Build UI ARM image
@@ -133,10 +146,3 @@ jobs:
           name: wb-mqtt-ui-image
           path: /tmp/wb-mqtt-ui.tar.gz
           retention-days: 30
-      - name: Upload build logs
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ui-build-logs
-          path: |
-            ui/npm-debug.log*
