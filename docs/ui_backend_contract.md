@@ -1,38 +1,40 @@
 # UI ↔ Backend Contract
 
-**Status:** current (2026-05-20). This is the authoritative description of how the
-`wb-mqtt-bridge` backend and the `wb-mqtt-ui` frontend depend on each other. It is the
-one cross-repo document neither repo's per-repo tooling can infer on its own.
+**Status:** current (2026-05-22). This is the authoritative description of how the
+`backend/` (FastAPI + MQTT) and `ui/` (React/Vite) halves of this monorepo depend on each
+other — the one document describing the `backend/`↔`ui/` seam that neither half's tooling
+infers on its own.
 
 ## TL;DR
 
 The UI consumes the backend as a **contract**, not by importing Python. There are two
 contract surfaces:
 
-- **Build-time** (UI codegen): the UI reads a sibling `wb-mqtt-bridge` checkout —
-  `openapi.json`, `config/device-state-mapping.json`, `config/devices/*.json` — to
-  generate its TypeScript types and per-device pages. No Python, no `pip install`.
+- **Build-time** (UI codegen): the UI reads the sibling `backend/` directory —
+  `backend/openapi.json`, `backend/config/device-state-mapping.json`,
+  `backend/config/devices/*.json` — to generate its TypeScript types and per-device pages.
+  No Python, no `pip install`.
 - **Runtime** (browser ↔ services): REST + SSE through the nginx proxy, and a direct
   browser→MQTT WebSocket. Backend network location is injected at container start.
 
 The backend **owns** the contract artifacts (they live in this repo). The UI is a
 **consumer**.
 
-## Repos
+## Layout (monorepo)
 
-| Repo | Role |
+| Directory | Role |
 |---|---|
-| `wb-mqtt-bridge` (this repo) | Backend (FastAPI + MQTT). Owns the contract artifacts. |
-| `wb-mqtt-ui` (`../wb-mqtt-ui`) | Frontend (React/Vite). Consumes the contract. |
+| `backend/` | Backend (FastAPI + MQTT). Owns the contract artifacts. |
+| `ui/` | Frontend (React/Vite). Consumes the contract. |
 
-Both are pushed to `main` and developed in lockstep on one machine. The UI build needs
-a **sibling checkout** of this repo (`../wb-mqtt-bridge` locally; `./wb-mqtt-bridge` in
-CI/Docker) — that part of the coupling remains; only the Python import coupling was
-removed.
+Both live in this monorepo (consolidated 2026-05-22). The UI build reads the backend's
+contract files from the **sibling `backend/` directory** — `../backend` when run from `ui/`
+locally, or `backend/` when the Docker build context is the repo root. That path coupling
+remains; only the Python import coupling was removed.
 
 ## Contract artifacts (owned by this repo)
 
-### 1. `openapi.json` (repo root)
+### 1. `backend/openapi.json`
 The committed OpenAPI snapshot — the single source of truth for the API surface **and**
 the device-state model shapes.
 
@@ -69,7 +71,8 @@ Maps each device class to its state model and config files. Consumed by the UI c
 ```
 
 - Paths (`deviceConfigs`, `scenarioConfigPath`) are **relative to the mapping file's own
-  directory**, so the same file works in both the local-sibling and CI-subdir layouts.
+  directory**, so the same file works whether the UI runs from `ui/` (reading `../backend`) or in
+  the Docker build (context = repo root, reading `backend/`).
 - `stateClassImport` is `module:ClassName`. Only the **`ClassName`** is used today — the
   UI looks it up in `openapi.json` `components.schemas`. The module path is vestigial
   (kept for the format; the UI no longer imports it).
@@ -83,7 +86,7 @@ The UI reads these to build each device page; **command order matters for layout
 
 ## Build-time contract (UI codegen)
 
-The UI runs two generators against the sibling checkout:
+The UI runs two generators against the backend's contract files (`../backend` from `ui/`):
 
 - `npm run gen:api-types` → `src/types/api.gen.ts` (`openapi-typescript` over
   `openapi.json`): REST request/response types.
@@ -99,7 +102,7 @@ is committed.
 
 All three transports below are reached as the deployment dictates: REST/SSE go through
 the UI's nginx proxy (`/api`, `/events`) to `BACKEND_HOST:BACKEND_PORT`; MQTT is a
-direct browser→broker WebSocket at `MQTT_URL`. (See `wb-mqtt-ui/docs/deployment-network-config.md`.)
+direct browser→broker WebSocket at `MQTT_URL`. (See `ui/docs/deployment-network-config.md`.)
 
 ### REST
 - **Execute an action:** `POST /devices/{device_id}/action`
@@ -137,12 +140,13 @@ Wirenboard); the browser and backend meet at the broker, not via the API.
    order. This implicit convention is **removed** by the runtime Layout Manifest (see below):
    placement becomes an explicit contract (capability declaration order + per-action `placement`
    hints).
-5. **The sibling checkout layout** is assumed by the UI build (`../wb-mqtt-bridge`
-   local, `./wb-mqtt-bridge` in CI/Docker). The mapping's relative paths depend on it.
+5. **The monorepo layout** is assumed by the UI build: the backend's contract files are read
+   from `../backend` (run from `ui/`) or `backend/` (Docker build context = repo root). The
+   mapping's relative paths depend on this.
 
 ## Explicitly NOT part of the contract (removed 2026-05-20)
 
-- Importing the Python package from the UI build (`pip install -e ./wb-mqtt-bridge`).
+- Importing the Python package from the UI build (the old `pip install -e` of the backend).
 - AST-parsing Pydantic classes for state shapes (`importlib` + `ast.parse`).
 - The `stateFile` / `stateClass` mapping fields.
 - Hardcoded backend IP in nginx / build-time-baked `VITE_MQTT_URL`.
@@ -176,7 +180,7 @@ look-and-feel (one renderer), placement as an explicit/fixable contract, and no 
 ### The manifest
 The backend computes and serves a **layout manifest** per entity — the same `RemoteDeviceStructure`
 the UI bakes today, produced server-side and published in `openapi.json`. The backend Pydantic
-model mirrors `wb-mqtt-ui/src/types/RemoteControlLayout.ts`, so the existing `RemoteControlLayout`
+model mirrors `ui/src/types/RemoteControlLayout.ts`, so the existing `RemoteControlLayout`
 renderer consumes it unchanged:
 
 ```
@@ -232,8 +236,8 @@ The backend assigns each action a zone + position, two-tier:
 ### UI consumption
 One **generic renderer** — the existing `RemoteControlLayout` — fed by the fetched manifest. Live
 state via SSE (unchanged); state types from `openapi.json` (unchanged). Retires per-device
-`.gen.tsx`, `StateTypeGenerator`, `generate-device-pages`, the sibling-checkout build coupling, and
-the UI scenario re-derivation.
+`.gen.tsx`, `StateTypeGenerator`, `generate-device-pages`, the `backend/`-directory build coupling,
+and the UI scenario re-derivation.
 
 ### Scenarios = devices (blocker resolved)
 A scenario's manifest comes from the **same** engine: reconciler-resolved roles + capability
@@ -261,6 +265,6 @@ static page. Port + diff per device class.
 
 ## Related
 - `docs/scenarios/scenario_system_redesign.md` — the scenario redesign; this manifest is its Layer 3.
-- `wb-mqtt-ui/README.md` and `wb-mqtt-ui/docs/page_instructions.md` — running the codegen.
-- `wb-mqtt-ui/docs/deployment-network-config.md` — runtime URL configuration.
+- `ui/README.md` and `ui/docs/page_instructions.md` — running the codegen.
+- `ui/docs/deployment-network-config.md` — runtime URL configuration.
 - `action_plan.md` §7 (Codegen Alternatives) and P2.5 #10 (placement contract).

@@ -1,18 +1,18 @@
-# Conventions — wb-mqtt-bridge (+ wb-mqtt-ui)
+# Conventions — wb-mqtt-bridge (monorepo: `backend/` + `ui/`)
 
-**Status:** current (2026-05-20). How we work in these two repos. See
+**Status:** current (2026-05-22). How we work in this monorepo (`backend/` + `ui/`). See
 [`architecture.md`](architecture.md) for structure and
-[`ui_backend_contract.md`](ui_backend_contract.md) for the cross-repo seam.
+[`ui_backend_contract.md`](ui_backend_contract.md) for the `backend/`↔`ui/` seam.
 
 ## Git & workflow
 
-- **Push directly to `main`** on both repos — solo workflow, no PR ceremony.
+- **Push directly to `main`** — solo workflow, no PR ceremony.
 - **Small, focused commits** — one logical change each. Don't bundle unrelated work.
 - **Detailed commit bodies** explaining *why* (what changed, what it fixes/removes), with
   file/line refs where useful. The body is the audit trail in lieu of PR descriptions.
 - Always include the trailer `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>` on AI-made commits; use a HEREDOC for multi-line messages.
-- When operating across both repos in one session, use `git -C <abs-path>` / absolute
-  paths — the shell cwd does not always reset cleanly between commands.
+- When running tools across `backend/` and `ui/` in one session, prefer absolute paths /
+  `git -C <abs-path>` — the shell cwd does not always reset cleanly between commands.
 - **Decisions are tracked** in `docs/action_plan.md` (revision log) and `docs/adr/`.
   **Superseded docs are archived** to `docs/archive/`, not deleted.
 
@@ -50,13 +50,13 @@ Dependencies point inward. When adding code, place it by layer:
 5. **Contract:** add the state model to `OPENAPI_EXTRA_MODELS`
    (`app/bootstrap.py`) and an entry in `config/device-state-mapping.json`; then
    **regenerate `openapi.json`** (`wb-openapi -o openapi.json`) and commit it.
-6. UI side: add a device handler in `wb-mqtt-ui/src/lib/deviceHandlers/`; `device_class`
+6. UI side: add a device handler in `ui/src/lib/deviceHandlers/`; `device_class`
    must match across config, mapping, and handler.
 
 ## Backend — formatting & typing
 
 - **black** + **isort** (black profile), line length **88**, target py311.
-- **mypy** via `./run_mypy.sh` (config `mypy.ini`, over `src/wb_mqtt_bridge/`). Type
+- **mypy** via `./run_mypy.sh` (config `mypy.ini`, over `backend/src/wb_mqtt_bridge/`). Type
   hints are expected on new code.
 
 ## Backend — tests (the recipe)
@@ -85,14 +85,14 @@ The committed `openapi.json` — not a running server — is what the UI build c
   (`npm run gen:api-types`) and commit it.
 - Full rules + invariants: [`ui_backend_contract.md`](ui_backend_contract.md).
 
-## UI conventions (`wb-mqtt-ui`)
+## UI conventions (`ui/`)
 
 - **No Python in the build.** Device-state types come from the backend `openapi.json`
   (`src/lib/StateTypeGenerator.ts`), not from importing the package.
 - **Generated artifacts are gitignored** (`*.gen.tsx`, `*.hooks.ts`,
   `src/types/generated/*.state.ts`, `index.gen.ts`) — built fresh in CI.
   **`src/types/api.gen.ts` is committed.**
-- eslint **ignores the sibling `wb-mqtt-bridge`** checkout. Before committing, run
+- Before committing UI changes, run (from `ui/`)
   `npm run typecheck:all && npm run lint && npm run validate:all`.
 - **No hardcoded backend IPs / baked URLs.** Backend proxy target is runtime
   (`BACKEND_HOST`/`BACKEND_PORT` via `docker-entrypoint.sh`); MQTT URL via

@@ -3,6 +3,11 @@
 - **Status:** Accepted
 - **Date:** 2026-05-20
 
+> **Update (2026-05-22):** the two repos were merged into a **monorepo** (`backend/` + `ui/`). This
+> decision is unchanged — the UI still consumes the backend via the OpenAPI contract; it now reads
+> the sibling `backend/` directory (`../backend` from `ui/`, or `backend/` in the Docker build)
+> rather than a separate `wb-mqtt-bridge` checkout.
+
 ## Context
 
 The `wb-mqtt-ui` build imported the backend as a Python package

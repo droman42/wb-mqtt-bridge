@@ -3,6 +3,11 @@
 - **Status:** Accepted
 - **Date:** 2026-05-20
 
+> **Update (2026-05-22):** monorepo — the mapping now lives at
+> `backend/config/device-state-mapping.json`, and the UI build reads it via
+> `--mapping-file=../backend/config/device-state-mapping.json` (from `ui/`) or `backend/config/...`
+> (Docker context = repo root). The directory-relative-paths decision is unchanged.
+
 ## Context
 
 `device-state-mapping.json` (device class → state model + device config files) lived in

@@ -1,8 +1,9 @@
 # Architecture — wb-mqtt-bridge
 
-**Status:** current (2026-05-20). A map of the backend for humans and onboarding/agent
-tooling. The cross-repo contract with the UI is documented separately in
-[`ui_backend_contract.md`](ui_backend_contract.md).
+**Status:** current (2026-05-22). A map of the backend for humans and onboarding/agent
+tooling. The contract with the UI (the `backend/`↔`ui/` seam of this monorepo) is documented
+separately in [`ui_backend_contract.md`](ui_backend_contract.md). Paths below are relative to
+`backend/` (the backend package root) unless noted.
 
 ## What this service is
 

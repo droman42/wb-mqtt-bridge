@@ -1,6 +1,6 @@
 # Project Vision — wb-mqtt-bridge
 
-**Status:** current (2026-05-20). The intent behind the project — the part the code
+**Status:** current (2026-05-22). The intent behind the project — the part the code
 can't tell you. For *how* it's built see [`architecture.md`](architecture.md); for the
 UI↔backend seam see [`ui_backend_contract.md`](ui_backend_contract.md).
 
@@ -90,15 +90,18 @@ docs were hardened in 2026-05; the remaining work is functional correctness.
 - **Wirenboard-exclusive** deployment. **Today: Wirenboard 7 (ARMv7 / 32-bit)**, ~256 MB
   / 0.5 CPU. **Planned: Wirenboard 8+ (ARM64 / 64-bit).** No amd64 *deployment* target
   (amd64 is CI/dev only). → A future **arm64** image will be needed for WB8+.
-- Docker + GitHub-Actions ARM build; artifact deploy today (GHCR planned).
-- **Two repos** (`wb-mqtt-bridge` backend + `wb-mqtt-ui` frontend) developed in lockstep.
+- Docker + GitHub-Actions ARM build (one unified workflow builds both images); artifact deploy
+  today (GHCR planned).
+- **Monorepo** — `backend/` (FastAPI + MQTT), `ui/` (React/Vite), `wb-rules/`, `ops/`, `docs/` in
+  one repo (consolidated 2026-05-22 from the former two repos); backend = data/functionality
+  truth, UI = visual truth.
 - Stack: Python 3.11 / FastAPI / aiomqtt (backend); React / TypeScript / Vite (UI).
 
 ## Design values
 
 - **Strong typing end-to-end** (Pydantic configs + per-device state models).
 - **Hexagonal architecture** (ports & adapters) for testability and swappable transports.
-- **Contract-based coupling** (OpenAPI) over import coupling between the repos.
+- **Contract-based coupling** (OpenAPI) over import coupling across the `backend/`↔`ui/` seam.
 - **Deterministic, reproducible builds** (committed `openapi.json`; generated UI
   artifacts gitignored and built fresh).
 - **Solo-dev pragmatism** — small focused commits, push to `main`, decisions tracked in
