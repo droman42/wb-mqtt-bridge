@@ -273,6 +273,25 @@ code/models/config behind — budget real time for this; do not skip it.
      (mark `available=0`) into bootstrap shutdown. (Deferred companion to the empty-retained-value
      fix, 2026-05-22.)
 
+7. **Scenario ↔ Wirenboard integration (DESIGN DISCUSSION — decide before re-enabling).** As of
+   2026-05-22, publishing each scenario as its own WB virtual device (`type=scenario`,
+   `/devices/movie_*`) is **disabled** (bootstrap no longer calls
+   `setup_wb_emulation_for_all_scenarios`; the 4 retained scenario WB devices were cleared from the
+   broker). The previous model is under review — it clutters the WB device list, conflates a
+   "scenario" with a "device," and its control semantics (a control per scenario? activate/
+   deactivate?) were never clearly defined. **Decide how scenarios should integrate with
+   Wirenboard**, considering at least:
+   - **(a) No WB representation** — scenarios live only in the bridge API + the (future Layer 3) UI;
+     Wirenboard sees only the underlying devices.
+   - **(b) A single "Scenario Manager" WB device** — one virtual device with an enum/selector
+     control (current scenario) + activate/deactivate, instead of one device per scenario.
+   - **(c) One WB device per scenario** (the disabled approach) — only if the semantics (controls,
+     activation, state feedback, manual-step surfacing) are properly defined.
+   - **(d) Wirenboard scenes/rules** — map scenarios onto WB's native scene/rule mechanism.
+   Tie-in: this overlaps Layer 3 runtime rendering and the manual-steps surfacing. The reconciler
+   itself does not depend on any WB scenario representation (scenarios activate via the API), so
+   this can be decided independently of the reconciler work.
+
 ---
 
 ## 5. Open Questions (to be decided before acting)

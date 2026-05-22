@@ -262,11 +262,11 @@ def create_app() -> FastAPI:
         )
         logger.info("Scenario WB adapter initialized")
         
-        # Set up WB virtual devices for all scenarios (after MQTT is connected)
-        if connection_success:
-            await scenario_manager.setup_wb_emulation_for_all_scenarios(scenario_wb_adapter, mqtt_client)
-        else:
-            logger.warning("MQTT connection failed - skipping scenario WB virtual device setup")
+        # Scenario WB virtual-device publishing is intentionally DISABLED pending a design
+        # decision on how scenarios should integrate with Wirenboard (see action_plan.md P4,
+        # "Scenario <-> Wirenboard integration"). Previously every scenario was published as a
+        # WB device (type=scenario); that modeling is under review. The adapter is still built
+        # (the API router uses it) — scenarios are simply not published to MQTT for now.
         
         # Initialize routers with dependencies
         system.initialize(config_manager, device_manager, mqtt_client, state_store, scenario_manager, room_manager)
