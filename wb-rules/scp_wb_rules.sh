@@ -15,6 +15,10 @@ REMOTE_SERVER=$1
 USERNAME=$2
 PASSWORD=$3
 
+# This script lives in wb-rules/; cd to the repo root so the CWD-relative `wb-rules`
+# path below resolves regardless of where the script is invoked from.
+cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
+
 # Check if wb-rules directory exists
 if [ ! -d "wb-rules" ]; then
     echo "Error: wb-rules directory not found in current directory"
