@@ -108,6 +108,26 @@ async def test_input_command_sets_optimistic_input(device):
 
 
 @pytest.mark.asyncio
+async def test_power_toggle_succeeds_and_flips_optimistic_power(device):
+    """Power toggle must report success and flip optimistic state.power.
+
+    Regression (found on hardware): the handler did `result.success` on a CommandResult
+    *dict*, raising "'dict' object has no attribute 'success'" — so the IR fired but the
+    command reported failure and the power state was never updated (breaking the reconciler).
+    """
+    initial = device.state.power
+    resp = await device.execute_action("power", {})
+    assert resp["success"] is True
+    assert device.state.power != initial  # toggled
+    assert device.state.power in ("on", "off")
+
+    # toggle back
+    resp2 = await device.execute_action("power", {})
+    assert resp2["success"] is True
+    assert device.state.power == initial
+
+
+@pytest.mark.asyncio
 async def test_handle_message_routes_parameterized_command(device):
     """A command with a 'level' param converts the raw payload to the typed value.
 

@@ -313,10 +313,10 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
                 # Execute the IR command
                 result = await self._execute_ir_command(action_name, original_cmd_config, params)
                 
-                if result.success:
-                    # Update power state to toggled value
+                if result.get("success"):
+                    # Update power state to toggled value (CommandResult is a dict)
                     self.update_state(power=new_power_state)
-                    result.message = f"Power toggled to {new_power_state}"
+                    result["message"] = f"Power toggled to {new_power_state}"
                     logger.info(f"{self.device_name}: Power toggled to {new_power_state}")
                 
                 return result
@@ -348,10 +348,10 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
                 # Device is off, execute the IR command
                 result = await self._execute_ir_command(action_name, original_cmd_config, params)
                 
-                if result.success:
-                    # Update power state to on
+                if result.get("success"):
+                    # Update power state to on (CommandResult is a dict)
                     self.update_state(power="on")
-                    result.message = "Device powered on"
+                    result["message"] = "Device powered on"
                     logger.info(f"{self.device_name}: Device powered on")
                 
                 return result
@@ -383,10 +383,10 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
                 # Device is on, execute the IR command
                 result = await self._execute_ir_command(action_name, original_cmd_config, params)
                 
-                if result.success:
-                    # Update power state to off
+                if result.get("success"):
+                    # Update power state to off (CommandResult is a dict)
                     self.update_state(power="off")
-                    result.message = "Device powered off"
+                    result["message"] = "Device powered off"
                     logger.info(f"{self.device_name}: Device powered off")
                 
                 return result
