@@ -1,0 +1,27 @@
+{
+  "_comment": "Sample for ops/docker_manager_config.json (the real file is gitignored — it holds a GitHub PAT). Copy this to docker_manager_config.json and fill in github.username/pat. MONOREPO: both containers pull from the single droman42/wb-mqtt-bridge repo — one unified CI run uploads wb-mqtt-bridge-image, wb-mqtt-ui-image, and wb-mqtt-bridge-config. (Until GHCR, action_plan #7, this uses GitHub Actions artifacts via a PAT.)",
+  "github": {
+    "username": "YOUR_GITHUB_USERNAME",
+    "pat": "YOUR_GITHUB_PAT_WITH_actions_read_SCOPE"
+  },
+  "containers": {
+    "wb-mqtt-bridge": {
+      "type": "backend",
+      "repo": "droman42/wb-mqtt-bridge",
+      "port": 8000,
+      "memory": "256M",
+      "cpu": "0.5",
+      "resource_dir": "/opt/wb-bridge"
+    },
+    "wb-mqtt-ui": {
+      "type": "ui",
+      "repo": "droman42/wb-mqtt-bridge",
+      "port": 3000,
+      "memory": "128M",
+      "cpu": "0.3"
+    }
+  },
+  "dependencies": {
+    "wb-mqtt-ui": "wb-mqtt-bridge"
+  }
+}

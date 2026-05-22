@@ -216,7 +216,9 @@ load_default_containers() {
     
     CONTAINERS["wb-mqtt-ui"]="1"
     CONTAINER_TYPES["wb-mqtt-ui"]="ui"
-    CONTAINER_REPOS["wb-mqtt-ui"]="droman42/wb-mqtt-ui"
+    # Monorepo: both images are built by the single droman42/wb-mqtt-bridge repo (one unified CI
+    # run uploads wb-mqtt-bridge-image + wb-mqtt-ui-image), so the UI pulls from the same repo.
+    CONTAINER_REPOS["wb-mqtt-ui"]="droman42/wb-mqtt-bridge"
     CONTAINER_PORTS["wb-mqtt-ui"]="3000"
     CONTAINER_MEMORY["wb-mqtt-ui"]="128M"
     CONTAINER_CPUS["wb-mqtt-ui"]="0.3"
