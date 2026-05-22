@@ -1,4 +1,4 @@
-name: Build ARM Docker Image
+name: Build ARM Docker Images (backend + ui)
 
 on:
   push:
@@ -8,83 +8,135 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
-    name: Test (amd64)
+  # ---------------------------------------------------------------- backend ---
+  backend-test:
+    name: Backend tests (amd64)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
           cache: 'pip'
-
+          cache-dependency-path: backend/pyproject.toml
       - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install -e ".[dev]"
-
       - name: Run tests
         run: pytest -v -m "not requires_device" --tb=short
 
-  build-arm:
-    name: Build ARM image
+  backend-build-arm:
+    name: Backend ARM image
     runs-on: ubuntu-latest
-    needs: test
+    needs: backend-test
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
-      
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-      with:
-        driver-opts: |
-          network=host
-          
-    - name: Build ARM image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        platforms: linux/arm/v7
-        tags: wb-mqtt-bridge:latest
-        outputs: type=docker,dest=/tmp/wb-mqtt-bridge-armv7.tar
-        no-cache: true
-        build-args: |
-          ARCH=arm32v7
-          LEAN=true
-          
-    - name: Compress Docker image
-      run: |
-        gzip /tmp/wb-mqtt-bridge-armv7.tar
-        mv /tmp/wb-mqtt-bridge-armv7.tar.gz /tmp/wb-mqtt-bridge.tar.gz
-        
-    - name: Create configuration archive
-      run: |
-        # Create directories if they don't exist
-        mkdir -p config logs data
-        
-        # Create configuration tar.gz (matching docker_deploy.sh logic)
-        if [ -f .env ]; then
-          tar -czf /tmp/wb-mqtt-bridge-config.tar.gz config/ logs/ data/ .env
-        else
-          tar -czf /tmp/wb-mqtt-bridge-config.tar.gz config/ logs/ data/
-        fi
-        
-    - name: Upload Docker image
-      uses: actions/upload-artifact@v4
-      with:
-        name: wb-mqtt-bridge-image
-        path: /tmp/wb-mqtt-bridge.tar.gz
-        retention-days: 7
-        
-    - name: Upload configuration files
-      uses: actions/upload-artifact@v4
-      with:
-        name: wb-mqtt-bridge-config
-        path: /tmp/wb-mqtt-bridge-config.tar.gz
-        retention-days: 7 
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            network=host
+      - name: Build ARM image
+        uses: docker/build-push-action@v5
+        with:
+          context: backend
+          file: backend/Dockerfile
+          platforms: linux/arm/v7
+          tags: wb-mqtt-bridge:latest
+          outputs: type=docker,dest=/tmp/wb-mqtt-bridge-armv7.tar
+          no-cache: true
+          build-args: |
+            ARCH=arm32v7
+            LEAN=true
+      - name: Compress Docker image
+        run: |
+          gzip /tmp/wb-mqtt-bridge-armv7.tar
+          mv /tmp/wb-mqtt-bridge-armv7.tar.gz /tmp/wb-mqtt-bridge.tar.gz
+      - name: Create configuration archive
+        working-directory: backend
+        run: |
+          mkdir -p config logs data
+          if [ -f .env ]; then
+            tar -czf /tmp/wb-mqtt-bridge-config.tar.gz config/ logs/ data/ .env
+          else
+            tar -czf /tmp/wb-mqtt-bridge-config.tar.gz config/ logs/ data/
+          fi
+      - name: Upload Docker image
+        uses: actions/upload-artifact@v4
+        with:
+          name: wb-mqtt-bridge-image
+          path: /tmp/wb-mqtt-bridge.tar.gz
+          retention-days: 7
+      - name: Upload configuration files
+        uses: actions/upload-artifact@v4
+        with:
+          name: wb-mqtt-bridge-config
+          path: /tmp/wb-mqtt-bridge-config.tar.gz
+          retention-days: 7
+
+  # --------------------------------------------------------------------- ui ---
+  ui-build-arm:
+    name: UI ARM image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+      - name: Install Node dependencies
+        working-directory: ui
+        run: npm ci
+      # No second checkout: the backend lives in this monorepo at ../backend.
+      - name: Verify backend contract present
+        run: |
+          ls -la backend/config/devices/
+          ls -la backend/openapi.json
+          echo "device configs: $(ls backend/config/devices/*.json | wc -l)"
+      - name: Generate device + scenario pages (from ../backend)
+        working-directory: ui
+        run: npm run gen:device-pages -- --batch --mode=local --mapping-file=../backend/config/device-state-mapping.json --generate-router
+      - name: Typecheck
+        working-directory: ui
+        run: npm run typecheck:all
+      - name: Lint
+        working-directory: ui
+        run: npm run lint
+      - name: Validate generated code
+        working-directory: ui
+        run: npm run validate:generated-code
+      - name: Validate generated components
+        working-directory: ui
+        run: npm run validate:components
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Build UI ARM image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ui/Dockerfile
+          platforms: linux/arm/v7
+          tags: wb-mqtt-ui:latest
+          outputs: type=docker,dest=/tmp/wb-mqtt-ui.tar
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+      - name: Compress Docker image
+        run: gzip /tmp/wb-mqtt-ui.tar
+      - name: Upload UI image
+        uses: actions/upload-artifact@v4
+        with:
+          name: wb-mqtt-ui-image
+          path: /tmp/wb-mqtt-ui.tar.gz
+          retention-days: 30
+      - name: Upload build logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-build-logs
+          path: |
+            ui/npm-debug.log*
