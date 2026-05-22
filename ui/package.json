@@ -7,7 +7,7 @@
     "build": "tsc && vite build",
     "gen:pages": "npx tsx src/scripts/generate-device-pages.ts --batch",
     "gen:device-pages": "npx tsx src/scripts/generate-device-pages.ts",
-    "gen:api-types": "openapi-typescript ${OPENAPI_SCHEMA:-../wb-mqtt-bridge/openapi.json} -o src/types/api.gen.ts",
+    "gen:api-types": "openapi-typescript ${OPENAPI_SCHEMA:-../backend/openapi.json} -o src/types/api.gen.ts",
     "preview": "vite preview",
     "test": "jest",
     "test:e2e": "playwright test",

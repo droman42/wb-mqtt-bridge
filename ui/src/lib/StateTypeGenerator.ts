@@ -286,17 +286,17 @@ export function ${hookName}(deviceId: string = '${deviceId}') {
 
   /**
    * Load and cache the backend OpenAPI snapshot. Resolves the path from the
-   * WB_OPENAPI_SCHEMA env var, then well-known sibling-checkout locations
-   * (CI/Docker layout `wb-mqtt-bridge/openapi.json`, local sibling
-   * `../wb-mqtt-bridge/openapi.json`). Returns null if none is found.
+   * WB_OPENAPI_SCHEMA env var, then well-known monorepo locations
+   * (Docker/CI layout `backend/openapi.json` with the backend copied alongside the UI build,
+   * local dev `../backend/openapi.json` when run from `ui/`). Returns null if none is found.
    */
   private loadOpenApiSchema(): any | null {
     if (this.openApiCache) return this.openApiCache;
 
     const candidates = [
       process.env.WB_OPENAPI_SCHEMA,
-      'wb-mqtt-bridge/openapi.json',
-      '../wb-mqtt-bridge/openapi.json',
+      'backend/openapi.json',
+      '../backend/openapi.json',
       'openapi.json',
     ].filter(Boolean) as string[];
 

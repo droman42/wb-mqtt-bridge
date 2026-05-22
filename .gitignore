@@ -1,9 +1,11 @@
-bin/
-include/
-lib/
-lib64/
-info/
-pyenv.cfg
+# Root-level venv-layout leftovers (anchored to the repo root so they don't match nested
+# dirs like ui/src/lib or backend/.../bin in the monorepo).
+/bin/
+/include/
+/lib/
+/lib64/
+/info/
+/pyenv.cfg
 
 # Python
 __pycache__/

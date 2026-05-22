@@ -1,0 +1,22 @@
+# The UI image is built with context = monorepo root (Dockerfile: ui/Dockerfile), so this
+# .dockerignore keeps that build context lean. The backend image uses backend/.dockerignore.
+.git
+.github
+**/node_modules
+**/.venv
+venv/
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/.coverage
+**/*.log
+backend/logs
+backend/data
+ui/dist
+docs
+wb-rules
+ops
+**/.DS_Store
+ops/docker_manager_config.json

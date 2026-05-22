@@ -3,18 +3,19 @@ FROM node:20 AS builder
 
 WORKDIR /app
 
-# Copy package files first for better caching
-COPY package*.json ./
+# Build context is the MONOREPO ROOT (this Dockerfile is ui/Dockerfile). Copy the UI package
+# manifests first for better caching.
+COPY ui/package*.json ./
 RUN npm ci
 
-# Copy the sibling backend repo (in the build context). Used at codegen time for
-# device configs (config/devices/*.json) and the API contract (openapi.json).
-# No Python / pip is needed: device-state types come from openapi.json, not from
-# importing the package and AST-parsing Pydantic classes (action_plan P1 #3.5).
-COPY wb-mqtt-bridge/ ./wb-mqtt-bridge/
+# Copy only what codegen needs from the backend (same monorepo): device configs
+# (backend/config/devices/*.json) + the API contract (backend/openapi.json). No Python / pip is
+# needed: device-state types come from openapi.json, not from importing the package.
+COPY backend/config ./backend/config
+COPY backend/openapi.json ./backend/openapi.json
 
-# Copy frontend source code
-COPY . .
+# Copy the UI source
+COPY ui/ ./
 
 # Set environment variables for production build.
 # Use relative URLs so the nginx proxy handles API/SSE routing. The MQTT URL is
@@ -25,15 +26,15 @@ ENV VITE_SSE_BASE_URL=""
 
 # Verify all paths are accessible
 RUN echo "Verifying config structure:" && \
-    ls -la wb-mqtt-bridge/config/devices/ && \
-    ls -la wb-mqtt-bridge/ && \
-    echo "Found $(ls wb-mqtt-bridge/config/devices/*.json | wc -l) device configs"
+    ls -la backend/config/devices/ && \
+    ls -la backend/ && \
+    echo "Found $(ls backend/config/devices/*.json | wc -l) device configs"
 
 # Generate device pages using package-based imports
 RUN npm run gen:device-pages -- \
     --batch \
     --mode=package \
-    --mapping-file=wb-mqtt-bridge/config/device-state-mapping.json \
+    --mapping-file=backend/config/device-state-mapping.json \
     --generate-router
 
 # Validate TypeScript compilation
