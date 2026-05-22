@@ -274,3 +274,28 @@ def test_all_direct_pypi_deps_have_upper_bounds():
         "Add ',<NEXT_MAJOR' to each to prevent silent breaking-release upgrades (DEP-03):\n"
         + "\n".join(f"  {d}" for d in missing_upper_bound)
     )
+
+
+# ---------------------------------------------------------------------------
+# Test 6 — pyatv listener interface compatibility (runtime interface guard)
+# ---------------------------------------------------------------------------
+
+
+def test_pyatv_device_listener_implements_all_abstract_methods():
+    """The AppleTV driver's PyATVDeviceListener must implement every abstract method
+    required by the *installed* pyatv listener interfaces.
+
+    pyatv 0.17.0 added ``AudioListener.volume_device_update``, which the driver did not
+    implement — making the listener un-instantiable and breaking every Apple TV at device
+    setup (a failure only visible on hardware). This guard turns that class of regression
+    into a unit-test failure: if a future pyatv bump adds another abstract listener method,
+    this fails here instead of in production.
+    """
+    from wb_mqtt_bridge.infrastructure.devices.apple_tv.driver import PyATVDeviceListener
+
+    unimplemented = sorted(getattr(PyATVDeviceListener, "__abstractmethods__", frozenset()))
+    assert not unimplemented, (
+        "PyATVDeviceListener has unimplemented abstract methods required by the installed "
+        f"pyatv version: {unimplemented}. Implement them on the listener "
+        "(see AudioListener / DeviceListener in pyatv.interface)."
+    )

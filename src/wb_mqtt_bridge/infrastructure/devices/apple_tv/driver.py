@@ -1819,6 +1819,24 @@ class PyATVDeviceListener(DeviceListener, AudioListener):
             )
         )
 
+    def volume_device_update(self, output_device, old_level: float, new_level: float):
+        """
+        Called by pyatv (0.17+) when a *specific output device's* volume changes.
+
+        The main device volume is tracked via volume_update(); this per-output-device
+        callback is a new abstract method added to AudioListener in pyatv 0.17.0, so it
+        must be implemented for PyATVDeviceListener to instantiate. Logged for completeness.
+
+        Args:
+            output_device: The output device whose volume changed
+            old_level: Previous volume level (0.0-100.0)
+            new_level: New volume level (0.0-100.0)
+        """
+        logger.debug(
+            f"[{self.device.device_id}] Output-device volume changed "
+            f"{old_level:.1f}% -> {new_level:.1f}% on {output_device}"
+        )
+
     def focusstate_update(self, old_state, new_state):
         """
         Called by pyatv when virtual keyboard focus state changes (Companion protocol).
