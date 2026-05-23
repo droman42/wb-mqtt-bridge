@@ -301,6 +301,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/devices/{device_id}/layout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Device Layout
+         * @description Layer-3 layout manifest for a device — the backend-computed remote layout the UI renders at
+         *     runtime (replaces build-time codegen). Built from the device's capability map by the placement
+         *     engine (``presentation/api/layout_engine.py``).
+         */
+        get: operations["get_device_layout_devices__device_id__layout_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/devices/{device_id}/persisted_state": {
         parameters: {
             query?: never;
@@ -1038,6 +1060,31 @@ export interface components {
              */
             status: string;
         };
+        /** ActionHandler */
+        ActionHandler: {
+            /** Actionname */
+            actionName: string;
+            /** Dependencies */
+            dependencies?: string[];
+            /** Handlercode */
+            handlerCode: string;
+        };
+        /** ActionIcon */
+        ActionIcon: {
+            /** Confidence */
+            confidence: number;
+            /** Fallbackicon */
+            fallbackIcon: string;
+            /**
+             * Iconlibrary
+             * @enum {string}
+             */
+            iconLibrary: "material" | "custom" | "fallback";
+            /** Iconname */
+            iconName: string;
+            /** Iconvariant */
+            iconVariant?: ("filled" | "outlined" | "rounded" | "sharp" | "two-tone") | null;
+        };
         /**
          * ActionRequest
          * @description Request model for executing a role action.
@@ -1235,6 +1282,12 @@ export interface components {
              * @description Human-readable description of the command
              */
             description?: string | null;
+            /**
+             * Exposed
+             * @description Whether this command is surfaced (UI/manifest, WB/MQTT, HTTP). False = a driver-supported but dormant action, hidden on every surface.
+             * @default true
+             */
+            exposed: boolean;
             /**
              * Group
              * @description Functional group this command belongs to
@@ -1476,6 +1529,17 @@ export interface components {
          * @enum {string}
          */
         DeviceCategory: "device" | "appliance";
+        /** DeviceSpecialCase */
+        DeviceSpecialCase: {
+            /** Casetype */
+            caseType: string;
+            /** Configuration */
+            configuration?: {
+                [key: string]: unknown;
+            };
+            /** Deviceclass */
+            deviceClass: string;
+        };
         /**
          * DeviceState
          * @description Runtime state of a device.
@@ -1503,6 +1567,44 @@ export interface components {
              * @description True = ON, False = OFF
              */
             power?: boolean | null;
+        };
+        /** DropdownConfig */
+        DropdownConfig: {
+            /** Apiaction */
+            apiAction?: string | null;
+            /**
+             * Empty
+             * @default false
+             */
+            empty: boolean;
+            /**
+             * Loading
+             * @default false
+             */
+            loading: boolean;
+            /** Options */
+            options?: components["schemas"]["DropdownOption"][];
+            /**
+             * Populationmethod
+             * @enum {string}
+             */
+            populationMethod: "api" | "commands";
+            /** Setaction */
+            setAction?: string | null;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "inputs" | "apps";
+        };
+        /** DropdownOption */
+        DropdownOption: {
+            /** Description */
+            description?: string | null;
+            /** Displayname */
+            displayName: string;
+            /** Id */
+            id: string;
         };
         /**
          * EmotivaXMC2State
@@ -1709,6 +1811,40 @@ export interface components {
             timestamp: string;
         };
         /**
+         * LayoutManifest
+         * @description The remote layout for one entity (device or scenario), served at runtime. A superset of the
+         *     UI's ``RemoteDeviceStructure`` (renderer-compatible) plus manifest metadata.
+         */
+        LayoutManifest: {
+            /** Actionhandlers */
+            actionHandlers?: components["schemas"]["ActionHandler"][];
+            /**
+             * Devicecategory
+             * @default device
+             * @enum {string}
+             */
+            deviceCategory: "device" | "appliance";
+            /** Deviceclass */
+            deviceClass: string;
+            /** Deviceid */
+            deviceId: string;
+            /** Devicename */
+            deviceName: string;
+            /**
+             * Entitykind
+             * @default device
+             * @enum {string}
+             */
+            entityKind: "device" | "scenario";
+            /** Remotezones */
+            remoteZones?: components["schemas"]["RemoteZone"][];
+            /** Specialcases */
+            specialCases?: components["schemas"]["DeviceSpecialCase"][];
+            stateInterface?: components["schemas"]["StateDefinition"] | null;
+            /** Stateschema */
+            stateSchema?: string | null;
+        };
+        /**
          * LgTvState
          * @description Schema for LG TV state.
          */
@@ -1870,6 +2006,18 @@ export interface components {
              */
             startup?: string[];
         };
+        /** NavigationClusterConfig */
+        NavigationClusterConfig: {
+            aux1Action?: components["schemas"]["ProcessedAction"] | null;
+            aux2Action?: components["schemas"]["ProcessedAction"] | null;
+            aux3Action?: components["schemas"]["ProcessedAction"] | null;
+            aux4Action?: components["schemas"]["ProcessedAction"] | null;
+            downAction?: components["schemas"]["ProcessedAction"] | null;
+            leftAction?: components["schemas"]["ProcessedAction"] | null;
+            okAction?: components["schemas"]["ProcessedAction"] | null;
+            rightAction?: components["schemas"]["ProcessedAction"] | null;
+            upAction?: components["schemas"]["ProcessedAction"] | null;
+        };
         /**
          * PersistedStatesResponse
          * @description Model for the collection of persisted device states.
@@ -1891,6 +2039,84 @@ export interface components {
              */
             db_path: string;
         };
+        /** PlaybackConfig */
+        PlaybackConfig: {
+            /** Actions */
+            actions?: components["schemas"]["ProcessedAction"][];
+            /**
+             * Layout
+             * @default horizontal
+             * @enum {string}
+             */
+            layout: "horizontal" | "cluster";
+        };
+        /** PointerPadConfig */
+        PointerPadConfig: {
+            clickAction?: components["schemas"]["ProcessedAction"] | null;
+            dragAction?: components["schemas"]["ProcessedAction"] | null;
+            moveAction: components["schemas"]["ProcessedAction"];
+            scrollAction?: components["schemas"]["ProcessedAction"] | null;
+        };
+        /** PowerButtonConfig */
+        PowerButtonConfig: {
+            action: components["schemas"]["ProcessedAction"];
+            /**
+             * Buttontype
+             * @enum {string}
+             */
+            buttonType: "power-off" | "power-on" | "power-toggle" | "zone2-power";
+            /**
+             * Position
+             * @enum {string}
+             */
+            position: "left" | "middle" | "right";
+        };
+        /** ProcessedAction */
+        ProcessedAction: {
+            /** Actionname */
+            actionName: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Displayname */
+            displayName: string;
+            /**
+             * Group
+             * @default default
+             */
+            group: string;
+            icon: components["schemas"]["ActionIcon"];
+            /** Parameters */
+            parameters?: components["schemas"]["ProcessedParameter"][];
+            /** Sourcedeviceid */
+            sourceDeviceId?: string | null;
+            uiHints?: components["schemas"]["UIHints"];
+        };
+        /** ProcessedParameter */
+        ProcessedParameter: {
+            /** Default */
+            default?: unknown | null;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Max */
+            max?: number | null;
+            /** Min */
+            min?: number | null;
+            /** Name */
+            name: string;
+            /** Required */
+            required: boolean;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "range" | "string" | "integer" | "boolean";
+        };
         /**
          * ReloadResponse
          * @description Schema for system reload response.
@@ -1905,6 +2131,29 @@ export interface components {
              * Format: date-time
              */
             timestamp?: string;
+        };
+        /** RemoteZone */
+        RemoteZone: {
+            content: components["schemas"]["ZoneContent"];
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Isempty */
+            isEmpty: boolean;
+            layout?: components["schemas"]["ZoneLayoutConfig"];
+            /** Showhide */
+            showHide: boolean;
+            /**
+             * Zoneid
+             * @enum {string}
+             */
+            zoneId: "power" | "media-stack" | "screen" | "volume" | "apps" | "menu" | "pointer";
+            /** Zonename */
+            zoneName: string;
+            /**
+             * Zonetype
+             * @enum {string}
+             */
+            zoneType: "power" | "media-stack" | "screen" | "volume" | "apps" | "menu" | "pointer";
         };
         /**
          * RevoxA77ReelToReelState
@@ -2196,6 +2445,12 @@ export interface components {
              */
             description?: string | null;
             /**
+             * Exposed
+             * @description Whether this command is surfaced (UI/manifest, WB/MQTT, HTTP). False = a driver-supported but dormant action, hidden on every surface.
+             * @default true
+             */
+            exposed: boolean;
+            /**
              * Group
              * @description Functional group this command belongs to
              */
@@ -2213,6 +2468,31 @@ export interface components {
         StartScenarioRequest: {
             /** Id */
             id: string;
+        };
+        /** StateDefinition */
+        StateDefinition: {
+            /** Extends */
+            extends?: string[];
+            /** Fields */
+            fields?: components["schemas"]["StateField"][];
+            /** Imports */
+            imports?: string[];
+            /** Interfacename */
+            interfaceName: string;
+        };
+        /** StateField */
+        StateField: {
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Name */
+            name: string;
+            /** Optional */
+            optional: boolean;
+            /** Type */
+            type: string;
         };
         /**
          * SwitchScenarioRequest
@@ -2330,6 +2610,30 @@ export interface components {
              */
             timestamp: string | null;
         };
+        /** TracksConfig */
+        TracksConfig: {
+            /** Actions */
+            actions?: components["schemas"]["ProcessedAction"][];
+            /**
+             * Layout
+             * @default horizontal
+             * @enum {string}
+             */
+            layout: "horizontal" | "vertical";
+        };
+        /** UIHints */
+        UIHints: {
+            /** Buttonsize */
+            buttonSize?: ("small" | "medium" | "large") | null;
+            /** Buttonstyle */
+            buttonStyle?: ("primary" | "secondary" | "destructive") | null;
+            /** Hasparameters */
+            hasParameters?: boolean | null;
+            /** Ispointeraction */
+            isPointerAction?: boolean | null;
+            /** Zonenumber */
+            zoneNumber?: number | null;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -2338,6 +2642,32 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** VolumeButtonConfig */
+        VolumeButtonConfig: {
+            downAction?: components["schemas"]["ProcessedAction"] | null;
+            muteAction?: components["schemas"]["ProcessedAction"] | null;
+            upAction?: components["schemas"]["ProcessedAction"] | null;
+            /** Zone */
+            zone?: number | null;
+        };
+        /** VolumeSliderConfig */
+        VolumeSliderConfig: {
+            action: components["schemas"]["ProcessedAction"];
+            muteAction?: components["schemas"]["ProcessedAction"] | null;
+            /**
+             * Orientation
+             * @default vertical
+             * @constant
+             */
+            orientation: "vertical";
+            /**
+             * Showvalue
+             * @default true
+             */
+            showValue: boolean;
+            /** Zone */
+            zone?: number | null;
         };
         /**
          * WirenboardIRState
@@ -2367,6 +2697,35 @@ export interface components {
              * @default off
              */
             power: string;
+        };
+        /** ZoneContent */
+        ZoneContent: {
+            appsDropdown?: components["schemas"]["DropdownConfig"] | null;
+            inputsDropdown?: components["schemas"]["DropdownConfig"] | null;
+            navigationCluster?: components["schemas"]["NavigationClusterConfig"] | null;
+            playbackSection?: components["schemas"]["PlaybackConfig"] | null;
+            pointerPad?: components["schemas"]["PointerPadConfig"] | null;
+            /** Powerbuttons */
+            powerButtons?: components["schemas"]["PowerButtonConfig"][] | null;
+            /** Screenactions */
+            screenActions?: components["schemas"]["ProcessedAction"][] | null;
+            tracksSection?: components["schemas"]["TracksConfig"] | null;
+            /** Volumebuttons */
+            volumeButtons?: components["schemas"]["VolumeButtonConfig"][] | null;
+            volumeSlider?: components["schemas"]["VolumeSliderConfig"] | null;
+        };
+        /** ZoneLayoutConfig */
+        ZoneLayoutConfig: {
+            /** Alignment */
+            alignment?: ("left" | "center" | "right") | null;
+            /** Columns */
+            columns?: number | null;
+            /** Orientation */
+            orientation?: ("horizontal" | "vertical") | null;
+            /** Priority */
+            priority?: number | null;
+            /** Spacing */
+            spacing?: ("compact" | "normal" | "spacious") | null;
         };
     };
     responses: never;
@@ -2575,6 +2934,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GroupActionsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_device_layout_devices__device_id__layout_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayoutManifest"];
                 };
             };
             /** @description Validation Error */
