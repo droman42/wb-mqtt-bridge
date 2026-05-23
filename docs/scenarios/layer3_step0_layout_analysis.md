@@ -53,7 +53,8 @@ groups-retirement (§17) is safe. `group` is a redundant label.
 - **`reel_to_reel` (Revox) — author playback map:** play/stop/rewind_forward/rewind_backward
   (`playback`). (Pure transport; no power/input.)
 - **`upscaler`** — has a map (input/screen/menu) but **no `power`** by design (auto-powers with
-  source). Its `power_on`/`power_off` IR commands are unmapped → see §8.
+  source). **Decision §8.2: author a `power` capability with `reconcile: false`** — manual power on
+  the device page, reconciler skips it.
 - **`kitchen_hood`** — appliance, **out of Layer-3-v1 scope** (bespoke page later); leave as-is.
 
 ## 5. Dormant commands → `exposed: false`
@@ -80,15 +81,21 @@ standalone control. (Distinct from `refresh_*` = internal → `exposed:false`.)
   order** — so the *capability map* author controls button order (this retires the old
   config-key-order convention).
 
-## 8. Open decisions (need sign-off before Step 1)
+## 8. Decisions (resolved 2026-05-23)
 
-1. **Taxonomy (§1)** — confirm as the v1 domain→zone mapping.
-2. **upscaler power** — the device auto-powers with its source, so the reconciler omits a power
-   capability. Should the UI still show **manual power buttons** (→ add a `power` capability for the
-   page even though the reconciler ignores it), or treat `power_on`/`power_off` as **`exposed:false`**
-   (vestigial)?
-3. **List vs internal (§5/§6)** — confirm `*.list` actions = dropdown sources (exposed), and
-   `refresh_status`/`refresh_inputs` = `exposed:false`.
+1. **Taxonomy (§1)** — **CONFIRMED** as the v1 domain→zone mapping.
+2. **upscaler power** — **RESOLVED: keep manual power on the upscaler's device page** (the user tunes
+   the upscaler standalone, outside any scenario). Wrinkle: the reconciler powers *every `involved`
+   device that has a `power` capability* (`reconciler.py build_plan:330-343`), and the upscaler is on
+   the signal path (`involved`) — so a plain power capability would make scenarios power-cycle it,
+   breaking the intended auto-power. **Mechanism: a new capability flag `reconcile: false`** (default
+   `true`) — the capability is exposed (page/WB/HTTP) but the reconciler skips it. Author the
+   upscaler `power` capability with `reconcile: false`. Needs a small reconciler change (skip a cap
+   where `reconcile is False`) — Step-1 backend task. This makes the model carry an orthogonal pair:
+   **`exposed`** (command-level — surfaced at all?) × **`reconcile`** (capability-level —
+   scenario-driven?).
+3. **List vs internal (§5/§6)** — **CONFIRMED**: `*.list` = dropdown sources (exposed);
+   `refresh_status`/`refresh_inputs` = `exposed: false`.
 
 ## 9. Step-0 remaining (after this analysis)
 
