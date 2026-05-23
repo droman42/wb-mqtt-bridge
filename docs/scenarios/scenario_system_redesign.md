@@ -263,6 +263,9 @@ Key fields:
 - **`feedback`** — drives gating (see §7.4): `true` → completion-poll; `false` → fixed delay.
 - **`state_field` / `on_value`** — how the reconciler reads assumed/actual state to diff and to
   decide toggles. `on_value` is `str | bool | int` (e.g. the Auralic reads a bool `connected: true`).
+  On a **momentary** capability (e.g. `volume`) `state_field` is **not reconciled** — it's the Layer-3
+  UI value binding: the slider reads `deviceState[state_field]` (serialized snake_case, e.g. eMotiva
+  `zone2_volume`), surfaced on the manifest as `valueField`. See `ui_backend_contract.md`.
 - **`gate`** — device-declared timing (replaces the old `delays`): `poll_timeout_ms` (feedback →
   completion-poll `state_field` to target) and `delay_ms` (no-feedback → fixed wait). Scenarios don't
   carry magic delays anymore.
@@ -604,7 +607,7 @@ reconciled, momentary caps are live-only.
   "input": { "kind":"stateful","feedback":true,"state_field":"input_source",
     "select": { "command":"set_input_source","param_map":{"input":"source"} },   // kills RC1
     "list":   { "command":"get_available_inputs" }, "gate":{"poll_timeout_ms":3000} },
-  "volume": { "kind":"momentary","actions": {
+  "volume": { "kind":"momentary","state_field":"volume","actions": {   // state_field = Layer-3 slider value binding
     "up":{"command":"volume_up"},"down":{"command":"volume_down"},
     "set":{"command":"set_volume","param_map":{"level":"level"}},"mute_toggle":{"command":"mute"} } },
   "menu": { "kind":"momentary","actions": {
@@ -648,7 +651,7 @@ reconciled, momentary caps are live-only.
                           "toggle":{"command":"zone2_power_toggle"} } } } },   // native zone-2 toggle (Step 1)
   "input": { "kind":"stateful","feedback":true,"state_field":"input_source",
     "select": { "command":"set_input" }, "list":{"command":"get_available_inputs"}, "gate":{"poll_timeout_ms":3000} },
-  "volume": { "kind":"momentary","actions": {        // latent: volume role = amp in current scenarios; native level is dB (-96..0)
+  "volume": { "kind":"momentary","state_field":"zone2_volume","actions": {  // state_field = Layer-3 slider value; native level is dB (-96..0)
     "set":{"command":"set_volume","param_map":{"level":"level"},"params":{"zone":2}},
     "mute_toggle":{"command":"mute_toggle","params":{"zone":2}} } }
 }
@@ -670,7 +673,7 @@ reconciled, momentary caps are live-only.
   "pointer": { "kind":"momentary","actions": {
     "move":{"command":"pointer_gesture","param_map":{"dx":"deltaX","dy":"deltaY"}},
     "tap":{"command":"touch_at_position","param_map":{"x":"x","y":"y"}} } },
-  "volume": { "kind":"momentary","actions": {
+  "volume": { "kind":"momentary","state_field":"volume","actions": {   // state_field = Layer-3 slider value binding
     "up":{"command":"volume_up"},"down":{"command":"volume_down"},"set":{"command":"set_volume","param_map":{"level":"level"}} } }
   // device-specific extras (outside canonical domains): screensaver, home_hold; refresh_status = internal query
 }
