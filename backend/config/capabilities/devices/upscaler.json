@@ -1,4 +1,9 @@
 {
+  "power": {
+    "kind": "stateful", "feedback": false, "reconcile": false, "state_field": "power", "on_value": "on",
+    "actions": { "on": { "command": "power_on" }, "off": { "command": "power_off" } },
+    "gate": { "delay_ms": 1000 }
+  },
   "input": {
     "kind": "stateful", "feedback": false, "state_field": "input",
     "select": {

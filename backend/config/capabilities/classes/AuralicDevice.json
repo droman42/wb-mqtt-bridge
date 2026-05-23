@@ -1,4 +1,9 @@
 {
+  "power": {
+    "kind": "stateful", "feedback": true, "state_field": "connected", "on_value": true,
+    "actions": { "on": { "command": "power_on" }, "off": { "command": "power_off" } },
+    "gate": { "poll_timeout_ms": 25000 }
+  },
   "input": {
     "kind": "stateful", "feedback": true, "state_field": "source",
     "select": { "command": "set_input", "param_map": { "input": "input" } },

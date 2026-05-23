@@ -99,7 +99,8 @@
     "track_info": {
       "action": "track_info",
       "group": "media",
-      "description": "Get Current Track Information"
+      "description": "Get Current Track Information",
+      "exposed": false
     },
     "get_available_inputs": {
       "action": "get_available_inputs",
@@ -109,7 +110,8 @@
     "refresh_inputs": {
       "action": "refresh_inputs",
       "description": "Refresh inputs list",
-      "group": "inputs"
+      "group": "inputs",
+      "exposed": false
     }
   }
 }

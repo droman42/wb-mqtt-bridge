@@ -96,7 +96,8 @@
     "refresh_status": {
       "action": "refresh_status",
       "description": "Refresh Status",
-      "group": "power"
+      "group": "power",
+      "exposed": false
     },
     "menu": {
       "action": "menu",
@@ -136,12 +137,14 @@
     "screensaver": {
       "action": "screensaver",
       "description": "Activate Screensaver",
-      "group": "noops"
+      "group": "noops",
+      "exposed": false
     },
     "home_hold": {
       "action": "home_hold",
       "description": "Remote: Home Hold",
-      "group": "noops"
+      "group": "noops",
+      "exposed": false
     },
     "get_available_apps": {
       "action": "get_available_apps",
