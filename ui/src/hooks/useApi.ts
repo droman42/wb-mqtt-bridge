@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
+import type { components } from '../types/api.gen';
 import type {
   DeviceAction,
   MQTTMessage,
@@ -82,6 +83,18 @@ export const useDeviceState = (deviceId: string) => {
     queryFn: () => api.get<BaseDeviceState>(`/devices/${deviceId}/state`).then(res => res.data),
     enabled: !!deviceId,
     // No more aggressive polling - only fetch on mount and after actions
+  });
+};
+
+// Layer 3 (Step 2): the backend-served layout manifest (page STRUCTURE). Structural,
+// not live state — fetch once and keep (live state still flows via /state + SSE).
+export type LayoutManifest = components['schemas']['LayoutManifest'];
+export const useDeviceLayout = (deviceId: string) => {
+  return useQuery({
+    queryKey: ['devices', deviceId, 'layout'],
+    queryFn: () => api.get<LayoutManifest>(`/devices/${deviceId}/layout`).then(res => res.data),
+    enabled: !!deviceId,
+    staleTime: Infinity,
   });
 };
 

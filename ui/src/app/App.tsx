@@ -8,6 +8,8 @@ import HomePage from '../pages/HomePage';
 import { getDeviceComponent } from '../pages/devices/index.gen';
 import { getScenarioComponent } from '../pages/scenarios/index.gen';
 import { ScenarioVirtualDeviceControls } from '../components/ScenarioVirtualDeviceControls';
+import { RuntimeDevicePage } from '../components/RuntimeDevicePage';
+import { isRuntimeLayoutEnabled } from '../config/runtime';
 
 // Component to handle device page routing using generated registry
 function DevicePage() {
@@ -22,8 +24,14 @@ function DevicePage() {
     );
   }
   
+  // Layer 3 (Step 2): render from the backend layout manifest at runtime when enabled
+  // for this device; otherwise fall through to the build-time generated page.
+  if (isRuntimeLayoutEnabled(deviceId)) {
+    return <RuntimeDevicePage deviceId={deviceId} />;
+  }
+
   const DeviceComponent = getDeviceComponent(deviceId);
-  
+
   if (DeviceComponent) {
     return <DeviceComponent />;
   }

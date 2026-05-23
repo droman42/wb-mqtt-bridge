@@ -9,6 +9,7 @@ declare global {
       API_BASE_URL?: string;
       MQTT_URL?: string;
       VERSION?: string;
+      RUNTIME_LAYOUT_DEVICES?: string;
     };
   }
 }
@@ -51,7 +52,26 @@ export const runtimeConfig = {
 
 // Helper function to build full SSE URLs
 export const getSSEUrl = (path: string): string => {
-  return runtimeConfig.sseBaseUrl ? 
-    `${runtimeConfig.sseBaseUrl}${path}` : 
+  return runtimeConfig.sseBaseUrl ?
+    `${runtimeConfig.sseBaseUrl}${path}` :
     path; // Use relative URL for proxy
-}; 
+};
+
+// Layer 3 (Step 2): devices whose page is rendered at RUNTIME from
+// GET /devices/{id}/layout instead of the build-time .gen.tsx. Comma-separated
+// allowlist; "*" enables all. Default pilot = mf_amplifier. Override via
+// VITE_RUNTIME_LAYOUT_DEVICES (build) or window.RUNTIME_CONFIG.RUNTIME_LAYOUT_DEVICES
+// (deploy); "" or "none" disables it (everything stays on the generated pages).
+const parseLayoutDevices = (raw: string | undefined): Set<string> => {
+  if (raw === undefined) return new Set(['mf_amplifier']); // pilot default
+  const v = raw.trim();
+  if (v === '' || v.toLowerCase() === 'none') return new Set();
+  return new Set(v.split(',').map((s) => s.trim()).filter(Boolean));
+};
+
+export const runtimeLayoutDevices = parseLayoutDevices(
+  runtimeOverrides.RUNTIME_LAYOUT_DEVICES ?? import.meta.env.VITE_RUNTIME_LAYOUT_DEVICES
+);
+
+export const isRuntimeLayoutEnabled = (deviceId: string): boolean =>
+  runtimeLayoutDevices.has('*') || runtimeLayoutDevices.has(deviceId);
