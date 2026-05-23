@@ -1,0 +1,331 @@
+{
+  "deviceId": "mf_amplifier",
+  "deviceName": "Musical Fidelity M6si",
+  "deviceClass": "WirenboardIRDevice",
+  "remoteZones": [
+    {
+      "zoneId": "power",
+      "zoneName": "Power Control",
+      "zoneType": "power",
+      "showHide": true,
+      "isEmpty": false,
+      "content": {
+        "powerButtons": [
+          {
+            "position": "left",
+            "action": {
+              "actionName": "power",
+              "displayName": "Power",
+              "description": "Power On/Off",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "PowerSettingsNew",
+                "iconVariant": "outlined",
+                "fallbackIcon": "power",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            "buttonType": "power-toggle"
+          }
+        ]
+      },
+      "layout": {
+        "columns": 3,
+        "spacing": "normal",
+        "alignment": "center"
+      }
+    },
+    {
+      "zoneId": "media-stack",
+      "zoneName": "Media Stack",
+      "zoneType": "media-stack",
+      "showHide": true,
+      "isEmpty": false,
+      "content": {
+        "inputsDropdown": {
+          "type": "inputs",
+          "populationMethod": "commands",
+          "options": [
+            {
+              "id": "input_cd",
+              "displayName": "Cd",
+              "description": "CD"
+            },
+            {
+              "id": "input_usb",
+              "displayName": "Usb",
+              "description": "USB"
+            },
+            {
+              "id": "input_phono",
+              "displayName": "Phono",
+              "description": "Phono"
+            },
+            {
+              "id": "input_tuner",
+              "displayName": "Tuner",
+              "description": "Tuner"
+            },
+            {
+              "id": "input_aux1",
+              "displayName": "Aux1",
+              "description": "AUX1"
+            },
+            {
+              "id": "input_aux2",
+              "displayName": "Aux2",
+              "description": "AUX2"
+            },
+            {
+              "id": "input_balanced",
+              "displayName": "Balanced",
+              "description": "Balanced"
+            }
+          ],
+          "loading": false,
+          "empty": false
+        }
+      },
+      "layout": {
+        "spacing": "normal",
+        "orientation": "vertical"
+      }
+    },
+    {
+      "zoneId": "screen",
+      "zoneName": "Screen Controls",
+      "zoneType": "screen",
+      "showHide": false,
+      "isEmpty": true,
+      "content": {
+        "screenActions": []
+      },
+      "layout": {
+        "orientation": "vertical",
+        "alignment": "left",
+        "spacing": "compact"
+      }
+    },
+    {
+      "zoneId": "volume",
+      "zoneName": "Volume Control",
+      "zoneType": "volume",
+      "showHide": false,
+      "isEmpty": false,
+      "content": {
+        "volumeButtons": [
+          {
+            "upAction": {
+              "actionName": "volume_up",
+              "displayName": "Volume Up",
+              "description": "Volume Up",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "VolumeUp",
+                "iconVariant": "outlined",
+                "fallbackIcon": "volume-up",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            "downAction": {
+              "actionName": "volume_down",
+              "displayName": "Volume Down",
+              "description": "Volume Down",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "VolumeDown",
+                "iconVariant": "outlined",
+                "fallbackIcon": "volume-down",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            "muteAction": {
+              "actionName": "mute",
+              "displayName": "Mute",
+              "description": "Mute",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "VolumeOff",
+                "iconVariant": "outlined",
+                "fallbackIcon": "mute",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            }
+          }
+        ]
+      },
+      "layout": {
+        "priority": 2,
+        "orientation": "vertical",
+        "alignment": "right",
+        "spacing": "compact"
+      }
+    },
+    {
+      "zoneId": "apps",
+      "zoneName": "Applications",
+      "zoneType": "apps",
+      "showHide": true,
+      "isEmpty": true,
+      "content": {},
+      "layout": {
+        "spacing": "normal"
+      }
+    },
+    {
+      "zoneId": "menu",
+      "zoneName": "Navigation",
+      "zoneType": "menu",
+      "showHide": false,
+      "isEmpty": true,
+      "content": {
+        "navigationCluster": {}
+      },
+      "layout": {
+        "alignment": "center",
+        "spacing": "normal"
+      }
+    },
+    {
+      "zoneId": "pointer",
+      "zoneName": "Pointer Control",
+      "zoneType": "pointer",
+      "showHide": true,
+      "isEmpty": true,
+      "content": {},
+      "layout": {
+        "spacing": "normal"
+      }
+    }
+  ],
+  "stateInterface": {
+    "interfaceName": "WirenboardIRDeviceState",
+    "fields": [
+      {
+        "name": "alias",
+        "type": "string",
+        "optional": false,
+        "description": "Device alias"
+      }
+    ],
+    "imports": [
+      "BaseDeviceState"
+    ],
+    "extends": [
+      "BaseDeviceState"
+    ]
+  },
+  "actionHandlers": [
+    {
+      "actionName": "power",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'mf_amplifier', \n          action: { name: 'power', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "volume_up",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'mf_amplifier', \n          action: { name: 'volume_up', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "volume_down",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'mf_amplifier', \n          action: { name: 'volume_down', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "mute",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'mf_amplifier', \n          action: { name: 'mute', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "input_cd",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'mf_amplifier', \n          action: { name: 'input_cd', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "input_usb",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'mf_amplifier', \n          action: { name: 'input_usb', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "input_phono",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'mf_amplifier', \n          action: { name: 'input_phono', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "input_tuner",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'mf_amplifier', \n          action: { name: 'input_tuner', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "input_aux1",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'mf_amplifier', \n          action: { name: 'input_aux1', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "input_aux2",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'mf_amplifier', \n          action: { name: 'input_aux2', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "input_balanced",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'mf_amplifier', \n          action: { name: 'input_balanced', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    }
+  ],
+  "specialCases": [
+    {
+      "deviceClass": "WirenboardIRDevice",
+      "caseType": "wirenboard-ir-commands",
+      "configuration": {
+        "usesCommands": true,
+        "inputsFromCommands": true
+      }
+    }
+  ]
+}

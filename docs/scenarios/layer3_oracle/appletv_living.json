@@ -1,0 +1,745 @@
+{
+  "deviceId": "appletv_living",
+  "deviceName": "Apple TV Living Room",
+  "deviceClass": "AppleTVDevice",
+  "remoteZones": [
+    {
+      "zoneId": "power",
+      "zoneName": "Power Control",
+      "zoneType": "power",
+      "showHide": true,
+      "isEmpty": false,
+      "content": {
+        "powerButtons": [
+          {
+            "position": "left",
+            "action": {
+              "actionName": "power_off",
+              "displayName": "Power Off",
+              "description": "Power Off",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "custom",
+                "iconName": "power-off",
+                "iconVariant": "outlined",
+                "fallbackIcon": "power",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "destructive"
+              }
+            },
+            "buttonType": "power-off"
+          },
+          {
+            "position": "right",
+            "action": {
+              "actionName": "power_on",
+              "displayName": "Power On",
+              "description": "Power On",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "PowerSettingsNew",
+                "iconVariant": "outlined",
+                "fallbackIcon": "power",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            "buttonType": "power-on"
+          }
+        ]
+      },
+      "layout": {
+        "columns": 3,
+        "spacing": "normal",
+        "alignment": "center"
+      }
+    },
+    {
+      "zoneId": "media-stack",
+      "zoneName": "Media Stack",
+      "zoneType": "media-stack",
+      "showHide": true,
+      "isEmpty": false,
+      "content": {
+        "playbackSection": {
+          "actions": [
+            {
+              "actionName": "play",
+              "displayName": "Play",
+              "description": "Play",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "PlayArrow",
+                "iconVariant": "outlined",
+                "fallbackIcon": "play",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "primary"
+              }
+            },
+            {
+              "actionName": "pause",
+              "displayName": "Pause",
+              "description": "Pause",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "Pause",
+                "iconVariant": "outlined",
+                "fallbackIcon": "pause",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "primary"
+              }
+            },
+            {
+              "actionName": "stop",
+              "displayName": "Stop",
+              "description": "Stop",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "Stop",
+                "iconVariant": "outlined",
+                "fallbackIcon": "stop",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "destructive"
+              }
+            },
+            {
+              "actionName": "next",
+              "displayName": "Next",
+              "description": "Next Track",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "SkipNext",
+                "iconVariant": "outlined",
+                "fallbackIcon": "next",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            {
+              "actionName": "previous",
+              "displayName": "Previous",
+              "description": "Previous Track",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "SkipPrevious",
+                "iconVariant": "outlined",
+                "fallbackIcon": "previous",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            }
+          ],
+          "layout": "horizontal"
+        }
+      },
+      "layout": {
+        "spacing": "normal",
+        "orientation": "vertical"
+      }
+    },
+    {
+      "zoneId": "screen",
+      "zoneName": "Screen Controls",
+      "zoneType": "screen",
+      "showHide": false,
+      "isEmpty": true,
+      "content": {
+        "screenActions": []
+      },
+      "layout": {
+        "orientation": "vertical",
+        "alignment": "left",
+        "spacing": "compact"
+      }
+    },
+    {
+      "zoneId": "volume",
+      "zoneName": "Volume Control",
+      "zoneType": "volume",
+      "showHide": false,
+      "isEmpty": false,
+      "content": {
+        "volumeSlider": {
+          "action": {
+            "actionName": "set_volume",
+            "displayName": "Set Volume",
+            "description": "Set Volume",
+            "parameters": [
+              {
+                "name": "level",
+                "type": "range",
+                "min": 0,
+                "max": 100,
+                "required": true,
+                "description": "Volume level (0-100)"
+              }
+            ],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "VolumeUp",
+              "iconVariant": "outlined",
+              "fallbackIcon": "volume",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "orientation": "vertical",
+          "showValue": true
+        }
+      },
+      "layout": {
+        "priority": 1,
+        "orientation": "vertical",
+        "alignment": "right",
+        "spacing": "compact"
+      }
+    },
+    {
+      "zoneId": "apps",
+      "zoneName": "Applications",
+      "zoneType": "apps",
+      "showHide": true,
+      "isEmpty": false,
+      "content": {
+        "appsDropdown": {
+          "type": "apps",
+          "populationMethod": "api",
+          "apiAction": "get_available_apps",
+          "setAction": "launch_app",
+          "options": [],
+          "loading": false,
+          "empty": true
+        }
+      },
+      "layout": {
+        "spacing": "normal"
+      }
+    },
+    {
+      "zoneId": "menu",
+      "zoneName": "Navigation",
+      "zoneType": "menu",
+      "showHide": false,
+      "isEmpty": false,
+      "content": {
+        "navigationCluster": {
+          "upAction": {
+            "actionName": "up",
+            "displayName": "Up",
+            "description": "Remote: Up",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "KeyboardArrowUp",
+              "iconVariant": "outlined",
+              "fallbackIcon": "up",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "downAction": {
+            "actionName": "down",
+            "displayName": "Down",
+            "description": "Remote: Down",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "KeyboardArrowDown",
+              "iconVariant": "outlined",
+              "fallbackIcon": "down",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "leftAction": {
+            "actionName": "left",
+            "displayName": "Left",
+            "description": "Remote: Left",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "KeyboardArrowLeft",
+              "iconVariant": "outlined",
+              "fallbackIcon": "left",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "rightAction": {
+            "actionName": "right",
+            "displayName": "Right",
+            "description": "Remote: Right",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "KeyboardArrowRight",
+              "iconVariant": "outlined",
+              "fallbackIcon": "right",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "okAction": {
+            "actionName": "select",
+            "displayName": "Select",
+            "description": "Remote: Select/OK",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "Check",
+              "iconVariant": "outlined",
+              "fallbackIcon": "select",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "aux1Action": {
+            "actionName": "home",
+            "displayName": "Home",
+            "description": "Remote: Home",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "Home",
+              "iconVariant": "outlined",
+              "fallbackIcon": "home",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "primary"
+            }
+          },
+          "aux2Action": {
+            "actionName": "menu",
+            "displayName": "Menu",
+            "description": "Remote: Menu",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "Menu",
+              "iconVariant": "outlined",
+              "fallbackIcon": "menu",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          }
+        }
+      },
+      "layout": {
+        "alignment": "center",
+        "spacing": "normal"
+      }
+    },
+    {
+      "zoneId": "pointer",
+      "zoneName": "Pointer Control",
+      "zoneType": "pointer",
+      "showHide": true,
+      "isEmpty": false,
+      "content": {
+        "pointerPad": {
+          "moveAction": {
+            "actionName": "pointer_gesture",
+            "displayName": "Pointer Gesture",
+            "description": "Pointer/Swipe Gesture",
+            "parameters": [
+              {
+                "name": "deltaX",
+                "type": "range",
+                "min": -1000,
+                "max": 1000,
+                "required": true,
+                "description": "Horizontal movement delta (-1000 to 1000)"
+              },
+              {
+                "name": "deltaY",
+                "type": "range",
+                "min": -1000,
+                "max": 1000,
+                "required": true,
+                "description": "Vertical movement delta (-1000 to 1000)"
+              }
+            ],
+            "group": "pointer",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "PanTool",
+              "iconVariant": "outlined",
+              "fallbackIcon": "cursor",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "isPointerAction": true
+            }
+          },
+          "clickAction": {
+            "actionName": "touch_at_position",
+            "displayName": "Touch Position",
+            "description": "Touch at Position",
+            "parameters": [
+              {
+                "name": "x",
+                "type": "range",
+                "min": 0,
+                "max": 1000,
+                "required": true,
+                "description": "X coordinate (0-1000)"
+              },
+              {
+                "name": "y",
+                "type": "range",
+                "min": 0,
+                "max": 1000,
+                "required": true,
+                "description": "Y coordinate (0-1000)"
+              }
+            ],
+            "group": "pointer",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "TouchApp",
+              "iconVariant": "outlined",
+              "fallbackIcon": "cursor",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "isPointerAction": true
+            }
+          }
+        }
+      },
+      "layout": {
+        "spacing": "normal"
+      }
+    }
+  ],
+  "stateInterface": {
+    "interfaceName": "AppleTVDeviceState",
+    "fields": [
+      {
+        "name": "connected",
+        "type": "boolean",
+        "optional": true,
+        "description": "Device connection status"
+      },
+      {
+        "name": "power",
+        "type": "string",
+        "optional": true,
+        "description": "Apple TV power state (\"on\", \"off\", \"unknown\")"
+      },
+      {
+        "name": "app",
+        "type": "string | null",
+        "optional": true,
+        "description": "Currently active application"
+      },
+      {
+        "name": "playback_state",
+        "type": "string | null",
+        "optional": true,
+        "description": "Current playback state (playing, paused, stopped)"
+      },
+      {
+        "name": "media_type",
+        "type": "string | null",
+        "optional": true,
+        "description": "Current media type"
+      },
+      {
+        "name": "title",
+        "type": "string | null",
+        "optional": true,
+        "description": "Current media title"
+      },
+      {
+        "name": "artist",
+        "type": "string | null",
+        "optional": true,
+        "description": "Current media artist"
+      },
+      {
+        "name": "album",
+        "type": "string | null",
+        "optional": true,
+        "description": "Current media album"
+      },
+      {
+        "name": "position",
+        "type": "number | null",
+        "optional": true,
+        "description": "Current playback position"
+      },
+      {
+        "name": "total_time",
+        "type": "number | null",
+        "optional": true,
+        "description": "Total media duration"
+      },
+      {
+        "name": "volume",
+        "type": "number | null",
+        "optional": true,
+        "description": "Current volume level"
+      },
+      {
+        "name": "ip_address",
+        "type": "string | null",
+        "optional": true,
+        "description": "Device IP address"
+      }
+    ],
+    "imports": [
+      "BaseDeviceState"
+    ],
+    "extends": [
+      "BaseDeviceState"
+    ]
+  },
+  "actionHandlers": [
+    {
+      "actionName": "power_on",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'power_on', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "power_off",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'power_off', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "play",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'play', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "pause",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'pause', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "stop",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'stop', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "next",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'next', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "previous",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'previous', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "volume_up",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'volume_up', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "volume_down",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'volume_down', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "set_volume",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'set_volume', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "launch_app",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'launch_app', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "refresh_status",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'refresh_status', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "menu",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'menu', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "home",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'home', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "select",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'select', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "up",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'up', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "down",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'down', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "left",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'left', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "right",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'right', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "screensaver",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'screensaver', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "home_hold",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'home_hold', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "get_available_apps",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'get_available_apps', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "pointer_gesture",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'pointer_gesture', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "touch_at_position",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'appletv_living', \n          action: { action: 'touch_at_position', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    }
+  ],
+  "specialCases": [
+    {
+      "deviceClass": "AppleTVDevice",
+      "caseType": "appletv-streaming",
+      "configuration": {
+        "usesAppsAPI": true,
+        "hasMediaControls": true,
+        "hasDirectionalNav": true,
+        "hasPointerControl": true
+      }
+    }
+  ]
+}

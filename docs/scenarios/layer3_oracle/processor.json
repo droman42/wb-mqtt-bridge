@@ -1,0 +1,392 @@
+{
+  "deviceId": "processor",
+  "deviceName": "eMotiva XMC2 Processor",
+  "deviceClass": "EMotivaXMC2",
+  "remoteZones": [
+    {
+      "zoneId": "power",
+      "zoneName": "Power Control",
+      "zoneType": "power",
+      "showHide": true,
+      "isEmpty": false,
+      "content": {
+        "powerButtons": [
+          {
+            "position": "left",
+            "action": {
+              "actionName": "power_off",
+              "displayName": "Power Off",
+              "description": "Turn off the processor",
+              "parameters": [
+                {
+                  "name": "zone",
+                  "type": "integer",
+                  "required": true,
+                  "default": 1,
+                  "min": 1,
+                  "max": 2,
+                  "description": "Zone ID (1 for main, 2 for zone2)"
+                }
+              ],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "custom",
+                "iconName": "power-off",
+                "iconVariant": "outlined",
+                "fallbackIcon": "power",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            "buttonType": "power-off"
+          },
+          {
+            "position": "right",
+            "action": {
+              "actionName": "power_on",
+              "displayName": "Power On",
+              "description": "Turn on the processor",
+              "parameters": [
+                {
+                  "name": "zone",
+                  "type": "integer",
+                  "required": true,
+                  "default": 1,
+                  "min": 1,
+                  "max": 2,
+                  "description": "Zone ID (1 for main, 2 for zone2)"
+                }
+              ],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "PowerSettingsNew",
+                "iconVariant": "outlined",
+                "fallbackIcon": "power",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            "buttonType": "power-on"
+          },
+          {
+            "position": "middle",
+            "action": {
+              "actionName": "zone2_power_toggle",
+              "displayName": "Zone 2 Toggle",
+              "description": "Toggle Zone 2 power state",
+              "parameters": [
+                {
+                  "name": "zone",
+                  "type": "integer",
+                  "required": true,
+                  "default": 2,
+                  "min": null,
+                  "max": null,
+                  "description": "Zone ID (2 for zone2)"
+                }
+              ],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "PowerSettingsNew",
+                "iconVariant": "outlined",
+                "fallbackIcon": "power",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            "buttonType": "power-toggle"
+          }
+        ]
+      },
+      "layout": {
+        "columns": 3,
+        "spacing": "normal",
+        "alignment": "center"
+      }
+    },
+    {
+      "zoneId": "media-stack",
+      "zoneName": "Media Stack",
+      "zoneType": "media-stack",
+      "showHide": true,
+      "isEmpty": false,
+      "content": {
+        "inputsDropdown": {
+          "type": "inputs",
+          "populationMethod": "api",
+          "apiAction": "get_available_inputs",
+          "setAction": "set_input",
+          "options": [],
+          "loading": false,
+          "empty": true
+        }
+      },
+      "layout": {
+        "spacing": "normal",
+        "orientation": "vertical"
+      }
+    },
+    {
+      "zoneId": "screen",
+      "zoneName": "Screen Controls",
+      "zoneType": "screen",
+      "showHide": false,
+      "isEmpty": true,
+      "content": {
+        "screenActions": []
+      },
+      "layout": {
+        "orientation": "vertical",
+        "alignment": "left",
+        "spacing": "compact"
+      }
+    },
+    {
+      "zoneId": "volume",
+      "zoneName": "Volume Control",
+      "zoneType": "volume",
+      "showHide": false,
+      "isEmpty": false,
+      "content": {
+        "volumeSlider": {
+          "action": {
+            "actionName": "set_volume",
+            "displayName": "Set Volume",
+            "description": "Set the volume level",
+            "parameters": [
+              {
+                "name": "level",
+                "type": "range",
+                "min": -96,
+                "max": 0,
+                "required": true,
+                "description": "Volume level in dB (-96.0 to 0.0)"
+              },
+              {
+                "name": "zone",
+                "type": "integer",
+                "required": true,
+                "default": 1,
+                "min": 1,
+                "max": 2,
+                "description": "Zone ID (1 for main, 2 for zone2)"
+              }
+            ],
+            "group": "zone_1",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "VolumeUp",
+              "iconVariant": "outlined",
+              "fallbackIcon": "volume",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary",
+              "zoneNumber": 1
+            }
+          },
+          "muteAction": {
+            "actionName": "mute_toggle",
+            "displayName": "Mute Toggle",
+            "description": "Toggle mute state",
+            "parameters": [
+              {
+                "name": "zone",
+                "type": "integer",
+                "required": true,
+                "default": 1,
+                "min": 1,
+                "max": 2,
+                "description": "Zone ID (1 for main, 2 for zone2)"
+              }
+            ],
+            "group": "zone_1",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "VolumeOff",
+              "iconVariant": "outlined",
+              "fallbackIcon": "mute",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary",
+              "zoneNumber": 1
+            }
+          },
+          "orientation": "vertical",
+          "showValue": true,
+          "zone": 2
+        }
+      },
+      "layout": {
+        "priority": 1,
+        "orientation": "vertical",
+        "alignment": "right",
+        "spacing": "compact"
+      }
+    },
+    {
+      "zoneId": "apps",
+      "zoneName": "Applications",
+      "zoneType": "apps",
+      "showHide": true,
+      "isEmpty": true,
+      "content": {},
+      "layout": {
+        "spacing": "normal"
+      }
+    },
+    {
+      "zoneId": "menu",
+      "zoneName": "Navigation",
+      "zoneType": "menu",
+      "showHide": false,
+      "isEmpty": true,
+      "content": {
+        "navigationCluster": {}
+      },
+      "layout": {
+        "alignment": "center",
+        "spacing": "normal"
+      }
+    },
+    {
+      "zoneId": "pointer",
+      "zoneName": "Pointer Control",
+      "zoneType": "pointer",
+      "showHide": true,
+      "isEmpty": true,
+      "content": {},
+      "layout": {
+        "spacing": "normal"
+      }
+    }
+  ],
+  "stateInterface": {
+    "interfaceName": "EMotivaXMC2State",
+    "fields": [
+      {
+        "name": "power",
+        "type": "string | null",
+        "optional": true,
+        "description": "Processor power state (\"on\", \"off\", or null)"
+      },
+      {
+        "name": "zone2_power",
+        "type": "string | null",
+        "optional": true,
+        "description": "Zone 2 power state (\"on\", \"off\", or null)"
+      },
+      {
+        "name": "volume",
+        "type": "number | null",
+        "optional": true,
+        "description": "Main zone volume level"
+      },
+      {
+        "name": "zone2_volume",
+        "type": "number | null",
+        "optional": true,
+        "description": "Zone 2 volume level"
+      },
+      {
+        "name": "input_source",
+        "type": "string | null",
+        "optional": true,
+        "description": "Main zone input source"
+      },
+      {
+        "name": "connected",
+        "type": "boolean",
+        "optional": true,
+        "description": "Device connection status"
+      },
+      {
+        "name": "mute",
+        "type": "boolean | null",
+        "optional": true,
+        "description": "Main zone mute status"
+      },
+      {
+        "name": "zone2_mute",
+        "type": "boolean | null",
+        "optional": true,
+        "description": "Zone 2 mute status"
+      }
+    ],
+    "imports": [
+      "BaseDeviceState"
+    ],
+    "extends": [
+      "BaseDeviceState"
+    ]
+  },
+  "actionHandlers": [
+    {
+      "actionName": "power_on",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'processor', \n          action: { action: 'power_on', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "power_off",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'processor', \n          action: { action: 'power_off', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "set_input",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'processor', \n          action: { action: 'set_input', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "set_volume",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'processor', \n          action: { action: 'set_volume', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "mute_toggle",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'processor', \n          action: { action: 'mute_toggle', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "get_available_inputs",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'processor', \n          action: { action: 'get_available_inputs', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    }
+  ],
+  "specialCases": [
+    {
+      "deviceClass": "EMotivaXMC2",
+      "caseType": "emotiva-xmc2-power",
+      "configuration": {
+        "hasZone2Power": true,
+        "zone2VolumeOnly": true,
+        "multiZoneDevice": true
+      }
+    }
+  ]
+}

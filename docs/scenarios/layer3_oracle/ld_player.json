@@ -1,0 +1,348 @@
+{
+  "deviceId": "ld_player",
+  "deviceName": "Pioneer CLD-D925",
+  "deviceClass": "WirenboardIRDevice",
+  "remoteZones": [
+    {
+      "zoneId": "power",
+      "zoneName": "Power Control",
+      "zoneType": "power",
+      "showHide": true,
+      "isEmpty": false,
+      "content": {
+        "powerButtons": [
+          {
+            "position": "left",
+            "action": {
+              "actionName": "power",
+              "displayName": "Power",
+              "description": "Power On/Off",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "PowerSettingsNew",
+                "iconVariant": "outlined",
+                "fallbackIcon": "power",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            "buttonType": "power-toggle"
+          }
+        ]
+      },
+      "layout": {
+        "columns": 3,
+        "spacing": "normal",
+        "alignment": "center"
+      }
+    },
+    {
+      "zoneId": "media-stack",
+      "zoneName": "Media Stack",
+      "zoneType": "media-stack",
+      "showHide": true,
+      "isEmpty": false,
+      "content": {
+        "playbackSection": {
+          "actions": [
+            {
+              "actionName": "play",
+              "displayName": "Play",
+              "description": "Play",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "PlayArrow",
+                "iconVariant": "outlined",
+                "fallbackIcon": "play",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            {
+              "actionName": "stop",
+              "displayName": "Stop",
+              "description": "Stop",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "Stop",
+                "iconVariant": "outlined",
+                "fallbackIcon": "stop",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            {
+              "actionName": "pause",
+              "displayName": "Pause",
+              "description": "Pause",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "Pause",
+                "iconVariant": "outlined",
+                "fallbackIcon": "pause",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            {
+              "actionName": "chapter_plus",
+              "displayName": "Chapter Plus",
+              "description": "Chapter+",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "SkipNext",
+                "iconVariant": "outlined",
+                "fallbackIcon": "skip-forward",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            {
+              "actionName": "chapter_minus",
+              "displayName": "Chapter Minus",
+              "description": "Chapter-",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "SkipPrevious",
+                "iconVariant": "outlined",
+                "fallbackIcon": "skip-back",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            }
+          ],
+          "layout": "horizontal"
+        },
+        "tracksSection": {
+          "actions": [
+            {
+              "actionName": "tray",
+              "displayName": "Tray",
+              "description": "Tray",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "Eject",
+                "iconVariant": "outlined",
+                "fallbackIcon": "tray",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            {
+              "actionName": "audio",
+              "displayName": "Audio",
+              "description": "Audio",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "Language",
+                "iconVariant": "outlined",
+                "fallbackIcon": "audio",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            }
+          ],
+          "layout": "horizontal"
+        }
+      },
+      "layout": {
+        "spacing": "normal",
+        "orientation": "vertical"
+      }
+    },
+    {
+      "zoneId": "screen",
+      "zoneName": "Screen Controls",
+      "zoneType": "screen",
+      "showHide": false,
+      "isEmpty": true,
+      "content": {
+        "screenActions": []
+      },
+      "layout": {
+        "orientation": "vertical",
+        "alignment": "left",
+        "spacing": "compact"
+      }
+    },
+    {
+      "zoneId": "volume",
+      "zoneName": "Volume Control",
+      "zoneType": "volume",
+      "showHide": false,
+      "isEmpty": true,
+      "content": {
+        "volumeButtons": [
+          {}
+        ]
+      },
+      "layout": {
+        "priority": 2,
+        "orientation": "vertical",
+        "alignment": "right",
+        "spacing": "compact"
+      }
+    },
+    {
+      "zoneId": "apps",
+      "zoneName": "Applications",
+      "zoneType": "apps",
+      "showHide": true,
+      "isEmpty": true,
+      "content": {},
+      "layout": {
+        "spacing": "normal"
+      }
+    },
+    {
+      "zoneId": "menu",
+      "zoneName": "Navigation",
+      "zoneType": "menu",
+      "showHide": false,
+      "isEmpty": true,
+      "content": {
+        "navigationCluster": {}
+      },
+      "layout": {
+        "alignment": "center",
+        "spacing": "normal"
+      }
+    },
+    {
+      "zoneId": "pointer",
+      "zoneName": "Pointer Control",
+      "zoneType": "pointer",
+      "showHide": true,
+      "isEmpty": true,
+      "content": {},
+      "layout": {
+        "spacing": "normal"
+      }
+    }
+  ],
+  "stateInterface": {
+    "interfaceName": "WirenboardIRDeviceState",
+    "fields": [
+      {
+        "name": "alias",
+        "type": "string",
+        "optional": false,
+        "description": "Device alias"
+      }
+    ],
+    "imports": [
+      "BaseDeviceState"
+    ],
+    "extends": [
+      "BaseDeviceState"
+    ]
+  },
+  "actionHandlers": [
+    {
+      "actionName": "power",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'ld_player', \n          action: { name: 'power', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "tray",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'ld_player', \n          action: { name: 'tray', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "play",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'ld_player', \n          action: { name: 'play', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "stop",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'ld_player', \n          action: { name: 'stop', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "pause",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'ld_player', \n          action: { name: 'pause', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "chapter_plus",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'ld_player', \n          action: { name: 'chapter_plus', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "chapter_minus",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'ld_player', \n          action: { name: 'chapter_minus', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "audio",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'ld_player', \n          action: { name: 'audio', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    }
+  ],
+  "specialCases": [
+    {
+      "deviceClass": "WirenboardIRDevice",
+      "caseType": "wirenboard-ir-commands",
+      "configuration": {
+        "usesCommands": true,
+        "inputsFromCommands": true
+      }
+    }
+  ]
+}

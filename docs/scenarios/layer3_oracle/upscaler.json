@@ -1,0 +1,476 @@
+{
+  "deviceId": "upscaler",
+  "deviceName": "DVDO Edge Green",
+  "deviceClass": "WirenboardIRDevice",
+  "remoteZones": [
+    {
+      "zoneId": "power",
+      "zoneName": "Power Control",
+      "zoneType": "power",
+      "showHide": true,
+      "isEmpty": false,
+      "content": {
+        "powerButtons": [
+          {
+            "position": "left",
+            "action": {
+              "actionName": "power_off",
+              "displayName": "Power Off",
+              "description": "Power Off",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "custom",
+                "iconName": "power-off",
+                "iconVariant": "outlined",
+                "fallbackIcon": "power",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            "buttonType": "power-off"
+          },
+          {
+            "position": "right",
+            "action": {
+              "actionName": "power_on",
+              "displayName": "Power On",
+              "description": "Power On",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "PowerSettingsNew",
+                "iconVariant": "outlined",
+                "fallbackIcon": "power",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            "buttonType": "power-on"
+          }
+        ]
+      },
+      "layout": {
+        "columns": 3,
+        "spacing": "normal",
+        "alignment": "center"
+      }
+    },
+    {
+      "zoneId": "media-stack",
+      "zoneName": "Media Stack",
+      "zoneType": "media-stack",
+      "showHide": true,
+      "isEmpty": false,
+      "content": {
+        "inputsDropdown": {
+          "type": "inputs",
+          "populationMethod": "commands",
+          "options": [
+            {
+              "id": "input_video",
+              "displayName": "Video",
+              "description": "Input Video"
+            },
+            {
+              "id": "input_s_vhs",
+              "displayName": "S Vhs",
+              "description": "Input S-VHS"
+            }
+          ],
+          "loading": false,
+          "empty": false
+        }
+      },
+      "layout": {
+        "spacing": "normal",
+        "orientation": "vertical"
+      }
+    },
+    {
+      "zoneId": "screen",
+      "zoneName": "Screen Controls",
+      "zoneType": "screen",
+      "showHide": false,
+      "isEmpty": false,
+      "content": {
+        "screenActions": [
+          {
+            "actionName": "ratio_4_3",
+            "displayName": "Ratio 4 3",
+            "description": "Ratio 4:3",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "custom",
+              "iconName": "aspect-4-3",
+              "iconVariant": "outlined",
+              "fallbackIcon": "aspect-ratio",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          {
+            "actionName": "ratio_16_9",
+            "displayName": "Ratio 16 9",
+            "description": "Ratio 16:9",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "custom",
+              "iconName": "aspect-16-9",
+              "iconVariant": "outlined",
+              "fallbackIcon": "aspect-ratio",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          {
+            "actionName": "letterbox",
+            "displayName": "Letterbox",
+            "description": "Letterbox",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "custom",
+              "iconName": "letterbox",
+              "iconVariant": "outlined",
+              "fallbackIcon": "aspect-ratio",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          }
+        ]
+      },
+      "layout": {
+        "orientation": "vertical",
+        "alignment": "left",
+        "spacing": "compact"
+      }
+    },
+    {
+      "zoneId": "volume",
+      "zoneName": "Volume Control",
+      "zoneType": "volume",
+      "showHide": false,
+      "isEmpty": true,
+      "content": {
+        "volumeButtons": [
+          {}
+        ]
+      },
+      "layout": {
+        "priority": 2,
+        "orientation": "vertical",
+        "alignment": "right",
+        "spacing": "compact"
+      }
+    },
+    {
+      "zoneId": "apps",
+      "zoneName": "Applications",
+      "zoneType": "apps",
+      "showHide": true,
+      "isEmpty": true,
+      "content": {},
+      "layout": {
+        "spacing": "normal"
+      }
+    },
+    {
+      "zoneId": "menu",
+      "zoneName": "Navigation",
+      "zoneType": "menu",
+      "showHide": false,
+      "isEmpty": false,
+      "content": {
+        "navigationCluster": {
+          "upAction": {
+            "actionName": "menu_up",
+            "displayName": "Menu Up",
+            "description": "Menu Up",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "KeyboardArrowUp",
+              "iconVariant": "outlined",
+              "fallbackIcon": "arrow-up",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "downAction": {
+            "actionName": "menu_down",
+            "displayName": "Menu Down",
+            "description": "Menu Down",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "KeyboardArrowDown",
+              "iconVariant": "outlined",
+              "fallbackIcon": "arrow-down",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "leftAction": {
+            "actionName": "menu_left",
+            "displayName": "Menu Left",
+            "description": "Menu Left",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "KeyboardArrowLeft",
+              "iconVariant": "outlined",
+              "fallbackIcon": "arrow-left",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "rightAction": {
+            "actionName": "menu_right",
+            "displayName": "Menu Right",
+            "description": "Menu Right",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "KeyboardArrowRight",
+              "iconVariant": "outlined",
+              "fallbackIcon": "arrow-right",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "okAction": {
+            "actionName": "menu_ok",
+            "displayName": "Menu Ok",
+            "description": "OK/Enter",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "Check",
+              "iconVariant": "outlined",
+              "fallbackIcon": "check",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "aux1Action": {
+            "actionName": "menu_exit",
+            "displayName": "Menu Exit",
+            "description": "Menu Exit",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "Home",
+              "iconVariant": "outlined",
+              "fallbackIcon": "home",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "aux2Action": {
+            "actionName": "menu",
+            "displayName": "Menu",
+            "description": "Menu",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "Menu",
+              "iconVariant": "outlined",
+              "fallbackIcon": "menu",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          }
+        }
+      },
+      "layout": {
+        "alignment": "center",
+        "spacing": "normal"
+      }
+    },
+    {
+      "zoneId": "pointer",
+      "zoneName": "Pointer Control",
+      "zoneType": "pointer",
+      "showHide": true,
+      "isEmpty": true,
+      "content": {},
+      "layout": {
+        "spacing": "normal"
+      }
+    }
+  ],
+  "stateInterface": {
+    "interfaceName": "WirenboardIRDeviceState",
+    "fields": [
+      {
+        "name": "alias",
+        "type": "string",
+        "optional": false,
+        "description": "Device alias"
+      }
+    ],
+    "imports": [
+      "BaseDeviceState"
+    ],
+    "extends": [
+      "BaseDeviceState"
+    ]
+  },
+  "actionHandlers": [
+    {
+      "actionName": "power_on",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'upscaler', \n          action: { name: 'power_on', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "power_off",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'upscaler', \n          action: { name: 'power_off', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "input_video",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'upscaler', \n          action: { name: 'input_video', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "input_s_vhs",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'upscaler', \n          action: { name: 'input_s_vhs', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "ratio_4_3",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'upscaler', \n          action: { name: 'ratio_4_3', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "ratio_16_9",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'upscaler', \n          action: { name: 'ratio_16_9', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "letterbox",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'upscaler', \n          action: { name: 'letterbox', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "menu",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'upscaler', \n          action: { name: 'menu', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "menu_exit",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'upscaler', \n          action: { name: 'menu_exit', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "menu_up",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'upscaler', \n          action: { name: 'menu_up', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "menu_down",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'upscaler', \n          action: { name: 'menu_down', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "menu_left",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'upscaler', \n          action: { name: 'menu_left', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "menu_right",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'upscaler', \n          action: { name: 'menu_right', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "menu_ok",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'upscaler', \n          action: { name: 'menu_ok', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    }
+  ],
+  "specialCases": [
+    {
+      "deviceClass": "WirenboardIRDevice",
+      "caseType": "wirenboard-ir-commands",
+      "configuration": {
+        "usesCommands": true,
+        "inputsFromCommands": true
+      }
+    }
+  ]
+}

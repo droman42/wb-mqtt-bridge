@@ -1,0 +1,787 @@
+{
+  "deviceId": "living_room_tv",
+  "deviceName": "LG OLED77G1RLA",
+  "deviceClass": "LgTv",
+  "remoteZones": [
+    {
+      "zoneId": "power",
+      "zoneName": "Power Control",
+      "zoneType": "power",
+      "showHide": true,
+      "isEmpty": false,
+      "content": {
+        "powerButtons": [
+          {
+            "position": "left",
+            "action": {
+              "actionName": "power_off",
+              "displayName": "Power Off",
+              "description": "Power Off",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "custom",
+                "iconName": "power-off",
+                "iconVariant": "outlined",
+                "fallbackIcon": "power",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            "buttonType": "power-off"
+          },
+          {
+            "position": "right",
+            "action": {
+              "actionName": "power_on",
+              "displayName": "Power On",
+              "description": "Power On",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "PowerSettingsNew",
+                "iconVariant": "outlined",
+                "fallbackIcon": "power",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            "buttonType": "power-on"
+          }
+        ]
+      },
+      "layout": {
+        "columns": 3,
+        "spacing": "normal",
+        "alignment": "center"
+      }
+    },
+    {
+      "zoneId": "media-stack",
+      "zoneName": "Media Stack",
+      "zoneType": "media-stack",
+      "showHide": true,
+      "isEmpty": false,
+      "content": {
+        "inputsDropdown": {
+          "type": "inputs",
+          "populationMethod": "api",
+          "apiAction": "get_available_inputs",
+          "setAction": "set_input",
+          "options": [],
+          "loading": false,
+          "empty": true
+        },
+        "playbackSection": {
+          "actions": [
+            {
+              "actionName": "play",
+              "displayName": "Play",
+              "description": "Play",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "PlayArrow",
+                "iconVariant": "outlined",
+                "fallbackIcon": "play",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            {
+              "actionName": "pause",
+              "displayName": "Pause",
+              "description": "Pause",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "Pause",
+                "iconVariant": "outlined",
+                "fallbackIcon": "pause",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            {
+              "actionName": "stop",
+              "displayName": "Stop",
+              "description": "Stop",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "Stop",
+                "iconVariant": "outlined",
+                "fallbackIcon": "stop",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            {
+              "actionName": "rewind_forward",
+              "displayName": "Rewind Forward",
+              "description": "Fast Forward",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "FastForward",
+                "iconVariant": "outlined",
+                "fallbackIcon": "fast-forward",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            {
+              "actionName": "rewind_backward",
+              "displayName": "Rewind Backward",
+              "description": "Fast Backward",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "FastRewind",
+                "iconVariant": "outlined",
+                "fallbackIcon": "rewind",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            }
+          ],
+          "layout": "horizontal"
+        }
+      },
+      "layout": {
+        "spacing": "normal",
+        "orientation": "vertical"
+      }
+    },
+    {
+      "zoneId": "screen",
+      "zoneName": "Screen Controls",
+      "zoneType": "screen",
+      "showHide": false,
+      "isEmpty": true,
+      "content": {
+        "screenActions": []
+      },
+      "layout": {
+        "orientation": "vertical",
+        "alignment": "left",
+        "spacing": "compact"
+      }
+    },
+    {
+      "zoneId": "volume",
+      "zoneName": "Volume Control",
+      "zoneType": "volume",
+      "showHide": false,
+      "isEmpty": false,
+      "content": {
+        "volumeSlider": {
+          "action": {
+            "actionName": "set_volume",
+            "displayName": "Set Volume",
+            "description": "Set Volume Level",
+            "parameters": [
+              {
+                "name": "level",
+                "type": "range",
+                "min": 0,
+                "max": 100,
+                "required": true,
+                "description": "Volume level (0-100)"
+              }
+            ],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "VolumeUp",
+              "iconVariant": "outlined",
+              "fallbackIcon": "volume",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "muteAction": {
+            "actionName": "mute",
+            "displayName": "Mute",
+            "description": "Mute",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "VolumeOff",
+              "iconVariant": "outlined",
+              "fallbackIcon": "mute",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "orientation": "vertical",
+          "showValue": true
+        }
+      },
+      "layout": {
+        "priority": 1,
+        "orientation": "vertical",
+        "alignment": "right",
+        "spacing": "compact"
+      }
+    },
+    {
+      "zoneId": "apps",
+      "zoneName": "Applications",
+      "zoneType": "apps",
+      "showHide": true,
+      "isEmpty": false,
+      "content": {
+        "appsDropdown": {
+          "type": "apps",
+          "populationMethod": "api",
+          "apiAction": "get_available_apps",
+          "setAction": "launch_app",
+          "options": [],
+          "loading": false,
+          "empty": true
+        }
+      },
+      "layout": {
+        "spacing": "normal"
+      }
+    },
+    {
+      "zoneId": "menu",
+      "zoneName": "Navigation",
+      "zoneType": "menu",
+      "showHide": false,
+      "isEmpty": false,
+      "content": {
+        "navigationCluster": {
+          "upAction": {
+            "actionName": "up",
+            "displayName": "Up",
+            "description": "Up",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "KeyboardArrowUp",
+              "iconVariant": "outlined",
+              "fallbackIcon": "arrow-up",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "downAction": {
+            "actionName": "down",
+            "displayName": "Down",
+            "description": "Down",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "KeyboardArrowDown",
+              "iconVariant": "outlined",
+              "fallbackIcon": "arrow-down",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "leftAction": {
+            "actionName": "left",
+            "displayName": "Left",
+            "description": "Left",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "KeyboardArrowLeft",
+              "iconVariant": "outlined",
+              "fallbackIcon": "arrow-left",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "rightAction": {
+            "actionName": "right",
+            "displayName": "Right",
+            "description": "Right",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "KeyboardArrowRight",
+              "iconVariant": "outlined",
+              "fallbackIcon": "arrow-right",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "okAction": {
+            "actionName": "enter",
+            "displayName": "Enter",
+            "description": "Enter/OK",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "Check",
+              "iconVariant": "outlined",
+              "fallbackIcon": "check",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "aux1Action": {
+            "actionName": "home",
+            "displayName": "Home",
+            "description": "Home",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "Home",
+              "iconVariant": "outlined",
+              "fallbackIcon": "home",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "aux2Action": {
+            "actionName": "menu",
+            "displayName": "Menu",
+            "description": "Menu Button",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "Menu",
+              "iconVariant": "outlined",
+              "fallbackIcon": "menu",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "aux3Action": {
+            "actionName": "back",
+            "displayName": "Back",
+            "description": "Back",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "ArrowBack",
+              "iconVariant": "outlined",
+              "fallbackIcon": "back",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "aux4Action": {
+            "actionName": "exit",
+            "displayName": "Exit",
+            "description": "Exit Button",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "ExitToApp",
+              "iconVariant": "outlined",
+              "fallbackIcon": "exit",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          }
+        }
+      },
+      "layout": {
+        "alignment": "center",
+        "spacing": "normal"
+      }
+    },
+    {
+      "zoneId": "pointer",
+      "zoneName": "Pointer Control",
+      "zoneType": "pointer",
+      "showHide": true,
+      "isEmpty": false,
+      "content": {
+        "pointerPad": {
+          "moveAction": {
+            "actionName": "move_cursor",
+            "displayName": "Move Cursor",
+            "description": "Move Cursor to Position",
+            "parameters": [
+              {
+                "name": "x",
+                "type": "range",
+                "min": 0,
+                "max": 100,
+                "required": true,
+                "description": "X coordinate (0-100)"
+              },
+              {
+                "name": "y",
+                "type": "range",
+                "min": 0,
+                "max": 100,
+                "required": true,
+                "description": "Y coordinate (0-100)"
+              }
+            ],
+            "group": "pointer",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "CropFree",
+              "iconVariant": "outlined",
+              "fallbackIcon": "cursor",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "isPointerAction": true
+            }
+          },
+          "clickAction": {
+            "actionName": "click",
+            "displayName": "Click",
+            "description": "Click at current position",
+            "parameters": [],
+            "group": "pointer",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "TouchApp",
+              "iconVariant": "outlined",
+              "fallbackIcon": "cursor",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "isPointerAction": true
+            }
+          }
+        }
+      },
+      "layout": {
+        "spacing": "normal"
+      }
+    }
+  ],
+  "stateInterface": {
+    "interfaceName": "LgTvState",
+    "fields": [
+      {
+        "name": "power",
+        "type": "string",
+        "optional": true,
+        "description": "TV power state (\"on\", \"off\", etc.)"
+      },
+      {
+        "name": "volume",
+        "type": "number | null",
+        "optional": true,
+        "description": "Current volume level"
+      },
+      {
+        "name": "mute",
+        "type": "boolean",
+        "optional": true,
+        "description": "Mute status"
+      },
+      {
+        "name": "current_app",
+        "type": "string | null",
+        "optional": true,
+        "description": "Currently active application"
+      },
+      {
+        "name": "input_source",
+        "type": "string | null",
+        "optional": true,
+        "description": "Current input source"
+      },
+      {
+        "name": "connected",
+        "type": "boolean",
+        "optional": true,
+        "description": "Device connection status"
+      },
+      {
+        "name": "ip_address",
+        "type": "string | null",
+        "optional": true,
+        "description": "Device IP address"
+      },
+      {
+        "name": "mac_address",
+        "type": "string | null",
+        "optional": true,
+        "description": "Device MAC address"
+      }
+    ],
+    "imports": [
+      "BaseDeviceState"
+    ],
+    "extends": [
+      "BaseDeviceState"
+    ]
+  },
+  "actionHandlers": [
+    {
+      "actionName": "power_on",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'power_on', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "power_off",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'power_off', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "home",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'home', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "back",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'back', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "up",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'up', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "down",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'down', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "left",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'left', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "right",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'right', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "enter",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'enter', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "volume_up",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'volume_up', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "volume_down",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'volume_down', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "mute",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'mute', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "play",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'play', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "pause",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'pause', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "stop",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'stop', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "rewind_forward",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'rewind_forward', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "rewind_backward",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'rewind_backward', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "exit",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'exit', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "menu",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'menu', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "set_volume",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'set_volume', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "move_cursor",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'move_cursor', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "move_cursor_relative",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'move_cursor_relative', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "click",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'click', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "set_input_source",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'set_input_source', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "launch_app",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'launch_app', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "get_available_apps",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'get_available_apps', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "get_available_inputs",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'living_room_tv', \n          action: { action: 'get_available_inputs', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    }
+  ],
+  "specialCases": [
+    {
+      "deviceClass": "LgTv",
+      "caseType": "lg-tv-inputs-apps",
+      "configuration": {
+        "usesInputsAPI": true,
+        "usesAppsAPI": true,
+        "hasPointerControl": true
+      }
+    }
+  ]
+}

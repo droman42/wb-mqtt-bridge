@@ -1,0 +1,553 @@
+{
+  "deviceId": "video",
+  "deviceName": "Zappiti Neo",
+  "deviceClass": "WirenboardIRDevice",
+  "remoteZones": [
+    {
+      "zoneId": "power",
+      "zoneName": "Power Control",
+      "zoneType": "power",
+      "showHide": true,
+      "isEmpty": false,
+      "content": {
+        "powerButtons": [
+          {
+            "position": "left",
+            "action": {
+              "actionName": "power_off",
+              "displayName": "Power Off",
+              "description": "Power Off",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "custom",
+                "iconName": "power-off",
+                "iconVariant": "outlined",
+                "fallbackIcon": "power",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            "buttonType": "power-off"
+          },
+          {
+            "position": "right",
+            "action": {
+              "actionName": "power_on",
+              "displayName": "Power On",
+              "description": "Power On",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "PowerSettingsNew",
+                "iconVariant": "outlined",
+                "fallbackIcon": "power",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            "buttonType": "power-on"
+          }
+        ]
+      },
+      "layout": {
+        "columns": 3,
+        "spacing": "normal",
+        "alignment": "center"
+      }
+    },
+    {
+      "zoneId": "media-stack",
+      "zoneName": "Media Stack",
+      "zoneType": "media-stack",
+      "showHide": true,
+      "isEmpty": false,
+      "content": {
+        "playbackSection": {
+          "actions": [
+            {
+              "actionName": "play_pause",
+              "displayName": "Play Pause",
+              "description": "Play/Pause",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "custom",
+                "iconName": "play-pause",
+                "iconVariant": "outlined",
+                "fallbackIcon": "play",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            {
+              "actionName": "chapter_plus",
+              "displayName": "Chapter Plus",
+              "description": "Chapter+",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "SkipNext",
+                "iconVariant": "outlined",
+                "fallbackIcon": "skip-forward",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            {
+              "actionName": "chapter_minus",
+              "displayName": "Chapter Minus",
+              "description": "Chapter-",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "SkipPrevious",
+                "iconVariant": "outlined",
+                "fallbackIcon": "skip-back",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            {
+              "actionName": "stop",
+              "displayName": "Stop",
+              "description": "Stop",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "Stop",
+                "iconVariant": "outlined",
+                "fallbackIcon": "stop",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            }
+          ],
+          "layout": "horizontal"
+        },
+        "tracksSection": {
+          "actions": [
+            {
+              "actionName": "audio",
+              "displayName": "Audio",
+              "description": "Audio",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "Language",
+                "iconVariant": "outlined",
+                "fallbackIcon": "audio",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            {
+              "actionName": "subtitles",
+              "displayName": "Subtitles",
+              "description": "Subtitles",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "Subtitles",
+                "iconVariant": "outlined",
+                "fallbackIcon": "subtitles",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            }
+          ],
+          "layout": "horizontal"
+        }
+      },
+      "layout": {
+        "spacing": "normal",
+        "orientation": "vertical"
+      }
+    },
+    {
+      "zoneId": "screen",
+      "zoneName": "Screen Controls",
+      "zoneType": "screen",
+      "showHide": false,
+      "isEmpty": true,
+      "content": {
+        "screenActions": []
+      },
+      "layout": {
+        "orientation": "vertical",
+        "alignment": "left",
+        "spacing": "compact"
+      }
+    },
+    {
+      "zoneId": "volume",
+      "zoneName": "Volume Control",
+      "zoneType": "volume",
+      "showHide": false,
+      "isEmpty": true,
+      "content": {
+        "volumeButtons": [
+          {}
+        ]
+      },
+      "layout": {
+        "priority": 2,
+        "orientation": "vertical",
+        "alignment": "right",
+        "spacing": "compact"
+      }
+    },
+    {
+      "zoneId": "apps",
+      "zoneName": "Applications",
+      "zoneType": "apps",
+      "showHide": true,
+      "isEmpty": true,
+      "content": {},
+      "layout": {
+        "spacing": "normal"
+      }
+    },
+    {
+      "zoneId": "menu",
+      "zoneName": "Navigation",
+      "zoneType": "menu",
+      "showHide": false,
+      "isEmpty": false,
+      "content": {
+        "navigationCluster": {
+          "upAction": {
+            "actionName": "menu_up",
+            "displayName": "Menu Up",
+            "description": "Up",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "KeyboardArrowUp",
+              "iconVariant": "outlined",
+              "fallbackIcon": "arrow-up",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "downAction": {
+            "actionName": "menu_down",
+            "displayName": "Menu Down",
+            "description": "Down",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "KeyboardArrowDown",
+              "iconVariant": "outlined",
+              "fallbackIcon": "arrow-down",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "leftAction": {
+            "actionName": "menu_left",
+            "displayName": "Menu Left",
+            "description": "Left",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "KeyboardArrowLeft",
+              "iconVariant": "outlined",
+              "fallbackIcon": "arrow-left",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "rightAction": {
+            "actionName": "menu_right",
+            "displayName": "Menu Right",
+            "description": "Right",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "KeyboardArrowRight",
+              "iconVariant": "outlined",
+              "fallbackIcon": "arrow-right",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "okAction": {
+            "actionName": "menu_ok",
+            "displayName": "Menu Ok",
+            "description": "OK/Enter",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "Check",
+              "iconVariant": "outlined",
+              "fallbackIcon": "check",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "aux1Action": {
+            "actionName": "home",
+            "displayName": "Home",
+            "description": "Home",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "Home",
+              "iconVariant": "outlined",
+              "fallbackIcon": "home",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "aux3Action": {
+            "actionName": "back",
+            "displayName": "Back",
+            "description": "Back",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "ArrowBack",
+              "iconVariant": "outlined",
+              "fallbackIcon": "back",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "aux4Action": {
+            "actionName": "settings",
+            "displayName": "Settings",
+            "description": "Settings",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "Settings",
+              "iconVariant": "outlined",
+              "fallbackIcon": "settings",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          }
+        }
+      },
+      "layout": {
+        "alignment": "center",
+        "spacing": "normal"
+      }
+    },
+    {
+      "zoneId": "pointer",
+      "zoneName": "Pointer Control",
+      "zoneType": "pointer",
+      "showHide": true,
+      "isEmpty": true,
+      "content": {},
+      "layout": {
+        "spacing": "normal"
+      }
+    }
+  ],
+  "stateInterface": {
+    "interfaceName": "WirenboardIRDeviceState",
+    "fields": [
+      {
+        "name": "alias",
+        "type": "string",
+        "optional": false,
+        "description": "Device alias"
+      }
+    ],
+    "imports": [
+      "BaseDeviceState"
+    ],
+    "extends": [
+      "BaseDeviceState"
+    ]
+  },
+  "actionHandlers": [
+    {
+      "actionName": "power_on",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'video', \n          action: { name: 'power_on', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "power_off",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'video', \n          action: { name: 'power_off', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "play_pause",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'video', \n          action: { name: 'play_pause', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "chapter_plus",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'video', \n          action: { name: 'chapter_plus', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "chapter_minus",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'video', \n          action: { name: 'chapter_minus', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "stop",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'video', \n          action: { name: 'stop', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "menu_up",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'video', \n          action: { name: 'menu_up', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "menu_down",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'video', \n          action: { name: 'menu_down', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "menu_left",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'video', \n          action: { name: 'menu_left', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "menu_right",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'video', \n          action: { name: 'menu_right', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "menu_ok",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'video', \n          action: { name: 'menu_ok', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "audio",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'video', \n          action: { name: 'audio', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "subtitles",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'video', \n          action: { name: 'subtitles', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "home",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'video', \n          action: { name: 'home', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "settings",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'video', \n          action: { name: 'settings', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "back",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'video', \n          action: { name: 'back', ...payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    }
+  ],
+  "specialCases": [
+    {
+      "deviceClass": "WirenboardIRDevice",
+      "caseType": "wirenboard-ir-commands",
+      "configuration": {
+        "usesCommands": true,
+        "inputsFromCommands": true
+      }
+    }
+  ]
+}

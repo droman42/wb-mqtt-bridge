@@ -1,0 +1,240 @@
+{
+  "deviceId": "reel_to_reel",
+  "deviceName": "Revox A77 MK4",
+  "deviceClass": "RevoxA77ReelToReel",
+  "remoteZones": [
+    {
+      "zoneId": "power",
+      "zoneName": "Power Control",
+      "zoneType": "power",
+      "showHide": true,
+      "isEmpty": true,
+      "content": {
+        "powerButtons": []
+      },
+      "layout": {
+        "columns": 3,
+        "spacing": "normal",
+        "alignment": "center"
+      }
+    },
+    {
+      "zoneId": "media-stack",
+      "zoneName": "Media Stack",
+      "zoneType": "media-stack",
+      "showHide": true,
+      "isEmpty": false,
+      "content": {
+        "playbackSection": {
+          "actions": [
+            {
+              "actionName": "play",
+              "displayName": "Play",
+              "description": "Play",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "PlayArrow",
+                "iconVariant": "outlined",
+                "fallbackIcon": "play",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "primary"
+              }
+            },
+            {
+              "actionName": "stop",
+              "displayName": "Stop",
+              "description": "Stop",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "Stop",
+                "iconVariant": "outlined",
+                "fallbackIcon": "stop",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "destructive"
+              }
+            },
+            {
+              "actionName": "rewind_forward",
+              "displayName": "Rewind Forward",
+              "description": "Rewind Forward",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "FastForward",
+                "iconVariant": "outlined",
+                "fallbackIcon": "rewind_forward",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            {
+              "actionName": "rewind_backward",
+              "displayName": "Rewind Backward",
+              "description": "Rewind Backward",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "FastRewind",
+                "iconVariant": "outlined",
+                "fallbackIcon": "rew",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            }
+          ],
+          "layout": "horizontal"
+        }
+      },
+      "layout": {
+        "spacing": "normal",
+        "orientation": "vertical"
+      }
+    },
+    {
+      "zoneId": "screen",
+      "zoneName": "Screen Controls",
+      "zoneType": "screen",
+      "showHide": false,
+      "isEmpty": true,
+      "content": {
+        "screenActions": []
+      },
+      "layout": {
+        "orientation": "vertical",
+        "alignment": "left",
+        "spacing": "compact"
+      }
+    },
+    {
+      "zoneId": "volume",
+      "zoneName": "Volume Control",
+      "zoneType": "volume",
+      "showHide": false,
+      "isEmpty": true,
+      "content": {
+        "volumeButtons": [
+          {}
+        ]
+      },
+      "layout": {
+        "priority": 2,
+        "orientation": "vertical",
+        "alignment": "right",
+        "spacing": "compact"
+      }
+    },
+    {
+      "zoneId": "apps",
+      "zoneName": "Applications",
+      "zoneType": "apps",
+      "showHide": true,
+      "isEmpty": true,
+      "content": {},
+      "layout": {
+        "spacing": "normal"
+      }
+    },
+    {
+      "zoneId": "menu",
+      "zoneName": "Navigation",
+      "zoneType": "menu",
+      "showHide": false,
+      "isEmpty": true,
+      "content": {
+        "navigationCluster": {}
+      },
+      "layout": {
+        "alignment": "center",
+        "spacing": "normal"
+      }
+    },
+    {
+      "zoneId": "pointer",
+      "zoneName": "Pointer Control",
+      "zoneType": "pointer",
+      "showHide": true,
+      "isEmpty": true,
+      "content": {},
+      "layout": {
+        "spacing": "normal"
+      }
+    }
+  ],
+  "stateInterface": {
+    "interfaceName": "RevoxA77ReelToReelState",
+    "fields": [
+      {
+        "name": "connection_status",
+        "type": "string",
+        "optional": false,
+        "description": "Device connection status"
+      }
+    ],
+    "imports": [
+      "BaseDeviceState"
+    ],
+    "extends": [
+      "BaseDeviceState"
+    ]
+  },
+  "actionHandlers": [
+    {
+      "actionName": "play",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'reel_to_reel', \n          action: { action: 'play', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "stop",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'reel_to_reel', \n          action: { action: 'stop', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "rewind_forward",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'reel_to_reel', \n          action: { action: 'rewind_forward', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "rewind_backward",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'reel_to_reel', \n          action: { action: 'rewind_backward', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    }
+  ],
+  "specialCases": [
+    {
+      "deviceClass": "RevoxA77ReelToReel",
+      "caseType": "revox-tape-deck",
+      "configuration": {
+        "hasTapeTransport": true,
+        "hasVolumeSlider": true,
+        "hasAnalogInputs": true,
+        "isVintageDevice": true
+      }
+    }
+  ]
+}

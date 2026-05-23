@@ -1,0 +1,159 @@
+{
+  "deviceId": "kitchen_hood",
+  "deviceName": "Kitchen Hood",
+  "deviceClass": "BroadlinkKitchenHood",
+  "remoteZones": [
+    {
+      "zoneId": "power",
+      "zoneName": "Power Control",
+      "zoneType": "power",
+      "showHide": true,
+      "isEmpty": true,
+      "content": {
+        "powerButtons": []
+      },
+      "layout": {
+        "columns": 3,
+        "spacing": "normal",
+        "alignment": "center"
+      }
+    },
+    {
+      "zoneId": "media-stack",
+      "zoneName": "Media Stack",
+      "zoneType": "media-stack",
+      "showHide": true,
+      "isEmpty": true,
+      "content": {},
+      "layout": {
+        "spacing": "normal",
+        "orientation": "vertical"
+      }
+    },
+    {
+      "zoneId": "screen",
+      "zoneName": "Screen Controls",
+      "zoneType": "screen",
+      "showHide": false,
+      "isEmpty": true,
+      "content": {
+        "screenActions": []
+      },
+      "layout": {
+        "orientation": "vertical",
+        "alignment": "left",
+        "spacing": "compact"
+      }
+    },
+    {
+      "zoneId": "volume",
+      "zoneName": "Volume Control",
+      "zoneType": "volume",
+      "showHide": false,
+      "isEmpty": true,
+      "content": {
+        "volumeButtons": [
+          {}
+        ]
+      },
+      "layout": {
+        "priority": 2,
+        "orientation": "vertical",
+        "alignment": "right",
+        "spacing": "compact"
+      }
+    },
+    {
+      "zoneId": "apps",
+      "zoneName": "Applications",
+      "zoneType": "apps",
+      "showHide": true,
+      "isEmpty": true,
+      "content": {},
+      "layout": {
+        "spacing": "normal"
+      }
+    },
+    {
+      "zoneId": "menu",
+      "zoneName": "Navigation",
+      "zoneType": "menu",
+      "showHide": false,
+      "isEmpty": true,
+      "content": {
+        "navigationCluster": {}
+      },
+      "layout": {
+        "alignment": "center",
+        "spacing": "normal"
+      }
+    },
+    {
+      "zoneId": "pointer",
+      "zoneName": "Pointer Control",
+      "zoneType": "pointer",
+      "showHide": true,
+      "isEmpty": true,
+      "content": {},
+      "layout": {
+        "spacing": "normal"
+      }
+    }
+  ],
+  "stateInterface": {
+    "interfaceName": "BroadlinkKitchenHoodState",
+    "fields": [
+      {
+        "name": "light",
+        "type": "string",
+        "optional": false,
+        "description": "Kitchen hood light state"
+      },
+      {
+        "name": "speed",
+        "type": "number",
+        "optional": false,
+        "description": "Fan speed level"
+      },
+      {
+        "name": "connection_status",
+        "type": "string",
+        "optional": false,
+        "description": "Device connection status"
+      }
+    ],
+    "imports": [
+      "BaseDeviceState"
+    ],
+    "extends": [
+      "BaseDeviceState"
+    ]
+  },
+  "actionHandlers": [
+    {
+      "actionName": "set_light",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'kitchen_hood', \n          action: { action: 'set_light', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "set_speed",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'kitchen_hood', \n          action: { action: 'set_speed', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    }
+  ],
+  "specialCases": [
+    {
+      "deviceClass": "BroadlinkKitchenHood",
+      "caseType": "kitchen-hood-controls",
+      "configuration": {
+        "hasFanSpeedSlider": true,
+        "hasLightControls": true,
+        "hasParameterizedActions": true
+      }
+    }
+  ]
+}

@@ -97,9 +97,18 @@ standalone control. (Distinct from `refresh_*` = internal → `exposed:false`.)
 3. **List vs internal (§5/§6)** — **CONFIRMED**: `*.list` = dropdown sources (exposed);
    `refresh_status`/`refresh_inputs` = `exposed: false`.
 
-## 9. Step-0 remaining (after this analysis)
+## 9. Step-0 status (2026-05-23)
 
-- Author the `streamer` + `reel_to_reel` capability maps (workstream #2).
-- Tag the dormant commands `exposed: false` (workstream #3).
-- Capture the current `.gen.tsx` per-device zone/control snapshots as the **fidelity oracle** for
-  Step 1 (the backend manifest must reproduce them).
+- ✅ **reel_to_reel** capability map (playback).
+- ✅ **streamer** capability map (input/volume/playback). **streamer power deferred → Step-1**
+  (Auralic power is the bool `connected`; capability `on_value` is string-only → widen to
+  `str|bool|int`).
+- ✅ **Fidelity oracle captured** — `docs/scenarios/layer3_oracle/*.json` (per-device
+  `RemoteDeviceStructure`, frozen 2026-05-23).
+- → **Step-1 model batch** (every remaining item needs a model change): widen `Capability.on_value`
+  (`str|bool|int`) · add `reconcile` flag (capability) · add `exposed` flag (`BaseCommandConfig`) ·
+  reconciler `reconcile`-skip · load-time validation (command is `exposed:false` OR
+  capability-backed) · `execute_action` exposure gate (flips after coverage). **Then** complete:
+  streamer power, upscaler power (`reconcile:false`), dormant tagging (`exposed:false`).
+
+**Step 0 is complete** — pure-config authoring + analysis done; everything else is model work (Step 1).

@@ -1,0 +1,513 @@
+{
+  "deviceId": "streamer",
+  "deviceName": "Auralic Altair G1",
+  "deviceClass": "AuralicDevice",
+  "remoteZones": [
+    {
+      "zoneId": "power",
+      "zoneName": "Power Control",
+      "zoneType": "power",
+      "showHide": true,
+      "isEmpty": false,
+      "content": {
+        "powerButtons": [
+          {
+            "position": "left",
+            "action": {
+              "actionName": "power_off",
+              "displayName": "Power Off",
+              "description": "Power Off",
+              "parameters": [
+                {
+                  "name": "standby_only",
+                  "type": "boolean",
+                  "required": false,
+                  "default": false,
+                  "description": "If true, only put the device in standby mode instead of true power off"
+                }
+              ],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "custom",
+                "iconName": "power-off",
+                "iconVariant": "outlined",
+                "fallbackIcon": "power",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "destructive"
+              }
+            },
+            "buttonType": "power-off"
+          },
+          {
+            "position": "right",
+            "action": {
+              "actionName": "power_on",
+              "displayName": "Power On",
+              "description": "Power On",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "PowerSettingsNew",
+                "iconVariant": "outlined",
+                "fallbackIcon": "power",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            },
+            "buttonType": "power-on"
+          }
+        ]
+      },
+      "layout": {
+        "columns": 3,
+        "spacing": "normal",
+        "alignment": "center"
+      }
+    },
+    {
+      "zoneId": "media-stack",
+      "zoneName": "Media Stack",
+      "zoneType": "media-stack",
+      "showHide": true,
+      "isEmpty": false,
+      "content": {
+        "inputsDropdown": {
+          "type": "inputs",
+          "populationMethod": "api",
+          "apiAction": "get_available_inputs",
+          "setAction": "set_input",
+          "options": [],
+          "loading": false,
+          "empty": true
+        },
+        "playbackSection": {
+          "actions": [
+            {
+              "actionName": "play",
+              "displayName": "Play",
+              "description": "Play",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "PlayArrow",
+                "iconVariant": "outlined",
+                "fallbackIcon": "play",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "primary"
+              }
+            },
+            {
+              "actionName": "pause",
+              "displayName": "Pause",
+              "description": "Pause",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "Pause",
+                "iconVariant": "outlined",
+                "fallbackIcon": "pause",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "primary"
+              }
+            },
+            {
+              "actionName": "stop",
+              "displayName": "Stop",
+              "description": "Stop",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "Stop",
+                "iconVariant": "outlined",
+                "fallbackIcon": "stop",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "destructive"
+              }
+            },
+            {
+              "actionName": "next",
+              "displayName": "Next",
+              "description": "Next Track",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "SkipNext",
+                "iconVariant": "outlined",
+                "fallbackIcon": "next",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            }
+          ],
+          "layout": "horizontal"
+        },
+        "tracksSection": {
+          "actions": [
+            {
+              "actionName": "track_info",
+              "displayName": "Track Info",
+              "description": "Get Current Track Information",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "material",
+                "iconName": "Info",
+                "iconVariant": "outlined",
+                "fallbackIcon": "info",
+                "confidence": 0.9
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              }
+            }
+          ],
+          "layout": "horizontal"
+        }
+      },
+      "layout": {
+        "spacing": "normal",
+        "orientation": "vertical"
+      }
+    },
+    {
+      "zoneId": "screen",
+      "zoneName": "Screen Controls",
+      "zoneType": "screen",
+      "showHide": false,
+      "isEmpty": true,
+      "content": {
+        "screenActions": []
+      },
+      "layout": {
+        "orientation": "vertical",
+        "alignment": "left",
+        "spacing": "compact"
+      }
+    },
+    {
+      "zoneId": "volume",
+      "zoneName": "Volume Control",
+      "zoneType": "volume",
+      "showHide": false,
+      "isEmpty": false,
+      "content": {
+        "volumeSlider": {
+          "action": {
+            "actionName": "set_volume",
+            "displayName": "Set Volume",
+            "description": "Set Volume",
+            "parameters": [
+              {
+                "name": "volume",
+                "type": "range",
+                "min": 0,
+                "max": 100,
+                "required": true,
+                "description": "Volume level (0-100)"
+              }
+            ],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "VolumeUp",
+              "iconVariant": "outlined",
+              "fallbackIcon": "volume",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "muteAction": {
+            "actionName": "mute",
+            "displayName": "Mute",
+            "description": "Toggle Mute",
+            "parameters": [],
+            "group": "default",
+            "icon": {
+              "iconLibrary": "material",
+              "iconName": "VolumeOff",
+              "iconVariant": "outlined",
+              "fallbackIcon": "mute",
+              "confidence": 0.9
+            },
+            "uiHints": {
+              "buttonSize": "medium",
+              "buttonStyle": "secondary"
+            }
+          },
+          "orientation": "vertical",
+          "showValue": true
+        }
+      },
+      "layout": {
+        "priority": 1,
+        "orientation": "vertical",
+        "alignment": "right",
+        "spacing": "compact"
+      }
+    },
+    {
+      "zoneId": "apps",
+      "zoneName": "Applications",
+      "zoneType": "apps",
+      "showHide": true,
+      "isEmpty": true,
+      "content": {},
+      "layout": {
+        "spacing": "normal"
+      }
+    },
+    {
+      "zoneId": "menu",
+      "zoneName": "Navigation",
+      "zoneType": "menu",
+      "showHide": false,
+      "isEmpty": true,
+      "content": {
+        "navigationCluster": {}
+      },
+      "layout": {
+        "alignment": "center",
+        "spacing": "normal"
+      }
+    },
+    {
+      "zoneId": "pointer",
+      "zoneName": "Pointer Control",
+      "zoneType": "pointer",
+      "showHide": true,
+      "isEmpty": true,
+      "content": {},
+      "layout": {
+        "spacing": "normal"
+      }
+    }
+  ],
+  "stateInterface": {
+    "interfaceName": "AuralicDeviceState",
+    "fields": [
+      {
+        "name": "power",
+        "type": "string",
+        "optional": true,
+        "description": "Device power state (\"on\", \"off\", \"booting\", \"unknown\")"
+      },
+      {
+        "name": "volume",
+        "type": "number",
+        "optional": true,
+        "description": "Current volume level"
+      },
+      {
+        "name": "mute",
+        "type": "boolean",
+        "optional": true,
+        "description": "Mute status"
+      },
+      {
+        "name": "source",
+        "type": "string | null",
+        "optional": true,
+        "description": "Currently selected input source"
+      },
+      {
+        "name": "connected",
+        "type": "boolean",
+        "optional": true,
+        "description": "Device connection status"
+      },
+      {
+        "name": "ip_address",
+        "type": "string | null",
+        "optional": true,
+        "description": "Device IP address"
+      },
+      {
+        "name": "track_title",
+        "type": "string | null",
+        "optional": true,
+        "description": "Current track title"
+      },
+      {
+        "name": "track_artist",
+        "type": "string | null",
+        "optional": true,
+        "description": "Current track artist"
+      },
+      {
+        "name": "track_album",
+        "type": "string | null",
+        "optional": true,
+        "description": "Current track album"
+      },
+      {
+        "name": "transport_state",
+        "type": "string | null",
+        "optional": true,
+        "description": "Current transport state (Playing, Paused, Stopped, etc.)"
+      },
+      {
+        "name": "deep_sleep",
+        "type": "boolean",
+        "optional": true,
+        "description": "True when device is in deep sleep mode"
+      },
+      {
+        "name": "message",
+        "type": "string | null",
+        "optional": true,
+        "description": "User-friendly message about current state"
+      },
+      {
+        "name": "warning",
+        "type": "string | null",
+        "optional": true,
+        "description": "Warning message if relevant"
+      }
+    ],
+    "imports": [
+      "BaseDeviceState"
+    ],
+    "extends": [
+      "BaseDeviceState"
+    ]
+  },
+  "actionHandlers": [
+    {
+      "actionName": "power_on",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'streamer', \n          action: { action: 'power_on', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "power_off",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'streamer', \n          action: { action: 'power_off', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "play",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'streamer', \n          action: { action: 'play', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "pause",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'streamer', \n          action: { action: 'pause', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "stop",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'streamer', \n          action: { action: 'stop', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "next",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'streamer', \n          action: { action: 'next', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "set_volume",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'streamer', \n          action: { action: 'set_volume', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "volume_up",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'streamer', \n          action: { action: 'volume_up', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "volume_down",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'streamer', \n          action: { action: 'volume_down', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "mute",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'streamer', \n          action: { action: 'mute', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "set_input",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'streamer', \n          action: { action: 'set_input', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "track_info",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'streamer', \n          action: { action: 'track_info', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "get_available_inputs",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'streamer', \n          action: { action: 'get_available_inputs', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    },
+    {
+      "actionName": "refresh_inputs",
+      "handlerCode": "\n        executeAction.mutate({ \n          deviceId: 'streamer', \n          action: { action: 'refresh_inputs', params: payload } \n        });\n      ",
+      "dependencies": [
+        "useExecuteDeviceAction"
+      ]
+    }
+  ],
+  "specialCases": [
+    {
+      "deviceClass": "AuralicDevice",
+      "caseType": "auralic-streaming",
+      "configuration": {
+        "usesInputsAPI": true,
+        "hasMediaControls": true,
+        "hasVolumeSlider": true,
+        "isNetworkStreamer": true
+      }
+    }
+  ]
+}
