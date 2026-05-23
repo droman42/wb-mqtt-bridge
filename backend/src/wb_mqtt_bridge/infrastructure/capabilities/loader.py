@@ -8,9 +8,9 @@ overrides), with the device file winning. Either may be absent.
 
 import json
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List, Set
 
-from wb_mqtt_bridge.infrastructure.capabilities.models import CapabilityMap
+from wb_mqtt_bridge.infrastructure.capabilities.models import CapabilityAction, CapabilityMap
 
 
 def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
@@ -59,3 +59,51 @@ def attach_capability_maps(devices: Dict[str, Any], capabilities_dir: Path) -> N
         device.capabilities = load_capability_map(
             device.config.device_class, device_id, capabilities_dir
         )
+
+
+def referenced_commands(cap_map: CapabilityMap) -> Set[str]:
+    """All native command names a capability map references (across every
+    action / select / list / zone). Used to decide whether a config command is
+    "capability-backed"."""
+    cmds: Set[str] = set()
+
+    def _walk(action: CapabilityAction) -> None:
+        if action is None:
+            return
+        if action.command:
+            cmds.add(action.command)
+        for step in (action.sequence or []):
+            _walk(step)
+
+    for cap in cap_map.root.values():
+        for action in cap.actions.values():
+            _walk(action)
+        if cap.select is not None:
+            if cap.select.command:
+                cmds.add(cap.select.command)
+            for action in (cap.select.by_value or {}).values():
+                _walk(action)
+        _walk(cap.list)
+        for zone in (cap.zones or {}).values():
+            for action in zone.actions.values():
+                _walk(action)
+    return cmds
+
+
+def validate_command_exposure(devices: Dict[str, Any]) -> List[str]:
+    """Layer-3 readiness / drift check. Returns the list of violations: for each
+    ``device_category == "device"`` device, any command that is ``exposed`` but **not**
+    backed by a capability (so it would be invisible in a Layer-3 manifest). Appliances
+    are exempt — they render from explicit ``wb_controls`` / bespoke pages, not capabilities.
+    A command is acceptable iff it is ``exposed: false`` OR capability-backed."""
+    violations: List[str] = []
+    for device_id, device in devices.items():
+        config = getattr(device, "config", None)
+        if getattr(config, "device_category", "device") == "appliance":
+            continue
+        cap_map = getattr(device, "capabilities", None)
+        backed = referenced_commands(cap_map) if cap_map is not None else set()
+        for name, cmd in device.get_available_commands().items():
+            if getattr(cmd, "exposed", True) and name not in backed:
+                violations.append(f"{device_id}.{name}")
+    return violations

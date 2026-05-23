@@ -778,7 +778,19 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
                     state=self.state,  # Now properly typed
                     error=error_msg
                 )
-            
+
+            # Exposure gate: a dormant command (exposed=False) is not invokable from external
+            # surfaces (UI / HTTP / MQTT). Internal callers (reconciler/scenario, system, cli) bypass
+            # — internal driver use calls handlers directly, not execute_action.
+            if not getattr(cmd, "exposed", True) and source not in ("scenario", "system", "cli"):
+                return CommandResponse(
+                    success=False,
+                    device_id=self.device_id,
+                    action=action,
+                    state=self.state,
+                    error=f"Action '{action}' is not exposed",
+                )
+
             # Validate parameters
             validated_params = {}
             if cmd.params:

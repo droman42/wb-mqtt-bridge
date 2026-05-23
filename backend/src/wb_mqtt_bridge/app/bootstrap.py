@@ -28,7 +28,7 @@ from wb_mqtt_bridge.infrastructure.wb_device.service import WBVirtualDeviceServi
 from wb_mqtt_bridge.domain.rooms.service import RoomManager
 from wb_mqtt_bridge.domain.scenarios.service import ScenarioManager
 from wb_mqtt_bridge.infrastructure.scenarios.wb_adapter import ScenarioWBAdapter
-from wb_mqtt_bridge.infrastructure.capabilities.loader import attach_capability_maps
+from wb_mqtt_bridge.infrastructure.capabilities.loader import attach_capability_maps, validate_command_exposure
 from wb_mqtt_bridge.infrastructure.maintenance.wirenboard_guard import WirenboardMaintenanceGuard
 
 # Import routers
@@ -201,6 +201,19 @@ def create_app() -> FastAPI:
         # Attach Layer 1 capability maps from config/capabilities/ (hot-fixable JSON).
         attach_capability_maps(device_manager.devices, Path(config_manager.config_dir) / "capabilities")
         logger.info("Attached capability maps to devices")
+
+        _exposure_violations = validate_command_exposure(device_manager.devices)
+        if _exposure_violations:
+            logger.warning(
+                "Command-exposure check: %d command(s) are `exposed` but not capability-backed "
+                "(they will be invisible in Layer-3 manifests — mark `exposed: false` or add a "
+                "capability): %s",
+                len(_exposure_violations), ", ".join(sorted(_exposure_violations)),
+            )
+        else:
+            logger.info(
+                "Command-exposure check: OK (every device command is exposed:false or capability-backed)"
+            )
 
         # Configuration Migration Phase B: Log migration guidance for deprecated topic usage
         config_manager.log_migration_guidance()
