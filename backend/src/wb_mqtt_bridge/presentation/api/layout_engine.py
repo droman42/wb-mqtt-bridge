@@ -4,11 +4,12 @@ Reconstructs, server-side and keyed off capability **domains** (not config-group
 the zone/control structure the UI used to generate at build time. The frozen oracle
 (`docs/scenarios/layer3_oracle/`) is the fidelity target.
 
-STATUS (Step 1, incremental): the framework + the **power**, **playback**, **volume**, and **input**
-(media-stack) zone builders are in (covers reel_to_reel, vhs_player, mf_amplifier). TODO: tracks
-(media-stack), menu, apps, screen, pointer builders; and **multi-zone power** (the emotiva special
-case — the cap has `zones`, not `actions`). Icons/uiHints are placeholders for now (oracle-exact
-material icons = a follow-on; see `ui_backend_contract.md` "Icons" open decision).
+STATUS (Step 1, complete): all 9 domains build (power [single- and multi-zone], playback, volume,
+input, tracks, menu, screen, apps, pointer). The 12 standard devices reproduce their oracle, plus
+eMotiva multi-zone power (zone 1 off/on + zone 2 native toggle). **Icons are resolved UI-side**
+(decided 2026-05-23 — keeps the manifest skin-agnostic; see `ui_backend_contract.md` "Icons"): this
+engine emits placeholder icons that the renderer overrides via its `IconResolver`; the manifest
+`icon` field is only an optional override.
 """
 from typing import Any, Dict, List, Optional, Tuple
 

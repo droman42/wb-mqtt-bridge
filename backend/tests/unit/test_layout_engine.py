@@ -1,8 +1,9 @@
 """Layer-3 placement engine — fidelity vs the frozen oracle.
 
-Step 1 (incremental): the engine builds power + playback zones, so reel_to_reel (playback) and
-vhs_player (power + playback) must reproduce their oracle structurally (zones present, isEmpty per
-zone, control actionNames/positions/buttonType). Other devices/zones are added in later iterations.
+Step 1 (complete): the engine builds all 9 domains, so every device must reproduce its frozen oracle
+structurally (zones present, isEmpty per zone, control actionNames/positions/buttonType). The 12
+standard devices are parametrized below; eMotiva multi-zone power has its own test (it intentionally
+diverges from the old codegen — see `test_engine_emotiva_multizone_power`).
 """
 import json
 from pathlib import Path

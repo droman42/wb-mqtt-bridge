@@ -252,9 +252,13 @@ inheritance + topology give the composite control set; placement runs identicall
 **deleted**. One inheritance, one placement, one source of truth.
 
 ### Icons & appliances
-- **Icons:** `icon` hints live in the manifest (today's `ProcessedAction.icon`) so rendering is
-  data-driven; the UI `IconResolver` is ported to the backend (or kept UI-side as a pure fallback).
-  Open sub-decision — lean: in manifest.
+- **Icons — DECIDED 2026-05-23: resolved UI-side.** The backend manifest carries *semantics*
+  (`actionName` + domain/`group`); the **UI's `IconResolver` maps those to glyphs at render time**.
+  Icons are a *visual* concern (UI = visual truth), and keeping them UI-side keeps the manifest
+  **skin-agnostic** — the UI can be reskinned with no backend change. The manifest's `icon` field
+  stays as an **optional override** (e.g. a device-specific glyph the UI can't derive, via a future
+  capability hint); it is *not* the primary source. The placement engine emits placeholder icons,
+  which the renderer ignores in favor of the `IconResolver` (a Step-2 renderer concern).
 - **Appliances:** v1 manifest targets the remote layout (`device_category=device` + scenarios).
   Appliance bespoke pages get a separate manifest variant later — out of scope for v1.
 
