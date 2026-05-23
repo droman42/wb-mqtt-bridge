@@ -111,6 +111,9 @@ class VolumeSliderConfig(_Camel):
     orientation: Literal["vertical"] = "vertical"
     show_value: bool = True
     zone: Optional[int] = None
+    # serialized device-state field holding the current level (e.g. "zone2_volume"); the UI reads
+    # deviceState[valueField] instead of branching on deviceClass (Step-2 hardening).
+    value_field: Optional[str] = None
 
 
 class VolumeButtonConfig(_Camel):

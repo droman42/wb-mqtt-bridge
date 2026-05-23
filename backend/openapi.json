@@ -3383,6 +3383,17 @@
             "title": "Showvalue",
             "type": "boolean"
           },
+          "valueField": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valuefield"
+          },
           "zone": {
             "anyOf": [
               {
@@ -3954,7 +3965,7 @@
     },
     "/devices/{device_id}/layout": {
       "get": {
-        "description": "Layer-3 layout manifest for a device — the backend-computed remote layout the UI renders at\nruntime (replaces build-time codegen). Built from the device's capability map by the placement\nengine (``presentation/api/layout_engine.py``).",
+        "description": "Layer-3 layout manifest for a device — the backend-computed remote layout the UI renders at\nruntime (replaces build-time codegen). Built from the device's capability map by the placement\nengine (``presentation/api/layout_engine.py``).\n\n``response_model_exclude_none=True`` omits null fields so the payload matches the build-time\ncodegen contract (absent = not present). The UI checks ``content.xDropdown !== undefined``; an\nexplicit ``null`` would read as \"present\" and trigger a spurious fetch (Step-2 hardening).",
         "operationId": "get_device_layout_devices__device_id__layout_get",
         "parameters": [
           {

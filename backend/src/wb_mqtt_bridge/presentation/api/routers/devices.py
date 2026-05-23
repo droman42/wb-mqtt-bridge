@@ -231,11 +231,15 @@ async def execute_device_action(
     return result
 
 
-@router.get("/devices/{device_id}/layout", response_model=LayoutManifest)
+@router.get("/devices/{device_id}/layout", response_model=LayoutManifest, response_model_exclude_none=True)
 async def get_device_layout(device_id: str):
     """Layer-3 layout manifest for a device — the backend-computed remote layout the UI renders at
     runtime (replaces build-time codegen). Built from the device's capability map by the placement
-    engine (``presentation/api/layout_engine.py``)."""
+    engine (``presentation/api/layout_engine.py``).
+
+    ``response_model_exclude_none=True`` omits null fields so the payload matches the build-time
+    codegen contract (absent = not present). The UI checks ``content.xDropdown !== undefined``; an
+    explicit ``null`` would read as "present" and trigger a spurious fetch (Step-2 hardening)."""
     if not device_manager:
         raise HTTPException(status_code=503, detail="Service not fully initialized")
     device = device_manager.devices.get(device_id)

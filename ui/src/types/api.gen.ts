@@ -313,6 +313,10 @@ export interface paths {
          * @description Layer-3 layout manifest for a device — the backend-computed remote layout the UI renders at
          *     runtime (replaces build-time codegen). Built from the device's capability map by the placement
          *     engine (``presentation/api/layout_engine.py``).
+         *
+         *     ``response_model_exclude_none=True`` omits null fields so the payload matches the build-time
+         *     codegen contract (absent = not present). The UI checks ``content.xDropdown !== undefined``; an
+         *     explicit ``null`` would read as "present" and trigger a spurious fetch (Step-2 hardening).
          */
         get: operations["get_device_layout_devices__device_id__layout_get"];
         put?: never;
@@ -2666,6 +2670,8 @@ export interface components {
              * @default true
              */
             showValue: boolean;
+            /** Valuefield */
+            valueField?: string | null;
             /** Zone */
             zone?: number | null;
         };

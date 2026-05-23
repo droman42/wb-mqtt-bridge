@@ -27,6 +27,7 @@
   },
   "volume": {
     "kind": "momentary",
+    "state_field": "zone2_volume",
     "actions": {
       "set": { "command": "set_volume", "param_map": { "level": "level" }, "params": { "zone": 2 } },
       "mute_toggle": { "command": "mute_toggle", "params": { "zone": 2 } }

@@ -136,6 +136,7 @@ def _volume_content(device: Any, cap: Capability) -> ZoneContent:
         return ZoneContent(volume_slider=VolumeSliderConfig(
             action=_action(device, acts["set"].command), mute_action=mute,
             orientation="vertical", show_value=True,
+            value_field=cap.state_field,  # serialized state field for the current level (UI value binding)
         ))
     up = _action(device, acts["up"].command) if "up" in acts and acts["up"].command else None
     down = _action(device, acts["down"].command) if "down" in acts and acts["down"].command else None
