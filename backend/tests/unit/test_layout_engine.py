@@ -47,24 +47,36 @@ def _name(a):
     return a["actionName"] if a else None
 
 
-def _structure(zones):
+def _structure(zones, dormant=frozenset()):
     """Distill to the layout-critical structure per zone: zoneId -> (isEmpty, parts).
 
     Slot zones (power) keep order (position/buttonType deterministic). Ordered zones
     (playback/tracks/screen) and the menu compare as SETS — by design the new manifest orders them
     by capability-declaration order, deliberately retiring the old config-key order, so order may
     differ from the oracle; fidelity = the same controls present (none lost/added). Dropdowns
-    compare type + populationMethod + option count (ids/labels are capability-derived now)."""
+    compare type + populationMethod + option count (ids/labels are capability-derived now).
+    `dormant` (exposed:false) command names are dropped — the oracle predates dormant-tagging, so the
+    new manifest correctly omits them."""
+    def keep(names):
+        return [n for n in names if n not in dormant]
+
     out = {}
     for z in zones:
         c = z["content"]
         parts = {}
         if c.get("powerButtons"):
-            parts["power"] = [(b["position"], b["buttonType"], b["action"]["actionName"]) for b in c["powerButtons"]]
+            pb = [(b["position"], b["buttonType"], b["action"]["actionName"])
+                  for b in c["powerButtons"] if b["action"]["actionName"] not in dormant]
+            if pb:
+                parts["power"] = pb
         if c.get("playbackSection"):
-            parts["playback"] = sorted(_name(a) for a in c["playbackSection"]["actions"])
+            pv = sorted(keep(_name(a) for a in c["playbackSection"]["actions"]))
+            if pv:
+                parts["playback"] = pv
         if c.get("tracksSection"):
-            parts["tracks"] = sorted(_name(a) for a in c["tracksSection"]["actions"])
+            tv = sorted(keep(_name(a) for a in c["tracksSection"]["actions"]))
+            if tv:
+                parts["tracks"] = tv
         if c.get("inputsDropdown"):
             d = c["inputsDropdown"]
             parts["inputs"] = (d["populationMethod"], len(d.get("options", [])))
@@ -75,12 +87,16 @@ def _structure(zones):
             vb = c["volumeButtons"][0]
             parts["vbuttons"] = (_name(vb.get("upAction")), _name(vb.get("downAction")), _name(vb.get("muteAction")))
         if c.get("screenActions"):
-            parts["screen"] = sorted(_name(a) for a in c["screenActions"])
+            sv = sorted(keep(_name(a) for a in c["screenActions"]))
+            if sv:
+                parts["screen"] = sv
         if c.get("appsDropdown"):
             d = c["appsDropdown"]
             parts["apps"] = (d["populationMethod"], len(d.get("options", [])))
         if c.get("navigationCluster"):
-            parts["menu"] = frozenset(_name(v) for v in c["navigationCluster"].values() if v)
+            mv = frozenset(n for n in (_name(v) for v in c["navigationCluster"].values() if v) if n not in dormant)
+            if mv:
+                parts["menu"] = mv
         if c.get("pointerPad"):
             parts["pointer"] = frozenset(k for k, v in c["pointerPad"].items() if v)
         # an empty zone is empty regardless of placeholder content shape (renderer-equivalent)
@@ -95,13 +111,23 @@ def _structure(zones):
 # cap-driven engine will render it from cap.zones, intentionally diverging. Add it back with proper
 # multi-zone power handling later.
 @pytest.mark.parametrize("config_name,oracle_name,device_class", [
-    ("reel_to_reel", "reel_to_reel", "RevoxA77ReelToReel"),   # playback
-    ("vhs_player", "vhs_player", "WirenboardIRDevice"),       # power + playback
-    ("mf_amplifier", "mf_amplifier", "WirenboardIRDevice"),   # power + inputs(by_value) + volume(buttons)
-    ("ld_player", "ld_player", "WirenboardIRDevice"),         # power + playback + tracks
-    ("video", "video", "WirenboardIRDevice"),                 # power + playback + menu + tracks
+    ("reel_to_reel", "reel_to_reel", "RevoxA77ReelToReel"),
+    ("vhs_player", "vhs_player", "WirenboardIRDevice"),
+    ("mf_amplifier", "mf_amplifier", "WirenboardIRDevice"),
+    ("ld_player", "ld_player", "WirenboardIRDevice"),
+    ("video", "video", "WirenboardIRDevice"),
+    ("upscaler", "upscaler", "WirenboardIRDevice"),
+    ("streamer", "streamer", "AuralicDevice"),
+    ("lg_tv_living", "living_room_tv", "LgTv"),
+    ("lg_tv_children", "children_room_tv", "LgTv"),
+    ("appletv_living", "appletv_living", "AppleTVDevice"),
+    ("appletv_children", "appletv_children", "AppleTVDevice"),
+    ("kitchen_hood", "kitchen_hood", "BroadlinkKitchenHood"),  # appliance — all remote zones empty
 ])
 def test_engine_reproduces_oracle(config_name, oracle_name, device_class):
+    cfg = json.loads((ROOT / "config" / "devices" / f"{config_name}.json").read_text())
+    dormant = {n for n, c in (cfg.get("commands") or {}).items() if (c or {}).get("exposed") is False}
     manifest = build_device_manifest(_make_device(config_name, device_class)).model_dump(by_alias=True)
     oracle = json.loads((ORACLE / f"{oracle_name}.json").read_text())
-    assert _structure(manifest["remoteZones"]) == _structure(oracle["remoteZones"])
+    # the oracle predates dormant-tagging; drop exposed:false commands the new manifest correctly omits
+    assert _structure(manifest["remoteZones"]) == _structure(oracle["remoteZones"], dormant)

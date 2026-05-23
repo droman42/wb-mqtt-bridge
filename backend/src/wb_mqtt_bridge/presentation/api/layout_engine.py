@@ -20,6 +20,7 @@ from wb_mqtt_bridge.presentation.api.layout_manifest import (
     LayoutManifest,
     NavigationClusterConfig,
     PlaybackConfig,
+    PointerPadConfig,
     PowerButtonConfig,
     ProcessedAction,
     ProcessedParameter,
@@ -180,6 +181,41 @@ def _menu_content(device: Any, cap: Capability) -> ZoneContent:
     return ZoneContent(navigation_cluster=NavigationClusterConfig(**kwargs))
 
 
+def _screen_content(device: Any, cap: Capability) -> ZoneContent:
+    """screen domain -> screenActions (flat list, capability-declaration order)."""
+    actions = [_action(device, a.command) for a in cap.actions.values() if a.command]
+    return ZoneContent(screen_actions=[a for a in actions if a is not None])
+
+
+def _apps_dropdown(device: Any, cap: Capability) -> DropdownConfig:
+    """apps domain -> appsDropdown (api-populated: launch action + list query)."""
+    launch = cap.actions.get("launch")
+    return DropdownConfig(
+        type="apps", population_method="api",
+        api_action=cap.list.command if cap.list else None,
+        set_action=launch.command if launch and launch.command else None,
+        options=[], loading=False, empty=True,
+    )
+
+
+_POINTER = {"move": "move_action", "click": "click_action", "tap": "click_action",
+            "drag": "drag_action", "scroll": "scroll_action"}
+
+
+def _pointer_content(device: Any, cap: Capability) -> ZoneContent:
+    """pointer domain -> pointerPad (move/click/tap/drag/scroll -> the pad's slots)."""
+    kwargs: Dict[str, ProcessedAction] = {}
+    for key, cap_action in cap.actions.items():
+        field = _POINTER.get(key)
+        if field and cap_action.command:
+            action = _action(device, cap_action.command)
+            if action is not None:
+                kwargs[field] = action
+    if "move_action" not in kwargs:  # PointerPadConfig requires a move action
+        return ZoneContent()
+    return ZoneContent(pointer_pad=PointerPadConfig(**kwargs))
+
+
 def build_device_manifest(device: Any) -> LayoutManifest:
     """Build a device's LayoutManifest from its capability map (Layer-3 placement)."""
     cap_map: Optional[CapabilityMap] = getattr(device, "capabilities", None)
@@ -201,7 +237,13 @@ def build_device_manifest(device: Any) -> LayoutManifest:
         content["volume"] = _volume_content(device, caps["volume"])
     if "menu" in caps:
         content["menu"] = _menu_content(device, caps["menu"])
-    # TODO: apps, screen, pointer; multi-zone power (emotiva)
+    if "screen" in caps:
+        content["screen"] = _screen_content(device, caps["screen"])
+    if "apps" in caps:
+        content["apps"] = ZoneContent(apps_dropdown=_apps_dropdown(device, caps["apps"]))
+    if "pointer" in caps:
+        content["pointer"] = _pointer_content(device, caps["pointer"])
+    # TODO: multi-zone power (emotiva — cap.zones, not cap.actions)
 
     def _is_empty(c: ZoneContent) -> bool:
         # empty iff no content field holds a truthy value (covers None and empty lists)
