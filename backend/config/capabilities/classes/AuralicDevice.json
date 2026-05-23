@@ -1,0 +1,26 @@
+{
+  "input": {
+    "kind": "stateful", "feedback": true, "state_field": "source",
+    "select": { "command": "set_input", "param_map": { "input": "input" } },
+    "list": { "command": "get_available_inputs" },
+    "gate": { "poll_timeout_ms": 3000 }
+  },
+  "volume": {
+    "kind": "momentary",
+    "actions": {
+      "up": { "command": "volume_up" },
+      "down": { "command": "volume_down" },
+      "set": { "command": "set_volume", "param_map": { "level": "volume" } },
+      "mute_toggle": { "command": "mute" }
+    }
+  },
+  "playback": {
+    "kind": "momentary",
+    "actions": {
+      "play": { "command": "play" },
+      "pause": { "command": "pause" },
+      "stop": { "command": "stop" },
+      "next": { "command": "next" }
+    }
+  }
+}
