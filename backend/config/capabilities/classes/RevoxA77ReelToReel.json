@@ -1,0 +1,11 @@
+{
+  "playback": {
+    "kind": "momentary",
+    "actions": {
+      "play": { "command": "play" },
+      "stop": { "command": "stop" },
+      "ff": { "command": "rewind_forward" },
+      "rewind": { "command": "rewind_backward" }
+    }
+  }
+}
