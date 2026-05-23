@@ -13,7 +13,8 @@
         "state_field": "zone2_power", "on_value": "on",
         "actions": {
           "on": { "command": "power_on", "params": { "zone": 2 } },
-          "off": { "command": "power_off", "params": { "zone": 2 } }
+          "off": { "command": "power_off", "params": { "zone": 2 } },
+          "toggle": { "command": "zone2_power_toggle" }
         }
       }
     }

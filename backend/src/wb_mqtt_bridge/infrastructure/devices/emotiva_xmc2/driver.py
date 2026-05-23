@@ -955,6 +955,25 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                     
         return result
         
+    async def handle_zone2_power_toggle(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
+        """Toggle Zone 2 power via the native eMotiva ``zone2_power`` command (pymotivaxmc2
+        ``power_toggle(zone=ZONE2)``). The resulting zone2_power state arrives asynchronously via the
+        device's property notification, so it is not set optimistically here."""
+        logger.debug(f"[EMOTIVA_DEBUG] zone2_power_toggle received: connected={self.state.connected}, zone2_power={self.state.zone2_power} (device={self.get_name()})")
+        if not self.client or not self.state.connected:
+            logger.info(f"Device {self.get_name()} not connected, reconnecting before zone2 power toggle")
+            try:
+                await self.setup()
+            except Exception as e:
+                return self.create_command_result(success=False, error=f"Failed to connect to device: {str(e)}")
+        try:
+            await self.client.power_toggle(zone=Zone.ZONE2)
+            self.clear_error()
+            return self.create_command_result(success=True, message="Zone 2 power toggled", zone=2)
+        except Exception as e:
+            logger.error(f"Failed to toggle zone 2 power on {self.get_name()}: {str(e)}")
+            return self.create_command_result(success=False, error=f"Failed to toggle zone 2 power: {str(e)}")
+
     async def handle_set_input(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """Handle setting input source by input ID.
         

@@ -87,22 +87,35 @@ def _action(device: Any, command: str) -> Optional[ProcessedAction]:
 
 # --- zone content builders (domain -> content) ------------------------------------------------
 def _power_content(device: Any, cap: Capability) -> ZoneContent:
-    """power domain -> powerButtons (off->left, on->right, toggle->left). Single-zone (cap.actions)
-    only; multi-zone (cap.zones, e.g. emotiva) is a TODO. Buttons are position-sorted (slot zone)."""
-    by_key = {
-        "off": ("power-off", "left"),
-        "on": ("power-on", "right"),
-        "toggle": ("power-toggle", "left"),
-    }
+    """power domain -> powerButtons (off->left, on->right). Handles single-zone (cap.actions) and
+    multi-zone (cap.zones): a zone that has a `toggle` action renders one toggle button (zone 2 ->
+    `zone2-power`, middle), otherwise discrete off/on. Buttons are position-sorted (slot zone)."""
+    by_key = {"off": ("power-off", "left"), "on": ("power-on", "right"), "toggle": ("power-toggle", "left")}
     buttons: List[PowerButtonConfig] = []
-    for key, cap_action in cap.actions.items():
-        if not cap_action.command:
-            continue
-        action = _action(device, cap_action.command)
+
+    def _add(key: str, command: str, *, button_type: Optional[str] = None, position: Optional[str] = None) -> None:
+        action = _action(device, command)
         if action is None:
-            continue
-        button_type, position = by_key.get(key, ("power-toggle", "left"))
-        buttons.append(PowerButtonConfig(position=position, action=action, button_type=button_type))
+            return
+        bt, pos = by_key.get(key, ("power-toggle", "left"))
+        buttons.append(PowerButtonConfig(position=position or pos, action=action, button_type=button_type or bt))
+
+    for key, cap_action in cap.actions.items():
+        if cap_action.command:
+            _add(key, cap_action.command)
+
+    for zone_key, zone in (cap.zones or {}).items():
+        toggle = zone.actions.get("toggle")
+        if toggle and toggle.command:  # native zone toggle (e.g. eMotiva zone2_power) -> one button
+            _add("toggle", toggle.command,
+                 button_type=("zone2-power" if str(zone_key) == "2" else "power-toggle"),
+                 position="middle")
+        else:  # discrete per-zone on/off
+            for key in ("off", "on"):
+                ca = zone.actions.get(key)
+                if ca and ca.command:
+                    _add(key, ca.command)
+
     buttons.sort(key=lambda b: {"left": 0, "middle": 1, "right": 2}.get(b.position, 9))
     return ZoneContent(power_buttons=buttons)
 

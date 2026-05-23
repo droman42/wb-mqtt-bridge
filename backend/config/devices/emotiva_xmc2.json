@@ -27,6 +27,11 @@
         { "name": "zone", "type": "integer", "required": true, "default": 1, "min": 1, "max": 2, "description": "Zone ID (1 for main, 2 for zone2)" }
       ]
     },
+    "zone2_power_toggle": {
+      "action": "zone2_power_toggle",
+      "group": "power",
+      "description": "Toggle Zone 2 power"
+    },
     "set_input": {
       "action": "set_input",
       "group": "inputs",

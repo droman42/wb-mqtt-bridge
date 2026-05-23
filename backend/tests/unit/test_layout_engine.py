@@ -131,3 +131,18 @@ def test_engine_reproduces_oracle(config_name, oracle_name, device_class):
     oracle = json.loads((ORACLE / f"{oracle_name}.json").read_text())
     # the oracle predates dormant-tagging; drop exposed:false commands the new manifest correctly omits
     assert _structure(manifest["remoteZones"]) == _structure(oracle["remoteZones"], dormant)
+
+
+def test_engine_emotiva_multizone_power():
+    """eMotiva power is multi-zone: zone 1 discrete off/on + zone 2 native toggle (`zone2-power`,
+    the real zone2_power command). Validated explicitly rather than via the oracle parametrize — it
+    intentionally improves on the old codegen, which synthesized the command + used the generic
+    `power-toggle` buttonType. (input/volume are covered by the same builders via lg/streamer.)"""
+    manifest = build_device_manifest(_make_device("emotiva_xmc2", "EMotivaXMC2")).model_dump(by_alias=True)
+    power = next(z for z in manifest["remoteZones"] if z["zoneId"] == "power")
+    buttons = [(b["position"], b["buttonType"], b["action"]["actionName"]) for b in power["content"]["powerButtons"]]
+    assert buttons == [
+        ("left", "power-off", "power_off"),
+        ("middle", "zone2-power", "zone2_power_toggle"),
+        ("right", "power-on", "power_on"),
+    ]
