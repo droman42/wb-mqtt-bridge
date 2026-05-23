@@ -370,10 +370,23 @@ global; only the *runtime-render flag* stays per-device during rollout):
   device (eMotiva) + an api device (Apple TV); `typecheck`/`lint`/`npm run check` green. Retire the
   frozen oracle.
 
-Status (2026-05-23): **commit 1 DONE** (`d0ca91e`) — backend contract (B1 + B3; B4 no-op);
-openapi/api.gen.ts regenerated; backend 306 + UI typecheck/lint green. **Remaining:** commit 2 (UI
-declarative — U1/U2), commit 3 (atomic `specialCases` removal — B2/U3 + oracle-test rework), then
-render-level validation, before resuming device rollout (step 3).
+Status (2026-05-23) — **re-scoped to the mf_amplifier pilot** (per the user: other devices +
+scenarios are **Step 3**, so the LG/AppleTV api-select + eMotiva slider cleanups go there, done as
+each device migrates + is hardware-tested):
+- **commit 1 DONE** (`d0ca91e`) — backend B1 `exclude_none` + B3 volume `valueField` (B4 no-op);
+  openapi/api.gen.ts regenerated.
+- **commit 2 DONE** (`94dd612`) — UI **U1**: inputs/apps static-vs-fetch now obey `populationMethod`
+  (deleted `specialCases`/`isWirenboardIR`/`usesAppsAPI` reads + the hardcoded `get_available_*`);
+  `selectInput`/`launchApp` route by `populationMethod` and use the manifest's `setAction`.
+- **Validated:** mf_amplifier renders clean via the render mock (INPUTS populate from commands, apps
+  empty/no-fetch, Navigation correctly empty), matching the build-time page; backend 306 +
+  `npm run check` green. **Step 2 is functionally complete for mf_amplifier** (real-world proof at the
+  next UI deploy, since the flag defaults to mf_amplifier).
+- **Moved to Step 3** (per-device, on migration): **B5** api-select value-param name on the
+  `DropdownConfig` (LG `set_input_source`→`source`, AppleTV `launch_app`→`app`; the old hardcodes
+  were buggy — flagged TODO in `useRemoteControlData.ts`); **U2** eMotiva slider `valueField` +
+  drop `deviceClass==='EMotivaXMC2'`; **B2/U3** full `specialCases` removal (model + type + 8
+  handlers) + oracle-test retirement.
 
 ## Related
 - `docs/scenarios/scenario_system_redesign.md` — the scenario redesign; this manifest is its Layer 3.
