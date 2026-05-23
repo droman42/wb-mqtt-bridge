@@ -44,10 +44,6 @@
     "src/lib/StateTypeGenerator.ts",
     "src/lib/deviceHandlers/**/*",
     "src/lib/generators/**/*",
-    "src/lib/integration/**/*",
-
-    "src/lib/IconResolver.ts",
-    "src/types/DeviceConfig.ts",
-    "src/types/ProcessedDevice.ts"
+    "src/lib/integration/**/*"
   ]
 } 

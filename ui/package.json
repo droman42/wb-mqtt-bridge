@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:scripts": "tsc --noEmit --project tsconfig.scripts.json",
     "typecheck:all": "npm run typecheck && npm run typecheck:scripts",
+    "check": "npm run gen:device-pages -- --batch --mode=local --mapping-file=../backend/config/device-state-mapping.json --generate-router && npm run typecheck:all && npm run lint && npm run validate:generated-code && npm run validate:components",
     "validate:generated-code": "npx tsx src/scripts/generate-device-pages.ts --validate-code",
     "validate:components": "npx tsx src/scripts/generate-device-pages.ts --validate-components",
     "validate:all": "npx tsx src/scripts/generate-device-pages.ts --run-validation",

@@ -126,7 +126,7 @@ export const useExecuteDeviceAction = () => {
         }
       } else {
         // Fallback: invalidate to trigger refetch if no state in response
-        queryClient.invalidateQueries({ queryKey: ['devices', deviceId, 'state'] });
+        void queryClient.invalidateQueries({ queryKey: ['devices', deviceId, 'state'] });
       }
     },
   });
@@ -202,8 +202,8 @@ export const useSwitchScenario = () => {
     mutationFn: (request: SwitchScenarioRequest) =>
       api.post<ScenarioResponse>('/scenario/switch', request).then(res => res.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['scenario', 'state'] });
-      queryClient.invalidateQueries({ queryKey: ['devices'] });
+      void queryClient.invalidateQueries({ queryKey: ['scenario', 'state'] });
+      void queryClient.invalidateQueries({ queryKey: ['devices'] });
     },
   });
 };
@@ -214,8 +214,8 @@ export const useExecuteRoleAction = () => {
     mutationFn: (request: ActionRequest) =>
       api.post<ScenarioResponse>('/scenario/role_action', request).then(res => res.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['scenario', 'state'] });
-      queryClient.invalidateQueries({ queryKey: ['devices'] });
+      void queryClient.invalidateQueries({ queryKey: ['scenario', 'state'] });
+      void queryClient.invalidateQueries({ queryKey: ['devices'] });
     },
   });
 };
@@ -227,8 +227,8 @@ export const useStartScenario = () => {
     mutationFn: (scenarioId: string) =>
       api.post<ScenarioResponse>('/scenario/start', { id: scenarioId }).then(res => res.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['scenario', 'state'] });
-      queryClient.invalidateQueries({ queryKey: ['devices'] });
+      void queryClient.invalidateQueries({ queryKey: ['scenario', 'state'] });
+      void queryClient.invalidateQueries({ queryKey: ['devices'] });
     },
   });
 };
@@ -239,8 +239,8 @@ export const useShutdownScenario = () => {
     mutationFn: ({ scenarioId, graceful = true }: { scenarioId: string; graceful?: boolean }) =>
       api.post<ScenarioResponse>('/scenario/shutdown', { id: scenarioId, graceful }).then(res => res.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['scenario', 'state'] });
-      queryClient.invalidateQueries({ queryKey: ['devices'] });
+      void queryClient.invalidateQueries({ queryKey: ['scenario', 'state'] });
+      void queryClient.invalidateQueries({ queryKey: ['devices'] });
     },
   });
 };

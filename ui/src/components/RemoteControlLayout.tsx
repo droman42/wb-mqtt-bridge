@@ -242,7 +242,7 @@ const MediaStackZone = ({ zone, deviceStructure, onAction, className, isActionPe
             ) : null}
             <select
               value={selectedInput}
-              onChange={(e) => handleInputSelect(e.target.value)}
+              onChange={(e) => { void handleInputSelect(e.target.value); }}
               className="w-full px-2 py-1 text-xs bg-black/30 border border-white/20 rounded text-white"
               disabled={inputsLoading || !!(inputsError && (inputsError.includes('powered off') || inputsError.includes('disconnected')))}
             >
@@ -708,7 +708,7 @@ const VolumeZone = ({ zone, deviceStructure, onAction, className, isActionPendin
 
   // Priority 2: Volume Up/Down Buttons
   if (volumeButtons && volumeButtons.length > 0) {
-    const buttons = volumeButtons[0] as VolumeButtonConfig;
+    const buttons: VolumeButtonConfig = volumeButtons[0];
     return (
       <div className={cn("zone-volume", className)}>
         <div className="flex flex-col gap-1 items-center">
@@ -860,7 +860,7 @@ const AppsZone = ({ zone, deviceStructure, className }: {
         ) : null}
         <select
           value={selectedApp}
-          onChange={(e) => handleAppSelect(e.target.value)}
+          onChange={(e) => { void handleAppSelect(e.target.value); }}
           className="w-full px-2 py-1 text-xs bg-black/30 border border-white/20 rounded text-white"
           disabled={appsLoading || !!(appsError && (appsError.includes('powered off') || appsError.includes('disconnected')))}
         >

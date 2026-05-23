@@ -264,7 +264,7 @@ export const ScenarioVirtualDeviceControls: React.FC<ScenarioVirtualDeviceContro
             command={command}
             scenarioId={scenarioId}
             config={config}
-            onExecute={handleCommandExecute}
+            onExecute={(commandId, value) => { void handleCommandExecute(commandId, value); }}
             disabled={executeAction.isPending}
           />
         ))}

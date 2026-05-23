@@ -78,7 +78,7 @@ export function useInputsData(deviceStructure: RemoteDeviceStructure): UseInputs
 
   // Stabilize executeAction with useCallback to prevent dependency changes
   const executeAction = useCallback(
-    (params: { deviceId: string; action: { action: string; params: {} } }) => 
+    (params: { deviceId: string; action: { action: string; params: Record<string, unknown> } }) => 
       executeActionQuery.mutateAsync(params),
     [executeActionQuery.mutateAsync]
   );
@@ -172,11 +172,11 @@ export function useInputsData(deviceStructure: RemoteDeviceStructure): UseInputs
   ]);
 
   const refetch = useCallback(() => {
-    fetchInputs();
+    void fetchInputs();
   }, [fetchInputs]);
 
   useEffect(() => {
-    fetchInputs();
+    void fetchInputs();
   }, [fetchInputs]);
 
   return { inputs, loading, error, refetch };
@@ -230,7 +230,7 @@ export function useAppsData(deviceStructure: RemoteDeviceStructure): UseAppsData
 
   // Stabilize executeAction with useCallback to prevent dependency changes
   const executeAction = useCallback(
-    (params: { deviceId: string; action: { action: string; params: {} } }) => 
+    (params: { deviceId: string; action: { action: string; params: Record<string, unknown> } }) => 
       executeActionQuery.mutateAsync(params),
     [executeActionQuery.mutateAsync]
   );
@@ -319,11 +319,11 @@ export function useAppsData(deviceStructure: RemoteDeviceStructure): UseAppsData
   ]);
 
   const refetch = useCallback(() => {
-    fetchApps();
+    void fetchApps();
   }, [fetchApps]);
 
   useEffect(() => {
-    fetchApps();
+    void fetchApps();
   }, [fetchApps]);
 
   return { apps, loading, error, refetch };

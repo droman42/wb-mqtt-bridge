@@ -105,7 +105,7 @@ export function useDeviceState(deviceId: string): EnhancedDeviceStateHook {
     
     // Invalidate React Query cache to trigger refetch
     if (updates.device_id || updates.device_name || updates.last_command || updates.error) {
-      queryClient.invalidateQueries({ queryKey: ['devices', deviceId, 'state'] });
+      void queryClient.invalidateQueries({ queryKey: ['devices', deviceId, 'state'] });
     }
   }, [deviceId, queryClient]);
   

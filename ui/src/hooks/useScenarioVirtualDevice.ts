@@ -169,8 +169,8 @@ export const useScenarioVirtualDevice = (scenarioId: string): UseScenarioVirtual
       });
 
       // Invalidate related queries to trigger refresh
-      queryClient.invalidateQueries({ 
-        queryKey: queryKeys.scenarios.wbConfig(scenarioId) 
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.scenarios.wbConfig(scenarioId)
       });
 
       addLog({
