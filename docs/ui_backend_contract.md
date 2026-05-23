@@ -307,15 +307,68 @@ separate concern; see the ⚠ open decision in the backend-call inventory above.
   Appliance bespoke pages get a separate manifest variant later — out of scope for v1.
 
 ### Fidelity strategy
-The current `.gen.tsx` set is the **regression oracle**: the backend engine must reproduce each
-device's structure zone-by-zone / control-by-control before the runtime renderer replaces the
-static page. Port + diff per device class.
+The current `.gen.tsx` set is the regression reference: the backend engine must reproduce each
+device's structure before the runtime renderer replaces the static page.
+
+> **Use render-level diff, not the frozen structural oracle.** The frozen
+> `docs/scenarios/layer3_oracle/*.json` snapshots compare *distilled structure* (zones, control sets,
+> dropdown population-method + count) and gave a **false "MATCH"** for mf_amplifier while the actual
+> rendered page diverged (see "Step 2 hardening" below). They miss runtime *behavior* (static-vs-fetch,
+> null-vs-undefined) and can drift from the current codegen. **Retire them** in favor of a
+> render-level diff: screenshot the runtime page vs the build-time page per device class and compare.
+> This is [[mock-tests-miss-driver-bugs]] one level up — structural fidelity ≠ behavioral fidelity.
 
 ### Migration (incremental, app stays runnable)
 1. Manifest Pydantic + `/layout` endpoints; placement engine reproducing one device's `.gen.tsx`.
-2. UI generic runtime renderer behind a flag for that device; visual diff vs. today.
+2. UI generic runtime renderer behind a flag for that device; visual diff vs. today. **+ Step 2
+   hardening (below) before rollout.**
 3. Roll across device classes; then scenarios.
 4. Delete build-time generators + UI scenario duplication; update Invariants + playbook here.
+
+### Step 2 hardening — runtime-render gaps & clean-fix plan (found 2026-05-23, mf_amplifier visual check)
+The first runtime render (mf_amplifier, behind the flag) surfaced **three gaps the structural oracle
+missed**. Two are real bugs; one is a confirmed *non-bug*.
+
+1. **`specialCases` — a hardcoded back-channel (bug).** The renderer decides inputs/apps
+   static-vs-fetch from a hardcoded `specialCases[wirenboard-ir-commands]` constant + a literal
+   `deviceClass === 'WirenboardIRDevice'` check, **ignoring `populationMethod`** — which the manifest
+   already carries (derived from the capability: `by_value` → `"commands"` + inline options;
+   parametric `select`+`list` → `"api"` + `apiAction`/`setAction`). Every handler emits a
+   `specialCases` constant; only a couple are read; the rest are dead.
+2. **`null` vs `undefined` (bug).** The manifest serializes empty content fields as explicit `null`
+   (`appsDropdown: null`); the renderer checks `!== undefined`, so `null` reads as "present" → a
+   false-positive zone that renders a dropdown and tries to fetch (the mf_amplifier "Error loading
+   apps"). The codegen omitted absent keys (`undefined`), which the UI handles correctly.
+3. **Empty `menu`/zones — NOT a bug (decided 2026-05-23).** mf_amplifier's runtime menu zone is
+   empty because its capability map declares no `menu` domain; the old codegen surfaced
+   *group*-derived nav. The **capability-driven empty rendering is correct and preferred** — showing
+   controls for functionality a device lacks is misleading (esp. in poor room light). Empty zones
+   render as **labeled `(Empty)` placeholders** (user decision). Mapping the amp's menu IR commands,
+   if ever wanted, is a separate capability-*content* decision, not a rendering fix.
+
+**Decided principle:** the manifest is **complete, declarative, and class-agnostic**; the renderer
+obeys manifest fields and **never** branches on `deviceClass` or `specialCases`. `populationMethod` is
+the law for dropdowns.
+
+**Clean-fix plan — applies to ALL devices** (the manifest contract + engine + shared renderer are
+global; only the *runtime-render flag* stays per-device during rollout):
+
+- **Backend:** B1 serve `/layout` with `exclude_none` (omit absent fields → fixes #2, shrinks
+  payload, matches the codegen contract); B2 drop `special_cases`/`DeviceSpecialCase` from model +
+  engine; B3 add `state_field` to the volume capability → surface as `valueField` on the volume zone
+  config (eMotiva volume → `zone2Volume`); B4 ensure the set-volume `range` param rides the manifest
+  (so the slider range isn't a renderer fallback). `populationMethod`/`apiAction`/`setAction` are
+  already emitted — no change.
+- **UI (shared renderer):** U1 `useInputsData`/`useAppsData`/`selectInput` obey `populationMethod`
+  (delete `specialCases`, `isWirenboardIR`, `usesAppsAPI`); U2 volume reads `valueField` + range
+  (delete `deviceClass === 'EMotivaXMC2'`); U3 remove `specialCases` from the type + adapter + strip
+  the dead emission from the 8 handlers.
+- **Validation:** render-level diff (Playwright) runtime vs build-time for mf_amplifier + a slider
+  device (eMotiva) + an api device (Apple TV); `typecheck`/`lint`/`npm run check` green. Retire the
+  frozen oracle.
+
+Status: **agreed, not yet executed** (2026-05-23). Sequencing: backend commit → UI commit →
+validation, each before resuming device rollout (step 3).
 
 ## Related
 - `docs/scenarios/scenario_system_redesign.md` — the scenario redesign; this manifest is its Layer 3.
