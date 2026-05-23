@@ -18,11 +18,13 @@ from wb_mqtt_bridge.presentation.api.layout_manifest import (
     DropdownConfig,
     DropdownOption,
     LayoutManifest,
+    NavigationClusterConfig,
     PlaybackConfig,
     PowerButtonConfig,
     ProcessedAction,
     ProcessedParameter,
     RemoteZone,
+    TracksConfig,
     UIHints,
     VolumeButtonConfig,
     VolumeSliderConfig,
@@ -84,7 +86,8 @@ def _action(device: Any, command: str) -> Optional[ProcessedAction]:
 
 # --- zone content builders (domain -> content) ------------------------------------------------
 def _power_content(device: Any, cap: Capability) -> ZoneContent:
-    """power domain -> powerButtons. on->right, off->left, toggle->left, zone2->zone2-power."""
+    """power domain -> powerButtons (off->left, on->right, toggle->left). Single-zone (cap.actions)
+    only; multi-zone (cap.zones, e.g. emotiva) is a TODO. Buttons are position-sorted (slot zone)."""
     by_key = {
         "off": ("power-off", "left"),
         "on": ("power-on", "right"),
@@ -99,6 +102,7 @@ def _power_content(device: Any, cap: Capability) -> ZoneContent:
             continue
         button_type, position = by_key.get(key, ("power-toggle", "left"))
         buttons.append(PowerButtonConfig(position=position, action=action, button_type=button_type))
+    buttons.sort(key=lambda b: {"left": 0, "middle": 1, "right": 2}.get(b.position, 9))
     return ZoneContent(power_buttons=buttons)
 
 
@@ -146,6 +150,36 @@ def _inputs_dropdown(device: Any, cap: Capability) -> DropdownConfig:
                          options=options, loading=False, empty=not options)
 
 
+def _tracks_content(device: Any, cap: Capability) -> TracksConfig:
+    """tracks domain -> tracksSection (actions in capability declaration order)."""
+    actions = [_action(device, a.command) for a in cap.actions.values() if a.command]
+    return TracksConfig(actions=[a for a in actions if a is not None], layout="horizontal")
+
+
+_DPAD = {"up": "up_action", "down": "down_action", "left": "left_action",
+         "right": "right_action", "ok": "ok_action"}
+
+
+def _menu_content(device: Any, cap: Capability) -> ZoneContent:
+    """menu domain -> navigationCluster. Canonical up/down/left/right/ok fill the D-pad; any other
+    menu actions (home/back/exit/menu/settings…) fill aux1..aux4 in capability-declaration order
+    (an explicit `placement` hint will override this once hints land)."""
+    kwargs: Dict[str, ProcessedAction] = {}
+    aux = 1
+    for key, cap_action in cap.actions.items():
+        if not cap_action.command:
+            continue
+        action = _action(device, cap_action.command)
+        if action is None:
+            continue
+        if key in _DPAD:
+            kwargs[_DPAD[key]] = action
+        elif aux <= 4:
+            kwargs[f"aux{aux}_action"] = action
+            aux += 1
+    return ZoneContent(navigation_cluster=NavigationClusterConfig(**kwargs))
+
+
 def build_device_manifest(device: Any) -> LayoutManifest:
     """Build a device's LayoutManifest from its capability map (Layer-3 placement)."""
     cap_map: Optional[CapabilityMap] = getattr(device, "capabilities", None)
@@ -161,9 +195,13 @@ def build_device_manifest(device: Any) -> LayoutManifest:
         media.inputs_dropdown = _inputs_dropdown(device, caps["input"])
     if "playback" in caps:
         media.playback_section = _playback_content(device, caps["playback"])
+    if "tracks" in caps:
+        media.tracks_section = _tracks_content(device, caps["tracks"])
     if "volume" in caps:
         content["volume"] = _volume_content(device, caps["volume"])
-    # TODO: tracks (media-stack), menu, apps, screen, pointer
+    if "menu" in caps:
+        content["menu"] = _menu_content(device, caps["menu"])
+    # TODO: apps, screen, pointer; multi-zone power (emotiva)
 
     def _is_empty(c: ZoneContent) -> bool:
         # empty iff no content field holds a truthy value (covers None and empty lists)

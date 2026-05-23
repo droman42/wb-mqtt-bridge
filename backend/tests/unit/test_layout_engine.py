@@ -98,6 +98,8 @@ def _structure(zones):
     ("reel_to_reel", "reel_to_reel", "RevoxA77ReelToReel"),   # playback
     ("vhs_player", "vhs_player", "WirenboardIRDevice"),       # power + playback
     ("mf_amplifier", "mf_amplifier", "WirenboardIRDevice"),   # power + inputs(by_value) + volume(buttons)
+    ("ld_player", "ld_player", "WirenboardIRDevice"),         # power + playback + tracks
+    ("video", "video", "WirenboardIRDevice"),                 # power + playback + menu + tracks
 ])
 def test_engine_reproduces_oracle(config_name, oracle_name, device_class):
     manifest = build_device_manifest(_make_device(config_name, device_class)).model_dump(by_alias=True)
