@@ -6,6 +6,13 @@ import type { DropdownOption, RemoteDeviceStructure } from '../types/RemoteContr
 // ESLint warnings are disabled where the patterns are intentionally used and verified to work correctly.
 /* eslint-disable react-hooks/exhaustive-deps */
 
+// Layer-3 static-vs-fetch is decided by the manifest's `populationMethod` (NOT a hardcoded
+// deviceClass / specialCases back-channel — Step-2 hardening):
+//   "commands" -> options are inline in the manifest; selecting executes `option.id` directly.
+//   "api"      -> fetch the list at runtime via the dropdown's `apiAction`; select via `setAction`.
+// TODO(Step 3): the api-select *value param name* must ride the manifest (B5). Until LG/AppleTV are
+// migrated + hardware-tested, the api branch keeps the legacy param key (`input` / `app_name`).
+
 interface UseInputsDataResult {
   inputs: DropdownOption[];
   loading: boolean;
@@ -21,154 +28,117 @@ interface UseAppsDataResult {
 }
 
 /**
- * Hook for fetching available inputs for a device
- * Handles both WirenboardIR (commands) and other device classes (API actions with power state checking)
+ * Hook for fetching available inputs for a device.
+ * "commands" dropdowns use the inline options; "api" dropdowns fetch via the manifest's apiAction.
  */
 export function useInputsData(deviceStructure: RemoteDeviceStructure): UseInputsDataResult {
   const [inputs, setInputs] = useState<DropdownOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const executeActionQuery = useExecuteDeviceAction();
-  
-  // Get device state for power checking (for non-WirenboardIR devices)
+
+  // Get device state for power checking (for api-populated dropdowns)
   const { data: deviceState } = useDeviceStateQuery(deviceStructure.deviceId);
 
-  // Extract ONLY primitive values from deviceStructure to avoid infinite re-renders
   const deviceId = deviceStructure.deviceId;
-  const deviceClass = deviceStructure.deviceClass;
-  
-  // Memoize complex derivations with stable dependencies
-  const { hasInputsCapability, isWirenboardIR, usesCommands, inputsFromCommands } = useMemo(() => {
-    const mediaStackZone = deviceStructure.remoteZones.find(zone => zone.zoneId === 'media-stack');
-    const hasInputsCapability = mediaStackZone?.content?.inputsDropdown !== undefined;
-    const isWirenboardIR = deviceClass === 'WirenboardIRDevice';
-    const usesCommands = deviceStructure.specialCases?.some(
-      sc => sc.caseType === 'wirenboard-ir-commands' && sc.configuration.inputsFromCommands
-    );
-    const inputsFromCommands = (isWirenboardIR && usesCommands) 
-      ? (mediaStackZone?.content?.inputsDropdown?.options || [])
-      : [];
-    
-    return { hasInputsCapability, isWirenboardIR, usesCommands, inputsFromCommands };
-  }, [
-    // Only depend on JSON strings of arrays to ensure stability
-     
-    JSON.stringify(deviceStructure.remoteZones),
-     
-    JSON.stringify(deviceStructure.specialCases),
-    deviceClass
-  ]);
+
+  // Decide static-vs-fetch from the manifest's populationMethod (class-agnostic).
+  const { hasInputsCapability, isCommands, commandOptions, apiAction } = useMemo(() => {
+    const dd = deviceStructure.remoteZones.find(zone => zone.zoneId === 'media-stack')?.content?.inputsDropdown;
+    return {
+      hasInputsCapability: dd != null,
+      isCommands: dd?.populationMethod === 'commands',
+      commandOptions: dd?.options ?? [],
+      apiAction: dd?.apiAction ?? null,
+    };
+  }, [JSON.stringify(deviceStructure.remoteZones)]);
 
   // Extract only the specific state fields that matter for inputs logic
-  // Use memoization to prevent re-renders when irrelevant fields like last_command change
   const { devicePower, deviceConnected, hasDeviceState } = useMemo(() => {
-     
     return {
       devicePower: (deviceState as any)?.power,
       deviceConnected: (deviceState as any)?.connected,
-      hasDeviceState: !!deviceState
+      hasDeviceState: !!deviceState,
     };
-  }, [
-    (deviceState as any)?.power, 
-    (deviceState as any)?.connected, 
-    !!deviceState
-  ]);
-
-  // Power state checking is working correctly
+  }, [(deviceState as any)?.power, (deviceState as any)?.connected, !!deviceState]);
 
   // Stabilize executeAction with useCallback to prevent dependency changes
   const executeAction = useCallback(
-    (params: { deviceId: string; action: { action: string; params: Record<string, unknown> } }) => 
+    (params: { deviceId: string; action: { action: string; params: Record<string, unknown> } }) =>
       executeActionQuery.mutateAsync(params),
     [executeActionQuery.mutateAsync]
   );
 
   const fetchInputs = useCallback(async () => {
-    // Check device power state before making API calls
-
     setLoading(true);
     setError(null);
 
     try {
-      if (isWirenboardIR && usesCommands) {
-        // For WirenboardIR: Extract inputs from device commands
-        console.log(`📺 [WirenboardIR] Using ${inputsFromCommands.length} inputs from commands`);
-        setInputs(inputsFromCommands);
+      // ✋ GUARD: device has no inputs zone
+      if (!hasInputsCapability) {
+        setInputs([]);
+        setLoading(false);
+        return;
+      }
+
+      // "commands": options are inline in the manifest — no device call.
+      if (isCommands) {
+        setInputs(commandOptions);
+        setLoading(false);
+        return;
+      }
+
+      // "api": fetch the list from the device (only when powered on + connected).
+      const powerStateKnown = devicePower !== undefined;
+      const isPoweredOn = devicePower === 'on';
+      const isConnected = deviceConnected === true;
+
+      if (!hasDeviceState) {
+        setInputs([]);
+        setError('Loading device state...');
+        setLoading(false);
+        return;
+      }
+      if (powerStateKnown && (!isPoweredOn || !isConnected)) {
+        setInputs([]);
+        setError(!isPoweredOn ? 'Device is powered off' : 'Device is disconnected');
+        setLoading(false);
+        return;
+      }
+
+      const response = await executeAction({
+        deviceId,
+        action: { action: apiAction ?? 'get_available_inputs', params: {} },
+      });
+
+      if (response.success && Array.isArray(response.data)) {
+        const inputOptions: DropdownOption[] = response.data.map((input: any) => ({
+          id: input.input_id,
+          displayName: input.input_name,
+          description: input.input_name,
+        }));
+        setInputs(inputOptions);
       } else {
-        // ✋ GUARD: Early exit if device has no inputs functionality
-        if (!hasInputsCapability) {
-          console.log(`⚠️  [${deviceId}] No inputs capability detected - skipping inputs API calls`);
-          setInputs([]);
-          setLoading(false);
-          return;
-        }
-
-        // 🔌 POWER STATE CHECK: For network-connected devices, check power state before API calls
-        const powerStateKnown = devicePower !== undefined;
-        const isPoweredOn = devicePower === 'on';
-        const isConnected = deviceConnected === true;
-
-        // 🛡️ CRITICAL FIX: Never call APIs if we don't have device state yet
-        if (!hasDeviceState) {
-          console.log(`[${deviceId}] Waiting for device state before calling inputs API`);
-          setInputs([]);
-          setError("Loading device state...");
-          setLoading(false);
-          return;
-        }
-
-        // ⚡ SHOW APPROPRIATE MESSAGE: If device is off or disconnected, show message but keep inputs section visible
-        if (powerStateKnown && (!isPoweredOn || !isConnected)) {
-          const reason = !isPoweredOn ? 'Device is powered off' : 'Device is disconnected';
-          console.log(`[${deviceId}] Device is ${!isPoweredOn ? 'powered off' : 'disconnected'} - showing message instead of API call`);
-          setInputs([]);
-          setError(reason);
-          setLoading(false);
-          return;
-        }
-
-        // 📺 Execute get_available_inputs API call (only for powered-on devices)
-        console.log(`[${deviceId}] Calling get_available_inputs API`);
-        const response = await executeAction({
-          deviceId,
-          action: { action: 'get_available_inputs', params: {} }
-        });
-
-        if (response.success && Array.isArray(response.data)) {
-          const inputOptions: DropdownOption[] = response.data.map((input: any) => ({
-            id: input.input_id,
-            displayName: input.input_name,
-            description: input.input_name
-          }));
-          
-          console.log(`✅ [${deviceId}] Successfully fetched ${inputOptions.length} inputs`);
-          setInputs(inputOptions);
-        } else {
-          const errorMsg = response.error || 'Failed to fetch inputs';
-          console.error(`❌ [${deviceId}] Inputs API failed:`, errorMsg);
-          setError(errorMsg);
-          setInputs([]);
-        }
+        setError(response.error || 'Failed to fetch inputs');
+        setInputs([]);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`❌ [${deviceId}] Error in fetchInputs:`, errorMessage);
       setError(`Failed to fetch inputs: ${errorMessage}`);
       setInputs([]);
     } finally {
       setLoading(false);
     }
   }, [
-    // Only depend on primitive values and stable functions
     deviceId,
     hasInputsCapability,
-    isWirenboardIR,
-    usesCommands,
-    inputsFromCommands,
+    isCommands,
+    JSON.stringify(commandOptions),
+    apiAction,
     executeAction,
     devicePower,
     deviceConnected,
-    hasDeviceState
+    hasDeviceState,
   ]);
 
   const refetch = useCallback(() => {
@@ -183,139 +153,110 @@ export function useInputsData(deviceStructure: RemoteDeviceStructure): UseInputs
 }
 
 /**
- * Hook for fetching available apps for a device
- * Handles both device capability checking and power state validation for network devices
+ * Hook for fetching available apps for a device.
+ * "commands" dropdowns use inline options; "api" dropdowns fetch via the manifest's apiAction.
  */
 export function useAppsData(deviceStructure: RemoteDeviceStructure): UseAppsDataResult {
   const [apps, setApps] = useState<DropdownOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const executeActionQuery = useExecuteDeviceAction();
-  
-  // Get device state for power checking (for network-connected devices)
+
   const { data: deviceState } = useDeviceStateQuery(deviceStructure.deviceId);
-
-  // Extract ONLY primitive values from deviceStructure to avoid infinite re-renders
   const deviceId = deviceStructure.deviceId;
-  
-  // Memoize complex derivations with stable dependencies
-  const { hasAppsCapability, usesAppsAPI } = useMemo(() => {
-    const appsZone = deviceStructure.remoteZones.find(zone => zone.zoneId === 'apps');
-    const hasAppsCapability = appsZone?.content?.appsDropdown !== undefined;
-    const usesAppsAPI = deviceStructure.specialCases?.some(
-      sc => sc.configuration?.usesAppsAPI === true
-    );
-    
-    return { hasAppsCapability, usesAppsAPI };
-  }, [
-    // Only depend on JSON strings of arrays to ensure stability
-     
-    JSON.stringify(deviceStructure.remoteZones),
-     
-    JSON.stringify(deviceStructure.specialCases)
-  ]);
 
-  // Extract only the specific state fields that matter for apps logic
-  // Use memoization to prevent re-renders when irrelevant fields like last_command change
+  const { hasAppsCapability, isCommands, commandOptions, apiAction } = useMemo(() => {
+    const dd = deviceStructure.remoteZones.find(zone => zone.zoneId === 'apps')?.content?.appsDropdown;
+    return {
+      hasAppsCapability: dd != null,
+      isCommands: dd?.populationMethod === 'commands',
+      commandOptions: dd?.options ?? [],
+      apiAction: dd?.apiAction ?? null,
+    };
+  }, [JSON.stringify(deviceStructure.remoteZones)]);
+
   const { devicePower: appDevicePower, deviceConnected: appDeviceConnected, hasDeviceState: appHasDeviceState } = useMemo(() => {
-     
     return {
       devicePower: (deviceState as any)?.power,
       deviceConnected: (deviceState as any)?.connected,
-      hasDeviceState: !!deviceState
+      hasDeviceState: !!deviceState,
     };
   }, [(deviceState as any)?.power, (deviceState as any)?.connected, !!deviceState]);
 
-  // Power state checking is working correctly
-
-  // Stabilize executeAction with useCallback to prevent dependency changes
   const executeAction = useCallback(
-    (params: { deviceId: string; action: { action: string; params: Record<string, unknown> } }) => 
+    (params: { deviceId: string; action: { action: string; params: Record<string, unknown> } }) =>
       executeActionQuery.mutateAsync(params),
     [executeActionQuery.mutateAsync]
   );
 
   const fetchApps = useCallback(async () => {
-    // Check device power state before making API calls
-
     setLoading(true);
     setError(null);
 
     try {
-      // 🔌 POWER STATE CHECK: For network-connected devices, check power state before API calls
+      if (!hasAppsCapability) {
+        setApps([]);
+        setLoading(false);
+        return;
+      }
+
+      if (isCommands) {
+        setApps(commandOptions);
+        setLoading(false);
+        return;
+      }
+
+      // "api": fetch installed apps (only when powered on + connected).
       const powerStateKnown = appDevicePower !== undefined;
       const isPoweredOn = appDevicePower === 'on';
       const isConnected = appDeviceConnected === true;
 
-      // Power state validation logic
-
-      // 🛡️ CRITICAL FIX: Never call APIs if we don't have device state yet
       if (!appHasDeviceState) {
-        console.log(`[${deviceId}] Waiting for device state before calling apps API`);
         setApps([]);
         setError(null);
         setLoading(false);
         return;
       }
-
-      // ⚡ CRITICAL FIX: Skip API call if device is known to be off or disconnected
-      // These APIs should only be called AFTER successful power_on, not during page load
       if (powerStateKnown && (!isPoweredOn || !isConnected)) {
-        const reason = !isPoweredOn ? 'powered off' : 'disconnected';
-        console.log(`[${deviceId}] Device is ${reason} - skipping apps API call`);
         setApps([]);
-        setError(null); // Don't show error for expected behavior
+        setError(null); // expected when off/disconnected — not an error
         setLoading(false);
         return;
       }
 
-      // ✋ GUARD: Early exit if device has no apps functionality
-      if (!hasAppsCapability) {
-        console.log(`⚠️  [${deviceId}] No apps capability detected - skipping apps API calls`);
-        setApps([]);
-        setLoading(false);
-        return;
-      }
-
-      // 📱 Execute get_available_apps API call (only for powered-on devices)
-      console.log(`[${deviceId}] Calling get_available_apps API`);
       const response = await executeAction({
         deviceId,
-        action: { action: 'get_available_apps', params: {} }
+        action: { action: apiAction ?? 'get_available_apps', params: {} },
       });
 
       if (response.success && Array.isArray(response.data)) {
         const appOptions: DropdownOption[] = response.data.map((app: any) => ({
           id: app.app_id,
           displayName: app.app_name,
-          description: app.app_name
+          description: app.app_name,
         }));
-        
-        console.log(`✅ [${deviceId}] Successfully fetched ${appOptions.length} apps`);
         setApps(appOptions);
       } else {
-        const errorMsg = response.error || 'Failed to fetch apps';
-        console.error(`❌ [${deviceId}] Apps API failed:`, errorMsg);
-        setError(errorMsg);
+        setError(response.error || 'Failed to fetch apps');
         setApps([]);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`❌ [${deviceId}] Error in fetchApps:`, errorMessage);
       setError(`Failed to fetch apps: ${errorMessage}`);
       setApps([]);
     } finally {
       setLoading(false);
     }
   }, [
-    // Only depend on primitive values and stable functions
     deviceId,
     hasAppsCapability,
-    usesAppsAPI,
+    isCommands,
+    JSON.stringify(commandOptions),
+    apiAction,
     executeAction,
     appDevicePower,
     appDeviceConnected,
-    appHasDeviceState
+    appHasDeviceState,
   ]);
 
   const refetch = useCallback(() => {
@@ -330,82 +271,79 @@ export function useAppsData(deviceStructure: RemoteDeviceStructure): UseAppsData
 }
 
 /**
- * Hook for handling input selection
+ * Hook for handling input selection. "commands" -> the option id IS the command; "api" -> setAction.
  */
 export function useInputSelection(deviceStructure: RemoteDeviceStructure) {
   const [selectedInput, setSelectedInput] = useState<string>('');
   const executeActionQuery = useExecuteDeviceAction();
 
-  // Stabilize executeAction
   const executeAction = useCallback(
-    (params: { deviceId: string; action: { action: string; params: any } }) => 
+    (params: { deviceId: string; action: { action: string; params: any } }) =>
       executeActionQuery.mutateAsync(params),
     [executeActionQuery.mutateAsync]
   );
 
+  const { isCommands, setAction } = useMemo(() => {
+    const dd = deviceStructure.remoteZones.find(zone => zone.zoneId === 'media-stack')?.content?.inputsDropdown;
+    return { isCommands: dd?.populationMethod === 'commands', setAction: dd?.setAction ?? null };
+  }, [JSON.stringify(deviceStructure.remoteZones)]);
+
   const selectInput = useCallback(async (inputId: string) => {
     setSelectedInput(inputId);
-    
-    try {
-      const { deviceId, deviceClass } = deviceStructure;
-      const isWirenboardIR = deviceClass === 'WirenboardIRDevice';
 
-      if (isWirenboardIR) {
-        // For WirenboardIR: Execute the specific input command directly
-        await executeAction({
-          deviceId,
-          action: { action: inputId, params: {} }
-        });
+    try {
+      const { deviceId } = deviceStructure;
+      if (isCommands) {
+        // The option id IS the device command (e.g. "input_cd").
+        await executeAction({ deviceId, action: { action: inputId, params: {} } });
       } else {
-        // For other device classes: Use set_input action
-        await executeAction({
-          deviceId,
-          action: { action: 'set_input', params: { input: inputId } }
-        });
+        // api: execute the manifest-declared setAction.
+        // TODO(Step 3): the value's native param name must ride the manifest (B5). LG's
+        // set_input_source takes `source`, not `input` — wire this when LG migrates + is tested.
+        await executeAction({ deviceId, action: { action: setAction ?? 'set_input', params: { input: inputId } } });
       }
     } catch (err) {
       console.error('Failed to select input:', err);
-      // Optionally reset selection on error
       setSelectedInput('');
       throw err;
     }
-  }, [deviceStructure.deviceId, deviceStructure.deviceClass, executeAction]);
+  }, [deviceStructure.deviceId, isCommands, setAction, executeAction]);
 
   return { selectedInput, selectInput, setSelectedInput };
 }
 
 /**
- * Hook for handling app launching
+ * Hook for handling app launching. Uses the manifest-declared setAction.
  */
 export function useAppLaunching(deviceStructure: RemoteDeviceStructure) {
   const [selectedApp, setSelectedApp] = useState<string>('');
   const executeActionQuery = useExecuteDeviceAction();
 
-  // Stabilize executeAction
   const executeAction = useCallback(
-    (params: { deviceId: string; action: { action: string; params: any } }) => 
+    (params: { deviceId: string; action: { action: string; params: any } }) =>
       executeActionQuery.mutateAsync(params),
     [executeActionQuery.mutateAsync]
   );
 
+  const setAction = useMemo(() => {
+    const dd = deviceStructure.remoteZones.find(zone => zone.zoneId === 'apps')?.content?.appsDropdown;
+    return dd?.setAction ?? null;
+  }, [JSON.stringify(deviceStructure.remoteZones)]);
+
   const launchApp = useCallback(async (appId: string) => {
     setSelectedApp(appId);
-    
+
     try {
       const { deviceId } = deviceStructure;
-      
-      // Use launch_app action for all device classes
-      await executeAction({
-        deviceId,
-        action: { action: 'launch_app', params: { app_name: appId } }
-      });
+      // TODO(Step 3): the value's native param name must ride the manifest (B5). AppleTV's
+      // launch_app takes `app`, LG's takes `app_name` — wire this when those devices migrate.
+      await executeAction({ deviceId, action: { action: setAction ?? 'launch_app', params: { app_name: appId } } });
     } catch (err) {
       console.error('Failed to launch app:', err);
-      // Optionally reset selection on error
       setSelectedApp('');
       throw err;
     }
-  }, [deviceStructure.deviceId, executeAction]);
+  }, [deviceStructure.deviceId, setAction, executeAction]);
 
   return { selectedApp, launchApp, setSelectedApp };
-} 
+}
