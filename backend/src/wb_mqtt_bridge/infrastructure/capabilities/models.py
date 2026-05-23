@@ -70,7 +70,7 @@ class ZonePower(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     state_field: str
-    on_value: str = "on"
+    on_value: str | bool | int = "on"
     actions: Dict[str, CapabilityAction]
 
 
@@ -81,8 +81,14 @@ class Capability(BaseModel):
 
     kind: Literal["stateful", "momentary"]
     feedback: bool = False
+    reconcile: bool = Field(
+        default=True,
+        description="Whether the scenario reconciler drives this capability. False = exposed on the "
+                    "page/WB/HTTP but skipped by the reconciler (e.g. a device that auto-powers with "
+                    "its source, like the upscaler).",
+    )
     state_field: Optional[str] = None
-    on_value: str = "on"
+    on_value: str | bool | int = "on"
     gate: CapabilityGate = Field(default_factory=CapabilityGate)
     actions: Dict[str, CapabilityAction] = Field(default_factory=dict)
     select: Optional[CapabilitySelect] = None

@@ -106,8 +106,13 @@ class BaseCommandConfig(BaseModel):
     action: Optional[str] = Field(None, description="Action identifier for this command")
     description: Optional[str] = Field(None, description="Human-readable description of the command")
     group: Optional[str] = Field(None, description="Functional group this command belongs to")
+    exposed: bool = Field(
+        True,
+        description="Whether this command is surfaced (UI/manifest, WB/MQTT, HTTP). False = a "
+                    "driver-supported but dormant action, hidden on every surface.",
+    )
     params: Optional[List[CommandParameterDefinition]] = Field(
-        None, 
+        None,
         description="Parameter definitions for this command"
     )
 

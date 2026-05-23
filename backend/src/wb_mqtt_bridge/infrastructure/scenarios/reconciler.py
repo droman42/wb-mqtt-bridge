@@ -339,7 +339,7 @@ def build_plan(scenario, topology: Topology, devices: Dict[str, Any]) -> Reconci
         state = device.get_current_state()
 
         power_cap = cap_map.get("power")
-        if power_cap is not None:
+        if power_cap is not None and power_cap.reconcile:
             power_actions = _power_actions(device_id, power_cap, state, plan.warnings)
             if power_actions:
                 raw.extend(power_actions)
@@ -350,7 +350,7 @@ def build_plan(scenario, topology: Topology, devices: Dict[str, Any]) -> Reconci
             input_cap = cap_map.get("input")
             if input_cap is None:
                 plan.warnings.append(f"device '{device_id}' has no input capability")
-            else:
+            elif input_cap.reconcile:
                 action = _input_action(device_id, input_cap, state, input_targets[device_id], plan.warnings)
                 if action is not None:
                     raw.append(action)
