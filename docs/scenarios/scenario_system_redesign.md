@@ -100,7 +100,7 @@ The **physical truth**, declared **once**. Scenarios reference it; they never re
     { "from": "upscaler:out",      "to": "processor:hdmi3",       "carries": ["video"] },
     { "from": "processor:hdmi_out","to": "living_room_tv:hdmi2",  "carries": ["video"] },
     { "from": "living_room_tv:arc","to": "processor:arc",         "carries": ["audio"] },
-    { "from": "processor:zone1",   "to": "mf_amplifier:aux2",     "carries": ["audio"] }
+    { "from": "processor:zone2",   "to": "mf_amplifier:aux2",     "carries": ["audio"] }
   ],
 
   "ordering": [
@@ -219,12 +219,13 @@ desired-state by default — it's live.)
       "feedback": true,                  // can we read real state?
       "state_field": "power",            // field on the device's state model
       "on_value": "on",                  // value meaning "on"
+      "reconcile": true,                 // default; false = on the page but skipped by the reconciler
       "actions": {
         "on":  { "command": "power_on" },
         "off": { "command": "power_off" }
         // toggle-only IR device would instead declare: "toggle": { "command": "power" }
       },
-      "delays": { "after_on_ms": 5000, "after_off_ms": 0 }
+      "gate": { "poll_timeout_ms": 6000 } // feedback: poll state_field to target; no-feedback: "delay_ms"
     },
 
     "input": {
@@ -235,7 +236,8 @@ desired-state by default — it's live.)
         "command": "set_input_source",
         "param_map": { "input": "source" }   // canonical 'input' -> native 'source'  (kills RC1)
       },
-      "delays": { "settle_ms": 1000 }
+      "list": { "command": "get_available_inputs" },  // enumerates options for the dropdown
+      "gate": { "poll_timeout_ms": 3000 }
     },
 
     "volume": {
@@ -260,8 +262,14 @@ Key fields:
   `execute_action`. This is where `input` → `source`, etc. live.
 - **`feedback`** — drives gating (see §7.4): `true` → completion-poll; `false` → fixed delay.
 - **`state_field` / `on_value`** — how the reconciler reads assumed/actual state to diff and to
-  decide toggles.
-- **`delays`** — device-declared timing; scenarios don't carry magic delays anymore.
+  decide toggles. `on_value` is `str | bool | int` (e.g. the Auralic reads a bool `connected: true`).
+- **`gate`** — device-declared timing (replaces the old `delays`): `poll_timeout_ms` (feedback →
+  completion-poll `state_field` to target) and `delay_ms` (no-feedback → fixed wait). Scenarios don't
+  carry magic delays anymore.
+- **`reconcile`** — default `true`; `false` = the capability is exposed on the page/WB/HTTP but the
+  scenario reconciler skips it (e.g. the upscaler, which auto-powers with its source). See §17.
+- **`list`** — for `input`, the query that enumerates options (e.g. `get_available_inputs`).
+- **`zones`** — multi-zone power: a dict of zone-id → `{ state_field, on_value, actions }` (see §5.4).
 
 ### 5.3 Toggle / no-feedback devices
 
@@ -274,11 +282,15 @@ Key fields:
 
 ### 5.4 Multi-zone devices (eMotiva)
 
-The processor has zone1/zone2 power and a main input. **Decision (13.1): keep the current
-model — zones are expressed via `params` on the power commands (`{zone: 1|2}`)**, matching the
-existing device contract. We do **not** introduce a separate `power_zone2` capability. The
-capability descriptor therefore declares `power.on`/`power.off` with a `zone` param, and the
-reconciler/scenario supplies the zone.
+The processor has zone1/zone2 power and a main input. **Decision (13.1): no separate `power_zone2`
+capability** — instead the `power` capability carries a **`zones` dict** (`{ "1": ZonePower, "2":
+ZonePower }`), each zone declaring its own `state_field` / `on_value` / `actions`, and the zone-N
+commands carry `params: {zone: N}` (matching the existing device contract). So zone 1 reconciles on
+`state_field: "power"` and zone 2 on `state_field: "zone2_power"`. **As implemented (Step 1):** zone 2
+also declares a native **`toggle` action** (`zone2_power_toggle` → the driver's
+`handle_zone2_power_toggle`, which calls the library's `power_toggle(zone=ZONE2)`); the placement
+engine renders it as a third middle button, while the reconciler still drives zones via `on`/`off`.
+See the worked map in §16.3.
 
 ---
 
@@ -632,7 +644,8 @@ reconciled, momentary caps are live-only.
       "1": { "state_field":"power",      "on_value":"on",
              "actions": { "on":{"command":"power_on","params":{"zone":1}},"off":{"command":"power_off","params":{"zone":1}} } },
       "2": { "state_field":"zone2_power", "on_value":"on",
-             "actions": { "on":{"command":"power_on","params":{"zone":2}},"off":{"command":"power_off","params":{"zone":2}} } } } },
+             "actions": { "on":{"command":"power_on","params":{"zone":2}},"off":{"command":"power_off","params":{"zone":2}},
+                          "toggle":{"command":"zone2_power_toggle"} } } } },   // native zone-2 toggle (Step 1)
   "input": { "kind":"stateful","feedback":true,"state_field":"input_source",
     "select": { "command":"set_input" }, "list":{"command":"get_available_inputs"}, "gate":{"poll_timeout_ms":3000} },
   "volume": { "kind":"momentary","actions": {        // latent: volume role = amp in current scenarios; native level is dB (-96..0)

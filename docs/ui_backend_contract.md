@@ -111,8 +111,13 @@ direct browser→broker WebSocket at `MQTT_URL`. (See `ui/docs/deployment-networ
     "state": <DeviceState>, "error"?: str, "mqtt_command"?: object, "data"?: any }`
 - **Current state:** `GET /devices/{device_id}/state` → the device's typed state model.
 - **Config:** `GET /config/devices`, `GET /config/device/{device_id}`, `GET /config/system`.
-- **Groups:** `GET /groups`, `GET /devices/{device_id}/groups`, `GET /devices/{device_id}/groups/{group_id}/actions`.
+- **Layout (Layer 3):** `GET /devices/{device_id}/layout` → `LayoutManifest` (Step 1). The UI
+  renderer consumes it from Step 2; `GET /scenario/{id}/layout` lands in Step 3.
 - **Scenarios/rooms:** `GET|POST /scenario/*`, `GET /room/*`.
+- **Groups (LEGACY — being retired):** `GET /groups`, `GET /devices/{device_id}/groups`,
+  `GET /devices/{device_id}/groups/{group_id}/actions`. Backend still serves them, but the UI hooks
+  are **dead** (no runtime caller) and the concept is subsumed by capability domains — see the
+  backend-call inventory below and §17. Don't build new UI on these.
 - Full surface: `openapi.json` / `/docs`.
 
 ### SSE (live state)
