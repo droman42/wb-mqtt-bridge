@@ -7,6 +7,8 @@ from wb_mqtt_bridge.presentation.api.schemas import (
     BaseDeviceConfig,
     DeviceAction
 )
+from wb_mqtt_bridge.presentation.api.layout_engine import build_device_manifest
+from wb_mqtt_bridge.presentation.api.layout_manifest import LayoutManifest
 from wb_mqtt_bridge.utils.types import CommandResponse
 
 # Create router with appropriate prefix and tags
@@ -226,4 +228,20 @@ async def execute_device_action(
         )
     
     # Return the properly typed CommandResponse directly
-    return result 
+    return result
+
+
+@router.get("/devices/{device_id}/layout", response_model=LayoutManifest)
+async def get_device_layout(device_id: str):
+    """Layer-3 layout manifest for a device — the backend-computed remote layout the UI renders at
+    runtime (replaces build-time codegen). Built from the device's capability map by the placement
+    engine (``presentation/api/layout_engine.py``)."""
+    if not device_manager:
+        raise HTTPException(status_code=503, detail="Service not fully initialized")
+    device = device_manager.devices.get(device_id)
+    if device is None:
+        raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
+    try:
+        return build_device_manifest(device)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to build layout manifest: {e}")

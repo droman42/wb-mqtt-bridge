@@ -34,6 +34,84 @@
         "title": "ActionGroup",
         "type": "object"
       },
+      "ActionHandler": {
+        "additionalProperties": false,
+        "properties": {
+          "actionName": {
+            "title": "Actionname",
+            "type": "string"
+          },
+          "dependencies": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Dependencies",
+            "type": "array"
+          },
+          "handlerCode": {
+            "title": "Handlercode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "actionName",
+          "handlerCode"
+        ],
+        "title": "ActionHandler",
+        "type": "object"
+      },
+      "ActionIcon": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "title": "Confidence",
+            "type": "number"
+          },
+          "fallbackIcon": {
+            "title": "Fallbackicon",
+            "type": "string"
+          },
+          "iconLibrary": {
+            "enum": [
+              "material",
+              "custom",
+              "fallback"
+            ],
+            "title": "Iconlibrary",
+            "type": "string"
+          },
+          "iconName": {
+            "title": "Iconname",
+            "type": "string"
+          },
+          "iconVariant": {
+            "anyOf": [
+              {
+                "enum": [
+                  "filled",
+                  "outlined",
+                  "rounded",
+                  "sharp",
+                  "two-tone"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iconvariant"
+          }
+        },
+        "required": [
+          "iconLibrary",
+          "iconName",
+          "fallbackIcon",
+          "confidence"
+        ],
+        "title": "ActionIcon",
+        "type": "object"
+      },
       "ActionRequest": {
         "description": "Request model for executing a role action.",
         "properties": {
@@ -420,6 +498,12 @@
             ],
             "description": "Human-readable description of the command",
             "title": "Description"
+          },
+          "exposed": {
+            "default": true,
+            "description": "Whether this command is surfaced (UI/manifest, WB/MQTT, HTTP). False = a driver-supported but dormant action, hidden on every surface.",
+            "title": "Exposed",
+            "type": "boolean"
           },
           "group": {
             "anyOf": [
@@ -846,6 +930,30 @@
         "title": "DeviceCategory",
         "type": "string"
       },
+      "DeviceSpecialCase": {
+        "additionalProperties": false,
+        "properties": {
+          "caseType": {
+            "title": "Casetype",
+            "type": "string"
+          },
+          "configuration": {
+            "additionalProperties": true,
+            "title": "Configuration",
+            "type": "object"
+          },
+          "deviceClass": {
+            "title": "Deviceclass",
+            "type": "string"
+          }
+        },
+        "required": [
+          "deviceClass",
+          "caseType"
+        ],
+        "title": "DeviceSpecialCase",
+        "type": "object"
+      },
       "DeviceState": {
         "description": "Runtime state of a device.",
         "properties": {
@@ -893,6 +1001,102 @@
           }
         },
         "title": "DeviceState",
+        "type": "object"
+      },
+      "DropdownConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "apiAction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Apiaction"
+          },
+          "empty": {
+            "default": false,
+            "title": "Empty",
+            "type": "boolean"
+          },
+          "loading": {
+            "default": false,
+            "title": "Loading",
+            "type": "boolean"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/DropdownOption"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "populationMethod": {
+            "enum": [
+              "api",
+              "commands"
+            ],
+            "title": "Populationmethod",
+            "type": "string"
+          },
+          "setAction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Setaction"
+          },
+          "type": {
+            "enum": [
+              "inputs",
+              "apps"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "populationMethod"
+        ],
+        "title": "DropdownConfig",
+        "type": "object"
+      },
+      "DropdownOption": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "displayName": {
+            "title": "Displayname",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "displayName"
+        ],
+        "title": "DropdownOption",
         "type": "object"
       },
       "EmotivaXMC2State": {
@@ -1338,6 +1542,91 @@
         "title": "LastCommand",
         "type": "object"
       },
+      "LayoutManifest": {
+        "additionalProperties": false,
+        "description": "The remote layout for one entity (device or scenario), served at runtime. A superset of the\nUI's ``RemoteDeviceStructure`` (renderer-compatible) plus manifest metadata.",
+        "properties": {
+          "actionHandlers": {
+            "items": {
+              "$ref": "#/components/schemas/ActionHandler"
+            },
+            "title": "Actionhandlers",
+            "type": "array"
+          },
+          "deviceCategory": {
+            "default": "device",
+            "enum": [
+              "device",
+              "appliance"
+            ],
+            "title": "Devicecategory",
+            "type": "string"
+          },
+          "deviceClass": {
+            "title": "Deviceclass",
+            "type": "string"
+          },
+          "deviceId": {
+            "title": "Deviceid",
+            "type": "string"
+          },
+          "deviceName": {
+            "title": "Devicename",
+            "type": "string"
+          },
+          "entityKind": {
+            "default": "device",
+            "enum": [
+              "device",
+              "scenario"
+            ],
+            "title": "Entitykind",
+            "type": "string"
+          },
+          "remoteZones": {
+            "items": {
+              "$ref": "#/components/schemas/RemoteZone"
+            },
+            "title": "Remotezones",
+            "type": "array"
+          },
+          "specialCases": {
+            "items": {
+              "$ref": "#/components/schemas/DeviceSpecialCase"
+            },
+            "title": "Specialcases",
+            "type": "array"
+          },
+          "stateInterface": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StateDefinition"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stateSchema": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stateschema"
+          }
+        },
+        "required": [
+          "deviceId",
+          "deviceName",
+          "deviceClass"
+        ],
+        "title": "LayoutManifest",
+        "type": "object"
+      },
       "LgTvState": {
         "description": "Schema for LG TV state.",
         "properties": {
@@ -1663,6 +1952,103 @@
         "title": "ManualInstructions",
         "type": "object"
       },
+      "NavigationClusterConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "aux1Action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessedAction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "aux2Action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessedAction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "aux3Action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessedAction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "aux4Action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessedAction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "downAction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessedAction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "leftAction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessedAction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "okAction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessedAction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rightAction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessedAction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "upAction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessedAction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "NavigationClusterConfig",
+        "type": "object"
+      },
       "PersistedStatesResponse": {
         "additionalProperties": {
           "additionalProperties": true,
@@ -1683,6 +2069,226 @@
           }
         },
         "title": "PersistenceConfig",
+        "type": "object"
+      },
+      "PlaybackConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/ProcessedAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "layout": {
+            "default": "horizontal",
+            "enum": [
+              "horizontal",
+              "cluster"
+            ],
+            "title": "Layout",
+            "type": "string"
+          }
+        },
+        "title": "PlaybackConfig",
+        "type": "object"
+      },
+      "PointerPadConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "clickAction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessedAction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dragAction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessedAction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "moveAction": {
+            "$ref": "#/components/schemas/ProcessedAction"
+          },
+          "scrollAction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessedAction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "moveAction"
+        ],
+        "title": "PointerPadConfig",
+        "type": "object"
+      },
+      "PowerButtonConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ProcessedAction"
+          },
+          "buttonType": {
+            "enum": [
+              "power-off",
+              "power-on",
+              "power-toggle",
+              "zone2-power"
+            ],
+            "title": "Buttontype",
+            "type": "string"
+          },
+          "position": {
+            "enum": [
+              "left",
+              "middle",
+              "right"
+            ],
+            "title": "Position",
+            "type": "string"
+          }
+        },
+        "required": [
+          "position",
+          "action",
+          "buttonType"
+        ],
+        "title": "PowerButtonConfig",
+        "type": "object"
+      },
+      "ProcessedAction": {
+        "additionalProperties": false,
+        "properties": {
+          "actionName": {
+            "title": "Actionname",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "displayName": {
+            "title": "Displayname",
+            "type": "string"
+          },
+          "group": {
+            "default": "default",
+            "title": "Group",
+            "type": "string"
+          },
+          "icon": {
+            "$ref": "#/components/schemas/ActionIcon"
+          },
+          "parameters": {
+            "items": {
+              "$ref": "#/components/schemas/ProcessedParameter"
+            },
+            "title": "Parameters",
+            "type": "array"
+          },
+          "sourceDeviceId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sourcedeviceid"
+          },
+          "uiHints": {
+            "$ref": "#/components/schemas/UIHints"
+          }
+        },
+        "required": [
+          "actionName",
+          "displayName",
+          "icon"
+        ],
+        "title": "ProcessedAction",
+        "type": "object"
+      },
+      "ProcessedParameter": {
+        "additionalProperties": false,
+        "properties": {
+          "default": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "type": {
+            "enum": [
+              "range",
+              "string",
+              "integer",
+              "boolean"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "required"
+        ],
+        "title": "ProcessedParameter",
         "type": "object"
       },
       "ReloadResponse": {
@@ -1713,6 +2319,76 @@
           "status"
         ],
         "title": "ReloadResponse",
+        "type": "object"
+      },
+      "RemoteZone": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/ZoneContent"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "isEmpty": {
+            "title": "Isempty",
+            "type": "boolean"
+          },
+          "layout": {
+            "$ref": "#/components/schemas/ZoneLayoutConfig"
+          },
+          "showHide": {
+            "title": "Showhide",
+            "type": "boolean"
+          },
+          "zoneId": {
+            "enum": [
+              "power",
+              "media-stack",
+              "screen",
+              "volume",
+              "apps",
+              "menu",
+              "pointer"
+            ],
+            "title": "Zoneid",
+            "type": "string"
+          },
+          "zoneName": {
+            "title": "Zonename",
+            "type": "string"
+          },
+          "zoneType": {
+            "enum": [
+              "power",
+              "media-stack",
+              "screen",
+              "volume",
+              "apps",
+              "menu",
+              "pointer"
+            ],
+            "title": "Zonetype",
+            "type": "string"
+          }
+        },
+        "required": [
+          "zoneId",
+          "zoneName",
+          "zoneType",
+          "showHide",
+          "isEmpty",
+          "content"
+        ],
+        "title": "RemoteZone",
         "type": "object"
       },
       "RevoxA77ReelToReelState": {
@@ -2187,6 +2863,12 @@
             "description": "Human-readable description of the command",
             "title": "Description"
           },
+          "exposed": {
+            "default": true,
+            "description": "Whether this command is surfaced (UI/manifest, WB/MQTT, HTTP). False = a driver-supported but dormant action, hidden on every surface.",
+            "title": "Exposed",
+            "type": "boolean"
+          },
           "group": {
             "anyOf": [
               {
@@ -2230,6 +2912,70 @@
           "id"
         ],
         "title": "StartScenarioRequest",
+        "type": "object"
+      },
+      "StateDefinition": {
+        "additionalProperties": false,
+        "properties": {
+          "extends": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Extends",
+            "type": "array"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/StateField"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "imports": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Imports",
+            "type": "array"
+          },
+          "interfaceName": {
+            "title": "Interfacename",
+            "type": "string"
+          }
+        },
+        "required": [
+          "interfaceName"
+        ],
+        "title": "StateDefinition",
+        "type": "object"
+      },
+      "StateField": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "optional": {
+            "title": "Optional",
+            "type": "boolean"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "optional"
+        ],
+        "title": "StateField",
         "type": "object"
       },
       "SwitchScenarioRequest": {
@@ -2434,6 +3180,101 @@
         "title": "TestEventData",
         "type": "object"
       },
+      "TracksConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/ProcessedAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "layout": {
+            "default": "horizontal",
+            "enum": [
+              "horizontal",
+              "vertical"
+            ],
+            "title": "Layout",
+            "type": "string"
+          }
+        },
+        "title": "TracksConfig",
+        "type": "object"
+      },
+      "UIHints": {
+        "additionalProperties": false,
+        "properties": {
+          "buttonSize": {
+            "anyOf": [
+              {
+                "enum": [
+                  "small",
+                  "medium",
+                  "large"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buttonsize"
+          },
+          "buttonStyle": {
+            "anyOf": [
+              {
+                "enum": [
+                  "primary",
+                  "secondary",
+                  "destructive"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buttonstyle"
+          },
+          "hasParameters": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hasparameters"
+          },
+          "isPointerAction": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ispointeraction"
+          },
+          "zoneNumber": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zonenumber"
+          }
+        },
+        "title": "UIHints",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -2465,6 +3306,99 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VolumeButtonConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "downAction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessedAction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "muteAction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessedAction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "upAction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessedAction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "zone": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zone"
+          }
+        },
+        "title": "VolumeButtonConfig",
+        "type": "object"
+      },
+      "VolumeSliderConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ProcessedAction"
+          },
+          "muteAction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessedAction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "orientation": {
+            "const": "vertical",
+            "default": "vertical",
+            "title": "Orientation",
+            "type": "string"
+          },
+          "showValue": {
+            "default": true,
+            "title": "Showvalue",
+            "type": "boolean"
+          },
+          "zone": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zone"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "VolumeSliderConfig",
         "type": "object"
       },
       "WirenboardIRState": {
@@ -2529,6 +3463,201 @@
           "alias"
         ],
         "title": "WirenboardIRState",
+        "type": "object"
+      },
+      "ZoneContent": {
+        "additionalProperties": false,
+        "properties": {
+          "appsDropdown": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DropdownConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "inputsDropdown": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DropdownConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "navigationCluster": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NavigationClusterConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "playbackSection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlaybackConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pointerPad": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PointerPadConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "powerButtons": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PowerButtonConfig"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Powerbuttons"
+          },
+          "screenActions": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProcessedAction"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Screenactions"
+          },
+          "tracksSection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TracksConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "volumeButtons": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/VolumeButtonConfig"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volumebuttons"
+          },
+          "volumeSlider": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VolumeSliderConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "ZoneContent",
+        "type": "object"
+      },
+      "ZoneLayoutConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "alignment": {
+            "anyOf": [
+              {
+                "enum": [
+                  "left",
+                  "center",
+                  "right"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alignment"
+          },
+          "columns": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Columns"
+          },
+          "orientation": {
+            "anyOf": [
+              {
+                "enum": [
+                  "horizontal",
+                  "vertical"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orientation"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
+          },
+          "spacing": {
+            "anyOf": [
+              {
+                "enum": [
+                  "compact",
+                  "normal",
+                  "spacious"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spacing"
+          }
+        },
+        "title": "ZoneLayoutConfig",
         "type": "object"
       }
     }
@@ -2820,6 +3949,49 @@
         "summary": "Get Actions By Group",
         "tags": [
           "Groups"
+        ]
+      }
+    },
+    "/devices/{device_id}/layout": {
+      "get": {
+        "description": "Layer-3 layout manifest for a device — the backend-computed remote layout the UI renders at\nruntime (replaces build-time codegen). Built from the device's capability map by the placement\nengine (``presentation/api/layout_engine.py``).",
+        "operationId": "get_device_layout_devices__device_id__layout_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LayoutManifest"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Device Layout",
+        "tags": [
+          "Devices"
         ]
       }
     },
