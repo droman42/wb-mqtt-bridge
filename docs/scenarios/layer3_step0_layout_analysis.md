@@ -105,10 +105,13 @@ standalone control. (Distinct from `refresh_*` = internal → `exposed:false`.)
   `str|bool|int`).
 - ✅ **Fidelity oracle captured** — `docs/scenarios/layer3_oracle/*.json` (per-device
   `RemoteDeviceStructure`, frozen 2026-05-23).
-- → **Step-1 model batch** (every remaining item needs a model change): widen `Capability.on_value`
-  (`str|bool|int`) · add `reconcile` flag (capability) · add `exposed` flag (`BaseCommandConfig`) ·
-  reconciler `reconcile`-skip · load-time validation (command is `exposed:false` OR
-  capability-backed) · `execute_action` exposure gate (flips after coverage). **Then** complete:
-  streamer power, upscaler power (`reconcile:false`), dormant tagging (`exposed:false`).
+- ✅ **Step-1 model batch DONE (2026-05-23):** `on_value` widened (`str|bool|int`) · `reconcile`
+  flag · `exposed` flag · reconciler `reconcile`-skip · load-time validation + drift guard ·
+  `execute_action` exposure gate. Completed streamer power (bool `connected` feedback), upscaler
+  power (`reconcile:false`), and dormant tagging (5 commands `exposed:false`). **Full capability
+  coverage achieved** (drift guard: 0 violations); 279 backend tests pass.
 
-**Step 0 is complete** — pure-config authoring + analysis done; everything else is model work (Step 1).
+**Step 0 + the Step-1 model batch are complete.** Next (rest of Phase-3 Step 1): the
+**`LayoutManifest`** Pydantic model (mirroring `ui/src/types/RemoteControlLayout.ts`) + the
+**domain→zone placement engine** + `GET /devices/{id}/layout`, reproducing a device's oracle
+(`layer3_oracle/*.json`) zone-by-zone. Then Steps 2-4 (UI renderer → rollout → cutover).
