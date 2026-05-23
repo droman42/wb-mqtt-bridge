@@ -4,17 +4,19 @@ Reconstructs, server-side and keyed off capability **domains** (not config-group
 the zone/control structure the UI used to generate at build time. The frozen oracle
 (`docs/scenarios/layer3_oracle/`) is the fidelity target.
 
-STATUS (Step 1, incremental): the framework + the **power** and **playback** zone builders are in
-(covers reel_to_reel + vhs_player). The remaining domain builders — input/tracks (media-stack),
-volume, menu, apps, screen, pointer — are TODO (their zones render empty until added). Icons/uiHints
-are placeholders for now (oracle-exact material icons = a follow-on; see `ui_backend_contract.md`
-"Icons" open decision).
+STATUS (Step 1, incremental): the framework + the **power**, **playback**, **volume**, and **input**
+(media-stack) zone builders are in (covers reel_to_reel, vhs_player, mf_amplifier). TODO: tracks
+(media-stack), menu, apps, screen, pointer builders; and **multi-zone power** (the emotiva special
+case — the cap has `zones`, not `actions`). Icons/uiHints are placeholders for now (oracle-exact
+material icons = a follow-on; see `ui_backend_contract.md` "Icons" open decision).
 """
 from typing import Any, Dict, List, Optional, Tuple
 
 from wb_mqtt_bridge.infrastructure.capabilities.models import Capability, CapabilityMap
 from wb_mqtt_bridge.presentation.api.layout_manifest import (
     ActionIcon,
+    DropdownConfig,
+    DropdownOption,
     LayoutManifest,
     PlaybackConfig,
     PowerButtonConfig,
@@ -22,6 +24,8 @@ from wb_mqtt_bridge.presentation.api.layout_manifest import (
     ProcessedParameter,
     RemoteZone,
     UIHints,
+    VolumeButtonConfig,
+    VolumeSliderConfig,
     ZoneContent,
     ZoneLayoutConfig,
 )
@@ -104,6 +108,44 @@ def _playback_content(device: Any, cap: Capability) -> PlaybackConfig:
     return PlaybackConfig(actions=[a for a in actions if a is not None], layout="horizontal")
 
 
+def _volume_content(device: Any, cap: Capability) -> ZoneContent:
+    """volume domain -> volumeSlider (if a `set` action) else volumeButtons (up/down). `mute_toggle`
+    becomes the mute action of whichever is used."""
+    acts = cap.actions
+    mute = _action(device, acts["mute_toggle"].command) if "mute_toggle" in acts and acts["mute_toggle"].command else None
+    if "set" in acts and acts["set"].command:
+        return ZoneContent(volume_slider=VolumeSliderConfig(
+            action=_action(device, acts["set"].command), mute_action=mute,
+            orientation="vertical", show_value=True,
+        ))
+    up = _action(device, acts["up"].command) if "up" in acts and acts["up"].command else None
+    down = _action(device, acts["down"].command) if "down" in acts and acts["down"].command else None
+    return ZoneContent(volume_buttons=[VolumeButtonConfig(up_action=up, down_action=down, mute_action=mute)])
+
+
+def _inputs_dropdown(device: Any, cap: Capability) -> DropdownConfig:
+    """input domain -> inputsDropdown. Parametric select -> api-populated (runtime); by_value ->
+    one command per option (populated from the map)."""
+    sel = cap.select
+    if sel is not None and sel.command:
+        return DropdownConfig(
+            type="inputs", population_method="api",
+            api_action=cap.list.command if cap.list else None,
+            set_action=sel.command, options=[], loading=False, empty=True,
+        )
+    options: List[DropdownOption] = []
+    for value, cap_action in ((sel.by_value if sel else None) or {}).items():
+        if not cap_action.command:
+            continue
+        cmd = device.get_available_commands().get(cap_action.command)
+        options.append(DropdownOption(
+            id=cap_action.command, display_name=_humanize(value),
+            description=(getattr(cmd, "description", "") or "") if cmd else "",
+        ))
+    return DropdownConfig(type="inputs", population_method="commands",
+                         options=options, loading=False, empty=not options)
+
+
 def build_device_manifest(device: Any) -> LayoutManifest:
     """Build a device's LayoutManifest from its capability map (Layer-3 placement)."""
     cap_map: Optional[CapabilityMap] = getattr(device, "capabilities", None)
@@ -114,19 +156,25 @@ def build_device_manifest(device: Any) -> LayoutManifest:
 
     if "power" in caps:
         content["power"] = _power_content(device, caps["power"])
+    media = content["media-stack"]
+    if "input" in caps:
+        media.inputs_dropdown = _inputs_dropdown(device, caps["input"])
     if "playback" in caps:
-        content["media-stack"].playback_section = _playback_content(device, caps["playback"])
-    # TODO: input/tracks (media-stack), volume, menu, apps, screen, pointer
+        media.playback_section = _playback_content(device, caps["playback"])
+    if "volume" in caps:
+        content["volume"] = _volume_content(device, caps["volume"])
+    # TODO: tracks (media-stack), menu, apps, screen, pointer
 
-    def _is_empty(zone_id: str, c: ZoneContent) -> bool:
-        return c.model_dump(exclude_none=True, by_alias=True) == {}
+    def _is_empty(c: ZoneContent) -> bool:
+        # empty iff no content field holds a truthy value (covers None and empty lists)
+        return not any(c.model_dump(exclude_none=True, by_alias=True).values())
 
     zones: List[RemoteZone] = []
     for zone_id, (zone_name, show_hide, layout) in _ZONE_META.items():
         c = content[zone_id]
         zones.append(RemoteZone(
             zone_id=zone_id, zone_name=zone_name, zone_type=zone_id,
-            show_hide=show_hide, is_empty=_is_empty(zone_id, c),
+            show_hide=show_hide, is_empty=_is_empty(c),
             content=c, layout=ZoneLayoutConfig(**layout),
         ))
 

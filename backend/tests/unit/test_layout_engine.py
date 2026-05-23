@@ -43,31 +43,63 @@ def _make_device(name: str, device_class: str):
     return dev
 
 
-def _structure(zones):
-    """Distill to the layout-critical structure: zoneId -> (isEmpty, controls).
+def _name(a):
+    return a["actionName"] if a else None
 
-    Slot zones (power) keep order — position/buttonType are deterministic. Ordered zones
-    (playback/…) compare as a SET: by design the new manifest orders them by capability-declaration
-    order, which deliberately retires the old config-key order, so order may differ from the oracle;
-    fidelity means the same controls are present (none lost/added)."""
+
+def _structure(zones):
+    """Distill to the layout-critical structure per zone: zoneId -> (isEmpty, parts).
+
+    Slot zones (power) keep order (position/buttonType deterministic). Ordered zones
+    (playback/tracks/screen) and the menu compare as SETS — by design the new manifest orders them
+    by capability-declaration order, deliberately retiring the old config-key order, so order may
+    differ from the oracle; fidelity = the same controls present (none lost/added). Dropdowns
+    compare type + populationMethod + option count (ids/labels are capability-derived now)."""
     out = {}
     for z in zones:
         c = z["content"]
-        ctrl = []
+        parts = {}
         if c.get("powerButtons"):
-            ctrl = [(b["position"], b["buttonType"], b["action"]["actionName"]) for b in c["powerButtons"]]
-        elif c.get("playbackSection"):
-            ctrl = sorted(a["actionName"] for a in c["playbackSection"]["actions"])
-        out[z["zoneId"]] = (z["isEmpty"], ctrl)
+            parts["power"] = [(b["position"], b["buttonType"], b["action"]["actionName"]) for b in c["powerButtons"]]
+        if c.get("playbackSection"):
+            parts["playback"] = sorted(_name(a) for a in c["playbackSection"]["actions"])
+        if c.get("tracksSection"):
+            parts["tracks"] = sorted(_name(a) for a in c["tracksSection"]["actions"])
+        if c.get("inputsDropdown"):
+            d = c["inputsDropdown"]
+            parts["inputs"] = (d["populationMethod"], len(d.get("options", [])))
+        if c.get("volumeSlider"):
+            vs = c["volumeSlider"]
+            parts["vslider"] = (_name(vs["action"]), _name(vs.get("muteAction")))
+        if c.get("volumeButtons"):
+            vb = c["volumeButtons"][0]
+            parts["vbuttons"] = (_name(vb.get("upAction")), _name(vb.get("downAction")), _name(vb.get("muteAction")))
+        if c.get("screenActions"):
+            parts["screen"] = sorted(_name(a) for a in c["screenActions"])
+        if c.get("appsDropdown"):
+            d = c["appsDropdown"]
+            parts["apps"] = (d["populationMethod"], len(d.get("options", [])))
+        if c.get("navigationCluster"):
+            parts["menu"] = frozenset(_name(v) for v in c["navigationCluster"].values() if v)
+        if c.get("pointerPad"):
+            parts["pointer"] = frozenset(k for k, v in c["pointerPad"].items() if v)
+        # an empty zone is empty regardless of placeholder content shape (renderer-equivalent)
+        out[z["zoneId"]] = (z["isEmpty"], {} if z["isEmpty"] else parts)
     return out
 
 
 @pytest.mark.skipif(ROOT is None or ORACLE is None or not ORACLE.is_dir(), reason="config/ or oracle/ not present")
-@pytest.mark.parametrize("name,device_class", [
-    ("reel_to_reel", "RevoxA77ReelToReel"),
-    ("vhs_player", "WirenboardIRDevice"),
+# (config filename, oracle filename, device_class) — oracle name = page id, which differs for some.
+# emotiva (processor) is deferred: its inputs(api)+volume(slider) match, but multi-zone power is a
+# special case (the old codegen synthesized a `zone2_power_toggle` command that doesn't exist) — the
+# cap-driven engine will render it from cap.zones, intentionally diverging. Add it back with proper
+# multi-zone power handling later.
+@pytest.mark.parametrize("config_name,oracle_name,device_class", [
+    ("reel_to_reel", "reel_to_reel", "RevoxA77ReelToReel"),   # playback
+    ("vhs_player", "vhs_player", "WirenboardIRDevice"),       # power + playback
+    ("mf_amplifier", "mf_amplifier", "WirenboardIRDevice"),   # power + inputs(by_value) + volume(buttons)
 ])
-def test_engine_reproduces_oracle(name, device_class):
-    manifest = build_device_manifest(_make_device(name, device_class)).model_dump(by_alias=True)
-    oracle = json.loads((ORACLE / f"{name}.json").read_text())
+def test_engine_reproduces_oracle(config_name, oracle_name, device_class):
+    manifest = build_device_manifest(_make_device(config_name, device_class)).model_dump(by_alias=True)
+    oracle = json.loads((ORACLE / f"{oracle_name}.json").read_text())
     assert _structure(manifest["remoteZones"]) == _structure(oracle["remoteZones"])
