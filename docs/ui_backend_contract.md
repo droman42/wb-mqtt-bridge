@@ -226,6 +226,12 @@ The backend assigns each action a zone + position, two-tier:
   This is how a misplacement gets **fixed**: edit the hint, refetch — no rebuild ("discuss → adjust
   hint → reload").
 
+> **Groups → domains, and command exposure.** The legacy device-config `group` tag is *subsumed* by
+> capability **domains** (zoning derives from domains; `group` becomes a transitional fallback,
+> retired once capability coverage is complete). Dormant driver commands are marked `exposed: false`
+> on the config command (invisible to manifest, WB, *and* HTTP). Full design + sequencing:
+> `docs/scenarios/scenario_system_redesign.md` **§17**.
+
 ### Endpoints
 - `GET /devices/{id}/layout` → `LayoutManifest`
 - `GET /scenario/{id}/layout` → `LayoutManifest` (scenario resolved once server-side via roles +

@@ -662,3 +662,60 @@ reconciled, momentary caps are live-only.
   // device-specific extras (outside canonical domains): screensaver, home_hold; refresh_status = internal query
 }
 ```
+
+## 17. Groups → capabilities & command exposure (Layer 3 / Step 0)
+
+**Decided 2026-05-23.** How the legacy device-config `group` concept relates to the Layer-1
+capability model, and how driver-supported-but-dormant commands are handled. Inputs for Layer 3
+Step 0.
+
+### 17.1 Judgement — capabilities subsume groups
+The per-command `group` string and the capability **domain** are near-isomorphic vocabularies, but a
+group is a *loose label* while a domain is a *typed contract* (domain + kind + native mapping +
+feedback + gating). They collapse ~1:1: `power→power, inputs→input, volume→volume, menu→menu,
+playback→playback, tracks→tracks, apps→apps, screen→screen, pointer→pointer`. `gestures` is **dead**
+(no config uses it; both AppleTV swipe and LG-TV cursor use the `pointer` group → `pointer` domain).
+`noops`/`media` are **orphan actions** with no domain (see 17.2).
+
+Every job `group` does today is absorbed by capabilities:
+- **UI zoning** → Layer 3 placement derives zones from **domains** (replaces group/action name-matching).
+- **Scenario composition** → already capabilities (the reconciler), not groups.
+- **WB control exposure + ordering** (`excluded_groups`, group-priority in `wb_device/service.py`) →
+  re-keyed off `domain` + `kind` + the `exposed` flag (17.2).
+- `/groups` API + `system.json` display names → redundant after Layer 3 (labels become manifest
+  zone names).
+
+**Verdict:** capabilities are the single model; **`group` becomes a transitional fallback** for any
+command/device not yet capability-mapped, retired once coverage is complete (17.3/17.4). Not "groups
+vs capabilities."
+
+### 17.2 Command exposure & dormant commands (`exposed`)
+`execute_action` today dispatches **any** command in the config registry (`base.py:748` — no
+group/capability gate), so a command is HTTP-actionable even when hidden from UI/WB. To model
+"driver supports it but it's parked":
+- **`"exposed": false`** (default `true`) on the **config command**. A dormant command keeps its
+  handler but is invisible on **all three** surfaces (UI/manifest, WB/MQTT, HTTP). Today's `noops`
+  (`screensaver`, `home_hold`) + `media` (streamer `track_info`, testing unfinished) become
+  `exposed: false`; the dead `gestures` group is deleted.
+- **Load-time validation (RC4-style):** every config command must be **either `exposed: false` OR
+  backed by an exposed capability `domain.action`** — anything else is a load error (kills the
+  silent "forgot to map → goes dark" footgun).
+- **New FastAPI gate:** `execute_action` rejects non-exposed actions (`403/404`). **Sequencing:**
+  flip this gate **only after capability coverage is complete** (else it breaks un-mapped intended
+  commands); the `exposed: false` tagging can land immediately.
+- **Sequence sub-commands** (native commands used only inside a capability `sequence`/macro): mark
+  `exposed: false` — the sequence still invokes them internally.
+
+### 17.3 Capability-coverage targets (Step 0 precondition for retiring groups)
+Retiring `group` requires ~100% capability coverage of in-scope commands. Gaps today:
+- **Un-mapped in-scope A/V devices:** `streamer` (Auralic), `reel_to_reel` (Revox) — need maps.
+- **Orphans:** `screensaver`, `home_hold`, `track_info` → `exposed: false`.
+- **Deferred:** `kitchen_hood` (the ONLY `device_category=appliance`; Roborock will be the 2nd) —
+  appliance bespoke pages are out of Layer-3-v1 scope, so its coverage can wait.
+
+### 17.4 Sequencing
+1. **Layer 3:** derive zones from **domains**; keep `group` as the fallback for un-mapped commands.
+2. Tag dormant commands `exposed: false` now; author the missing maps (streamer, reel_to_reel).
+3. **Once coverage = 100%:** flip the FastAPI exposure gate; re-key WB exposure/ordering off
+   `domain`+`kind`+`exposed`; move display labels to manifest zone names; **delete `group` +
+   `gestures`**. Fold the formal retirement into the post-all-phases doc reconciliation.
