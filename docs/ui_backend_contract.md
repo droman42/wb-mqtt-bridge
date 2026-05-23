@@ -163,12 +163,12 @@ Wirenboard); the browser and backend meet at the broker, not via the API.
 
 ## Layout Manifest & Runtime Rendering (DRAFT — planned; supersedes build-time codegen)
 
-**Status:** DRAFT (2026-05-20), agreed in the scenario-redesign discussion. When implemented this
-**replaces** the build-time codegen contract above (the `.gen.tsx` / `StateTypeGenerator` /
-`generate-device-pages` pipeline): device **and** scenario pages are built at **runtime** from a
-backend-served manifest. It is **Layer 3** of `docs/scenarios/scenario_system_redesign.md`, and it
-subsumes action_plan P2.5 #10 (placement contract) and Codegen Option 2. Until the migration
-completes, the build-time contract above remains authoritative.
+**Status:** Step 0 + Step 1 **IMPLEMENTED** (2026-05-23) — the `LayoutManifest` model + placement
+engine + `GET /devices/{id}/layout` ship and reproduce all 13 device oracles (backend side of
+Layer 3). The **UI runtime renderer is Step 2 (next, not yet built)**, so until that lands the
+build-time codegen contract above **remains authoritative** for what the browser actually renders.
+This section is **Layer 3** of `docs/scenarios/scenario_system_redesign.md`; it subsumes action_plan
+P2.5 #10 (placement contract) and Codegen Option 2.
 
 ### Why
 Build-time generation forced the UI to *re-derive* device structure, scenario inheritance, and
@@ -183,29 +183,31 @@ the UI bakes today, produced server-side and published in `openapi.json`. The ba
 model mirrors `ui/src/types/RemoteControlLayout.ts`, so the existing `RemoteControlLayout`
 renderer consumes it unchanged:
 
-```
-LayoutManifest
-  entity_id, display_name
-  entity_kind:     "device" | "scenario"
-  device_category: "device" | "appliance"   # v1 manifest = remote layout (device + scenario)
-  state_schema:    str                        # openapi components.schemas name for live state binding
-  zones: [ Zone ]
+**As implemented (Step 1 — `backend/.../presentation/api/layout_manifest.py` is authoritative;
+camelCase on the wire via `to_camel`):**
 
-Zone
-  zone_type: "power"|"media-stack"|"screen"|"volume"|"apps"|"menu"|"pointer"
-  zone_name, enabled
+```
+LayoutManifest                 # mirrors ui/src/types/RemoteControlLayout.ts RemoteDeviceStructure
+  deviceId, deviceName, deviceClass
+  remoteZones: [ RemoteZone ]
+  entityKind:      "device" | "scenario"        # default "device"
+  deviceCategory:  "device" | "appliance"
+  stateInterface?:  StateDefinition             # live-state binding (carryover from .gen)
+  actionHandlers:  [ ActionHandler ]            # carryover from .gen
+  specialCases:    [ DeviceSpecialCase ]        # carryover from .gen
+
+RemoteZone
+  zoneId, zoneName, isEmpty, showWhenEmpty
   content: ZoneContent     # typed per zone (powerButtons | inputsDropdown | playbackSection |
                            # tracksSection | screenActions | volumeSlider/volumeButtons |
                            # appsDropdown | navigationCluster | pointerPad) — exactly as today
-  layout:  { columns?, spacing?, alignment?, orientation?, priority? }
-
-Control (inside ZoneContent) references:
-  action: str              # device command, or canonical role.action for scenarios
-  target_device_id?: str   # for scenario-inherited controls (HTTP routing)
-  params: [ ParamSpec ]
-  icon:   IconHint
-  state_binding?: { field, … }
+  layout:  { ... }
 ```
+
+The 2026-05-20 draft used `entity_id/display_name/zones[]/zone_type` + a top-level `state_schema`;
+the shipped model instead mirrors the UI type 1:1 (`deviceId/.../remoteZones[]`) so the existing
+`RemoteControlLayout` renderer consumes it **unchanged**. Each control still carries `action`,
+`params`, placeholder `icon` (resolved UI-side — see Icons), and state binding.
 
 ### Placement engine (hybrid — the explicit contract = P2.5 #10)
 The backend assigns each action a zone + position, two-tier:
@@ -233,9 +235,9 @@ The backend assigns each action a zone + position, two-tier:
 > `docs/scenarios/scenario_system_redesign.md` **§17**.
 
 ### Endpoints
-- `GET /devices/{id}/layout` → `LayoutManifest`
+- `GET /devices/{id}/layout` → `LayoutManifest` — **DONE (Step 1)**, in `openapi.json` + `api.gen.ts`.
 - `GET /scenario/{id}/layout` → `LayoutManifest` (scenario resolved once server-side via roles +
-  topology)
+  topology) — **NOT YET BUILT** (Step 3, with scenario rollout).
 - (optional) `GET /layouts` for prefetch. Manifests are in `openapi.json`, so TS types generate
   like any response.
 
@@ -245,11 +247,48 @@ state via SSE (unchanged); state types from `openapi.json` (unchanged). Retires 
 `.gen.tsx`, `StateTypeGenerator`, `generate-device-pages`, the `backend/`-directory build coupling,
 and the UI scenario re-derivation.
 
+### Backend-call inventory — Layer-3 fate of every endpoint the UI touches
+Verified 2026-05-23 against `openapi.json` (32 ops) × the UI client (`hooks/useApi.ts`,
+`hooks/useEventSource.ts`). Layer 3 changes **page-structure** sourcing (`.gen.tsx` → `/layout`); the
+**runtime data/control calls stay**. Fate per call:
+
+| Endpoint | UI hook / site | Layer-3 fate |
+|---|---|---|
+| `GET /devices/{id}/layout` | *(Step 2 adds)* | **ADD** — replaces `.gen.tsx` structure |
+| `GET /scenario/{id}/layout` | *(Step 3 adds)* | **ADD** — not built yet |
+| `GET /devices/{id}/state` | `useDeviceState` | **KEEP** — initial live state (then SSE-driven) |
+| `POST /devices/{id}/action` | `useExecuteDeviceAction` | **KEEP** — execute + dynamic dropdown population (`get_available_inputs`/`…apps`) |
+| `GET /events/devices`,`/scenarios`,`/system` (SSE) | `useDeviceSSE`/`useScenarioSSE`/`useSystemSSE` | **KEEP** — live updates → invalidate React-Query cache |
+| `GET /devices/{id}/persisted_state`, `GET /devices/persisted_states` | `useDevicePersistedState`/`usePersistedStates` | **KEEP** |
+| `GET /config/devices`, `/config/device/{id}`, `/config/system` | `useDevicesConfig`/`useDeviceConfig`/`useSystemConfig` | **KEEP at runtime**; the **codegen's** build-time read of `/config/devices` is **RETIRED** |
+| `GET /room/list`, `/room/{id}` | `useRooms`/`useRoom` | **KEEP** — navigation |
+| `GET /system` | `useSystemInfo` | **KEEP** |
+| `POST /publish` | `useMQTTPublish` | **KEEP** — MQTT debug tool |
+| `POST /reload` | `useReload` | **KEEP** — admin |
+| `GET /scenario/state`, `/scenario/{id}/state` | `useScenarioState`/`…ById` | **KEEP** |
+| `GET /scenario/definition`, `/scenario/definition/{id}` | `useScenarioDefinitions`/`…` | **KEEP** |
+| `POST /scenario/switch`,`/start`,`/shutdown`,`/role_action` | `useSwitch`/`Start`/`Shutdown`/`ExecuteRoleAction` | **KEEP** — scenario runtime control |
+| `GET /scenario/virtual_config/{id}`, `/scenario/virtual_configs` | `useScenarioVirtualConfig` → `useScenarioVirtualDevice` → `<ScenarioVirtualDeviceControls>` (`App.tsx`) | **⚠ OPEN — decide in Step 3** (see below) |
+| `GET /groups`, `/devices/{id}/groups`, `/devices/{id}/groups/{gid}/actions` | `useGroups`/`useDeviceGroups`/`useGroupActions` | **RETIRE** — hooks are **dead** (defined, no runtime caller); groups subsumed by domains (§17) |
+| `GET /` (root), `GET /events/stats`, `POST /events/test/{channel}` | *(none)* | **n/a** — UI never calls these |
+
+**⚠ Open decision (scenario virtual-device controls).** The `/scenario/{id}/layout` endpoint is meant
+to make a scenario render like a device. But the scenario page **also** has a *separate* runtime path
+today — the **Wirenboard virtual-device controls** (`GET /scenario/virtual_config/{id}` →
+`useScenarioVirtualDevice` → `<ScenarioVirtualDeviceControls>`), which expose the scenario's WB
+switch/pushbutton controls, not the A/V remote. The plan deletes the build-time
+`ScenarioVirtualDeviceResolver`/`Handler` but is silent on this **runtime** path. Step 3 must decide:
+**(a)** the scenario layout manifest subsumes the virtual-device controls (one page, `virtual_config`
+retired), or **(b)** they remain a distinct widget alongside the remote (endpoint + hook + component
+kept). Resolve before scenario rollout.
+
 ### Scenarios = devices (blocker resolved)
 A scenario's manifest comes from the **same** engine: reconciler-resolved roles + capability
 inheritance + topology give the composite control set; placement runs identically. The UI's
-`ScenarioVirtualDeviceHandler` / `ScenarioVirtualDeviceResolver` + their stale taxonomy are
-**deleted**. One inheritance, one placement, one source of truth.
+build-time `ScenarioVirtualDeviceHandler` / `ScenarioVirtualDeviceResolver` + their stale taxonomy are
+**deleted**. One inheritance, one placement, one source of truth. *(Caveat: the **runtime** WB
+virtual-device controls — `/scenario/virtual_config/*` + `<ScenarioVirtualDeviceControls>` — are a
+separate concern; see the ⚠ open decision in the backend-call inventory above.)*
 
 ### Icons & appliances
 - **Icons — DECIDED 2026-05-23: resolved UI-side.** The backend manifest carries *semantics*
