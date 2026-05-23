@@ -356,8 +356,11 @@ global; only the *runtime-render flag* stays per-device during rollout):
 - **Backend:** B1 serve `/layout` with `exclude_none` (omit absent fields → fixes #2, shrinks
   payload, matches the codegen contract); B2 drop `special_cases`/`DeviceSpecialCase` from model +
   engine; B3 add `state_field` to the volume capability → surface as `valueField` on the volume zone
-  config (eMotiva volume → `zone2Volume`); B4 ensure the set-volume `range` param rides the manifest
-  (so the slider range isn't a renderer fallback). `populationMethod`/`apiAction`/`setAction` are
+  config — **snake_case** (eMotiva volume → `zone2_volume`, others → `volume`), because the device
+  state serializes snake_case with no camel alias (the old hardcode read camelCase `zone2Volume`,
+  which never matched → eMotiva's slider value was silently broken); B4 **no-op** — every slider
+  device already declares its set-volume `range` (eMotiva −96..0, others 0..100) and the engine
+  surfaces min/max, so the range is already manifest-driven. `populationMethod`/`apiAction`/`setAction`
   already emitted — no change.
 - **UI (shared renderer):** U1 `useInputsData`/`useAppsData`/`selectInput` obey `populationMethod`
   (delete `specialCases`, `isWirenboardIR`, `usesAppsAPI`); U2 volume reads `valueField` + range
@@ -367,8 +370,10 @@ global; only the *runtime-render flag* stays per-device during rollout):
   device (eMotiva) + an api device (Apple TV); `typecheck`/`lint`/`npm run check` green. Retire the
   frozen oracle.
 
-Status: **agreed, not yet executed** (2026-05-23). Sequencing: backend commit → UI commit →
-validation, each before resuming device rollout (step 3).
+Status (2026-05-23): **commit 1 DONE** (`d0ca91e`) — backend contract (B1 + B3; B4 no-op);
+openapi/api.gen.ts regenerated; backend 306 + UI typecheck/lint green. **Remaining:** commit 2 (UI
+declarative — U1/U2), commit 3 (atomic `specialCases` removal — B2/U3 + oracle-test rework), then
+render-level validation, before resuming device rollout (step 3).
 
 ## Related
 - `docs/scenarios/scenario_system_redesign.md` — the scenario redesign; this manifest is its Layer 3.
