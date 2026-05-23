@@ -224,6 +224,24 @@ First real phase to tackle via GSD: **ROADMAP Phase 1 = Fix the Scenario Layer**
 - **Multi-arch builds** — *time-limited* out-of-scope. Deployment is Wirenboard-only, but the planned move to **Wirenboard 8+ (arm64/64-bit)** will require an **arm64** image alongside (or replacing) the current ARMv7 one. Revisit when the WB8+ migration is scheduled. (amd64 stays CI/dev-only — not a deploy target.)
 - **Rewriting `manage_docker.sh`** — works fine; touch it only when GHCR lands.
 
+### P3.6 — Topology + scenarios, round 2 (after Layer 3, before P4)
+
+**Decided 2026-05-23.** `config/topology.json` + the 4 `movie_*` scenarios currently cover the
+**living-room A/V chain only**. The remaining systems have capability maps (so their device pages
+already render) but **no topology links and no scenarios**. Author them as a dedicated step **after
+Phase 3 (Layer 3) completes** — so the new scenario pages render at runtime instead of through the
+build-time codegen we're about to delete (no throwaway UI work). User is fine deferring to after
+Layer 3.
+
+Scope (confirmed reconciler-driven scenarios): **Music — Auralic → amp**, **Music — Revox → amp**,
+**+ "some more"** (children's room TV+AppleTV likely; full list TBD with the user). `kitchen_hood`
+stays appliance-only (no topology, correct).
+
+**Blocked on a wiring interview from the user** (cannot be invented): which `mf_amplifier` input the
+Auralic and the Revox each use; whether the children's room is standalone (TV + AppleTV, no routing)
+or feeds anywhere. Then it's mechanical: add topology `links` (+ any `ordering`/`delay_ms`), write
+thin `source/display/audio` scenario configs, let the existing reconciler drive them.
+
 ### P4 — Final acceptance & cleanup (do this LAST, after the whole redesign lands)
 
 The scenario reconciler + monorepo + Layer 3 runtime rendering are being done **gradually**, so a
@@ -375,6 +393,8 @@ These were the only **unfinished** items in `docs/TODO.md` when it was archived 
 - **2026-05-23 (cont. 3)** — **Placement engine: volume + input builders.** Added the volume (volumeSlider when the cap has a `set` action, else up/down volumeButtons) and input (api-populated dropdown for a parametric `select`; commands dropdown from `by_value`) zone builders. Engine now covers **4/9 domains** (power, playback, volume, input); **3/13 devices** reproduce their oracle (reel_to_reel, vhs_player, mf_amplifier — `tests/unit/test_layout_engine.py`). Fixed `_is_empty` (empty collections count as empty); the fidelity check compares control *sets* for ordered zones + dropdowns by type/populationMethod/count. **Remaining (Step 1):** tracks/menu/screen/apps/pointer builders + multi-zone power (emotiva special case) + icons decision + the `GET /devices/{id}/layout` endpoint. 296 backend tests pass.
 
 - **2026-05-23 (cont. 4)** — **Phase 3 Step 1 COMPLETE.** Placement engine covers all 9 domains and all 13 devices: the 12 standard devices reproduce their frozen oracle (`backend/tests/unit/test_layout_engine.py`), plus **eMotiva multi-zone power** (zone 1 off/on + zone 2 native `zone2_power` toggle — added the config command + driver `handle_zone2_power_toggle` calling the lib's `power_toggle(ZONE2)` + a cap `toggle` action; the reconciler still drives zones via on/off). `GET /devices/{id}/layout` serves the `LayoutManifest` (in `openapi.json` + UI `api.gen.ts`). **Icons decided — resolved UI-side:** the manifest carries semantics (`actionName`+domain), the UI's `IconResolver` maps to glyphs at render → keeps the manifest **skin-agnostic** (UI can be reskinned with no backend change); the `icon` field is an optional override. So Step 1 = model + engine (13/13) + endpoint + icon decision, all done; full suite 306. **Next: Step 2** — the UI runtime renderer behind a flag (where icon resolution lands).
+
+- **2026-05-23 (cont. 5)** — **Topology/scenario scope clarified → new P3.6.** User flagged that `config/topology.json` + the 4 `movie_*` scenarios cover the **living-room A/V chain only**; the audio sources (Auralic, Revox) and the children's room (lg_tv_children, appletv_children) have capability maps (device pages render) but **no topology links and no scenarios**. Confirmed this is *not* a Layer-3 dependency (Layer 3 renders off capability maps; topology only feeds the scenario reconciler) and was only implied by P4 acceptance, never scheduled. **Decision: defer to after Phase 3 (Layer 3)** so new scenario pages render at runtime, not via the soon-deleted codegen — captured as **§ P3.6**. Confirmed scope: Music Auralic→amp, Music Revox→amp, + "some more" (children's room likely; full list TBD). Blocked on a wiring interview (which amp input each source uses; children's-room routing). No code change this entry.
 
 ---
 
