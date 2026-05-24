@@ -494,9 +494,16 @@ the cutover removes = the build-time *page* generator and the now-unreachable fa
 contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two generators" notes above).
 
 - **UI (large, mechanical, no live-system risk):**
-  - Delete the page generator: `scripts/generate-device-pages.ts`, all `*.gen.tsx` (devices +
-    scenarios), `*.state.ts`/`*.hooks.ts`, the `getDeviceComponent`/`getScenarioComponent` fallback
-    wiring in `App.tsx`, the `.gen` indexes.
+  - ✅ **A2 DONE (`243b030`):** removed the `.gen` fallback from `RuntimeDevicePage`/`RuntimeScenarioPage`
+    (manifest fetch failure now shows "Layout unavailable") and the last runtime dependency on the
+    generated registry — `Navbar` no longer imports `getDeviceRoute` (navigates directly to
+    `/devices/${id}`; also fixed a latent `/device/${id}` singular-route bug). **No shipped source now
+    imports `index.gen` / `getDeviceComponent` / `getScenarioComponent` / `getDeviceRoute`** → A3 can
+    delete the generator.
+  - **A3 — delete the page generator** (next): `scripts/generate-device-pages.ts`, all `*.gen.tsx`
+    (devices + scenarios), `*.state.ts`/`*.hooks.ts`, the `.gen` indexes, the `src/lib/integration/*`
+    + `StateTypeGenerator`/`DocumentationGenerator` generator code, and the `gen:device-pages` step
+    inside the `npm run check` script. Also retire the frozen oracle here (shared).
   - **U3** remove `specialCases` from `types/RemoteControlLayout.ts`, `layoutManifestAdapter.ts`,
     `useRemoteControlData.ts`, and the dead emission in the 8 `lib/deviceHandlers/*`.
   - Retire the scenario web fallback: `ScenarioVirtualDeviceControls.tsx`,
