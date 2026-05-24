@@ -1556,17 +1556,6 @@ export interface components {
          * @enum {string}
          */
         DeviceCategory: "device" | "appliance";
-        /** DeviceSpecialCase */
-        DeviceSpecialCase: {
-            /** Casetype */
-            caseType: string;
-            /** Configuration */
-            configuration?: {
-                [key: string]: unknown;
-            };
-            /** Deviceclass */
-            deviceClass: string;
-        };
         /**
          * DeviceState
          * @description Runtime state of a device.
@@ -1870,8 +1859,6 @@ export interface components {
             manualInstructions?: components["schemas"]["wb_mqtt_bridge__presentation__api__layout_manifest__ManualInstructions"] | null;
             /** Remotezones */
             remoteZones?: components["schemas"]["RemoteZone"][];
-            /** Specialcases */
-            specialCases?: components["schemas"]["DeviceSpecialCase"][];
             stateInterface?: components["schemas"]["StateDefinition"] | null;
             /** Stateschema */
             stateSchema?: string | null;

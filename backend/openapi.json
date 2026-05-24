@@ -930,30 +930,6 @@
         "title": "DeviceCategory",
         "type": "string"
       },
-      "DeviceSpecialCase": {
-        "additionalProperties": false,
-        "properties": {
-          "caseType": {
-            "title": "Casetype",
-            "type": "string"
-          },
-          "configuration": {
-            "additionalProperties": true,
-            "title": "Configuration",
-            "type": "object"
-          },
-          "deviceClass": {
-            "title": "Deviceclass",
-            "type": "string"
-          }
-        },
-        "required": [
-          "deviceClass",
-          "caseType"
-        ],
-        "title": "DeviceSpecialCase",
-        "type": "object"
-      },
       "DeviceState": {
         "description": "Runtime state of a device.",
         "properties": {
@@ -1620,13 +1596,6 @@
               "$ref": "#/components/schemas/RemoteZone"
             },
             "title": "Remotezones",
-            "type": "array"
-          },
-          "specialCases": {
-            "items": {
-              "$ref": "#/components/schemas/DeviceSpecialCase"
-            },
-            "title": "Specialcases",
             "type": "array"
           },
           "stateInterface": {

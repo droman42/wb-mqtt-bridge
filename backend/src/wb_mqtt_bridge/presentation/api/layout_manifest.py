@@ -199,12 +199,6 @@ class ActionHandler(_Camel):
     dependencies: List[str] = Field(default_factory=list)
 
 
-class DeviceSpecialCase(_Camel):
-    device_class: str
-    case_type: str
-    configuration: Dict[str, Any] = Field(default_factory=dict)
-
-
 class ManualInstructions(_Camel):
     """Static human-in-the-loop notes for a scenario (rendered as a bottom section in the remote)."""
     startup: List[str] = Field(default_factory=list)
@@ -232,4 +226,3 @@ class LayoutManifest(_Camel):
     # build-time carryover — present in the frozen oracle, omittable at runtime
     state_interface: Optional[StateDefinition] = None
     action_handlers: List[ActionHandler] = Field(default_factory=list)
-    special_cases: List[DeviceSpecialCase] = Field(default_factory=list)
