@@ -539,17 +539,15 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
     page generator below can be fully deleted (the appliance does not depend on it).
   - ✅ **Dead groups hooks retired (`9b388ab`)** — `useGroups`/`useDeviceGroups`/`useGroupActions` +
     their type imports removed from `useApi` (with the backend `/groups` router deletion).
-  - **A7 — Rename the lone surviving generated file** to kill the `.gen` ambiguity (after cutover it's the
-    only `.gen` file left, and it SURVIVES — unlike the deleted page artifacts): `src/types/api.gen.ts`
-    → **`src/types/openapi.gen.ts`** (ties it to its `openapi.json` source, keeps the "don't
-    hand-edit" signal). Trivial — 1 import site (`useApi.ts`) + the `gen:api-types` `-o` path in
-    `package.json`.
-  - **Consolidate the duplicate API types (refactor, not a rename).** `src/types/api.ts` is a
+  - ✅ **A7 DONE (`ba51f2c`)** — renamed `src/types/api.gen.ts` → `src/types/openapi.gen.ts` (git mv,
+    history preserved; useApi import + `gen:api-types` `-o` path updated). Kills the `.gen` ambiguity:
+    it's the generated REST type contract from `openapi.json`, and it SURVIVES the cutover.
+  - **A8 — Consolidate the duplicate API types (refactor, not a rename).** `src/types/api.ts` is a
     **hand-written** parallel set of interfaces (`ScenarioState`, `ScenarioDefinition`,
-    `ManualInstructions`, `DeviceAction`, …) that duplicates types already generated in `api.gen.ts`
-    → two sources of API truth, the hand-written one can silently drift from the backend. Fold the UI
-    onto the generated types and shrink/retire `api.ts` (4 importers). Bigger than the rename; do it
-    deliberately, not as a drive-by.
+    `ManualInstructions`, `DeviceAction`, …) that duplicates types already generated in
+    `openapi.gen.ts` → two sources of API truth, the hand-written one can silently drift from the
+    backend. Fold the UI onto the generated types and shrink/retire `api.ts`. Bigger than the rename;
+    do it deliberately, not as a drive-by.
   - ✅ **A0 RESOLVED (2026-05-24, `e26e513`):** the status pane (`DeviceStatePanel`) no longer depends
     on the generated `stateInterface` — it renders the per-device "Device State" section from the **live
     `state` object** (keys + inferred type), so deleting the generated state types is safe. (This also
