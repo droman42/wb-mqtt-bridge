@@ -323,6 +323,17 @@ device's own live state.
   state → corrected; `/scenario/{id}/state` recomputes → corrected. IR optimism remains inherent
   (no feedback), but the manual re-send is the single correction point and it propagates everywhere.
 
+### Scenario lifecycle (power zone) active-state — DECIDED (2026-05-24)
+The scenario page's lifecycle power zone (`power_on`→start, `power_off`→shutdown) **reflects
+running/stopped**. There is **one global active scenario** (`ScenarioManager.current_scenario`), so a
+scenario is "running" **iff it is the active one**. The UI reads `/scenario/state` (existing
+`useScenarioState`) → running iff `activeScenarioId === this scenario_id`; **live** via `/events/scenarios`
++ the SSE→cache fix. **No new backend** (no endpoint/field). Indication = state-aware coloring of the
+lifecycle buttons (running → "on" active; stopped → neutral), like device power / the eMotiva zone-2
+coloring. **Both buttons stay functional** — on a running scenario, "start" = **re-reconcile** (re-apply
+targets after manual device drift), "shutdown" = stop; on a stopped scenario, "start" switches from
+whatever else is active (reconciler switch path). Globally-exclusive ⇒ no per-room state to track.
+
 ### Manual instructions — DECIDED (2026-05-24)
 - **Baseline — Option B (rides the manifest; in the remote, scenarios-only):** add a **top-level
   `manualInstructions?: { startup: string[], shutdown: string[] }`** to the manifest. `build_scenario_manifest`
