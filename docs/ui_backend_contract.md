@@ -281,19 +281,47 @@ Verified 2026-05-23 against `openapi.json` (32 ops) × the UI client (`hooks/use
 to make a scenario render like a device. But the scenario page **also** has a *separate* runtime path
 today — the **Wirenboard virtual-device controls** (`GET /scenario/virtual_config/{id}` →
 `useScenarioVirtualDevice` → `<ScenarioVirtualDeviceControls>`), which expose the scenario's WB
-switch/pushbutton controls, not the A/V remote. The plan deletes the build-time
-`ScenarioVirtualDeviceResolver`/`Handler` but is silent on this **runtime** path. Step 3 must decide:
-**(a)** the scenario layout manifest subsumes the virtual-device controls (one page, `virtual_config`
-retired), or **(b)** they remain a distinct widget alongside the remote (endpoint + hook + component
-kept). Resolve before scenario rollout.
+switch/pushbutton controls, not the A/V remote. **RESOLVED (2026-05-24): (a)** — `<ScenarioVirtualDeviceControls>`
+is only a **fallback** in `App.tsx` (rendered when a scenario has *no* generated page). Once every
+scenario has a `/scenario/{id}/layout`, the fallback is unreachable, so the web-UI virtual controls +
+`/scenario/virtual_config` + `useScenarioVirtualDevice` are **retired** (at the Step-4 cutover). The
+scenario's WB virtual-device **publication** (MQTT/WB-UI, Layer R) is a separate concern — kept. See
+"Scenarios = composite remote" below.
 
-### Scenarios = devices (blocker resolved)
-A scenario's manifest comes from the **same** engine: reconciler-resolved roles + capability
-inheritance + topology give the composite control set; placement runs identically. The UI's
-build-time `ScenarioVirtualDeviceHandler` / `ScenarioVirtualDeviceResolver` + their stale taxonomy are
-**deleted**. One inheritance, one placement, one source of truth. *(Caveat: the **runtime** WB
-virtual-device controls — `/scenario/virtual_config/*` + `<ScenarioVirtualDeviceControls>` — are a
-separate concern; see the ⚠ open decision in the backend-call inventory above.)*
+### Scenarios = composite remote (reuses the renderer, NOT the device manifest builder)
+A scenario page is a **composite remote** built from the scenario **definition** (`roles` +
+`source`/`display`/`audio`) + each role-device's **capabilities** — the *same* `RemoteControlLayout`
+renderer, but a **different manifest builder**. Per `scenario_system_redesign.md` §6 (the authoritative
+spec — the old scenario `.gen.tsx` is **NOT** a fidelity oracle; those pages were buggy):
+- Controls = **role-bound momentary commands**, each tagged with **`sourceDeviceId`** and dispatched
+  there (volume/mute ← `audio`, playback/tracks ← `source`, menu/pointer/apps/screen ← explicit roles).
+- **Power zone = scenario lifecycle** (start/shutdown), not per-device power.
+- **No inputs control** — target inputs are reconciler-derived from topology at activation, not a UI
+  control. So the `inputs` role is **not rendered**.
+- The layout needs only the **def + capabilities**; the reconciler and topology are *activation*
+  concerns, not layout inputs.
+- The build-time `ScenarioVirtualDeviceHandler`/`Resolver` are **deleted**; the `/scenario/virtual_config`
+  + `<ScenarioVirtualDeviceControls>` web fallback (shown only when a scenario has no generated page) is
+  **retired** once every scenario has a `/scenario/{id}/layout`. *(The scenario's WB virtual-device
+  **publication** for MQTT/WB-UI is a separate Layer-R concern — kept, re-keyed at Step 4.)*
+
+### Scenario state binding — DECIDED (2026-05-24): one source of truth = `device.state`
+No divergent copies: the reconciler, the scenario aggregate, and the scenario UI all read each
+device's own live state.
+- **Reconciler** diffs against live `device.get_current_state()` — *already correct* (reconciler.py).
+- **Scenario UI controls** bind per-`sourceDeviceId` to that device's **live per-device state**
+  (Option B fan-out); the **lifecycle/power zone** binds to `ScenarioState` (`/scenario/{id}/state`).
+- **`ScenarioState.devices` becomes a live *view***: `get_scenario_state` must **recompute** it from
+  live `device.get_current_state()` for the active scenario (today it returns a frozen snapshot —
+  service.py:542 — which would drift after a manual device-page fix). **Backend fix required.**
+- **SSE → cache liveness fix**: wire `/events/devices` `state_change` → `setQueryData(['devices', id,
+  'state'])` (today it's received but dropped — Layout.tsx:74-80), and `/events/scenarios` → the
+  scenario-state cache. Makes per-device state live everywhere (today: mount + after-action only).
+- **Why this holds** (the real-life case): launch a scenario → an IR device's optimistic `device.state`
+  is wrong → open its device page (live), fix it (`power_on`/`set_input`) → `device.state` updated (the
+  one truth) → SSE pushes it to every page → back on the scenario page, controls read live per-device
+  state → corrected; `/scenario/{id}/state` recomputes → corrected. IR optimism remains inherent
+  (no feedback), but the manual re-send is the single correction point and it propagates everywhere.
 
 ### Icons & appliances
 - **Icons — DECIDED 2026-05-23: resolved UI-side.** The backend manifest carries *semantics*
