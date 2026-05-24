@@ -211,10 +211,14 @@ def _screen_content(device: Any, cap: Capability) -> ZoneContent:
 def _apps_dropdown(device: Any, cap: Capability) -> DropdownConfig:
     """apps domain -> appsDropdown (api-populated: launch action + list query)."""
     launch = cap.actions.get("launch")
+    # native param the selected app is sent under: param_map's native name for the canonical "app"
+    # key (LG {app: app_name} -> "app_name"), else "app" (AppleTV launch_app takes "app").
+    set_param = ((launch.param_map or {}).get("app") or "app") if launch else None
     return DropdownConfig(
         type="apps", population_method="api",
         api_action=cap.list.command if cap.list else None,
         set_action=launch.command if launch and launch.command else None,
+        set_param=set_param,
         options=[], loading=False, empty=True,
     )
 

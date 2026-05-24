@@ -328,9 +328,9 @@ export function useAppLaunching(deviceStructure: RemoteDeviceStructure) {
     [executeActionQuery.mutateAsync]
   );
 
-  const setAction = useMemo(() => {
+  const { setAction, setParam } = useMemo(() => {
     const dd = deviceStructure.remoteZones.find(zone => zone.zoneId === 'apps')?.content?.appsDropdown;
-    return dd?.setAction ?? null;
+    return { setAction: dd?.setAction ?? null, setParam: dd?.setParam ?? 'app_name' };
   }, [JSON.stringify(deviceStructure.remoteZones)]);
 
   const launchApp = useCallback(async (appId: string) => {
@@ -338,15 +338,15 @@ export function useAppLaunching(deviceStructure: RemoteDeviceStructure) {
 
     try {
       const { deviceId } = deviceStructure;
-      // TODO(Step 3): the value's native param name must ride the manifest (B5). AppleTV's
-      // launch_app takes `app`, LG's takes `app_name` — wire this when those devices migrate.
-      await executeAction({ deviceId, action: { action: setAction ?? 'launch_app', params: { app_name: appId } } });
+      // manifest-declared setAction + value under setParam (B5): LG launch_app/app_name,
+      // AppleTV launch_app/app.
+      await executeAction({ deviceId, action: { action: setAction ?? 'launch_app', params: { [setParam]: appId } } });
     } catch (err) {
       console.error('Failed to launch app:', err);
       setSelectedApp('');
       throw err;
     }
-  }, [deviceStructure.deviceId, setAction, executeAction]);
+  }, [deviceStructure.deviceId, setAction, setParam, executeAction]);
 
   return { selectedApp, launchApp, setSelectedApp };
 }

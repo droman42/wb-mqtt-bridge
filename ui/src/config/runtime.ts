@@ -61,11 +61,15 @@ export const getSSEUrl = (path: string): string => {
 // GET /devices/{id}/layout instead of the build-time .gen.tsx. Comma-separated
 // allowlist; "*" enables all. Override via VITE_RUNTIME_LAYOUT_DEVICES (build) or
 // window.RUNTIME_CONFIG.RUNTIME_LAYOUT_DEVICES (deploy); "" or "none" disables it.
-// Step 3 rollout. Easy WirenboardIR devices (commands/buttons): mf_amplifier (pilot), ld_player,
-// video, vhs_player, upscaler. Plus eMotiva (`processor`) — the first api/slider device, enabled
-// after its fixed-params flow + api-select param (B5) + slider valueField (U2) landed. LG/AppleTV
-// follow once their api-select param + (LG/Auralic) slider value-param are wired.
-const RUNTIME_LAYOUT_DEFAULT = ['mf_amplifier', 'ld_player', 'video', 'vhs_player', 'upscaler', 'processor'];
+// Step 3 rollout (device_ids, not config file names). WirenboardIR (commands/buttons): mf_amplifier,
+// ld_player, video, vhs_player, upscaler; Revox reel_to_reel (playback-only). eMotiva (`processor`)
+// + LG (`living_room_tv`, `children_room_tv`) + AppleTV (`appletv_living`, `appletv_children`) —
+// api/slider devices, enabled after the fixed-params flow + api-select param (B5, incl. apps) + slider
+// valueField (U2). Auralic (`streamer`) follows once the slider value-param generalization lands.
+const RUNTIME_LAYOUT_DEFAULT = [
+  'mf_amplifier', 'ld_player', 'video', 'vhs_player', 'upscaler', 'reel_to_reel',
+  'processor', 'living_room_tv', 'children_room_tv', 'appletv_living', 'appletv_children',
+];
 const parseLayoutDevices = (raw: string | undefined): Set<string> => {
   if (raw === undefined) return new Set(RUNTIME_LAYOUT_DEFAULT);
   const v = raw.trim();
