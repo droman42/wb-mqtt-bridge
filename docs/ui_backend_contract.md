@@ -382,11 +382,26 @@ each device migrates + is hardware-tested):
   empty/no-fetch, Navigation correctly empty), matching the build-time page; backend 306 +
   `npm run check` green. **Step 2 is functionally complete for mf_amplifier** (real-world proof at the
   next UI deploy, since the flag defaults to mf_amplifier).
-- **Moved to Step 3** (per-device, on migration): **B5** api-select value-param name on the
-  `DropdownConfig` (LG `set_input_source`→`source`, AppleTV `launch_app`→`app`; the old hardcodes
-  were buggy — flagged TODO in `useRemoteControlData.ts`); **U2** eMotiva slider `valueField` +
-  drop `deviceClass==='EMotivaXMC2'`; **B2/U3** full `specialCases` removal (model + type + 8
-  handlers) + oracle-test retirement.
+### Step-3 rollout (runtime renderer per device)
+- **Easy WirenboardIR set DONE** (`1ebd5d8`): ld_player, video, vhs_player, upscaler (commands/buttons,
+  no api dropdowns) — render-validated.
+- **eMotiva DONE** (`6a2e95f`) — the first api/slider device. Surfaced + fixed a **latent
+  param-passing bug** (the renderer sent the param *spec array* as the payload, not values). Landed:
+  - **Fixed-params flow** (new): `ProcessedAction.params` carries the capability action's fixed native
+    params (zone:1 power, zone:2 volume/mute); the engine threads them; the renderer sends
+    `action.params` (buttons) + `{ level, ...params }` (slider). This is what made `action.parameters`
+    (specs) stop being mis-sent.
+  - **B5 DONE**: `DropdownConfig.setParam` (native value param from `param_map`: eMotiva `input`, LG
+    `source`); `selectInput` sends `{ [setParam]: value }`.
+  - **U2 DONE**: slider reads `deviceState[valueField]` (eMotiva `zone2_volume`); `deviceClass==='EMotivaXMC2'`
+    deleted.
+  - Validated end-to-end (Playwright/mock): power→{zone:1}/{}/{zone:1}, inputs populate + select→
+    `set_input {input:hdmi2}`, dB slider renders.
+- **Remaining**: LG ×2 + AppleTV ×2 (need the **apps `setParam`** generalization — apps domain),
+  Auralic/streamer (the **slider value-param** generalization — native `volume` not `level`),
+  reel_to_reel (easy, playback-only), kitchen_hood (appliance, deferred). Then scenarios.
+- **Deferred to Step 4 cutover**: **B2/U3** full `specialCases` removal (model + UI type + 8 handlers)
+  + oracle-test retirement; delete the build-time codegen; retire groups (§17.4).
 
 ## Related
 - `docs/scenarios/scenario_system_redesign.md` — the scenario redesign; this manifest is its Layer 3.
