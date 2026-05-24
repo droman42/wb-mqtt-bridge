@@ -2678,6 +2678,8 @@ export interface components {
             showValue: boolean;
             /** Valuefield */
             valueField?: string | null;
+            /** Valueparam */
+            valueParam?: string | null;
             /** Zone */
             zone?: number | null;
         };

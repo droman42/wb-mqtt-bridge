@@ -121,6 +121,9 @@ class VolumeSliderConfig(_Camel):
     # serialized device-state field holding the current level (e.g. "zone2_volume"); the UI reads
     # deviceState[valueField] instead of branching on deviceClass (Step-2 hardening).
     value_field: Optional[str] = None
+    # native param the level value is sent under (from the set action's param_map: Auralic
+    # {level: volume} -> "volume"), else "level". The analogue of DropdownConfig.set_param.
+    value_param: Optional[str] = None
 
 
 class VolumeButtonConfig(_Camel):

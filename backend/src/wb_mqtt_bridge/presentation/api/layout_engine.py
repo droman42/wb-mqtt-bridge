@@ -140,6 +140,7 @@ def _volume_content(device: Any, cap: Capability) -> ZoneContent:
             action=_action(device, acts["set"].command, acts["set"].params), mute_action=mute,
             orientation="vertical", show_value=True,
             value_field=cap.state_field,  # serialized state field for the current level (UI value binding)
+            value_param=(acts["set"].param_map or {}).get("level") or "level",  # native param the level is sent under
         ))
     up = _action(device, acts["up"].command, acts["up"].params) if "up" in acts and acts["up"].command else None
     down = _action(device, acts["down"].command, acts["down"].params) if "down" in acts and acts["down"].command else None

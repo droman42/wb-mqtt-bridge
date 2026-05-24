@@ -484,8 +484,9 @@ const VolumeZone = ({ zone, deviceStructure, onAction, className, isActionPendin
     if (volumeSlider?.action) {
       // Use sourceDeviceId if available (for inherited actions), otherwise use scenario device
       const targetDeviceId = volumeSlider.action.sourceDeviceId || deviceStructure.deviceId;
-      // send the level value + the action's fixed params (e.g. eMotiva { zone: 2 })
-      onAction(volumeSlider.action.actionName, { level: newVolume, ...(volumeSlider.action.params || {}) }, targetDeviceId);
+      // send the level under the manifest-declared native param (Auralic 'volume', else 'level')
+      // + the action's fixed params (e.g. eMotiva { zone: 2 })
+      onAction(volumeSlider.action.actionName, { [volumeSlider.valueParam ?? 'level']: newVolume, ...(volumeSlider.action.params || {}) }, targetDeviceId);
     }
   };
 

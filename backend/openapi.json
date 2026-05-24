@@ -3410,6 +3410,17 @@
             ],
             "title": "Valuefield"
           },
+          "valueParam": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valueparam"
+          },
           "zone": {
             "anyOf": [
               {

@@ -83,6 +83,7 @@ export interface VolumeSliderConfig {
   showValue: boolean;
   zone?: number;
   valueField?: string; // serialized device-state field holding the current level (e.g. 'zone2_volume') — Layer 3
+  valueParam?: string; // native param the level value is sent under (e.g. 'volume' for Auralic, else 'level') — Layer 3
 }
 
 export interface VolumeButtonConfig {
