@@ -1,8 +1,8 @@
 // Layer 3: renders a scenario page at RUNTIME from GET /scenario/{id}/layout via the generic
 // RemoteControlLayout — a composite remote whose controls route to their role device (sourceDeviceId),
 // with the power zone driving the scenario lifecycle (start/shutdown). The only scenario-page path
-// (App.tsx routes every scenario here); on fetch failure it still falls back to the build-time
-// generated scenario page (removed at the Step-4 cutover, A2).
+// (App.tsx routes every scenario here); on a manifest fetch failure it shows an error (the build-time
+// .gen fallback was removed at A2).
 import { useEffect, useMemo } from 'react';
 import { useLogStore } from '../stores/useLogStore';
 import { useExecuteDeviceAction, useScenarioLayout, useScenarioState, useStartScenario, useShutdownScenario } from '../hooks/useApi';
@@ -10,7 +10,6 @@ import { useSettingsStore } from '../stores/useSettingsStore';
 import { useRoomStore } from '../stores/useRoomStore';
 import { RemoteControlLayout } from './RemoteControlLayout';
 import { manifestToDeviceStructure } from '../lib/layoutManifestAdapter';
-import { getScenarioComponent } from '../pages/scenarios/index.gen';
 
 export function RuntimeScenarioPage({ scenarioId }: { scenarioId: string }) {
   const { addLog } = useLogStore();
@@ -71,9 +70,6 @@ export function RuntimeScenarioPage({ scenarioId }: { scenarioId: string }) {
   }
 
   if (isError || !deviceStructure) {
-    // Graceful fallback to the build-time scenario page so a manifest failure never breaks it.
-    const Fallback = getScenarioComponent(scenarioId);
-    if (Fallback) return <Fallback />;
     return (
       <div className="p-6 text-center">
         <h1 className="text-2xl font-bold mb-4">Layout unavailable</h1>

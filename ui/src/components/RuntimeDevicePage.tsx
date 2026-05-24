@@ -1,6 +1,6 @@
 // Layer 3: renders a device page at RUNTIME from GET /devices/{id}/layout via the generic
-// RemoteControlLayout — the only device-page path (App.tsx routes every device here). On fetch
-// failure it still falls back to the build-time .gen.tsx page (removed at the Step-4 cutover, A2).
+// RemoteControlLayout — the only device-page path (App.tsx routes every A/V device here). On a
+// manifest fetch failure it shows an error (the build-time .gen fallback was removed at A2).
 import { useEffect, useMemo } from 'react';
 import { useLogStore } from '../stores/useLogStore';
 import { useExecuteDeviceAction, useDeviceLayout } from '../hooks/useApi';
@@ -8,7 +8,6 @@ import { useSettingsStore } from '../stores/useSettingsStore';
 import { useRoomStore } from '../stores/useRoomStore';
 import { RemoteControlLayout } from './RemoteControlLayout';
 import { manifestToDeviceStructure } from '../lib/layoutManifestAdapter';
-import { getDeviceComponent } from '../pages/devices/index.gen';
 
 export function RuntimeDevicePage({ deviceId }: { deviceId: string }) {
   const { addLog } = useLogStore();
@@ -42,9 +41,6 @@ export function RuntimeDevicePage({ deviceId }: { deviceId: string }) {
   }
 
   if (isError || !deviceStructure) {
-    // Graceful fallback to the build-time page so a manifest failure never breaks the device.
-    const Fallback = getDeviceComponent(deviceId);
-    if (Fallback) return <Fallback />;
     return (
       <div className="p-6 text-center">
         <h1 className="text-2xl font-bold mb-4">Layout unavailable</h1>

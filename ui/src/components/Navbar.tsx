@@ -4,7 +4,6 @@ import { Icon } from './icons';
 import { useRoomStore } from '../stores/useRoomStore';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import { Button } from './ui/button';
-import { getDeviceRoute } from '../pages/devices/index.gen';
 
 function Navbar() {
   const navigate = useNavigate();
@@ -52,29 +51,14 @@ function Navbar() {
   const handleDeviceSelect = (deviceId: string) => {
     selectDevice(deviceId);
     setDropdownOpen(null);
-    
-    // Navigate using generated device route
-    const deviceRoute = getDeviceRoute(deviceId);
-    if (deviceRoute) {
-      navigate(deviceRoute);
-    } else {
-      // Fallback to standard route if not in registry
-      navigate(`/device/${deviceId}`);
-    }
+    navigate(`/devices/${deviceId}`);
   };
 
   const handleApplianceSelect = (applianceId: string) => {
     selectAppliance(applianceId);
     setDropdownOpen(null);
-    
-    // Navigate using generated device route for appliances too
-    const applianceRoute = getDeviceRoute(applianceId);
-    if (applianceRoute) {
-      navigate(applianceRoute);
-    } else {
-      // Fallback to standard route if not in registry
-      navigate(`/device/${applianceId}`);
-    }
+    // Appliances use the same /devices/:deviceId route; App.tsx routes them to their bespoke page.
+    navigate(`/devices/${applianceId}`);
   };
 
   const handleScenarioSelect = (scenarioId: string) => {
