@@ -722,12 +722,18 @@ group/capability gate), so a command is HTTP-actionable even when hidden from UI
 - **Sequence sub-commands** (native commands used only inside a capability `sequence`/macro): mark
   `exposed: false` — the sequence still invokes them internally.
 
-### 17.3 Capability-coverage targets (Step 0 precondition for retiring groups)
-Retiring `group` requires ~100% capability coverage of in-scope commands. Gaps today:
-- **Un-mapped in-scope A/V devices:** `streamer` (Auralic), `reel_to_reel` (Revox) — need maps.
-- **Orphans:** `screensaver`, `home_hold`, `track_info` → `exposed: false`.
-- **Deferred:** `kitchen_hood` (the ONLY `device_category=appliance`; Roborock will be the 2nd) —
-  appliance bespoke pages are out of Layer-3-v1 scope, so its coverage can wait.
+### 17.3 Capability-coverage targets (precondition for retiring groups) — ✅ MET (2026-05-23/24)
+Retiring `group` required ~100% capability coverage of in-scope commands. **All gaps now closed:**
+- ~~Un-mapped A/V devices `streamer` (Auralic), `reel_to_reel` (Revox)~~ → **mapped** in Step 0
+  (`AuralicDevice.json`, `RevoxA77ReelToReel.json`).
+- Orphans `screensaver`, `home_hold`, `track_info`, `refresh_*` → tagged **`exposed: false`**.
+- The load-time drift guard (`tests/unit/test_command_exposure.py`) is **green — 0 violations**: every
+  in-scope command is `exposed:false` OR backed by an exposed capability `domain.action`.
+- **Deferred (out of scope, OK):** `kitchen_hood` (the ONLY `device_category=appliance`; Roborock 2nd)
+  — appliance bespoke pages are out of Layer-3-v1.
+
+So **coverage no longer gates** groups-retirement; the remaining gates are purely the Layer-3
+**rollout (Step 3)** + **cutover (Step 4)** — see 17.4.
 
 ### 17.4 Sequencing
 1. **Layer 3:** derive zones from **domains**; keep `group` as the fallback for un-mapped commands.
