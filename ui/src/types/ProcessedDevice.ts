@@ -65,13 +65,4 @@ export interface ActionHandler {
   dependencies: string[];
 }
 
-export type ComponentType = 'ButtonGrid' | 'NavCluster' | 'SliderControl' | 'PointerPad';
-
-/**
- * Device Class Handler Interface
- * All handlers return RemoteDeviceStructure directly
- */
-export interface DeviceClassHandler {
-  deviceClass: string;
-  analyzeStructure(config: import('./DeviceConfig').DeviceConfig, groups: import('./DeviceConfig').DeviceGroups): import('./RemoteControlLayout').RemoteDeviceStructure;
-} 
+export type ComponentType = 'ButtonGrid' | 'NavCluster' | 'SliderControl' | 'PointerPad'; 

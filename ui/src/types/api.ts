@@ -135,33 +135,6 @@ export interface ScenarioVirtualConfigsResponse {
   [scenario_id: string]: ScenarioVirtualConfigResponse;
 }
 
-// Group Related Types
-export interface Group {
-  id: string;
-  name: string;
-}
-
-export interface ActionGroup {
-  group_id: string;
-  group_name: string;
-  actions: Array<{ [key: string]: any }>;
-  status?: string;
-}
-
-export interface GroupActionsResponse {
-  device_id: string;
-  group_id: string;
-  group_name?: string | null;
-  status: string;
-  message?: string | null;
-  actions: Array<{ [key: string]: any }>;
-}
-
-export interface GroupedActionsResponse {
-  device_id: string;
-  groups: Array<ActionGroup>;
-  default_included?: boolean;
-}
 
 // MQTT Related Types
 export interface MQTTMessage {
@@ -213,7 +186,6 @@ export interface SystemConfig {
   log_file: string;
   loggers?: { [key: string]: string } | null;
   devices?: { [key: string]: { [key: string]: any } | null } | null;
-  groups?: { [key: string]: string };
   persistence?: PersistenceConfig;
   device_directory?: string;
 }
@@ -262,7 +234,6 @@ export interface BaseCommandConfig {
   action?: string | null;
   topic?: string | null;
   description?: string | null;
-  group?: string | null;
   params?: CommandParameterDefinition[] | null;
 }
 

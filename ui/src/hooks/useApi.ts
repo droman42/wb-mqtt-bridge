@@ -284,8 +284,6 @@ export const queryKeys = {
     state: (deviceId: string) => ['devices', deviceId, 'state'] as const,
     persistedState: (deviceId: string) => ['devices', deviceId, 'persisted'] as const,
     persistedStates: ['devices', 'persisted'] as const,
-    groups: (deviceId: string) => ['devices', deviceId, 'groups'] as const,
-    groupActions: (deviceId: string, groupId: string) => ['devices', deviceId, 'groups', groupId, 'actions'] as const,
   },
   rooms: {
     all: ['rooms'] as const,
@@ -296,11 +294,5 @@ export const queryKeys = {
     detail: (scenarioId: string) => ['scenarios', 'definition', scenarioId] as const,
     state: ['scenario', 'state'] as const,
     specificState: (scenarioId: string) => ['scenarios', 'state', scenarioId] as const,
-    virtualConfig: (scenarioId: string) => ['scenarios', 'virtual-config', scenarioId] as const,
-    virtualConfigs: ['scenarios', 'virtual-configs'] as const,
-    wbConfig: (scenarioId: string) => ['scenarios', 'wb-config', scenarioId] as const,
-  },
-  groups: {
-    all: ['groups'] as const,
   },
 }; 
