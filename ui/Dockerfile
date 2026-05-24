@@ -24,20 +24,8 @@ COPY ui/ ./
 ENV VITE_API_BASE_URL=""
 ENV VITE_SSE_BASE_URL=""
 
-# Verify all paths are accessible
-RUN echo "Verifying config structure:" && \
-    ls -la backend/config/devices/ && \
-    ls -la backend/ && \
-    echo "Found $(ls backend/config/devices/*.json | wc -l) device configs"
-
-# Generate device pages using package-based imports
-RUN npm run gen:device-pages -- \
-    --batch \
-    --mode=package \
-    --mapping-file=backend/config/device-state-mapping.json \
-    --generate-router
-
-# Validate TypeScript compilation
+# Validate TypeScript compilation. The API types (src/types/api.gen.ts) are committed and Layer 3
+# removed the build-time page generator, so the UI build no longer runs codegen or reads backend/.
 RUN npm run typecheck:all
 
 # Build static assets

@@ -9,21 +9,10 @@ module.exports = {
     // require parserOptions.project below; this is what catches the bugs `tsc` + plain lint miss.
     'plugin:@typescript-eslint/recommended-type-checked',
   ],
-  // Lint scope = shipped app code (mirrors tsconfig.json's typecheck scope). Excluded:
-  //  - 'wb-mqtt-bridge': the sibling backend repo in the build context (configs + openapi.json).
-  //  - '*.gen.tsx': generated device/scenario pages — no tsconfig project, built fresh in CI,
-  //    retired by Layer 3 (type-aware lint would error "not in a project").
-  //  - the build-time codegen tooling (src/scripts, src/lib/{validation,generators,deviceHandlers,
-  //    integration} + the individual lib utilities): not shipped, still covered by `typecheck:scripts`,
-  //    and deleted at Layer 3 Step 4 — not worth tightening dead code.
-  ignorePatterns: [
-    'dist', '.eslintrc.cjs', 'wb-mqtt-bridge', 'src/**/*.gen.tsx',
-    'src/scripts/**', 'src/lib/validation/**', 'src/lib/generators/**',
-    'src/lib/deviceHandlers/**', 'src/lib/integration/**',
-    'src/lib/BatchProcessor.ts', 'src/lib/DataValidator.ts', 'src/lib/DeviceConfigurationClient.ts',
-    'src/lib/DocumentationGenerator.ts', 'src/lib/ErrorHandler.ts', 'src/lib/PerformanceMonitor.ts',
-    'src/lib/StateTypeGenerator.ts',
-  ],
+  // Lint scope = shipped app code. Excluded: 'wb-mqtt-bridge' (the sibling backend repo in the build
+  // context — configs + openapi.json). The build-time codegen tooling that used to be excluded here
+  // was deleted at the Layer-3 Step-4 cutover (A3).
+  ignorePatterns: ['dist', '.eslintrc.cjs', 'wb-mqtt-bridge'],
   parser: '@typescript-eslint/parser',
   parserOptions: {
     // every linted file must belong to one of these projects for type-aware rules to resolve.

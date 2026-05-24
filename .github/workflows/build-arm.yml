@@ -37,7 +37,7 @@ jobs:
         run: pytest -v -m "not requires_device" --tb=short
 
   ui-validate:
-    name: UI validate (codegen + typecheck + lint)
+    name: UI validate (typecheck + lint)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -50,25 +50,10 @@ jobs:
         working-directory: ui
         run: npm ci
       - name: Verify backend contract present
-        run: |
-          ls -la backend/config/devices/
-          ls -la backend/openapi.json
-          echo "device configs: $(ls backend/config/devices/*.json | wc -l)"
-      - name: Generate device + scenario pages (from ../backend)
+        run: ls -la backend/openapi.json
+      - name: Check (typecheck + lint)
         working-directory: ui
-        run: npm run gen:device-pages -- --batch --mode=local --mapping-file=../backend/config/device-state-mapping.json --generate-router
-      - name: Typecheck
-        working-directory: ui
-        run: npm run typecheck:all
-      - name: Lint
-        working-directory: ui
-        run: npm run lint
-      - name: Validate generated code
-        working-directory: ui
-        run: npm run validate:generated-code
-      - name: Validate generated components
-        working-directory: ui
-        run: npm run validate:components
+        run: npm run check
 
   # ----------------------- gated ARM image builds (slow; manual or [build]) ---
   backend-build-arm:

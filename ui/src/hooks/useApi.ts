@@ -13,8 +13,6 @@ import type {
   ScenarioDefinition,
   ScenarioState,
   ScenarioResponse,
-  ScenarioVirtualConfigResponse,
-  ScenarioVirtualConfigsResponse,
   Group,
   GroupedActionsResponse,
   GroupActionsResponse,
@@ -265,32 +263,6 @@ export const useShutdownScenario = () => {
       void queryClient.invalidateQueries({ queryKey: ['scenario', 'state'] });
       void queryClient.invalidateQueries({ queryKey: ['devices'] });
     },
-  });
-};
-
-// Phase 2: Scenario Virtual Device Configuration hooks
-export const useScenarioVirtualConfig = (scenarioId: string) => {
-  return useQuery({
-    queryKey: ['scenarios', 'virtual-config', scenarioId],
-    queryFn: () => api.get<ScenarioVirtualConfigResponse>(`/scenario/virtual_config/${scenarioId}`).then(res => res.data),
-    enabled: !!scenarioId,
-  });
-};
-
-export const useScenarioVirtualConfigs = () => {
-  return useQuery({
-    queryKey: ['scenarios', 'virtual-configs'],
-    queryFn: () => api.get<ScenarioVirtualConfigsResponse>('/scenario/virtual_configs').then(res => res.data),
-  });
-};
-
-export const useScenarioWBConfig = (scenarioId: string) => {
-  return useQuery({
-    queryKey: ['scenarios', 'wb-config', scenarioId],
-    queryFn: () => 
-      api.get<ScenarioVirtualConfigResponse>(`/scenario/virtual_config/${scenarioId}`)
-        .then(res => res.data.config),
-    enabled: !!scenarioId,
   });
 };
 

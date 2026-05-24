@@ -29,21 +29,8 @@
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": [
-    "node_modules", 
-    "dist", 
-    "**/*.d.ts", 
-    "src/**/*.gen.tsx",
-    "src/scripts/**/*",
-    "src/lib/validation/**/*",
-    "src/lib/BatchProcessor.ts",
-    "src/lib/DataValidator.ts",
-    "src/lib/DeviceConfigurationClient.ts",
-    "src/lib/DocumentationGenerator.ts",
-    "src/lib/ErrorHandler.ts",
-    "src/lib/PerformanceMonitor.ts",
-    "src/lib/StateTypeGenerator.ts",
-    "src/lib/deviceHandlers/**/*",
-    "src/lib/generators/**/*",
-    "src/lib/integration/**/*"
+    "node_modules",
+    "dist",
+    "**/*.d.ts"
   ]
 } 

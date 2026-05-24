@@ -5,8 +5,6 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "gen:pages": "npx tsx src/scripts/generate-device-pages.ts --batch",
-    "gen:device-pages": "npx tsx src/scripts/generate-device-pages.ts",
     "gen:api-types": "openapi-typescript ${OPENAPI_SCHEMA:-../backend/openapi.json} -o src/types/api.gen.ts",
     "preview": "vite preview",
     "test": "jest",
@@ -14,14 +12,8 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --ext ts,tsx --fix",
     "typecheck": "tsc --noEmit",
-    "typecheck:scripts": "tsc --noEmit --project tsconfig.scripts.json",
-    "typecheck:all": "npm run typecheck && npm run typecheck:scripts",
-    "check": "npm run gen:device-pages -- --batch --mode=local --mapping-file=../backend/config/device-state-mapping.json --generate-router && npm run typecheck:all && npm run lint && npm run validate:generated-code && npm run validate:components",
-    "validate:generated-code": "npx tsx src/scripts/generate-device-pages.ts --validate-code",
-    "validate:components": "npx tsx src/scripts/generate-device-pages.ts --validate-components",
-    "validate:all": "npx tsx src/scripts/generate-device-pages.ts --run-validation",
-    "gen:full-system": "npx tsx src/scripts/generate-device-pages.ts --batch --full-system",
-    "test:phase3-validation": "npx tsx src/scripts/test-phase3-validation.ts",
+    "typecheck:all": "npm run typecheck",
+    "check": "npm run typecheck:all && npm run lint",
     "gen:favicon": "node scripts/generate-favicon.js"
   },
   "dependencies": {
