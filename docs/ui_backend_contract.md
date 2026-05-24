@@ -585,10 +585,15 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
     `kitchen_hood` appliance). **A clean scenario↔WB replacement is now MANDATORY** (action_plan P4 #7);
     there is currently no scenario representation on Wirenboard at all.
   - **WB re-key — step 4 remaining (full `group` field purge):** drop `group` from the config model +
-    182 command entries + the `system.json` `groups` map. **Now also gated on the `kitchen_hood`
-    appliance** — it's the last device relying on the group-based WB fallback (no capability map), so
-    step 4 needs the hood given a capability map (or its WB fallback re-keyed) first. `gestures` is
-    moot. Mechanical once unblocked; verify via the golden snapshot + hardware.
+    182 command entries + the `system.json` `groups` map, and remove the now-dead `hasattr`-guarded
+    group branch in `service.py:build_wb_controls_from_config`. **`kitchen_hood` is NOT a blocker**
+    (correction): the appliance has `group=None` and an explicit `wb_controls` block that defines its
+    WB output directly (so it never reads group/capabilities), and appliances are exempt from
+    capability validation. After steps 1-3, `group` is effectively dead at runtime — the only reader
+    is that one `hasattr`-guarded fallback line and `system.json` `groups` is read nowhere. So step 4
+    is mechanical + behaviour-neutral (golden snapshot verifies). **The real gate is the step-1
+    HARDWARE PASS** — keep `group` as revert-insurance until the domain-based WB output is confirmed
+    on real hardware (removing it makes reverting step 1 hard). `gestures` is moot.
   - **NOT remaining:** the `execute_action` **exposure gate is already implemented + active**
     (`infrastructure/devices/base.py` — rejects `exposed:false` from external sources, allows
     scenario/system/cli) and coverage is MET (redesign §17.3). Nothing to "flip."
