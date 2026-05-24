@@ -577,11 +577,18 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
     (`base._action_groups`/`_build_action_groups_index`/`get_available_groups`/`get_actions_by_group`,
     `config_manager._groups`/`get_groups`/`is_valid_group`); zero consumers after the `/groups`
     deletion. base.py no longer reads `cmd.group`. backend 320.
-  - **WB re-key — remaining (steps 3–4, full `group` removal):** (3) re-key/retire `ScenarioWBConfig`'s group use + the
-    scenario-path group fallback (tied to the **deferred scenario↔WB design**); (4) purge the `group`
-    field from the config model + 182 command entries + the `system.json` `groups` map (mechanical;
-    only after 2–3). `gestures` is moot (no command uses it). Each step verified by the golden
-    snapshot; the live-MQTT ones need the hardware pass.
+  - ✅ **WB re-key — step 3 DONE (`f519605`)** — DELETED the dormant scenario↔WB path
+    (`ScenarioWBAdapter`, `ScenarioWBConfig`, `setup_wb_emulation_for_all_scenarios` + the MQTT-sub
+    setup, bootstrap/router wiring), removing the last scenario-side `group` reader. It was dead
+    (no caller, no tests; the `/scenario/virtual_config` consumer was already retired). The WB-service
+    `group` **fallback is KEPT** — it serves capability-less devices that still enable WB (the
+    `kitchen_hood` appliance). **A clean scenario↔WB replacement is now MANDATORY** (action_plan P4 #7);
+    there is currently no scenario representation on Wirenboard at all.
+  - **WB re-key — step 4 remaining (full `group` field purge):** drop `group` from the config model +
+    182 command entries + the `system.json` `groups` map. **Now also gated on the `kitchen_hood`
+    appliance** — it's the last device relying on the group-based WB fallback (no capability map), so
+    step 4 needs the hood given a capability map (or its WB fallback re-keyed) first. `gestures` is
+    moot. Mechanical once unblocked; verify via the golden snapshot + hardware.
   - **NOT remaining:** the `execute_action` **exposure gate is already implemented + active**
     (`infrastructure/devices/base.py` — rejects `exposed:false` from external sources, allows
     scenario/system/cli) and coverage is MET (redesign §17.3). Nothing to "flip."

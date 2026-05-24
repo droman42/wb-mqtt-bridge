@@ -291,14 +291,16 @@ code/models/config behind — budget real time for this; do not skip it.
      (mark `available=0`) into bootstrap shutdown. (Deferred companion to the empty-retained-value
      fix, 2026-05-22.)
 
-7. **Scenario ↔ Wirenboard integration (DESIGN DISCUSSION — decide before re-enabling).** As of
-   2026-05-22, publishing each scenario as its own WB virtual device (`type=scenario`,
-   `/devices/movie_*`) is **disabled** (bootstrap no longer calls
-   `setup_wb_emulation_for_all_scenarios`; the 4 retained scenario WB devices were cleared from the
-   broker). The previous model is under review — it clutters the WB device list, conflates a
-   "scenario" with a "device," and its control semantics (a control per scenario? activate/
-   deactivate?) were never clearly defined. **Decide how scenarios should integrate with
-   Wirenboard**, considering at least:
+7. **Scenario ↔ Wirenboard integration (MANDATORY DESIGN DISCUSSION → clean rebuild).** **UPDATE
+   2026-05-24 (Layer-3 WB re-key step 3, `f519605`): the old per-scenario WB virtual-device
+   implementation has been DELETED** — `ScenarioWBAdapter`, `ScenarioWBConfig`,
+   `setup_wb_emulation_for_all_scenarios` + the scenario MQTT-subscription setup, and the bootstrap/
+   router wiring are gone. It was dormant (publishing disabled since 2026-05-22, no caller, no tests)
+   and held the last scenario-side `group` reader. Per the user: the old implementation was disliked/
+   orphaned, so it's removed and **a clean replacement is now MANDATORY before any scenario↔WB
+   feature** — there is currently **NO** scenario representation on Wirenboard at all. Re-decide from
+   scratch (the previous model clutters the WB device list and conflates "scenario" with "device";
+   its control semantics were never clearly defined), considering at least:
    - **(a) No WB representation** — scenarios live only in the bridge API + the (future Layer 3) UI;
      Wirenboard sees only the underlying devices.
    - **(b) A single "Scenario Manager" WB device** — one virtual device with an enum/selector
