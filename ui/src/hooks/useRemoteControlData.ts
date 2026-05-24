@@ -6,12 +6,11 @@ import type { DropdownOption, RemoteDeviceStructure } from '../types/RemoteContr
 // ESLint warnings are disabled where the patterns are intentionally used and verified to work correctly.
 /* eslint-disable react-hooks/exhaustive-deps */
 
-// Layer-3 static-vs-fetch is decided by the manifest's `populationMethod` (NOT a hardcoded
-// deviceClass / specialCases back-channel — Step-2 hardening):
+// Layer-3 static-vs-fetch is decided by the manifest's `populationMethod` (the renderer is
+// class-agnostic — no deviceClass branching):
 //   "commands" -> options are inline in the manifest; selecting executes `option.id` directly.
-//   "api"      -> fetch the list at runtime via the dropdown's `apiAction`; select via `setAction`.
-// TODO(Step 3): the api-select *value param name* must ride the manifest (B5). Until LG/AppleTV are
-// migrated + hardware-tested, the api branch keeps the legacy param key (`input` / `app_name`).
+//   "api"      -> fetch the list at runtime via the dropdown's `apiAction`; select via the manifest's
+//                 `setAction`, sending the value under the manifest's `setParam`.
 
 interface UseInputsDataResult {
   inputs: DropdownOption[];

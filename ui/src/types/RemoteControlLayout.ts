@@ -134,14 +134,7 @@ export interface RemoteDeviceStructure {
   remoteZones: RemoteZone[];
   stateInterface: import('./ProcessedDevice').StateDefinition;
   actionHandlers: import('./ProcessedDevice').ActionHandler[];
-  specialCases?: DeviceSpecialCase[];
   manualInstructions?: ManualInstructions; // scenario-only: static notes rendered at the remote bottom
-}
-
-export interface DeviceSpecialCase {
-  deviceClass: string;
-  caseType: 'emotiva-xmc2-power' | 'wirenboard-ir-commands' | 'lg-tv-inputs-apps' | 'appletv-streaming' | 'kitchen-hood-controls' | 'auralic-streaming' | 'revox-tape-deck';
-  configuration: Record<string, any>;
 }
 
 // Zone detection configuration
