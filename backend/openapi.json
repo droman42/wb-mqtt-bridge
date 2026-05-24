@@ -472,18 +472,6 @@
             "title": "Exposed",
             "type": "boolean"
           },
-          "group": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Functional group this command belongs to",
-            "title": "Group"
-          },
           "params": {
             "anyOf": [
               {
@@ -2716,13 +2704,6 @@
               }
             ],
             "title": "Devices"
-          },
-          "groups": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Groups",
-            "type": "object"
           },
           "log_file": {
             "title": "Log File",

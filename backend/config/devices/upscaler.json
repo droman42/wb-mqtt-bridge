@@ -9,98 +9,84 @@
       "action": "power_on",
       "location": "wb-msw-v3_207",
       "rom_position": "57",
-      "group": "power",
       "description": "Power On"
     },
     "power_off": {
       "action": "power_off",
       "location": "wb-msw-v3_207",
       "rom_position": "58",
-      "group": "power",
       "description": "Power Off"
     },
     "input_video": {
       "action": "input_video",
       "location": "wb-msw-v3_207",
       "rom_position": "59",
-      "group": "inputs",
       "description": "Input Video"
     },
     "input_s_vhs": {
       "action": "input_s_vhs",
       "location": "wb-msw-v3_207",
       "rom_position": "60",
-      "group": "inputs",
       "description": "Input S-VHS"
     },
     "ratio_4_3": {
       "action": "ratio_4_3",
       "location": "wb-msw-v3_207",
       "rom_position": "61",
-      "group": "screen",
       "description": "Ratio 4:3"
     },
     "ratio_16_9": {
       "action": "ratio_16_9",
       "location": "wb-msw-v3_218",
       "rom_position": "8",
-      "group": "screen",
       "description": "Ratio 16:9"
     },
     "letterbox": {
       "action": "letterbox",
       "location": "wb-msw-v3_218",
       "rom_position": "9",
-      "group": "screen",
       "description": "Letterbox"
     },
     "menu": {
       "action": "menu",
       "location": "wb-msw-v3_218",
       "rom_position": "10",
-      "group": "menu",
       "description": "Menu"
     },
     "menu_exit": {
       "action": "menu_exit",
       "location": "wb-msw-v3_218",
       "rom_position": "11",
-      "group": "menu",
       "description": "Menu Exit"
     },
     "menu_up": {
       "action": "menu_up",
       "location": "wb-msw-v3_218",
       "rom_position": "12",
-      "group": "menu",
       "description": "Menu Up"
     },
     "menu_down": {
       "action": "menu_down",
       "location": "wb-msw-v3_218",
       "rom_position": "13",
-      "group": "menu",
       "description": "Menu Down"
     },
     "menu_left": {
       "action": "menu_left",
       "location": "wb-msw-v3_218",
       "rom_position": "14",
-      "group": "menu",
       "description": "Menu Left"
     },
     "menu_right": {
       "action": "menu_right",
       "location": "wb-msw-v3_218",
       "rom_position": "15",
-      "group": "menu",
       "description": "Menu Right"
     },
     "menu_ok": {
       "action": "menu_ok",
       "location": "wb-msw-v3_218",
       "rom_position": "16",
-      "group": "menu",
       "description": "OK/Enter"
     }
   }

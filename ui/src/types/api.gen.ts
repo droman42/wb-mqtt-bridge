@@ -1170,11 +1170,6 @@ export interface components {
              */
             exposed: boolean;
             /**
-             * Group
-             * @description Functional group this command belongs to
-             */
-            group?: string | null;
-            /**
              * Params
              * @description Parameter definitions for this command
              */
@@ -2245,10 +2240,6 @@ export interface components {
                     [key: string]: unknown;
                 };
             } | null;
-            /** Groups */
-            groups?: {
-                [key: string]: string;
-            };
             /** Log File */
             log_file: string;
             /** Log Level */

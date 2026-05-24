@@ -105,7 +105,6 @@ class BaseCommandConfig(BaseModel):
     """Base schema for command configuration."""
     action: Optional[str] = Field(None, description="Action identifier for this command")
     description: Optional[str] = Field(None, description="Human-readable description of the command")
-    group: Optional[str] = Field(None, description="Functional group this command belongs to")
     exposed: bool = Field(
         True,
         description="Whether this command is surfaced (UI/manifest, WB/MQTT, HTTP). False = a "
@@ -352,7 +351,6 @@ class SystemConfig(BaseModel):
     loggers: Optional[Dict[str, str]] = None
     # Remove devices dictionary from required fields and make it optional
     devices: Optional[Dict[str, Dict[str, Any]]] = None
-    groups: Dict[str, str] = Field(default_factory=dict)  # Internal name -> Display name
     persistence: PersistenceConfig = Field(default_factory=PersistenceConfig)
     maintenance: Optional[MaintenanceConfig] = Field(None, description="Maintenance configuration settings")
     # Add explicit device directory configuration

@@ -77,27 +77,27 @@ class TestWBVirtualDeviceService:
         """
         from wb_mqtt_bridge.infrastructure.config.models import IRCommandConfig
 
-        def cmd(action, group):
+        def cmd(action):
             return IRCommandConfig(action=action, topic=f"/devices/x/controls/{action}",
-                                   location="loc", rom_position="1", group=group)
+                                   location="loc", rom_position="1")
 
-        cases = {
-            "input_cd": cmd("input_cd", "inputs"),                    # pushbutton
-            "input_aux2": cmd("input_aux2", "inputs"),               # pushbutton
-            "power": cmd("power", "power"),                           # pushbutton
-            "mute": cmd("mute", "volume"),                           # switch
-            "set_input": cmd("set_input", "inputs"),                 # text setter
-            "launch_app": cmd("launch_app", "apps"),                 # text setter
-            "get_available_apps": cmd("get_available_apps", "apps"),  # pushbutton
-        }
-        # classification = the capability domain (== legacy group) the production path passes; the
-        # control-type default depends on it (e.g. inputs + set_input -> text -> "unknown").
-        for name, c in cases.items():
-            val = wb_service._get_initial_wb_control_state_from_config(name, c, c.group)
+        # (command, classification = capability domain the production path passes)
+        cases = [
+            ("input_cd", cmd("input_cd"), "inputs"),                    # pushbutton
+            ("input_aux2", cmd("input_aux2"), "inputs"),               # pushbutton
+            ("power", cmd("power"), "power"),                           # pushbutton
+            ("mute", cmd("mute"), "volume"),                           # switch
+            ("set_input", cmd("set_input"), "inputs"),                 # text setter
+            ("launch_app", cmd("launch_app"), "apps"),                 # text setter
+            ("get_available_apps", cmd("get_available_apps"), "apps"),  # pushbutton
+        ]
+        # The control-type default depends on the classification (e.g. inputs + set_input -> text -> "unknown").
+        for name, c, classification in cases:
+            val = wb_service._get_initial_wb_control_state_from_config(name, c, classification)
             assert val not in ("", None), f"{name} got an empty initial value"
 
-        assert wb_service._get_initial_wb_control_state_from_config("input_cd", cases["input_cd"], "inputs") == "0"
-        assert wb_service._get_initial_wb_control_state_from_config("set_input", cases["set_input"], "inputs") == "unknown"
+        assert wb_service._get_initial_wb_control_state_from_config("input_cd", cmd("input_cd"), "inputs") == "0"
+        assert wb_service._get_initial_wb_control_state_from_config("set_input", cmd("set_input"), "inputs") == "unknown"
 
     async def test_setup_publishes_no_empty_retained_value(self, wb_service, mock_message_bus, sample_command_executor):
         """Every control VALUE published at setup must be non-empty (so the WB UI renders it)."""

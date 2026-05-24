@@ -17,103 +17,83 @@
   "commands": {
     "power_on": {
       "action": "power_on",
-      "description": "Power On",
-      "group": "power"
+      "description": "Power On"
     },
     "power_off": {
       "action": "power_off",
-      "description": "Power Off",
-      "group": "power"
+      "description": "Power Off"
     },
     "home": {
       "action": "home",
-      "description": "Home",
-      "group": "menu"
+      "description": "Home"
     },
     "back": {
       "action": "back",
-      "description": "Back",
-      "group": "menu"
+      "description": "Back"
     },
     "up": {
       "action": "up",
-      "description": "Up",
-      "group": "menu"
+      "description": "Up"
     },
     "down": {
       "action": "down",
-      "description": "Down",
-      "group": "menu"
+      "description": "Down"
     },
     "left": {
       "action": "left",
-      "description": "Left",
-      "group": "menu"
+      "description": "Left"
     },
     "right": {
       "action": "right",
-      "description": "Right",
-      "group": "menu"
+      "description": "Right"
     },
     "enter": {
       "action": "enter",
-      "description": "Enter/OK",
-      "group": "menu"
+      "description": "Enter/OK"
     },
     "volume_up": {
       "action": "volume_up",
-      "description": "Volume Up",
-      "group": "volume"
+      "description": "Volume Up"
     },
     "volume_down": {
       "action": "volume_down",
-      "description": "Volume Down",
-      "group": "volume"
+      "description": "Volume Down"
     },
     "mute": {
       "action": "mute",
-      "description": "Mute",
-      "group": "volume"
+      "description": "Mute"
     },
     "play": {
       "action": "play",
-      "description": "Play",
-      "group": "playback"
+      "description": "Play"
     },
     "pause": {
       "action": "pause",
-      "description": "Pause",
-      "group": "playback"
+      "description": "Pause"
     },
     "stop": {
       "action": "stop",
-      "description": "Stop",
-      "group": "playback"
+      "description": "Stop"
     },
     "rewind_forward": {
       "action": "rewind_forward",
-      "description": "Fast Forward",
-      "group": "playback"
+      "description": "Fast Forward"
     },
     "rewind_backward": {
       "action": "rewind_backward",
-      "description": "Fast Backward",
-      "group": "playback"
+      "description": "Fast Backward"
     },
     "exit": {
       "action": "exit",
-      "description": "Exit Button",
-      "group": "menu"
+      "description": "Exit Button"
     },
     "menu": {
       "action": "menu",
-      "description": "Menu Button",
-      "group": "menu"
+      "description": "Menu Button"
     },
     "set_volume": {
       "action": "set_volume",
       "description": "Set Volume Level",
-      "group": "volume",
       "params": [
         {"name": "level", "type": "range", "min": 0, "max": 100, "required": true, "description": "Volume level (0-100)"}
       ]
@@ -121,7 +101,6 @@
     "move_cursor": {
       "action": "move_cursor",
       "description": "Move Cursor to Position",
-      "group": "pointer",
       "params": [
         {"name": "x", "type": "range", "min": 0, "max": 100, "required": true, "description": "X coordinate (0-100)"},
         {"name": "y", "type": "range", "min": 0, "max": 100, "required": true, "description": "Y coordinate (0-100)"}
@@ -130,7 +109,6 @@
     "move_cursor_relative": {
       "action": "move_cursor_relative",
       "description": "Move Cursor Relative",
-      "group": "pointer",
       "params": [
         {"name": "dx", "type": "range", "min": -50, "max": 50, "required": true, "description": "X displacement (-50 to 50)"},
         {"name": "dy", "type": "range", "min": -50, "max": 50, "required": true, "description": "Y displacement (-50 to 50)"}
@@ -138,13 +116,11 @@
     },
     "click": {
       "action": "click",
-      "description": "Click at current position",
-      "group": "pointer"
+      "description": "Click at current position"
     },
     "set_input_source": {
       "action": "set_input_source",
       "description": "Set Input Source",
-      "group": "inputs",
       "params": [
         {"name": "source", "type": "string", "required": true, "description": "Input source name or ID (e.g., 'hdmi1', 'hdmi2')"}
       ]
@@ -152,7 +128,6 @@
     "launch_app": {
       "action": "launch_app",
       "description": "Launch App",
-      "group": "apps",
       "params": [
         {"name": "app_name", "type": "string", "required": false, "description": "App name to launch (preferred, at least one of app_name or app_id must be provided)"},
         {"name": "app_id", "type": "string", "required": false, "description": "App ID to launch (alternative, at least one of app_name or app_id must be provided)"}
@@ -160,13 +135,11 @@
     },
     "get_available_apps": {
       "action": "get_available_apps",
-      "description": "List available Apps",
-      "group": "apps"
+      "description": "List available Apps"
     },
     "get_available_inputs": {
       "action": "get_available_inputs",
-      "description": "List available inputs",
-      "group": "inputs"
+      "description": "List available inputs"
     }
   }
 }

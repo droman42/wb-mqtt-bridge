@@ -395,12 +395,14 @@ class WBVirtualDeviceService:
                     continue
                 classification = _DOMAIN_GROUP_ALIAS.get(domain, domain)
             else:
-                # Fallback path: legacy config group.
-                group = cmd_config.group if hasattr(cmd_config, 'group') else (cmd_config.get('group') if isinstance(cmd_config, dict) else None)
-                if group and group.lower() in {"pointer", "gestures", "noops", "media"}:
-                    logger.debug(f"Skipping WB control for UI-only command: {cmd_name} (group: {group})")
+                # Fallback path: a capability-less device that still enables WB (e.g. the kitchen_hood
+                # appliance). No domain to classify by, so exclusion is `exposed` only and the control
+                # type/order come from explicit `wb_controls` (or params); there is no `classification`.
+                exposed = getattr(cmd_config, 'exposed', True) if not isinstance(cmd_config, dict) else cmd_config.get('exposed', True)
+                if not exposed:
+                    logger.debug(f"Skipping WB control: {cmd_name} (exposed=False)")
                     continue
-                classification = group
+                classification = None
 
             action = None
             if hasattr(cmd_config, 'action'):

@@ -32,18 +32,6 @@
     "async_upnp_client.client": "INFO",
     "async_upnp_client.traffic.upnp": "INFO",
     "openhomedevice": "INFO",
-    "aiosqlite": "INFO"    
-  },
-  "groups": {
-    "volume": "Volume Control",
-    "screen": "Resolution Control",
-    "playback": "Playback",
-    "power": "Power Control",
-    "inputs": "Inputs",
-    "menu": "Menu",
-    "tracks": "Audio & Subtitles",
-    "apps": "Applications",
-    "media": "Media",
-    "pointer": "Pointer Panel"
+    "aiosqlite": "INFO"
   }
-} 
+}

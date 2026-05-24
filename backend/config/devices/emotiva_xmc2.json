@@ -13,7 +13,6 @@
   "commands": {
     "power_on": {
       "action": "power_on",
-      "group": "power",
       "description": "Turn on the processor",
       "params": [
         { "name": "zone", "type": "integer", "required": true, "default": 1, "min": 1, "max": 2, "description": "Zone ID (1 for main, 2 for zone2)" }
@@ -21,7 +20,6 @@
     },
     "power_off": {
       "action": "power_off",
-      "group": "power",
       "description": "Turn off the processor",
       "params": [
         { "name": "zone", "type": "integer", "required": true, "default": 1, "min": 1, "max": 2, "description": "Zone ID (1 for main, 2 for zone2)" }
@@ -29,12 +27,10 @@
     },
     "zone2_power_toggle": {
       "action": "zone2_power_toggle",
-      "group": "power",
       "description": "Toggle Zone 2 power"
     },
     "set_input": {
       "action": "set_input",
-      "group": "inputs",
       "description": "Switch to input",
       "params": [
         { "name": "input", "type": "string", "required": true, "default": "hdmi1", "description": "HDMI input name" }
@@ -42,7 +38,6 @@
     },
     "set_volume": {
       "action": "set_volume",
-      "group": "volume",
       "description": "Set the volume level",
       "params": [
         { "name": "level", "type": "range", "min": -96.0, "max": 0.0, "required": true, "description": "Volume level in dB (-96.0 to 0.0)" },
@@ -51,7 +46,6 @@
     },
     "mute_toggle": {
       "action": "mute_toggle",
-      "group": "volume",
       "description": "Toggle mute state",
       "params": [
         { "name": "zone", "type": "integer", "required": true, "default": 1, "min": 1, "max": 2, "description": "Zone ID (1 for main, 2 for zone2)" }
@@ -59,7 +53,6 @@
     },
     "get_available_inputs": {
       "action": "get_available_inputs",
-      "group": "inputs",
       "description": "List available inputs"
     }
   }

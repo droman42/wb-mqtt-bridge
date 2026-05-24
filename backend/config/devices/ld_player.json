@@ -9,56 +9,48 @@
       "action": "power",
       "location": "wb-msw-v3_207",
       "rom_position": "64",
-      "group": "power",
       "description": "Power On/Off"
     },
     "tray": {
       "action": "tray",
       "location": "wb-msw-v3_207",
       "rom_position": "65",
-      "group": "tracks",
       "description": "Tray"
     },
     "play": {
       "action": "play",
       "location": "wb-msw-v3_207",
       "rom_position": "66",
-      "group": "playback",
       "description": "Play"
     },
     "stop": {
       "action": "stop",
       "location": "wb-msw-v3_207",
       "rom_position": "67",
-      "group": "playback",
       "description": "Stop"
     },
     "pause": {
       "action": "pause",
       "location": "wb-msw-v3_207",
       "rom_position": "68",
-      "group": "playback",
       "description": "Pause"
     },
     "chapter_plus": {
       "action": "chapter_plus",
       "location": "wb-msw-v3_207",
       "rom_position": "69",
-      "group": "playback",
       "description": "Chapter+"
     },
     "chapter_minus": {
       "action": "chapter_minus",
       "location": "wb-msw-v3_207",
       "rom_position": "70",
-      "group": "playback",
       "description": "Chapter-"
     },
     "audio": {
       "action": "audio",
       "location": "wb-msw-v3_207",
       "rom_position": "71",
-      "group": "tracks",
       "description": "Audio"
     }
   }

@@ -16,12 +16,10 @@
   "commands": {
     "power_on": {
       "action": "power_on",
-      "group": "power",
       "description": "Power On"
     },
     "power_off": {
       "action": "power_off",
-      "group": "power",
       "description": "Power Off",
       "params": [
         {
@@ -35,27 +33,22 @@
     },
     "play": {
       "action": "play",
-      "group": "playback",
       "description": "Play"
     },
     "pause": {
       "action": "pause",
-      "group": "playback",
       "description": "Pause"
     },
     "stop": {
       "action": "stop",
-      "group": "playback",
       "description": "Stop"
     },
     "next": {
       "action": "next",
-      "group": "playback",
       "description": "Next Track"
     },
     "set_volume": {
       "action": "set_volume",
-      "group": "volume",
       "description": "Set Volume",
       "params": [
         {
@@ -70,22 +63,18 @@
     },
     "volume_up": {
       "action": "volume_up",
-      "group": "volume",
       "description": "Increase Volume"
     },
     "volume_down": {
       "action": "volume_down",
-      "group": "volume",
       "description": "Decrease Volume"
     },
     "mute": {
       "action": "mute",
-      "group": "volume",
       "description": "Toggle Mute"
     },
     "set_input": {
       "action": "set_input",
-      "group": "inputs",
       "description": "Set Input",
       "params": [
         {
@@ -98,19 +87,16 @@
     },
     "track_info": {
       "action": "track_info",
-      "group": "media",
       "description": "Get Current Track Information",
       "exposed": false
     },
     "get_available_inputs": {
       "action": "get_available_inputs",
-      "description": "List available inputs",
-      "group": "inputs"
+      "description": "List available inputs"
     },
     "refresh_inputs": {
       "action": "refresh_inputs",
       "description": "Refresh inputs list",
-      "group": "inputs",
       "exposed": false
     }
   }
