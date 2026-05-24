@@ -862,73 +862,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/scenario/virtual_config/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Scenario Virtual Config
-         * @description Get the virtual WB device configuration for a specific scenario.
-         *
-         *     This endpoint returns the virtual BaseDeviceConfig-compatible configuration
-         *     that represents how a scenario appears as a WB virtual device. The configuration
-         *     is generated dynamically from the scenario definition and includes:
-         *     - Virtual commands (startup/shutdown and role-based commands)
-         *     - WB control metadata and types
-         *     - Parameter definitions inherited from role devices
-         *
-         *     Args:
-         *         id: Scenario ID to get virtual config for
-         *
-         *     Returns:
-         *         ScenarioWBConfig: The virtual WB device configuration
-         *
-         *     Raises:
-         *         HTTPException: If scenario not found, service not initialized, or error occurs
-         */
-        get: operations["get_scenario_virtual_config_scenario_virtual_config__id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/scenario/virtual_configs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get All Scenario Virtual Configs
-         * @description Get virtual WB device configurations for all available scenarios.
-         *
-         *     This endpoint returns a mapping of scenario IDs to their virtual WB device
-         *     configurations. For scenarios that are currently active, it returns the
-         *     cached configuration. For inactive scenarios, it generates the configuration
-         *     on-demand.
-         *
-         *     Returns:
-         *         Dict[str, ScenarioWBConfig]: Mapping of scenario ID to virtual config
-         *
-         *     Raises:
-         *         HTTPException: If service not initialized or error occurs
-         */
-        get: operations["get_all_scenario_virtual_configs_scenario_virtual_configs_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/scenario/{id}/layout": {
         parameters: {
             query?: never;
@@ -2320,13 +2253,15 @@ export interface components {
             /**
              * Action
              * @description Action identifier for this command
+             * @default null
              */
-            action?: string | null;
+            action: string | null;
             /**
              * Description
              * @description Human-readable description of the command
+             * @default null
              */
-            description?: string | null;
+            description: string | null;
             /**
              * Exposed
              * @description Whether this command is surfaced (UI/manifest, WB/MQTT, HTTP). False = a driver-supported but dormant action, hidden on every surface.
@@ -2336,13 +2271,15 @@ export interface components {
             /**
              * Group
              * @description Functional group this command belongs to
+             * @default null
              */
-            group?: string | null;
+            group: string | null;
             /**
              * Params
              * @description Parameter definitions for this command
+             * @default null
              */
-            params?: components["schemas"]["CommandParameterDefinition"][] | null;
+            params: components["schemas"]["CommandParameterDefinition"][] | null;
         };
         /**
          * StartScenarioRequest
@@ -3456,59 +3393,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_scenario_virtual_config_scenario_virtual_config__id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ScenarioWBConfig"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_all_scenario_virtual_configs_scenario_virtual_configs_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: components["schemas"]["ScenarioWBConfig"];
-                    };
                 };
             };
         };

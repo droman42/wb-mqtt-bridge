@@ -2698,6 +2698,7 @@
                 "type": "null"
               }
             ],
+            "default": null,
             "description": "Action identifier for this command",
             "title": "Action"
           },
@@ -2710,6 +2711,7 @@
                 "type": "null"
               }
             ],
+            "default": null,
             "description": "Human-readable description of the command",
             "title": "Description"
           },
@@ -2728,6 +2730,7 @@
                 "type": "null"
               }
             ],
+            "default": null,
             "description": "Functional group this command belongs to",
             "title": "Group"
           },
@@ -2743,6 +2746,7 @@
                 "type": "null"
               }
             ],
+            "default": null,
             "description": "Parameter definitions for this command",
             "title": "Params"
           }
@@ -4553,75 +4557,6 @@
           }
         },
         "summary": "Switch Scenario",
-        "tags": [
-          "Scenarios"
-        ]
-      }
-    },
-    "/scenario/virtual_config/{id}": {
-      "get": {
-        "description": "Get the virtual WB device configuration for a specific scenario.\n\nThis endpoint returns the virtual BaseDeviceConfig-compatible configuration\nthat represents how a scenario appears as a WB virtual device. The configuration\nis generated dynamically from the scenario definition and includes:\n- Virtual commands (startup/shutdown and role-based commands)\n- WB control metadata and types\n- Parameter definitions inherited from role devices\n\nArgs:\n    id: Scenario ID to get virtual config for\n    \nReturns:\n    ScenarioWBConfig: The virtual WB device configuration\n    \nRaises:\n    HTTPException: If scenario not found, service not initialized, or error occurs",
-        "operationId": "get_scenario_virtual_config_scenario_virtual_config__id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "title": "Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScenarioWBConfig"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Scenario Virtual Config",
-        "tags": [
-          "Scenarios"
-        ]
-      }
-    },
-    "/scenario/virtual_configs": {
-      "get": {
-        "description": "Get virtual WB device configurations for all available scenarios.\n\nThis endpoint returns a mapping of scenario IDs to their virtual WB device\nconfigurations. For scenarios that are currently active, it returns the\ncached configuration. For inactive scenarios, it generates the configuration\non-demand.\n\nReturns:\n    Dict[str, ScenarioWBConfig]: Mapping of scenario ID to virtual config\n    \nRaises:\n    HTTPException: If service not initialized or error occurs",
-        "operationId": "get_all_scenario_virtual_configs_scenario_virtual_configs_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": {
-                    "$ref": "#/components/schemas/ScenarioWBConfig"
-                  },
-                  "title": "Response Get All Scenario Virtual Configs Scenario Virtual Configs Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Get All Scenario Virtual Configs",
         "tags": [
           "Scenarios"
         ]
