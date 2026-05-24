@@ -324,10 +324,15 @@ device's own live state.
   (no feedback), but the manual re-send is the single correction point and it propagates everywhere.
 
 ### Manual instructions — DECIDED (2026-05-24)
-- **Baseline (now):** surface `manual_instructions.startup`/`shutdown` (the static lists) on the
-  scenario page — a collapsible **panel**, echoed on start/shutdown. Read straight from
-  `/scenario/definition/{id}` (the `ScenarioDefinition` already carries them) — **no layout-manifest
-  change** (don't duplicate scenario metadata onto the remote layout).
+- **Baseline — Option B (rides the manifest; in the remote, scenarios-only):** add a **top-level
+  `manualInstructions?: { startup: string[], shutdown: string[] }`** to the manifest. `build_scenario_manifest`
+  copies it from the scenario def; **device manifests omit it**. The renderer shows a collapsible
+  **"Manual steps" section at the bottom of `.remote-zones`** (after `PointerZone`, *inside* the remote
+  box — it's part of the remote, not the optional status pane) **only when the field is present** → so
+  it's **scenario-only** and **no space is used on device pages**. Both lists shown, labeled (e.g.
+  "Before you start" / "When you're done"). *(Supersedes the earlier "read from `/scenario/definition`,
+  no manifest change, side panel" note — since it's part of the remote layout, it belongs on the
+  manifest, which is the layout's self-contained render contract.)*
 - **Transition-aware (deferred, but NOT optional):** the topology **manual nodes** (e.g. the Dodocus
   RCA hub: "set the hub to LD/VHS") surface **only when the relevant link activates** in a transition.
   This is **activation-time** (the reconciler must diff active links and emit the bound note) — so it
