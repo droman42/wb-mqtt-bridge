@@ -566,11 +566,20 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
     the `scenario_wb_adapter` global/param stays (now unread by the router, annotated), and the adapter
     + its domain-service usage (Layer-R control) are untouched. (Scenario WB *publishing* is already
     disabled in bootstrap pending the scenario↔WB design.)
-  - ⏸️ **PAUSED HERE (per the user).** Next, the only risky piece: **re-key WB exposure/ordering off
-    `domain`+`kind`+`exposed`** in `infrastructure/wb_device/service.py` (today keys off
-    `excluded_groups`+`group`); then delete `group`+`gestures` from config/models, and tidy the
-    now-unread `scenario_wb_adapter` router reference. **It drives live WB/MQTT topics → do as its own
-    commit with a hardware pass.**
+  - ✅ **WB re-key — step 1 of 4 DONE (golden-snapshot, `1a72a56`+`8fb2fdc`).** `wb_device/service.py`
+    now keys WB exposure/type/order off the capability **domain+kind+exposed** on the **device path**
+    (capabilities threaded from `base.py`); scenario path keeps the group fallback. Proven equivalent
+    by `tests/unit/test_wb_rekey.py` (13-device golden snapshot): zero controls added, zero meta/order
+    changes — byte-identical EXCEPT a correctness fix (3 `exposed:false` dormant commands —
+    `streamer.refresh_inputs`, `appletv*.refresh_status` — no longer leak onto WB; they were dead, the
+    exposure gate already rejected them). **⚠️ HARDWARE PASS PENDING** (live WB/MQTT topics).
+  - **WB re-key — remaining (steps 2–4, full `group` removal):** (2) delete the orphaned group
+    machinery (`base._build_action_groups_index`/`_action_groups`, `config_manager.get_groups()` — no
+    consumers since `/groups` deletion); (3) re-key/retire `ScenarioWBConfig`'s group use + the
+    scenario-path group fallback (tied to the **deferred scenario↔WB design**); (4) purge the `group`
+    field from the config model + 182 command entries + the `system.json` `groups` map (mechanical;
+    only after 2–3). `gestures` is moot (no command uses it). Each step verified by the golden
+    snapshot; the live-MQTT ones need the hardware pass.
   - **NOT remaining:** the `execute_action` **exposure gate is already implemented + active**
     (`infrastructure/devices/base.py` — rejects `exposed:false` from external sources, allows
     scenario/system/cli) and coverage is MET (redesign §17.3). Nothing to "flip."
