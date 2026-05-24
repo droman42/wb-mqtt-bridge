@@ -252,9 +252,11 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
         """Define the MQTT topics this device should subscribe to."""
         topics = []
         
-        # For WB-enabled devices, use the WB service to get subscription topics
+        # For WB-enabled devices, use the WB service to get subscription topics. Pass the capability
+        # map so the subscribe set is keyed off domain+exposed identically to the published controls
+        # (Layer-3 re-key); capability-less devices (e.g. the kitchen_hood appliance) fall back to group.
         if self.should_publish_wb_virtual_device() and self.wb_service:
-            topics = self.wb_service.get_subscription_topics_from_config(self.config)
+            topics = self.wb_service.get_subscription_topics_from_config(self.config, capabilities=self.capabilities)
         else:
             # For non-WB devices, use legacy topic subscription for backward compatibility
             for cmd_name, cmd in self.get_available_commands().items():

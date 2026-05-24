@@ -23,18 +23,13 @@ router = APIRouter(
 scenario_manager = None
 room_manager = None
 mqtt_client = None
-# Retained from bootstrap for the WB virtual-device integration wiring. No longer read by this router
-# (the /scenario/virtual_config web-fallback endpoints were retired at the Layer-3 cutover); the WB
-# publication/control path lives in the adapter + domain service. Cleaned up with the WB re-key step.
-scenario_wb_adapter = None
 
-def initialize(scenario_mgr, room_mgr, mqt_client, scenario_wb_adptr=None):
+def initialize(scenario_mgr, room_mgr, mqt_client):
     """Initialize global references needed by router endpoints."""
-    global scenario_manager, room_manager, mqtt_client, scenario_wb_adapter
+    global scenario_manager, room_manager, mqtt_client
     scenario_manager = scenario_mgr
     room_manager = room_mgr
     mqtt_client = mqt_client
-    scenario_wb_adapter = scenario_wb_adptr
 
 # Request and response models
 class SwitchScenarioRequest(BaseModel):

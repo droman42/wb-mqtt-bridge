@@ -369,10 +369,11 @@ class WBVirtualDeviceService:
         equivalence tests agree. Returns ``{control_name: {"meta": {...}, "initial_state": "..."}}``.
 
         Classification source (exposure / control-type / order):
-        - **with ``capabilities``** (device path): the capability **domain** + the command's
-          ``exposed`` flag. A command is excluded iff it's ``exposed: false`` (dormant) or its domain
-          is UI-only (``pointer``). The domain (aliased) feeds the type/order heuristics.
-        - **without** (fallback, e.g. the scenario path): the legacy config ``group`` field.
+        - **with ``capabilities``** (the normal device path): the capability **domain** + the
+          command's ``exposed`` flag. A command is excluded iff it's ``exposed: false`` (dormant) or
+          its domain is UI-only (``pointer``). The domain (aliased) feeds the type/order heuristics.
+        - **without** (fallback): the legacy config ``group`` field — used by capability-less devices
+          that still enable WB emulation (e.g. the ``kitchen_hood`` appliance).
         Both paths are byte-equivalent on real device configs (verified by ``test_wb_rekey``), since
         the config ``group`` was authored to equal the capability domain.
         """

@@ -2158,69 +2158,6 @@ export interface components {
             scenario_id: string;
         };
         /**
-         * ScenarioWBConfig
-         * @description Virtual WB configuration generated from scenario definition.
-         *
-         *     This model creates a virtual BaseDeviceConfig-compatible configuration
-         *     from scenario definitions without modifying scenario config files.
-         *     Uses scenario_id as device_id and name as device_name for virtual abstraction.
-         */
-        ScenarioWBConfig: {
-            /**
-             * Commands
-             * @description Virtual commands generated from scenario structure
-             */
-            commands?: {
-                [key: string]: components["schemas"]["StandardCommandConfig"];
-            };
-            /**
-             * Config Class
-             * @description Config type identifier
-             * @default ScenarioWBConfig
-             */
-            config_class: string;
-            /**
-             * Device Class
-             * @description Virtual device class
-             * @default Scenario
-             */
-            device_class: string;
-            /**
-             * Device Id
-             * @description Maps to scenario_id
-             */
-            device_id: string;
-            /**
-             * Device Name
-             * @description Maps to scenario.name
-             */
-            device_name: string;
-            /**
-             * Enable Wb Emulation
-             * @description Enable WB virtual device
-             * @default true
-             */
-            enable_wb_emulation: boolean;
-            /**
-             * Wb Controls
-             * @description Custom WB control overrides
-             * @default null
-             */
-            wb_controls: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /**
-             * Wb State Mappings
-             * @description State synchronization mappings
-             * @default null
-             */
-            wb_state_mappings: {
-                [key: string]: string | string[];
-            } | null;
-        };
-        /**
          * ServiceInfo
          * @description Schema for service information.
          */
@@ -2244,42 +2181,6 @@ export interface components {
             graceful: boolean;
             /** Id */
             id: string;
-        };
-        /**
-         * StandardCommandConfig
-         * @description Standard command configuration with no additional fields.
-         */
-        StandardCommandConfig: {
-            /**
-             * Action
-             * @description Action identifier for this command
-             * @default null
-             */
-            action: string | null;
-            /**
-             * Description
-             * @description Human-readable description of the command
-             * @default null
-             */
-            description: string | null;
-            /**
-             * Exposed
-             * @description Whether this command is surfaced (UI/manifest, WB/MQTT, HTTP). False = a driver-supported but dormant action, hidden on every surface.
-             * @default true
-             */
-            exposed: boolean;
-            /**
-             * Group
-             * @description Functional group this command belongs to
-             * @default null
-             */
-            group: string | null;
-            /**
-             * Params
-             * @description Parameter definitions for this command
-             * @default null
-             */
-            params: components["schemas"]["CommandParameterDefinition"][] | null;
         };
         /**
          * StartScenarioRequest

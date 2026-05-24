@@ -19,7 +19,6 @@ from wb_mqtt_bridge.domain.devices.models import (
     AuralicDeviceState,
     EmotivaXMC2State,
 )
-from wb_mqtt_bridge.infrastructure.scenarios.models import ScenarioWBConfig
 from wb_mqtt_bridge.infrastructure.config.manager import ConfigManager
 from wb_mqtt_bridge.domain.devices.service import DeviceManager
 from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
@@ -27,7 +26,6 @@ from wb_mqtt_bridge.infrastructure.persistence.sqlite import SQLiteStateStore
 from wb_mqtt_bridge.infrastructure.wb_device.service import WBVirtualDeviceService
 from wb_mqtt_bridge.domain.rooms.service import RoomManager
 from wb_mqtt_bridge.domain.scenarios.service import ScenarioManager
-from wb_mqtt_bridge.infrastructure.scenarios.wb_adapter import ScenarioWBAdapter
 from wb_mqtt_bridge.infrastructure.capabilities.loader import attach_capability_maps, validate_command_exposure
 from wb_mqtt_bridge.infrastructure.maintenance.wirenboard_guard import WirenboardMaintenanceGuard
 
@@ -266,26 +264,17 @@ def create_app() -> FastAPI:
         )
         await scenario_manager.initialize()
         logger.info("Scenario manager initialized")
-        
-        # Initialize scenario WB adapter with shared service
-        scenario_wb_adapter = ScenarioWBAdapter(
-            scenario_manager=scenario_manager,
-            wb_service=wb_service,
-            device_manager=device_manager
-        )
-        logger.info("Scenario WB adapter initialized")
-        
-        # Scenario WB virtual-device publishing is intentionally DISABLED pending a design
-        # decision on how scenarios should integrate with Wirenboard (see action_plan.md P4,
-        # "Scenario <-> Wirenboard integration"). Previously every scenario was published as a
-        # WB device (type=scenario); that modeling is under review. The adapter is still built
-        # (the API router uses it) — scenarios are simply not published to MQTT for now.
-        
+
+        # Scenario <-> Wirenboard integration is NOT implemented. The previous adapter (publish each
+        # scenario as a WB virtual device) was dormant + orphaned and was DELETED at the Layer-3
+        # cutover (WB re-key step 3). A clean replacement requires a design decision first — see
+        # action_plan.md P4 "Scenario <-> Wirenboard integration" (now MANDATORY before any rebuild).
+
         # Initialize routers with dependencies
         system.initialize(config_manager, device_manager, mqtt_client, state_store, scenario_manager, room_manager)
         devices.initialize(config_manager, device_manager, mqtt_client)
         mqtt.initialize(mqtt_client)
-        scenarios.initialize(scenario_manager, room_manager, mqtt_client, scenario_wb_adapter)
+        scenarios.initialize(scenario_manager, room_manager, mqtt_client)
         rooms.initialize(room_manager)
         state.initialize(config_manager, device_manager, state_store, scenario_manager)
         events.initialize()  # Initialize SSE events router
@@ -336,16 +325,7 @@ def create_app() -> FastAPI:
             # transparent to the hardware — the active scenario stays on the devices).
             logger.info("Preparing device manager for shutdown...")
             await device_manager.prepare_for_shutdown()
-            
-            # Clean up scenario WB devices first
-            logger.info("Cleaning up scenario WB devices...")
-            if scenario_manager.current_scenario:
-                try:
-                    await scenario_wb_adapter.cleanup_scenario_wb_device(scenario_manager.current_scenario)
-                    logger.info("Scenario WB virtual device cleanup completed")
-                except Exception as e:
-                    logger.error(f"Error cleaning up scenario WB virtual device: {str(e)}")
-            
+
             # Shutdown scenario manager
             logger.info("Shutting down scenario manager...")
             await scenario_manager.shutdown()
@@ -433,7 +413,6 @@ OPENAPI_EXTRA_MODELS = [
     AppleTVState,
     AuralicDeviceState,
     EmotivaXMC2State,
-    ScenarioWBConfig,
 ]
 
 
