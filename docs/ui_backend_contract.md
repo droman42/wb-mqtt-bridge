@@ -587,13 +587,17 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
   - ✅ **WB re-key — step 4 DONE (`c4dfb57`)** — purged `group` entirely (user accepted the revert
     risk): dropped `BaseCommandConfig.group` + `SystemConfig.groups`; removed `group` from all 182
     command entries + `system.json` `groups`; the WB fallback is now group-free (exclusion by
-    `exposed`, type/order from `wb_controls`/params); the WirenboardIR optimistic-input detection
-    keys off the `input_<value>` name convention instead of `group=="inputs"`. Behaviour-neutral —
-    the WB golden snapshot (13 devices) is unchanged. backend 320; openapi/api.gen regen.
-    **`group` is fully gone from the backend** (the earlier kitchen_hood "blocker" was a false alarm —
-    it's `wb_controls`-driven). Residual: dead UI leftovers (hand-written `api.ts`/`DeviceConfig.ts`
-    types + the uncalled `deriveGroupsFromConfig`) → tidy in A8. **WB re-key COMPLETE (steps 1-4); the
-    only outstanding item is the step-1 HARDWARE PASS** (live WB topic output).
+    `exposed`, type/order from `wb_controls`/params). Behaviour-neutral — the WB golden snapshot
+    (13 devices) is unchanged. backend 320; openapi/api.gen regen. **`group` is fully gone from the
+    backend** (the earlier kitchen_hood "blocker" was a false alarm — it's `wb_controls`-driven).
+  - ✅ **Review follow-ups DONE (`864e61e`+`80ef918`):** (a) the WirenboardIR optimistic-input
+    detection now keys off the **capability `input` domain's by_value mapping** (command→value), not a
+    command-name convention; (b) removed the **dead UI group code** — `types/DeviceConfig.ts`
+    (+`deriveGroupsFromConfig`, `DeviceClassHandler`), the `api.ts` groups types/fields,
+    `RemoteControlLayout.ts` `ZoneDetectionConfig`/`DEFAULT_ZONE_DETECTION`, and the dead `useApi`
+    queryKeys. Only the live manifest `ProcessedAction.group` + `media-stack-group` CSS remain.
+    **WB re-key COMPLETE (steps 1-4); the only outstanding item is the step-1 HARDWARE PASS** (live
+    WB topic output).
   - **NOT remaining:** the `execute_action` **exposure gate is already implemented + active**
     (`infrastructure/devices/base.py` — rejects `exposed:false` from external sources, allows
     scenario/system/cli) and coverage is MET (redesign §17.3). Nothing to "flip."
