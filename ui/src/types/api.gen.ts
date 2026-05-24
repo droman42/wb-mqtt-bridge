@@ -261,46 +261,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/devices/{device_id}/groups": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Device Actions By Groups
-         * @description Get all actions for a device organized by groups, including empty groups.
-         */
-        get: operations["get_device_actions_by_groups_devices__device_id__groups_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/devices/{device_id}/groups/{group_id}/actions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Actions By Group
-         * @description List all actions in a group for a device, with status information.
-         */
-        get: operations["get_actions_by_group_devices__device_id__groups__group_id__actions_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/devices/{device_id}/layout": {
         parameters: {
             query?: never;
@@ -481,26 +441,6 @@ export interface paths {
          * @description Send a test event to a specific SSE channel for development and testing
          */
         post: operations["test_broadcast_events_test__channel__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/groups": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Groups
-         * @description List all available function groups.
-         */
-        get: operations["get_groups_groups_get"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1068,25 +1008,6 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /**
-         * ActionGroup
-         * @description Schema for a group of actions.
-         */
-        ActionGroup: {
-            /** Actions */
-            actions: {
-                [key: string]: unknown;
-            }[];
-            /** Group Id */
-            group_id: string;
-            /** Group Name */
-            group_name: string;
-            /**
-             * Status
-             * @default ok
-             */
-            status: string;
-        };
         /** ActionHandler */
         ActionHandler: {
             /** Actionname */
@@ -1732,51 +1653,6 @@ export interface components {
             detail: string;
             /** Error Code */
             error_code?: string | null;
-        };
-        /**
-         * Group
-         * @description Schema for a function group.
-         */
-        Group: {
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-        };
-        /**
-         * GroupActionsResponse
-         * @description Schema for API responses that return actions for a specific group with status information.
-         */
-        GroupActionsResponse: {
-            /** Actions */
-            actions?: {
-                [key: string]: unknown;
-            }[];
-            /** Device Id */
-            device_id: string;
-            /** Group Id */
-            group_id: string;
-            /** Group Name */
-            group_name?: string | null;
-            /** Message */
-            message?: string | null;
-            /** Status */
-            status: string;
-        };
-        /**
-         * GroupedActionsResponse
-         * @description Schema for API responses that return actions grouped by function.
-         */
-        GroupedActionsResponse: {
-            /**
-             * Default Included
-             * @default false
-             */
-            default_included: boolean;
-            /** Device Id */
-            device_id: string;
-            /** Groups */
-            groups: components["schemas"]["ActionGroup"][];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -2921,69 +2797,6 @@ export interface operations {
             };
         };
     };
-    get_device_actions_by_groups_devices__device_id__groups_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                device_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GroupedActionsResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_actions_by_group_devices__device_id__groups__group_id__actions_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                device_id: string;
-                group_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GroupActionsResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_device_layout_devices__device_id__layout_get: {
         parameters: {
             query?: never;
@@ -3304,26 +3117,6 @@ export interface operations {
                      *     }
                      */
                     "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_groups_groups_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Group"][];
                 };
             };
         };

@@ -33,7 +33,7 @@ from wb_mqtt_bridge.infrastructure.maintenance.wirenboard_guard import Wirenboar
 
 # Import routers
 from wb_mqtt_bridge.presentation.api.routers import (
-    system, devices, mqtt, groups, scenarios, rooms, state, events
+    system, devices, mqtt, scenarios, rooms, state, events
 )
 from wb_mqtt_bridge.presentation.api.sse_manager import sse_manager
 
@@ -285,7 +285,6 @@ def create_app() -> FastAPI:
         system.initialize(config_manager, device_manager, mqtt_client, state_store, scenario_manager, room_manager)
         devices.initialize(config_manager, device_manager, mqtt_client)
         mqtt.initialize(mqtt_client)
-        groups.initialize(config_manager, device_manager)
         scenarios.initialize(scenario_manager, room_manager, mqtt_client, scenario_wb_adapter)
         rooms.initialize(room_manager)
         state.initialize(config_manager, device_manager, state_store, scenario_manager)
@@ -410,7 +409,6 @@ def create_app() -> FastAPI:
     app.include_router(system.router)
     app.include_router(devices.router)
     app.include_router(mqtt.router)
-    app.include_router(groups.router)
     app.include_router(scenarios.router)
     app.include_router(rooms.router)
     app.include_router(state.router)

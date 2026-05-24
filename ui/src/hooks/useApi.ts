@@ -13,9 +13,6 @@ import type {
   ScenarioDefinition,
   ScenarioState,
   ScenarioResponse,
-  Group,
-  GroupedActionsResponse,
-  GroupActionsResponse,
   CommandResponse,
   DeviceState,
   MQTTPublishResponse,
@@ -263,30 +260,6 @@ export const useShutdownScenario = () => {
       void queryClient.invalidateQueries({ queryKey: ['scenario', 'state'] });
       void queryClient.invalidateQueries({ queryKey: ['devices'] });
     },
-  });
-};
-
-// Group hooks
-export const useGroups = () => {
-  return useQuery({
-    queryKey: ['groups'],
-    queryFn: () => api.get<Group[]>('/groups').then(res => res.data),
-  });
-};
-
-export const useDeviceGroups = (deviceId: string) => {
-  return useQuery({
-    queryKey: ['devices', deviceId, 'groups'],
-    queryFn: () => api.get<GroupedActionsResponse>(`/devices/${deviceId}/groups`).then(res => res.data),
-    enabled: !!deviceId,
-  });
-};
-
-export const useGroupActions = (deviceId: string, groupId: string) => {
-  return useQuery({
-    queryKey: ['devices', deviceId, 'groups', groupId, 'actions'],
-    queryFn: () => api.get<GroupActionsResponse>(`/devices/${deviceId}/groups/${groupId}/actions`).then(res => res.data),
-    enabled: !!(deviceId && groupId),
   });
 };
 
