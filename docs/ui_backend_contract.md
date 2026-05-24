@@ -537,8 +537,9 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
     (`getAppliancePage` by device_id, checked in `App.tsx` before `RuntimeDevicePage`). This is the
     "appliances → bespoke pages" model — appliances do NOT go through the A/V runtime renderer. So the
     page generator below can be fully deleted (the appliance does not depend on it).
-  - Retire dead groups hooks (`useGroups`/`useDeviceGroups`/`useGroupActions`).
-  - **Rename the lone surviving generated file** to kill the `.gen` ambiguity (after cutover it's the
+  - ✅ **Dead groups hooks retired (`9b388ab`)** — `useGroups`/`useDeviceGroups`/`useGroupActions` +
+    their type imports removed from `useApi` (with the backend `/groups` router deletion).
+  - **A7 — Rename the lone surviving generated file** to kill the `.gen` ambiguity (after cutover it's the
     only `.gen` file left, and it SURVIVES — unlike the deleted page artifacts): `src/types/api.gen.ts`
     → **`src/types/openapi.gen.ts`** (ties it to its `openapi.json` source, keeps the "don't
     hand-edit" signal). Trivial — 1 import site (`useApi.ts`) + the `gen:api-types` `-o` path in
@@ -556,13 +557,20 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
     `StateTypeGenerator` itself goes with the page generator above.
   - Docs: `ui/README.md`, `ui/docs/page_instructions.md`.
 - **Backend (small, but the WB re-key touches live MQTT/WB control → needs a hardware pass):**
-  - **B2** drop `special_cases`/`DeviceSpecialCase` from `presentation/api/layout_manifest.py`.
-  - **Re-key WB exposure/ordering off `domain`+`kind`+`exposed`** in
-    `infrastructure/wb_device/service.py` (today keys off `excluded_groups`+`group`); then delete
-    `group` + `gestures` from config/models. This is the only risky piece — it drives live WB topics.
-  - Delete the `/groups` router (`routers/groups.py` + registration) — UI hooks already dead.
-  - Retire `/scenario/virtual_config` endpoints (`routers/scenarios.py` + `infrastructure/scenarios/
-    wb_adapter.py`) — **but keep the scenario WB-device *publication* (Layer R)**.
+  - ✅ **B2 DONE (`14db293`)** — dropped `special_cases`/`DeviceSpecialCase` from
+    `presentation/api/layout_manifest.py`; the oracle-parse test strips the retired key; regen.
+  - ✅ **`/groups` router DELETED (`9b388ab`)** — `routers/groups.py` + its registration; UI hooks
+    were dead. Removed GET `/groups`, `/devices/{id}/groups`, `…/groups/{gid}/actions`.
+  - ✅ **`/scenario/virtual_config` endpoints RETIRED (`0af97e5`)** — the two HTTP endpoints +
+    the unused `ScenarioWBConfig` import in `routers/scenarios.py`. **WB integration wiring KEPT**:
+    the `scenario_wb_adapter` global/param stays (now unread by the router, annotated), and the adapter
+    + its domain-service usage (Layer-R control) are untouched. (Scenario WB *publishing* is already
+    disabled in bootstrap pending the scenario↔WB design.)
+  - ⏸️ **PAUSED HERE (per the user).** Next, the only risky piece: **re-key WB exposure/ordering off
+    `domain`+`kind`+`exposed`** in `infrastructure/wb_device/service.py` (today keys off
+    `excluded_groups`+`group`); then delete `group`+`gestures` from config/models, and tidy the
+    now-unread `scenario_wb_adapter` router reference. **It drives live WB/MQTT topics → do as its own
+    commit with a hardware pass.**
   - **NOT remaining:** the `execute_action` **exposure gate is already implemented + active**
     (`infrastructure/devices/base.py` — rejects `exposed:false` from external sources, allows
     scenario/system/cli) and coverage is MET (redesign §17.3). Nothing to "flip."
