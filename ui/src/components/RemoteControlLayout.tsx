@@ -10,9 +10,11 @@ import { useDeviceState as useDeviceStateQuery } from '../hooks/useApi';
 import { createActionTooltip } from '../utils/tooltipUtils';
 
 // Power Zone - 3-button layout with EMotiva special case
-const PowerZone = ({ zone, deviceStructure, onAction, className, isActionPending = false, lastAction }: { zone?: RemoteZone; deviceStructure: RemoteDeviceStructure; onAction: (action: string, payload?: any, targetDeviceId?: string) => void; className?: string; isActionPending?: boolean; lastAction?: string }) => {
-  // Get device state for zone2 power state
-  const { data: deviceState } = useDeviceStateQuery(deviceStructure.deviceId);
+const PowerZone = ({ zone, deviceStructure, onAction, className, isActionPending = false, lastAction, lifecycleActive }: { zone?: RemoteZone; deviceStructure: RemoteDeviceStructure; onAction: (action: string, payload?: any, targetDeviceId?: string) => void; className?: string; isActionPending?: boolean; lastAction?: string; lifecycleActive?: boolean }) => {
+  // Get device state for zone2 power coloring (eMotiva). A scenario lifecycle power zone
+  // (lifecycleActive defined) has no device state — its entity id is the scenario, not a device, so
+  // querying it would 404 on the real backend. Disable the query there (empty id → enabled:false).
+  const { data: deviceState } = useDeviceStateQuery(lifecycleActive !== undefined ? '' : deviceStructure.deviceId);
 
   if (!zone?.content?.powerButtons || zone.isEmpty) {
     return (
@@ -47,6 +49,21 @@ const PowerZone = ({ zone, deviceStructure, onAction, className, isActionPending
 
   // Helper function to get icon color based on button type and device state
   const getIconColor = (button: PowerButtonConfig) => {
+    // Scenario lifecycle power zone (lifecycleActive is defined only for scenarios — see
+    // RuntimeScenarioPage): the buttons reflect running/stopped, like a power toggle. Running →
+    // the "start"/power-on button glows green ("on"/active), shutdown is the live red action;
+    // stopped → neutral (start available white, shutdown dimmed). Both stay clickable (start on a
+    // running scenario = re-reconcile). See ui_backend_contract.md "Scenario lifecycle … active-state".
+    if (lifecycleActive !== undefined) {
+      if (button.buttonType === 'power-on' || button.buttonType === 'power-toggle') {
+        return lifecycleActive ? 'text-green-600' : 'text-white';
+      }
+      if (button.buttonType === 'power-off') {
+        return lifecycleActive ? 'text-red-600' : 'text-white/40';
+      }
+      return 'text-white';
+    }
+
     // Special handling for zone2 power toggle buttons (eMotiva). The Layer-3 engine emits buttonType
     // 'zone2-power'; the legacy codegen used 'power-toggle' + a zone2 action name — handle both.
     if (button.buttonType === 'zone2-power' ||
@@ -419,9 +436,17 @@ const ScreenZone = ({ zone, deviceStructure, onAction, className, isActionPendin
 // Volume Zone - Priority-based (slider vs buttons) with vertical orientation
 const VolumeZone = ({ zone, deviceStructure, onAction, className, isActionPending = false, lastAction }: { zone?: RemoteZone; deviceStructure: RemoteDeviceStructure; onAction: (action: string, payload?: any, targetDeviceId?: string) => void; className?: string; isActionPending?: boolean; lastAction?: string }) => {
   const [isDragging, setIsDragging] = useState(false);
-  
-  // Get device state for volume synchronization
-  const { data: deviceState } = useDeviceStateQuery(deviceStructure.deviceId);
+
+  // Volume binds to the ROLE device's live state (scenario state binding, Option B): the slider's
+  // value/mute read the device the volume control actually targets (sourceDeviceId), not the page
+  // entity. For a plain device page sourceDeviceId is undefined → falls back to this device, so
+  // behaviour is unchanged; for a scenario the audio role (e.g. mf_amplifier) supplies the value.
+  const volumeTargetDeviceId =
+    zone?.content?.volumeSlider?.action?.sourceDeviceId ??
+    zone?.content?.volumeButtons?.[0]?.upAction?.sourceDeviceId ??
+    zone?.content?.volumeButtons?.[0]?.downAction?.sourceDeviceId ??
+    deviceStructure.deviceId;
+  const { data: deviceState } = useDeviceStateQuery(volumeTargetDeviceId);
   
   // Get volume range from device configuration (with fallback)
   const getVolumeRange = () => {
@@ -989,15 +1014,19 @@ interface RemoteControlLayoutProps {
   actionError?: Error | null;
   lastAction?: string;
   className?: string;
+  // Scenarios only: drives running/stopped coloring of the lifecycle power zone. Undefined for
+  // device pages (power buttons keep their static colors).
+  lifecycleActive?: boolean;
 }
 
-export function RemoteControlLayout({ 
-  deviceStructure, 
-  onAction, 
+export function RemoteControlLayout({
+  deviceStructure,
+  onAction,
   isActionPending = false,
   actionError,
   lastAction,
-  className 
+  className,
+  lifecycleActive
 }: RemoteControlLayoutProps) {
   const { deviceName, remoteZones } = deviceStructure;
   
@@ -1053,6 +1082,7 @@ export function RemoteControlLayout({
               className="zone-power"
               isActionPending={isActionPending}
               lastAction={lastAction}
+              lifecycleActive={lifecycleActive}
             />
           )}
 

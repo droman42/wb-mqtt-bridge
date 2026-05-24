@@ -46,7 +46,9 @@ export function useInputsData(deviceStructure: RemoteDeviceStructure): UseInputs
       isCommands: dd?.populationMethod === 'commands',
       commandOptions: dd?.options ?? [],
       apiAction: dd?.apiAction ?? null,
-      targetDeviceId: dd?.sourceDeviceId ?? deviceStructure.deviceId,
+      // No dropdown → no device to gate against (empty id disables the query). Without a dropdown a
+      // scenario would otherwise fall back to its own id and fetch /devices/{scenario}/state → 404.
+      targetDeviceId: dd ? (dd.sourceDeviceId ?? deviceStructure.deviceId) : '',
     };
   }, [JSON.stringify(deviceStructure.remoteZones), deviceStructure.deviceId]);
 
@@ -170,7 +172,9 @@ export function useAppsData(deviceStructure: RemoteDeviceStructure): UseAppsData
       isCommands: dd?.populationMethod === 'commands',
       commandOptions: dd?.options ?? [],
       apiAction: dd?.apiAction ?? null,
-      targetDeviceId: dd?.sourceDeviceId ?? deviceStructure.deviceId,
+      // No dropdown → no device to gate against (empty id disables the query). Without a dropdown a
+      // scenario would otherwise fall back to its own id and fetch /devices/{scenario}/state → 404.
+      targetDeviceId: dd ? (dd.sourceDeviceId ?? deviceStructure.deviceId) : '',
     };
   }, [JSON.stringify(deviceStructure.remoteZones), deviceStructure.deviceId]);
 

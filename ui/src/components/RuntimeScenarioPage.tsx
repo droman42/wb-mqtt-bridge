@@ -4,7 +4,7 @@
 // (see App.tsx); on fetch failure it falls back to the generated scenario page.
 import { useEffect, useMemo } from 'react';
 import { useLogStore } from '../stores/useLogStore';
-import { useExecuteDeviceAction, useScenarioLayout, useStartScenario, useShutdownScenario } from '../hooks/useApi';
+import { useExecuteDeviceAction, useScenarioLayout, useScenarioState, useStartScenario, useShutdownScenario } from '../hooks/useApi';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import { useRoomStore } from '../stores/useRoomStore';
 import { RemoteControlLayout } from './RemoteControlLayout';
@@ -19,6 +19,12 @@ export function RuntimeScenarioPage({ scenarioId }: { scenarioId: string }) {
   const { statePanelOpen } = useSettingsStore();
   const { selectScenario } = useRoomStore();
   const { data: manifest, isLoading, isError } = useScenarioLayout(scenarioId);
+  // There is one global active scenario (ScenarioManager.current_scenario), so this scenario is
+  // "running" iff it is the active one. /scenario/state 404s when nothing is active (query errors,
+  // data undefined → not running). Kept live by the /events/scenarios → cache invalidation in
+  // Layout.tsx. See ui_backend_contract.md "Scenario lifecycle (power zone) active-state".
+  const { data: activeScenarioState } = useScenarioState();
+  const lifecycleActive = activeScenarioState?.scenario_id === scenarioId;
 
   useEffect(() => {
     selectScenario(scenarioId);
@@ -86,6 +92,7 @@ export function RuntimeScenarioPage({ scenarioId }: { scenarioId: string }) {
         actionError={executeAction.error || startScenario.error || shutdownScenario.error}
         lastAction={executeAction.variables?.action.action}
         className="w-full"
+        lifecycleActive={lifecycleActive}
       />
     </div>
   );
