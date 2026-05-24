@@ -1595,6 +1595,8 @@ export interface components {
             populationMethod: "api" | "commands";
             /** Setaction */
             setAction?: string | null;
+            /** Setparam */
+            setParam?: string | null;
             /**
              * Type
              * @enum {string}
@@ -2094,6 +2096,10 @@ export interface components {
             icon: components["schemas"]["ActionIcon"];
             /** Parameters */
             parameters?: components["schemas"]["ProcessedParameter"][];
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            };
             /** Sourcedeviceid */
             sourceDeviceId?: string | null;
             uiHints?: components["schemas"]["UIHints"];

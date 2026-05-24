@@ -54,6 +54,7 @@ export interface DropdownConfig {
   populationMethod: 'api' | 'commands'; // API call vs direct commands
   apiAction?: string; // e.g., 'get_available_inputs'
   setAction?: string; // e.g., 'set_input'
+  setParam?: string; // native param the selected value is sent under for api selection (e.g. 'input', 'source')
   options: DropdownOption[];
   loading: boolean;
   empty: boolean;
@@ -81,6 +82,7 @@ export interface VolumeSliderConfig {
   orientation: 'vertical';
   showValue: boolean;
   zone?: number;
+  valueField?: string; // serialized device-state field holding the current level (e.g. 'zone2_volume') — Layer 3
 }
 
 export interface VolumeButtonConfig {

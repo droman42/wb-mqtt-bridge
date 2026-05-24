@@ -9,6 +9,7 @@ export interface ProcessedAction {
   icon: ActionIcon;
   uiHints: UIHints;
   sourceDeviceId?: string; // For scenario inherited actions - which device to actually send the HTTP request to
+  params?: Record<string, any>; // fixed native params the UI always sends (e.g. { zone: 2 }) — Layer 3
 }
 
 export interface ProcessedParameter {

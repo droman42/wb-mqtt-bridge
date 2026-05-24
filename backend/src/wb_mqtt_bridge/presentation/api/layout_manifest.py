@@ -62,6 +62,10 @@ class ProcessedAction(_Camel):
     icon: ActionIcon
     ui_hints: UIHints = Field(default_factory=UIHints)
     source_device_id: Optional[str] = None  # scenario-inherited: which device to actually call
+    # fixed native params the UI must always send with this action (from the capability action's
+    # `params`, e.g. eMotiva power_off -> {zone: 1}, set_volume -> {zone: 2}). `parameters` above is
+    # the *spec* (for the slider range etc.); `params` is the *values* to send.
+    params: Dict[str, Any] = Field(default_factory=dict)
 
 
 # --- zone content (one optional field per zone kind) -------------------------------------------
@@ -90,6 +94,9 @@ class DropdownConfig(_Camel):
     population_method: Literal["api", "commands"]
     api_action: Optional[str] = None
     set_action: Optional[str] = None
+    # native param name the selected value is sent under for api selection (e.g. set_input -> "input",
+    # LG set_input_source -> "source"). Only set for populationMethod="api".
+    set_param: Optional[str] = None
     options: List[DropdownOption] = Field(default_factory=list)
     loading: bool = False
     empty: bool = False

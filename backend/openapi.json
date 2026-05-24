@@ -1053,6 +1053,17 @@
             ],
             "title": "Setaction"
           },
+          "setParam": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Setparam"
+          },
           "type": {
             "enum": [
               "inputs",
@@ -2201,6 +2212,11 @@
             },
             "title": "Parameters",
             "type": "array"
+          },
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
           },
           "sourceDeviceId": {
             "anyOf": [

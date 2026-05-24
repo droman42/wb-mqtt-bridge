@@ -283,9 +283,13 @@ export function useInputSelection(deviceStructure: RemoteDeviceStructure) {
     [executeActionQuery.mutateAsync]
   );
 
-  const { isCommands, setAction } = useMemo(() => {
+  const { isCommands, setAction, setParam } = useMemo(() => {
     const dd = deviceStructure.remoteZones.find(zone => zone.zoneId === 'media-stack')?.content?.inputsDropdown;
-    return { isCommands: dd?.populationMethod === 'commands', setAction: dd?.setAction ?? null };
+    return {
+      isCommands: dd?.populationMethod === 'commands',
+      setAction: dd?.setAction ?? null,
+      setParam: dd?.setParam ?? 'input',
+    };
   }, [JSON.stringify(deviceStructure.remoteZones)]);
 
   const selectInput = useCallback(async (inputId: string) => {
@@ -297,17 +301,16 @@ export function useInputSelection(deviceStructure: RemoteDeviceStructure) {
         // The option id IS the device command (e.g. "input_cd").
         await executeAction({ deviceId, action: { action: inputId, params: {} } });
       } else {
-        // api: execute the manifest-declared setAction.
-        // TODO(Step 3): the value's native param name must ride the manifest (B5). LG's
-        // set_input_source takes `source`, not `input` — wire this when LG migrates + is tested.
-        await executeAction({ deviceId, action: { action: setAction ?? 'set_input', params: { input: inputId } } });
+        // api: manifest-declared setAction + the value under the manifest-declared setParam
+        // (B5: eMotiva set_input/input, LG set_input_source/source).
+        await executeAction({ deviceId, action: { action: setAction ?? 'set_input', params: { [setParam]: inputId } } });
       }
     } catch (err) {
       console.error('Failed to select input:', err);
       setSelectedInput('');
       throw err;
     }
-  }, [deviceStructure.deviceId, isCommands, setAction, executeAction]);
+  }, [deviceStructure.deviceId, isCommands, setAction, setParam, executeAction]);
 
   return { selectedInput, selectInput, setSelectedInput };
 }

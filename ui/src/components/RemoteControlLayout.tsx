@@ -32,7 +32,7 @@ const PowerZone = ({ zone, deviceStructure, onAction, className, isActionPending
   const handlePowerAction = (button: PowerButtonConfig) => {
     // Use sourceDeviceId if available (for inherited actions), otherwise use scenario device
     const targetDeviceId = button.action.sourceDeviceId || deviceStructure.deviceId;
-    onAction(button.action.actionName, button.action.parameters || {}, targetDeviceId);
+    onAction(button.action.actionName, button.action.params || {}, targetDeviceId);
   };
 
   // Helper function to create enhanced tooltip
@@ -207,7 +207,7 @@ const MediaStackZone = ({ zone, deviceStructure, onAction, className, isActionPe
   const handlePlaybackAction = (action: any) => {
     // Use sourceDeviceId if available (for inherited actions), otherwise use scenario device
     const targetDeviceId = action.sourceDeviceId || deviceStructure.deviceId;
-    onAction(action.actionName, action.parameters || {}, targetDeviceId);
+    onAction(action.actionName, action.params || {}, targetDeviceId);
   };
 
   // Helper function to create enhanced tooltip for media actions
@@ -362,7 +362,7 @@ const ScreenZone = ({ zone, deviceStructure, onAction, className, isActionPendin
   const handleScreenAction = (action: any) => {
     // Use sourceDeviceId if available (for inherited actions), otherwise use scenario device
     const targetDeviceId = action.sourceDeviceId || deviceStructure.deviceId;
-    onAction(action.actionName, action.parameters || {}, targetDeviceId);
+    onAction(action.actionName, action.params || {}, targetDeviceId);
   };
 
   // Helper function to create enhanced tooltip for screen actions
@@ -441,29 +441,18 @@ const VolumeZone = ({ zone, deviceStructure, onAction, className, isActionPendin
   // Helper function to get the volume value from device state
   const getVolumeFromDeviceState = useCallback((): number | null => {
     if (!deviceState) return null;
-    
-    // Check for different volume field names based on device type
     const deviceStateTyped = deviceState as any;
-    const deviceClass = deviceStructure.deviceClass;
-    
-    // Device-specific volume field mapping
-    if (deviceClass === 'EMotivaXMC2') {
-      // EMotivaXMC2 volume slider manages zone2Volume
-      if (typeof deviceStateTyped.zone2Volume === 'number') {
-        return deviceStateTyped.zone2Volume;
-      }
-    } else {
-      // For other devices, try common volume field names
-      if (typeof deviceStateTyped.volume === 'number') {
-        return deviceStateTyped.volume;
-      }
-      if (typeof deviceStateTyped.mainVolume === 'number') {
-        return deviceStateTyped.mainVolume;
-      }
+    // Layer 3: the manifest declares which serialized state field holds the level (valueField, e.g.
+    // eMotiva 'zone2_volume') — read it generically instead of branching on deviceClass.
+    const valueField = zone?.content?.volumeSlider?.valueField;
+    if (valueField && typeof deviceStateTyped[valueField] === 'number') {
+      return deviceStateTyped[valueField];
     }
-    
+    // fallback for a slider whose capability didn't declare a state_field
+    if (typeof deviceStateTyped.volume === 'number') return deviceStateTyped.volume;
+    if (typeof deviceStateTyped.mainVolume === 'number') return deviceStateTyped.mainVolume;
     return null;
-  }, [deviceState, deviceStructure.deviceClass]);
+  }, [deviceState, zone?.content?.volumeSlider?.valueField]);
 
   // Initialize volume state with device state if available, otherwise use default
   const deviceVolume = getVolumeFromDeviceState();
@@ -493,14 +482,15 @@ const VolumeZone = ({ zone, deviceStructure, onAction, className, isActionPendin
     if (volumeSlider?.action) {
       // Use sourceDeviceId if available (for inherited actions), otherwise use scenario device
       const targetDeviceId = volumeSlider.action.sourceDeviceId || deviceStructure.deviceId;
-      onAction(volumeSlider.action.actionName, { level: newVolume }, targetDeviceId);
+      // send the level value + the action's fixed params (e.g. eMotiva { zone: 2 })
+      onAction(volumeSlider.action.actionName, { level: newVolume, ...(volumeSlider.action.params || {}) }, targetDeviceId);
     }
   };
 
   const handleVolumeButton = (action: any) => {
     // Use sourceDeviceId if available (for inherited actions), otherwise use scenario device
     const targetDeviceId = action.sourceDeviceId || deviceStructure.deviceId;
-    onAction(action.actionName, action.parameters || {}, targetDeviceId);
+    onAction(action.actionName, action.params || {}, targetDeviceId);
   };
 
   // Helper function to create enhanced tooltip for volume actions
@@ -897,7 +887,7 @@ const MenuZone = ({ zone, deviceStructure, onAction, className, isActionPending 
     return action ? () => {
       // Use sourceDeviceId if available (for inherited actions), otherwise use scenario device
       const targetDeviceId = action.sourceDeviceId || deviceStructure.deviceId;
-      onAction(action.actionName, action.parameters || {}, targetDeviceId);
+      onAction(action.actionName, action.params || {}, targetDeviceId);
     } : undefined;
   };
 

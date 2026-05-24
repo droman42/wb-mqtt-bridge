@@ -69,8 +69,9 @@ def _parameters(cmd: Any) -> List[ProcessedParameter]:
     return out
 
 
-def _action(device: Any, command: str) -> Optional[ProcessedAction]:
-    """Build a ProcessedAction for a native command (None if the device lacks it)."""
+def _action(device: Any, command: str, fixed_params: Optional[Dict[str, Any]] = None) -> Optional[ProcessedAction]:
+    """Build a ProcessedAction for a native command (None if the device lacks it). `fixed_params` are
+    the capability action's fixed native params (e.g. {zone: 2}) the UI must always send."""
     cmd = device.get_available_commands().get(command)
     if cmd is None:
         return None
@@ -83,6 +84,7 @@ def _action(device: Any, command: str) -> Optional[ProcessedAction]:
         # placeholder icon/uiHints — oracle-exact material icons are a follow-on
         icon=ActionIcon(icon_library="fallback", icon_name=command, fallback_icon=command, confidence=0.0),
         ui_hints=UIHints(button_size="medium", button_style="secondary"),
+        params=dict(fixed_params or {}),
     )
 
 
@@ -94,8 +96,9 @@ def _power_content(device: Any, cap: Capability) -> ZoneContent:
     by_key = {"off": ("power-off", "left"), "on": ("power-on", "right"), "toggle": ("power-toggle", "left")}
     buttons: List[PowerButtonConfig] = []
 
-    def _add(key: str, command: str, *, button_type: Optional[str] = None, position: Optional[str] = None) -> None:
-        action = _action(device, command)
+    def _add(key: str, command: str, *, button_type: Optional[str] = None, position: Optional[str] = None,
+             params: Optional[Dict[str, Any]] = None) -> None:
+        action = _action(device, command, params)
         if action is None:
             return
         bt, pos = by_key.get(key, ("power-toggle", "left"))
@@ -103,19 +106,19 @@ def _power_content(device: Any, cap: Capability) -> ZoneContent:
 
     for key, cap_action in cap.actions.items():
         if cap_action.command:
-            _add(key, cap_action.command)
+            _add(key, cap_action.command, params=cap_action.params)
 
     for zone_key, zone in (cap.zones or {}).items():
         toggle = zone.actions.get("toggle")
         if toggle and toggle.command:  # native zone toggle (e.g. eMotiva zone2_power) -> one button
             _add("toggle", toggle.command,
                  button_type=("zone2-power" if str(zone_key) == "2" else "power-toggle"),
-                 position="middle")
+                 position="middle", params=toggle.params)
         else:  # discrete per-zone on/off
             for key in ("off", "on"):
                 ca = zone.actions.get(key)
                 if ca and ca.command:
-                    _add(key, ca.command)
+                    _add(key, ca.command, params=ca.params)
 
     buttons.sort(key=lambda b: {"left": 0, "middle": 1, "right": 2}.get(b.position, 9))
     return ZoneContent(power_buttons=buttons)
@@ -131,15 +134,15 @@ def _volume_content(device: Any, cap: Capability) -> ZoneContent:
     """volume domain -> volumeSlider (if a `set` action) else volumeButtons (up/down). `mute_toggle`
     becomes the mute action of whichever is used."""
     acts = cap.actions
-    mute = _action(device, acts["mute_toggle"].command) if "mute_toggle" in acts and acts["mute_toggle"].command else None
+    mute = _action(device, acts["mute_toggle"].command, acts["mute_toggle"].params) if "mute_toggle" in acts and acts["mute_toggle"].command else None
     if "set" in acts and acts["set"].command:
         return ZoneContent(volume_slider=VolumeSliderConfig(
-            action=_action(device, acts["set"].command), mute_action=mute,
+            action=_action(device, acts["set"].command, acts["set"].params), mute_action=mute,
             orientation="vertical", show_value=True,
             value_field=cap.state_field,  # serialized state field for the current level (UI value binding)
         ))
-    up = _action(device, acts["up"].command) if "up" in acts and acts["up"].command else None
-    down = _action(device, acts["down"].command) if "down" in acts and acts["down"].command else None
+    up = _action(device, acts["up"].command, acts["up"].params) if "up" in acts and acts["up"].command else None
+    down = _action(device, acts["down"].command, acts["down"].params) if "down" in acts and acts["down"].command else None
     return ZoneContent(volume_buttons=[VolumeButtonConfig(up_action=up, down_action=down, mute_action=mute)])
 
 
@@ -148,10 +151,13 @@ def _inputs_dropdown(device: Any, cap: Capability) -> DropdownConfig:
     one command per option (populated from the map)."""
     sel = cap.select
     if sel is not None and sel.command:
+        # native param the selected value is sent under: the param_map's native name for the
+        # canonical "input" key (e.g. LG {input: source} -> "source"), else "input" (e.g. eMotiva).
+        set_param = (sel.param_map or {}).get("input") or "input"
         return DropdownConfig(
             type="inputs", population_method="api",
             api_action=cap.list.command if cap.list else None,
-            set_action=sel.command, options=[], loading=False, empty=True,
+            set_action=sel.command, set_param=set_param, options=[], loading=False, empty=True,
         )
     options: List[DropdownOption] = []
     for value, cap_action in ((sel.by_value if sel else None) or {}).items():
