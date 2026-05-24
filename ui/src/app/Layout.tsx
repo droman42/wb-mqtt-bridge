@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import Navbar from '../components/Navbar';
 import DeviceStatePanel from '../components/DeviceStatePanel';
@@ -15,6 +16,7 @@ function Layout({ children }: LayoutProps) {
   const { statePanelOpen, logPanelOpen } = useSettingsStore();
   const { addLog } = useLogStore();
   const { addMessage } = useProgressStore();
+  const queryClient = useQueryClient();
 
   // SSE connections
   const deviceSSE = useDeviceSSE(true);
@@ -72,10 +74,18 @@ function Layout({ children }: LayoutProps) {
             break;
             
           case 'state_change': {
-            // Update device state, NO progress display per specification
+            // Live-update the device-state cache so every reader re-renders WITHOUT a refetch.
+            // This is the single source of truth for live state (Layer-3 scenario binding): a
+            // scenario's controls read their ROLE device via ['devices', roleDeviceId, 'state'],
+            // the same key a device page reads — so a change made on a device page (or by the
+            // reconciler) is reflected on the scenario page, and vice versa. No progress display.
             const state = deviceSSE.data.state;
-            console.log('[Layout] Device state change received:', { device_id, device_name, state });
-            // Note: state_change should update device state but not show in progress
+            if (state && device_id) {
+              queryClient.setQueryData(
+                ['devices', device_id, 'state'],
+                (prev: Record<string, unknown> | undefined) => ({ ...(prev ?? {}), ...state })
+              );
+            }
             shouldAddToProgress = false;
             break;
           }
@@ -113,13 +123,13 @@ function Layout({ children }: LayoutProps) {
         });
       }
     }
-  }, [deviceSSE.data, addMessage, addLog]);
+  }, [deviceSSE.data, addMessage, addLog, queryClient]);
 
-  // Handle scenario events - only test events per specification
+  // Handle scenario events
   useEffect(() => {
     if (scenarioSSE.data) {
       const { scenario_id, scenario_name, message, eventType } = scenarioSSE.data;
-      
+
       // Only handle test events per specification
       if (eventType === 'test') {
         addMessage({
@@ -130,8 +140,23 @@ function Layout({ children }: LayoutProps) {
           eventType: eventType
         });
       }
+
+      // The /events/scenarios half of the SSE→cache liveness fix (ui_backend_contract.md
+      // "Scenario state binding"). A lifecycle transition driven by ANY client (or the
+      // reconciler / WB-UI) changes which scenario is active and its devices' states — refresh
+      // the scenario-state cache so the lifecycle active-state coloring and the per-device views
+      // go live, not just on mount / after this client's own mutation. Prefix-invalidate both the
+      // global ['scenario','state'] and the per-scenario ['scenarios','state', id] queries.
+      if (
+        eventType === 'scenario_started' ||
+        eventType === 'scenario_switched' ||
+        eventType === 'scenario_shutdown'
+      ) {
+        void queryClient.invalidateQueries({ queryKey: ['scenario', 'state'] });
+        void queryClient.invalidateQueries({ queryKey: ['scenarios', 'state'] });
+      }
     }
-  }, [scenarioSSE.data, addMessage]);
+  }, [scenarioSSE.data, addMessage, queryClient]);
 
   // Handle system events - only test events per specification
   useEffect(() => {
