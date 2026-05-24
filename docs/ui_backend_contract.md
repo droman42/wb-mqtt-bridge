@@ -573,9 +573,11 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
     changes — byte-identical EXCEPT a correctness fix (3 `exposed:false` dormant commands —
     `streamer.refresh_inputs`, `appletv*.refresh_status` — no longer leak onto WB; they were dead, the
     exposure gate already rejected them). **⚠️ HARDWARE PASS PENDING** (live WB/MQTT topics).
-  - **WB re-key — remaining (steps 2–4, full `group` removal):** (2) delete the orphaned group
-    machinery (`base._build_action_groups_index`/`_action_groups`, `config_manager.get_groups()` — no
-    consumers since `/groups` deletion); (3) re-key/retire `ScenarioWBConfig`'s group use + the
+  - ✅ **WB re-key — step 2 DONE (`f57322c`)** — deleted the orphaned group machinery
+    (`base._action_groups`/`_build_action_groups_index`/`get_available_groups`/`get_actions_by_group`,
+    `config_manager._groups`/`get_groups`/`is_valid_group`); zero consumers after the `/groups`
+    deletion. base.py no longer reads `cmd.group`. backend 320.
+  - **WB re-key — remaining (steps 3–4, full `group` removal):** (3) re-key/retire `ScenarioWBConfig`'s group use + the
     scenario-path group fallback (tied to the **deferred scenario↔WB design**); (4) purge the `group`
     field from the config model + 182 command entries + the `system.json` `groups` map (mechanical;
     only after 2–3). `gestures` is moot (no command uses it). Each step verified by the golden
