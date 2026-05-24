@@ -1,0 +1,249 @@
+{
+  "controls": {
+    "down": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Remote: Down"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "get_available_apps": {
+      "initial_state": "0",
+      "meta": {
+        "order": 1050,
+        "readonly": false,
+        "title": {
+          "en": "List installed apps"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "home": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Remote: Home"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "launch_app": {
+      "initial_state": "YouTube",
+      "meta": {
+        "order": 1050,
+        "readonly": false,
+        "title": {
+          "en": "Launch App"
+        },
+        "type": "text"
+      }
+    },
+    "left": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Remote: Left"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "menu": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Remote: Menu"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "next": {
+      "initial_state": "0",
+      "meta": {
+        "order": 350,
+        "readonly": false,
+        "title": {
+          "en": "Next Track"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "pause": {
+      "initial_state": "0",
+      "meta": {
+        "order": 304,
+        "readonly": false,
+        "title": {
+          "en": "Pause"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "play": {
+      "initial_state": "0",
+      "meta": {
+        "order": 303,
+        "readonly": false,
+        "title": {
+          "en": "Play"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "power_off": {
+      "initial_state": "0",
+      "meta": {
+        "order": 102,
+        "readonly": false,
+        "title": {
+          "en": "Power Off"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "power_on": {
+      "initial_state": "0",
+      "meta": {
+        "order": 101,
+        "readonly": false,
+        "title": {
+          "en": "Power On"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "previous": {
+      "initial_state": "0",
+      "meta": {
+        "order": 350,
+        "readonly": false,
+        "title": {
+          "en": "Previous Track"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "refresh_status": {
+      "initial_state": "0",
+      "meta": {
+        "order": 150,
+        "readonly": false,
+        "title": {
+          "en": "Refresh Status"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "right": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Remote: Right"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "select": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Remote: Select/OK"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "set_volume": {
+      "initial_state": "50",
+      "meta": {
+        "max": 100.0,
+        "min": 0.0,
+        "order": 408,
+        "readonly": false,
+        "title": {
+          "en": "Set Volume"
+        },
+        "type": "range"
+      }
+    },
+    "stop": {
+      "initial_state": "0",
+      "meta": {
+        "order": 305,
+        "readonly": false,
+        "title": {
+          "en": "Stop"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "up": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Remote: Up"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "volume_down": {
+      "initial_state": "0",
+      "meta": {
+        "order": 450,
+        "readonly": false,
+        "title": {
+          "en": "Volume Down"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "volume_up": {
+      "initial_state": "0",
+      "meta": {
+        "order": 450,
+        "readonly": false,
+        "title": {
+          "en": "Volume Up"
+        },
+        "type": "pushbutton"
+      }
+    }
+  },
+  "device_id": "appletv_living",
+  "subscription_topics": [
+    "/devices/appletv_living/controls/power_on/on",
+    "/devices/appletv_living/controls/power_off/on",
+    "/devices/appletv_living/controls/play/on",
+    "/devices/appletv_living/controls/pause/on",
+    "/devices/appletv_living/controls/stop/on",
+    "/devices/appletv_living/controls/next/on",
+    "/devices/appletv_living/controls/previous/on",
+    "/devices/appletv_living/controls/volume_up/on",
+    "/devices/appletv_living/controls/volume_down/on",
+    "/devices/appletv_living/controls/set_volume/on",
+    "/devices/appletv_living/controls/launch_app/on",
+    "/devices/appletv_living/controls/refresh_status/on",
+    "/devices/appletv_living/controls/menu/on",
+    "/devices/appletv_living/controls/home/on",
+    "/devices/appletv_living/controls/select/on",
+    "/devices/appletv_living/controls/up/on",
+    "/devices/appletv_living/controls/down/on",
+    "/devices/appletv_living/controls/left/on",
+    "/devices/appletv_living/controls/right/on",
+    "/devices/appletv_living/controls/get_available_apps/on"
+  ]
+}

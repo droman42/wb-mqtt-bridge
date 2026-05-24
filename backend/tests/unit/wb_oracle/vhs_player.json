@@ -1,0 +1,79 @@
+{
+  "controls": {
+    "pause": {
+      "initial_state": "0",
+      "meta": {
+        "order": 304,
+        "readonly": false,
+        "title": {
+          "en": "Pause"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "play": {
+      "initial_state": "0",
+      "meta": {
+        "order": 303,
+        "readonly": false,
+        "title": {
+          "en": "Play"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "power": {
+      "initial_state": "0",
+      "meta": {
+        "order": 150,
+        "readonly": false,
+        "title": {
+          "en": "Power On/Off"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "rewind_backward": {
+      "initial_state": "0",
+      "meta": {
+        "order": 350,
+        "readonly": false,
+        "title": {
+          "en": "Rewind Backward"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "rewind_forward": {
+      "initial_state": "0",
+      "meta": {
+        "order": 350,
+        "readonly": false,
+        "title": {
+          "en": "Rewind Forward"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "stop": {
+      "initial_state": "0",
+      "meta": {
+        "order": 305,
+        "readonly": false,
+        "title": {
+          "en": "Stop"
+        },
+        "type": "pushbutton"
+      }
+    }
+  },
+  "device_id": "vhs_player",
+  "subscription_topics": [
+    "/devices/vhs_player/controls/power/on",
+    "/devices/vhs_player/controls/play/on",
+    "/devices/vhs_player/controls/stop/on",
+    "/devices/vhs_player/controls/pause/on",
+    "/devices/vhs_player/controls/rewind_forward/on",
+    "/devices/vhs_player/controls/rewind_backward/on"
+  ]
+}

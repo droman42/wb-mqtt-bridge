@@ -1,0 +1,32 @@
+{
+  "controls": {
+    "set_light": {
+      "initial_state": "off",
+      "meta": {
+        "order": 1,
+        "title": {
+          "en": "Kitchen Light"
+        },
+        "type": "switch"
+      }
+    },
+    "set_speed": {
+      "initial_state": "0",
+      "meta": {
+        "max": 4,
+        "min": 0,
+        "order": 2,
+        "title": {
+          "en": "Fan Speed"
+        },
+        "type": "range",
+        "units": ""
+      }
+    }
+  },
+  "device_id": "kitchen_hood",
+  "subscription_topics": [
+    "/devices/kitchen_hood/controls/set_light/on",
+    "/devices/kitchen_hood/controls/set_speed/on"
+  ]
+}

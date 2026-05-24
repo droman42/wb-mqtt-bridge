@@ -1,0 +1,55 @@
+{
+  "controls": {
+    "play": {
+      "initial_state": "0",
+      "meta": {
+        "order": 303,
+        "readonly": false,
+        "title": {
+          "en": "Play"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "rewind_backward": {
+      "initial_state": "0",
+      "meta": {
+        "order": 350,
+        "readonly": false,
+        "title": {
+          "en": "Rewind Backward"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "rewind_forward": {
+      "initial_state": "0",
+      "meta": {
+        "order": 350,
+        "readonly": false,
+        "title": {
+          "en": "Rewind Forward"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "stop": {
+      "initial_state": "0",
+      "meta": {
+        "order": 305,
+        "readonly": false,
+        "title": {
+          "en": "Stop"
+        },
+        "type": "pushbutton"
+      }
+    }
+  },
+  "device_id": "reel_to_reel",
+  "subscription_topics": [
+    "/devices/reel_to_reel/controls/play/on",
+    "/devices/reel_to_reel/controls/stop/on",
+    "/devices/reel_to_reel/controls/rewind_forward/on",
+    "/devices/reel_to_reel/controls/rewind_backward/on"
+  ]
+}

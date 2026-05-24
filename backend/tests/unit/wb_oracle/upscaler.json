@@ -1,0 +1,175 @@
+{
+  "controls": {
+    "input_s_vhs": {
+      "initial_state": "0",
+      "meta": {
+        "order": 250,
+        "readonly": false,
+        "title": {
+          "en": "Input S-VHS"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "input_video": {
+      "initial_state": "0",
+      "meta": {
+        "order": 250,
+        "readonly": false,
+        "title": {
+          "en": "Input Video"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "letterbox": {
+      "initial_state": "0",
+      "meta": {
+        "order": 1050,
+        "readonly": false,
+        "title": {
+          "en": "Letterbox"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "menu": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Menu"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "menu_down": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Menu Down"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "menu_exit": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Menu Exit"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "menu_left": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Menu Left"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "menu_ok": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "OK/Enter"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "menu_right": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Menu Right"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "menu_up": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Menu Up"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "power_off": {
+      "initial_state": "0",
+      "meta": {
+        "order": 102,
+        "readonly": false,
+        "title": {
+          "en": "Power Off"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "power_on": {
+      "initial_state": "0",
+      "meta": {
+        "order": 101,
+        "readonly": false,
+        "title": {
+          "en": "Power On"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "ratio_16_9": {
+      "initial_state": "0",
+      "meta": {
+        "order": 1050,
+        "readonly": false,
+        "title": {
+          "en": "Ratio 16:9"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "ratio_4_3": {
+      "initial_state": "0",
+      "meta": {
+        "order": 1050,
+        "readonly": false,
+        "title": {
+          "en": "Ratio 4:3"
+        },
+        "type": "pushbutton"
+      }
+    }
+  },
+  "device_id": "upscaler",
+  "subscription_topics": [
+    "/devices/upscaler/controls/power_on/on",
+    "/devices/upscaler/controls/power_off/on",
+    "/devices/upscaler/controls/input_video/on",
+    "/devices/upscaler/controls/input_s_vhs/on",
+    "/devices/upscaler/controls/ratio_4_3/on",
+    "/devices/upscaler/controls/ratio_16_9/on",
+    "/devices/upscaler/controls/letterbox/on",
+    "/devices/upscaler/controls/menu/on",
+    "/devices/upscaler/controls/menu_exit/on",
+    "/devices/upscaler/controls/menu_up/on",
+    "/devices/upscaler/controls/menu_down/on",
+    "/devices/upscaler/controls/menu_left/on",
+    "/devices/upscaler/controls/menu_right/on",
+    "/devices/upscaler/controls/menu_ok/on"
+  ]
+}

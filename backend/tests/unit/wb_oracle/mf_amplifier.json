@@ -1,0 +1,139 @@
+{
+  "controls": {
+    "input_aux1": {
+      "initial_state": "0",
+      "meta": {
+        "order": 250,
+        "readonly": false,
+        "title": {
+          "en": "AUX1"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "input_aux2": {
+      "initial_state": "0",
+      "meta": {
+        "order": 250,
+        "readonly": false,
+        "title": {
+          "en": "AUX2"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "input_balanced": {
+      "initial_state": "0",
+      "meta": {
+        "order": 250,
+        "readonly": false,
+        "title": {
+          "en": "Balanced"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "input_cd": {
+      "initial_state": "0",
+      "meta": {
+        "order": 250,
+        "readonly": false,
+        "title": {
+          "en": "CD"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "input_phono": {
+      "initial_state": "0",
+      "meta": {
+        "order": 201,
+        "readonly": false,
+        "title": {
+          "en": "Phono"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "input_tuner": {
+      "initial_state": "0",
+      "meta": {
+        "order": 250,
+        "readonly": false,
+        "title": {
+          "en": "Tuner"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "input_usb": {
+      "initial_state": "0",
+      "meta": {
+        "order": 250,
+        "readonly": false,
+        "title": {
+          "en": "USB"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "mute": {
+      "initial_state": "0",
+      "meta": {
+        "order": 406,
+        "readonly": false,
+        "title": {
+          "en": "Mute"
+        },
+        "type": "switch"
+      }
+    },
+    "power": {
+      "initial_state": "0",
+      "meta": {
+        "order": 150,
+        "readonly": false,
+        "title": {
+          "en": "Power On/Off"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "volume_down": {
+      "initial_state": "0",
+      "meta": {
+        "order": 450,
+        "readonly": false,
+        "title": {
+          "en": "Volume Down"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "volume_up": {
+      "initial_state": "0",
+      "meta": {
+        "order": 450,
+        "readonly": false,
+        "title": {
+          "en": "Volume Up"
+        },
+        "type": "pushbutton"
+      }
+    }
+  },
+  "device_id": "mf_amplifier",
+  "subscription_topics": [
+    "/devices/mf_amplifier/controls/power/on",
+    "/devices/mf_amplifier/controls/volume_up/on",
+    "/devices/mf_amplifier/controls/volume_down/on",
+    "/devices/mf_amplifier/controls/mute/on",
+    "/devices/mf_amplifier/controls/input_cd/on",
+    "/devices/mf_amplifier/controls/input_usb/on",
+    "/devices/mf_amplifier/controls/input_phono/on",
+    "/devices/mf_amplifier/controls/input_tuner/on",
+    "/devices/mf_amplifier/controls/input_aux1/on",
+    "/devices/mf_amplifier/controls/input_aux2/on",
+    "/devices/mf_amplifier/controls/input_balanced/on"
+  ]
+}

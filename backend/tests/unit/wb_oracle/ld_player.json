@@ -1,0 +1,103 @@
+{
+  "controls": {
+    "audio": {
+      "initial_state": "0",
+      "meta": {
+        "order": 1050,
+        "readonly": false,
+        "title": {
+          "en": "Audio"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "chapter_minus": {
+      "initial_state": "0",
+      "meta": {
+        "order": 350,
+        "readonly": false,
+        "title": {
+          "en": "Chapter-"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "chapter_plus": {
+      "initial_state": "0",
+      "meta": {
+        "order": 350,
+        "readonly": false,
+        "title": {
+          "en": "Chapter+"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "pause": {
+      "initial_state": "0",
+      "meta": {
+        "order": 304,
+        "readonly": false,
+        "title": {
+          "en": "Pause"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "play": {
+      "initial_state": "0",
+      "meta": {
+        "order": 303,
+        "readonly": false,
+        "title": {
+          "en": "Play"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "power": {
+      "initial_state": "0",
+      "meta": {
+        "order": 150,
+        "readonly": false,
+        "title": {
+          "en": "Power On/Off"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "stop": {
+      "initial_state": "0",
+      "meta": {
+        "order": 305,
+        "readonly": false,
+        "title": {
+          "en": "Stop"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "tray": {
+      "initial_state": "0",
+      "meta": {
+        "order": 1050,
+        "readonly": false,
+        "title": {
+          "en": "Tray"
+        },
+        "type": "pushbutton"
+      }
+    }
+  },
+  "device_id": "ld_player",
+  "subscription_topics": [
+    "/devices/ld_player/controls/power/on",
+    "/devices/ld_player/controls/tray/on",
+    "/devices/ld_player/controls/play/on",
+    "/devices/ld_player/controls/stop/on",
+    "/devices/ld_player/controls/pause/on",
+    "/devices/ld_player/controls/chapter_plus/on",
+    "/devices/ld_player/controls/chapter_minus/on",
+    "/devices/ld_player/controls/audio/on"
+  ]
+}

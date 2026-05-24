@@ -337,56 +337,62 @@ class WBVirtualDeviceService:
         await self.message_bus.publish(topic, json.dumps(device_meta), retain=True, qos=1)
         logger.debug(f"Published WB device meta for {device_id}")
     
+    def build_wb_controls_from_config(self, config: Union[BaseDeviceConfig, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+        """Compute the WB controls (meta + initial state) a config would publish, applying the
+        WB-exclusion + has-action filter. **Pure** (no MQTT) — the single place that decides which
+        commands become WB controls and how, so `_publish_wb_control_metas` and the re-key
+        equivalence tests agree. Returns ``{control_name: {"meta": {...}, "initial_state": "..."}}``.
+        """
+        if isinstance(config, dict):
+            commands = config.get("commands", {})
+        else:
+            commands = config.commands
+
+        # UI-only groups that should not generate MQTT topics or controls.
+        excluded_groups = {"pointer", "gestures", "noops", "media"}
+
+        controls: Dict[str, Dict[str, Any]] = {}
+        for cmd_name, cmd_config in commands.items():
+            group = None
+            if hasattr(cmd_config, 'group'):
+                group = cmd_config.group
+            elif isinstance(cmd_config, dict):
+                group = cmd_config.get('group')
+
+            if group and group.lower() in excluded_groups:
+                logger.debug(f"Skipping WB control for UI-only command: {cmd_name} (group: {group})")
+                continue
+
+            action = None
+            if hasattr(cmd_config, 'action'):
+                action = cmd_config.action
+            elif isinstance(cmd_config, dict):
+                action = cmd_config.get('action')
+
+            if not action:
+                continue
+
+            controls[cmd_name] = {
+                "meta": self._generate_wb_control_meta_from_config(cmd_name, cmd_config, config),
+                "initial_state": self._get_initial_wb_control_state_from_config(cmd_name, cmd_config),
+            }
+        return controls
+
     async def _publish_wb_control_metas(self, device_id: str, config: Union[BaseDeviceConfig, Dict[str, Any]]):
         """Publish WB control metadata for configured commands only."""
         try:
-            # Extract commands from config
-            if isinstance(config, dict):
-                commands = config.get("commands", {})
-            else:
-                commands = config.commands
-            
-            # UI-only groups that should not generate MQTT topics or controls
-            excluded_groups = {"pointer", "gestures", "noops", "media"}
-            
-            for cmd_name, cmd_config in commands.items():
-                # Extract group from command config
-                group = None
-                if hasattr(cmd_config, 'group'):
-                    group = cmd_config.group
-                elif isinstance(cmd_config, dict):
-                    group = cmd_config.get('group')
-                
-                # Skip commands in excluded groups
-                if group and group.lower() in excluded_groups:
-                    logger.debug(f"Skipping WB control metadata for UI-only command: {cmd_name} (group: {group})")
-                    continue
-                
-                # Only create WB controls for commands that have actions
-                action = None
-                if hasattr(cmd_config, 'action'):
-                    action = cmd_config.action
-                elif isinstance(cmd_config, dict):
-                    action = cmd_config.get('action')
-                
-                if action:
-                    control_meta = self._generate_wb_control_meta_from_config(cmd_name, cmd_config, config)
-                    
-                    # Use command name as control name for WB topics
-                    control_name = cmd_name
-                    
-                    # Publish control metadata
-                    meta_topic = f"/devices/{device_id}/controls/{control_name}/meta"
-                    await self.message_bus.publish(meta_topic, json.dumps(control_meta), retain=True, qos=1)
-                    
-                    # Publish initial control state. Never publish an empty retained payload —
-                    # that clears the retained value and the WB UI won't render the control.
-                    initial_state = self._get_initial_wb_control_state_from_config(cmd_name, cmd_config)
-                    state_topic = f"/devices/{device_id}/controls/{control_name}"
-                    await self.message_bus.publish(state_topic, str(initial_state) or "0", retain=True, qos=1)
-                    
-                    logger.debug(f"Published WB control meta for {device_id}/{control_name}")
-        
+            for control_name, control in self.build_wb_controls_from_config(config).items():
+                # Publish control metadata
+                meta_topic = f"/devices/{device_id}/controls/{control_name}/meta"
+                await self.message_bus.publish(meta_topic, json.dumps(control["meta"]), retain=True, qos=1)
+
+                # Publish initial control state. Never publish an empty retained payload —
+                # that clears the retained value and the WB UI won't render the control.
+                state_topic = f"/devices/{device_id}/controls/{control_name}"
+                await self.message_bus.publish(state_topic, str(control["initial_state"]) or "0", retain=True, qos=1)
+
+                logger.debug(f"Published WB control meta for {device_id}/{control_name}")
+
         except Exception as e:
             logger.error(f"Error publishing WB control metas for {device_id}: {str(e)}")
     

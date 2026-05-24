@@ -1,0 +1,199 @@
+{
+  "controls": {
+    "audio": {
+      "initial_state": "0",
+      "meta": {
+        "order": 1050,
+        "readonly": false,
+        "title": {
+          "en": "Audio"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "back": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Back"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "chapter_minus": {
+      "initial_state": "0",
+      "meta": {
+        "order": 350,
+        "readonly": false,
+        "title": {
+          "en": "Chapter-"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "chapter_plus": {
+      "initial_state": "0",
+      "meta": {
+        "order": 350,
+        "readonly": false,
+        "title": {
+          "en": "Chapter+"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "home": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Home"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "menu_down": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Down"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "menu_left": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Left"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "menu_ok": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "OK/Enter"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "menu_right": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Right"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "menu_up": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Up"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "play_pause": {
+      "initial_state": "0",
+      "meta": {
+        "order": 303,
+        "readonly": false,
+        "title": {
+          "en": "Play/Pause"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "power_off": {
+      "initial_state": "0",
+      "meta": {
+        "order": 102,
+        "readonly": false,
+        "title": {
+          "en": "Power Off"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "power_on": {
+      "initial_state": "0",
+      "meta": {
+        "order": 101,
+        "readonly": false,
+        "title": {
+          "en": "Power On"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "settings": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Settings"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "stop": {
+      "initial_state": "0",
+      "meta": {
+        "order": 305,
+        "readonly": false,
+        "title": {
+          "en": "Stop"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "subtitles": {
+      "initial_state": "0",
+      "meta": {
+        "order": 1050,
+        "readonly": false,
+        "title": {
+          "en": "Subtitles"
+        },
+        "type": "pushbutton"
+      }
+    }
+  },
+  "device_id": "video",
+  "subscription_topics": [
+    "/devices/video/controls/power_on/on",
+    "/devices/video/controls/power_off/on",
+    "/devices/video/controls/play_pause/on",
+    "/devices/video/controls/chapter_plus/on",
+    "/devices/video/controls/chapter_minus/on",
+    "/devices/video/controls/stop/on",
+    "/devices/video/controls/menu_up/on",
+    "/devices/video/controls/menu_down/on",
+    "/devices/video/controls/menu_left/on",
+    "/devices/video/controls/menu_right/on",
+    "/devices/video/controls/menu_ok/on",
+    "/devices/video/controls/audio/on",
+    "/devices/video/controls/subtitles/on",
+    "/devices/video/controls/home/on",
+    "/devices/video/controls/settings/on",
+    "/devices/video/controls/back/on"
+  ]
+}

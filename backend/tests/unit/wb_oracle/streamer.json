@@ -1,0 +1,165 @@
+{
+  "controls": {
+    "get_available_inputs": {
+      "initial_state": "0",
+      "meta": {
+        "order": 250,
+        "readonly": false,
+        "title": {
+          "en": "List available inputs"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "mute": {
+      "initial_state": "0",
+      "meta": {
+        "order": 406,
+        "readonly": false,
+        "title": {
+          "en": "Toggle Mute"
+        },
+        "type": "switch"
+      }
+    },
+    "next": {
+      "initial_state": "0",
+      "meta": {
+        "order": 350,
+        "readonly": false,
+        "title": {
+          "en": "Next Track"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "pause": {
+      "initial_state": "0",
+      "meta": {
+        "order": 304,
+        "readonly": false,
+        "title": {
+          "en": "Pause"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "play": {
+      "initial_state": "0",
+      "meta": {
+        "order": 303,
+        "readonly": false,
+        "title": {
+          "en": "Play"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "power_off": {
+      "initial_state": "False",
+      "meta": {
+        "order": 102,
+        "readonly": false,
+        "title": {
+          "en": "Power Off"
+        },
+        "type": "switch"
+      }
+    },
+    "power_on": {
+      "initial_state": "0",
+      "meta": {
+        "order": 101,
+        "readonly": false,
+        "title": {
+          "en": "Power On"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "refresh_inputs": {
+      "initial_state": "0",
+      "meta": {
+        "order": 250,
+        "readonly": false,
+        "title": {
+          "en": "Refresh inputs list"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "set_input": {
+      "initial_state": "unknown",
+      "meta": {
+        "order": 250,
+        "readonly": false,
+        "title": {
+          "en": "Set Input"
+        },
+        "type": "text"
+      }
+    },
+    "set_volume": {
+      "initial_state": "50",
+      "meta": {
+        "max": 100.0,
+        "min": 0.0,
+        "order": 408,
+        "readonly": false,
+        "title": {
+          "en": "Set Volume"
+        },
+        "type": "range"
+      }
+    },
+    "stop": {
+      "initial_state": "0",
+      "meta": {
+        "order": 305,
+        "readonly": false,
+        "title": {
+          "en": "Stop"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "volume_down": {
+      "initial_state": "0",
+      "meta": {
+        "order": 450,
+        "readonly": false,
+        "title": {
+          "en": "Decrease Volume"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "volume_up": {
+      "initial_state": "0",
+      "meta": {
+        "order": 450,
+        "readonly": false,
+        "title": {
+          "en": "Increase Volume"
+        },
+        "type": "pushbutton"
+      }
+    }
+  },
+  "device_id": "streamer",
+  "subscription_topics": [
+    "/devices/streamer/controls/power_on/on",
+    "/devices/streamer/controls/power_off/on",
+    "/devices/streamer/controls/play/on",
+    "/devices/streamer/controls/pause/on",
+    "/devices/streamer/controls/stop/on",
+    "/devices/streamer/controls/next/on",
+    "/devices/streamer/controls/set_volume/on",
+    "/devices/streamer/controls/volume_up/on",
+    "/devices/streamer/controls/volume_down/on",
+    "/devices/streamer/controls/mute/on",
+    "/devices/streamer/controls/set_input/on",
+    "/devices/streamer/controls/get_available_inputs/on",
+    "/devices/streamer/controls/refresh_inputs/on"
+  ]
+}

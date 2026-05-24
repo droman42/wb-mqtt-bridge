@@ -1,0 +1,99 @@
+{
+  "controls": {
+    "get_available_inputs": {
+      "initial_state": "0",
+      "meta": {
+        "order": 250,
+        "readonly": false,
+        "title": {
+          "en": "List available inputs"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "mute_toggle": {
+      "initial_state": "1",
+      "meta": {
+        "max": 2.0,
+        "min": 1.0,
+        "order": 406,
+        "readonly": false,
+        "title": {
+          "en": "Toggle mute state"
+        },
+        "type": "range"
+      }
+    },
+    "power_off": {
+      "initial_state": "1",
+      "meta": {
+        "max": 2.0,
+        "min": 1.0,
+        "order": 102,
+        "readonly": false,
+        "title": {
+          "en": "Turn off the processor"
+        },
+        "type": "range"
+      }
+    },
+    "power_on": {
+      "initial_state": "1",
+      "meta": {
+        "max": 2.0,
+        "min": 1.0,
+        "order": 101,
+        "readonly": false,
+        "title": {
+          "en": "Turn on the processor"
+        },
+        "type": "range"
+      }
+    },
+    "set_input": {
+      "initial_state": "hdmi1",
+      "meta": {
+        "order": 250,
+        "readonly": false,
+        "title": {
+          "en": "Switch to input"
+        },
+        "type": "text"
+      }
+    },
+    "set_volume": {
+      "initial_state": "50",
+      "meta": {
+        "max": 0.0,
+        "min": -96.0,
+        "order": 408,
+        "readonly": false,
+        "title": {
+          "en": "Set the volume level"
+        },
+        "type": "range"
+      }
+    },
+    "zone2_power_toggle": {
+      "initial_state": "0",
+      "meta": {
+        "order": 101,
+        "readonly": false,
+        "title": {
+          "en": "Toggle Zone 2 power"
+        },
+        "type": "pushbutton"
+      }
+    }
+  },
+  "device_id": "processor",
+  "subscription_topics": [
+    "/devices/processor/controls/power_on/on",
+    "/devices/processor/controls/power_off/on",
+    "/devices/processor/controls/zone2_power_toggle/on",
+    "/devices/processor/controls/set_input/on",
+    "/devices/processor/controls/set_volume/on",
+    "/devices/processor/controls/mute_toggle/on",
+    "/devices/processor/controls/get_available_inputs/on"
+  ]
+}

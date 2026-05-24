@@ -1,0 +1,297 @@
+{
+  "controls": {
+    "back": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Back"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "down": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Down"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "enter": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Enter/OK"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "exit": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Exit Button"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "get_available_apps": {
+      "initial_state": "0",
+      "meta": {
+        "order": 1050,
+        "readonly": false,
+        "title": {
+          "en": "List available Apps"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "get_available_inputs": {
+      "initial_state": "0",
+      "meta": {
+        "order": 250,
+        "readonly": false,
+        "title": {
+          "en": "List available inputs"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "home": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Home"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "launch_app": {
+      "initial_state": "unknown",
+      "meta": {
+        "order": 1050,
+        "readonly": false,
+        "title": {
+          "en": "Launch App"
+        },
+        "type": "text"
+      }
+    },
+    "left": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Left"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "menu": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Menu Button"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "mute": {
+      "initial_state": "0",
+      "meta": {
+        "order": 406,
+        "readonly": false,
+        "title": {
+          "en": "Mute"
+        },
+        "type": "switch"
+      }
+    },
+    "pause": {
+      "initial_state": "0",
+      "meta": {
+        "order": 304,
+        "readonly": false,
+        "title": {
+          "en": "Pause"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "play": {
+      "initial_state": "0",
+      "meta": {
+        "order": 303,
+        "readonly": false,
+        "title": {
+          "en": "Play"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "power_off": {
+      "initial_state": "0",
+      "meta": {
+        "order": 102,
+        "readonly": false,
+        "title": {
+          "en": "Power Off"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "power_on": {
+      "initial_state": "0",
+      "meta": {
+        "order": 101,
+        "readonly": false,
+        "title": {
+          "en": "Power On"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "rewind_backward": {
+      "initial_state": "0",
+      "meta": {
+        "order": 350,
+        "readonly": false,
+        "title": {
+          "en": "Fast Backward"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "rewind_forward": {
+      "initial_state": "0",
+      "meta": {
+        "order": 350,
+        "readonly": false,
+        "title": {
+          "en": "Fast Forward"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "right": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Right"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "set_input_source": {
+      "initial_state": "unknown",
+      "meta": {
+        "order": 250,
+        "readonly": false,
+        "title": {
+          "en": "Set Input Source"
+        },
+        "type": "text"
+      }
+    },
+    "set_volume": {
+      "initial_state": "50",
+      "meta": {
+        "max": 100.0,
+        "min": 0.0,
+        "order": 408,
+        "readonly": false,
+        "title": {
+          "en": "Set Volume Level"
+        },
+        "type": "range"
+      }
+    },
+    "stop": {
+      "initial_state": "0",
+      "meta": {
+        "order": 305,
+        "readonly": false,
+        "title": {
+          "en": "Stop"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "up": {
+      "initial_state": "0",
+      "meta": {
+        "order": 550,
+        "readonly": false,
+        "title": {
+          "en": "Up"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "volume_down": {
+      "initial_state": "0",
+      "meta": {
+        "order": 450,
+        "readonly": false,
+        "title": {
+          "en": "Volume Down"
+        },
+        "type": "pushbutton"
+      }
+    },
+    "volume_up": {
+      "initial_state": "0",
+      "meta": {
+        "order": 450,
+        "readonly": false,
+        "title": {
+          "en": "Volume Up"
+        },
+        "type": "pushbutton"
+      }
+    }
+  },
+  "device_id": "children_room_tv",
+  "subscription_topics": [
+    "/devices/children_room_tv/controls/power_on/on",
+    "/devices/children_room_tv/controls/power_off/on",
+    "/devices/children_room_tv/controls/home/on",
+    "/devices/children_room_tv/controls/back/on",
+    "/devices/children_room_tv/controls/up/on",
+    "/devices/children_room_tv/controls/down/on",
+    "/devices/children_room_tv/controls/left/on",
+    "/devices/children_room_tv/controls/right/on",
+    "/devices/children_room_tv/controls/enter/on",
+    "/devices/children_room_tv/controls/volume_up/on",
+    "/devices/children_room_tv/controls/volume_down/on",
+    "/devices/children_room_tv/controls/mute/on",
+    "/devices/children_room_tv/controls/play/on",
+    "/devices/children_room_tv/controls/pause/on",
+    "/devices/children_room_tv/controls/stop/on",
+    "/devices/children_room_tv/controls/rewind_forward/on",
+    "/devices/children_room_tv/controls/rewind_backward/on",
+    "/devices/children_room_tv/controls/exit/on",
+    "/devices/children_room_tv/controls/menu/on",
+    "/devices/children_room_tv/controls/set_volume/on",
+    "/devices/children_room_tv/controls/set_input_source/on",
+    "/devices/children_room_tv/controls/launch_app/on",
+    "/devices/children_room_tv/controls/get_available_apps/on",
+    "/devices/children_room_tv/controls/get_available_inputs/on"
+  ]
+}
