@@ -517,8 +517,11 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
     `ScenarioVirtualDeviceResolver.ts`, `DeviceConfigurationClient.ts`, and the `virtual_config` hooks
     in `useApi`. **A5 is now backend-only** (retire the `/scenario/virtual_config` endpoints + the
     `wb_adapter` resolver; keep the WB publication).
-  - **A4 — finish U3**: remove the inert `specialCases` from `types/RemoteControlLayout.ts`,
-    `layoutManifestAdapter.ts`, `useRemoteControlData.ts` (the handler emission is already gone).
+  - ✅ **A4 DONE (`5adb3f0`):** removed the inert `specialCases` from `types/RemoteControlLayout.ts`
+    (the field + `DeviceSpecialCase` interface), `layoutManifestAdapter.ts` (stopped copying it), and
+    refreshed the stale comment + retired the done `TODO(Step 3)` B5 note in `useRemoteControlData.ts`.
+    The `api.gen.ts` `DeviceSpecialCase` type is generated — it goes when backend **B2** drops
+    `special_cases` and openapi/api.gen are regenerated.
   - **Oracle (deferred, NOT done in A3):** the frozen `docs/scenarios/layer3_oracle/*` + the backend
     `test_engine_reproduces_oracle` are **kept** for now as the engine's structural regression
     snapshot — retiring them removes backend coverage for no immediate gain. Retire deliberately later.
