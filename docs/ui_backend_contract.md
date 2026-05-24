@@ -384,8 +384,12 @@ whatever else is active (reconciler switch path). Globally-exclusive ⇒ no per-
   stays as an **optional override** (e.g. a device-specific glyph the UI can't derive, via a future
   capability hint); it is *not* the primary source. The placement engine emits placeholder icons,
   which the renderer ignores in favor of the `IconResolver` (a Step-2 renderer concern).
-- **Appliances:** v1 manifest targets the remote layout (`device_category=device` + scenarios).
-  Appliance bespoke pages get a separate manifest variant later — out of scope for v1.
+- **Appliances:** the layout manifest targets the A/V remote layout (`device_category=device` +
+  scenarios) only. Appliances (`device_category=appliance`) do **not** use the manifest/runtime
+  renderer — they get **hand-written bespoke pages** (`src/pages/appliances/*`, registered in
+  `src/pages/appliances/index.ts`, routed by `App.tsx`). Implemented for `kitchen_hood` at the A1
+  cutover (`f5a64cf`); add future appliances the same way. (A backend appliance-manifest variant
+  could replace these later, but is not planned for now.)
 
 ### Fidelity strategy
 The current `.gen.tsx` set is the regression reference: the backend engine must reproduce each
@@ -498,8 +502,18 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
   - Retire the scenario web fallback: `ScenarioVirtualDeviceControls.tsx`,
     `ScenarioVirtualDeviceResolver.ts`, `…Handler.ts`, `useScenarioVirtualDevice.ts`, the
     `virtual_config` hooks + `App.tsx` wiring.
-  - Drop the per-id runtime flag (`config/runtime.ts`) so runtime is the only path; remove `.gen`
-    fallbacks in `RuntimeDevicePage`/`RuntimeScenarioPage`.
+  - ✅ **A1 DONE (`f5a64cf`):** dropped the per-id runtime flag (removed the flag block from
+    `config/runtime.ts`; the file stays for `runtimeConfig`/`getSSEUrl`) and the `App.tsx` gate —
+    runtime is now the only path for A/V devices + scenarios. (The `.gen` fallback still lives inside
+    `RuntimeDevicePage`/`RuntimeScenarioPage` → removed in A2.)
+  - ✅ **Appliances — bespoke pages (A1, `f5a64cf`).** `kitchen_hood` (the sole
+    `device_category=appliance`, no capability map → runtime manifest would be empty; its generated
+    page was already empty since the renderer stopped reading `specialCases`) now has a **hand-written
+    `src/pages/appliances/KitchenHoodPage.tsx`** (light `set_light{state}` + fan speed
+    `set_speed{level}`), routed via a tiny hand-maintained registry `src/pages/appliances/index.ts`
+    (`getAppliancePage` by device_id, checked in `App.tsx` before `RuntimeDevicePage`). This is the
+    "appliances → bespoke pages" model — appliances do NOT go through the A/V runtime renderer. So the
+    page generator below can be fully deleted (the appliance does not depend on it).
   - Retire dead groups hooks (`useGroups`/`useDeviceGroups`/`useGroupActions`).
   - **Rename the lone surviving generated file** to kill the `.gen` ambiguity (after cutover it's the
     only `.gen` file left, and it SURVIVES — unlike the deleted page artifacts): `src/types/api.gen.ts`
