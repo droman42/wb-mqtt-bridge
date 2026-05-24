@@ -85,57 +85,6 @@ export interface ActionRequest {
   params?: { [key: string]: any };
 }
 
-// Phase 2: Scenario Virtual Device Configuration Types
-export interface ScenarioWBConfig {
-  device_id: string;
-  device_name: string;
-  device_class: string;
-  scenario_id: string;
-  commands: WBCommandDefinition[];
-  controls: WBControlDefinition[];
-  meta?: { [key: string]: any } | null;
-}
-
-export interface WBCommandDefinition {
-  id: string;
-  title: string;
-  type: 'switch' | 'pushbutton' | 'range' | 'text' | 'value';
-  role?: string | null;
-  action?: string | null;
-  meta?: WBCommandMeta | null;
-  order?: number;
-}
-
-export interface WBCommandMeta {
-  max?: number | null;
-  min?: number | null;
-  step?: number | null;
-  units?: string | null;
-  enum?: string[] | null;
-  readonly?: boolean;
-}
-
-export interface WBControlDefinition {
-  topic: string;
-  title: string;
-  type: 'switch' | 'pushbutton' | 'range' | 'text' | 'value';
-  value?: any | null;
-  meta?: WBCommandMeta | null;
-  order?: number;
-}
-
-export interface ScenarioVirtualConfigResponse {
-  scenario_id: string;
-  config: ScenarioWBConfig;
-  generated_at: string;
-  version: string;
-}
-
-export interface ScenarioVirtualConfigsResponse {
-  [scenario_id: string]: ScenarioVirtualConfigResponse;
-}
-
-
 // MQTT Related Types
 export interface MQTTMessage {
   topic: string;
@@ -161,12 +110,6 @@ export interface MQTTBrokerConfig {
 }
 
 // System Related Types
-export interface ServiceInfo {
-  service: string;
-  version: string;
-  status: string;
-}
-
 export interface SystemInfo {
   version?: string;
   mqttBroker: MQTTBrokerConfig;
@@ -196,53 +139,6 @@ export interface ReloadResponse {
   timestamp?: string;
 }
 
-// Error Related Types
-export interface ErrorResponse {
-  detail: string;
-  error_code?: string | null;
-}
-
-export interface ValidationErrorLocInner {
-  // Can be string or number for array indices
-}
-
-export interface ValidationError {
-  loc: Array<ValidationErrorLocInner>;
-  msg: string;
-  type: string;
-}
-
-export interface HTTPValidationError {
-  detail?: Array<ValidationError>;
-}
-
-// New schema types from API specification
 export interface PersistedStatesResponse {
   [deviceId: string]: { [key: string]: any };
 }
-
-export interface BaseDeviceConfig {
-  device_id: string;
-  device_name: string;
-  mqtt_progress_topic?: string;
-  device_class: string;
-  config_class: string;
-  commands: { [key: string]: BaseCommandConfig };
-}
-
-export interface BaseCommandConfig {
-  action?: string | null;
-  topic?: string | null;
-  description?: string | null;
-  params?: CommandParameterDefinition[] | null;
-}
-
-export interface CommandParameterDefinition {
-  name: string;
-  type: string;
-  required: boolean;
-  default?: any | null;
-  min?: number | null;
-  max?: number | null;
-  description?: string | null;
-} 
