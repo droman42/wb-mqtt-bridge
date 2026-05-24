@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import type { components } from '../types/api.gen';
+import type { components } from '../types/openapi.gen';
 import type {
   DeviceAction,
   MQTTMessage,

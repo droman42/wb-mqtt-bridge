@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "gen:api-types": "openapi-typescript ${OPENAPI_SCHEMA:-../backend/openapi.json} -o src/types/api.gen.ts",
+    "gen:api-types": "openapi-typescript ${OPENAPI_SCHEMA:-../backend/openapi.json} -o src/types/openapi.gen.ts",
     "preview": "vite preview",
     "test": "jest",
     "test:e2e": "playwright test",
