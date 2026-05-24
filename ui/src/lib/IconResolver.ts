@@ -233,6 +233,10 @@ export class IconResolver {
     
     // Partial match - check if any mapping key is contained in the action name
     for (const [key, mapping] of Object.entries(this.iconMappings)) {
+      // Numeric keys (number-pad buttons like '2') are exact-match only — never match them as a
+      // substring, or any action containing a digit (e.g. zone2_power_toggle, aux2) wrongly resolves
+      // to the digit glyph. (JS iterates integer-like keys first, so they'd otherwise win.)
+      if (/^\d+$/.test(key)) continue;
       if (cleanName.includes(key) || key.includes(cleanName)) {
         return mapping;
       }

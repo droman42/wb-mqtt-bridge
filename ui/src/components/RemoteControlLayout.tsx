@@ -47,12 +47,14 @@ const PowerZone = ({ zone, deviceStructure, onAction, className, isActionPending
 
   // Helper function to get icon color based on button type and device state
   const getIconColor = (button: PowerButtonConfig) => {
-    // Special handling for zone2 power toggle buttons (eMotiva)
-    if (button.buttonType === 'power-toggle' && button.action.actionName.includes('zone2')) {
+    // Special handling for zone2 power toggle buttons (eMotiva). The Layer-3 engine emits buttonType
+    // 'zone2-power'; the legacy codegen used 'power-toggle' + a zone2 action name — handle both.
+    if (button.buttonType === 'zone2-power' ||
+        (button.buttonType === 'power-toggle' && button.action.actionName.includes('zone2'))) {
       const deviceStateTyped = deviceState as any;
       // Check if zone2 is powered on (use correct snake_case field name and string type)
       const zone2PowerOn = deviceStateTyped?.zone2_power === 'on';
-      
+
       // Yellow when zone2 is off, white when zone2 is on
       return zone2PowerOn ? 'text-white' : 'text-yellow-500';
     }
