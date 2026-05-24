@@ -122,49 +122,60 @@ function DeviceStatePanel({ isOpen, className, sseState }: DeviceStatePanelProps
   if (!isOpen) return null;
 
   const renderDeviceSpecificState = () => {
-    if (!deviceStructure?.stateInterface?.fields || !state) {
+    if (!state) {
       return null;
     }
 
-    const stateFields = deviceStructure.stateInterface.fields;
-    const deviceSpecificFields = stateFields.filter(field => 
-      !['device_id', 'device_name', 'last_command', 'error'].includes(field.name)
-    );
+    // Runtime-native: derive the field list from the LIVE state object itself. Layer 3 dropped the
+    // build-time `stateInterface` (the manifest carries only `stateSchema`, the class name), so we no
+    // longer have declared field metadata (types/descriptions) here — instead we show every field the
+    // device actually reports and infer the display type from the value. Base/meta fields are hidden.
+    // Base/meta fields, incl. the camelCase `deviceId` the enhanced useDeviceState hook injects
+    // (a UI-bookkeeping duplicate of device_id, not real device state).
+    const BASE_FIELDS = [
+      'device_id', 'device_name', 'scenario_id', 'last_command', 'error', 'deviceId', 'deviceName',
+    ];
+    const fieldNames = Object.keys(state).filter((name) => !BASE_FIELDS.includes(name));
 
-    if (deviceSpecificFields.length === 0) {
+    if (fieldNames.length === 0) {
       return null;
     }
+
+    // getFieldIcon's map is camelCase-keyed; live state is snake_case → look up the camelCase form.
+    const toCamel = (s: string) => s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+    const humanize = (s: string) =>
+      s.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase()).trim();
 
     return (
       <CollapsibleSection title="Device State" defaultOpen={true}>
-        {deviceSpecificFields.map((field) => {
-          const value = (state as any)[field.name];
-          const formattedValue = formatStateValue(value, field.type);
-          const iconName = getFieldIcon(field.name);
-          
+        {fieldNames.map((name) => {
+          const value = (state as any)[name];
+          const fieldType =
+            typeof value === 'boolean' ? 'boolean' : typeof value === 'number' ? 'number' : 'string';
+          const formattedValue =
+            value !== null && typeof value === 'object'
+              ? JSON.stringify(value)
+              : formatStateValue(value, fieldType);
+          const iconName = getFieldIcon(toCamel(name));
+
           return (
-            <div key={field.name} className="flex items-center justify-between p-2 rounded-md bg-muted/30">
+            <div key={name} className="flex items-center justify-between p-2 rounded-md bg-muted/30">
               <div className="flex items-center space-x-2">
-                <Icon 
-                  library="material" 
-                  name={iconName} 
-                  size="sm" 
-                  fallback="info" 
-                  className="h-4 w-4 text-muted-foreground" 
+                <Icon
+                  library="material"
+                  name={iconName}
+                  size="sm"
+                  fallback="info"
+                  className="h-4 w-4 text-muted-foreground"
                 />
                 <div>
-                  <span className="text-sm font-medium">
-                    {field.name.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                  </span>
-                  {field.description && (
-                    <p className="text-xs text-muted-foreground">{field.description}</p>
-                  )}
+                  <span className="text-sm font-medium">{humanize(name)}</span>
                 </div>
               </div>
               <span className={`text-sm font-mono ${
-                value === null || value === undefined 
-                  ? 'text-muted-foreground' 
-                  : field.type === 'boolean' 
+                value === null || value === undefined
+                  ? 'text-muted-foreground'
+                  : fieldType === 'boolean'
                     ? value ? 'text-green-600' : 'text-red-600'
                     : 'text-foreground'
               }`}>
