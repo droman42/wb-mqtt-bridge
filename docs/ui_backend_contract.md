@@ -13,7 +13,9 @@ contract surfaces:
 - **Build-time** (UI codegen): the UI reads the sibling `backend/` directory —
   `backend/openapi.json`, `backend/config/device-state-mapping.json`,
   `backend/config/devices/*.json` — to generate its TypeScript types and per-device pages.
-  No Python, no `pip install`.
+  No Python, no `pip install`. *(Layer-3 note: the per-device **page** generator dies at the
+  Step-4 cutover; the **TypeScript type** generator — `openapi.json` → `api.gen.ts` — stays. See
+  "Build-time contract" + "Step 4 — cutover".)*
 - **Runtime** (browser ↔ services): REST + SSE through the nginx proxy, and a direct
   browser→MQTT WebSocket. Backend network location is injected at container start.
 
@@ -98,6 +100,16 @@ The UI runs two generators against the backend's contract files (`../backend` fr
 Generated UI artifacts are **gitignored** (built fresh in CI). `src/types/api.gen.ts`
 is committed.
 
+**Two generators, two fates at the Layer-3 cutover — do not conflate them:**
+- `gen:api-types` (`openapi.json` → `api.gen.ts`) = the **REST type contract**. **SURVIVES.** The
+  runtime UI is still a typed HTTP client, and the layout manifest is itself an `openapi.json`
+  schema (`LayoutManifest`), so this becomes *more* load-bearing after cutover. `openapi.json` stays
+  committed (the UI build types itself off the snapshot — no live backend, no Python import);
+  `api.gen.ts` stays committed today (it *could* later be demoted to a CI-only artifact, but that's
+  orthogonal to the cutover). Regenerate it only when the **backend API surface** changes.
+- `gen:device-pages` (`config/devices/*.json` → `.gen.tsx`/`.state.ts`/`.hooks.ts`) = the **page**
+  generator. **DIES** at the Step-4 cutover — replaced by the runtime `/layout` manifest.
+
 ## Runtime contract (browser ↔ services)
 
 All three transports below are reached as the deployment dictates: REST/SSE go through
@@ -166,12 +178,25 @@ Wirenboard); the browser and backend meet at the broker, not via the API.
 | Added a device driver | add config in `config/devices/`, entry-point, mapping entry, UI handler; regenerate `openapi.json` |
 | A device's commands/order | nothing on the backend; UI regenerates pages at build |
 
-## Layout Manifest & Runtime Rendering (DRAFT — planned; supersedes build-time codegen)
+## Layout Manifest & Runtime Rendering (IMPLEMENTED; supersedes build-time *page* codegen)
 
-**Status:** Step 0 + Step 1 **IMPLEMENTED** (2026-05-23) — the `LayoutManifest` model + placement
-engine + `GET /devices/{id}/layout` ship and reproduce all 13 device oracles (backend side of
-Layer 3). The **UI runtime renderer is Step 2 (next, not yet built)**, so until that lands the
-build-time codegen contract above **remains authoritative** for what the browser actually renders.
+**Status (2026-05-24):** Steps 0–3 **DONE**. The backend serves a per-device `LayoutManifest`
+(`GET /devices/{id}/layout`, placement engine, 9 domains × 13 devices) and a per-scenario composite
+manifest (`GET /scenario/{id}/layout`); the UI **runtime renderer** consumes both via the generic
+`RemoteControlLayout`, behind the per-id `isRuntimeLayoutEnabled` flag — **12/13 devices** (all
+`device_category=device`; only the `kitchen_hood` appliance is excluded) + the **4 `movie_*`
+scenarios**, including scenario state feedback (lifecycle active-state coloring, per-role state
+binding, SSE→cache liveness). **Remaining = Step 4 cutover** (see "Step 4 — cutover" below): delete
+the build-time *page* generator and make runtime the only path.
+
+**Scope note — what Layer 3 replaces (read this if "codegen" feels ambiguous).** It supersedes the
+build-time **page** codegen (`gen:device-pages` → `.gen.tsx`/`.state.ts`/`.hooks.ts`), **NOT** the
+**REST type contract**. The manifest is *itself* an `openapi.json` schema
+(`components.schemas.LayoutManifest`, consumed in `useApi.ts` as `LayoutManifest`), so
+`openapi.json` + `gen:api-types` → `api.gen.ts` **survive and become MORE central** after cutover —
+every runtime call (`/layout`, `/state`, `/action`, scenario lifecycle) is typed from them. See
+"Build-time contract" above and "Step 4 — cutover" below.
+
 This section is **Layer 3** of `docs/scenarios/scenario_system_redesign.md`; it subsumes action_plan
 P2.5 #10 (placement contract) and Codegen Option 2.
 
@@ -259,8 +284,8 @@ Verified 2026-05-23 against `openapi.json` (32 ops) × the UI client (`hooks/use
 
 | Endpoint | UI hook / site | Layer-3 fate |
 |---|---|---|
-| `GET /devices/{id}/layout` | *(Step 2 adds)* | **ADD** — replaces `.gen.tsx` structure |
-| `GET /scenario/{id}/layout` | *(Step 3 adds)* | **ADD** — not built yet |
+| `GET /devices/{id}/layout` | `useDeviceLayout` | **ADDED** (Steps 2–3) — replaces `.gen.tsx` structure |
+| `GET /scenario/{id}/layout` | `useScenarioLayout` | **ADDED** (Step 3) — scenario composite remote |
 | `GET /devices/{id}/state` | `useDeviceState` | **KEEP** — initial live state (then SSE-driven) |
 | `POST /devices/{id}/action` | `useExecuteDeviceAction` | **KEEP** — execute + dynamic dropdown population (`get_available_inputs`/`…apps`) |
 | `GET /events/devices`,`/scenarios`,`/system` (SSE) | `useDeviceSSE`/`useScenarioSSE`/`useSystemSSE` | **KEEP** — live updates → invalidate React-Query cache |
@@ -273,7 +298,7 @@ Verified 2026-05-23 against `openapi.json` (32 ops) × the UI client (`hooks/use
 | `GET /scenario/state`, `/scenario/{id}/state` | `useScenarioState`/`…ById` | **KEEP** |
 | `GET /scenario/definition`, `/scenario/definition/{id}` | `useScenarioDefinitions`/`…` | **KEEP** |
 | `POST /scenario/switch`,`/start`,`/shutdown`,`/role_action` | `useSwitch`/`Start`/`Shutdown`/`ExecuteRoleAction` | **KEEP** — scenario runtime control |
-| `GET /scenario/virtual_config/{id}`, `/scenario/virtual_configs` | `useScenarioVirtualConfig` → `useScenarioVirtualDevice` → `<ScenarioVirtualDeviceControls>` (`App.tsx`) | **⚠ OPEN — decide in Step 3** (see below) |
+| `GET /scenario/virtual_config/{id}`, `/scenario/virtual_configs` | `useScenarioVirtualConfig` → `useScenarioVirtualDevice` → `<ScenarioVirtualDeviceControls>` (`App.tsx`) | **RETIRE at Step 4** — RESOLVED (a): web-UI fallback only; the WB virtual-device *publication* (Layer R) is kept (see below) |
 | `GET /groups`, `/devices/{id}/groups`, `/devices/{id}/groups/{gid}/actions` | `useGroups`/`useDeviceGroups`/`useGroupActions` | **RETIRE** — hooks are **dead** (defined, no runtime caller); groups subsumed by domains (§17) |
 | `GET /` (root), `GET /events/stats`, `POST /events/test/{channel}` | *(none)* | **n/a** — UI never calls these |
 
@@ -458,6 +483,46 @@ each device migrates + is hardware-tested):
   reel_to_reel (easy, playback-only), kitchen_hood (appliance, deferred). Then scenarios.
 - **Deferred to Step 4 cutover**: **B2/U3** full `specialCases` removal (model + UI type + 8 handlers)
   + oracle-test retirement; delete the build-time codegen; retire groups (§17.4).
+
+### Step 4 — cutover (canonical scope)
+The remaining Phase-3 work, after the runtime renderer covers 12/13 devices + the 4 scenarios. **What
+the cutover removes = the build-time *page* generator and the now-unreachable fallbacks; the REST type
+contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two generators" notes above).
+
+- **UI (large, mechanical, no live-system risk):**
+  - Delete the page generator: `scripts/generate-device-pages.ts`, all `*.gen.tsx` (devices +
+    scenarios), `*.state.ts`/`*.hooks.ts`, the `getDeviceComponent`/`getScenarioComponent` fallback
+    wiring in `App.tsx`, the `.gen` indexes.
+  - **U3** remove `specialCases` from `types/RemoteControlLayout.ts`, `layoutManifestAdapter.ts`,
+    `useRemoteControlData.ts`, and the dead emission in the 8 `lib/deviceHandlers/*`.
+  - Retire the scenario web fallback: `ScenarioVirtualDeviceControls.tsx`,
+    `ScenarioVirtualDeviceResolver.ts`, `…Handler.ts`, `useScenarioVirtualDevice.ts`, the
+    `virtual_config` hooks + `App.tsx` wiring.
+  - Drop the per-id runtime flag (`config/runtime.ts`) so runtime is the only path; remove `.gen`
+    fallbacks in `RuntimeDevicePage`/`RuntimeScenarioPage`.
+  - Retire dead groups hooks (`useGroups`/`useDeviceGroups`/`useGroupActions`).
+  - **Investigate first:** `StateTypeGenerator` + the status pane (`DeviceStatePanel`) — confirm the
+    pane reads state shapes from `openapi.json` at runtime before deleting the generated state types,
+    else the status panel breaks.
+  - Docs: `ui/README.md`, `ui/docs/page_instructions.md`.
+- **Backend (small, but the WB re-key touches live MQTT/WB control → needs a hardware pass):**
+  - **B2** drop `special_cases`/`DeviceSpecialCase` from `presentation/api/layout_manifest.py`.
+  - **Re-key WB exposure/ordering off `domain`+`kind`+`exposed`** in
+    `infrastructure/wb_device/service.py` (today keys off `excluded_groups`+`group`); then delete
+    `group` + `gestures` from config/models. This is the only risky piece — it drives live WB topics.
+  - Delete the `/groups` router (`routers/groups.py` + registration) — UI hooks already dead.
+  - Retire `/scenario/virtual_config` endpoints (`routers/scenarios.py` + `infrastructure/scenarios/
+    wb_adapter.py`) — **but keep the scenario WB-device *publication* (Layer R)**.
+  - **NOT remaining:** the `execute_action` **exposure gate is already implemented + active**
+    (`infrastructure/devices/base.py` — rejects `exposed:false` from external sources, allows
+    scenario/system/cli) and coverage is MET (redesign §17.3). Nothing to "flip."
+- **Shared:** retire the frozen oracle (`docs/scenarios/layer3_oracle/*.json` + the oracle test);
+  **regenerate `openapi.json` + `api.gen.ts` — but only because the backend deletions change the API
+  surface** (`/groups`, `/scenario/virtual_config`, the `LayoutManifest` schema losing
+  `special_cases`). A UI-only step needs no regen.
+- **Sequencing:** UI-first (render path proven, zero live-system risk), then the backend WB re-key as
+  its own commit with a planned hardware pass — that's the only change that can disrupt real MQTT
+  control of the house.
 
 ## Related
 - `docs/scenarios/scenario_system_redesign.md` — the scenario redesign; this manifest is its Layer 3.

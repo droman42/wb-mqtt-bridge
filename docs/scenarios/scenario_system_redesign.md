@@ -711,9 +711,10 @@ command/device not yet capability-mapped, retired once coverage is complete (17.
 vs capabilities."
 
 ### 17.2 Command exposure & dormant commands (`exposed`)
-`execute_action` today dispatches **any** command in the config registry (`base.py:748` — no
-group/capability gate), so a command is HTTP-actionable even when hidden from UI/WB. To model
-"driver supports it but it's parked":
+`execute_action` originally dispatched **any** command in the config registry (no group/capability
+gate), so a command was HTTP-actionable even when hidden from UI/WB. The gate below is now
+**IMPLEMENTED + ACTIVE** (`base.py` — the `exposed` check). To model "driver supports it but it's
+parked":
 - **`"exposed": false`** (default `true`) on the **config command**. A dormant command keeps its
   handler but is invisible on **all three** surfaces (UI/manifest, WB/MQTT, HTTP). Today's `noops`
   (`screensaver`, `home_hold`) + `media` (streamer `track_info`, testing unfinished) become
@@ -721,9 +722,10 @@ group/capability gate), so a command is HTTP-actionable even when hidden from UI
 - **Load-time validation (RC4-style):** every config command must be **either `exposed: false` OR
   backed by an exposed capability `domain.action`** — anything else is a load error (kills the
   silent "forgot to map → goes dark" footgun).
-- **New FastAPI gate:** `execute_action` rejects non-exposed actions (`403/404`). **Sequencing:**
-  flip this gate **only after capability coverage is complete** (else it breaks un-mapped intended
-  commands); the `exposed: false` tagging can land immediately.
+- **FastAPI gate — IMPLEMENTED + ACTIVE** (`base.py`): `execute_action` rejects `exposed: false`
+  actions from **external** sources (UI/WB/HTTP) while allowing **internal** callers
+  (`source in {scenario, system, cli}`) so sequences/macros still invoke parked sub-commands.
+  Coverage is MET (§17.3), so the gate is on — there is **no pending "flip."**
 - **Sequence sub-commands** (native commands used only inside a capability `sequence`/macro): mark
   `exposed: false` — the sequence still invokes them internally.
 
@@ -741,8 +743,12 @@ So **coverage no longer gates** groups-retirement; the remaining gates are purel
 **rollout (Step 3)** + **cutover (Step 4)** — see 17.4.
 
 ### 17.4 Sequencing
-1. **Layer 3:** derive zones from **domains**; keep `group` as the fallback for un-mapped commands.
-2. Tag dormant commands `exposed: false` now; author the missing maps (streamer, reel_to_reel).
-3. **Once coverage = 100%:** flip the FastAPI exposure gate; re-key WB exposure/ordering off
-   `domain`+`kind`+`exposed`; move display labels to manifest zone names; **delete `group` +
-   `gestures`**. Fold the formal retirement into the post-all-phases doc reconciliation.
+1. ✅ **Layer 3:** derive zones from **domains**; keep `group` as the fallback for un-mapped commands.
+2. ✅ Dormant commands tagged `exposed: false`; missing maps authored (streamer, reel_to_reel);
+   coverage MET (§17.3); the FastAPI exposure gate is **implemented + active** (§17.2).
+3. **Remaining at the Layer-3 Step-4 cutover** (coverage = 100% precondition already met): re-key WB
+   exposure/ordering off `domain`+`kind`+`exposed` (`infrastructure/wb_device/service.py`, today keyed
+   off `excluded_groups`+`group` — touches live MQTT, needs a hardware pass); move display labels to
+   manifest zone names; **delete `group` + `gestures`**. The canonical cutover checklist lives in
+   `ui_backend_contract.md` → "Step 4 — cutover (canonical scope)". Fold the formal retirement into the
+   post-all-phases doc reconciliation.

@@ -512,6 +512,8 @@ Of the JSON-Schema → form tools, only `react-jsonschema-form` (rjsf) has meani
 
 This is the industry-pattern answer. Recommended as a *follow-on* to Option 1, when/if we feel pain that justifies the refactor.
 
+> **As-built (Layer 3, 2026-05-24).** This is the option we implemented — but the "harder static typing / `unknown`-shaped TS" tradeoff was **avoided**: the manifest is itself an `openapi.json` schema (`LayoutManifest`), so `api.gen.ts` types the renderer's input. Net effect: only `gen:device-pages` dies at cutover; the **REST type contract (`openapi.json` + `api.gen.ts`) survives and becomes more central**. Canonical scope = `ui_backend_contract.md` → "Step 4 — cutover (canonical scope)".
+
 #### Option 3 — Reverse direction: backend owns codegen, UI consumes static manifests
 
 **Mechanism.** Backend grows a CLI subcommand (`wb-bridge generate-manifests`) that walks configured devices and writes `manifests/{device_id}.json`. UI reads those JSON manifests at build time. No Python ever touches the UI build.
