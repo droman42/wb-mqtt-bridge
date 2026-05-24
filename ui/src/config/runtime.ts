@@ -57,13 +57,16 @@ export const getSSEUrl = (path: string): string => {
     path; // Use relative URL for proxy
 };
 
-// Layer 3 (Step 2): devices whose page is rendered at RUNTIME from
+// Layer 3 (Step 2/3): devices whose page is rendered at RUNTIME from
 // GET /devices/{id}/layout instead of the build-time .gen.tsx. Comma-separated
-// allowlist; "*" enables all. Default pilot = mf_amplifier. Override via
-// VITE_RUNTIME_LAYOUT_DEVICES (build) or window.RUNTIME_CONFIG.RUNTIME_LAYOUT_DEVICES
-// (deploy); "" or "none" disables it (everything stays on the generated pages).
+// allowlist; "*" enables all. Override via VITE_RUNTIME_LAYOUT_DEVICES (build) or
+// window.RUNTIME_CONFIG.RUNTIME_LAYOUT_DEVICES (deploy); "" or "none" disables it.
+// Step 3 rollout — easy WirenboardIR devices (commands/buttons paths, no api dropdowns):
+// mf_amplifier (pilot) + ld_player, video, vhs_player, upscaler. The api/slider devices
+// (eMotiva, LG, AppleTV) join once their api-select param (B5) + slider (U2) land.
+const RUNTIME_LAYOUT_DEFAULT = ['mf_amplifier', 'ld_player', 'video', 'vhs_player', 'upscaler'];
 const parseLayoutDevices = (raw: string | undefined): Set<string> => {
-  if (raw === undefined) return new Set(['mf_amplifier']); // pilot default
+  if (raw === undefined) return new Set(RUNTIME_LAYOUT_DEFAULT);
   const v = raw.trim();
   if (v === '' || v.toLowerCase() === 'none') return new Set();
   return new Set(v.split(',').map((s) => s.trim()).filter(Boolean));
