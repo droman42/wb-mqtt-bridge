@@ -13,6 +13,48 @@ logger = logging.getLogger(__name__)
 # Type alias for command executor callback
 CommandExecutor = Callable[[str, str, Dict[str, Any]], Awaitable[Any]]
 
+# Capability domains that never get a WB control (UI-only). Layer-3 re-key: the old group exclusion
+# was {pointer, gestures, noops, media}; gestures doesn't exist, and noops/media are now exposed:false
+# (handled by the `exposed` check), leaving pointer as the only WB-excluded domain.
+_WB_EXCLUDED_DOMAINS = {"pointer"}
+
+# A few capability domain names differ from the legacy `group` strings the WB type/order heuristics
+# key off. Alias the domain to the expected string so the re-key is byte-equivalent to the group path.
+_DOMAIN_GROUP_ALIAS = {"input": "inputs"}
+
+
+def _commands_by_domain(capabilities: Any) -> Dict[str, str]:
+    """Map each native command name -> its capability domain. Walks actions / zones / select /
+    by_value / list (incl. nested sequences). First domain wins on the rare shared command."""
+    out: Dict[str, str] = {}
+    if capabilities is None:
+        return out
+
+    def _walk(ca: Any, domain: str) -> None:
+        if ca is None:
+            return
+        cmd = getattr(ca, "command", None)
+        if cmd:
+            out.setdefault(cmd, domain)
+        for sub in (getattr(ca, "sequence", None) or []):
+            _walk(sub, domain)
+
+    root = getattr(capabilities, "root", None) or {}
+    for domain, cap in root.items():
+        for ca in (getattr(cap, "actions", None) or {}).values():
+            _walk(ca, domain)
+        sel = getattr(cap, "select", None)
+        if sel is not None:
+            if getattr(sel, "command", None):
+                out.setdefault(sel.command, domain)
+            for ca in (getattr(sel, "by_value", None) or {}).values():
+                _walk(ca, domain)
+        _walk(getattr(cap, "list", None), domain)
+        for zone in (getattr(cap, "zones", None) or {}).values():
+            for ca in (getattr(zone, "actions", None) or {}).values():
+                _walk(ca, domain)
+    return out
+
 
 class WBVirtualDeviceService:
     """Infrastructure service for WB virtual device operations using existing config schemas."""
@@ -29,7 +71,8 @@ class WBVirtualDeviceService:
         driver_name: str = "wb_mqtt_bridge",
         device_type: Optional[str] = None,
         entity_id: Optional[str] = None,      # Virtual entity abstraction (Phase 3 enhancement)
-        entity_name: Optional[str] = None     # Virtual entity abstraction (Phase 3 enhancement)
+        entity_name: Optional[str] = None,    # Virtual entity abstraction (Phase 3 enhancement)
+        capabilities: Any = None,             # device capability map → WB exposure/type/order (Layer-3 re-key)
     ) -> bool:
         """Set up WB virtual device using existing config schema patterns.
         
@@ -91,7 +134,7 @@ class WBVirtualDeviceService:
             await self._publish_wb_device_meta(wb_device_id, wb_device_name, driver_name, device_type)
             
             # Publish control metadata and initial states (use virtual WB device ID)
-            await self._publish_wb_control_metas(wb_device_id, config)
+            await self._publish_wb_control_metas(wb_device_id, config, capabilities)
             
             # Set up Last Will Testament for offline detection (use virtual WB device ID)
             await self._setup_wb_last_will(wb_device_id)
@@ -139,63 +182,41 @@ class WBVirtualDeviceService:
             return False
     
     def get_subscription_topics_from_config(
-        self, 
-        config: Union[BaseDeviceConfig, Dict[str, Any]], 
-        entity_id: Optional[str] = None
+        self,
+        config: Union[BaseDeviceConfig, Dict[str, Any]],
+        entity_id: Optional[str] = None,
+        capabilities: Any = None,
     ) -> List[str]:
         """Get MQTT subscription topics from config.
-        
+
+        A command gets a ``…/on`` subscribe topic iff it gets a WB control — so this is derived
+        directly from :meth:`build_wb_controls_from_config` (same exclusion/classification source),
+        guaranteeing the subscribe set never diverges from the published controls.
+
         Args:
             config: Device configuration
             entity_id: Virtual entity ID override (for scenarios, uses scenario_id instead of device_id)
+            capabilities: Device capability map (Layer-3 re-key; falls back to config group if None)
         """
-        topics = []
-        
+        topics: List[str] = []
         try:
-            # Extract device identity and commands
             if isinstance(config, dict):
                 config_device_id = config["device_id"]
-                commands = config.get("commands", {})
                 enable_wb = config.get("enable_wb_emulation", True)
             else:
                 config_device_id = config.device_id
-                commands = config.commands
                 enable_wb = getattr(config, 'enable_wb_emulation', True)
-            
-            # Apply virtual entity override for WB operations
-            wb_device_id = entity_id if entity_id is not None else config_device_id
-            
+
             if not enable_wb:
                 return topics
-            
-            # UI-only groups that should not generate MQTT topics
-            excluded_groups = {"pointer", "gestures", "noops", "media"}
-            
-            # Generate WB command topics for all commands (use virtual WB device ID)
-            for cmd_name, cmd_config in commands.items():
-                # Extract group from command config
-                group = None
-                if hasattr(cmd_config, 'group'):
-                    group = cmd_config.group
-                elif isinstance(cmd_config, dict):
-                    group = cmd_config.get('group')
-                
-                # Skip commands in excluded groups
-                if group and group.lower() in excluded_groups:
-                    logger.debug(f"Skipping MQTT topic generation for UI-only command: {cmd_name} (group: {group})")
-                    continue
-                
-                # Only add WB command topics for commands that have actions
-                if hasattr(cmd_config, 'action') and cmd_config.action:
-                    command_topic = f"/devices/{wb_device_id}/controls/{cmd_name}/on"
-                    topics.append(command_topic)
-                elif isinstance(cmd_config, dict) and cmd_config.get('action'):
-                    command_topic = f"/devices/{wb_device_id}/controls/{cmd_name}/on"
-                    topics.append(command_topic)
-            
+
+            wb_device_id = entity_id if entity_id is not None else config_device_id
+            for cmd_name in self.build_wb_controls_from_config(config, capabilities):
+                topics.append(f"/devices/{wb_device_id}/controls/{cmd_name}/on")
+
         except Exception as e:
             logger.error(f"Error getting subscription topics from config: {str(e)}")
-        
+
         return topics
     
     def _find_tracking_device_id_by_wb_id(self, wb_device_id: str) -> Optional[str]:
@@ -337,31 +358,48 @@ class WBVirtualDeviceService:
         await self.message_bus.publish(topic, json.dumps(device_meta), retain=True, qos=1)
         logger.debug(f"Published WB device meta for {device_id}")
     
-    def build_wb_controls_from_config(self, config: Union[BaseDeviceConfig, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    def build_wb_controls_from_config(
+        self,
+        config: Union[BaseDeviceConfig, Dict[str, Any]],
+        capabilities: Any = None,
+    ) -> Dict[str, Dict[str, Any]]:
         """Compute the WB controls (meta + initial state) a config would publish, applying the
         WB-exclusion + has-action filter. **Pure** (no MQTT) — the single place that decides which
         commands become WB controls and how, so `_publish_wb_control_metas` and the re-key
         equivalence tests agree. Returns ``{control_name: {"meta": {...}, "initial_state": "..."}}``.
+
+        Classification source (exposure / control-type / order):
+        - **with ``capabilities``** (device path): the capability **domain** + the command's
+          ``exposed`` flag. A command is excluded iff it's ``exposed: false`` (dormant) or its domain
+          is UI-only (``pointer``). The domain (aliased) feeds the type/order heuristics.
+        - **without** (fallback, e.g. the scenario path): the legacy config ``group`` field.
+        Both paths are byte-equivalent on real device configs (verified by ``test_wb_rekey``), since
+        the config ``group`` was authored to equal the capability domain.
         """
         if isinstance(config, dict):
             commands = config.get("commands", {})
         else:
             commands = config.commands
 
-        # UI-only groups that should not generate MQTT topics or controls.
-        excluded_groups = {"pointer", "gestures", "noops", "media"}
+        cmd_domain = _commands_by_domain(capabilities) if capabilities is not None else {}
 
         controls: Dict[str, Dict[str, Any]] = {}
         for cmd_name, cmd_config in commands.items():
-            group = None
-            if hasattr(cmd_config, 'group'):
-                group = cmd_config.group
-            elif isinstance(cmd_config, dict):
-                group = cmd_config.get('group')
-
-            if group and group.lower() in excluded_groups:
-                logger.debug(f"Skipping WB control for UI-only command: {cmd_name} (group: {group})")
-                continue
+            if capabilities is not None:
+                # Re-keyed path: exposure + capability domain.
+                exposed = getattr(cmd_config, 'exposed', True) if not isinstance(cmd_config, dict) else cmd_config.get('exposed', True)
+                domain = cmd_domain.get(cmd_name)
+                if not exposed or (domain in _WB_EXCLUDED_DOMAINS):
+                    logger.debug(f"Skipping WB control: {cmd_name} (exposed={exposed}, domain={domain})")
+                    continue
+                classification = _DOMAIN_GROUP_ALIAS.get(domain, domain)
+            else:
+                # Fallback path: legacy config group.
+                group = cmd_config.group if hasattr(cmd_config, 'group') else (cmd_config.get('group') if isinstance(cmd_config, dict) else None)
+                if group and group.lower() in {"pointer", "gestures", "noops", "media"}:
+                    logger.debug(f"Skipping WB control for UI-only command: {cmd_name} (group: {group})")
+                    continue
+                classification = group
 
             action = None
             if hasattr(cmd_config, 'action'):
@@ -373,15 +411,15 @@ class WBVirtualDeviceService:
                 continue
 
             controls[cmd_name] = {
-                "meta": self._generate_wb_control_meta_from_config(cmd_name, cmd_config, config),
-                "initial_state": self._get_initial_wb_control_state_from_config(cmd_name, cmd_config),
+                "meta": self._generate_wb_control_meta_from_config(cmd_name, cmd_config, config, classification),
+                "initial_state": self._get_initial_wb_control_state_from_config(cmd_name, cmd_config, classification),
             }
         return controls
 
-    async def _publish_wb_control_metas(self, device_id: str, config: Union[BaseDeviceConfig, Dict[str, Any]]):
+    async def _publish_wb_control_metas(self, device_id: str, config: Union[BaseDeviceConfig, Dict[str, Any]], capabilities: Any = None):
         """Publish WB control metadata for configured commands only."""
         try:
-            for control_name, control in self.build_wb_controls_from_config(config).items():
+            for control_name, control in self.build_wb_controls_from_config(config, capabilities).items():
                 # Publish control metadata
                 meta_topic = f"/devices/{device_id}/controls/{control_name}/meta"
                 await self.message_bus.publish(meta_topic, json.dumps(control["meta"]), retain=True, qos=1)
@@ -396,19 +434,20 @@ class WBVirtualDeviceService:
         except Exception as e:
             logger.error(f"Error publishing WB control metas for {device_id}: {str(e)}")
     
-    def _generate_wb_control_meta_from_config(self, cmd_name: str, cmd_config, config: Union[BaseDeviceConfig, Dict[str, Any]]) -> Dict[str, Any]:
-        """Generate WB control metadata from command configuration."""
-        
+    def _generate_wb_control_meta_from_config(self, cmd_name: str, cmd_config, config: Union[BaseDeviceConfig, Dict[str, Any]], classification: Optional[str] = None) -> Dict[str, Any]:
+        """Generate WB control metadata from command configuration. ``classification`` is the
+        capability domain (or legacy group) that drives parameterless control-type + ordering."""
+
         # Check for explicit WB configuration in device config first
         wb_controls = None
         if isinstance(config, dict):
             wb_controls = config.get('wb_controls')
         else:
             wb_controls = getattr(config, 'wb_controls', None)
-        
+
         if wb_controls and cmd_name in wb_controls:
             return wb_controls[cmd_name]
-        
+
         # Extract command configuration properties
         if hasattr(cmd_config, 'description'):
             description = cmd_config.description
@@ -416,16 +455,16 @@ class WBVirtualDeviceService:
             description = cmd_config.get('description')
         else:
             description = None
-        
+
         # Generate control metadata from command configuration
         meta = {
             "title": {"en": description or self._generate_control_title(cmd_name)},
             "readonly": False,
-            "order": self._get_control_order_from_config(cmd_config)
+            "order": self._get_control_order_from_config(cmd_config, classification)
         }
-        
-        # Determine control type based on parameters and group
-        control_type = self._determine_wb_control_type_from_config(cmd_config)
+
+        # Determine control type based on parameters and the classification (domain/group)
+        control_type = self._determine_wb_control_type_from_config(cmd_config, classification)
         meta["type"] = control_type
         
         # Extract parameter-specific metadata
@@ -434,34 +473,27 @@ class WBVirtualDeviceService:
         
         return meta
     
-    def _determine_wb_control_type_from_config(self, cmd_config) -> str:
-        """Determine WB control type from command configuration."""
-        
-        # Extract group and parameters from command config
-        group = None
+    def _determine_wb_control_type_from_config(self, cmd_config, classification: Optional[str] = None) -> str:
+        """Determine WB control type. ``classification`` = the capability domain (or legacy group)
+        used for parameterless control-type heuristics."""
+
         params = None
-        
-        if hasattr(cmd_config, 'group'):
-            group = cmd_config.group
-        elif isinstance(cmd_config, dict):
-            group = cmd_config.get('group')
-            
         if hasattr(cmd_config, 'params'):
             params = cmd_config.params
         elif isinstance(cmd_config, dict):
             params = cmd_config.get('params')
-        
+
         # PRIORITY FIX: Parameter-based type detection takes precedence
         if params:
             return self._get_control_type_from_parameters(params)
-        
-        # Group-based overrides for parameterless commands only
-        if group:
-            group_type = self._get_control_type_from_group(group, cmd_config)
+
+        # Classification-based overrides for parameterless commands only
+        if classification:
+            group_type = self._get_control_type_from_group(classification, cmd_config)
             if group_type:
                 return group_type
-        
-        # No parameters and no group override - default to pushbutton
+
+        # No parameters and no classification override - default to pushbutton
         return "pushbutton"
     
     def _get_control_type_from_group(self, group: str, cmd_config) -> Optional[str]:
@@ -576,22 +608,17 @@ class WBVirtualDeviceService:
         
         return metadata
     
-    def _get_control_order_from_config(self, cmd_config) -> int:
-        """Get control order from command configuration."""
-        # Extract group and action for ordering
-        group = None
+    def _get_control_order_from_config(self, cmd_config, classification: Optional[str] = None) -> int:
+        """Get control order. ``classification`` = the capability domain (or legacy group)."""
+        # Extract action for ordering; ``classification`` (domain/group) drives the base order.
+        group = classification
         action = None
-        
-        if hasattr(cmd_config, 'group'):
-            group = cmd_config.group
-        elif isinstance(cmd_config, dict):
-            group = cmd_config.get('group')
-        
+
         if hasattr(cmd_config, 'action'):
             action = cmd_config.action
         elif isinstance(cmd_config, dict):
             action = cmd_config.get('action')
-        
+
         # Order by group first, then by action type
         group_order = {
             "power": 1, "inputs": 2, "playback": 3, 
@@ -623,7 +650,7 @@ class WBVirtualDeviceService:
         title = re.sub(r'([a-z])([A-Z])', r'\1 \2', title)
         return title.title()
     
-    def _get_initial_wb_control_state_from_config(self, cmd_name: str, cmd_config) -> str:
+    def _get_initial_wb_control_state_from_config(self, cmd_name: str, cmd_config, classification: Optional[str] = None) -> str:
         """Get the initial state value for a WB control from configuration.
 
         MUST be non-empty and matched to the control TYPE. Publishing an empty (zero-length)
@@ -643,7 +670,7 @@ class WBVirtualDeviceService:
                 return str(first_param['default'])
 
         # 2) Default by control TYPE (never empty).
-        control_type = self._determine_wb_control_type_from_config(cmd_config)
+        control_type = self._determine_wb_control_type_from_config(cmd_config, classification)
         cmd_lower = cmd_name.lower()
 
         if control_type == "range":

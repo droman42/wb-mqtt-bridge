@@ -2,10 +2,13 @@
 re-keyed from the config ``group`` field to the capability ``domain``+``kind``+``exposed`` (Layer-3
 cutover, step 1 — removing ``group`` as the source of truth).
 
-Golden snapshot: ``tests/unit/wb_oracle/<config_name>.json`` freezes the CURRENT (group-based) WB
-output — subscription topics + per-command control meta + initial state — for every device. The
-re-key must reproduce it byte-for-byte (proven here, no hardware). Capture is one-time; set
-``WB_ORACLE_CAPTURE=1`` to (re)write the fixtures.
+Golden snapshot: ``tests/unit/wb_oracle/<config_name>.json`` freezes the WB output — subscription
+topics + per-command control meta + initial state — for every device. The re-key reproduced the
+old group-based output **byte-for-byte except** it now correctly drops ``exposed: false`` dormant
+commands from WB (the old group exclusion only filtered hardcoded UI-only groups, so dormant
+commands whose group wasn't in that set — ``streamer.refresh_inputs``, ``appletv*.refresh_status`` —
+leaked onto WB as dead controls; the exposure gate already rejected executing them). The snapshot
+here encodes the re-keyed (corrected) output. Set ``WB_ORACLE_CAPTURE=1`` to (re)write it.
 """
 import json
 import os
@@ -62,14 +65,15 @@ def _make_device(config_name: str, device_class: str):
 
 
 def _wb_output(config_name: str, device_class: str) -> dict:
-    config, _capabilities = _make_device(config_name, device_class)
+    config, capabilities = _make_device(config_name, device_class)
     svc = WBVirtualDeviceService(message_bus=SimpleNamespace())  # pure methods only — no MQTT
-    controls = svc.build_wb_controls_from_config(config)
+    # Re-keyed path: classification comes from the capability domain (+ exposed), not config group.
+    controls = svc.build_wb_controls_from_config(config, capabilities)
     # initial_state may be non-JSON-native (int/bool) — coerce to str for a stable snapshot.
     controls = {k: {"meta": v["meta"], "initial_state": str(v["initial_state"])} for k, v in controls.items()}
     return {
         "device_id": config.device_id,
-        "subscription_topics": svc.get_subscription_topics_from_config(config),
+        "subscription_topics": svc.get_subscription_topics_from_config(config, capabilities=capabilities),
         "controls": controls,
     }
 

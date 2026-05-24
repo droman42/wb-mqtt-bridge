@@ -90,12 +90,14 @@ class TestWBVirtualDeviceService:
             "launch_app": cmd("launch_app", "apps"),                 # text setter
             "get_available_apps": cmd("get_available_apps", "apps"),  # pushbutton
         }
+        # classification = the capability domain (== legacy group) the production path passes; the
+        # control-type default depends on it (e.g. inputs + set_input -> text -> "unknown").
         for name, c in cases.items():
-            val = wb_service._get_initial_wb_control_state_from_config(name, c)
+            val = wb_service._get_initial_wb_control_state_from_config(name, c, c.group)
             assert val not in ("", None), f"{name} got an empty initial value"
 
-        assert wb_service._get_initial_wb_control_state_from_config("input_cd", cases["input_cd"]) == "0"
-        assert wb_service._get_initial_wb_control_state_from_config("set_input", cases["set_input"]) == "unknown"
+        assert wb_service._get_initial_wb_control_state_from_config("input_cd", cases["input_cd"], "inputs") == "0"
+        assert wb_service._get_initial_wb_control_state_from_config("set_input", cases["set_input"], "inputs") == "unknown"
 
     async def test_setup_publishes_no_empty_retained_value(self, wb_service, mock_message_bus, sample_command_executor):
         """Every control VALUE published at setup must be non-empty (so the WB UI renders it)."""
@@ -335,49 +337,47 @@ class TestWBVirtualDeviceService:
     def test_generate_wb_control_meta_from_config_pushbutton(self, wb_service, sample_device_config):
         """Test generating WB control metadata for pushbutton."""
         cmd_config = sample_device_config["commands"]["power_on"]
-        
-        meta = wb_service._generate_wb_control_meta_from_config("power_on", cmd_config, sample_device_config)
-        
+
+        # `classification` = the capability domain (== legacy group) the production path passes.
+        meta = wb_service._generate_wb_control_meta_from_config("power_on", cmd_config, sample_device_config, "power")
+
         assert meta["type"] == "pushbutton"
         assert meta["title"]["en"] == "Turn device on"
         assert meta["readonly"] is False
         assert isinstance(meta["order"], int)
-    
+
     def test_generate_wb_control_meta_from_config_range(self, wb_service, sample_device_config):
         """Test generating WB control metadata for range control."""
         cmd_config = sample_device_config["commands"]["set_volume"]
-        
-        meta = wb_service._generate_wb_control_meta_from_config("set_volume", cmd_config, sample_device_config)
-        
+
+        meta = wb_service._generate_wb_control_meta_from_config("set_volume", cmd_config, sample_device_config, "volume")
+
         assert meta["type"] == "range"
         assert meta["title"]["en"] == "Set volume level"
         assert meta["min"] == 0
         assert meta["max"] == 100
         assert meta["readonly"] is False
-    
+
     def test_generate_wb_control_meta_from_config_switch(self, wb_service, sample_device_config):
         """Test generating WB control metadata for switch control."""
         cmd_config = sample_device_config["commands"]["mute"]
-        
-        meta = wb_service._generate_wb_control_meta_from_config("mute", cmd_config, sample_device_config)
-        
+
+        meta = wb_service._generate_wb_control_meta_from_config("mute", cmd_config, sample_device_config, "volume")
+
         assert meta["type"] == "switch"
         assert meta["title"]["en"] == "Mute audio"
         assert meta["readonly"] is False
-    
-    def test_determine_wb_control_type_from_config_group_based(self, wb_service):
-        """Test WB control type determination based on group."""
+
+    def test_determine_wb_control_type_from_config_classification_based(self, wb_service):
+        """Test WB control type determination from the classification (capability domain / legacy group)."""
         # Volume + set action = range
-        cmd_config = {"group": "volume", "action": "set_volume"}
-        assert wb_service._determine_wb_control_type_from_config(cmd_config) == "range"
-        
+        assert wb_service._determine_wb_control_type_from_config({"action": "set_volume"}, "volume") == "range"
+
         # Volume + mute action = switch
-        cmd_config = {"group": "volume", "action": "mute"}
-        assert wb_service._determine_wb_control_type_from_config(cmd_config) == "switch"
-        
-        # Power group = pushbutton
-        cmd_config = {"group": "power", "action": "power_on"}
-        assert wb_service._determine_wb_control_type_from_config(cmd_config) == "pushbutton"
+        assert wb_service._determine_wb_control_type_from_config({"action": "mute"}, "volume") == "switch"
+
+        # Power = pushbutton
+        assert wb_service._determine_wb_control_type_from_config({"action": "power_on"}, "power") == "pushbutton"
     
     def test_determine_wb_control_type_from_config_param_based(self, wb_service):
         """Test WB control type determination based on parameters."""

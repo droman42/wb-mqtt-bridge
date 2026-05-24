@@ -132,17 +132,6 @@
         "type": "pushbutton"
       }
     },
-    "refresh_status": {
-      "initial_state": "0",
-      "meta": {
-        "order": 150,
-        "readonly": false,
-        "title": {
-          "en": "Refresh Status"
-        },
-        "type": "pushbutton"
-      }
-    },
     "right": {
       "initial_state": "0",
       "meta": {
@@ -236,7 +225,6 @@
     "/devices/appletv_children/controls/volume_down/on",
     "/devices/appletv_children/controls/set_volume/on",
     "/devices/appletv_children/controls/launch_app/on",
-    "/devices/appletv_children/controls/refresh_status/on",
     "/devices/appletv_children/controls/menu/on",
     "/devices/appletv_children/controls/home/on",
     "/devices/appletv_children/controls/select/on",

@@ -77,17 +77,6 @@
         "type": "pushbutton"
       }
     },
-    "refresh_inputs": {
-      "initial_state": "0",
-      "meta": {
-        "order": 250,
-        "readonly": false,
-        "title": {
-          "en": "Refresh inputs list"
-        },
-        "type": "pushbutton"
-      }
-    },
     "set_input": {
       "initial_state": "unknown",
       "meta": {
@@ -159,7 +148,6 @@
     "/devices/streamer/controls/volume_down/on",
     "/devices/streamer/controls/mute/on",
     "/devices/streamer/controls/set_input/on",
-    "/devices/streamer/controls/get_available_inputs/on",
-    "/devices/streamer/controls/refresh_inputs/on"
+    "/devices/streamer/controls/get_available_inputs/on"
   ]
 }

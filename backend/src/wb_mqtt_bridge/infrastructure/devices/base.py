@@ -74,12 +74,14 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
             logger.warning(f"Cannot setup WB virtual device for {self.device_id}: no MQTT client")
             return
         
-        # Use WB service to set up virtual device - clean delegation
+        # Use WB service to set up virtual device - clean delegation. Pass the capability map so WB
+        # exposure/type/order is keyed off domain+kind+exposed (Layer-3 re-key), not the config group.
         success = await self.wb_service.setup_wb_device_from_config(
             config=self.config,
             command_executor=self._execute_wb_command_from_service,
             driver_name="wb_mqtt_bridge",
-            device_type=self.config.device_class.lower() if hasattr(self.config, 'device_class') else None
+            device_type=self.config.device_class.lower() if hasattr(self.config, 'device_class') else None,
+            capabilities=self.capabilities,
         )
         
         if success:
