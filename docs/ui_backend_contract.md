@@ -512,9 +512,11 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
     → two sources of API truth, the hand-written one can silently drift from the backend. Fold the UI
     onto the generated types and shrink/retire `api.ts` (4 importers). Bigger than the rename; do it
     deliberately, not as a drive-by.
-  - **Investigate first:** `StateTypeGenerator` + the status pane (`DeviceStatePanel`) — confirm the
-    pane reads state shapes from `openapi.json` at runtime before deleting the generated state types,
-    else the status panel breaks.
+  - ✅ **A0 RESOLVED (2026-05-24, `e26e513`):** the status pane (`DeviceStatePanel`) no longer depends
+    on the generated `stateInterface` — it renders the per-device "Device State" section from the **live
+    `state` object** (keys + inferred type), so deleting the generated state types is safe. (This also
+    fixed an already-silent regression: the section was empty for the runtime-enabled devices.)
+    `StateTypeGenerator` itself goes with the page generator above.
   - Docs: `ui/README.md`, `ui/docs/page_instructions.md`.
 - **Backend (small, but the WB re-key touches live MQTT/WB control → needs a hardware pass):**
   - **B2** drop `special_cases`/`DeviceSpecialCase` from `presentation/api/layout_manifest.py`.
