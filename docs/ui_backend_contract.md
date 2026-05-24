@@ -180,14 +180,18 @@ Wirenboard); the browser and backend meet at the broker, not via the API.
 
 ## Layout Manifest & Runtime Rendering (IMPLEMENTED; supersedes build-time *page* codegen)
 
-**Status (2026-05-24):** Steps 0–3 **DONE**. The backend serves a per-device `LayoutManifest`
-(`GET /devices/{id}/layout`, placement engine, 9 domains × 13 devices) and a per-scenario composite
-manifest (`GET /scenario/{id}/layout`); the UI **runtime renderer** consumes both via the generic
-`RemoteControlLayout`, behind the per-id `isRuntimeLayoutEnabled` flag — **12/13 devices** (all
-`device_category=device`; only the `kitchen_hood` appliance is excluded) + the **4 `movie_*`
-scenarios**, including scenario state feedback (lifecycle active-state coloring, per-role state
-binding, SSE→cache liveness). **Remaining = Step 4 cutover** (see "Step 4 — cutover" below): delete
-the build-time *page* generator and make runtime the only path.
+**Status (2026-05-24): COMPLETE + hardware-verified.** All steps (0-4) done. The backend serves a
+per-device `LayoutManifest` (`GET /devices/{id}/layout`, placement engine, 9 domains × 13 devices) and
+a per-scenario composite manifest (`GET /scenario/{id}/layout`); the UI **runtime renderer** is the
+**only** path (the `isRuntimeLayoutEnabled` flag + the build-time page generator are deleted) — every
+`device_category=device` renders from its manifest via the generic `RemoteControlLayout`, scenarios
+render as composite remotes with state feedback (lifecycle coloring, per-role binding, SSE→cache
+liveness), and the sole appliance (`kitchen_hood`) has a **hand-written bespoke page**
+(`src/pages/appliances/`). The Step-4 cutover (delete codegen, retire `/groups` + `/scenario/virtual_config`
++ the dormant scenario↔WB path, WB re-key off capability `domain`+`kind`+`exposed`, full `group`
+removal) is done and **hardware-verified** (WB output unchanged, no degradation). See "Step 4 — cutover"
+below for the per-step record. Remaining (NOT cutover): the scenario↔WB rebuild (P4 design), A8 phase 2
+(optional api.ts dedup), oracle retirement (deferred).
 
 **Scope note — what Layer 3 replaces (read this if "codegen" feels ambiguous).** It supersedes the
 build-time **page** codegen (`gen:device-pages` → `.gen.tsx`/`.state.ts`/`.hooks.ts`), **NOT** the
@@ -561,7 +565,7 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
     fixed an already-silent regression: the section was empty for the runtime-enabled devices.)
     `StateTypeGenerator` itself goes with the page generator above.
   - Docs: `ui/README.md`, `ui/docs/page_instructions.md`.
-- **Backend (small, but the WB re-key touches live MQTT/WB control → needs a hardware pass):**
+- **Backend (small; the WB re-key touched live MQTT/WB control → ✅ hardware-verified, no degradation):**
   - ✅ **B2 DONE (`14db293`)** — dropped `special_cases`/`DeviceSpecialCase` from
     `presentation/api/layout_manifest.py`; the oracle-parse test strips the retired key; regen.
   - ✅ **`/groups` router DELETED (`9b388ab`)** — `routers/groups.py` + its registration; UI hooks
@@ -613,9 +617,9 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
   **regenerate `openapi.json` + `api.gen.ts` — but only because the backend deletions change the API
   surface** (`/groups`, `/scenario/virtual_config`, the `LayoutManifest` schema losing
   `special_cases`). A UI-only step needs no regen.
-- **Sequencing:** UI-first (render path proven, zero live-system risk), then the backend WB re-key as
-  its own commit with a planned hardware pass — that's the only change that can disrupt real MQTT
-  control of the house.
+- **Sequencing (as executed):** UI-first (render path proven, zero live-system risk), then the backend
+  WB re-key as its own commits with a hardware pass — it was the only change that could disrupt real
+  MQTT control of the house. ✅ All done + hardware-verified (no degradation).
 
 ## Related
 - `docs/scenarios/scenario_system_redesign.md` — the scenario redesign; this manifest is its Layer 3.

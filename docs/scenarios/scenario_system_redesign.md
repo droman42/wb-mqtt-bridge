@@ -746,9 +746,12 @@ So **coverage no longer gates** groups-retirement; the remaining gates are purel
 1. ✅ **Layer 3:** derive zones from **domains**; keep `group` as the fallback for un-mapped commands.
 2. ✅ Dormant commands tagged `exposed: false`; missing maps authored (streamer, reel_to_reel);
    coverage MET (§17.3); the FastAPI exposure gate is **implemented + active** (§17.2).
-3. **Remaining at the Layer-3 Step-4 cutover** (coverage = 100% precondition already met): re-key WB
-   exposure/ordering off `domain`+`kind`+`exposed` (`infrastructure/wb_device/service.py`, today keyed
-   off `excluded_groups`+`group` — touches live MQTT, needs a hardware pass); move display labels to
-   manifest zone names; **delete `group` + `gestures`**. The canonical cutover checklist lives in
-   `ui_backend_contract.md` → "Step 4 — cutover (canonical scope)". Fold the formal retirement into the
-   post-all-phases doc reconciliation.
+3. ✅ **DONE at the Layer-3 Step-4 cutover + HARDWARE-VERIFIED (2026-05-24).** Re-keyed WB
+   exposure/ordering off `domain`+`kind`+`exposed` (`infrastructure/wb_device/service.py`), then
+   **`group` was fully removed** — the field from the command/system models + all 182 config command
+   entries + the `system.json` `groups` map + every reader (the `/groups` router, `base._action_groups`,
+   `config_manager.get_groups`, `ScenarioWBConfig`, and the WirenboardIR optimistic-input detection,
+   which now keys off the capability `input` by_value mapping). `gestures` was already moot (no command
+   used it). The WB output was confirmed unchanged on the live system (no degradation) via a golden
+   snapshot (`backend/tests/unit/test_wb_rekey.py`, 13 devices) + a hardware pass. Per-step record:
+   `ui_backend_contract.md` → "Step 4 — cutover (canonical scope)".
