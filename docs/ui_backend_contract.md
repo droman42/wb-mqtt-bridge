@@ -577,7 +577,9 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
     by `tests/unit/test_wb_rekey.py` (13-device golden snapshot): zero controls added, zero meta/order
     changes — byte-identical EXCEPT a correctness fix (3 `exposed:false` dormant commands —
     `streamer.refresh_inputs`, `appletv*.refresh_status` — no longer leak onto WB; they were dead, the
-    exposure gate already rejected them). **⚠️ HARDWARE PASS PENDING** (live WB/MQTT topics).
+    exposure gate already rejected them). ✅ **HARDWARE PASS PASSED (2026-05-24)** — verified on the live
+    system: WB works as before, no degradation. (The hardware run also surfaced an unrelated UI bug —
+    the status-pane alias cross-device leak, `ebe625e` — now fixed.)
   - ✅ **WB re-key — step 2 DONE (`f57322c`)** — deleted the orphaned group machinery
     (`base._action_groups`/`_build_action_groups_index`/`get_available_groups`/`get_actions_by_group`,
     `config_manager._groups`/`get_groups`/`is_valid_group`); zero consumers after the `/groups`
@@ -601,8 +603,9 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
     (+`deriveGroupsFromConfig`, `DeviceClassHandler`), the `api.ts` groups types/fields,
     `RemoteControlLayout.ts` `ZoneDetectionConfig`/`DEFAULT_ZONE_DETECTION`, and the dead `useApi`
     queryKeys. Only the live manifest `ProcessedAction.group` + `media-stack-group` CSS remain.
-    **WB re-key COMPLETE (steps 1-4); the only outstanding item is the step-1 HARDWARE PASS** (live
-    WB topic output).
+    ✅ **WB re-key COMPLETE + HARDWARE-VERIFIED (steps 1-4, 2026-05-24)** — `group` is fully retired
+    from the backend, the live WB output is confirmed unchanged (no degradation), so the revert-
+    insurance no longer applies.
   - **NOT remaining:** the `execute_action` **exposure gate is already implemented + active**
     (`infrastructure/devices/base.py` — rejects `exposed:false` from external sources, allows
     scenario/system/cli) and coverage is MET (redesign §17.3). Nothing to "flip."
