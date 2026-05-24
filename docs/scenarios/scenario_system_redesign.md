@@ -554,7 +554,12 @@ Resolved 2026-05-20:
 1. **Multi-zone (eMotiva)** — **RESOLVED:** keep the current model; zones via `params`
    (`{zone: 1|2}`) on the power commands. No separate capability. (See §5.4.)
 2. **Transition-aware manual notes** — **RESOLVED:** **deferred** until the core scenario system
-   works. v1 ships static `manual_instructions` only.
+   works (it's activation-time: the reconciler computes which topology links activate in a transition
+   and surfaces the bound manual node's instruction). v1 ships static `manual_instructions` only.
+   ⚠ **NOT optional — load-bearing for the analog path:** without surfacing the **Dodocus RCA-hub**
+   note ("set the hub to LD/VHS"), the LD/VHS scenarios have **no audio**. So this is required for
+   `movie_ld`/`movie_vhs` to actually work end-to-end, just sequenced into the reconciler/activation
+   work, not the scenario *page* build. Tracked in `action_plan.md` (open checklist).
 3. **Capability override location** — **RESOLVED:** **driver-default + optional
    `config/devices/*.json` override.**
 4. **Role auto-derivation** — **RESOLVED (conditional):** allowed (`volume←audio`,

@@ -323,6 +323,18 @@ device's own live state.
   state → corrected; `/scenario/{id}/state` recomputes → corrected. IR optimism remains inherent
   (no feedback), but the manual re-send is the single correction point and it propagates everywhere.
 
+### Manual instructions — DECIDED (2026-05-24)
+- **Baseline (now):** surface `manual_instructions.startup`/`shutdown` (the static lists) on the
+  scenario page — a collapsible **panel**, echoed on start/shutdown. Read straight from
+  `/scenario/definition/{id}` (the `ScenarioDefinition` already carries them) — **no layout-manifest
+  change** (don't duplicate scenario metadata onto the remote layout).
+- **Transition-aware (deferred, but NOT optional):** the topology **manual nodes** (e.g. the Dodocus
+  RCA hub: "set the hub to LD/VHS") surface **only when the relevant link activates** in a transition.
+  This is **activation-time** (the reconciler must diff active links and emit the bound note) — so it
+  rides the reconciler/activation work, not the scenario page. **Load-bearing:** without it the
+  LD/VHS scenarios have no audio. Tracked as an open checklist item in `action_plan.md` + §13.2 so it
+  isn't lost.
+
 ### Icons & appliances
 - **Icons — DECIDED 2026-05-23: resolved UI-side.** The backend manifest carries *semantics*
   (`actionName` + domain/`group`); the **UI's `IconResolver` maps those to glyphs at render time**.
