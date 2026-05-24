@@ -38,16 +38,16 @@ build time the UI reads, from a sibling `wb-mqtt-bridge` checkout:
   state model + device config files (owned by the backend repo).
 - `wb-mqtt-bridge/config/devices/*.json` — device configurations.
 
-Two generators:
+One generator:
 
 - `npm run gen:api-types` → `src/types/api.gen.ts` (REST request/response types from
-  `openapi.json`).
-- `npm run gen:device-pages` → per-device `*.gen.tsx` pages, `*.hooks.ts`, and
-  `src/types/generated/*.state.ts` (device-state types read from `components.schemas`).
+  `openapi.json`, including the `LayoutManifest`). Committed.
 
-> Generated artifacts (`src/pages/**/*.gen.tsx`, `*.hooks.ts`,
-> `src/types/generated/*.state.ts`, `index.gen.ts`) are **gitignored** — they are
-> built fresh in CI/Docker, not committed. `src/types/api.gen.ts` is committed.
+> **Layer 3 (no more page codegen).** Device/scenario pages are no longer generated at build
+> time — they render at **runtime** from the backend layout manifest (`GET /devices/{id}/layout`,
+> `GET /scenario/{id}/layout`) via the generic `RemoteControlLayout`. Appliances use hand-written
+> bespoke pages (`src/pages/appliances/`). See `docs/ui_backend_contract.md` → "Layout Manifest &
+> Runtime Rendering".
 
 ## Quick Start
 
@@ -67,10 +67,8 @@ git clone https://github.com/droman42/wb-mqtt-bridge.git
 cd wb-mqtt-ui
 npm install
 
-# Generate API types + device pages from the sibling backend's openapi.json + mapping
+# Generate API types from the backend's openapi.json (pages render at runtime — no page codegen)
 npm run gen:api-types
-npm run gen:device-pages -- --batch --mode=local \
-  --mapping-file=../wb-mqtt-bridge/config/device-state-mapping.json --generate-router
 
 # Start the dev server
 npm run dev
@@ -130,10 +128,9 @@ VITE_SSE_BASE_URL=        # empty = relative URLs (proxy)
 
 - `npm run dev` / `npm run build` / `npm run preview`
 - `npm run gen:api-types` — generate `src/types/api.gen.ts` from `openapi.json`
-- `npm run gen:device-pages` — generate device pages + state types (see Quick Start)
+- `npm run check` — typecheck + lint (CI parity)
 - `npm run lint` / `npm run lint:fix`
-- `npm run typecheck` / `npm run typecheck:scripts` / `npm run typecheck:all`
-- `npm run validate:generated-code` / `npm run validate:components` / `npm run validate:all`
+- `npm run typecheck` / `npm run typecheck:all`
 - `npm run gen:favicon`
 
 ## Project Structure
@@ -141,15 +138,14 @@ VITE_SSE_BASE_URL=        # empty = relative URLs (proxy)
 ```
 src/
 ├── app/                # Entry point & root layout
-├── components/         # Reusable UI components (NavCluster, SliderControl,
-│                       #   PointerPad, RemoteControlLayout, DeviceStatePanel, ...)
-├── lib/                # Generators + device handlers (StateTypeGenerator, ZoneDetection)
-├── pages/              # Generated device/scenario pages (*.gen.tsx — gitignored)
-├── scripts/            # Build-time generator entry (generate-device-pages.ts)
+├── components/         # UI components — RemoteControlLayout (the runtime remote renderer),
+│                       #   RuntimeDevicePage/RuntimeScenarioPage, DeviceStatePanel, ...
+├── lib/                # Runtime libs — layoutManifestAdapter (manifest → structure), IconResolver
+├── pages/              # HomePage + appliances/ (hand-written bespoke appliance pages)
 ├── stores/             # Zustand state slices
-├── hooks/              # Custom React hooks
+├── hooks/              # Custom React hooks (useApi, useDeviceState, useEventSource, ...)
 ├── config/             # Runtime configuration (runtime.ts)
-└── types/              # TypeScript definitions (api.gen.ts, generated/*.state.ts)
+└── types/              # TypeScript definitions (api.gen.ts = OpenAPI types; RemoteControlLayout.ts)
 ```
 
 ## Docker Deployment
@@ -200,10 +196,10 @@ arrives over SSE; actions are sent via `POST /devices/{id}/action`.
 
 ## Contributing
 
-1. Ensure a sibling `wb-mqtt-bridge` checkout is present (no `pip install` needed).
+1. From the monorepo, the backend contract lives in `../backend` (no `pip install` needed).
 2. `npm install`
-3. Generate: `npm run gen:api-types` and `npm run gen:device-pages` (see Quick Start)
-4. `npm run dev`, then `npm run typecheck:all && npm run lint && npm run validate:all`
+3. `npm run gen:api-types` (regenerate `api.gen.ts` after a backend API change)
+4. `npm run dev`, then `npm run check` (typecheck + lint)
 5. `npm run build`
 
 ## License

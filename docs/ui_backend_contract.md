@@ -500,15 +500,28 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
     `/devices/${id}`; also fixed a latent `/device/${id}` singular-route bug). **No shipped source now
     imports `index.gen` / `getDeviceComponent` / `getScenarioComponent` / `getDeviceRoute`** → A3 can
     delete the generator.
-  - **A3 — delete the page generator** (next): `scripts/generate-device-pages.ts`, all `*.gen.tsx`
-    (devices + scenarios), `*.state.ts`/`*.hooks.ts`, the `.gen` indexes, the `src/lib/integration/*`
-    + `StateTypeGenerator`/`DocumentationGenerator` generator code, and the `gen:device-pages` step
-    inside the `npm run check` script. Also retire the frozen oracle here (shared).
-  - **U3** remove `specialCases` from `types/RemoteControlLayout.ts`, `layoutManifestAdapter.ts`,
-    `useRemoteControlData.ts`, and the dead emission in the 8 `lib/deviceHandlers/*`.
-  - Retire the scenario web fallback: `ScenarioVirtualDeviceControls.tsx`,
-    `ScenarioVirtualDeviceResolver.ts`, `…Handler.ts`, `useScenarioVirtualDevice.ts`, the
-    `virtual_config` hooks + `App.tsx` wiring.
+  - ✅ **A3 DONE (`bb109c6`):** deleted the entire build-time page generator subsystem —
+    `scripts/generate-device-pages.ts`, the generated outputs (`*.gen.tsx`/`*.hooks.ts`/`index.gen.ts`/
+    `*.state.ts`), and the generator support libs (`StateTypeGenerator`, `DocumentationGenerator`,
+    `BatchProcessor`, `DataValidator`, `ErrorHandler`, `PerformanceMonitor`, `ZoneDetection`,
+    `lib/{deviceHandlers,generators,integration,validation}/`). Tooling: removed the codegen npm
+    scripts + `tsconfig.scripts.json`/`typecheck:scripts`; `npm run check` = `typecheck:all && lint`;
+    the UI `Dockerfile` no longer runs codegen or reads `backend/` (api.gen.ts is committed); CI
+    `ui-validate` now runs `npm run check`. **U3 done as a side effect** (the `specialCases` emission
+    lived in the deleted `lib/deviceHandlers/*`); the only `specialCases` remnants left are the inert
+    type field in `types/RemoteControlLayout.ts` + reads in `layoutManifestAdapter.ts`/
+    `useRemoteControlData.ts` → tidy in A4.
+  - ✅ **Scenario web fallback retired (UI side, A3 `bb109c6`):** A1 removed its last runtime use
+    (`App.tsx`), and it was entangled with the generator via the device handlers, so it was deleted
+    with A3 — `ScenarioVirtualDeviceControls.tsx`, `useScenarioVirtualDevice.ts`,
+    `ScenarioVirtualDeviceResolver.ts`, `DeviceConfigurationClient.ts`, and the `virtual_config` hooks
+    in `useApi`. **A5 is now backend-only** (retire the `/scenario/virtual_config` endpoints + the
+    `wb_adapter` resolver; keep the WB publication).
+  - **A4 — finish U3**: remove the inert `specialCases` from `types/RemoteControlLayout.ts`,
+    `layoutManifestAdapter.ts`, `useRemoteControlData.ts` (the handler emission is already gone).
+  - **Oracle (deferred, NOT done in A3):** the frozen `docs/scenarios/layer3_oracle/*` + the backend
+    `test_engine_reproduces_oracle` are **kept** for now as the engine's structural regression
+    snapshot — retiring them removes backend coverage for no immediate gain. Retire deliberately later.
   - ✅ **A1 DONE (`f5a64cf`):** dropped the per-id runtime flag (removed the flag block from
     `config/runtime.ts`; the file stays for `runtimeConfig`/`getSSEUrl`) and the `App.tsx` gate —
     runtime is now the only path for A/V devices + scenarios. (The `.gen` fallback still lives inside
