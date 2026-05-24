@@ -535,12 +535,18 @@ class ScenarioManager:
         if scenario_id not in self.scenario_map:
             raise ValueError(f"Scenario '{scenario_id}' not found")
         
-        # If this is the currently active scenario, return its state
-        if (self.current_scenario and 
-            self.current_scenario.scenario_id == scenario_id and 
-            self.scenario_state):
-            return self.scenario_state
-        
+        # If this is the currently active scenario, RECOMPUTE its device states from each device's
+        # LIVE state — never return the frozen lifecycle snapshot (self.scenario_state), which would
+        # drift after a manual fix on a device page. One source of truth = device.get_current_state().
+        # See ui_backend_contract.md "Scenario state binding".
+        if self.current_scenario and self.current_scenario.scenario_id == scenario_id:
+            device_states: Dict[str, DeviceState] = {}
+            for dev_id in self.current_scenario.definition.devices:
+                device = self.device_manager.get_device(dev_id)
+                if device:
+                    device_states[dev_id] = self._convert_device_state(device.get_current_state())
+            return ScenarioState(scenario_id=scenario_id, devices=device_states)
+
         # For inactive scenarios, return a basic state without device states
         # since we can't get real-time device states for inactive scenarios
         return ScenarioState(

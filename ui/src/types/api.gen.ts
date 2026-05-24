@@ -989,6 +989,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/scenario/{id}/layout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Scenario Layout
+         * @description Layer-3 layout manifest for a scenario — the composite remote (one renderer, role-assembled
+         *     controls tagged with sourceDeviceId; the power zone is the scenario lifecycle). Built from the
+         *     scenario definition + the role devices' capability maps by the placement engine. The `inputs`
+         *     role is intentionally not rendered (reconciler-derived). Spec: scenario_system_redesign.md §6.
+         */
+        get: operations["get_scenario_layout_scenario__id__layout_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/scenario/{scenario_id}/state": {
         parameters: {
             query?: never;
@@ -1597,6 +1620,8 @@ export interface components {
             setAction?: string | null;
             /** Setparam */
             setParam?: string | null;
+            /** Sourcedeviceid */
+            sourceDeviceId?: string | null;
             /**
              * Type
              * @enum {string}
@@ -1842,6 +1867,7 @@ export interface components {
              * @enum {string}
              */
             entityKind: "device" | "scenario";
+            manualInstructions?: components["schemas"]["wb_mqtt_bridge__presentation__api__layout_manifest__ManualInstructions"] | null;
             /** Remotezones */
             remoteZones?: components["schemas"]["RemoteZone"][];
             /** Specialcases */
@@ -1995,22 +2021,6 @@ export interface components {
              * @description MQTT topic to monitor for maintenance status
              */
             topic: string;
-        };
-        /**
-         * ManualInstructions
-         * @description Instructions that require human intervention (cannot be automated).
-         */
-        ManualInstructions: {
-            /**
-             * Shutdown
-             * @description Steps to perform when shutting down the scenario
-             */
-            shutdown?: string[];
-            /**
-             * Startup
-             * @description Steps to perform when starting the scenario
-             */
-            startup?: string[];
         };
         /** NavigationClusterConfig */
         NavigationClusterConfig: {
@@ -2277,7 +2287,7 @@ export interface components {
              */
             display?: string | null;
             /** @description Instructions requiring human intervention */
-            manual_instructions?: components["schemas"]["ManualInstructions"] | null;
+            manual_instructions?: components["schemas"]["wb_mqtt_bridge__domain__scenarios__models__ManualInstructions"] | null;
             /**
              * Name
              * @description Human-readable name
@@ -2740,6 +2750,32 @@ export interface components {
             priority?: number | null;
             /** Spacing */
             spacing?: ("compact" | "normal" | "spacious") | null;
+        };
+        /**
+         * ManualInstructions
+         * @description Instructions that require human intervention (cannot be automated).
+         */
+        wb_mqtt_bridge__domain__scenarios__models__ManualInstructions: {
+            /**
+             * Shutdown
+             * @description Steps to perform when shutting down the scenario
+             */
+            shutdown?: string[];
+            /**
+             * Startup
+             * @description Steps to perform when starting the scenario
+             */
+            startup?: string[];
+        };
+        /**
+         * ManualInstructions
+         * @description Static human-in-the-loop notes for a scenario (rendered as a bottom section in the remote).
+         */
+        wb_mqtt_bridge__presentation__api__layout_manifest__ManualInstructions: {
+            /** Shutdown */
+            shutdown?: string[];
+            /** Startup */
+            startup?: string[];
         };
     };
     responses: never;
@@ -3693,6 +3729,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: components["schemas"]["ScenarioWBConfig"];
                     };
+                };
+            };
+        };
+    };
+    get_scenario_layout_scenario__id__layout_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayoutManifest"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

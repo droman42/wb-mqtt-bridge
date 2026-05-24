@@ -19,6 +19,7 @@ from wb_mqtt_bridge.presentation.api.layout_manifest import (
     DropdownConfig,
     DropdownOption,
     LayoutManifest,
+    ManualInstructions,
     NavigationClusterConfig,
     PlaybackConfig,
     PointerPadConfig,
@@ -294,4 +295,136 @@ def build_device_manifest(device: Any) -> LayoutManifest:
         entity_kind="device",
         device_category=getattr(cfg, "device_category", "device") or "device",
         state_schema=state_schema,
+    )
+
+
+# === scenario manifest ========================================================================
+# Role -> capability domain (rendered). "inputs" is intentionally omitted: target inputs are
+# reconciler-derived from topology at activation, not a UI control (scenario_system_redesign.md §6).
+_SCENARIO_ROLE_DOMAIN: Dict[str, str] = {
+    "volume": "volume", "playback": "playback", "tracks": "tracks",
+    "menu": "menu", "screen": "screen", "apps": "apps", "pointer": "pointer",
+}
+
+
+def _tag_action(a: Optional[ProcessedAction], dev_id: str) -> None:
+    if a is not None:
+        a.source_device_id = dev_id
+
+
+def _tag_source(content: ZoneContent, dev_id: str) -> None:
+    """Tag every control in a zone's content with its role device (scenario sourceDeviceId routing)."""
+    for b in (content.power_buttons or []):
+        _tag_action(b.action, dev_id)
+    for dd in (content.inputs_dropdown, content.apps_dropdown):
+        if dd is not None:
+            dd.source_device_id = dev_id
+    for sec in (content.playback_section, content.tracks_section):
+        if sec is not None:
+            for a in sec.actions:
+                _tag_action(a, dev_id)
+    for a in (content.screen_actions or []):
+        _tag_action(a, dev_id)
+    if content.volume_slider is not None:
+        _tag_action(content.volume_slider.action, dev_id)
+        _tag_action(content.volume_slider.mute_action, dev_id)
+    for b in (content.volume_buttons or []):
+        _tag_action(b.up_action, dev_id)
+        _tag_action(b.down_action, dev_id)
+        _tag_action(b.mute_action, dev_id)
+    for grp in (content.navigation_cluster, content.pointer_pad):
+        if grp is not None:
+            for name in type(grp).model_fields:
+                v = getattr(grp, name)
+                if isinstance(v, ProcessedAction):
+                    _tag_action(v, dev_id)
+
+
+def _scenario_power_zone() -> ZoneContent:
+    """The scenario lifecycle zone: power_off=Stop (left), power_on=Start (right). No sourceDeviceId —
+    the UI routes these to /scenario/shutdown + /scenario/start (not a device action)."""
+    def _btn(position: str, button_type: str, action_name: str, label: str) -> PowerButtonConfig:
+        return PowerButtonConfig(
+            position=position, button_type=button_type,
+            action=ProcessedAction(
+                action_name=action_name, display_name=label, description=label,
+                icon=ActionIcon(icon_library="fallback", icon_name="power", fallback_icon="power", confidence=0.0),
+                ui_hints=UIHints(button_size="medium", button_style="secondary"),
+            ),
+        )
+    return ZoneContent(power_buttons=[
+        _btn("left", "power-off", "power_off", "Stop scenario"),
+        _btn("right", "power-on", "power_on", "Start scenario"),
+    ])
+
+
+def build_scenario_manifest(scenario_def: Any, device_manager: Any) -> LayoutManifest:
+    """Build a scenario's LayoutManifest: a composite remote assembled per role from the role-bound
+    devices' capabilities. Controls carry sourceDeviceId (routed to the role device); the power zone is
+    the scenario lifecycle. Spec: scenario_system_redesign.md §6 (NOT the old scenario .gen.tsx)."""
+    roles: Dict[str, str] = dict(getattr(scenario_def, "roles", {}) or {})
+    content: Dict[str, ZoneContent] = {zid: ZoneContent() for zid in _ZONE_META}
+    content["power"] = _scenario_power_zone()
+    media = content["media-stack"]
+
+    def _role(role: str) -> Tuple[Optional[str], Optional[Any], Optional[Capability]]:
+        dev_id = roles.get(role)
+        if not dev_id:
+            return None, None, None
+        device = device_manager.devices.get(dev_id)
+        cap_map: Optional[CapabilityMap] = getattr(device, "capabilities", None) if device else None
+        cap = (dict(cap_map.root) if cap_map is not None else {}).get(_SCENARIO_ROLE_DOMAIN[role])
+        return dev_id, device, cap
+
+    dev_id, device, cap = _role("volume")
+    if cap:
+        content["volume"] = _volume_content(device, cap); _tag_source(content["volume"], dev_id)
+    dev_id, device, cap = _role("playback")
+    if cap:
+        media.playback_section = _playback_content(device, cap)
+        for a in media.playback_section.actions:
+            _tag_action(a, dev_id)
+    dev_id, device, cap = _role("tracks")
+    if cap:
+        media.tracks_section = _tracks_content(device, cap)
+        for a in media.tracks_section.actions:
+            _tag_action(a, dev_id)
+    dev_id, device, cap = _role("screen")
+    if cap:
+        content["screen"] = _screen_content(device, cap); _tag_source(content["screen"], dev_id)
+    dev_id, device, cap = _role("menu")
+    if cap:
+        content["menu"] = _menu_content(device, cap); _tag_source(content["menu"], dev_id)
+    dev_id, device, cap = _role("pointer")
+    if cap:
+        content["pointer"] = _pointer_content(device, cap); _tag_source(content["pointer"], dev_id)
+    dev_id, device, cap = _role("apps")
+    if cap:
+        content["apps"] = ZoneContent(apps_dropdown=_apps_dropdown(device, cap)); _tag_source(content["apps"], dev_id)
+
+    def _is_empty(c: ZoneContent) -> bool:
+        return not any(c.model_dump(exclude_none=True, by_alias=True).values())
+
+    zones: List[RemoteZone] = []
+    for zone_id, (zone_name, show_hide, layout) in _ZONE_META.items():
+        c = content[zone_id]
+        zones.append(RemoteZone(
+            zone_id=zone_id, zone_name=zone_name, zone_type=zone_id,
+            show_hide=show_hide, is_empty=_is_empty(c),
+            content=c, layout=ZoneLayoutConfig(**layout),
+        ))
+
+    mi = getattr(scenario_def, "manual_instructions", None)
+    manual = ManualInstructions(
+        startup=list(getattr(mi, "startup", []) or []),
+        shutdown=list(getattr(mi, "shutdown", []) or []),
+    ) if mi is not None else None
+
+    return LayoutManifest(
+        device_id=scenario_def.scenario_id,
+        device_name=getattr(scenario_def, "name", None) or scenario_def.scenario_id,
+        device_class="ScenarioDevice",
+        remote_zones=zones,
+        entity_kind="scenario",
+        manual_instructions=manual,
     )

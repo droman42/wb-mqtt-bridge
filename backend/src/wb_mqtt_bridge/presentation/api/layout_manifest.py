@@ -97,6 +97,8 @@ class DropdownConfig(_Camel):
     # native param name the selected value is sent under for api selection (e.g. set_input -> "input",
     # LG set_input_source -> "source"). Only set for populationMethod="api".
     set_param: Optional[str] = None
+    # scenario-inherited: which device to send select/launch to (the role device). None for device pages.
+    source_device_id: Optional[str] = None
     options: List[DropdownOption] = Field(default_factory=list)
     loading: bool = False
     empty: bool = False
@@ -203,6 +205,12 @@ class DeviceSpecialCase(_Camel):
     configuration: Dict[str, Any] = Field(default_factory=dict)
 
 
+class ManualInstructions(_Camel):
+    """Static human-in-the-loop notes for a scenario (rendered as a bottom section in the remote)."""
+    startup: List[str] = Field(default_factory=list)
+    shutdown: List[str] = Field(default_factory=list)
+
+
 # --- the manifest -----------------------------------------------------------------------------
 class LayoutManifest(_Camel):
     """The remote layout for one entity (device or scenario), served at runtime. A superset of the
@@ -217,6 +225,9 @@ class LayoutManifest(_Camel):
     entity_kind: Literal["device", "scenario"] = "device"
     device_category: Literal["device", "appliance"] = "device"
     state_schema: Optional[str] = None  # openapi components.schemas name for live-state binding
+
+    # scenario-only: static manual notes, rendered as a bottom section in the remote (omitted for devices)
+    manual_instructions: Optional[ManualInstructions] = None
 
     # build-time carryover — present in the frozen oracle, omittable at runtime
     state_interface: Optional[StateDefinition] = None

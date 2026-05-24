@@ -9,6 +9,8 @@ from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition
 from wb_mqtt_bridge.domain.scenarios.scenario import ScenarioError, ScenarioExecutionError
 from wb_mqtt_bridge.infrastructure.scenarios.models import ScenarioWBConfig
 from wb_mqtt_bridge.presentation.api.sse_manager import sse_manager, SSEChannel
+from wb_mqtt_bridge.presentation.api.layout_engine import build_scenario_manifest
+from wb_mqtt_bridge.presentation.api.layout_manifest import LayoutManifest
 
 # Create logger for this module
 logger = logging.getLogger(__name__)
@@ -84,8 +86,24 @@ async def get_scenario_definition(id: str):
     
     if id not in scenario_manager.scenario_definitions:
         raise HTTPException(status_code=404, detail=f"Scenario '{id}' not found")
-    
+
     return scenario_manager.scenario_definitions[id]
+
+
+@router.get("/scenario/{id}/layout", response_model=LayoutManifest, response_model_exclude_none=True)
+async def get_scenario_layout(id: str):
+    """Layer-3 layout manifest for a scenario — the composite remote (one renderer, role-assembled
+    controls tagged with sourceDeviceId; the power zone is the scenario lifecycle). Built from the
+    scenario definition + the role devices' capability maps by the placement engine. The `inputs`
+    role is intentionally not rendered (reconciler-derived). Spec: scenario_system_redesign.md §6."""
+    check_initialized()
+    sdef = scenario_manager.scenario_definitions.get(id)
+    if sdef is None:
+        raise HTTPException(status_code=404, detail=f"Scenario '{id}' not found")
+    try:
+        return build_scenario_manifest(sdef, scenario_manager.device_manager)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to build scenario layout manifest: {e}")
 
 @router.post("/scenario/switch", response_model=ScenarioResponse)
 async def switch_scenario(data: SwitchScenarioRequest):

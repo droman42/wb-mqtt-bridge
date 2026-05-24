@@ -1064,6 +1064,17 @@
             ],
             "title": "Setparam"
           },
+          "sourceDeviceId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sourcedeviceid"
+          },
           "type": {
             "enum": [
               "inputs",
@@ -1594,6 +1605,16 @@
             "title": "Entitykind",
             "type": "string"
           },
+          "manualInstructions": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/wb_mqtt_bridge__presentation__api__layout_manifest__ManualInstructions"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "remoteZones": {
             "items": {
               "$ref": "#/components/schemas/RemoteZone"
@@ -1938,29 +1959,6 @@
           "topic"
         ],
         "title": "MaintenanceConfig",
-        "type": "object"
-      },
-      "ManualInstructions": {
-        "description": "Instructions that require human intervention (cannot be automated).",
-        "properties": {
-          "shutdown": {
-            "description": "Steps to perform when shutting down the scenario",
-            "items": {
-              "type": "string"
-            },
-            "title": "Shutdown",
-            "type": "array"
-          },
-          "startup": {
-            "description": "Steps to perform when starting the scenario",
-            "items": {
-              "type": "string"
-            },
-            "title": "Startup",
-            "type": "array"
-          }
-        },
-        "title": "ManualInstructions",
         "type": "object"
       },
       "NavigationClusterConfig": {
@@ -2593,7 +2591,7 @@
           "manual_instructions": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/ManualInstructions"
+                "$ref": "#/components/schemas/wb_mqtt_bridge__domain__scenarios__models__ManualInstructions"
               },
               {
                 "type": "null"
@@ -3696,6 +3694,51 @@
           }
         },
         "title": "ZoneLayoutConfig",
+        "type": "object"
+      },
+      "wb_mqtt_bridge__domain__scenarios__models__ManualInstructions": {
+        "description": "Instructions that require human intervention (cannot be automated).",
+        "properties": {
+          "shutdown": {
+            "description": "Steps to perform when shutting down the scenario",
+            "items": {
+              "type": "string"
+            },
+            "title": "Shutdown",
+            "type": "array"
+          },
+          "startup": {
+            "description": "Steps to perform when starting the scenario",
+            "items": {
+              "type": "string"
+            },
+            "title": "Startup",
+            "type": "array"
+          }
+        },
+        "title": "ManualInstructions",
+        "type": "object"
+      },
+      "wb_mqtt_bridge__presentation__api__layout_manifest__ManualInstructions": {
+        "additionalProperties": false,
+        "description": "Static human-in-the-loop notes for a scenario (rendered as a bottom section in the remote).",
+        "properties": {
+          "shutdown": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Shutdown",
+            "type": "array"
+          },
+          "startup": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Startup",
+            "type": "array"
+          }
+        },
+        "title": "ManualInstructions",
         "type": "object"
       }
     }
@@ -4864,6 +4907,49 @@
           }
         },
         "summary": "Get All Scenario Virtual Configs",
+        "tags": [
+          "Scenarios"
+        ]
+      }
+    },
+    "/scenario/{id}/layout": {
+      "get": {
+        "description": "Layer-3 layout manifest for a scenario — the composite remote (one renderer, role-assembled\ncontrols tagged with sourceDeviceId; the power zone is the scenario lifecycle). Built from the\nscenario definition + the role devices' capability maps by the placement engine. The `inputs`\nrole is intentionally not rendered (reconciler-derived). Spec: scenario_system_redesign.md §6.",
+        "operationId": "get_scenario_layout_scenario__id__layout_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LayoutManifest"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Scenario Layout",
         "tags": [
           "Scenarios"
         ]
