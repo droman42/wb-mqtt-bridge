@@ -542,12 +542,19 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
   - ✅ **A7 DONE (`ba51f2c`)** — renamed `src/types/api.gen.ts` → `src/types/openapi.gen.ts` (git mv,
     history preserved; useApi import + `gen:api-types` `-o` path updated). Kills the `.gen` ambiguity:
     it's the generated REST type contract from `openapi.json`, and it SURVIVES the cutover.
-  - **A8 — Consolidate the duplicate API types (refactor, not a rename).** `src/types/api.ts` is a
-    **hand-written** parallel set of interfaces (`ScenarioState`, `ScenarioDefinition`,
-    `ManualInstructions`, `DeviceAction`, …) that duplicates types already generated in
-    `openapi.gen.ts` → two sources of API truth, the hand-written one can silently drift from the
-    backend. Fold the UI onto the generated types and shrink/retire `api.ts`. Bigger than the rename;
-    do it deliberately, not as a drive-by.
+  - ✅ **A8 phase 1 DONE (`2226ebf`)** — deleted the **dead** hand-written types from `api.ts` (no
+    importers, not internal deps): the retired scenario-WB/virtual-config cluster (`ScenarioWBConfig`
+    + `WB*` + `ScenarioVirtualConfig*`) and the unused error/config/util types (`ServiceInfo`,
+    `ErrorResponse`, `ValidationError(LocInner)`, `HTTPValidationError`, `BaseDeviceConfig`,
+    `BaseCommandConfig`, `CommandParameterDefinition`). `api.ts` now holds only the **19 live** types
+    (15 imported by `useApi`/`useScenarioState` + internal deps `ManualInstructions`/`CommandStep`/
+    `MQTTBrokerConfig`/`PersistenceConfig`). Importer surface is just those **2 files**.
+  - **A8 phase 2 — DEFERRED (optional):** fold the live duplicates onto `openapi.gen.ts` via
+    re-export aliases (single source of truth). NOT a pure alias swap — generated types use `unknown`
+    where api.ts uses `any` (e.g. `DeviceState.extra`), so it cascades typecheck fixes to consumers;
+    and `ManualInstructions` can't alias cleanly (two same-named backend models → ugly fully-qualified
+    gen names + a 3rd UI copy in `RemoteControlLayout.ts`). The live duplicates work today; phase 2's
+    only gain is preventing silent drift. Do deliberately if/when it's worth the churn.
   - ✅ **A0 RESOLVED (2026-05-24, `e26e513`):** the status pane (`DeviceStatePanel`) no longer depends
     on the generated `stateInterface` — it renders the per-device "Device State" section from the **live
     `state` object** (keys + inferred type), so deleting the generated state types is safe. (This also
