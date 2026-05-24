@@ -1024,8 +1024,9 @@ export function RemoteControlLayout({
   }, {} as Record<string, RemoteZone>);
 
   // All actions now use the same handler - no special power management
-  const handleAction = (actionName: string, payload?: any) => {
-    onAction(actionName, payload);
+  const handleAction = (actionName: string, payload?: any, targetDeviceId?: string) => {
+    // forward targetDeviceId — scenario controls route to their role device (sourceDeviceId)
+    onAction(actionName, payload, targetDeviceId);
   };
   
 
@@ -1118,6 +1119,33 @@ export function RemoteControlLayout({
             isActionPending={isActionPending}
             lastAction={lastAction}
           />
+
+          {/* Manual steps (scenario-only) — bottom of the remote; absent for devices */}
+          {deviceStructure.manualInstructions &&
+            (deviceStructure.manualInstructions.startup.length > 0 ||
+             deviceStructure.manualInstructions.shutdown.length > 0) && (
+            <details className="mt-2 rounded border border-white/20 bg-black/30 px-3 py-2 text-xs text-white/90">
+              <summary className="cursor-pointer select-none font-semibold uppercase tracking-wide text-white/60">
+                Manual steps
+              </summary>
+              {deviceStructure.manualInstructions.startup.length > 0 && (
+                <div className="mt-2">
+                  <div className="mb-1 text-white/50">Before you start</div>
+                  <ul className="list-inside list-disc space-y-0.5">
+                    {deviceStructure.manualInstructions.startup.map((s, i) => <li key={`su-${i}`}>{s}</li>)}
+                  </ul>
+                </div>
+              )}
+              {deviceStructure.manualInstructions.shutdown.length > 0 && (
+                <div className="mt-2">
+                  <div className="mb-1 text-white/50">When you&apos;re done</div>
+                  <ul className="list-inside list-disc space-y-0.5">
+                    {deviceStructure.manualInstructions.shutdown.map((s, i) => <li key={`sd-${i}`}>{s}</li>)}
+                  </ul>
+                </div>
+              )}
+            </details>
+          )}
         </div>
       </div>
 

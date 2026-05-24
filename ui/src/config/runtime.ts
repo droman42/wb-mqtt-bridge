@@ -69,8 +69,11 @@ export const getSSEUrl = (path: string): string => {
 // Only `kitchen_hood` (the sole device_category=appliance) is excluded — bespoke appliance pages are
 // out of Layer-3-v1.
 const RUNTIME_LAYOUT_DEFAULT = [
+  // devices (device_ids) — all device_category devices; only kitchen_hood (appliance) excluded
   'mf_amplifier', 'ld_player', 'video', 'vhs_player', 'upscaler', 'reel_to_reel',
   'processor', 'living_room_tv', 'children_room_tv', 'appletv_living', 'appletv_children', 'streamer',
+  // scenarios (scenario_ids) — Step 3 scenario rollout
+  'movie_appletv', 'movie_ld', 'movie_vhs', 'movie_zappiti',
 ];
 const parseLayoutDevices = (raw: string | undefined): Set<string> => {
   if (raw === undefined) return new Set(RUNTIME_LAYOUT_DEFAULT);

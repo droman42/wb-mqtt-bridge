@@ -37,21 +37,21 @@ export function useInputsData(deviceStructure: RemoteDeviceStructure): UseInputs
   const [error, setError] = useState<string | null>(null);
   const executeActionQuery = useExecuteDeviceAction();
 
-  // Get device state for power checking (for api-populated dropdowns)
-  const { data: deviceState } = useDeviceStateQuery(deviceStructure.deviceId);
-
-  const deviceId = deviceStructure.deviceId;
-
-  // Decide static-vs-fetch from the manifest's populationMethod (class-agnostic).
-  const { hasInputsCapability, isCommands, commandOptions, apiAction } = useMemo(() => {
+  // Decide static-vs-fetch from the manifest's populationMethod (class-agnostic). For scenarios the
+  // dropdown's sourceDeviceId is the role device to fetch/gate against (else this device).
+  const { hasInputsCapability, isCommands, commandOptions, apiAction, targetDeviceId } = useMemo(() => {
     const dd = deviceStructure.remoteZones.find(zone => zone.zoneId === 'media-stack')?.content?.inputsDropdown;
     return {
       hasInputsCapability: dd != null,
       isCommands: dd?.populationMethod === 'commands',
       commandOptions: dd?.options ?? [],
       apiAction: dd?.apiAction ?? null,
+      targetDeviceId: dd?.sourceDeviceId ?? deviceStructure.deviceId,
     };
-  }, [JSON.stringify(deviceStructure.remoteZones)]);
+  }, [JSON.stringify(deviceStructure.remoteZones), deviceStructure.deviceId]);
+
+  // Live state of the device we fetch/gate against (the role device for scenarios)
+  const { data: deviceState } = useDeviceStateQuery(targetDeviceId);
 
   // Extract only the specific state fields that matter for inputs logic
   const { devicePower, deviceConnected, hasDeviceState } = useMemo(() => {
@@ -107,7 +107,7 @@ export function useInputsData(deviceStructure: RemoteDeviceStructure): UseInputs
       }
 
       const response = await executeAction({
-        deviceId,
+        deviceId: targetDeviceId,
         action: { action: apiAction ?? 'get_available_inputs', params: {} },
       });
 
@@ -130,7 +130,7 @@ export function useInputsData(deviceStructure: RemoteDeviceStructure): UseInputs
       setLoading(false);
     }
   }, [
-    deviceId,
+    targetDeviceId,
     hasInputsCapability,
     isCommands,
     JSON.stringify(commandOptions),
@@ -162,18 +162,19 @@ export function useAppsData(deviceStructure: RemoteDeviceStructure): UseAppsData
   const [error, setError] = useState<string | null>(null);
   const executeActionQuery = useExecuteDeviceAction();
 
-  const { data: deviceState } = useDeviceStateQuery(deviceStructure.deviceId);
-  const deviceId = deviceStructure.deviceId;
-
-  const { hasAppsCapability, isCommands, commandOptions, apiAction } = useMemo(() => {
+  // For scenarios, the apps dropdown's sourceDeviceId is the role device to fetch/gate against.
+  const { hasAppsCapability, isCommands, commandOptions, apiAction, targetDeviceId } = useMemo(() => {
     const dd = deviceStructure.remoteZones.find(zone => zone.zoneId === 'apps')?.content?.appsDropdown;
     return {
       hasAppsCapability: dd != null,
       isCommands: dd?.populationMethod === 'commands',
       commandOptions: dd?.options ?? [],
       apiAction: dd?.apiAction ?? null,
+      targetDeviceId: dd?.sourceDeviceId ?? deviceStructure.deviceId,
     };
-  }, [JSON.stringify(deviceStructure.remoteZones)]);
+  }, [JSON.stringify(deviceStructure.remoteZones), deviceStructure.deviceId]);
+
+  const { data: deviceState } = useDeviceStateQuery(targetDeviceId);
 
   const { devicePower: appDevicePower, deviceConnected: appDeviceConnected, hasDeviceState: appHasDeviceState } = useMemo(() => {
     return {
@@ -225,7 +226,7 @@ export function useAppsData(deviceStructure: RemoteDeviceStructure): UseAppsData
       }
 
       const response = await executeAction({
-        deviceId,
+        deviceId: targetDeviceId,
         action: { action: apiAction ?? 'get_available_apps', params: {} },
       });
 
@@ -248,7 +249,7 @@ export function useAppsData(deviceStructure: RemoteDeviceStructure): UseAppsData
       setLoading(false);
     }
   }, [
-    deviceId,
+    targetDeviceId,
     hasAppsCapability,
     isCommands,
     JSON.stringify(commandOptions),
@@ -283,34 +284,34 @@ export function useInputSelection(deviceStructure: RemoteDeviceStructure) {
     [executeActionQuery.mutateAsync]
   );
 
-  const { isCommands, setAction, setParam } = useMemo(() => {
+  const { isCommands, setAction, setParam, targetDeviceId } = useMemo(() => {
     const dd = deviceStructure.remoteZones.find(zone => zone.zoneId === 'media-stack')?.content?.inputsDropdown;
     return {
       isCommands: dd?.populationMethod === 'commands',
       setAction: dd?.setAction ?? null,
       setParam: dd?.setParam ?? 'input',
+      targetDeviceId: dd?.sourceDeviceId ?? deviceStructure.deviceId,  // role device for scenarios
     };
-  }, [JSON.stringify(deviceStructure.remoteZones)]);
+  }, [JSON.stringify(deviceStructure.remoteZones), deviceStructure.deviceId]);
 
   const selectInput = useCallback(async (inputId: string) => {
     setSelectedInput(inputId);
 
     try {
-      const { deviceId } = deviceStructure;
       if (isCommands) {
         // The option id IS the device command (e.g. "input_cd").
-        await executeAction({ deviceId, action: { action: inputId, params: {} } });
+        await executeAction({ deviceId: targetDeviceId, action: { action: inputId, params: {} } });
       } else {
         // api: manifest-declared setAction + the value under the manifest-declared setParam
         // (B5: eMotiva set_input/input, LG set_input_source/source).
-        await executeAction({ deviceId, action: { action: setAction ?? 'set_input', params: { [setParam]: inputId } } });
+        await executeAction({ deviceId: targetDeviceId, action: { action: setAction ?? 'set_input', params: { [setParam]: inputId } } });
       }
     } catch (err) {
       console.error('Failed to select input:', err);
       setSelectedInput('');
       throw err;
     }
-  }, [deviceStructure.deviceId, isCommands, setAction, setParam, executeAction]);
+  }, [targetDeviceId, isCommands, setAction, setParam, executeAction]);
 
   return { selectedInput, selectInput, setSelectedInput };
 }
@@ -328,25 +329,28 @@ export function useAppLaunching(deviceStructure: RemoteDeviceStructure) {
     [executeActionQuery.mutateAsync]
   );
 
-  const { setAction, setParam } = useMemo(() => {
+  const { setAction, setParam, targetDeviceId } = useMemo(() => {
     const dd = deviceStructure.remoteZones.find(zone => zone.zoneId === 'apps')?.content?.appsDropdown;
-    return { setAction: dd?.setAction ?? null, setParam: dd?.setParam ?? 'app_name' };
-  }, [JSON.stringify(deviceStructure.remoteZones)]);
+    return {
+      setAction: dd?.setAction ?? null,
+      setParam: dd?.setParam ?? 'app_name',
+      targetDeviceId: dd?.sourceDeviceId ?? deviceStructure.deviceId,  // role device for scenarios
+    };
+  }, [JSON.stringify(deviceStructure.remoteZones), deviceStructure.deviceId]);
 
   const launchApp = useCallback(async (appId: string) => {
     setSelectedApp(appId);
 
     try {
-      const { deviceId } = deviceStructure;
       // manifest-declared setAction + value under setParam (B5): LG launch_app/app_name,
-      // AppleTV launch_app/app.
-      await executeAction({ deviceId, action: { action: setAction ?? 'launch_app', params: { [setParam]: appId } } });
+      // AppleTV launch_app/app. Routed to the role device's sourceDeviceId for scenarios.
+      await executeAction({ deviceId: targetDeviceId, action: { action: setAction ?? 'launch_app', params: { [setParam]: appId } } });
     } catch (err) {
       console.error('Failed to launch app:', err);
       setSelectedApp('');
       throw err;
     }
-  }, [deviceStructure.deviceId, setAction, setParam, executeAction]);
+  }, [targetDeviceId, setAction, setParam, executeAction]);
 
   return { selectedApp, launchApp, setSelectedApp };
 }

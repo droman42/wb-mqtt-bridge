@@ -84,5 +84,6 @@ export function manifestToDeviceStructure(manifest: LayoutManifest): RemoteDevic
     stateInterface: (manifest.stateInterface as StateDefinition | null) ?? EMPTY_STATE_INTERFACE,
     actionHandlers: (manifest.actionHandlers ?? []) as unknown as ActionHandler[],
     specialCases: manifest.specialCases as RemoteDeviceStructure['specialCases'],
+    manualInstructions: manifest.manualInstructions as RemoteDeviceStructure['manualInstructions'],
   };
 }

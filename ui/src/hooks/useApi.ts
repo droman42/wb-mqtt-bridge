@@ -98,6 +98,16 @@ export const useDeviceLayout = (deviceId: string) => {
   });
 };
 
+// Layer 3 (Step 3): the scenario composite-remote manifest (entityKind="scenario").
+export const useScenarioLayout = (scenarioId: string) => {
+  return useQuery({
+    queryKey: ['scenario', scenarioId, 'layout'],
+    queryFn: () => api.get<LayoutManifest>(`/scenario/${scenarioId}/layout`).then(res => res.data),
+    enabled: !!scenarioId,
+    staleTime: Infinity,
+  });
+};
+
 export const useDevicePersistedState = (deviceId: string) => {
   return useQuery({
     queryKey: ['devices', deviceId, 'persisted'],

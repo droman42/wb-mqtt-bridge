@@ -9,6 +9,7 @@ import { getDeviceComponent } from '../pages/devices/index.gen';
 import { getScenarioComponent } from '../pages/scenarios/index.gen';
 import { ScenarioVirtualDeviceControls } from '../components/ScenarioVirtualDeviceControls';
 import { RuntimeDevicePage } from '../components/RuntimeDevicePage';
+import { RuntimeScenarioPage } from '../components/RuntimeScenarioPage';
 import { isRuntimeLayoutEnabled } from '../config/runtime';
 
 // Component to handle device page routing using generated registry
@@ -70,9 +71,14 @@ function ScenarioPage() {
     );
   }
   
+  // Layer 3 (Step 3): render from the backend scenario layout manifest at runtime when enabled.
+  if (isRuntimeLayoutEnabled(scenarioId)) {
+    return <RuntimeScenarioPage scenarioId={scenarioId} />;
+  }
+
   // Try to get generated scenario component first
   const ScenarioComponent = getScenarioComponent(scenarioId);
-  
+
   if (ScenarioComponent) {
     return <ScenarioComponent />;
   }

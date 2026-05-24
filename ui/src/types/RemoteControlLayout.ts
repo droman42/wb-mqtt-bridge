@@ -55,6 +55,7 @@ export interface DropdownConfig {
   apiAction?: string; // e.g., 'get_available_inputs'
   setAction?: string; // e.g., 'set_input'
   setParam?: string; // native param the selected value is sent under for api selection (e.g. 'input', 'source')
+  sourceDeviceId?: string; // scenario-inherited: which device to fetch/select against (the role device)
   options: DropdownOption[];
   loading: boolean;
   empty: boolean;
@@ -121,6 +122,11 @@ export interface ZoneLayoutConfig {
 }
 
 // Remote Control Device Structure - replaces DeviceStructure for remote layout
+export interface ManualInstructions {
+  startup: string[];
+  shutdown: string[];
+}
+
 export interface RemoteDeviceStructure {
   deviceId: string;
   deviceName: string;
@@ -129,6 +135,7 @@ export interface RemoteDeviceStructure {
   stateInterface: import('./ProcessedDevice').StateDefinition;
   actionHandlers: import('./ProcessedDevice').ActionHandler[];
   specialCases?: DeviceSpecialCase[];
+  manualInstructions?: ManualInstructions; // scenario-only: static notes rendered at the remote bottom
 }
 
 export interface DeviceSpecialCase {
