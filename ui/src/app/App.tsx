@@ -1,21 +1,18 @@
 import React from 'react';
 import { Routes, Route, useParams } from 'react-router-dom';
 import { useSettingsStore } from '../stores/useSettingsStore';
-import { useRoomStore } from '../stores/useRoomStore';
 import { useDataSync } from '../hooks/useDataSync';
 import Layout from './Layout';
 import HomePage from '../pages/HomePage';
-import { getDeviceComponent } from '../pages/devices/index.gen';
-import { getScenarioComponent } from '../pages/scenarios/index.gen';
-import { ScenarioVirtualDeviceControls } from '../components/ScenarioVirtualDeviceControls';
 import { RuntimeDevicePage } from '../components/RuntimeDevicePage';
 import { RuntimeScenarioPage } from '../components/RuntimeScenarioPage';
-import { isRuntimeLayoutEnabled } from '../config/runtime';
+import { getAppliancePage } from '../pages/appliances';
 
-// Component to handle device page routing using generated registry
+// Device page routing — Layer 3: A/V devices render from the backend layout manifest at runtime;
+// appliances (no capability map) get a hand-written bespoke page.
 function DevicePage() {
   const { deviceId } = useParams<{ deviceId: string }>();
-  
+
   if (!deviceId) {
     return (
       <div className="p-6 text-center">
@@ -24,44 +21,20 @@ function DevicePage() {
       </div>
     );
   }
-  
-  // Layer 3 (Step 2): render from the backend layout manifest at runtime when enabled
-  // for this device; otherwise fall through to the build-time generated page.
-  if (isRuntimeLayoutEnabled(deviceId)) {
-    return <RuntimeDevicePage deviceId={deviceId} />;
+
+  const AppliancePage = getAppliancePage(deviceId);
+  if (AppliancePage) {
+    return <AppliancePage />;
   }
 
-  const DeviceComponent = getDeviceComponent(deviceId);
-
-  if (DeviceComponent) {
-    return <DeviceComponent />;
-  }
-  
-  return (
-    <div className="p-6 text-center">
-      <h1 className="text-2xl font-bold mb-4">Device Not Found</h1>
-      <p className="text-muted-foreground">
-        Device "{deviceId}" does not have a generated page yet.
-      </p>
-    </div>
-  );
+  return <RuntimeDevicePage deviceId={deviceId} />;
 }
 
-
-
-// Component to handle scenario page routing
+// Scenario page routing — Layer 3: always render from the backend scenario layout manifest at
+// runtime. (RuntimeScenarioPage selects the scenario in the room store on mount.)
 function ScenarioPage() {
   const { scenarioId } = useParams<{ scenarioId: string }>();
-  const { statePanelOpen } = useSettingsStore();
-  const { selectScenario } = useRoomStore();
-  
-  // Automatically select this scenario when the page loads
-  React.useEffect(() => {
-    if (scenarioId) {
-      selectScenario(scenarioId);
-    }
-  }, [scenarioId, selectScenario]);
-  
+
   if (!scenarioId) {
     return (
       <div className="p-6 text-center">
@@ -70,28 +43,8 @@ function ScenarioPage() {
       </div>
     );
   }
-  
-  // Layer 3 (Step 3): render from the backend scenario layout manifest at runtime when enabled.
-  if (isRuntimeLayoutEnabled(scenarioId)) {
-    return <RuntimeScenarioPage scenarioId={scenarioId} />;
-  }
 
-  // Try to get generated scenario component first
-  const ScenarioComponent = getScenarioComponent(scenarioId);
-
-  if (ScenarioComponent) {
-    return <ScenarioComponent />;
-  }
-  
-  // Fall back to dynamic scenario controls if no generated component exists
-  return (
-    <div className={`${statePanelOpen ? 'p-2' : 'p-4'}`}>
-      <ScenarioVirtualDeviceControls 
-        scenarioId={scenarioId}
-        className="w-full max-w-4xl mx-auto"
-      />
-    </div>
-  );
+  return <RuntimeScenarioPage scenarioId={scenarioId} />;
 }
 
 function App() {

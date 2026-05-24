@@ -1,7 +1,6 @@
-// Layer 3 (Step 2): renders a device page at RUNTIME from GET /devices/{id}/layout
-// via the generic RemoteControlLayout — the runtime equivalent of a build-time
-// .gen.tsx page. Gated by isRuntimeLayoutEnabled() (see App.tsx); on fetch failure it
-// falls back to the generated page so the runtime path is never worse than today.
+// Layer 3: renders a device page at RUNTIME from GET /devices/{id}/layout via the generic
+// RemoteControlLayout — the only device-page path (App.tsx routes every device here). On fetch
+// failure it still falls back to the build-time .gen.tsx page (removed at the Step-4 cutover, A2).
 import { useEffect, useMemo } from 'react';
 import { useLogStore } from '../stores/useLogStore';
 import { useExecuteDeviceAction, useDeviceLayout } from '../hooks/useApi';

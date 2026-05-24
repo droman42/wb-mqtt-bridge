@@ -1,7 +1,8 @@
-// Layer 3 (Step 3): renders a scenario page at RUNTIME from GET /scenario/{id}/layout via the generic
+// Layer 3: renders a scenario page at RUNTIME from GET /scenario/{id}/layout via the generic
 // RemoteControlLayout — a composite remote whose controls route to their role device (sourceDeviceId),
-// with the power zone driving the scenario lifecycle (start/shutdown). Gated by isRuntimeLayoutEnabled
-// (see App.tsx); on fetch failure it falls back to the generated scenario page.
+// with the power zone driving the scenario lifecycle (start/shutdown). The only scenario-page path
+// (App.tsx routes every scenario here); on fetch failure it still falls back to the build-time
+// generated scenario page (removed at the Step-4 cutover, A2).
 import { useEffect, useMemo } from 'react';
 import { useLogStore } from '../stores/useLogStore';
 import { useExecuteDeviceAction, useScenarioLayout, useScenarioState, useStartScenario, useShutdownScenario } from '../hooks/useApi';
