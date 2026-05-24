@@ -20,6 +20,7 @@ from unittest.mock import MagicMock
 
 from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 from wb_mqtt_bridge.infrastructure.devices.wirenboard_ir_device.driver import WirenboardIRDevice
+from wb_mqtt_bridge.infrastructure.capabilities.models import CapabilityMap
 from wb_mqtt_bridge.infrastructure.config.models import (
     WirenboardIRDeviceConfig,
     IRCommandConfig,
@@ -78,8 +79,20 @@ def mqtt_client():
 
 @pytest_asyncio.fixture
 async def device(mqtt_client):
-    """A configured WirenboardIRDevice. setup() is cheap (no network) so we run it."""
+    """A configured WirenboardIRDevice. setup() is cheap (no network) so we run it.
+
+    Attach a minimal capability map (the `input` domain's by_value mapping) so the driver's
+    optimistic-input tracking — now keyed off capabilities, not a command-name convention — can
+    resolve input_aux2 -> "aux2"."""
     d = WirenboardIRDevice(_make_config(), mqtt_client)
+    d.capabilities = CapabilityMap.model_validate({
+        "input": {
+            "kind": "stateful",
+            "feedback": False,
+            "state_field": "input",
+            "select": {"by_value": {"aux2": {"command": "input_aux2"}}},
+        }
+    })
     await d.setup()
     return d
 

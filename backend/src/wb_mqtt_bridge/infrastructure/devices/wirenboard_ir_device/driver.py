@@ -398,12 +398,18 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
                         await self.mqtt_client.publish(topic, payload)
                         logger.info(f"Published IR command '{action_name}' to {topic}")
                         await self.emit_progress(f"IR command '{action_name}' sent successfully", "action_success")
-                        # Optimistic input tracking (IR has no feedback): record the input we
-                        # just selected so the scenario reconciler can diff it. Input-selection
-                        # commands follow the `input_<value>` convention (the capability `input`
-                        # domain's by_value commands), e.g. input_aux2 -> "aux2".
-                        if action_name.startswith("input_"):
-                            self.update_state(input=action_name.removeprefix("input_"))
+                        # Optimistic input tracking (IR has no feedback): record the input we just
+                        # selected so the scenario reconciler can diff it. The value is derived from
+                        # the capability `input` domain's by_value mapping (command -> value), NOT a
+                        # command-name convention — e.g. the command bound to value "aux2".
+                        input_cap = self.capabilities.get("input") if self.capabilities is not None else None
+                        by_value = getattr(getattr(input_cap, "select", None), "by_value", None) or {}
+                        input_value = next(
+                            (v for v, ca in by_value.items() if getattr(ca, "command", None) == action_name),
+                            None,
+                        )
+                        if input_value is not None:
+                            self.update_state(input=input_value)
                         # No mqtt_topic/mqtt_payload: the IR was already published directly above.
                         # Returning it would double-publish via the API action router (devices.py).
                         return self.create_command_result(
