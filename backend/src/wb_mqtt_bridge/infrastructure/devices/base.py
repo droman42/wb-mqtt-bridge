@@ -34,20 +34,16 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
             device_name=self.device_name
         )
         self._action_handlers: Dict[str, ActionHandler] = {}  # Cache for action handlers
-        self._action_groups: Dict[str, List[Dict[str, Any]]] = {}  # Index of actions by group
         self.mqtt_client = mqtt_client
         self.wb_service = wb_service  # Injected WB virtual device service
         # Layer 1 capability map (canonical domain.action -> native commands). Attached at
         # bootstrap from config/capabilities/; None until then. See scenario redesign §5.
         self.capabilities: Optional[CapabilityMap] = None
         self._state_change_callback = None  # Callback for state changes
-        
+
         # Register action handlers
         self._register_handlers()
-        
-        # Build action group index
-        self._build_action_groups_index()
-        
+
         # Auto-register handlers based on naming convention
         self._auto_register_handlers()
     
@@ -216,37 +212,7 @@ class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
     def clear_error(self) -> None:
         """Clear any error message from the device state."""
         self.update_state(error=None)
-    
-    def _build_action_groups_index(self):
-        """Build an index of actions organized by group."""
-        self._action_groups = {"default": []}  # Default group for actions with no group specified
-        
-        for cmd_name, cmd in self.get_available_commands().items():
-            # Get the group for this command
-            group = cmd.group or "default"
-            
-            # Add group to index if it doesn't exist
-            if group not in self._action_groups:
-                self._action_groups[group] = []
-            
-            # Add command to the group
-            action_info = {
-                "name": cmd_name,
-                "description": cmd.description or "",
-                # Add other relevant properties from the command config
-                # (excluding group and description which we've already handled)
-                "params": cmd.params
-            }
-            self._action_groups[group].append(action_info)
-    
-    def get_available_groups(self) -> List[str]:
-        """Get a list of all available action groups for this device."""
-        return list(self._action_groups.keys())
-    
-    def get_actions_by_group(self, group: str) -> List[Dict[str, Any]]:
-        """Get all actions in a specific group."""
-        return self._action_groups.get(group, [])
-    
+
     def get_actions(self) -> List[Dict[str, Any]]:
         """Return a list of supported actions for this device."""
         # Get all action handlers registered for this device

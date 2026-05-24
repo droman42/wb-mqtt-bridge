@@ -52,11 +52,7 @@ class ConfigManager:
         # Load configurations
         self._load_system_config()
         self._discover_and_load_device_configs()
-        
-        # Extract group definitions
-        self._groups = self.system_config.groups or {}
-        logger.info(f"Loaded {len(self._groups)} function groups from system config")
-    
+
     def _load_system_config(self):
         """Load the system configuration from JSON file."""
         try:
@@ -306,34 +302,7 @@ class ConfigManager:
             logger.info("Using MQTT authentication credentials from environment variables")
         
         # Update the system configuration
-        self.system_config.mqtt_broker = mqtt_config 
-    
-    def get_groups(self) -> Dict[str, str]:
-        """Get the function groups defined in the system configuration."""
-        groups = dict(self._groups)
-        
-        # Ensure default group exists
-        if "default" not in groups:
-            groups["default"] = "Default Group"
-            
-        return groups
-
-    def is_valid_group(self, group_id: str) -> bool:
-        """
-        Check if a group is defined in the system configuration.
-        The 'default' group is always considered valid.
-        
-        Args:
-            group_id: The group ID to validate
-            
-        Returns:
-            bool: True if the group is valid, False otherwise
-        """
-        if group_id == "default":
-            return True
-        
-        groups = self.get_groups()
-        return group_id in groups 
+        self.system_config.mqtt_broker = mqtt_config
 
     def log_migration_guidance(self):
         """Log successful completion of Configuration Migration Phase C."""
