@@ -34,28 +34,22 @@ export function useDeviceState(deviceId: string): EnhancedDeviceStateHook {
   const [isPoweringOn, setIsPoweringOn] = useState(false);
   const subscribersRef = useRef<Set<StateUpdateCallback>>(new Set());
   
-  // Update local state when backend data changes
+  // Rebuild local state from the backend whenever the device OR its backend data changes.
+  // Crucially we rebuild from a CLEAN default for the current deviceId (not a merge into the
+  // previous state), so device-specific fields from a previously-viewed device — e.g. a
+  // WirenboardIR `alias` — never leak into this device's state. (This also subsumes the old
+  // separate "update deviceId" effect, avoiding an effect-ordering race that could wipe data.)
   useEffect(() => {
+    const base = createDefaultDeviceState(deviceId);
     if (backendState) {
       const mappedData = mapBackendDataToState(backendState);
-      
-      setLocalState(prevState => {
-        const newState: BaseDeviceState = {
-          ...prevState,
-          ...mappedData,
-        };
-        
-        // Notify subscribers of the update
-        subscribersRef.current.forEach(callback => {
-          callback(mappedData);
-        });
-        
-        return newState;
-      });
-      
+      setLocalState({ ...base, ...mappedData });
+      subscribersRef.current.forEach(callback => callback(mappedData));
       setIsConnected(true);
+    } else {
+      setLocalState(base);
     }
-  }, [backendState]);
+  }, [backendState, deviceId]);
   
   // Handle connection status based on query state
   useEffect(() => {
@@ -70,14 +64,6 @@ export function useDeviceState(deviceId: string): EnhancedDeviceStateHook {
       setIsConnected(true);
     }
   }, [queryError, isLoading, backendState]);
-  
-  // Update deviceId if it changes
-  useEffect(() => {
-    setLocalState(prevState => ({
-      ...prevState,
-      deviceId,
-    }));
-  }, [deviceId]);
   
   // Subscribe to state changes
   const subscribeToState = useCallback((callback: StateUpdateCallback): StateSubscription => {
