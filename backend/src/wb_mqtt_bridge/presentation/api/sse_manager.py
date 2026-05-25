@@ -7,6 +7,8 @@ from enum import Enum
 from fastapi import Request
 from fastapi.responses import StreamingResponse
 
+from wb_mqtt_bridge.domain.ports import EventPublisherPort
+
 logger = logging.getLogger(__name__)
 
 class SSEChannel(str, Enum):
@@ -57,7 +59,7 @@ class SSEEvent:
         # SSE events must end with CRLF double newline for proxy compatibility
         return "\r\n".join(lines) + "\r\n\r\n"
 
-class SSEManager:
+class SSEManager(EventPublisherPort):
     """Manages Server-Sent Event connections and broadcasting"""
     
     def __init__(self):
@@ -85,6 +87,12 @@ class SSEManager:
             self._connections[channel].discard(queue)
             logger.info(f"SSE connection removed from {channel.value} channel. Total: {len(self._connections[channel])}")
     
+    async def publish_device_event(
+        self, event_type: str, data: Any, event_id: Optional[str] = None
+    ) -> None:
+        """EventPublisherPort impl: fan a device event out on the DEVICES channel."""
+        await self.broadcast(SSEChannel.DEVICES, event_type, data, event_id)
+
     async def broadcast(self, channel: SSEChannel, event_type: str, data: Any, event_id: Optional[str] = None) -> None:
         """Broadcast an event to all connections on a channel"""
         if channel not in self._connections:

@@ -14,8 +14,7 @@ from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
 from wb_mqtt_bridge.infrastructure.wb_device.service import WBVirtualDeviceService
 from wb_mqtt_bridge.domain.capabilities.models import CapabilityMap
 from wb_mqtt_bridge.utils.types import StateT, CommandResult, CommandResponse, ActionHandler
-from wb_mqtt_bridge.presentation.api.sse_manager import sse_manager, SSEChannel
-from wb_mqtt_bridge.domain.ports import DevicePort
+from wb_mqtt_bridge.domain.ports import DevicePort, EventPublisherPort
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +35,8 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
         self._action_handlers: Dict[str, ActionHandler] = {}  # Cache for action handlers
         self.mqtt_client = mqtt_client
         self.wb_service = wb_service  # Injected WB virtual device service
+        # Event publisher (SSE fan-out) injected at bootstrap; None until then.
+        self.event_publisher: Optional[EventPublisherPort] = None
         # Layer 1 capability map (canonical domain.action -> native commands). Attached at
         # bootstrap from config/capabilities/; None until then. See scenario redesign §5.
         self.capabilities: Optional[CapabilityMap] = None
@@ -698,13 +699,13 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
             }
             
             # Create task to broadcast state change
-            asyncio.create_task(
-                sse_manager.broadcast(
-                    channel=SSEChannel.DEVICES,
-                    event_type="state_change",
-                    data=state_event_data
+            if self.event_publisher is not None:
+                asyncio.create_task(
+                    self.event_publisher.publish_device_event(
+                        event_type="state_change",
+                        data=state_event_data,
+                    )
                 )
-            )
             
             logger.debug(f"State change SSE event queued for device {self.device_id}")
             
@@ -970,11 +971,11 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
             }
             
             # Emit to devices channel via SSE
-            await sse_manager.broadcast(
-                channel=SSEChannel.DEVICES,
-                event_type=event_type,
-                data=event_data
-            )
+            if self.event_publisher is not None:
+                await self.event_publisher.publish_device_event(
+                    event_type=event_type,
+                    data=event_data,
+                )
             
             logger.debug(f"Emitted {event_type} event for device {self.device_id}: {message}")
             return True

@@ -194,6 +194,7 @@ def create_app() -> FastAPI:
         for device_id, device in device_manager.devices.items():
             device.mqtt_client = mqtt_client
             device.wb_service = wb_service
+            device.event_publisher = sse_manager  # SSE fan-out via EventPublisherPort
             logger.info(f"Device {device_id} initialized with typed configuration and WB service")
 
         # Attach Layer 1 capability maps from config/capabilities/ (hot-fixable JSON).

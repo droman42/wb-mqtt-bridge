@@ -133,6 +133,24 @@ class DevicePort(ABC, Generic[StateT]):
         pass
 
 
+class EventPublisherPort(ABC):
+    """Port for publishing device events to live subscribers (SSE today).
+
+    Used by: device drivers (BaseDevice), to surface state changes + progress.
+    Implemented by: presentation/api/sse_manager.SSEManager.
+
+    Domain-framed on purpose: callers say "a device event happened", not "broadcast
+    on the DEVICES SSE channel" — the channel is the adapter's concern.
+    """
+
+    @abstractmethod
+    async def publish_device_event(
+        self, event_type: str, data: Any, event_id: Optional[str] = None
+    ) -> None:
+        """Publish a device event (e.g. 'state_change') to device subscribers."""
+        pass
+
+
 class StateRepositoryPort(ABC):
     """Port for persisting and retrieving aggregate/device state.
     
