@@ -13,7 +13,7 @@ from wb_mqtt_bridge.infrastructure.capabilities.loader import load_capability_ma
 from wb_mqtt_bridge.infrastructure.capabilities.models import CapabilityMap
 import pytest
 
-from wb_mqtt_bridge.infrastructure.scenarios.reconciler import (
+from wb_mqtt_bridge.domain.scenarios.reconciler import (
     PlannedAction,
     ReconcilePlan,
     build_plan,
@@ -186,7 +186,7 @@ def test_ordering_edge_delay_becomes_pre_delay():
 
 @pytest.mark.asyncio
 async def test_execute_plan_runs_actions_in_plan_order(monkeypatch):
-    import wb_mqtt_bridge.infrastructure.scenarios.reconciler as rec
+    import wb_mqtt_bridge.domain.scenarios.reconciler as rec
 
     async def _nosleep(*a, **k):
         return None
@@ -225,7 +225,7 @@ async def test_execute_plan_runs_actions_in_plan_order(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_execute_plan_surfaces_failure_and_continues(monkeypatch):
-    import wb_mqtt_bridge.infrastructure.scenarios.reconciler as rec
+    import wb_mqtt_bridge.domain.scenarios.reconciler as rec
 
     async def _nosleep(*a, **k):
         return None

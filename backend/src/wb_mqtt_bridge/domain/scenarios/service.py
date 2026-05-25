@@ -11,7 +11,7 @@ from wb_mqtt_bridge.domain.rooms.service import RoomManager
 from wb_mqtt_bridge.domain.ports import StateRepositoryPort
 from wb_mqtt_bridge.domain.topology.loader import load_topology
 from wb_mqtt_bridge.domain.topology.models import Topology
-from wb_mqtt_bridge.infrastructure.scenarios.reconciler import (
+from wb_mqtt_bridge.domain.scenarios.reconciler import (
     build_plan,
     build_power_off_plan,
     execute_plan,

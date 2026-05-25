@@ -68,7 +68,7 @@ def _manager(devices, scenario_name="movie_appletv"):
 
 @pytest.fixture(autouse=True)
 def _no_sleep(monkeypatch):
-    import wb_mqtt_bridge.infrastructure.scenarios.reconciler as rec
+    import wb_mqtt_bridge.domain.scenarios.reconciler as rec
 
     async def _nosleep(*a, **k):
         return None
