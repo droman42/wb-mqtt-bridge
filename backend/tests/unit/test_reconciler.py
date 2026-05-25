@@ -10,7 +10,7 @@ from types import SimpleNamespace
 
 from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition
 from wb_mqtt_bridge.infrastructure.capabilities.loader import load_capability_map
-from wb_mqtt_bridge.infrastructure.capabilities.models import CapabilityMap
+from wb_mqtt_bridge.domain.capabilities.models import CapabilityMap
 import pytest
 
 from wb_mqtt_bridge.domain.scenarios.reconciler import (

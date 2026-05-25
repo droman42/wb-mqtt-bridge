@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from wb_mqtt_bridge.infrastructure.capabilities.loader import load_capability_map
-from wb_mqtt_bridge.infrastructure.capabilities.models import Capability
+from wb_mqtt_bridge.domain.capabilities.models import Capability
 
 CAPS = Path(__file__).resolve().parents[2] / "config" / "capabilities"
 

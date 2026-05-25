@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Set
 
-from wb_mqtt_bridge.infrastructure.capabilities.models import CapabilityAction, CapabilityMap
+from wb_mqtt_bridge.domain.capabilities.models import CapabilityAction, CapabilityMap
 
 
 def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:

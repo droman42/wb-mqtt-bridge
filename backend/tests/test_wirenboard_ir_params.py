@@ -20,7 +20,7 @@ from unittest.mock import MagicMock
 
 from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 from wb_mqtt_bridge.infrastructure.devices.wirenboard_ir_device.driver import WirenboardIRDevice
-from wb_mqtt_bridge.infrastructure.capabilities.models import CapabilityMap
+from wb_mqtt_bridge.domain.capabilities.models import CapabilityMap
 from wb_mqtt_bridge.infrastructure.config.models import (
     WirenboardIRDeviceConfig,
     IRCommandConfig,

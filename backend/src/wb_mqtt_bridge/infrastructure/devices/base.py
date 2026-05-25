@@ -12,7 +12,7 @@ from wb_mqtt_bridge.domain.devices.models import BaseDeviceState, LastCommand
 from wb_mqtt_bridge.infrastructure.config.models import BaseDeviceConfig, BaseCommandConfig, CommandParameterDefinition
 from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
 from wb_mqtt_bridge.infrastructure.wb_device.service import WBVirtualDeviceService
-from wb_mqtt_bridge.infrastructure.capabilities.models import CapabilityMap
+from wb_mqtt_bridge.domain.capabilities.models import CapabilityMap
 from wb_mqtt_bridge.utils.types import StateT, CommandResult, CommandResponse, ActionHandler
 from wb_mqtt_bridge.presentation.api.sse_manager import sse_manager, SSEChannel
 from wb_mqtt_bridge.domain.ports import DevicePort

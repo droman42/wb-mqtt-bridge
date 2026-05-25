@@ -13,7 +13,7 @@ engine emits placeholder icons that the renderer overrides via its `IconResolver
 """
 from typing import Any, Dict, List, Optional, Tuple
 
-from wb_mqtt_bridge.infrastructure.capabilities.models import Capability, CapabilityMap
+from wb_mqtt_bridge.domain.capabilities.models import Capability, CapabilityMap
 from wb_mqtt_bridge.presentation.api.layout_manifest import (
     ActionIcon,
     DropdownConfig,
