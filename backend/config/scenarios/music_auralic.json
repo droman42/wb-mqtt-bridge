@@ -1,0 +1,12 @@
+{
+  "scenario_id": "music_auralic",
+  "name": "Music — Auralic streamer",
+  "description": "Listen to the Auralic network streamer through the amplifier",
+  "room_id": "living_room",
+  "source": "streamer",
+  "audio": "mf_amplifier",
+  "roles": {
+    "volume": "mf_amplifier",
+    "playback": "streamer"
+  }
+}

@@ -80,3 +80,28 @@ def test_scenario_manifest_movie_appletv():
 
     # the `inputs` role (-> processor) is NOT rendered — reconciler-derived, not a UI control
     assert zones["media-stack"]["content"].get("inputsDropdown") is None
+
+
+@pytest.mark.skipif(ROOT is None, reason="config/ not present")
+def test_scenario_manifest_music_tape_passive_source():
+    """A passive-source scenario (manual node 'b215', no driver) builds from its roles
+    only — the amp volume zone + the static manual instructions; the non-device source is
+    never dereferenced, so the manifest builds cleanly."""
+    did, amp = _make_device("mf_amplifier", "WirenboardIRDevice")
+    dm = SimpleNamespace(devices={did: amp})
+
+    sdef = ScenarioDefinition.model_validate(
+        json.loads((ROOT / "config" / "scenarios" / "music_tape.json").read_text())
+    )
+    m = build_scenario_manifest(sdef, dm).model_dump(by_alias=True)
+
+    assert m["entityKind"] == "scenario"
+    assert m["deviceId"] == "music_tape"
+    assert any("B215" in s for s in m["manualInstructions"]["startup"])
+
+    zones = {z["zoneId"]: z for z in m["remoteZones"]}
+    # power zone = scenario lifecycle (no sourceDeviceId)
+    pw = zones["power"]["content"]["powerButtons"]
+    assert [b["action"]["actionName"] for b in pw] == ["power_off", "power_on"]
+    # the only rendered control is the amp volume (everything else is manual)
+    assert zones["volume"]["content"]["volumeButtons"][0]["upAction"]["sourceDeviceId"] == "mf_amplifier"

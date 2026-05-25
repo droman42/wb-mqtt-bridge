@@ -1,0 +1,19 @@
+{
+  "scenario_id": "music_turntable",
+  "name": "Music — Kuzma turntable",
+  "description": "Play the Kuzma Stabi S turntable through the amplifier (manual source)",
+  "room_id": "living_room",
+  "source": "kuzma",
+  "audio": "mf_amplifier",
+  "roles": {
+    "volume": "mf_amplifier"
+  },
+  "manual_instructions": {
+    "startup": [
+      "▶️ Place a record and lower the arm on the Kuzma Stabi S turntable"
+    ],
+    "shutdown": [
+      "⏹️ Lift the arm and stop the platter when you're done"
+    ]
+  }
+}

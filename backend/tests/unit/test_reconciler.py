@@ -341,3 +341,41 @@ def test_movie_zappiti_has_no_manual_steps():
     assert plan.manual_steps == []  # audio runs through the eMotiva, not the manual hub
     assert _find(plan, "processor", "input").target == "hdmi1"
     assert _find(plan, "mf_amplifier", "input").command == "input_aux2"
+
+
+# --- round-2 music scenarios (P3.6) -----------------------------------------
+
+
+def _music_devices(**overrides):
+    base = {
+        "streamer": _device("AuralicDevice", "streamer", input=None),
+        "reel_to_reel": _device("RevoxA77ReelToReel", "reel_to_reel"),
+        "mf_amplifier": _device("WirenboardIRDevice", "mf_amplifier", input=None),
+    }
+    base.update(overrides)
+    return base
+
+
+@pytest.mark.parametrize(
+    "name,amp_input,manual_pos,passive_source",
+    [
+        ("music_auralic", "balanced", None, None),
+        ("music_reel", "cd", "Reel", None),
+        ("music_tape", "cd", "Tape", "b215"),
+        ("music_turntable", "cd", "Turntable", "kuzma"),
+    ],
+)
+def test_music_scenarios_resolve_and_build_clean(name, amp_input, manual_pos, passive_source):
+    scn = _scenario(name)
+    input_targets, involved, manual_steps, warnings = resolve_targets(scn, TOPOLOGY)
+
+    assert input_targets["mf_amplifier"] == amp_input  # amp input auto-selected from topology
+    assert "mf_amplifier" in involved
+    if manual_pos:  # analog sources route via the Dodocus hub → a manual position note
+        assert any(m.node == "dodocus" and manual_pos in m.instruction for m in manual_steps)
+    if passive_source:  # a manual-node source is never controlled
+        assert passive_source not in involved
+
+    plan = build_plan(scn, TOPOLOGY, _music_devices())
+    assert plan.warnings == [], f"{name}: {plan.warnings}"
+    assert _find(plan, "mf_amplifier", "input").command == f"input_{amp_input}"
