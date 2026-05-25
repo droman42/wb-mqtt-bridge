@@ -15,9 +15,11 @@ def test_real_topology_loads():
     t = load_topology(TOPOLOGY)
     assert len(t.links) >= 10
     assert len(t.ordering) >= 6
-    # the Dodocus manual node carries the LD/VHS switch instructions
+    # the Dodocus manual node carries the analog-source switch instructions
     assert "dodocus" in t.nodes
-    assert set(t.nodes["dodocus"].positions) == {"ld", "vhs"}
+    assert set(t.nodes["dodocus"].positions) == {"ld", "vhs", "reel", "tape", "turntable"}
+    # passive analog sources (no driver) are manual nodes too
+    assert {"b215", "kuzma"} <= set(t.nodes)
 
 
 def test_link_dst_port_is_the_input_value():
