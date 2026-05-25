@@ -1,6 +1,6 @@
 # Architecture — wb-mqtt-bridge
 
-**Status:** current (2026-05-22). A map of the backend for humans and onboarding/agent
+**Status:** current (2026-05-25). A map of the backend for humans and onboarding/agent
 tooling. The contract with the UI (the `backend/`↔`ui/` seam of this monorepo) is documented
 separately in [`ui_backend_contract.md`](ui_backend_contract.md). Paths below are relative to
 `backend/` (the backend package root) unless noted.
@@ -39,20 +39,23 @@ external (it talks to the outside only through **ports**).
 
 | Path | Layer | Contents |
 |---|---|---|
-| `domain/ports.py` | domain | The seams: `MessageBusPort`, `DeviceBusPort`, `StateRepositoryPort` (ABCs). |
-| `domain/devices/` | domain | `service.py` (`DeviceManager`), `models.py` (state models, `BaseDeviceState`, `LastCommand`). |
-| `domain/scenarios/` | domain | `service.py` (`ScenarioManager`), `scenario.py`, `models.py` (`ScenarioState`, definitions). |
+| `domain/ports.py` | domain | The seams: `MessageBusPort`, `DevicePort`, `StateRepositoryPort`, `EventPublisherPort` (ABCs). |
+| `domain/devices/` | domain | `service.py` (`DeviceManager`), `models.py` (state models, `BaseDeviceState`, `LastCommand`), `config.py` (config base models: `BaseDeviceConfig`/`BaseCommandConfig`/`CommandParameterDefinition`/`StandardCommandConfig`/`DeviceCategory`). |
+| `domain/scenarios/` | domain | `service.py` (`ScenarioManager`), `scenario.py`, `models.py` (`ScenarioState`, definitions), `reconciler.py` (capability/topology reconciler — pure logic). |
+| `domain/topology/` | domain | `models.py` (`Topology`/`TopologyLink`), `loader.py` (reads `config/topology.json`). |
+| `domain/capabilities/` | domain | `models.py` (capability schema: `Capability`/`CapabilityMap`/…). |
 | `domain/rooms/` | domain | `service.py` (`RoomManager`). |
-| `infrastructure/devices/<name>/driver.py` | infra | The 7 device drivers (subclass `BaseDevice`). `base.py` = `BaseDevice`. |
+| `infrastructure/devices/<name>/driver.py` | infra | The 7 device drivers (subclass `BaseDevice`). `base.py` = `BaseDevice` (implements `DevicePort`). |
 | `infrastructure/mqtt/client.py` | infra | `MQTTClient` (implements `MessageBusPort`; aiomqtt). |
 | `infrastructure/persistence/sqlite.py` | infra | `SQLiteStateStore` (implements `StateRepositoryPort`). |
-| `infrastructure/config/` | infra | `manager.py` (`ConfigManager`), `models.py` (typed Pydantic configs). |
+| `infrastructure/config/` | infra | `manager.py` (`ConfigManager` — file loading), `models.py` (system + per-device config subclasses; re-exports the domain config base for compatibility). |
+| `infrastructure/capabilities/loader.py` | infra | Loads `config/capabilities/*.json` (schema lives in `domain/capabilities/`). |
 | `infrastructure/wb_device/service.py` | infra | `WBVirtualDeviceService` (Wirenboard virtual-device emulation). |
 | `infrastructure/scenarios/` | infra | `wb_adapter.py` (`ScenarioWBAdapter`), `models.py` (`ScenarioWBConfig`). |
 | `infrastructure/maintenance/wirenboard_guard.py` | infra | `WirenboardMaintenanceGuard`. |
 | `presentation/api/routers/*.py` | presentation | FastAPI routers (system, devices, mqtt, groups, scenarios, rooms, state, events). |
-| `presentation/api/sse_manager.py` | presentation | SSE fan-out. |
-| `app/bootstrap.py` | app | `create_app()` + `lifespan` (dependency injection / wiring). `main.py` = console entry. |
+| `presentation/api/sse_manager.py` | presentation | SSE fan-out (`SSEManager` implements the domain `EventPublisherPort`). |
+| `app/bootstrap.py` | app | `create_app()` + `lifespan` (DI / wiring; injects the MQTT client, WB service and SSE `EventPublisherPort` into devices). `main.py` = console entry. |
 | `cli/*.py` | cli | `mqtt-sniffer`, `device-test`, `broadlink-*`, `wb-openapi`. |
 | `utils/` | cross-cutting | `class_loader.py`, `validation.py`, `types.py` (`CommandResult`/`CommandResponse`), `serialization_utils.py`. |
 
@@ -64,17 +67,51 @@ domain testable and the drivers swappable.
 | Port | Used by | Implemented by |
 |---|---|---|
 | `MessageBusPort` | `ScenarioManager`, WB services | `infrastructure/mqtt/client.MQTTClient` |
-| `DeviceBusPort` | device drivers themselves | every `infrastructure/devices/*/driver.py` (via `BaseDevice`) |
+| `DevicePort` | `DeviceManager`, `Scenario` (the domain) | `infrastructure/devices/base.BaseDevice` (every driver subclasses it) |
 | `StateRepositoryPort` | `DeviceManager`, `ScenarioManager` | `infrastructure/persistence/sqlite.SQLiteStateStore` |
+| `EventPublisherPort` | device drivers (`BaseDevice`) | `presentation/api/sse_manager.SSEManager` |
+
+`DevicePort` is the **application-facing device contract** the domain actually uses
+(lifecycle + `execute_action` + state access + command introspection + message
+routing). It replaced an earlier `DeviceBusPort`, which was vestigial (referenced
+nowhere) and wrong-shaped (declared `send()`, which the domain never used).
+
+`EventPublisherPort` is implemented by presentation (`SSEManager`) but lives in the
+domain and is **injected into devices at bootstrap** — so a driver surfaces a
+state-change without importing presentation. (Previously `BaseDevice` imported the
+SSE singleton directly: an infrastructure→presentation back-edge, now removed.)
+
+### Dependency rule — and its two documented exceptions
+
+As of 2026-05-25 the inward rule holds structurally: **`domain/` imports nothing
+from `infrastructure/` or `presentation/`**, and `infrastructure/` imports nothing
+from `presentation/`. Pure data/logic that had drifted into `infrastructure/`
+(topology, the reconciler, the device-config base, the capability schema) was moved
+back into `domain/`; `infrastructure/config/models.py` re-exports the device-config
+base so existing importers are undisturbed (infra→domain, legal).
+
+Two **presentation→infrastructure** couplings remain, both isolated to the system
+router and consciously accepted:
+
+1. `presentation/api/routers/system.py` exposes the infra `SystemConfig` as a
+   `/config/system` API `response_model` (it serialises the live config — not domain
+   data the domain operates on; re-exported via `schemas.py`).
+2. The same router's `POST /reload` task **constructs** an infra `MQTTClient` and
+   drives its client-specific reconnect methods.
+
+The clean fix (a response DTO + an application-layer reload service so the router
+stays a thin adapter) is deferred — it touches the live MQTT-reconnect path and is
+tracked in `action_plan.md`. They do not affect domain purity.
 
 ## Device model
 
-`BaseDevice(DeviceBusPort, ABC, Generic[StateT])` (`infrastructure/devices/base.py`) is
-the heart. A driver:
+`BaseDevice(DevicePort[StateT], ABC, Generic[StateT])` (`infrastructure/devices/base.py`)
+is the heart. A driver:
 
 - Is parameterized by its **typed state model** `StateT` (a `BaseDeviceState` subclass
-  from `domain/devices/models.py`) and constructed from its **typed config**
-  (`BaseDeviceConfig` subclass from `infrastructure/config/models.py`).
+  from `domain/devices/models.py`) and constructed from its **typed config** (a
+  `BaseDeviceConfig` subclass — the base lives in `domain/devices/config.py`, the
+  per-driver subclasses in `infrastructure/config/models.py`).
 - Implements the abstract lifecycle: `async setup()`, `async shutdown()`,
   `subscribe_topics()`, `async handle_message(topic, payload)`.
 - Exposes **action handlers** with a uniform signature:
@@ -118,6 +155,8 @@ flushed on shutdown.
 ### Live state (SSE)
 `presentation/api/sse_manager.py` fans device/scenario/system events out to
 `GET /events/{devices,scenarios,system,stats}`. This is how the UI receives live state.
+Devices emit their own state-change/progress events through the injected
+`EventPublisherPort` (no presentation import); `SSEManager` is the implementation.
 
 ### Wirenboard virtual-device emulation
 `WBVirtualDeviceService` (`infrastructure/wb_device/service.py`) publishes each **device** as a
@@ -132,7 +171,7 @@ design decision on scenario↔Wirenboard integration (see `action_plan.md` P4).
 A scenario (Logitech-Harmony-style) coordinates several devices for an activity (e.g.
 "watch Apple TV"). Scenarios are **thin** (`source`/`display`/`audio` role selections); device
 membership, input routing, and ordering are **derived at runtime** by a topology- and
-capability-driven **reconciler** (`infrastructure/scenarios/reconciler.py`) rather than hardcoded
+capability-driven **reconciler** (`domain/scenarios/reconciler.py`) rather than hardcoded
 startup/shutdown sequences. The reconciler resolves desired targets from `config/topology.json`,
 diffs them against the devices' optimistic *assumed* state (Harmony model: IR-first, optimistic,
 manual resync), orders actions (power-before-input + topology ordering edges), and executes with
@@ -151,7 +190,8 @@ API: `GET|POST /scenario/*`. (Scenario-as-WB-device publishing is disabled — s
 
 - **`config/system.json`** → `SystemConfig` (`infrastructure/config/models.py`): MQTT
   broker, web service, persistence (`db_path`), logging, action groups, maintenance.
-- **`config/devices/*.json`** → typed `BaseDeviceConfig` subclasses. Required fields:
+- **`config/devices/*.json`** → typed `BaseDeviceConfig` subclasses (base in
+  `domain/devices/config.py`, subclasses in `infrastructure/config/models.py`). Required fields:
   `device_id`, `device_name`, `device_class`, `config_class`; plus `device_category`
   (`device`|`appliance`), `commands`, and WB-emulation fields.
 - **`config/scenarios/*.json`** → scenario definitions.
