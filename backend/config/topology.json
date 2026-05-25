@@ -10,7 +10,7 @@
         "vhs":       "Set the Dodocus RCA hub to the VHS position (ensure AMP mode is selected)",
         "reel":      "Set the Dodocus RCA hub to the Reel position (ensure AMP mode is selected)",
         "tape":      "Set the Dodocus RCA hub to the Tape position (ensure AMP mode is selected)",
-        "turntable": "Set the Dodocus RCA hub to the Turntable position (ensure AMP mode is selected)"
+        "phono":     "Set the Dodocus RCA hub to the Phono position (ensure AMP mode is selected)"
       }
     },
     "b215":  { "kind": "manual", "name": "Revox B215 tape deck" },
@@ -34,7 +34,7 @@
     { "from": "streamer:out",        "to": "mf_amplifier:balanced", "carries": ["audio"] },
     { "from": "reel_to_reel:audio",  "to": "dodocus:reel",          "carries": ["audio"] },
     { "from": "b215:out",            "to": "dodocus:tape",          "carries": ["audio"] },
-    { "from": "kuzma:out",           "to": "dodocus:turntable",     "carries": ["audio"] }
+    { "from": "kuzma:out",           "to": "dodocus:phono",         "carries": ["audio"] }
   ],
 
   "ordering": [

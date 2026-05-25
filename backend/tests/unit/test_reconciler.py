@@ -156,7 +156,7 @@ def test_manual_source_node_anchors_path_without_being_controlled():
     topo = Topology.model_validate(
         {
             "nodes": {
-                "hub": {"kind": "manual", "name": "RCA hub", "positions": {"tt": "Set the hub to the Turntable position"}},
+                "hub": {"kind": "manual", "name": "RCA hub", "positions": {"tt": "Set the hub to the Phono position"}},
                 "turntable": {"kind": "manual", "name": "Kuzma turntable"},
             },
             "links": [
@@ -171,7 +171,7 @@ def test_manual_source_node_anchors_path_without_being_controlled():
     assert input_targets == {"amp": "cd"}        # sink input resolved through the manual source
     assert involved == {"amp"}                   # the manual source is NOT a device to control
     assert "turntable" not in involved
-    assert any(m.node == "hub" and "Turntable" in m.instruction for m in manual_steps)
+    assert any(m.node == "hub" and "Phono" in m.instruction for m in manual_steps)
     assert warnings == []
 
 
@@ -362,7 +362,7 @@ def _music_devices(**overrides):
         ("music_auralic", "balanced", None, None),
         ("music_reel", "cd", "Reel", None),
         ("music_tape", "cd", "Tape", "b215"),
-        ("music_turntable", "cd", "Turntable", "kuzma"),
+        ("music_turntable", "cd", "Phono", "kuzma"),
     ],
 )
 def test_music_scenarios_resolve_and_build_clean(name, amp_input, manual_pos, passive_source):

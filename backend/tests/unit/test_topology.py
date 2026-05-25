@@ -17,7 +17,7 @@ def test_real_topology_loads():
     assert len(t.ordering) >= 6
     # the Dodocus manual node carries the analog-source switch instructions
     assert "dodocus" in t.nodes
-    assert set(t.nodes["dodocus"].positions) == {"ld", "vhs", "reel", "tape", "turntable"}
+    assert set(t.nodes["dodocus"].positions) == {"ld", "vhs", "reel", "tape", "phono"}
     # passive analog sources (no driver) are manual nodes too
     assert {"b215", "kuzma"} <= set(t.nodes)
 
