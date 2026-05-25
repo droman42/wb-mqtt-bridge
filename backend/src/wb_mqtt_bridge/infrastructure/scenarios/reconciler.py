@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
-from wb_mqtt_bridge.infrastructure.topology.models import Topology, TopologyLink
+from wb_mqtt_bridge.domain.topology.models import Topology, TopologyLink
 
 
 @dataclass

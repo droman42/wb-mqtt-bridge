@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from wb_mqtt_bridge.infrastructure.topology.loader import load_topology
-from wb_mqtt_bridge.infrastructure.topology.models import Topology
+from wb_mqtt_bridge.domain.topology.loader import load_topology
+from wb_mqtt_bridge.domain.topology.models import Topology
 
 TOPOLOGY = Path(__file__).resolve().parents[2] / "config" / "topology.json"
 

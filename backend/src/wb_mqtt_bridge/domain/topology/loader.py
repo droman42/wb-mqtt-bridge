@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from wb_mqtt_bridge.infrastructure.topology.models import Topology
+from wb_mqtt_bridge.domain.topology.models import Topology
 
 
 def load_topology(path: Path) -> Topology:

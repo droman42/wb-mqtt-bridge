@@ -21,8 +21,8 @@ from wb_mqtt_bridge.infrastructure.scenarios.reconciler import (
     execute_plan,
     resolve_targets,
 )
-from wb_mqtt_bridge.infrastructure.topology.loader import load_topology
-from wb_mqtt_bridge.infrastructure.topology.models import Topology
+from wb_mqtt_bridge.domain.topology.loader import load_topology
+from wb_mqtt_bridge.domain.topology.models import Topology
 
 ROOT = Path(__file__).resolve().parents[2]
 CAPS = ROOT / "config" / "capabilities"

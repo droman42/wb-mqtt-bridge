@@ -14,7 +14,7 @@ from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition
 from wb_mqtt_bridge.domain.scenarios.scenario import Scenario
 from wb_mqtt_bridge.domain.scenarios.service import ScenarioManager
 from wb_mqtt_bridge.infrastructure.capabilities.loader import load_capability_map
-from wb_mqtt_bridge.infrastructure.topology.loader import load_topology
+from wb_mqtt_bridge.domain.topology.loader import load_topology
 
 pytestmark = pytest.mark.integration
 

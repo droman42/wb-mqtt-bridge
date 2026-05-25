@@ -9,8 +9,8 @@ from wb_mqtt_bridge.domain.scenarios.scenario import Scenario, ScenarioError
 from wb_mqtt_bridge.domain.devices.service import DeviceManager
 from wb_mqtt_bridge.domain.rooms.service import RoomManager
 from wb_mqtt_bridge.domain.ports import StateRepositoryPort
-from wb_mqtt_bridge.infrastructure.topology.loader import load_topology
-from wb_mqtt_bridge.infrastructure.topology.models import Topology
+from wb_mqtt_bridge.domain.topology.loader import load_topology
+from wb_mqtt_bridge.domain.topology.models import Topology
 from wb_mqtt_bridge.infrastructure.scenarios.reconciler import (
     build_plan,
     build_power_off_plan,
