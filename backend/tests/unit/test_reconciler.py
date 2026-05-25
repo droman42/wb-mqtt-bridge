@@ -149,6 +149,32 @@ def test_resolve_ld_path_emits_manual_step_and_cd_input():
     assert any(m.node == "dodocus" and "LD position" in m.instruction for m in manual_steps)
 
 
+def test_manual_source_node_anchors_path_without_being_controlled():
+    """A manual-node *source* (a turntable/tape with no driver) anchors the topology path
+    so the sink input + the hub's manual note still resolve — but the manual node itself is
+    never added to `involved` (nothing to power/control)."""
+    topo = Topology.model_validate(
+        {
+            "nodes": {
+                "hub": {"kind": "manual", "name": "RCA hub", "positions": {"tt": "Set the hub to the Turntable position"}},
+                "turntable": {"kind": "manual", "name": "Kuzma turntable"},
+            },
+            "links": [
+                {"from": "turntable:out", "to": "hub:tt", "carries": ["audio"]},
+                {"from": "hub:out", "to": "amp:cd", "carries": ["audio"]},
+            ],
+        }
+    )
+    scn = ScenarioDefinition(scenario_id="m", name="m", source="turntable", audio="amp")
+    input_targets, involved, manual_steps, warnings = resolve_targets(scn, topo)
+
+    assert input_targets == {"amp": "cd"}        # sink input resolved through the manual source
+    assert involved == {"amp"}                   # the manual source is NOT a device to control
+    assert "turntable" not in involved
+    assert any(m.node == "hub" and "Turntable" in m.instruction for m in manual_steps)
+    assert warnings == []
+
+
 # --- ordering delay propagation (synthetic) ---------------------------------
 
 

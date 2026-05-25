@@ -100,7 +100,9 @@ def resolve_targets(scenario, topology: Topology):
     manual_steps: List[ManualStep] = []
     warnings: List[str] = []
 
-    if scenario.source:
+    # A manual-node source (a turntable/tape with no driver) is not a device to control —
+    # it only anchors the topology path so the sink input + manual notes still resolve.
+    if scenario.source and scenario.source not in manual_nodes:
         involved.add(scenario.source)
 
     def walk(target_node: Optional[str], signal: str) -> None:
