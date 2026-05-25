@@ -5,7 +5,10 @@ with external systems. These are implemented by adapters in the infrastructure l
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Callable, List
+from typing import Any, Callable, Dict, Generic, List, Optional
+
+from wb_mqtt_bridge.domain.devices.config import BaseCommandConfig
+from wb_mqtt_bridge.utils.types import CommandResponse, StateT
 
 
 class MessageBusPort(ABC):
@@ -62,46 +65,71 @@ class MessageBusPort(ABC):
         pass
 
 
-class DeviceBusPort(ABC):
-    """Port for low-level device communication operations.
-    
-    Used by: Device drivers only
-    Implemented by: every file in infrastructure/devices/*/driver.py
-    
-    This port defines the interface that device drivers must implement
-    to communicate with their specific transport (MQTT, HTTP, Serial, etc.)
+class DevicePort(ABC, Generic[StateT]):
+    """Application-facing device contract used by the domain managers.
+
+    Used by: DeviceManager, Scenario (the domain layer)
+    Implemented by: infrastructure/devices/base.BaseDevice (every driver subclasses it)
+
+    This is the seam the domain depends on — richer than a raw transport: device
+    lifecycle (setup/shutdown), command execution, state access and message
+    routing. A driver's specific transport (MQTT, HTTP, serial, …) is a private
+    concern hidden behind these methods.
     """
-    
+
     @abstractmethod
-    async def send(self, command: str, params: Dict[str, Any]) -> Any:
-        """Send a command to the device.
-        
-        Args:
-            command: The command identifier
-            params: Command parameters
-            
-        Returns:
-            Command result or response
-        """
+    def get_id(self) -> str:
+        """Return the device's unique identifier."""
         pass
-    
+
+    @abstractmethod
+    def get_name(self) -> str:
+        """Return the device's human-readable name."""
+        pass
+
+    @abstractmethod
+    async def setup(self) -> bool:
+        """Initialise the device (connect, subscribe, restore state)."""
+        pass
+
+    @abstractmethod
+    async def shutdown(self) -> bool:
+        """Tear the device down and release its resources."""
+        pass
+
     @abstractmethod
     def subscribe_topics(self) -> List[str]:
-        """Get the list of topics this device should subscribe to.
-        
-        Returns:
-            List of topic patterns for subscription
-        """
+        """Return the MQTT topic patterns this device subscribes to."""
         pass
-    
+
     @abstractmethod
     async def handle_message(self, topic: str, payload: str) -> None:
-        """Handle an incoming message from the device's topics.
-        
-        Args:
-            topic: The topic the message arrived on
-            payload: The message payload
-        """
+        """Handle an incoming message on one of the device's topics."""
+        pass
+
+    @abstractmethod
+    def get_current_state(self) -> StateT:
+        """Return the current device state."""
+        pass
+
+    @abstractmethod
+    def register_state_change_callback(self, callback: Callable) -> None:
+        """Register a callback invoked when the device state changes."""
+        pass
+
+    @abstractmethod
+    async def execute_action(
+        self,
+        action: str,
+        params: Optional[Dict[str, Any]] = None,
+        source: str = "unknown",
+    ) -> CommandResponse[StateT]:
+        """Execute a named action and return the resulting CommandResponse."""
+        pass
+
+    @abstractmethod
+    def get_available_commands(self) -> Dict[str, BaseCommandConfig]:
+        """Return the device's available commands keyed by name."""
         pass
 
 

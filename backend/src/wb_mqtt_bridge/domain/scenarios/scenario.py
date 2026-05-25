@@ -6,7 +6,7 @@ import re
 
 from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition
 from wb_mqtt_bridge.domain.devices.service import DeviceManager
-from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
+from wb_mqtt_bridge.domain.ports import DevicePort
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +167,7 @@ class Scenario:
         """
         return bool(self._POWER_COMMAND_PATTERN.match(command))
 
-    async def _evaluate_condition(self, condition: Optional[str], device: BaseDevice) -> bool:
+    async def _evaluate_condition(self, condition: Optional[str], device: DevicePort) -> bool:
         """
         Safely evaluate a condition string against a device's state.
         

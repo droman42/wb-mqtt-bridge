@@ -7,7 +7,7 @@ try:
     from importlib.metadata import entry_points
 except ImportError:
     from importlib_metadata import entry_points  # Python < 3.8
-from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
+from wb_mqtt_bridge.domain.ports import DevicePort
 from wb_mqtt_bridge.domain.devices.config import BaseDeviceConfig
 from wb_mqtt_bridge.utils.serialization_utils import safely_serialize, describe_serialization_issues
 from wb_mqtt_bridge.domain.ports import StateRepositoryPort
@@ -21,8 +21,8 @@ class DeviceManager:
     """Manages device modules and their message handlers."""
     
     def __init__(self, state_repository: Optional[StateRepositoryPort] = None):
-        self.device_classes: Dict[str, Type[BaseDevice]] = {}  # Stores class definitions
-        self.devices: Dict[str, BaseDevice] = {}  # Stores device instances
+        self.device_classes: Dict[str, Type[DevicePort]] = {}  # Stores class definitions
+        self.devices: Dict[str, DevicePort] = {}  # Stores device instances
         self.state_repository = state_repository  # State persistence port
         self._persistence_tasks = set()  # Track active persistence tasks
         self._shutting_down = False  # Flag to indicate shutdown in progress
@@ -47,9 +47,9 @@ class DeviceManager:
                 try:
                     device_class = entry_point.load()
                     
-                    # Verify it's a BaseDevice subclass
-                    if not (isinstance(device_class, type) and issubclass(device_class, BaseDevice) and device_class != BaseDevice):
-                        logger.error(f"Entry point '{entry_point.name}' does not point to a valid BaseDevice subclass")
+                    # Verify it's a DevicePort subclass
+                    if not (isinstance(device_class, type) and issubclass(device_class, DevicePort) and device_class != DevicePort):
+                        logger.error(f"Entry point '{entry_point.name}' does not point to a valid DevicePort subclass")
                         continue
                     
                     # Register the device class
@@ -68,7 +68,7 @@ class DeviceManager:
         
         logger.info(f"Loaded device classes: {list(self.device_classes.keys())}")
     
-    def _load_device_class(self, device_class_name: str) -> Optional[Type[BaseDevice]]:
+    def _load_device_class(self, device_class_name: str) -> Optional[Type[DevicePort]]:
         """
         Load a device implementation class from loaded classes.
         
@@ -171,7 +171,7 @@ class DeviceManager:
             except Exception as e:
                 logger.error(f"Error shutting down device {device_name}: {str(e)}")
     
-    def get_device(self, device_id: str) -> Optional[BaseDevice]:
+    def get_device(self, device_id: str) -> Optional[DevicePort]:
         """Get a device instance by its ID."""
         return self.devices.get(device_id)
     

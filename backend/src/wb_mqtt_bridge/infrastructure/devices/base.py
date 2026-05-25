@@ -15,11 +15,11 @@ from wb_mqtt_bridge.infrastructure.wb_device.service import WBVirtualDeviceServi
 from wb_mqtt_bridge.infrastructure.capabilities.models import CapabilityMap
 from wb_mqtt_bridge.utils.types import StateT, CommandResult, CommandResponse, ActionHandler
 from wb_mqtt_bridge.presentation.api.sse_manager import sse_manager, SSEChannel
-from wb_mqtt_bridge.domain.ports import DeviceBusPort
+from wb_mqtt_bridge.domain.ports import DevicePort
 
 logger = logging.getLogger(__name__)
 
-class BaseDevice(DeviceBusPort, ABC, Generic[StateT]):
+class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
     """Base class for all device implementations."""
     
     def __init__(self, config: BaseDeviceConfig, mqtt_client: Optional["MQTTClient"] = None, wb_service: Optional[WBVirtualDeviceService] = None):
