@@ -13,8 +13,9 @@
         "phono":     "Set the Dodocus RCA hub to the Phono position (ensure AMP mode is selected)"
       }
     },
-    "b215":  { "kind": "manual", "name": "Revox B215 tape deck" },
-    "kuzma": { "kind": "manual", "name": "Kuzma Stabi S turntable" }
+    "b215":       { "kind": "manual", "name": "Revox B215 tape deck" },
+    "kuzma":      { "kind": "manual", "name": "Kuzma Stabi S turntable" },
+    "sugden_pa4": { "kind": "manual", "name": "Sugden Masterclass PA4 phono corrector", "positions": { "in": "Power on the Sugden Masterclass PA4 phono corrector" } }
   },
 
   "links": [
@@ -34,7 +35,8 @@
     { "from": "streamer:out",        "to": "mf_amplifier:balanced", "carries": ["audio"] },
     { "from": "reel_to_reel:audio",  "to": "dodocus:reel",          "carries": ["audio"] },
     { "from": "b215:out",            "to": "dodocus:tape",          "carries": ["audio"] },
-    { "from": "kuzma:out",           "to": "dodocus:phono",         "carries": ["audio"] }
+    { "from": "kuzma:out",           "to": "sugden_pa4:in",         "carries": ["audio"] },
+    { "from": "sugden_pa4:out",      "to": "dodocus:phono",         "carries": ["audio"] }
   ],
 
   "ordering": [

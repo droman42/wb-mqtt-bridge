@@ -379,3 +379,14 @@ def test_music_scenarios_resolve_and_build_clean(name, amp_input, manual_pos, pa
     plan = build_plan(scn, TOPOLOGY, _music_devices())
     assert plan.warnings == [], f"{name}: {plan.warnings}"
     assert _find(plan, "mf_amplifier", "input").command == f"input_{amp_input}"
+
+
+def test_music_turntable_surfaces_both_manual_hops():
+    """The turntable path runs Kuzma → Sugden PA4 (power on) → Dodocus (Phono) → amp:cd,
+    so BOTH inline manual nodes surface a note; neither passive node is controlled."""
+    _, involved, manual_steps, warnings = resolve_targets(_scenario("music_turntable"), TOPOLOGY)
+    notes = {m.node: m.instruction for m in manual_steps}
+    assert "Power on" in notes.get("sugden_pa4", "")
+    assert "Phono" in notes.get("dodocus", "")
+    assert "kuzma" not in involved and "sugden_pa4" not in involved
+    assert warnings == []
