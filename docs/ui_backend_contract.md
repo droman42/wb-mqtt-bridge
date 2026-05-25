@@ -553,12 +553,14 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
     `BaseCommandConfig`, `CommandParameterDefinition`). `api.ts` now holds only the **19 live** types
     (15 imported by `useApi`/`useScenarioState` + internal deps `ManualInstructions`/`CommandStep`/
     `MQTTBrokerConfig`/`PersistenceConfig`). Importer surface is just those **2 files**.
-  - **A8 phase 2 — DEFERRED (optional):** fold the live duplicates onto `openapi.gen.ts` via
-    re-export aliases (single source of truth). NOT a pure alias swap — generated types use `unknown`
-    where api.ts uses `any` (e.g. `DeviceState.extra`), so it cascades typecheck fixes to consumers;
-    and `ManualInstructions` can't alias cleanly (two same-named backend models → ugly fully-qualified
-    gen names + a 3rd UI copy in `RemoteControlLayout.ts`). The live duplicates work today; phase 2's
-    only gain is preventing silent drift. Do deliberately if/when it's worth the churn.
+  - ✅ **A8 phase 2 DONE (`37da8af`)** — `api.ts` now exports **18 thin named aliases** over
+    `components['schemas'][…]` (single source of truth; the backend schema can't silently drift again).
+    The alias swap surfaced **zero** typecheck errors (no consumer relied on a drifted shape) — and it
+    retyped fields that HAD drifted, e.g. `SystemInfo.mqttBroker`→`mqtt_broker` (consumers reading
+    `.mqttBroker` were getting `undefined`); free-form objects are now `unknown` (gen) not `any`. The
+    hand-written `ManualInstructions` was dropped (dual-named backend models → no clean alias; reached
+    transitively via `ScenarioDefinition`; the UI's own copy stays in `RemoteControlLayout.ts`). The 2
+    importers (`useApi`, `useScenarioState`) are unchanged. npm run check + vite build green.
   - ✅ **A0 RESOLVED (2026-05-24, `e26e513`):** the status pane (`DeviceStatePanel`) no longer depends
     on the generated `stateInterface` — it renders the per-device "Device State" section from the **live
     `state` object** (keys + inferred type), so deleting the generated state types is safe. (This also
