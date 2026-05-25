@@ -1,7 +1,7 @@
 from typing import Dict, Any, Optional, TypeVar, Generic, Callable, Awaitable
 from typing_extensions import TypedDict
 from wb_mqtt_bridge.domain.devices.models import BaseDeviceState
-from wb_mqtt_bridge.infrastructure.config.models import BaseCommandConfig
+from wb_mqtt_bridge.domain.devices.config import BaseCommandConfig
 
 # Define state type variable for generic typing
 StateT = TypeVar('StateT', bound=BaseDeviceState)

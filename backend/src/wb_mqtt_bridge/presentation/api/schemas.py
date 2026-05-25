@@ -3,11 +3,11 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 from wb_mqtt_bridge.__version__ import __version__
 
-# Import configuration models for API responses
-from wb_mqtt_bridge.infrastructure.config.models import (
-    SystemConfig,
-    BaseDeviceConfig,
-)
+# SystemConfig is system/infra config re-exported here for the system router + API
+# tests. The presentation→infrastructure coupling it implies is addressed separately
+# (system-router port cleanup).
+from wb_mqtt_bridge.infrastructure.config.models import SystemConfig  # noqa: F401
+
 
 class DeviceAction(BaseModel):
     """Schema for device action requests."""

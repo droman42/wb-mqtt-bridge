@@ -8,7 +8,7 @@ try:
 except ImportError:
     from importlib_metadata import entry_points  # Python < 3.8
 from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
-from wb_mqtt_bridge.infrastructure.config.models import BaseDeviceConfig
+from wb_mqtt_bridge.domain.devices.config import BaseDeviceConfig
 from wb_mqtt_bridge.utils.serialization_utils import safely_serialize, describe_serialization_issues
 from wb_mqtt_bridge.domain.ports import StateRepositoryPort
 

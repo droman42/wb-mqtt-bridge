@@ -3,10 +3,8 @@ from typing import Dict
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 
-from wb_mqtt_bridge.presentation.api.schemas import (
-    BaseDeviceConfig,
-    DeviceAction
-)
+from wb_mqtt_bridge.domain.devices.config import BaseDeviceConfig
+from wb_mqtt_bridge.presentation.api.schemas import DeviceAction
 from wb_mqtt_bridge.presentation.api.layout_engine import build_device_manifest
 from wb_mqtt_bridge.presentation.api.layout_manifest import LayoutManifest
 from wb_mqtt_bridge.utils.types import CommandResponse

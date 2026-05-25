@@ -11,7 +11,7 @@ from typing import Dict, List, Optional, Tuple, Any
 import json
 import glob
 
-from wb_mqtt_bridge.infrastructure.config.models import BaseDeviceConfig
+from wb_mqtt_bridge.domain.devices.config import BaseDeviceConfig
 from wb_mqtt_bridge.utils.class_loader import validate_class_exists
 
 logger = logging.getLogger(__name__)
