@@ -1,9 +1,37 @@
 # Action Plan — wb-mqtt-bridge
 
-**Status:** Working draft. Updated 2026-05-19.
-**Scope:** Both `wb-mqtt-bridge` (this repo) and the sibling UI repo at `../wb-mqtt-ui`.
+**Status:** Living master plan. Updated 2026-05-25.
+**Scope:** The `wb-mqtt-bridge` **monorepo** (`backend/` + `ui/` + `wb-rules/` + `ops/` + `docs/`). The
+UI is no longer a separate repo — it was merged in during Phase 2.
 
-This document captures the current state of the project, an analysis of the in-flight refactor and the Docker/CI pipeline, and a prioritized action plan. It is intended to be revised as we discuss open questions.
+This document captures the project state and a prioritized action plan, revised as we work.
+
+---
+
+## 0. Document map — master-doc convention (recorded 2026-05-25)
+
+**`docs/action_plan.md` (this file) is the master driving document** — the overarching plan plus the
+authoritative **§6 Revision Log** of what's been done. **Read §6 first** in any session; everything
+else hangs off this file. As of 2026-05-25 the major redesign is delivered and hardware-verified
+(scenario reconciler · monorepo · Layer-3 runtime rendering + the build-time-codegen cutover). What
+remains is **§P3.6** (topology + round-2 scenarios), **§P4** (final acceptance + the mandatory
+scenario↔WB design), and the **§5.1** backlog.
+
+Roles of the other docs **now** (they were "driving" during the redesign; they've since settled):
+- `docs/ui_backend_contract.md` — **LIVING reference**: the UI↔backend contract + Layer-3 runtime
+  rendering; its "Step 4 — cutover (canonical scope)" is the authoritative cutover record. Consult it
+  for how the UI consumes the backend.
+- `docs/scenarios/scenario_system_redesign.md` — **IMPLEMENTED → as-built spec** for the scenario
+  architecture (Layers 0/1/2/R + §17 groups→capabilities). Describes what was built; not driving.
+- `docs/scenarios/scenario_redesign_progress.md` — historical session / as-built record.
+- `docs/monorepo_migration_plan.md` — DONE → historical.
+- `project.md` / `architecture.md` / `conventions.md` / `docs/adr/*` — foundational project docs; the
+  eventual master *set* once the plan is exhausted.
+
+**Convention:** the project stays **plan-driven** (this file is master) until §P3.6 + §P4 land; then
+it shifts to **architecture-driven** (`project.md` / `architecture.md` / `ui_backend_contract.md` as
+the master set), the redesign specs fully retire to history, and a project-wide doc reconciliation
+(tracked separately) formalizes the handover. **Until then: this file is master.**
 
 ---
 
