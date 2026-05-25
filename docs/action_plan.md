@@ -254,21 +254,25 @@ First real phase to tackle via GSD: **ROADMAP Phase 1 = Fix the Scenario Layer**
 
 ### P3.6 — Topology + scenarios, round 2 (after Layer 3, before P4)
 
-**Decided 2026-05-23.** `config/topology.json` + the 4 `movie_*` scenarios currently cover the
-**living-room A/V chain only**. The remaining systems have capability maps (so their device pages
-already render) but **no topology links and no scenarios**. Author them as a dedicated step **after
-Phase 3 (Layer 3) completes** — so the new scenario pages render at runtime instead of through the
-build-time codegen we're about to delete (no throwaway UI work). User is fine deferring to after
-Layer 3.
+**BUILT 2026-05-25 (mock-validated; pending hardware verification).** Wiring interview done; the four
+round-2 **music** scenarios are authored + reconciler-driven (`f1455c6`, `368fbcb`, `59fb661`):
 
-Scope (confirmed reconciler-driven scenarios): **Music — Auralic → amp**, **Music — Revox → amp**,
-**+ "some more"** (children's room TV+AppleTV likely; full list TBD with the user). `kitchen_hood`
-stays appliance-only (no topology, correct).
+| Scenario | Source | Amp routing | Notes |
+|---|---|---|---|
+| `music_auralic` | `streamer` (Auralic) | direct → `mf_amplifier:balanced` | controllable; playback on the streamer |
+| `music_reel` | `reel_to_reel` (Revox A77) | Dodocus **Reel** → `mf_amplifier:cd` | controllable (IR); Dodocus note auto-surfaces |
+| `music_tape` | `b215` (Revox B215) | Dodocus **Tape** → `mf_amplifier:cd` | **passive** manual source; amp volume + "press Play" note |
+| `music_turntable` | `kuzma` (Kuzma Stabi S) | Dodocus **Turntable** → `mf_amplifier:cd` | **passive** manual source; amp volume + "cue the record" note |
 
-**Blocked on a wiring interview from the user** (cannot be invented): which `mf_amplifier` input the
-Auralic and the Revox each use; whether the children's room is standalone (TV + AppleTV, no routing)
-or feeds anywhere. Then it's mechanical: add topology `links` (+ any `ordering`/`delay_ms`), write
-thin `source/display/audio` scenario configs, let the existing reconciler drive them.
+The Dodocus RCA hub is now the central analog selector (5 positions: ld/vhs/reel/tape/turntable, all →
+amp `cd`). The two passive sources (no driver) are modelled as **manual topology nodes** + a one-line
+reconciler change (a manual-node `source` anchors the topology path so the amp input + the hub note
+resolve, but isn't itself controlled) — see §6 (2026-05-25). `kitchen_hood` stays appliance-only.
+
+**Remaining:** **hardware verification** of the four (amp powers + selects the right input; Dodocus
+manual notes show; Auralic/A77 playback; passive ones show the right manual steps). The **children's
+room** (children_room_tv + appletv_children) was **deferred by the user** (skipped this round) — a
+possible round-3.
 
 ### P4 — Final acceptance & cleanup (do this LAST, after the whole redesign lands)
 
@@ -370,6 +374,7 @@ These were the only **unfinished** items in `docs/TODO.md` when it was archived 
 
 ## 6. Revision Log
 
+- **2026-05-25 (P3.6)** — **Round-2 music scenarios BUILT (mock-validated; hardware verification pending).** Wiring interview done → 4 thin audio-only scenarios: `music_auralic` (Auralic `streamer` → amp `balanced`), `music_reel` (Revox A77 `reel_to_reel` → Dodocus **Reel** → amp `cd`), `music_tape` (Revox B215, **passive**), `music_turntable` (Kuzma Stabi S, **passive**) — the latter two via Dodocus → amp `cd`. Dodocus is now the central analog selector (ld/vhs/reel/tape/turntable). The two passive sources (no driver) are modelled as **manual topology nodes** + a one-line reconciler change: a manual-node `source` anchors the topology path so the amp input + the hub note resolve, but is never added to `involved` (nothing to control) — `f1455c6` (reconciler + test), `368fbcb` (topology nodes/positions/links), `59fb661` (scenario configs + reconciler/manifest tests). 326 passed. **Children's room deferred by the user** (skipped this round). **Remaining: hardware verification.** See §P3.6.
 - **2026-05-25** — **Hexagonal-purity pass — `domain/` is now import-pure; the doc-vs-code drift is fixed.** External analysis (+ a local re-audit) confirmed **6 `domain→infrastructure`** imports violating the documented inward rule, plus **1 infra→presentation** back-edge and **3 presentation→infra** the tool missed. Fixed across 7 focused, behaviour-neutral commits (`b391591`→`5c7843e`; 320 passed throughout): (1) moved `topology` (models+loader) and (2) the scenario **reconciler** into `domain/` (pure logic/data misfiled under infra → clears 3 of 6). (3) replaced the **vestigial, wrong-shaped `DeviceBusPort`** with a real `DevicePort` — the rich device contract the domain actually uses; `DeviceManager`/`Scenario` hint the port, `BaseDevice` implements it (clears the BaseDevice sites). (4) moved the device-config base models to `domain/devices/config.py` (infra re-exports for compat) → clears the last domain→infra site **and** the presentation→infra config import. (5) moved the capability **schema** to `domain/capabilities/models.py` (loader stays infra) → clears the `layout_engine` presentation→infra. (6) added `EventPublisherPort` (`SSEManager` implements it, injected into devices at bootstrap) to **break the infra→presentation cycle** (`BaseDevice` no longer imports the SSE singleton). **Result: `domain/` imports zero infra/presentation; infra imports zero presentation.** Two presentation→infra couplings consciously **accepted + documented** (system router exposes infra `SystemConfig` as a `response_model`; its `/reload` constructs the infra `MQTTClient`) — clean fix (response DTO + reload app-service) deferred (live MQTT path); tracked in §5.1. `architecture.md` rewritten to match (ports table, directory map, new "Dependency rule — and its two documented exceptions").
 - **2026-05-19** — Initial draft. Captures research from a deep survey of both repos plus WIP and CI/CD analysis.
 - **2026-05-19** — Added §7 (Codegen Alternatives) after deep-dive into the device-page generation pipeline. Inserted P1 items #3.5 (eliminate Python AST coupling) and #4.5 (relocate `device-state-mapping.json`). Added a new Open Question about runtime-driven UI.
