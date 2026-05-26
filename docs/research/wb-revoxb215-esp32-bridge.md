@@ -1,43 +1,47 @@
-# Revox B215 → Wirenboard via SERIAL LINK — Option B Build & Handoff
+# Revox B215 → Wirenboard via SERIAL LINK — Build & Handoff
 
 **Goal:** Control a Revox B215 cassette deck from a Wirenboard PLC by driving the deck's
 rear **SERIAL LINK** port directly with a small ESP32 that publishes/subscribes
-**Wirenboard-conformant MQTT** over Wi-Fi. IR is bypassed entirely.
+**Wirenboard-conformant MQTT**. IR is bypassed entirely.
+
+**Primary design (this rewrite):** a **wired-Ethernet ESP32 (WT32-ETH01) powered from the
+deck's own +5 V**, no battery, no Wi-Fi. This was chosen after working through the power
+options — see §11. The earlier Wi-Fi and battery variants are kept as **Appendix A** for
+reference.
 
 **Companion document:** [`wb-revoxa77-esp32-bridge.md`](./wb-revoxa77-esp32-bridge.md) (the A77
 reel-to-reel build — shared MQTT / casing / firmware scaffolding).
 
-**Status of this document:** ✅ **SERIAL LINK connector pinout now CONFIRMED from the
-official B215 deck service manual (§1.4 rear-panel description).** Electrical nature
-(bidirectional, opto-isolated, +5 V/150 mA) confirmed. Still outstanding: scope-capture of
-the B205 command/status frames (the protocol bytes/timing live in the separate IR Remote
-Control Systems manual + your own captures), and `LINK_INVERT` polarity.
+**Status:** SERIAL LINK pinout CONFIRMED from the official B215 service manual (§1.4).
+Electrical nature (bidirectional, opto-isolated, +5 V/150 mA) confirmed. Outstanding:
+scope-capture of the B205 command/status frames (protocol bytes/timing) and `LINK_INVERT`
+polarity.
 
 ---
 
 ## 0. How to resume this with Claude later
 
-Paste this file back in and say "continue the Revox B215 Option B build." Outstanding:
+Paste this file back and say "continue the Revox B215 build." Outstanding:
 
-1. ✅ ~~DIN pin count/layout, which pin is +5 V vs GND~~ — **DONE, official pinout in §1/§4.**
-2. **Scope captures of the B205 frames on pin 3** for the seven functions (§8) — still
+1. DONE — DIN pinout, +5 V vs GND — **official pinout in §1.**
+2. DONE — Power approach — **DECIDED: wired Ethernet + deck 5 V (§11).**
+3. **Scope captures of the B205 frames on pin 3** for the seven functions (§8) — still
    needed for the command table + timing.
-3. **Fill the command table** (§5) with captured frame values; set `LINK_INVERT` after
-   observing line polarity.
+4. **Fill the command table** (§5) with captured frame values; set `LINK_INVERT`.
 
 Then Claude can produce final `sendLinkFrame()` timing constants, the real command table,
 and the finalized wiring harness.
 
-> 30-second sanity check before connecting: meter pin 5→pin 2 with the deck powered (rear
-> switch on) and confirm ~+5 V. The manual pinout is authoritative, but the scan is old and
-> a quick continuity/voltage check is cheap insurance.
+> 30-second sanity check before connecting: meter pin 5 to pin 2 with the deck powered (rear
+> switch on) and confirm ~+5 V **and that it holds under the board's load** (§8/§11). The
+> manual pinout is authoritative, but the scan is old and a quick check is cheap insurance.
 
 ---
 
 ## 1. Confirmed facts about this deck & system
 
 - **Deck:** Revox B215, serial 013773, Made in West Germany (Willi Studer GmbH,
-  D-7827 Löffingen), 45 W. Genuine B215. Two manuals apply: the **B215 deck service
+  D-7827 Loffingen), 45 W. Genuine B215. Two manuals apply: the **B215 deck service
   manual** (transport/audio/schematics — source of the pinout below) and the separate
   **"IR Remote Control Systems"** manual (order no. 10.30.0430 — source of the serial-link
   *protocol*, device id 04, and the drive-function enumeration).
@@ -52,7 +56,7 @@ and the finalized wiring harness.
 - **The SERIAL LINK is the chosen control path.** It is part of the Revox B200-series
   remote system; the deck addresses itself on this bus as **device identifier 04**.
 
-### ✅ CONFIRMED pinout (B215 service manual §1.4 — "Occupation des pôles de la fiche Serial Link")
+### CONFIRMED pinout (B215 service manual §1.4 — "Occupation des poles de la fiche Serial Link")
 
 ![Revox B215 SERIAL LINK pin assignment from the service manual: pin 1 GND earth, pin 2 GND floating, pin 3 serial I/O, pin 4 +5V floating, pin 5 +5V max 150 mA, pin 6 n.c.](./img/serial-link-pinout.png)
 
@@ -60,26 +64,26 @@ and the finalized wiring harness.
 |---|---|---|
 | **1** | GND (earth / terre) | chassis earth — **do NOT use as the signal reference** |
 | **2** | GND (**floating** / flottante) | **signal + opto reference ground** |
-| **3** | **Série I/O** (bidirectional serial data) | **DATA** — the line you drive/read |
+| **3** | **Serie I/O** (bidirectional serial data) | **DATA** — the line you drive/read |
 | **4** | +5 V (floating) | spare floating rail (leave unused) |
-| **5** | +5 V (**max. 150 mA**) | power/reference only — see §4 |
+| **5** | +5 V (**max. 150 mA**) | **powers the bridge** (wired-Ethernet design — see §11) |
 | **6** | n.c. | unused |
 
-**Key corrections vs the earlier provisional (`0815simon`) pinout:**
-- Pin 3 = data ✓ and pin 5 = +5 V ✓ — both as previously assumed.
-- There are **two grounds**: pin 1 = **earth**, pin 2 = **floating GND**. Reference your
-  opto stage to **pin 2**, not pin 1, to keep isolation intact.
-- There are **two +5 V pins**: pin 4 (floating) and pin 5 (the 150 mA-rated one).
-- Pin 6 is **n.c.** — not a strap/data pin.
+**Key facts from the official pinout:**
+- Pin 3 = data, pin 5 = +5 V (both as assumed in earlier drafts).
+- **Two grounds**: pin 1 = **earth**, pin 2 = **floating GND**. Reference the opto stage to
+  **pin 2**, not pin 1, to keep the deck's internal isolation intact.
+- **Two +5 V pins**: pin 4 (floating) and pin 5 (the 150 mA-rated one). Use pin 5.
+- Pin 6 is **n.c.**
 - **IR-disable strap (1+2 / 4+5): hobbyist-sourced, NOT confirmed by the deck manual.**
-  Given the official pinout, shorting 1+2 bonds floating GND to earth and 4+5 ties the two
+  Per the official pinout, shorting 1+2 bonds floating GND to earth and 4+5 ties the two
   +5 V rails — possibly how the deck senses "external controller present," but **treat as
-  unverified; scope/meter before applying.** It's optional anyway (only suppresses stray IR).
+  unverified; scope/meter before applying.** Optional anyway (only suppresses stray IR).
 
-- **Electrical nature:** NOT RS-232, NOT RS-485. A single **bidirectional** ("Série I/O")
+- **Electrical nature:** NOT RS-232, NOT RS-485. A single **bidirectional** ("Serie I/O")
   **open-collector** data line, idled high by the deck's internal pull-up, behind
   **optocoupler isolation** inside the deck. ITT/Nokia pulse-coded framing with
-  ~15 µs-scale carrier features.
+  ~15 us-scale carrier features.
 - **CRITICAL SAFETY RULE:** never drive pin 3 hard high. Assert a bit by pulling the
   line to GND (pin 2); release it to let the deck's pull-up restore high. Use an
   **open-collector / open-drain (ideally opto-isolated) output stage**. Driving +5 V
@@ -104,106 +108,124 @@ Seven functions in scope, mapped to the B215 drive-function enumeration:
 | Stop      | safe first test command |
 | Play      | also serves as "wake / power on" |
 | FF        | fast-forward (Vorspulen) |
-| Rewind    | (Rückspulen) |
+| Rewind    | (Ruckspulen) |
 | Record    | gate behind a confirm/arm step (safety) |
 | Pause     | auxiliary function |
 
 Optional extras if easy after captures: Loop/Positioning, cue, and **status read-back**
-(play state + real-time mm:ss tape counter) — a genuine bonus of the serial path.
+(play state + real-time mm:ss tape counter) — a genuine bonus of the serial path, and easy
+here because the wired design has no battery/Wi-Fi power constraints.
 
 ---
 
-## 3. Bill of materials (Option B)
+## 3. Bill of materials — primary (wired Ethernet, deck-powered)
 
 | Part | Qty | Notes |
 |---|---|---|
-| ESP32 dev board (WROOM-32 DevKitC or similar) | 1 | Wi-Fi; choose one with a decent onboard regulator |
-| PC817 optocoupler | 1 (control) +1 if adding status read-back | output stage; 6N137 if edges too soft |
-| Resistor 1 kΩ | 1 | opto LED series |
-| Resistor 220–470 Ω | 1 | only for status-direction opto LED, if used |
-| Resistor 4.7 kΩ | 0–1 | pin-3 pull-up ONLY if scope shows weak idle-high |
-| 5-pin 180° DIN plug + short cable | 1 | mates SERIAL LINK socket (it's a 6-pin assignment but a 5-pin 180° DIN body is what these use; confirm against your socket) |
-| **5 V USB supply for ESP32** | 1 | **required** — pin 5 (150 mA) can't power Wi-Fi (see §4) |
-| Capacitor 470–1000 µF | 0–1 | local reservoir at the ESP32 |
-| Capacitor 0.1 µF | 1 | decoupling at board |
-| ABS/PETG enclosure ~80×50×25 mm | 1 | NON-metal (Wi-Fi); see §7 |
+| **WT32-ETH01** (ESP32 + LAN8720 + RJ45) | 1 | wired Ethernet; accepts 5 V on its dedicated 5V pin |
+| 3.3 V USB-serial programmer (CP2102 **3V3**) | 1 | WT32-ETH01 has no USB — needed to flash it |
+| PC817 optocoupler | 2 | control + status read-back; 6N137 if edges too soft |
+| Resistor 1 kOhm | 1 | control opto LED series |
+| Resistor 4.7 kOhm | 1 | status opto LED series |
+| Resistor 4.7 kOhm | 0–1 | pin-3 pull-up ONLY if scope shows weak idle-high |
+| DIN plug to mate SERIAL LINK socket | 1 | confirm pin count/layout vs your socket (see §3a) |
+| Capacitor 470–1000 uF | 1 | reservoir on the 5 V rail (covers Ethernet link-up inrush) |
+| Capacitor 0.1 uF | 1 | decoupling at board |
+| RJ45 patch lead | 1 | deck location to LAN (reaches easily — confirmed) |
+| 2x Schottky diode (BAT43) | 0–2 | only if adding the USB-C fallback diode-OR (§11) |
+| Enclosure ~80x50x25 mm | 1 | metal OK now (no Wi-Fi) — but plastic is fine too |
 
-> Removed from the earlier BOM: the "3.3 V LDO / pin-5 power" path — the manual confirms
-> pin 5 is capped at **150 mA**, which can't supply ESP32 Wi-Fi TX spikes. Use external USB.
+> Note vs earlier drafts: a **metal enclosure is now acceptable** because there's no Wi-Fi
+> antenna to detune. The 5 V USB PSU is no longer the primary supply — the deck's pin 5
+> powers the board (§11). Keep a USB-C PSU only if you want the fallback.
 
 ---
 
 ## 3a. Precise shopping list — Amazon.de
 
-Exact-ish search terms / typical listings on **amazon.de**. Quantities assume one build
-plus spares. Prices indicative (2024–2025); verify at purchase.
+Search terms / typical listings on **amazon.de**. Quantities assume one build + spares.
+Prices indicative; verify at purchase.
 
-| # | Item | amazon.de search term | Qty | ~€ | Notes |
+| # | Item | amazon.de search term | Qty | ~EUR | Notes |
 |---|---|---|---|---|---|
-| 1 | ESP32 dev board | `ESP32 NodeMCU WROOM-32 Entwicklungsboard` (e.g. AZDelivery 3er-Set) | 1 (3-pack) | 12–18 | 3-pack = spares; PCB-antenna version |
-| 2 | Optocoupler PC817 | `PC817 Optokoppler DIP` (10–20er-Set) | 1 set | 6–8 | covers control + status-readback + spares |
-| 3 | Optocoupler 6N137 (optional, faster) | `6N137 Optokoppler High Speed` | 0–2 | 5 | only if pin-3 edges look soft on the scope |
-| 4 | Resistor kit | `Widerstand Sortiment 1/4W Metallschicht` (incl. 1 kΩ, 4.7 kΩ, 220–470 Ω) | 1 kit | 8–11 | one kit covers all values |
-| 5 | DIN plug | `DIN Stecker 5-polig 180 Grad Lötversion` (metal shell) | 2 | 6–9 | buy 2; confirm it mates your SERIAL LINK socket |
-| 6 | 5 V USB PSU | `USB Netzteil 5V 2A` + `Micro-USB Kabel` | 1 | 7–10 | **mandatory** ESP32 supply (not pin 5) |
-| 7 | Electrolytic caps | `Elektrolytkondensator 470µF 16V` (Sortiment) | a few | 5 | local reservoir |
-| 8 | Ceramic caps | `Keramikkondensator 100nF 0,1µF Sortiment` | a few | 5 | decoupling |
-| 9 | Enclosure | `Kunststoffgehäuse ABS 80x50x25` (or Hammond 1551) | 1 | 6–10 | NON-metal for Wi-Fi |
-| 10 | Perfboard / jumpers | `Lochrasterplatine Set` + `Jumper Kabel Dupont` | 1 each | 8–12 | prototyping |
-| 11 | Hook-up wire | `Schaltlitze Set 0,25mm² flexibel` | 1 | 8 | DIN harness |
+| 1 | WT32-ETH01 board | `WT32-ETH01 ESP32 Ethernet Modul` (AZDelivery/DWEII) | 1–2 | 10–14 ea | the core board; buy 2 for a spare |
+| 2 | USB-serial programmer 3.3 V | `CP2102 USB UART 3,3V Programmer` | 1 | 5–7 | **must be 3.3 V TTL**, not 5 V; WT32-ETH01 has no USB |
+| 3 | Optocoupler PC817 | `PC817 Optokoppler DIP` (10–20er-Set) | 1 set | 6–8 | control + status + spares |
+| 4 | Optocoupler 6N137 (optional, faster) | `6N137 Optokoppler High Speed` | 0–2 | 5 | only if pin-3 edges look soft on the scope |
+| 5 | Resistor kit | `Widerstand Sortiment 1/4W Metallschicht` (incl. 1 kOhm, 4.7 kOhm) | 1 kit | 8–11 | covers all values incl. ADC dividers etc. |
+| 6 | DIN plug | `DIN Stecker 5-polig 180 Grad Lotversion` (metal shell) | 2 | 6–9 | buy 2; **confirm it mates your SERIAL LINK socket** |
+| 7 | Electrolytic caps | `Elektrolytkondensator 470uF/1000uF 16V` (Sortiment) | a few | 5 | reservoir on 5 V rail |
+| 8 | Ceramic caps | `Keramikkondensator 100nF Sortiment` | a few | 5 | decoupling |
+| 9 | RJ45 patch lead | `Netzwerkkabel Cat6 0,5m` (length to suit) | 1 | 5 | deck to LAN |
+| 10 | Enclosure | `Aluminium Gehause 80x50x25` or `Kunststoffgehause ABS` | 1 | 6–12 | metal OK (no Wi-Fi) |
+| 11 | Perfboard / jumpers | `Lochrasterplatine Set` + `Jumper Kabel Dupont` | 1 each | 8–12 | prototyping |
+| 12 | Hook-up wire | `Schaltlitze Set 0,25mm2 flexibel` | 1 | 8 | DIN harness |
+| 13 | USB-C PSU (optional fallback) | `USB-C Netzteil 5V 2A` | 0–1 | 8 | only for the diode-OR fallback (§11) |
 
 **Notes / gotchas for ordering:**
-- **DIN plug (item 5):** the manual lists a 6-pin *assignment*, but Revox SERIAL LINK uses
-  a standard DIN body — most builds use the 5-pin 180° plug. **Verify the pin count/layout
-  of your actual socket before ordering** (the §0 sanity check covers this). If yours is a
-  6-pin/DIN variant, order that instead from Reichelt/Conrad.
-- PC817 (item 2) is generic and cheap; a bag of 10–20 leaves plenty for the optional
-  status-readback opto and mistakes.
-- Do **not** buy a buck/LDO to run the ESP32 off pin 5 — it's 150 mA, insufficient. Item 6
-  (USB PSU) is the supply.
-- Everything except possibly the DIN plug is routine amazon.de stock; the DIN plug is the
-  one item worth checking Reichelt/Conrad/Mouser DE for if Amazon listings look dubious.
+- **WT32-ETH01 needs a 3.3 V USB-serial adapter to flash** (item 2) — it has no onboard
+  USB. A 5 V TTL adapter can damage it. To enter flashing: ground IO0 while toggling EN.
+- **DIN plug (item 6):** the manual lists a 6-pin *assignment*, but Revox SERIAL LINK uses
+  a standard DIN body — most builds use the 5-pin 180 degree plug. **Verify your socket** before
+  ordering; if it's a 6-pin/DIN variant, get that from Reichelt/Conrad/Mouser DE.
+- PC817 (item 3) is generic and cheap; a bag of 10–20 covers control + status + mistakes.
+- The DIN plug is the one item worth checking Reichelt/Conrad/Mouser DE for if Amazon
+  listings look dubious.
 
 ---
 
-## 4. Wiring
-
-### Control output stage (MCU → deck)
+## 4. Wiring (primary: wired Ethernet, deck-powered)
 
 ```
-ESP32 GPIO17 ──[1kΩ]──► PC817 LED anode
-                        PC817 LED cathode ──► ESP32 GND
-
-PC817 transistor collector ──► DIN pin 3 (DATA, Série I/O)
-PC817 transistor emitter   ──► DIN pin 2 (GND FLOATING — not pin 1 earth)
+LAN -- RJ45 -- WT32-ETH01 (ESP32 + LAN8720)
+                  | 5V pin  <-- DIN pin 5 (+5 V)   [via 470-1000 uF reservoir]
+                  | GND     <-- DIN pin 2 (GND floating)
+                  | IOxx (out) --> control opto
+                  | IO35 (in)  <-- status opto      [IO35/36/39 are input-only - ideal for status]
 ```
 
-- GPIO high → opto conducts → pin 3 pulled to pin 2 (line low).
-- GPIO low  → opto off → deck pull-up restores high (idle).
+### Control output stage (MCU to deck)
+
+```
+ESP32 IOxx --[1kOhm]--> PC817 #1 LED anode
+                        PC817 #1 LED cathode --> ESP32 GND
+
+PC817 #1 transistor collector --> DIN pin 3 (DATA, Serie I/O)
+PC817 #1 transistor emitter   --> DIN pin 2 (GND FLOATING - not pin 1 earth)
+```
+
+- IO high -> opto conducts -> pin 3 pulled to pin 2 (line low).
+- IO low  -> opto off -> deck pull-up restores high (idle).
 - This **inverts** sense (matches the protocol's noted inversion). Final polarity is
   resolved in firmware via `LINK_INVERT` after scoping.
-- **Reference everything to pin 2 (floating GND), never pin 1 (earth)** — this preserves
-  the deck's internal optocoupler isolation.
+- **Reference everything to pin 2 (floating GND), never pin 1 (earth)** — preserves the
+  deck's internal optocoupler isolation.
+- Pick a normal GPIO for the control output (NOT IO35/36/39 — those are input-only).
+
+### Status read-back (deck to MCU)
+
+```
+DIN pin 3 --[4.7kOhm]--> PC817 #2 LED --> (ref. to pin 2)
+PC817 #2 transistor --> ESP32 IO35 (input-only pin, fine for reads)
+```
+
+- Lets you parse the deck's return frames (play state, mm:ss tape counter) into MQTT value
+  topics. Free to include here — no power constraint in the wired design.
 
 ### Power
 
-- **Pin 5 is +5 V / 150 mA max (confirmed).** That is **not enough** for an ESP32 with
-  Wi-Fi (TX spikes 300–500 mA). **Power the ESP32 from its own USB supply.** Pin 5 may be
-  used only as a weak sense/reference if ever needed — not as the supply.
+- **DIN pin 5 (+5 V / 150 mA) powers the WT32-ETH01** via its dedicated 5V pin. A
+  470–1000 uF reservoir cap covers Ethernet link-up inrush. See §11 for the budget (the
+  board draws ~120 mA at 100M — fits the rail with thin headroom, so **measure**).
 - Pin 4 (+5 V floating) — leave unused.
-
-### Optional status read-back (deck → MCU)
-
-- pin 3 → series resistor (referenced to pin 5 / pin 2) → second PC817 LED → its
-  transistor → ESP32 input pin.
-- Lets you parse the deck's return frames (play state, mm:ss tape counter) into MQTT value
-  topics.
+- **Optional USB-C fallback:** diode-OR pin 5 and a USB-C 5 V PSU into the board's 5V pin
+  (2x Schottky) so you can power from USB if the rail proves marginal under load.
 
 ### IR disable (optional, UNVERIFIED — see §1)
 
 - The hobbyist note "short DIN 1+2 and 4+5" is **not confirmed** by the deck manual and,
-  per the official pinout, bonds floating-GND↔earth and the two +5 V rails. Only attempt
-  after scoping; it merely suppresses stray IR and is not required for control.
+  per the official pinout, bonds floating-GND/earth and the two +5 V rails. Only attempt
+  after scoping; merely suppresses stray IR and is not required for control.
 
 ---
 
@@ -211,34 +233,46 @@ PC817 transistor emitter   ──► DIN pin 2 (GND FLOATING — not pin 1 earth
 
 **Base repo:** `https://github.com/0815simon/revox-rc5-remote` — file `revox_web_remote.ino`.
 
-**What to keep:** the **serial-link bit-banging routine** (frame → GPIO toggles).
+**What to keep:** the **serial-link bit-banging routine** (frame to GPIO toggles).
 **What to delete:** the RC5/IR receive code and the bundled webserver.
-**What to add:** Wi-Fi + MQTT (PubSubClient or AsyncMqttClient) + a clean command table.
+**What to add:** **Ethernet** (`ETH.begin()`) + MQTT (PubSubClient) + a clean command table.
 
 > The repo is the author's self-described "hacky, trial-and-error" project. Lift and
 > adapt the TX core; don't flash as-is.
 
+**Wired vs Wi-Fi:** the only transport change from the Wi-Fi variant is `ETH.begin()`
+instead of `WiFi.begin()` (the WT32-ETH01 Ethernet init, LAN8720, with its specific
+`ETH_PHY_*` defines). MQTT, command table, opto logic, and the pin-2 reference rule are
+identical. **Force 100M link speed** (see §11 — 10M draws *more* current on this PHY).
+
 ### Skeleton
 
 ```cpp
+#include <ETH.h>
+
 // ---- config ----
-const char* WIFI_SSID = "...";
-const char* WIFI_PSK  = "...";
 const char* MQTT_HOST = "192.168.x.x";   // Wirenboard broker (Mosquitto on the WB)
 const uint16_t MQTT_PORT = 1883;
 const char* DEVICE_ID = "revox_b215";
 
-const int   PIN_LINK    = 17;            // to opto LED
+const int   PIN_LINK    = 14;            // control opto LED (any normal GPIO, NOT 35/36/39)
+const int   PIN_STATUS  = 35;            // status opto in (input-only pin is fine)
 const bool  LINK_INVERT = true;          // set after scoping line polarity
+
+// ---- Ethernet bring-up (WT32-ETH01 / LAN8720) ----
+// Use the board's documented ETH_PHY_* defines; force 100M.
+void netUp() {
+  ETH.begin();                  // WT32-ETH01 default LAN8720 config
+  // optionally pin link to 100M full-duplex per board notes
+}
 
 // ---- ITT serial-link bit-banger (adapted from 0815simon) ----
 // Sends one Revox frame: device id 04 + function code.
 // Bit order (MSB/LSB) and bit timing come from YOUR scope captures.
-// Keep all timing in this one function so retuning is trivial.
 void sendLinkFrame(uint16_t frame) {
   // assert = pull line low; idle = release (deck pull-up brings high)
   // honour LINK_INVERT
-  // use delayMicroseconds() with measured bit widths (~15 µs-scale features:
+  // use delayMicroseconds() with measured bit widths (~15 us-scale features:
   //   confirm start-bit, 0/1 bit periods, repeat gap from captures)
 }
 
@@ -274,10 +308,9 @@ void onMqtt(char* topic, byte* payload, unsigned int len) {
 ### On connect: publish retained meta topics (so WB sees a native device)
 
 - `/devices/revox_b215/meta/name` = `Revox B215` (retained)
-- For each control:
-  `/devices/revox_b215/controls/<name>/meta/type` (retained)
-  - momentary keys (stop, play, ff, rewind, record, pause) → type `pushbutton`
-  - standby → type `switch` (stateful on/off) if desired
+- For each control: `/devices/revox_b215/controls/<name>/meta/type` (retained)
+  - momentary keys (stop, play, ff, rewind, record, pause) -> type `pushbutton`
+  - standby -> type `switch` (stateful on/off) if desired
 - Value topic `/devices/revox_b215/controls/<name>` — publish state (retained)
 - Command topic `/devices/revox_b215/controls/<name>/on` — **subscribe**
 
@@ -299,31 +332,30 @@ Same convention `wb-mqtt-serial` uses:
 | `/devices/<id>/controls/<c>` | publish | yes | current value/state |
 | `/devices/<id>/controls/<c>/on` | **subscribe** | — | command in (UI/rules write here) |
 
-**Integration choice:** simplest is **broker-direct** — ESP connects to the WB
-controller's Mosquitto broker over Wi-Fi (reachable on LAN by default on WB). The deck
-then appears as a native WB device; rules/scenes/UI work with no extra glue.
+**Integration choice:** **broker-direct** — the ESP connects to the WB controller's
+Mosquitto broker over the LAN. The deck appears as a native WB device; rules/scenes/UI work
+with no extra glue.
 
 ---
 
 ## 7. Casing
 
-- **Material:** ABS or PETG, ~80×50×25 mm. **Not metal** (would kill Wi-Fi). If printing,
-  PETG handles warm-equipment proximity better than PLA. Keep the ESP32 PCB antenna near
-  an edge, not buried.
-- **Layout:** ESP32 on standoffs; opto + passives on a small perfboard daughter area.
-  DIN pigtail exits one end via a grommet (strain relief); USB exits the other.
-- **Ventilation:** a few slots; ESP runs warm; no fan needed.
+- **Material:** metal is now fine (no Wi-Fi antenna to detune); ABS/PETG also fine. If
+  printing, PETG handles warm-equipment proximity better than PLA.
+- **Layout:** WT32-ETH01 on standoffs; opto + passives on a small perfboard daughter area.
+  DIN pigtail exits one end via a grommet (strain relief); RJ45 exits the other.
+- **Ventilation:** a few slots; the board runs warm (~120 mA); no fan needed.
 - **Mounting:** VHB pad or keyhole tab to hang behind the rack. Keep away from the deck's
   transformer area.
 - **Label** the DIN pigtail with the pinout (use the §1 confirmed map).
-- Off-the-shelf alternative: Hammond 1551-series ABS box.
 
 ---
 
 ## 8. Measurements still required (before/at bring-up)
 
-1. ✅ ~~DIN pin count/layout, +5 V vs GND~~ — pinout confirmed (§1). Still do the
-   30-second meter check: pin 5→pin 2 ≈ +5 V, deck powered, rear switch on.
+1. DONE — DIN pinout, +5 V vs GND — confirmed (§1). Still do the meter check: pin 5 to pin 2
+   ~ +5 V, deck powered, rear switch on — **and confirm it holds ~5 V with the WT32-ETH01
+   running and the Ethernet link up** (the worst moment is link negotiation; §11).
 2. **B205 frame captures on pin 3** — deck only, scope pin 3 to **pin 2** while firing the
    **B205** at the front for each of: standby, stop, play, ff, rewind, record, pause.
    Record: idle level, logic swing, start-bit timing, 0/1 bit periods, frame length,
@@ -332,19 +364,18 @@ then appears as a native WB device; rules/scenes/UI work with no extra glue.
 4. **Wake test** — put deck in standby, send Stop; does it wake? Repeat Pause, then Play.
    Note which wake it (settles the "power on" mapping).
 
-> (Pin-5 current capability no longer needs measuring — manual says 150 mA, so ESP32 runs
-> off USB regardless.)
-
 ---
 
-## 9. Bring-up sequence (Option B)
+## 9. Bring-up sequence
 
-1. Bench ESP **without** deck: confirm Wi-Fi, MQTT topics appear in WB, buttons publish.
+1. Flash the WT32-ETH01 (3.3 V USB-serial; IO0 low while toggling EN). Confirm it gets a
+   DHCP lease and the MQTT topics appear in WB.
 2. Scope the output stage into a dummy load: confirm pull-low/release; set `LINK_INVERT`.
-3. Capture B205 frames on pin 3 (deck only) → fill command table (§5).
-4. Connect (reference to pin 2); send **stop** first; then play / pause / ff / rewind;
+3. Capture B205 frames on pin 3 (deck only) -> fill command table (§5).
+4. Power the board from pin 5; **verify the rail holds under load with the link up** (§8.1).
+5. Connect (reference to pin 2); send **stop** first; then play / pause / ff / rewind;
    **record last** (gated).
-5. (Optional) add status-read opto; parse return frames into WB value topics.
+6. Add status-read opto; parse return frames into WB value topics.
 
 ---
 
@@ -360,34 +391,89 @@ then appears as a native WB device; rules/scenes/UI work with no extra glue.
 - Protocol sense is **inverted** in places — that's expected; handle in `LINK_INVERT`.
 - **Two grounds on the connector** — always reference to pin 2 (floating), never pin 1
   (earth), or you defeat the deck's isolation.
+- **WT32-ETH01: force 100M Ethernet.** At 10M the LAN8720 draws *more* (~160 mA vs ~120 mA)
+  due to its signal encoding — and 160 mA would exceed the deck's 150 mA rail.
+- **WT32-ETH01 input-only pins:** IO35/36/39 cannot drive outputs — use them for the status
+  read, not the control opto.
 
 ---
 
-## 11. Why Option B (vs A)
+## 11. Power decision — why wired Ethernet + deck 5 V
 
-- Timing-critical signal generation lives **clean and local** at the deck (no Linux
-  scheduling jitter, no 3 m cable run on a fussy open-collector line).
-- Wi-Fi keeps wiring trivial; deck appears as a native WB device via standard MQTT.
-- Only real homework now: scope the B205 frames (pinout + power are settled).
-- Option A (controller-driven over 3 m) remains a fallback; if ever built, make its
-  deck-end board B-ready so swapping in an ESP32 is a 10-minute upgrade.
+We worked through every option; this is the rationale, kept so the choice is auditable.
+
+**The core constraint:** deck pin 5 supplies **+5 V at 150 mA max** (manual §1.4).
+
+| Connectivity / mode | Avg draw | Deck-5V rail? | Battery life (3000 mAh) |
+|---|---|---|---|
+| Wi-Fi, always-on | ~120 mA + 300–500 mA spikes | NO — spikes blow past 150 mA | ~20 h |
+| Wi-Fi, light-sleep | ~5–15 mA | yes, with reservoir cap | ~1–3 weeks |
+| **Ethernet (WT32-ETH01), 100M** | **~120 mA steady, no spikes** | **yes — fits (thin headroom)** | ~18–40 h |
+| Ethernet + MCU sleep | ~50–90 mA | yes | ~1–2 days |
+
+**Why wired wins for this install:**
+- Ethernet draws a **steady** current with **no Wi-Fi TX spikes** — and the spikes were the
+  specific thing that broke the 150 mA rail. So the deck's own 5 V becomes a viable supply.
+- A **LAN cable reaches the deck location easily** (confirmed), so wired is no hardship.
+- It **deletes the entire fragile subsystem**: no battery, no charger, no load-share, no
+  charge-on-notification ritual, no `battery_*` topics. The box just lives on the deck.
+- Same MQTT model; `ETH.begin()` replaces `WiFi.begin()`.
+
+**The one caveat:** ~120 mA vs a 150 mA rail is **thin headroom**. Mitigations, in order:
+1. **Force 100M** (10M draws ~160 mA — would exceed the rail).
+2. **Reservoir cap** (470–1000 uF) on the 5 V rail to cover link-up inrush.
+3. **Measure** pin 5 under load with the link up before trusting it (§8.1).
+4. If it sags: **USB-C fallback via diode-OR** (parts in BOM), or power wholly from USB-C
+   and use pin 5 only as reference.
+
+---
+
+## Appendix A — alternative designs (not chosen)
+
+Kept for reference; the wired design above supersedes these.
+
+### A.1 Wi-Fi + external USB power
+The original plan: an ESP32 (WROOM-32) on Wi-Fi, powered from a **USB 5 V supply** (pin 5's
+150 mA can't survive Wi-Fi spikes). Needs a **non-metal enclosure** (antenna). Same opto
+stages and MQTT. Use only if running a LAN cable is undesirable. If used, prefer
+**light-sleep** to cut average draw.
+
+### A.2 Battery-powered, charge-on-notification
+A self-contained battery box with **USB-C TP4056+DW01A charger + 18650 cell + load-share**,
+running the ESP in **light-sleep** (~1–3 weeks/charge). Firmware publishes four topics —
+`battery` (%), `hours_remaining` (live voltage-slope estimate), `battery_low` ("plug in",
+<=3.40 V), `battery_full` ("unplug", from the TP4056 CHRG pin) — plus `charging`. The cell is
+the source; USB-C only replenishes when notified. **Superseded** because wired Ethernet + deck
+power removes the whole battery subsystem and its maintenance ritual. Runtime physics: an
+always-on Wi-Fi ESP32 drains a 3000 mAh cell in ~a day; only light-sleep makes manual
+charging practical.
+
+### A.3 Option A — Wirenboard controller drives the link over 3 m
+Drive the serial link directly from the WB controller's GPIO over the existing wall wiring.
+Fails on Linux timing jitter + a 3 m unbuffered open-collector run; if ever attempted, buffer
++ opto-isolate at the deck end and make that end "B-ready" so an ESP can drop in.
 
 ---
 
 ## 12. Source references
 
 - **B215 deck service manual (Studer Revox, trilingual DE/EN/FR)** — §1.4 rear-panel
-  description: **SERIAL LINK pin assignment (pin 1 GND earth, 2 GND floating, 3 Série I/O,
+  description: **SERIAL LINK pin assignment (pin 1 GND earth, 2 GND floating, 3 Serie I/O,
   4 +5 V floating, 5 +5 V max 150 mA, 6 n.c.)**; transport/audio/alignment/schematics.
 - **Revox "IR Remote Control Systems" service manual** (order no. 10.30.0430): device
   identifier table (04 = B215), serial-link protocol, drive/aux function enumeration,
   B215 status string format. (archive.org: `studer_Revox_IR_Remote_System_Serv`)
+- **WT32-ETH01** (Wireless-Tag): ESP32 + LAN8720A, RJ45, 3V3 **or** 5V supply pin; ~120 mA
+  at 100M (more at 10M — LAN8720 encoding); no USB, flash via 3.3 V serial (IO0 low + EN);
+  IO35/36/39 input-only. (datasheet V1.4 + egnor/wt32-eth01 notes + esp32.com current thread)
 - `0815simon/revox-rc5-remote` (GitHub): working ESP8266 serial-link TX; DIN data/GND/+5V
-  notes (data=3, GND, +5V) and the **unverified** IR-disable strap idea.
+  notes and the **unverified** IR-disable strap idea.
 - Tapeheads.net "Info on Revox Serial Link protocol wanted": bidirectional single-wire
   warning, open-collector / opto recommendation, Nokia/ITT protocol family.
-- IRMP discussion #80: native remote waveform timing (~15 µs bursts; 150/300 µs bit
+- IRMP discussion #80: native remote waveform timing (~15 us bursts; 150/300 us bit
   periods), TBA2800 preamp note.
 - Wirenboard wiki: WB-MSW v3 is RS-485/Modbus IR module (IR-only actuator); WB controller
   has native RS-485 + Linux + Mosquitto broker; MQTT device convention.
 - NEEO forum: B215 PLAY triggers power-on event (wake-on-transport evidence).
+- Li-ion / TP4056 (Appendix A.2): TP4056+DW01A USB-C charger modules; ~37% C charge current
+  via Rprog; DW01A over-discharge cutoff ~2.4 V / release ~3.0 V.
