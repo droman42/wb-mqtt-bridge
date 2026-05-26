@@ -14,3 +14,7 @@ include/config.h
 # Editor scratch
 .vscode/
 .idea/
+
+# IDF-build regenerated artefacts (sdkconfig.defaults — committed — is the source of truth)
+sdkconfig.*
+dependencies.lock
