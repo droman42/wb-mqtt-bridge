@@ -1,146 +1,94 @@
 # Panasonic NV-FS90 → Wirenboard via added CONTROL IN jack — Build & Handoff
 
-> ## ⚑ FINAL POWER & CONNECTIVITY DECISION (supersedes power/connectivity text below)
->
-> After working through USB / PoE / battery / wired-Ethernet options, the locked choice for
-> **all four bridge boxes** is:
->
-> - **NO power plugs.** Power is taken from the deck.
-> - **Wi-Fi (ESP32 WROOM-32), NOT wired Ethernet.** Run **light-sleep** (avg ~15 mA) so the
->   deck rail only sees a small steady load. See §"Light-sleep + DTIM" below for how commands
->   still arrive instantly.
-> - **Reservoir cap buffers the Wi-Fi TX spikes** so the deck rail only ever supplies the
->   ~15 mA average: **1000 µF low-ESR** across the 5 V tap + **100 µF + 0.1 µF** at the board
->   + **2.2–10 Ω inrush resistor** feeding the big cap. (Cap + light-sleep are a pair; a cap
->   with always-on Wi-Fi would just drain.)
-> - **No RJ45 / no USB / no PoE** (the MikroTik's single passive-PoE port is irrelevant).
-> - **Plastic case** (Wi-Fi antenna near a wall edge). See `cases/` (v5 STLs).
->
-> **Power source per device:**
-> - **B215:** SERIAL LINK **pin 5 (+5 V)** — now comfortable (~15 mA avg + cap removes the old
->   150 mA-rail spike worry).
-> - **A77:** **pin 7 (+27 V)** → small buck → 5 V (ample headroom); cap on the buck output.
-> - **Pioneer / Panasonic:** tap an **internal +5 V** rail (2 wires through the case grommet
->   slot). ~15 mA avg is easy on a logic rail; **meter once** under load to confirm.
->
-> **What this supersedes below:** ignore wired-Ethernet/WT32-ETH01-primary, USB-supply, PoE,
-> or battery passages — kept only as alternative-history reference. Firmware: keep the
-> command/MQTT logic; transport = **Wi-Fi (`WiFi.begin()`)** in **light-sleep**; output stage
-> and protocol/code capture unchanged.
->
-> ---
+**Goal.** Control a Panasonic NV-FS90 S-VHS VCR from a Wirenboard PLC. The FS90 has
+**no factory wired-control port** (AV1/AV2 SCART + IR only), so we **add one**: tap
+the deck's internal IR-receiver output and bring it to a new rear 3.5 mm jack —
+recreating the Pioneer "CONTROL IN" interface. An ESP32 then injects the FS90
+remote's own codes as a **baseband (carrier-stripped) waveform**, replacing the
+unreliable external IR blaster.
 
-## Firmware design rule — network update (OTA) is MANDATORY
+**Status.** Architecture confirmed (Panasonic VCR of this era: IR receiver module
+→ baseband output → input port on syscon IC6001, a 5 V-logic Panasonic MN153xx
+micro; front panel is a scanned key matrix — which is why we tap the IR output,
+not the matrix). **Outstanding: a 60-second meter/scope check on YOUR unit to
+identify the IR receiver's OUT pin** before soldering (§11). The exact pin is not
+quoted from the manual on purpose — verify it on the board, don't trust a number
+for something you solder to.
 
-The box is **deck-powered with no USB and no easy physical access** once installed, so the
-firmware **must** support full **over-the-air update over the network**: upload a new image,
-flash it, and reboot — with **no cable and no USB** ever needed after first flash.
+**Chosen approach: Option 2 — parallel tap, NO CUT.** Solder a wire onto the IR
+receiver's output pin (sharing it with the existing syscon connection) and run it
+to a rear jack. The internal IR receiver stays connected and live; your injected
+open-collector signal simply wire-ORs with it. Fully reversible (remove the wire).
+Trade-off: the internal IR sensor stays active, so a stray remote / strong ambient
+IR can still reach the deck — accepted here.
 
-- Use **ArduinoOTA** (or ESP-IDF `esp_https_ota`) so you can push builds from the IDE / a script
-  over Wi-Fi. Implement: receive image -> verify -> write to the OTA partition -> reboot into it.
-- Keep OTA reachable even in light-sleep: the device is associated and reachable (see
-  "Light-sleep + DTIM"); an OTA push wakes it like any other connection.
-- **Safety:** use the ESP32's dual-OTA partition scheme so a bad image **rolls back** to the
-  previous one on boot-fail (never leave the box bricked behind a deck).
-- Gate OTA behind a password/token; optionally only enable the OTA listener for a window after
-  an MQTT "update-arm" command, so it isn't open permanently.
-- First flash is the only wired step (3.3 V serial header on the WROOM-32). After that the USB
-  serial adapter is **literally never needed again** — all updates go over the network.
-
----
-
-## CURRENT BUILD — board, power & parts (OVERRIDES the BOM / shopping list below)
-
-The BOM, shopping list, casing and "why wired" sections further down were written when the
-plan was wired-Ethernet. The **locked build** (see banner) changes these specifics. Use this
-list; treat the older tables as reference only:
-
-**Board:** **ESP32 WROOM-32 (Wi-Fi)** — NOT the WT32-ETH01. (Antenna near a plastic wall edge.)
-**Connectivity:** Wi-Fi light-sleep. **DROP** all of: WT32-ETH01, RJ45 jack/patch lead, PoE
-splitter/injector, USB 5 V PSU, USB-C PSU, Schottky diode-OR fallback. None are used.
-**First flash only:** a 3.3 V USB-serial adapter on the WROOM-32 header — needed once, then
-never again (updates go OTA, see the OTA rule above). Most WROOM-32 dev boards have onboard
-USB-serial, so even that may be unnecessary.
-
-**Power = deck-derived, no plugs** (per banner), buffered by the reservoir cap:
-- **1000 µF low-ESR** across the 5 V tap + **100 µF + 0.1 µF** at the board + **2.2–10 Ω**
-  inrush resistor feeding the big cap.
-
-**Keep from the lists below:** the optocoupler/opto-MOSFET output stage + its resistors, the
-signal connector (DIN / WIST-10 / 3.5 mm jack), prototyping bits, hook-up wire, and (A77) the
-27 V→5 V buck + fuse. **Enclosure: plastic** (Wi-Fi), per the `cases/` v5 files.
-
----
-
-
-
-**Goal:** Control a Panasonic NV-FS90 S-VHS VCR from a Wirenboard PLC. The FS90 has **no
-factory wired-control port** (AV1/AV2 SCART + IR only), so we **add one**: tap the deck's
-internal IR-receiver output and bring it to a new rear 3.5 mm jack — recreating the Pioneer
-"CONTROL IN" interface. An ESP32 then injects the FS90 remote's own codes as a **baseband
-(carrier-stripped) waveform**, replacing the unreliable external IR blaster.
-
-**Chosen approach: Option 2 — parallel tap, NO CUT.** Solder a wire onto the IR receiver's
-output pin (sharing it with the existing syscon connection) and run it to a rear jack. The
-internal IR receiver stays connected and live; your injected open-collector signal simply
-wire-ORs with it. Fully reversible (remove the wire). Trade-off: the internal IR sensor stays
-active, so a stray remote / strong ambient IR can still reach the deck — accepted here.
-
-**Once the jack exists, this is the SAME build as the Pioneer CLD-D925** — identical output
-stage, firmware, and MQTT. See [`wb-pioneer-cld-d925-esp32-bridge.md`](./wb-pioneer-cld-d925-esp32-bridge.md).
+**Once the jack exists, this is the SAME build as the Pioneer CLD-D925** —
+identical output stage, firmware (`src/driver_ir.cpp`), and MQTT. See
+[`wb-pioneer-cld-d925-esp32-bridge.md`](./wb-pioneer-cld-d925-esp32-bridge.md).
 
 **Companion documents:**
 [`wb-revoxb215-esp32-bridge.md`](./wb-revoxb215-esp32-bridge.md),
 [`wb-revoxa77-esp32-bridge.md`](./wb-revoxa77-esp32-bridge.md),
 [`wb-pioneer-cld-d925-esp32-bridge.md`](./wb-pioneer-cld-d925-esp32-bridge.md).
 
-**Status:** Architecture confirmed (Panasonic VCR of this era: IR receiver module → baseband
-output → input port on syscon IC6001, a 5 V-logic Panasonic MN153xx micro; front panel is a
-scanned key matrix — which is why we tap the IR output, not the matrix). **Outstanding: a
-60-second meter/scope check on YOUR unit to identify the IR receiver's OUT pin** before
-soldering (§8). The exact pin is not quoted from the manual on purpose — verify it on the
-board, don't trust a number for something you solder to.
+---
+
+## 1. Design summary
+
+All four ESP32 bridges share one canonical design — applied here to the NV-FS90:
+
+- **Board:** ESP32 WROOM-32 (Wi-Fi), in a plastic enclosure with the PCB antenna
+  near a case edge. No WT32-ETH01, no Ethernet, no RJ45.
+- **Power: deck-derived only — no plugs, no USB, no PoE.** The NV-FS90 tap =
+  **internal +5 V rail** (Pana­sonic NV-VP60 service manual confirms IC6001 pin 37
+  is the 5 V rail — establishes 5 V-logic compatibility for this generation).
+  Since you're already adding a rear jack for signal, the tidiest install is a
+  **3-conductor TRS jack** carrying signal + 5 V + GND on the same cable — see §4.
+  The 2-wire "pigtail through a separate hole" works too. Meter the chosen rail
+  once under load to confirm headroom.
+- **Wi-Fi runs in light-sleep** (DTIM-driven), avg ~15 mA, with commands still
+  arriving instantly. Light-sleep + reservoir cap are a pair.
+- **Reservoir cap network on the 5 V tap:**
+  - **1000 µF low-ESR** across the 5 V tap,
+  - **100 µF + 0.1 µF** decoupling at the board,
+  - **2.2–10 Ω inrush resistor** in series with the big cap so the deck rail
+    doesn't see the cap-fill surge at power-up.
+- **OTA is mandatory.** First flash goes over a 3.3 V USB-serial header (the only
+  time a cable touches the box); all subsequent updates ship over Wi-Fi via
+  `esp_https_ota` with dual-OTA-partition rollback safety (see `partitions.csv`).
+
+This is the single source of truth for the design; the sections below specify the
+NV-FS90-specific hardware (parallel tap on the IR-receiver output, new rear jack,
+BOM, bring-up) — they do not relitigate the design.
 
 ---
 
-## 0. How to resume this with Claude later
+## 2. Why the FS90 needs a jack added (and why the IR-output tap is the right one)
 
-Paste this file back and say "continue the Panasonic NV-FS90 build." Outstanding:
-
-1. **Identify the IR-receiver OUT pin** on your board (§8.1): the 3-pin module behind the IR
-   window — find GND (0 V), Vcc (~5 V), and OUT (idles near 5 V, pulses active-low on a
-   remote press).
-2. **Capture the FS90 remote's codes** (you have the remote) as raw mark/space timings (§5).
-3. **Solder the parallel tap + fit the rear jack** (§4), then bring up exactly like the
-   Pioneer (§9).
-
-Then Claude can finalise the code table (shared format with the Pioneer doc).
-
----
-
-## 1. Why the FS90 needs a jack added (and why the IR-output tap is the right one)
-
-- The NV-FS90 is a PAL S-VHS deck with **AV1/AV2 SCART + IR remote only**. There is **no
-  edit/Control-S/wired-remote jack** (those were pro AG-series features, not this consumer
-  deck). So unlike the Pioneer (which hands you CONTROL IN) and the Revoxes (documented remote
-  ports), here you must **create** the wired input.
-- Internally, the remote path is the universal arrangement: **IR receiver module → baseband
-  logic-level output (idle-high, active-low) → an input port on the system-control micro
-  IC6001** (a Panasonic MN153xx-family, 5 V logic — confirmed by the related NV-VP60 service
-  manual, which flags IC6001 pin 37 as the 5 V rail).
-- The **front panel is a scanned key matrix** (read by the syscon / a counter micro). Injecting
-  into a scanned matrix is hard (you must hit the right row/column at the right scan instant).
-  **Tapping the IR-receiver output is far easier and is the recommended path** — you feed the
-  syscon exactly the baseband bytes it already understands, using the deck's own decoder.
-- That IR-output node behaves **identically to the Pioneer CONTROL IN**: idle ~5 V,
-  open-collector-ish, baseband (carrier already stripped), active-low. So adding a jack there
-  = giving the FS90 its own Pioneer-style CONTROL IN.
+- The NV-FS90 is a PAL S-VHS deck with **AV1/AV2 SCART + IR remote only**. There
+  is **no edit/Control-S/wired-remote jack** (those were pro AG-series features,
+  not this consumer deck). So unlike the Pioneer (which hands you CONTROL IN) and
+  the Revoxes (documented remote ports), here you must **create** the wired input.
+- Internally, the remote path is the universal arrangement: **IR receiver module
+  → baseband logic-level output (idle-high, active-low) → an input port on the
+  system-control micro IC6001** (a Panasonic MN153xx-family, 5 V logic —
+  confirmed by the related NV-VP60 service manual, which flags IC6001 pin 37 as
+  the 5 V rail).
+- The **front panel is a scanned key matrix** (read by the syscon / a counter
+  micro). Injecting into a scanned matrix is hard (you must hit the right
+  row/column at the right scan instant). **Tapping the IR-receiver output is far
+  easier and is the recommended path** — you feed the syscon exactly the
+  baseband bytes it already understands, using the deck's own decoder.
+- That IR-output node behaves **identically to the Pioneer CONTROL IN**: idle
+  ~5 V, open-collector-ish, baseband (carrier already stripped), active-low. So
+  adding a jack there = giving the FS90 its own Pioneer-style CONTROL IN.
 
 ---
 
-## 2. Target command set
+## 3. Target command set
 
-Capture each from the FS90 remote; expose as MQTT `pushbutton` controls (+ `switch` for power):
+Capture each from the FS90 remote (or reuse the WB-blaster codes — §9); expose as
+MQTT `pushbutton` controls (+ `switch` for power):
 
 | Function | Notes |
 |---|---|
@@ -153,267 +101,314 @@ Capture each from the FS90 remote; expose as MQTT `pushbutton` controls (+ `swit
 | Eject | mechanical; remote may or may not expose it — confirm |
 | (optional) Channel ±, OSD, etc. | if you want them |
 
-No status read-back (the IR path is one-way). If you ever want transport status, that's a
-separate tap (e.g. an FIP/syscon line) — out of scope.
-
----
-
-## 3. Why this is the same as the Pioneer once the jack exists
-
-| | Pioneer CLD-D925 | **Panasonic NV-FS90** |
-|---|---|---|
-| Wired input | factory CONTROL IN jack | **add jack at IR-receiver output (Option 2, no cut)** |
-| Signal | baseband IR, idle-high, active-low | **same** |
-| Output stage | one open-collector onto tip | **same** |
-| Firmware | replay raw remote timings, baseband | **same** |
-| Power | deck +5 V tap (no jack power) | **same** |
-| Status | one-way | **same** |
-| Extra work | none (jack exists) | **drill + solder one tap wire** |
-
-So: the only FS90-specific effort is **§4 (create the jack) + §8.1 (find the OUT pin)**.
-Everything else is lifted from the Pioneer doc.
+**No status read-back** (the IR path is one-way). If you ever want transport
+status, that's a separate tap (e.g. an FIP/syscon line) — out of scope.
 
 ---
 
 ## 4. Creating the CONTROL IN jack (Option 2 — parallel tap, no cut)
 
 ### The principle
-The IR receiver's OUT pin and the syscon input are both happy to share the line: the receiver
-output is open-collector with a pull-up, and your ESP32 output stage is also open-collector.
-Two open-collector drivers on one node simply **wire-OR** — whoever pulls low wins, neither
-damages the other. So you **add** your wire in parallel; you do **not** cut anything.
 
-### Steps
-1. **Identify the IR-receiver OUT pin** (§8.1) — do this first, with power on.
-2. With the deck **unplugged**, solder a thin wire to that OUT pin (or the nearest convenient
-   pad on the same net).
-3. Run the wire to a **rear-panel 3.5 mm jack** (drill a hole — rear panel area is fine to
-   drill; pick a spot clear of internal boards/shields).
-   - **Tip → IR-OUT net** (your injected signal).
-   - **Sleeve → deck GND** (a chassis screw or the IR module's GND pin). NOTE: unlike the
-     Pioneer (whose sleeve floats), here **you control the jack, so DO ground the sleeve** to
-     the deck — that gives your ESP32 box a proper return without needing a separate ground
-     wire.
-4. (Recommended, still "no cut") use a **switched (closed-circuit) 3.5 mm jack** but wire only
-   tip+sleeve for injection, leaving the internal receiver permanently connected. You get a
-   clean panel connector now, and if you ever want Option 1 (auto-mute internal IR on insert)
-   you just move one wire to the switch contact — no redo.
+The IR receiver's OUT pin and the syscon input are both happy to share the line:
+the receiver output is open-collector with a pull-up, and your ESP32 output stage
+is also open-collector. Two open-collector drivers on one node simply **wire-OR**
+— whoever pulls low wins, neither damages the other. So you **add** your wire in
+parallel; you do **not** cut anything.
+
+### Signal install
+
+1. **Identify the IR-receiver OUT pin** (§11.1) — do this first, with power on.
+2. With the deck **unplugged**, solder a thin wire to that OUT pin (or the
+   nearest convenient pad on the same net).
+3. Run the wire to a **rear-panel 3.5 mm jack** (drill a hole — rear panel area
+   is fine to drill; pick a spot clear of internal boards/shields).
+4. Use a **switched (closed-circuit) panel-mount 3.5 mm jack**: wire only
+   tip+sleeve for injection now, leaving the internal receiver permanently
+   connected. You get a clean panel connector now, and if you ever want to
+   upgrade to a cut/auto-mute install you just move one wire to the switch
+   contact — no redo.
 
 ```
 IR receiver module (behind front window)
-   Vcc (~5V)  ── leave
-   GND        ──────────────► new jack SLEEVE  (and deck chassis)
+   Vcc (~5V)  ── leave (this is the 5 V rail — tap here for box power, §"Power tap")
+   GND        ──────────────► new jack SLEEVE   (and deck chassis)
    OUT (baseband, active-low) ─┬─► existing trace to IC6001 input  (LEAVE CONNECTED)
                                └─► new jack TIP   (your injected signal, parallel tap)
 ```
 
+### Power tap (per §1) — single-cable TRS option
+
+Since you are **building this jack from scratch**, make it a **3-conductor (TRS)
+jack** and carry power on it — exactly like the Pioneer stereo-jack option:
+- **tip → IR-OUT net** (your injected baseband signal, parallel tap as above),
+- **ring → internal +5 V rail** (the deck-power feed, instead of a separate
+  pigtail — the IR receiver module's Vcc pin is a convenient tap point),
+- **sleeve → GND** (deck chassis or the IR module's GND pin).
+
+Then a single 3.5 mm stereo cable carries signal + 5 V + GND to the box. Apply
+the §1 cap network at the box end (1000 µF + 2.2–10 Ω inrush + 100 µF + 0.1 µF).
+**Meter the 5 V rail once under the bridge's load** before trusting it.
+
+Pigtail-through-a-separate-hole works too (a second small grommet), but since
+you're already drilling for the jack and the IR module gives you a clean 5 V tap
+right there, the TRS install is tidier.
+
+> NOTE — unlike the Pioneer (whose sleeve floats by design), here **you own this
+> jack, so DO ground the sleeve** to the deck. That gives your ESP32 box a proper
+> return without the "supply ground separately" quirk that the Pioneer install
+> requires.
+
 ### Reversibility
-Remove the tap wire and the jack; the deck is exactly stock. Nothing cut, nothing rerouted.
 
-
-### Optional: make the added jack carry +5 V too (3-conductor)
-
-Since you are **building this jack from scratch**, you can make it a **3-conductor (TRS) jack**
-and carry power on it, exactly like the Pioneer stereo-jack option:
-- **tip -> IR-OUT net** (your injected baseband signal, parallel tap as above),
-- **ring -> an internal +5 V rail** (the deck-power feed, instead of a separate pigtail),
-- **sleeve -> GND**.
-Then a single 3.5 mm stereo cable carries signal + 5 V + GND to the box. This replaces the
-"power pigtail through the grommet" with one tidy cable. Optional — the pigtail is simpler; the
-3-conductor jack is tidier. Either way meter the +5 V rail under load first.
+Remove the tap wire and the jack; the deck is exactly stock. Nothing cut, nothing
+rerouted.
 
 ### The accepted trade-off
-Internal IR sensor stays live → a stray remote press or strong ambient IR can still reach the
-deck. Fine for this install. (If that ever becomes a nuisance, the switched jack lets you
-upgrade to the cut version.)
+
+Internal IR sensor stays live → a stray remote press or strong ambient IR can
+still reach the deck. Fine for this install. (If it ever becomes a nuisance, the
+switched jack lets you upgrade to a cut install later.)
 
 ---
 
-## 5. Firmware (identical to the Pioneer build)
+## 5. Firmware notes
 
-Reuse the shared scaffolding (Ethernet/Wi-Fi + PubSubClient + MQTT). The emit routine replays
-a captured **baseband** code by toggling the open-collector pin — **no carrier**, **active-low**.
+**Identical to the Pioneer build.** Both decks use the same IR-baseband driver
+`src/driver_ir.cpp` behind the `DeviceDriver { begin, doCommand, poll }`
+contract in `include/device_driver.h`. The shared core (Wi-Fi + light-sleep +
+MQTT + identity + OTA + dispatch) lives in `src/main.cpp` / `wifi_setup.cpp` /
+`wb_mqtt.cpp` / `identity.cpp` / `ota.cpp` — **no deck-specific code there.**
 
-```cpp
-#include <ETH.h>   // or WiFi.h
+Driver responsibilities for Panasonic:
+1. **Emit one baseband frame** per command — toggle the open-collector GPIO
+   between LOW (asserted, would-be carrier burst) and HIGH (released, gap) for
+   the captured mark/space timings (units = µs). No carrier; the IR module
+   already stripped it.
+2. **Polarity** — `SR_INVERT = true` for the FS90 (active-low; same as Pioneer).
+3. **Protocol family.** The FS90 remote is the Panasonic IR protocol
+   (Kaseikyo / "Panasonic" 48-bit family is typical). You **don't need to
+   decode it** — capture and replay the raw timings. Panasonic frames often
+   expect the **standard repeat/spacing**; if a single shot is flaky, replay
+   the remote's repeat behaviour or send twice.
+4. **Record safety:** gate `record` behind a confirm/arm MQTT topic — same as
+   the Revox builds.
+5. **Timing.** Use `esp_rom_delay_us()` (IDF); for very tight timing guard with
+   `portDISABLE_INTERRUPTS()` / `portENABLE_INTERRUPTS()`.
 
-const char* MQTT_HOST = "192.168.x.x";
-const char* DEVICE_ID = "panasonic_nv_fs90";
-
-const int   PIN_SR    = 14;     // open-collector stage onto the jack tip (IR-OUT net)
-const bool  SR_INVERT = true;   // baseband IR is active-low; confirm by scope (§8)
-
-// Captured command = remote's raw mark/space timings (carrier stripped).
-struct Cmd { const char* name; const uint16_t* timings; uint8_t len; };
-
-// Emit one baseband frame: "mark" => pull LOW, "space" => release HIGH.
-void emitSR(const uint16_t* t, uint8_t len) {
-  for (uint8_t i = 0; i < len; i++) {
-    bool mark  = (i % 2 == 0);
-    bool level = SR_INVERT ? !mark : mark;
-    digitalWrite(PIN_SR, level ? HIGH : LOW);
-    delayMicroseconds(t[i]);
-  }
-  digitalWrite(PIN_SR, SR_INVERT ? HIGH : LOW); // idle = released high
-}
-```
-
-- The FS90 remote is a Panasonic IR protocol (Kaseikyo/"Panasonic" 48-bit family is typical).
-  You **don't need to decode it** — capture and replay the raw timings (IRremote `rawData`).
-- Panasonic frames often expect the **standard repeat/spacing**; if a single shot is flaky,
-  replay the remote's repeat behaviour or send twice.
-- **Record safety:** gate `record` behind a confirm/arm MQTT topic — same as the Revox builds.
-
-### MQTT (Wirenboard convention) — identical to all the other builds
-- `/devices/panasonic_nv_fs90/meta/name` = `Panasonic NV-FS90` (retained)
-- per control `/controls/<name>/meta/type` = `pushbutton` (or `switch` for power)
-- value `/controls/<name>` (retained), command `/controls/<name>/on` (subscribe)
-- broker-direct to the Wirenboard Mosquitto broker.
+For Panasonic codes specifically, see §9 (reuse the WB-blaster codes — no fresh
+capture needed).
 
 ---
 
-## 6. Bill of materials
+## 6. MQTT (Wirenboard convention)
+
+Same convention as the other three bridges:
+
+| Topic | Direction | Retained | Purpose |
+|---|---|---|---|
+| `/devices/<id>/meta/name` | publish | yes | device display name |
+| `/devices/<id>/controls/<c>/meta/type` | publish | yes | `pushbutton` (or `switch` for power) |
+| `/devices/<id>/controls/<c>` | publish | yes | current state |
+| `/devices/<id>/controls/<c>/on` | **subscribe** | — | command in |
+
+`<id>` here = `panasonic_nv_fs90`. Broker-direct to the WB Mosquitto broker over
+Wi-Fi.
+
+---
+
+## 7. Bill of materials
 
 | Part | Qty | Notes |
 |---|---|---|
-| WT32-ETH01 (wired) **or** ESP32 WROOM-32 (Wi-Fi) | 1 | same family as the other builds |
-| 3.3 V USB-serial programmer | 0–1 | only if WT32-ETH01 |
-| PC817 optocoupler **or** NPN (BC547/2N3904) | 1 | open-collector output stage |
+| ESP32 WROOM-32 dev board (Wi-Fi) | 1 | onboard USB-serial; PCB antenna |
+| PC817 optocoupler *or* NPN (BC547/2N3904) | 1 | open-collector output stage |
 | Resistor 1 kΩ | 1 | base/LED series |
-| **Switched (closed-circuit) 3.5 mm mono jack, panel-mount** | 1 | the new rear CONTROL IN |
-| Thin hook-up wire (tap) | — | to the IR-OUT pin |
-| 5 V USB PSU | 1 | powers the box (no power on the tap) |
-| Enclosure | 1 | metal OK if wired-Ethernet; plastic if Wi-Fi |
+| Resistor 2.2–10 Ω | 1 | inrush limiter on the 5 V tap (§1) |
+| Capacitor 1000 µF low-ESR | 1 | reservoir on the 5 V tap (§1) |
+| Capacitor 100 µF | 1 | decoupling at board |
+| Capacitor 0.1 µF | 1 | decoupling at board |
+| **Switched (closed-circuit) 3.5 mm panel-mount jack** | 1 | the new rear CONTROL IN |
+| 3.5 mm **stereo TRS** cable | 1 | box ↔ jack (3 conductors for sig+5V+GND) |
+| Thin hook-up wire (tap) | — | to the IR-OUT pin and to the +5 V tap |
+| Plastic enclosure (~80×50×25 mm) | 1 | Wi-Fi antenna must NOT be inside metal — `cases/` v5 |
 
 ---
 
-## 6a. Precise shopping list — Amazon.de
+## 8. Shopping list — Amazon.de
 
 | # | Item | amazon.de search term | Qty | ~EUR | Notes |
 |---|---|---|---|---|---|
-| 1 | Board | `WT32-ETH01 ESP32 Ethernet Modul` or `ESP32 NodeMCU WROOM-32` | 1 | 10–14 | match the other builds |
-| 2 | USB-serial 3.3 V | `CP2102 USB UART 3,3V Programmer` | 0–1 | 5–7 | only for WT32-ETH01 |
-| 3 | Optocoupler / transistor | `PC817 Optokoppler DIP` or `BC547 Sortiment` | 1 set | 6 | output stage |
-| 4 | Resistor kit | `Widerstand Sortiment 1/4W` (incl. 1 kΩ) | 1 | 8 | |
-| 5 | Panel-mount switched 3.5 mm jack | `3,5mm Klinkenbuchse Einbau schaltend` | 2 | 5 | the new rear jack (buy a spare) |
-| 6 | 3.5 mm mono cable | `3,5mm Klinkenkabel mono` | 1 | 4 | box ↔ jack |
-| 7 | 5 V USB PSU | `USB Netzteil 5V 2A` + cable | 1 | 8 | powers the box |
-| 8 | Enclosure | `Aluminium/Kunststoff Gehause 80x50x25` | 1 | 6–10 | metal OK if wired |
-| 9 | Perfboard / jumpers / wire | `Lochrasterplatine`, `Jumper Dupont`, `Schaltlitze` | 1 each | 12 | prototyping + tap wire |
+| 1 | ESP32 WROOM-32 dev board | `ESP32 NodeMCU WROOM-32` (3-pack) | 1 set | 18–22 | onboard USB-serial; pick PCB-antenna variant |
+| 2 | Optocoupler / transistor | `PC817 Optokoppler DIP` or `BC547 Sortiment` | 1 set | 6 | output stage |
+| 3 | Resistor kit | `Widerstand Sortiment 1/4W` (incl. 1 kΩ, 2.2–10 Ω) | 1 | 8 | |
+| 4 | Reservoir cap 1000 µF low-ESR | `Elektrolytkondensator 1000uF 16V Low ESR` | 2 | 5 | the cap is load-bearing |
+| 5 | Decoupling caps | `Elektrolytkondensator 100uF 16V` + `Keramikkondensator 100nF Sortiment` | a few | 5 | at-board decoupling |
+| 6 | Panel-mount switched 3.5 mm jack | `3,5mm Klinkenbuchse Einbau schaltend` | 2 | 5 | the new rear jack (buy a spare) |
+| 7 | 3.5 mm stereo TRS cable | `3,5mm Klinkenkabel stereo` | 1 | 4 | box ↔ jack — needs 3 conductors for sig+5V+GND |
+| 8 | Plastic enclosure | `Kunststoffgehäuse ABS 80x50x25` | 1 | 6–10 | **must be non-metal** (Wi-Fi antenna) |
+| 9 | Perfboard / jumpers / wire | `Lochrasterplatine`, `Jumper Dupont`, `Schaltlitze` | 1 each | 12 | prototyping + tap wires |
 
-**Notes:** no scarce parts (cheapest build alongside the Pioneer). Get a panel-mount
-**switched** jack so you retain the option to upgrade to a "cut" install later. A small step
-drill / Stufenbohrer makes a clean hole in the rear panel.
-
----
-
-## 7. Casing & mounting
-
-- Box behind the rack; metal OK if wired-Ethernet, plastic if Wi-Fi.
-- The new jack lives on the FS90's rear panel; a short 3.5 mm cable links it to your box.
-- Drill the rear-panel hole in a clear area (avoid internal board edges, shields, the PSU, and
-  the deck mechanism). Deburr; add a drop of hot glue as strain relief on the internal tap wire.
+**Notes / gotchas:**
+- No scarce parts (cheapest build alongside the Pioneer).
+- Get a panel-mount **switched** jack so you retain the option to upgrade to a
+  "cut" install later.
+- Use a **stereo** cable (item 7) — you carry signal + 5 V + GND on three
+  conductors via the TRS jack (§4). A mono cable can't do that.
+- Reservoir cap (item 4): proper **low-ESR** electrolytic, not a generic.
+- A small step drill (Stufenbohrer) makes a clean hole in the rear panel.
 
 ---
 
-## 8. Measurement / bring-up plan
+## 9. Reusing your existing Wirenboard IR-blaster codes (no re-capture needed)
 
-### 8.1 Identify the IR-receiver OUT pin (do FIRST, before soldering)
-1. Power the deck. Locate the **3-pin IR receiver module** behind the front IR window
-   (service manual — HiFi Engine / elektrotanya — helps locate it on the board).
-2. With a meter: one pin = **GND** (0 V), one = **Vcc** (~5 V steady). The third is **OUT**.
-3. Confirm OUT: it idles **near 5 V**; on a remote press, a meter on **AC volts** twitches, and
-   a scope shows clean **active-low** baseband pulses (no 38 kHz carrier — the module already
-   stripped it). That is your tap pin and confirms `SR_INVERT`.
+You already have working IR codes for this deck in your Wirenboard IR blaster.
+**Those are the same codes you need here** — reuse them directly; you can skip
+capturing from scratch.
 
-### 8.2 Capture remote codes
-- IR receiver + IRremote/IRMP on the bench: record **raw mark/space timings** for each target
-  button (you replay timings, not decode).
-
-### 8.3 Bench the output stage
-- Drive a dummy load (pull-up to 5 V); scope the pin; confirm clean pull-low / release-high.
-
-### 8.4 Install & first live test
-1. Deck unplugged: solder the parallel tap to OUT; fit the rear jack (tip→OUT net,
-   sleeve→deck GND). Leave the internal receiver connected.
-2. Power up; confirm the deck **still responds to its own remote** (proves the parallel tap
-   didn't disturb the node).
-3. Plug in the ESP32 box; send **Play**. Then Stop/Pause/FF/Rewind; **Record last** (gated).
-   If flaky, add the Panasonic repeat frame or send twice.
-4. Map all working codes to MQTT controls; expose in Wirenboard.
-
----
-
-## 9. Known facts / gotchas
-
-- **No cut (Option 2):** internal IR sensor stays live — stray/ambient IR can still reach the
-  deck. Accepted trade-off; switched jack lets you upgrade to a cut/auto-mute install later.
-- **Verify the OUT pin on your board** — don't trust a quoted pin number for a solder point.
-- **Baseband, active-low** — feed carrier-stripped, idle-high/assert-low signal, like the
-  Pioneer. Do NOT send a 38 kHz-modulated waveform into this node.
-- **Ground the jack sleeve to the deck** here (unlike Pioneer, you own this jack) for a clean
-  return.
-- **5 V logic** (IC6001 family) — your open-collector pull-low is fully compatible; never drive
-  the node hard high, just pull low and release.
-- **Front-panel matrix is NOT the tap** — that path is the hard one; the IR-OUT node is the easy
-  one and is what this doc uses.
-
----
-
-## 10. Relationship to the other builds
-
-Shared: ESP32/WT32-ETH01 + Wirenboard MQTT; broker-direct; open-collector baseband output;
-**firmware and output stage identical to the Pioneer CLD-D925** once the jack exists.
-
-Different: the FS90 has **no factory wired port**, so you **add a Pioneer-style CONTROL IN** by
-a **parallel (no-cut) tap on the internal IR-receiver output** brought to a drilled-in rear
-jack. The only device of the four requiring opening the unit and soldering to an internal node
-— but a single wire, reversible, and it cures the IR-blaster reliability problem.
-
----
-
-
-## Reusing your existing Wirenboard IR-blaster codes (no re-capture needed)
-
-You already have working IR codes for this deck in your Wirenboard IR blaster. **Those are the
-same codes you need here** — reuse them directly; you can skip capturing from scratch.
-
-Why they're identical: an IR command = **data** (protocol + command bits) riding on a **38 kHz
-carrier** (only needed for the through-air hop). The blaster sends data+carrier through the air;
-this build injects the **same data with the carrier stripped** (baseband) into the deck — and the
-deck's IR receiver strips the carrier anyway, so the bits reaching the syscon are identical. You
-are just delivering the same command one stage further downstream (over a wire), which is what
-fixes the unreliable air path (especially the awkwardly-placed Panasonic).
+Why they're identical: an IR command = **data** (protocol + command bits) riding
+on a **38 kHz carrier** (only needed for the through-air hop). The blaster sends
+data+carrier through the air; this build injects the **same data with the carrier
+stripped** (baseband) into the deck — and the deck's IR receiver strips the
+carrier anyway, so the bits reaching the syscon are identical. You are just
+delivering the same command one stage further downstream (over a wire), which is
+what fixes the unreliable air path (especially the awkwardly-placed Panasonic).
 
 How to reuse:
-- **Export the codes from Wirenboard** — preferably the **decoded protocol + hex** (most robust;
-  in firmware call the matching IRremote/IRMP *send* function with carrier set to 0/off). Raw
-  mark/space timings work too (replay them on the open-collector pin, carrier off).
-- **The only change vs a blaster: carrier OFF.** You're driving a logic line, not an IR LED — no
-  38 kHz. Everything else (data, timing, repeat frames) is unchanged.
-- **Repeat frames:** if a baseband command registers unreliably, replay it twice / include the
-  protocol's repeat frame — the same behaviour your blaster already uses for held buttons.
-- **Verify carrier-off** once on a scope (or by it simply working): a modulated signal fed into a
-  baseband node may not decode.
+- **Export the codes from Wirenboard** — preferably the **decoded protocol + hex**
+  (most robust; in firmware call the matching `ir_emit_*()` helper in
+  `driver_ir.cpp` with carrier set to 0/off). Raw mark/space timings work too
+  (replay them on the open-collector pin, carrier off).
+- **The only change vs a blaster: carrier OFF.** You're driving a logic line, not
+  an IR LED — no 38 kHz.
+- **Repeat frames:** if a baseband command registers unreliably, replay it twice
+  / include the protocol's repeat frame — the same behaviour your blaster
+  already uses for held buttons.
+- **Verify carrier-off** once on a scope (or by it simply working): a modulated
+  signal fed into a baseband node may not decode.
 
-This makes your proven, already-working codes the ground truth — better than fresh captures.
+This makes your proven, already-working codes the ground truth — better than
+fresh captures.
 
 ---
 
-## 11. Source references
+## 10. Casing & mounting
 
-- **NV-FS90 service manual** (HiFi Engine, elektrotanya, eserviceinfo): locates the IR receiver
-  module and syscon on the board. (Connection docs confirm AV1/AV2 SCART + IR only — no wired
-  remote port.)
-- **Panasonic NV-VP60 service manual:** confirms this generation's syscon is **IC6001
-  (MN153xx-family)** with a **5 V rail (pin 37)** — establishes 5 V logic compatibility.
-- **Panasonic AG-500 service manual:** documents the standard Panasonic VCR control
-  architecture — **scanned key matrix** read by syscon/counter micros — confirming the matrix
-  is the hard path and the IR-output tap is the easy one.
-- **"Hacking Wired Remote Control Jacks Into A/V Equipment"** (wiredremotecontrol.blogspot.com):
-  the canonical recipe for adding a CONTROL-IN jack to a VCR by tapping the IR-receiver output
-  (Mitsubishi VCR: series switched jack; JVC: parallel no-cut tap onto the sensor output) —
-  Option 2 here follows the JVC parallel approach. IR-receiver output is open-collector,
+- Plastic enclosure (ABS/PETG). Wi-Fi antenna must not be inside metal. Box lives
+  behind the rack.
+- ESP32 WROOM-32 with the **PCB antenna pointing toward a case edge**.
+- The new jack lives on the FS90's rear panel; a short 3.5 mm **stereo** cable
+  links it to your box.
+- Drill the rear-panel hole in a clear area (avoid internal board edges, shields,
+  the PSU, and the deck mechanism). Deburr; add a drop of hot glue as strain
+  relief on the internal tap wires.
+- See `cases/` for the v5 STL files.
+
+---
+
+## 11. Bring-up sequence
+
+### 11.1 Identify the IR-receiver OUT pin (do FIRST, before soldering)
+
+1. Power the deck. Locate the **3-pin IR receiver module** behind the front IR
+   window (service manual — HiFi Engine / elektrotanya — helps locate it on the
+   board).
+2. With a meter: one pin = **GND** (0 V), one = **Vcc** (~5 V steady). The third
+   is **OUT**. Note the Vcc pin too — that's your +5 V tap point for the box.
+3. Confirm OUT: it idles **near 5 V**; on a remote press, a meter on **AC volts**
+   twitches, and a scope shows clean **active-low** baseband pulses (no 38 kHz
+   carrier — the module already stripped it). That is your tap pin and confirms
+   `SR_INVERT`.
+
+### 11.2 Capture (or import) remote codes
+
+See §9 — reuse the WB-blaster codes. Otherwise: IR receiver + IRremote/IRMP on
+the bench, record **raw mark/space timings** for each target button (you replay
+timings, not decode).
+
+### 11.3 Bench the output stage
+
+Drive a dummy load (pull-up to 5 V); scope the pin; confirm clean pull-low /
+release-high.
+
+### 11.4 Install & first live test
+
+1. Deck unplugged: solder the parallel signal tap to OUT and the power tap to
+   Vcc; fit the switched rear jack (tip → OUT net, ring → +5 V, sleeve → deck
+   GND). Leave the internal receiver connected.
+2. Power up; confirm the deck **still responds to its own remote** (proves the
+   parallel tap didn't disturb the node).
+3. **First flash** the WROOM-32 over USB-serial; confirm Wi-Fi associates and
+   MQTT topics appear in WB.
+4. **Meter the +5 V tap rail** under the bridge's load (cap network in place) —
+   confirm no sag.
+5. Plug in the ESP32 box; send **Play**. Then Stop/Pause/FF/Rewind; **Record
+   last** (gated). If flaky, add the Panasonic repeat frame or send twice.
+6. Map all working codes to MQTT controls; expose in Wirenboard.
+
+---
+
+## 12. Open items
+
+Paste this file back and say "continue the Panasonic NV-FS90 build."
+
+1. **Identify the IR-receiver OUT pin** on your board (§11.1) — the 3-pin module
+   behind the IR window.
+2. **Solder the parallel tap + the +5 V tap; fit the rear TRS jack** (§4).
+3. **First live test** with WB-blaster codes (§9) per the §11 sequence.
+
+---
+
+## 13. Known facts / gotchas
+
+- **No cut (Option 2):** internal IR sensor stays live — stray/ambient IR can
+  still reach the deck. Accepted trade-off; switched jack lets you upgrade to a
+  cut/auto-mute install later.
+- **Verify the OUT pin on your board** — don't trust a quoted pin number for a
+  solder point.
+- **Baseband, active-low** — feed carrier-stripped, idle-high/assert-low signal,
+  like the Pioneer. Do NOT send a 38 kHz-modulated waveform into this node.
+- **Ground the jack sleeve to the deck** here (unlike Pioneer, you own this
+  jack) for a clean return.
+- **5 V logic** (IC6001 family) — your open-collector pull-low is fully
+  compatible; never drive the node hard high, just pull low and release.
+- **Front-panel matrix is NOT the tap** — that path is the hard one; the IR-OUT
+  node is the easy one and is what this doc uses.
+
+---
+
+## 14. Source references
+
+- **NV-FS90 service manual** (HiFi Engine, elektrotanya, eserviceinfo): locates
+  the IR receiver module and syscon on the board. (Connection docs confirm
+  AV1/AV2 SCART + IR only — no wired remote port.)
+- **Panasonic NV-VP60 service manual:** confirms this generation's syscon is
+  **IC6001 (MN153xx-family)** with a **5 V rail (pin 37)** — establishes 5 V
+  logic compatibility.
+- **Panasonic AG-500 service manual:** documents the standard Panasonic VCR
+  control architecture — **scanned key matrix** read by syscon/counter micros —
+  confirming the matrix is the hard path and the IR-output tap is the easy one.
+- **"Hacking Wired Remote Control Jacks Into A/V Equipment"**
+  (wiredremotecontrol.blogspot.com): the canonical recipe for adding a CONTROL-
+  IN jack to a VCR by tapping the IR-receiver output (Mitsubishi VCR: series
+  switched jack; JVC: parallel no-cut tap onto the sensor output) — Option 2
+  here follows the JVC parallel approach. IR-receiver output is open-collector,
   idle-high, baseband.
-- **Pioneer SR analysis** (same blog): the CONTROL-IN electrical model (idle ~5 V, baseband,
-  active-low) this jack recreates — see the Pioneer CLD-D925 doc.
+- **Pioneer SR analysis** (same blog): the CONTROL-IN electrical model (idle
+  ~5 V, baseband, active-low) this jack recreates — see the Pioneer CLD-D925 doc.
+
+---
+
+## 15. Relationship to the other builds
+
+Shared: ESP32 WROOM-32 + canonical design (§1); WB MQTT scaffolding; broker-
+direct; open-collector baseband output; **firmware and output stage identical to
+the Pioneer CLD-D925** once the jack exists (`src/driver_ir.cpp`).
+
+Different: the FS90 has **no factory wired port**, so you **add a Pioneer-style
+CONTROL IN** by a **parallel (no-cut) tap on the internal IR-receiver output**
+brought to a drilled-in rear TRS jack — and you ground the sleeve to the deck
+(unlike Pioneer, you own this jack). The only device of the four requiring
+opening the unit and soldering to an internal node — but a single signal wire +
+a single 5 V tap wire, reversible, and it cures the IR-blaster reliability
+problem.
