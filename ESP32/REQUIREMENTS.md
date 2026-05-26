@@ -91,11 +91,23 @@ Alice bridge).
   the main loop.
 - **FR-16 (MQTT reconnect).** On MQTT disconnect the firmware MUST reconnect
   (with Wi-Fi reconnect if needed) and re-announce.
-- **FR-17 (OTA mandatory).** The firmware MUST support ArduinoOTA,
-  password-protected (`OTA_PASSWORD`), with the hostname
-  `<OTA_HOSTNAME_PREFIX><device_id>` (default `wbbridge-<id>`). Failed /
-  non-validated images MUST be rolled back to the prior partition on next boot
-  (ESP32 dual-partition default).
+- **FR-17 (OTA mandatory — MQTT-triggered HTTPS pull).** The firmware MUST
+  support OTA updates via an MQTT-triggered pull (not ArduinoOTA — incompatible
+  with IDF). The flow:
+  1. Publish the `.bin` URL (retained) to `/devices/<id>/ota`.
+  2. The box receives the message and calls `esp_https_ota` against that URL,
+     writing to the inactive partition.
+  3. On success the box MUST restart; on failure it MUST log + remain on the
+     current image.
+  4. Bootloader-level rollback (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`,
+     wired up in `sdkconfig.defaults` at Phase 6) MUST roll a non-validated
+     image back on next boot.
+  5. mDNS hostname is `<OTA_HOSTNAME_PREFIX><device_id>` (default
+     `wbbridge-<id>`) — useful for discovery but not part of the OTA flow.
+  6. **Ops side**: a tiny HTTP server hosting the `.bin` (e.g.
+     `python3 -m http.server` on the Wirenboard) is required. Plain HTTP is
+     acceptable on a trusted LAN; real HTTPS requires a pinned CA cert in
+     firmware (deferred).
 
 ---
 

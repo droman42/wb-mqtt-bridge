@@ -14,6 +14,7 @@
 #include "wb_mqtt.h"
 #include "device_driver.h"
 #include "identity.h"
+#include "ota.h"
 #include "config.h"
 #include "esp_event.h"
 #include "esp_log.h"
@@ -148,12 +149,20 @@ static void handle_provision(const char* payload, int payload_len) {
 static void on_mqtt_event(void* arg, esp_event_base_t base, int32_t id, void* data) {
     auto* e = (esp_mqtt_event_handle_t)data;
     switch ((esp_mqtt_event_id_t)id) {
-        case MQTT_EVENT_CONNECTED:
+        case MQTT_EVENT_CONNECTED: {
             ESP_LOGI(TAG, "connected");
             // /provision is always subscribed (provisioned or not)
             esp_mqtt_client_subscribe(s_client, "/provision", 1);
+            // /devices/<id>/ota — OTA URL trigger (always subscribed when
+            // we have an identity; ignored in unprovisioned mode).
+            if (s_device_id[0]) {
+                char t[160];
+                std::snprintf(t, sizeof(t), "%s/ota", s_prefix);
+                esp_mqtt_client_subscribe(s_client, t, 1);
+            }
             if (s_drv) publish_meta_and_subscribe(s_drv);
             break;
+        }
         case MQTT_EVENT_DISCONNECTED:
             ESP_LOGW(TAG, "disconnected (will auto-reconnect)");
             break;
@@ -162,6 +171,18 @@ static void on_mqtt_event(void* arg, esp_event_base_t base, int32_t id, void* da
             if (e->topic_len == (int)std::strlen("/provision") &&
                 std::strncmp(e->topic, "/provision", e->topic_len) == 0) {
                 handle_provision(e->data, e->data_len);
+                return;
+            }
+            // OTA trigger: /devices/<id>/ota with payload = .bin URL
+            char ota_t[160];
+            int ota_len = std::snprintf(ota_t, sizeof(ota_t), "%s/ota", s_prefix);
+            if (e->topic_len == ota_len &&
+                std::strncmp(e->topic, ota_t, ota_len) == 0) {
+                // payload isn't zero-terminated; ota_trigger strdups it for us
+                char url[256];
+                int n = (e->data_len < (int)sizeof(url) - 1) ? e->data_len : (int)sizeof(url) - 1;
+                std::memcpy(url, e->data, n); url[n] = '\0';
+                ota_trigger(url);
                 return;
             }
             const char* name = match_command_topic(e->topic, e->topic_len);

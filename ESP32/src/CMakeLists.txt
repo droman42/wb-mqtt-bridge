@@ -17,4 +17,7 @@ idf_component_register(
         mqtt
         esp_timer
         log
+        esp_https_ota          # MQTT-triggered OTA pull (ota.cpp)
+        esp_http_client        # used by esp_https_ota
+        app_update             # esp_ota_* APIs / rollback marking
 )
