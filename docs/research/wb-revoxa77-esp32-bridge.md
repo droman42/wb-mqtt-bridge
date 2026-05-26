@@ -12,9 +12,11 @@ pin-7 +27 V via a 27 V→5 V buck**, no battery. **Wi-Fi is a fully-supported op
 the buck — see §11. The wired path is chosen for robustness/consistency with the B215, not
 necessity.
 
-**Companion document:** [`wb-revoxb215-esp32-bridge.md`](./wb-revoxb215-esp32-bridge.md) (the B215 build).
-Much of the MQTT/casing/firmware-scaffolding is shared; this doc details what's different
-for the A77.
+**Companion documents** (the four-transport ESP32-bridge family — shared MQTT /
+casing / firmware scaffolding; this doc only details what's different for the A77):
+[`wb-revoxb215-esp32-bridge.md`](./wb-revoxb215-esp32-bridge.md) (Revox B215 tape),
+[`wb-pioneer-cld-d925-esp32-bridge.md`](./wb-pioneer-cld-d925-esp32-bridge.md) (Pioneer LD),
+[`wb-panasonic-nv-fs90-esp32-bridge.md`](./wb-panasonic-nv-fs90-esp32-bridge.md) (Panasonic VHS).
 
 **Status:** Pinout, contact logic, dummy-plug bridge and power pin CONFIRMED from the A77
 service manual (10.18.1611, §7.1 Fig. 7.1-86 and §5.9 Table 5.9-44). Remaining open items

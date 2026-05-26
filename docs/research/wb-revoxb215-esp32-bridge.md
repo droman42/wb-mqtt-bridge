@@ -9,8 +9,11 @@ deck's own +5 V**, no battery, no Wi-Fi. This was chosen after working through t
 options — see §11. The earlier Wi-Fi and battery variants are kept as **Appendix A** for
 reference.
 
-**Companion document:** [`wb-revoxa77-esp32-bridge.md`](./wb-revoxa77-esp32-bridge.md) (the A77
-reel-to-reel build — shared MQTT / casing / firmware scaffolding).
+**Companion documents** (the four-transport ESP32-bridge family — shared MQTT /
+casing / firmware scaffolding; this doc covers the B215-specific SERIAL LINK protocol):
+[`wb-revoxa77-esp32-bridge.md`](./wb-revoxa77-esp32-bridge.md) (Revox A77 reel-to-reel),
+[`wb-pioneer-cld-d925-esp32-bridge.md`](./wb-pioneer-cld-d925-esp32-bridge.md) (Pioneer LD),
+[`wb-panasonic-nv-fs90-esp32-bridge.md`](./wb-panasonic-nv-fs90-esp32-bridge.md) (Panasonic VHS).
 
 **Status:** SERIAL LINK pinout CONFIRMED from the official B215 service manual (§1.4).
 Electrical nature (bidirectional, opto-isolated, +5 V/150 mA) confirmed. Outstanding:
