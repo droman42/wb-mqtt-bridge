@@ -17,12 +17,17 @@ Standard Docker tooling — **not** WB's native `docker_manager`. Trade-offs:
 Prereqs: WB has Docker installed (it does, via WB's own setup). You have shell
 access to the WB.
 
-### 1. Stop and disable the docker_manager flow for these containers
+### 1. Stop, remove containers AND old images from the docker_manager flow
 
 ```bash
-# Stop the running containers (no-op if they're not running)
+# Stop + remove the running containers (no-op if they're not running)
 sudo docker stop wb-mqtt-bridge wb-mqtt-ui 2>/dev/null || true
 sudo docker rm   wb-mqtt-bridge wb-mqtt-ui 2>/dev/null || true
+
+# Remove the docker_manager-installed images — they were sideloaded from
+# tarballs, have no registry digest, and won't be reused. Critical: the WB
+# has limited flash and these would otherwise sit dangling forever.
+sudo docker rmi wb-mqtt-bridge:latest wb-mqtt-ui:latest 2>/dev/null || true
 
 # If docker_manager is set up to auto-start them, remove these entries from
 # its config (e.g., /etc/docker_manager_config.json or similar — depends on
@@ -90,16 +95,39 @@ curl http://localhost:80/                       # UI nginx
 ```bash
 cd /mnt/data/mqtt-bridge-config
 sudo git pull                  # config changes
-sudo ./ops/update.sh           # pulls latest images + restarts
+sudo ./ops/update.sh           # pulls latest images + restarts + cleans dangling
 ```
 
-Or to update just the images (no repo changes):
+`update.sh` runs `docker image prune -f` at the end, which removes the **just-
+replaced** old `:latest` (now untagged) so the WB's flash doesn't accumulate it.
+Tagged images you've pinned (e.g. `:vYYYYMMDD-<short>` for rollback) are NOT
+touched.
+
+To update just the images without `git pull`:
 
 ```bash
 cd /mnt/data/mqtt-bridge-config/ops
 sudo docker compose pull
 sudo docker compose up -d
+sudo docker image prune -f     # don't forget — compose alone leaves dangling
 ```
+
+### Reclaiming flash (periodic / when running low)
+
+`update.sh`'s `image prune -f` only removes **untagged** images. If you've
+been pinning multiple tagged versions over time and want to reclaim that
+space:
+
+```bash
+sudo docker images                                            # see what's around
+sudo docker rmi ghcr.io/droman42/wb-mqtt-bridge:vYYYYMMDD-<short>  # drop a specific tag
+# OR — nuke everything not currently in use (containers/images/networks/build cache):
+sudo docker system prune -a -f
+```
+
+`system prune -a -f` is safe on this WB: nothing else builds Docker images
+here, and any image not referenced by a running container will be re-pullable
+from GHCR.
 
 ---
 
