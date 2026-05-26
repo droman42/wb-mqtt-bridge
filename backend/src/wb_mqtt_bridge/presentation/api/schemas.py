@@ -1,12 +1,51 @@
 from typing import Dict, Any, List, Optional, Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 from wb_mqtt_bridge.__version__ import __version__
 
-# SystemConfig is system/infra config re-exported here for the system router + API
-# tests. The presentation→infrastructure coupling it implies is addressed separately
-# (system-router port cleanup).
-from wb_mqtt_bridge.infrastructure.config.models import SystemConfig  # noqa: F401
+
+# ---- /config/system response DTOs ------------------------------------------
+# Presentation owns its wire shape — these mirror the infrastructure config models
+# (MQTTBrokerConfig, PersistenceConfig, MaintenanceConfig, SystemConfig) but decouple
+# the API from infra. `from_attributes=True` lets us build them from the infra
+# instances via `SystemConfigResponse.model_validate(infra_system_config)`.
+# Half of the "system-router cleanup" hexagonal residual (action_plan §5.1); the
+# other half (the /reload application-service extraction) is still HW-gated.
+
+class MQTTBrokerConfigResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    host: str
+    port: int
+    client_id: str
+    auth: Optional[Dict[str, str]] = None
+    keepalive: int = 60
+
+
+class PersistenceConfigResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    db_path: str = Field(default="data/state_store.db")
+
+
+class MaintenanceConfigResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    duration: int
+    topic: str
+
+
+class SystemConfigResponse(BaseModel):
+    """API response shape for ``GET /config/system`` — independent of the infra
+    ``SystemConfig`` so the wire contract isn't a leak of internal config layout."""
+    model_config = ConfigDict(from_attributes=True)
+    service_name: str = Field(default="MQTT Web Service")
+    mqtt_broker: MQTTBrokerConfigResponse
+    web_service: Dict[str, Any]
+    log_level: str
+    log_file: str
+    loggers: Optional[Dict[str, str]] = None
+    devices: Optional[Dict[str, Dict[str, Any]]] = None
+    persistence: PersistenceConfigResponse = Field(default_factory=PersistenceConfigResponse)
+    maintenance: Optional[MaintenanceConfigResponse] = None
+    device_directory: str = Field(default="devices")
 
 
 class DeviceAction(BaseModel):

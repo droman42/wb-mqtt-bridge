@@ -7,7 +7,7 @@ import type {
   SwitchScenarioRequest,
   ActionRequest,
   SystemInfo,
-  SystemConfig,
+  SystemConfigResponse,
   ReloadResponse,
   RoomDefinitionResponse,
   ScenarioDefinition,
@@ -46,7 +46,7 @@ export const useSystemInfo = () => {
 export const useSystemConfig = () => {
   return useQuery({
     queryKey: ['system', 'config'],
-    queryFn: () => api.get<SystemConfig>('/config/system').then(res => res.data),
+    queryFn: () => api.get<SystemConfigResponse>('/config/system').then(res => res.data),
   });
 };
 

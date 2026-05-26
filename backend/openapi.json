@@ -1600,8 +1600,7 @@
         "title": "LgTvState",
         "type": "object"
       },
-      "MQTTBrokerConfig": {
-        "description": "Schema for MQTT broker configuration.",
+      "MQTTBrokerConfigResponse": {
         "properties": {
           "auth": {
             "anyOf": [
@@ -1640,7 +1639,7 @@
           "port",
           "client_id"
         ],
-        "title": "MQTTBrokerConfig",
+        "title": "MQTTBrokerConfigResponse",
         "type": "object"
       },
       "MQTTMessage": {
@@ -1764,16 +1763,13 @@
         "title": "MQTTPublishResponse",
         "type": "object"
       },
-      "MaintenanceConfig": {
-        "description": "Configuration for system maintenance settings.",
+      "MaintenanceConfigResponse": {
         "properties": {
           "duration": {
-            "description": "Maintenance duration in minutes",
             "title": "Duration",
             "type": "integer"
           },
           "topic": {
-            "description": "MQTT topic to monitor for maintenance status",
             "title": "Topic",
             "type": "string"
           }
@@ -1782,7 +1778,7 @@
           "duration",
           "topic"
         ],
-        "title": "MaintenanceConfig",
+        "title": "MaintenanceConfigResponse",
         "type": "object"
       },
       "ManualStep": {
@@ -1912,17 +1908,15 @@
         "title": "PersistedStatesResponse",
         "type": "object"
       },
-      "PersistenceConfig": {
-        "description": "Configuration for the persistence layer.",
+      "PersistenceConfigResponse": {
         "properties": {
           "db_path": {
             "default": "data/state_store.db",
-            "description": "Path to the SQLite database file",
             "title": "Db Path",
             "type": "string"
           }
         },
-        "title": "PersistenceConfig",
+        "title": "PersistenceConfigResponse",
         "type": "object"
       },
       "PlaybackConfig": {
@@ -2701,12 +2695,11 @@
         "title": "SwitchScenarioRequest",
         "type": "object"
       },
-      "SystemConfig": {
-        "description": "Schema for system configuration.",
+      "SystemConfigResponse": {
+        "description": "API response shape for ``GET /config/system`` — independent of the infra\n``SystemConfig`` so the wire contract isn't a leak of internal config layout.",
         "properties": {
           "device_directory": {
             "default": "devices",
-            "description": "Directory containing device configuration files",
             "title": "Device Directory",
             "type": "string"
           },
@@ -2750,23 +2743,21 @@
           "maintenance": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/MaintenanceConfig"
+                "$ref": "#/components/schemas/MaintenanceConfigResponse"
               },
               {
                 "type": "null"
               }
-            ],
-            "description": "Maintenance configuration settings"
+            ]
           },
           "mqtt_broker": {
-            "$ref": "#/components/schemas/MQTTBrokerConfig"
+            "$ref": "#/components/schemas/MQTTBrokerConfigResponse"
           },
           "persistence": {
-            "$ref": "#/components/schemas/PersistenceConfig"
+            "$ref": "#/components/schemas/PersistenceConfigResponse"
           },
           "service_name": {
             "default": "MQTT Web Service",
-            "description": "Name of the service",
             "title": "Service Name",
             "type": "string"
           },
@@ -2782,7 +2773,7 @@
           "log_level",
           "log_file"
         ],
-        "title": "SystemConfig",
+        "title": "SystemConfigResponse",
         "type": "object"
       },
       "SystemInfo": {
@@ -3533,7 +3524,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SystemConfig"
+                  "$ref": "#/components/schemas/SystemConfigResponse"
                 }
               }
             },

@@ -1706,11 +1706,8 @@ export interface components {
              */
             volume: number | null;
         };
-        /**
-         * MQTTBrokerConfig
-         * @description Schema for MQTT broker configuration.
-         */
-        MQTTBrokerConfig: {
+        /** MQTTBrokerConfigResponse */
+        MQTTBrokerConfigResponse: {
             /** Auth */
             auth?: {
                 [key: string]: string;
@@ -1797,20 +1794,11 @@ export interface components {
             /** Topic */
             topic: string;
         };
-        /**
-         * MaintenanceConfig
-         * @description Configuration for system maintenance settings.
-         */
-        MaintenanceConfig: {
-            /**
-             * Duration
-             * @description Maintenance duration in minutes
-             */
+        /** MaintenanceConfigResponse */
+        MaintenanceConfigResponse: {
+            /** Duration */
             duration: number;
-            /**
-             * Topic
-             * @description MQTT topic to monitor for maintenance status
-             */
+            /** Topic */
             topic: string;
         };
         /**
@@ -1852,14 +1840,10 @@ export interface components {
                 [key: string]: unknown;
             };
         };
-        /**
-         * PersistenceConfig
-         * @description Configuration for the persistence layer.
-         */
-        PersistenceConfig: {
+        /** PersistenceConfigResponse */
+        PersistenceConfigResponse: {
             /**
              * Db Path
-             * @description Path to the SQLite database file
              * @default data/state_store.db
              */
             db_path: string;
@@ -2244,13 +2228,13 @@ export interface components {
             id: string;
         };
         /**
-         * SystemConfig
-         * @description Schema for system configuration.
+         * SystemConfigResponse
+         * @description API response shape for ``GET /config/system`` — independent of the infra
+         *     ``SystemConfig`` so the wire contract isn't a leak of internal config layout.
          */
-        SystemConfig: {
+        SystemConfigResponse: {
             /**
              * Device Directory
-             * @description Directory containing device configuration files
              * @default devices
              */
             device_directory: string;
@@ -2268,13 +2252,11 @@ export interface components {
             loggers?: {
                 [key: string]: string;
             } | null;
-            /** @description Maintenance configuration settings */
-            maintenance?: components["schemas"]["MaintenanceConfig"] | null;
-            mqtt_broker: components["schemas"]["MQTTBrokerConfig"];
-            persistence?: components["schemas"]["PersistenceConfig"];
+            maintenance?: components["schemas"]["MaintenanceConfigResponse"] | null;
+            mqtt_broker: components["schemas"]["MQTTBrokerConfigResponse"];
+            persistence?: components["schemas"]["PersistenceConfigResponse"];
             /**
              * Service Name
-             * @description Name of the service
              * @default MQTT Web Service
              */
             service_name: string;
@@ -2586,7 +2568,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SystemConfig"];
+                    "application/json": components["schemas"]["SystemConfigResponse"];
                 };
             };
         };

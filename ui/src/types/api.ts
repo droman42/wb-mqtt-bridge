@@ -21,9 +21,9 @@ export type SwitchScenarioRequest = S['SwitchScenarioRequest'];
 export type ActionRequest = S['ActionRequest'];
 export type MQTTMessage = S['MQTTMessage'];
 export type MQTTPublishResponse = S['MQTTPublishResponse'];
-export type MQTTBrokerConfig = S['MQTTBrokerConfig'];
 export type SystemInfo = S['SystemInfo'];
-export type PersistenceConfig = S['PersistenceConfig'];
-export type SystemConfig = S['SystemConfig'];
+// /config/system response shape (presentation DTO — decoupled from the infra
+// SystemConfig as part of the system-router cleanup, §5.1).
+export type SystemConfigResponse = S['SystemConfigResponse'];
 export type ReloadResponse = S['ReloadResponse'];
 export type PersistedStatesResponse = S['PersistedStatesResponse'];

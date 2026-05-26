@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 
 from wb_mqtt_bridge.presentation.api.schemas import (
-    SystemConfig,
+    SystemConfigResponse,
     SystemInfo,
     ServiceInfo,
     ReloadResponse
@@ -68,15 +68,17 @@ async def get_system_info():
         rooms=rooms
     )
 
-@router.get("/config/system", response_model=SystemConfig)
+@router.get("/config/system", response_model=SystemConfigResponse)
 async def get_system_config():
     """Get system configuration."""
     if not config_manager:
         raise HTTPException(status_code=503, detail="Service not fully initialized")
-    
+
     try:
-        system_config = config_manager.get_system_config()
-        return system_config
+        # Adapt the infra SystemConfig to the presentation DTO so the wire shape isn't
+        # a leak of internal config layout. from_attributes=True drives the conversion,
+        # nested DTOs included.
+        return SystemConfigResponse.model_validate(config_manager.get_system_config())
     except Exception as e:
         logger = logging.getLogger(__name__)
         logger.error(f"Error retrieving system config: {str(e)}")
