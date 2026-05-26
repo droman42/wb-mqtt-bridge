@@ -1,0 +1,19 @@
+# Custom partition table — dual-OTA with 1.5 MB app slots.
+# Headroom over IDF's default 1 MB (Phase 4 firmware is already at 89% of 1 MB
+# because of esp_https_ota + TLS + esp_wifi). Wired via platformio.ini's
+# `board_build.partitions` + sdkconfig.defaults' CONFIG_PARTITION_TABLE_CUSTOM.
+#
+# Layout (for the 4 MB ESP32 flash on esp32dev):
+#   bootloader      0x001000   ~26 KB
+#   partitions      0x008000     4 KB
+#   nvs             0x009000    24 KB
+#   otadata         0x00F000     8 KB
+#   ota_0 (app)     0x020000  1.5 MB
+#   ota_1 (app)     0x1A0000  1.5 MB
+#   (~0.9 MB unused tail — future filesystem if needed)
+#
+# Name,    Type, SubType, Offset,    Size,     Flags
+nvs,       data, nvs,     0x9000,    0x6000,
+otadata,   data, ota,     0xF000,    0x2000,
+ota_0,     app,  ota_0,   0x20000,   0x180000,
+ota_1,     app,  ota_1,   0x1A0000,  0x180000,

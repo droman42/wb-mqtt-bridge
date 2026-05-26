@@ -1,0 +1,23 @@
+# C++17 style for the ESP32 firmware. LLVM base with project-local tweaks:
+# 4-space indent (matches IDF style + the existing code); 100-col wrap (terminals
+# are wide enough for the typical RAII-heavy IDF idioms).
+---
+Language:        Cpp
+BasedOnStyle:    LLVM
+Standard:        c++17
+IndentWidth:     4
+TabWidth:        4
+UseTab:          Never
+ColumnLimit:     100
+Cpp11BracedListStyle: false
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AlignAfterOpenBracket: Align
+BreakBeforeBraces: Attach
+PointerAlignment: Left
+ReflowComments:  true
+SortIncludes:    false       # keep author's grouping (system / IDF / project)
+SpaceAfterCStyleCast: false
+SpacesBeforeTrailingComments: 2
+...
