@@ -111,10 +111,24 @@ class DeviceState(BaseModel):
     output: Optional[str] = Field(None, description="Active output port")
     extra: Dict[str, Any] = Field(default_factory=dict, description="Additional device-specific state fields")
 
+class ManualStep(BaseModel):
+    """A manual instruction surfaced by a topology manual node (e.g. set the Dodocus
+    RCA hub to the LD position) — load-bearing when the activated path crosses a
+    manual switch (audio path through the hub).
+    """
+    node: str = Field(..., description="Topology node id surfacing this instruction")
+    instruction: str = Field(..., description="Human instruction to perform")
+
 class ScenarioState(BaseModel):
     """Runtime state of a scenario."""
     scenario_id: str = Field(..., description="ID of the active scenario")
     devices: Dict[str, DeviceState] = Field(default_factory=dict, description="Current state of all devices in the scenario")
+    manual_steps: List[ManualStep] = Field(
+        default_factory=list,
+        description="Manual notes from the most recent activation (e.g. 'set the Dodocus to LD'); "
+                    "single source of truth — same data was previously duplicated in the SSE event "
+                    "payload + ScenarioResponse; survives page reload via /scenario/state.",
+    )
 
     @field_validator("scenario_id")
     @classmethod

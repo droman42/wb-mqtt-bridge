@@ -44,12 +44,14 @@ class ActionRequest(BaseModel):
     params: Dict[str, Any] = {}
 
 class ScenarioResponse(BaseModel):
-    """Base response model for scenario operations."""
+    """Base response model for scenario operations.
+
+    Manual notes from the activation (e.g. "set the Dodocus to LD") are NOT on this
+    response — they live on ``ScenarioState.manual_steps`` (single source of truth, fetched
+    via ``GET /scenario/state``; survives page reload).
+    """
     status: str
     message: str
-    # Human-in-the-loop steps the reconciler couldn't automate (e.g. the manual Dodocus
-    # RCA hub). Each item: {"node": str, "instruction": str}. Empty for legacy scenarios.
-    manual_steps: List[Dict[str, Any]] = []
 
 class StartScenarioRequest(BaseModel):
     """Request model for starting a scenario."""
@@ -122,10 +124,10 @@ async def switch_scenario(data: SwitchScenarioRequest):
     check_initialized()
     
     try:
-        result = await scenario_manager.switch_scenario(data.id, graceful=data.graceful)
-        manual_steps = result.get("manual_steps", []) if isinstance(result, dict) else []
+        await scenario_manager.switch_scenario(data.id, graceful=data.graceful)
 
-        # Broadcast scenario state change via SSE
+        # Broadcast scenario state change via SSE. `state` carries manual_steps now
+        # (ScenarioState.manual_steps) — clients refetch /scenario/state on this event.
         if scenario_manager.scenario_state:
             await sse_manager.broadcast(
                 channel=SSEChannel.SCENARIOS,
@@ -133,7 +135,6 @@ async def switch_scenario(data: SwitchScenarioRequest):
                 data={
                     "scenario_id": data.id,
                     "state": scenario_manager.scenario_state.model_dump(),
-                    "manual_steps": manual_steps,
                     "timestamp": datetime.now().isoformat()
                 }
             )
@@ -141,7 +142,6 @@ async def switch_scenario(data: SwitchScenarioRequest):
         return ScenarioResponse(
             status="success",
             message=f"Successfully switched to scenario '{data.id}'",
-            manual_steps=manual_steps,
         )
     except ValueError as e:
         # Scenario not found
@@ -183,10 +183,10 @@ async def start_scenario(data: StartScenarioRequest):
     
     try:
         # Use switch_scenario to start the scenario (since no current scenario exists)
-        result = await scenario_manager.switch_scenario(data.id, graceful=True)
-        manual_steps = result.get("manual_steps", []) if isinstance(result, dict) else []
+        await scenario_manager.switch_scenario(data.id, graceful=True)
 
-        # Broadcast scenario state change via SSE
+        # Broadcast scenario state change via SSE. `state` carries manual_steps now
+        # (ScenarioState.manual_steps) — clients refetch /scenario/state on this event.
         if scenario_manager.scenario_state:
             await sse_manager.broadcast(
                 channel=SSEChannel.SCENARIOS,
@@ -194,7 +194,6 @@ async def start_scenario(data: StartScenarioRequest):
                 data={
                     "scenario_id": data.id,
                     "state": scenario_manager.scenario_state.model_dump(),
-                    "manual_steps": manual_steps,
                     "timestamp": datetime.now().isoformat()
                 }
             )
@@ -202,7 +201,6 @@ async def start_scenario(data: StartScenarioRequest):
         return ScenarioResponse(
             status="success",
             message=f"Successfully started scenario '{data.id}'",
-            manual_steps=manual_steps,
         )
     except Exception as e:
         # Log the full error with traceback for server logs
@@ -245,16 +243,15 @@ async def shutdown_scenario(data: ShutdownScenarioRequest):
 
         # Deactivate the current scenario — this is the explicit "turn it all off" action and
         # DOES power off the gear (distinct from process shutdown, which leaves hardware as-is).
-        result = await scenario_manager.deactivate()
-        manual_steps = result.get("manual_steps", []) if isinstance(result, dict) else []
+        await scenario_manager.deactivate()
 
-        # Broadcast scenario state change via SSE
+        # Broadcast scenario state change via SSE. After deactivate(), scenario_state is
+        # cleared (and so are the manual notes); clients reading /scenario/state will get 404.
         await sse_manager.broadcast(
             channel=SSEChannel.SCENARIOS,
             event_type="scenario_shutdown",
             data={
                 "scenario_id": current_scenario_id,
-                "manual_steps": manual_steps,
                 "timestamp": datetime.now().isoformat()
             }
         )
@@ -262,7 +259,6 @@ async def shutdown_scenario(data: ShutdownScenarioRequest):
         return ScenarioResponse(
             status="success",
             message=f"Successfully shut down scenario '{current_scenario_id}'",
-            manual_steps=manual_steps,
         )
     except Exception as e:
         # Log the full error with traceback for server logs

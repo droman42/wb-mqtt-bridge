@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import Dict, Optional, Any
 
-from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition, ScenarioState, DeviceState
+from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition, ScenarioState, DeviceState, ManualStep
 from wb_mqtt_bridge.domain.scenarios.scenario import Scenario, ScenarioError
 from wb_mqtt_bridge.domain.devices.service import DeviceManager
 from wb_mqtt_bridge.domain.rooms.service import RoomManager
@@ -55,6 +55,11 @@ class ScenarioManager:
         self.scenario_definitions: Dict[str, ScenarioDefinition] = {}  # scenario_id -> definition
         self.current_scenario: Optional[Scenario] = None
         self.scenario_state: Optional[ScenarioState] = None
+        # Manual notes (e.g. "set Dodocus to LD") from the most recent activation/switch;
+        # preserved across state refreshes, cleared on shutdown/deactivate. The transition-
+        # aware load-bearing fix (§5.1 #1): this is what surfaces on /scenario/state so the
+        # UI can display Dodocus prompts that movie_ld/vhs need for audio.
+        self._activation_manual_steps: List[ManualStep] = []
         # scenario_id/filename -> reason, for scenarios skipped at load (Bug 2: never fatal).
         self.scenario_load_errors: Dict[str, str] = {}
         # Layer 0 topology + reconciler flag (thin scenarios route through the reconciler).
@@ -273,6 +278,11 @@ class ScenarioManager:
         activation = await execute_plan(build_plan(incoming.definition, self.topology, devices), devices)
 
         self.current_scenario = incoming
+        # Capture the activation's manual notes; _refresh_state below attaches them to
+        # scenario_state so /scenario/state surfaces them (single source of truth).
+        self._activation_manual_steps = [
+            ManualStep(node=m.node, instruction=m.instruction) for m in activation.manual_steps
+        ]
         await self._refresh_state()
         await self._persist_state()
 
@@ -289,7 +299,6 @@ class ScenarioManager:
         return {
             "success": not failures,
             "powered_off": sorted(to_power_off),
-            "manual_steps": [{"node": m.node, "instruction": m.instruction} for m in activation.manual_steps],
             "failures": failures,
         }
 
@@ -350,7 +359,8 @@ class ScenarioManager:
         
         self.scenario_state = ScenarioState(
             scenario_id=self.current_scenario.scenario_id,
-            devices=device_states
+            devices=device_states,
+            manual_steps=list(self._activation_manual_steps),
         )
     
     async def _persist_state(self) -> None:
@@ -420,6 +430,7 @@ class ScenarioManager:
         finally:
             self.current_scenario = None
             self.scenario_state = None
+            self._activation_manual_steps = []
         return result
 
     async def shutdown(self) -> None:
@@ -436,6 +447,7 @@ class ScenarioManager:
             )
         self.current_scenario = None
         self.scenario_state = None
+        self._activation_manual_steps = []
 
     def get_scenario_state(self, scenario_id: str) -> ScenarioState:
         """

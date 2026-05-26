@@ -1785,6 +1785,27 @@
         "title": "MaintenanceConfig",
         "type": "object"
       },
+      "ManualStep": {
+        "description": "A manual instruction surfaced by a topology manual node (e.g. set the Dodocus\nRCA hub to the LD position) — load-bearing when the activated path crosses a\nmanual switch (audio path through the hub).",
+        "properties": {
+          "instruction": {
+            "description": "Human instruction to perform",
+            "title": "Instruction",
+            "type": "string"
+          },
+          "node": {
+            "description": "Topology node id surfacing this instruction",
+            "title": "Node",
+            "type": "string"
+          }
+        },
+        "required": [
+          "node",
+          "instruction"
+        ],
+        "title": "ManualStep",
+        "type": "object"
+      },
       "NavigationClusterConfig": {
         "additionalProperties": false,
         "properties": {
@@ -2491,17 +2512,8 @@
         "type": "object"
       },
       "ScenarioResponse": {
-        "description": "Base response model for scenario operations.",
+        "description": "Base response model for scenario operations.\n\nManual notes from the activation (e.g. \"set the Dodocus to LD\") are NOT on this\nresponse — they live on ``ScenarioState.manual_steps`` (single source of truth, fetched\nvia ``GET /scenario/state``; survives page reload).",
         "properties": {
-          "manual_steps": {
-            "default": [],
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "title": "Manual Steps",
-            "type": "array"
-          },
           "message": {
             "title": "Message",
             "type": "string"
@@ -2528,6 +2540,14 @@
             "description": "Current state of all devices in the scenario",
             "title": "Devices",
             "type": "object"
+          },
+          "manual_steps": {
+            "description": "Manual notes from the most recent activation (e.g. 'set the Dodocus to LD'); single source of truth — same data was previously duplicated in the SSE event payload + ScenarioResponse; survives page reload via /scenario/state.",
+            "items": {
+              "$ref": "#/components/schemas/ManualStep"
+            },
+            "title": "Manual Steps",
+            "type": "array"
           },
           "scenario_id": {
             "description": "ID of the active scenario",
