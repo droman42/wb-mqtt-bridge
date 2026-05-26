@@ -1,20 +1,15 @@
 // drivers.cpp — registry mapping a stored device id to its driver.
-//
-// PHASE 2 stub: no drivers registered yet. Phase 4 adds the real ones (a77 /
-// b215 / pioneer + panasonic via driver_ir.cpp). Until then, the firmware
-// boots, connects Wi-Fi/MQTT, subscribes to /provision — but driver_for()
-// returns nullptr for every id, so the device sits in unprovisioned mode and
-// no controls are announced. That exercises the whole core wiring.
+// Adding a 5th deck later = write one driver file + add one line here.
 #include "device_driver.h"
 #include <cstring>
 
-// Phase 4 will add: extern const DeviceDriver DRIVER_A77;
-//                   extern const DeviceDriver DRIVER_B215;
-//                   extern const DeviceDriver DRIVER_PIONEER;
-//                   extern const DeviceDriver DRIVER_PANASONIC;
+extern const DeviceDriver DRIVER_A77;
+extern const DeviceDriver DRIVER_B215;
+extern const DeviceDriver DRIVER_PIONEER;
+extern const DeviceDriver DRIVER_PANASONIC;
 
 static const DeviceDriver* const ALL[] = {
-    // populated in Phase 4
+    &DRIVER_A77, &DRIVER_B215, &DRIVER_PIONEER, &DRIVER_PANASONIC,
 };
 static const size_t N = sizeof(ALL) / sizeof(ALL[0]);
 
