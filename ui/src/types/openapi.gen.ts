@@ -1813,6 +1813,24 @@ export interface components {
              */
             topic: string;
         };
+        /**
+         * ManualStep
+         * @description A manual instruction surfaced by a topology manual node (e.g. set the Dodocus
+         *     RCA hub to the LD position) — load-bearing when the activated path crosses a
+         *     manual switch (audio path through the hub).
+         */
+        ManualStep: {
+            /**
+             * Instruction
+             * @description Human instruction to perform
+             */
+            instruction: string;
+            /**
+             * Node
+             * @description Topology node id surfacing this instruction
+             */
+            node: string;
+        };
         /** NavigationClusterConfig */
         NavigationClusterConfig: {
             aux1Action?: components["schemas"]["ProcessedAction"] | null;
@@ -2120,15 +2138,12 @@ export interface components {
         /**
          * ScenarioResponse
          * @description Base response model for scenario operations.
+         *
+         *     Manual notes from the activation (e.g. "set the Dodocus to LD") are NOT on this
+         *     response — they live on ``ScenarioState.manual_steps`` (single source of truth, fetched
+         *     via ``GET /scenario/state``; survives page reload).
          */
         ScenarioResponse: {
-            /**
-             * Manual Steps
-             * @default []
-             */
-            manual_steps: {
-                [key: string]: unknown;
-            }[];
             /** Message */
             message: string;
             /** Status */
@@ -2146,6 +2161,11 @@ export interface components {
             devices?: {
                 [key: string]: components["schemas"]["DeviceState"];
             };
+            /**
+             * Manual Steps
+             * @description Manual notes from the most recent activation (e.g. 'set the Dodocus to LD'); single source of truth — same data was previously duplicated in the SSE event payload + ScenarioResponse; survives page reload via /scenario/state.
+             */
+            manual_steps?: components["schemas"]["ManualStep"][];
             /**
              * Scenario Id
              * @description ID of the active scenario

@@ -5,6 +5,7 @@ import NavCluster from './NavCluster';
 import PointerPad from './PointerPad';
 import { Icon } from './icons';
 import type { RemoteZone, RemoteDeviceStructure, PowerButtonConfig, VolumeButtonConfig } from '../types/RemoteControlLayout';
+import type { ManualStep } from '../types/api';
 import { useInputsData, useAppsData, useInputSelection, useAppLaunching } from '../hooks/useRemoteControlData';
 import { useDeviceState as useDeviceStateQuery } from '../hooks/useApi';
 import { createActionTooltip } from '../utils/tooltipUtils';
@@ -1017,6 +1018,12 @@ interface RemoteControlLayoutProps {
   // Scenarios only: drives running/stopped coloring of the lifecycle power zone. Undefined for
   // device pages (power buttons keep their static colors).
   lifecycleActive?: boolean;
+  // Scenarios only — dynamic manual notes from the reconciler's most recent activation
+  // (e.g. "Set the Dodocus to LD"). Distinct from `deviceStructure.manualInstructions`
+  // (the static baseline shipped with the scenario definition). When present, the manual
+  // steps section opens automatically so the user sees the load-bearing prompts. Source:
+  // ScenarioState.manual_steps from /scenario/state (§5.1 #1).
+  manualSteps?: ManualStep[];
 }
 
 export function RemoteControlLayout({
@@ -1026,7 +1033,8 @@ export function RemoteControlLayout({
   actionError,
   lastAction,
   className,
-  lifecycleActive
+  lifecycleActive,
+  manualSteps
 }: RemoteControlLayoutProps) {
   const { deviceName, remoteZones } = deviceStructure;
   
@@ -1150,15 +1158,32 @@ export function RemoteControlLayout({
             lastAction={lastAction}
           />
 
-          {/* Manual steps (scenario-only) — bottom of the remote; absent for devices */}
-          {deviceStructure.manualInstructions &&
-            (deviceStructure.manualInstructions.startup.length > 0 ||
-             deviceStructure.manualInstructions.shutdown.length > 0) && (
-            <details className="mt-2 rounded border border-white/20 bg-black/30 px-3 py-2 text-xs text-white/90">
+          {/* Manual steps (scenario-only) — bottom of the remote; absent for devices.
+              Three sources: dynamic per-activation notes from the reconciler (manualSteps,
+              load-bearing — e.g. "Set the Dodocus to LD"; otherwise movie_ld has no audio),
+              and the static baseline shipped with the scenario definition
+              (manualInstructions.startup / .shutdown). The `<details>` auto-opens when
+              transition steps are present so the user actually sees the load-bearing prompts. */}
+          {((manualSteps && manualSteps.length > 0) ||
+            (deviceStructure.manualInstructions &&
+             (deviceStructure.manualInstructions.startup.length > 0 ||
+              deviceStructure.manualInstructions.shutdown.length > 0))) && (
+            <details
+              open={(manualSteps?.length ?? 0) > 0}
+              className="mt-2 rounded border border-white/20 bg-black/30 px-3 py-2 text-xs text-white/90"
+            >
               <summary className="cursor-pointer select-none font-semibold uppercase tracking-wide text-white/60">
                 Manual steps
               </summary>
-              {deviceStructure.manualInstructions.startup.length > 0 && (
+              {manualSteps && manualSteps.length > 0 && (
+                <div className="mt-2">
+                  <div className="mb-1 text-amber-300">For this activation</div>
+                  <ul className="list-inside list-disc space-y-0.5">
+                    {manualSteps.map((m, i) => <li key={`tr-${i}`}>{m.instruction}</li>)}
+                  </ul>
+                </div>
+              )}
+              {deviceStructure.manualInstructions && deviceStructure.manualInstructions.startup.length > 0 && (
                 <div className="mt-2">
                   <div className="mb-1 text-white/50">Before you start</div>
                   <ul className="list-inside list-disc space-y-0.5">
@@ -1166,7 +1191,7 @@ export function RemoteControlLayout({
                   </ul>
                 </div>
               )}
-              {deviceStructure.manualInstructions.shutdown.length > 0 && (
+              {deviceStructure.manualInstructions && deviceStructure.manualInstructions.shutdown.length > 0 && (
                 <div className="mt-2">
                   <div className="mb-1 text-white/50">When you&apos;re done</div>
                   <ul className="list-inside list-disc space-y-0.5">

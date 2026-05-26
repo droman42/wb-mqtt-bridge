@@ -15,6 +15,7 @@ export type RoomDefinitionResponse = S['RoomDefinitionResponse'];
 export type CommandStep = S['CommandStep'];
 export type ScenarioDefinition = S['ScenarioDefinition'];
 export type ScenarioState = S['ScenarioState'];
+export type ManualStep = S['ManualStep'];
 export type ScenarioResponse = S['ScenarioResponse'];
 export type SwitchScenarioRequest = S['SwitchScenarioRequest'];
 export type ActionRequest = S['ActionRequest'];

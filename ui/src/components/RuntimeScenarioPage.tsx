@@ -90,6 +90,10 @@ export function RuntimeScenarioPage({ scenarioId }: { scenarioId: string }) {
         lastAction={executeAction.variables?.action.action}
         className="w-full"
         lifecycleActive={lifecycleActive}
+        // Transition-aware reconciler notes (§5.1 #1) — only when THIS scenario is the
+        // active one (viewing an inactive scenario's page must NOT show another
+        // scenario's prompts).
+        manualSteps={lifecycleActive ? activeScenarioState?.manual_steps ?? [] : []}
       />
     </div>
   );
