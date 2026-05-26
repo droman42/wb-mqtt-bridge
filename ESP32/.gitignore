@@ -17,4 +17,5 @@ include/config.h
 
 # IDF-build regenerated artefacts (sdkconfig.defaults — committed — is the source of truth)
 sdkconfig.*
+!sdkconfig.defaults
 dependencies.lock
