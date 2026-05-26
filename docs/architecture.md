@@ -81,7 +81,7 @@ domain and is **injected into devices at bootstrap** — so a driver surfaces a
 state-change without importing presentation. (Previously `BaseDevice` imported the
 SSE singleton directly: an infrastructure→presentation back-edge, now removed.)
 
-### Dependency rule — and its two documented exceptions
+### Dependency rule — and its one documented exception
 
 As of 2026-05-25 the inward rule holds structurally: **`domain/` imports nothing
 from `infrastructure/` or `presentation/`**, and `infrastructure/` imports nothing
@@ -90,18 +90,18 @@ from `presentation/`. Pure data/logic that had drifted into `infrastructure/`
 back into `domain/`; `infrastructure/config/models.py` re-exports the device-config
 base so existing importers are undisturbed (infra→domain, legal).
 
-Two **presentation→infrastructure** couplings remain, both isolated to the system
-router and consciously accepted:
+One **presentation→infrastructure** coupling remains, isolated to the system router
+and consciously accepted: the `POST /reload` task in `presentation/api/routers/system.py`
+**constructs** an infra `MQTTClient` and drives its client-specific reconnect methods
+(`stop`/`connect_and_subscribe`/`wait_for_connection`). The clean fix — extract an
+application-layer reload service so the router stays a thin adapter — is **deferred**:
+the reload path touches live MQTT reconnect and can't be safely HW-verified without
+the user at the rack. Tracked in `action_plan.md` §5.1.
 
-1. `presentation/api/routers/system.py` exposes the infra `SystemConfig` as a
-   `/config/system` API `response_model` (it serialises the live config — not domain
-   data the domain operates on; re-exported via `schemas.py`).
-2. The same router's `POST /reload` task **constructs** an infra `MQTTClient` and
-   drives its client-specific reconnect methods.
-
-The clean fix (a response DTO + an application-layer reload service so the router
-stays a thin adapter) is deferred — it touches the live MQTT-reconnect path and is
-tracked in `action_plan.md`. They do not affect domain purity.
+(The earlier second exception — `/config/system` exposing the infra `SystemConfig`
+as a `response_model` — was closed 2026-05-26: a presentation `SystemConfigResponse`
+DTO now owns the wire shape; `schemas.py` no longer imports `SystemConfig`.)
+This does not affect domain purity.
 
 ## Device model
 
