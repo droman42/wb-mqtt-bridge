@@ -1,5 +1,81 @@
 # Pioneer CLD-D925 → Wirenboard via CONTROL IN (Pioneer SR) — Build & Handoff
 
+> ## ⚑ FINAL POWER & CONNECTIVITY DECISION (supersedes power/connectivity text below)
+>
+> After working through USB / PoE / battery / wired-Ethernet options, the locked choice for
+> **all four bridge boxes** is:
+>
+> - **NO power plugs.** Power is taken from the deck.
+> - **Wi-Fi (ESP32 WROOM-32), NOT wired Ethernet.** Run **light-sleep** (avg ~15 mA) so the
+>   deck rail only sees a small steady load. See §"Light-sleep + DTIM" below for how commands
+>   still arrive instantly.
+> - **Reservoir cap buffers the Wi-Fi TX spikes** so the deck rail only ever supplies the
+>   ~15 mA average: **1000 µF low-ESR** across the 5 V tap + **100 µF + 0.1 µF** at the board
+>   + **2.2–10 Ω inrush resistor** feeding the big cap. (Cap + light-sleep are a pair; a cap
+>   with always-on Wi-Fi would just drain.)
+> - **No RJ45 / no USB / no PoE** (the MikroTik's single passive-PoE port is irrelevant).
+> - **Plastic case** (Wi-Fi antenna near a wall edge). See `cases/` (v5 STLs).
+>
+> **Power source per device:**
+> - **B215:** SERIAL LINK **pin 5 (+5 V)** — now comfortable (~15 mA avg + cap removes the old
+>   150 mA-rail spike worry).
+> - **A77:** **pin 7 (+27 V)** → small buck → 5 V (ample headroom); cap on the buck output.
+> - **Pioneer / Panasonic:** tap an **internal +5 V** rail (2 wires through the case grommet
+>   slot). ~15 mA avg is easy on a logic rail; **meter once** under load to confirm. (Pioneer
+>   can alternatively carry that 5 V on a **stereo CONTROL IN jack** — ring=+5 V — for a
+>   single-cable box; see \u00a74 Power.)
+>
+> **What this supersedes below:** ignore wired-Ethernet/WT32-ETH01-primary, USB-supply, PoE,
+> or battery passages — kept only as alternative-history reference. Firmware: keep the
+> command/MQTT logic; transport = **Wi-Fi (`WiFi.begin()`)** in **light-sleep**; output stage
+> and protocol/code capture unchanged.
+>
+> ---
+
+## Firmware design rule — network update (OTA) is MANDATORY
+
+The box is **deck-powered with no USB and no easy physical access** once installed, so the
+firmware **must** support full **over-the-air update over the network**: upload a new image,
+flash it, and reboot — with **no cable and no USB** ever needed after first flash.
+
+- Use **ArduinoOTA** (or ESP-IDF `esp_https_ota`) so you can push builds from the IDE / a script
+  over Wi-Fi. Implement: receive image -> verify -> write to the OTA partition -> reboot into it.
+- Keep OTA reachable even in light-sleep: the device is associated and reachable (see
+  "Light-sleep + DTIM"); an OTA push wakes it like any other connection.
+- **Safety:** use the ESP32's dual-OTA partition scheme so a bad image **rolls back** to the
+  previous one on boot-fail (never leave the box bricked behind a deck).
+- Gate OTA behind a password/token; optionally only enable the OTA listener for a window after
+  an MQTT "update-arm" command, so it isn't open permanently.
+- First flash is the only wired step (3.3 V serial header on the WROOM-32). After that the USB
+  serial adapter is **literally never needed again** — all updates go over the network.
+
+---
+
+## CURRENT BUILD — board, power & parts (OVERRIDES the BOM / shopping list below)
+
+The BOM, shopping list, casing and "why wired" sections further down were written when the
+plan was wired-Ethernet. The **locked build** (see banner) changes these specifics. Use this
+list; treat the older tables as reference only:
+
+**Board:** **ESP32 WROOM-32 (Wi-Fi)** — NOT the WT32-ETH01. (Antenna near a plastic wall edge.)
+**Connectivity:** Wi-Fi light-sleep. **DROP** all of: WT32-ETH01, RJ45 jack/patch lead, PoE
+splitter/injector, USB 5 V PSU, USB-C PSU, Schottky diode-OR fallback. None are used.
+**First flash only:** a 3.3 V USB-serial adapter on the WROOM-32 header — needed once, then
+never again (updates go OTA, see the OTA rule above). Most WROOM-32 dev boards have onboard
+USB-serial, so even that may be unnecessary.
+
+**Power = deck-derived, no plugs** (per banner), buffered by the reservoir cap:
+- **1000 µF low-ESR** across the 5 V tap + **100 µF + 0.1 µF** at the board + **2.2–10 Ω**
+  inrush resistor feeding the big cap.
+
+**Keep from the lists below:** the optocoupler/opto-MOSFET output stage + its resistors, the
+signal connector (DIN / WIST-10 / 3.5 mm jack), prototyping bits, hook-up wire, and (A77) the
+27 V→5 V buck + fuse. **Enclosure: plastic** (Wi-Fi), per the `cases/` v5 files.
+
+---
+
+
+
 **Goal:** Control a Pioneer CLD-D925 LaserDisc/CD player from a Wirenboard PLC by feeding
 the player's rear **CONTROL IN** (Pioneer "SR" / System Remote) minijack with a small
 ESP32 that publishes/subscribes **Wirenboard-conformant MQTT**. The unreliable external IR
@@ -9,7 +85,7 @@ blaster is replaced by a clean wired connection. **This is the easiest of the fo
 **Primary design:** wired-Ethernet ESP32 (WT32-ETH01) → 3.5 mm plug into CONTROL IN →
 emit the player's own remote codes as a **baseband (carrier-stripped) waveform** on the tip.
 Same MQTT/architecture as the Revox builds. Wi-Fi is an option (this box can be powered by
-USB; there's no power pin on a control jack, so the deck-power question doesn't arise).
+deck +5 V tap; see §4 Power. No USB/PoE.).
 
 **Companion documents:**
 [`wb-revoxb215-esp32-bridge.md`](./wb-revoxb215-esp32-bridge.md),
@@ -99,7 +175,7 @@ serial link). If status ever matters, that's a separate tap, out of scope here.
 | Output stage | open-collector opto on data | 5× opto-MOSFET dry contacts | **one open-collector onto the tip** |
 | Carrier? | n/a | n/a | **none — baseband (SR strips it)** |
 | Status back | yes | sensor-added | no (one-way jack) |
-| Power from device? | 5 V/150 mA pin | 27 V pin | **none — USB/PoE the box** |
+| Power from device? | 5 V/150 mA pin | 27 V pin | **none on the jack — deck-power via internal +5 V tap (§4)** |
 
 The CLD-D925 is the cleanest: it's essentially "blast the remote, but over a wire that the
 deck already accepts." Your existing remote-code captures are directly reusable.
@@ -154,10 +230,33 @@ by another path:
   RCA shell.
 Without this, the open-collector pull has no return and the player may not respond.
 
-### Power
+### Power (deck-derived, no plugs — see FINAL DECISION banner)
 
-No power on a control jack. Power the box from **USB** (simplest) or, if using WT32-ETH01 on
-a switch with PoE, from a PoE splitter — your choice. There's no deck-5V/27V question here.
+The CONTROL IN as shipped is a **mono** jack (tip + floating sleeve) — it carries **no power**,
+and the tip's ~5 V idle is only a weak ~100 kΩ pull-up (microamps), not a usable supply. So to
+power the box from the deck (no plugs) you tap an **internal +5 V rail** and route it to the
+box. Two ways:
+
+**Option B — power pigtail through the grommet slot (recommended, least invasive).**
+Open the deck, solder 2 wires (5 V + GND) to an internal +5 V logic rail, run them straight to
+the box through the case grommet slot. Leave the factory mono CONTROL IN jack completely
+untouched. Result: two leads to the box (signal jack + power pigtail). Fewest modifications,
+fully reversible.
+
+**Option A — put +5 V on the jack by upgrading it to STEREO (one cable to the box).**
+Since you're inside anyway, replace/rewire CONTROL IN as a **3-conductor (TRS) jack** and:
+- **tip → signal** (unchanged),
+- **ring → internal +5 V** rail (new internal wire),
+- **sleeve → GND** (new internal wire — Pioneer left the sleeve floating, so you must ground it).
+Now one 3.5 mm stereo cable carries signal + 5 V + GND to the box, like the Revoxes' powered
+DIN. Tidier at the box, but 3 internal solder joints (5 V tap, ground, jack) and you must take
+care not to disturb the signal behaviour you characterised. Use a TRS cable/jack, not mono.
+
+**Either way** (and unchanged by the choice): find an internal rail that can spare the ESP's
+**~15 mA light-sleep average** (trivial) and **meter it once under load**. The reservoir cap
+(FINAL DECISION banner) handles the Wi-Fi spikes so the rail only sees the average.
+
+> The earlier "USB / PoE, no deck-5V question" note here is superseded by the no-plugs decision.
 
 ---
 
@@ -249,7 +348,7 @@ void emitSR(const uint16_t* t, uint8_t len) {
 ## 7. Casing
 
 - Wired Ethernet → metal OK. Wi-Fi → plastic. Small box behind the rack.
-- The 3.5 mm pigtail to CONTROL IN + (if wired) RJ45 + USB power exit the box; strain-relieve.
+- The 3.5 mm signal lead to CONTROL IN + the deck +5 V power leads exit the box; strain-relieve. (No RJ45/USB — Wi-Fi + deck power.)
 - Label the pigtail "SR CONTROL IN — tip=signal, separate GND".
 
 ---
@@ -295,7 +394,35 @@ device"; open-collector output philosophy.
 
 Different: **wired IR (baseband) into a standard SR CONTROL IN jack** — no disassembly, no
 protocol capture beyond recording the remote's raw timings, no device power tap (box is
-USB/PoE powered), one-way (no status). **The simplest and lowest-cost of the four decks.**
+deck-powered via internal +5 V tap), one-way (no status). **The simplest and lowest-cost of the four decks.**
+
+---
+
+
+## Reusing your existing Wirenboard IR-blaster codes (no re-capture needed)
+
+You already have working IR codes for this deck in your Wirenboard IR blaster. **Those are the
+same codes you need here** — reuse them directly; you can skip capturing from scratch.
+
+Why they're identical: an IR command = **data** (protocol + command bits) riding on a **38 kHz
+carrier** (only needed for the through-air hop). The blaster sends data+carrier through the air;
+this build injects the **same data with the carrier stripped** (baseband) into the deck — and the
+deck's IR receiver strips the carrier anyway, so the bits reaching the syscon are identical. You
+are just delivering the same command one stage further downstream (over a wire), which is what
+fixes the unreliable air path (especially the awkwardly-placed Panasonic).
+
+How to reuse:
+- **Export the codes from Wirenboard** — preferably the **decoded protocol + hex** (most robust;
+  in firmware call the matching IRremote/IRMP *send* function with carrier set to 0/off). Raw
+  mark/space timings work too (replay them on the open-collector pin, carrier off).
+- **The only change vs a blaster: carrier OFF.** You're driving a logic line, not an IR LED — no
+  38 kHz. Everything else (data, timing, repeat frames) is unchanged.
+- **Repeat frames:** if a baseband command registers unreliably, replay it twice / include the
+  protocol's repeat frame — the same behaviour your blaster already uses for held buttons.
+- **Verify carrier-off** once on a scope (or by it simply working): a modulated signal fed into a
+  baseband node may not decode.
+
+This makes your proven, already-working codes the ground truth — better than fresh captures.
 
 ---
 

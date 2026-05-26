@@ -1,5 +1,79 @@
 # Panasonic NV-FS90 → Wirenboard via added CONTROL IN jack — Build & Handoff
 
+> ## ⚑ FINAL POWER & CONNECTIVITY DECISION (supersedes power/connectivity text below)
+>
+> After working through USB / PoE / battery / wired-Ethernet options, the locked choice for
+> **all four bridge boxes** is:
+>
+> - **NO power plugs.** Power is taken from the deck.
+> - **Wi-Fi (ESP32 WROOM-32), NOT wired Ethernet.** Run **light-sleep** (avg ~15 mA) so the
+>   deck rail only sees a small steady load. See §"Light-sleep + DTIM" below for how commands
+>   still arrive instantly.
+> - **Reservoir cap buffers the Wi-Fi TX spikes** so the deck rail only ever supplies the
+>   ~15 mA average: **1000 µF low-ESR** across the 5 V tap + **100 µF + 0.1 µF** at the board
+>   + **2.2–10 Ω inrush resistor** feeding the big cap. (Cap + light-sleep are a pair; a cap
+>   with always-on Wi-Fi would just drain.)
+> - **No RJ45 / no USB / no PoE** (the MikroTik's single passive-PoE port is irrelevant).
+> - **Plastic case** (Wi-Fi antenna near a wall edge). See `cases/` (v5 STLs).
+>
+> **Power source per device:**
+> - **B215:** SERIAL LINK **pin 5 (+5 V)** — now comfortable (~15 mA avg + cap removes the old
+>   150 mA-rail spike worry).
+> - **A77:** **pin 7 (+27 V)** → small buck → 5 V (ample headroom); cap on the buck output.
+> - **Pioneer / Panasonic:** tap an **internal +5 V** rail (2 wires through the case grommet
+>   slot). ~15 mA avg is easy on a logic rail; **meter once** under load to confirm.
+>
+> **What this supersedes below:** ignore wired-Ethernet/WT32-ETH01-primary, USB-supply, PoE,
+> or battery passages — kept only as alternative-history reference. Firmware: keep the
+> command/MQTT logic; transport = **Wi-Fi (`WiFi.begin()`)** in **light-sleep**; output stage
+> and protocol/code capture unchanged.
+>
+> ---
+
+## Firmware design rule — network update (OTA) is MANDATORY
+
+The box is **deck-powered with no USB and no easy physical access** once installed, so the
+firmware **must** support full **over-the-air update over the network**: upload a new image,
+flash it, and reboot — with **no cable and no USB** ever needed after first flash.
+
+- Use **ArduinoOTA** (or ESP-IDF `esp_https_ota`) so you can push builds from the IDE / a script
+  over Wi-Fi. Implement: receive image -> verify -> write to the OTA partition -> reboot into it.
+- Keep OTA reachable even in light-sleep: the device is associated and reachable (see
+  "Light-sleep + DTIM"); an OTA push wakes it like any other connection.
+- **Safety:** use the ESP32's dual-OTA partition scheme so a bad image **rolls back** to the
+  previous one on boot-fail (never leave the box bricked behind a deck).
+- Gate OTA behind a password/token; optionally only enable the OTA listener for a window after
+  an MQTT "update-arm" command, so it isn't open permanently.
+- First flash is the only wired step (3.3 V serial header on the WROOM-32). After that the USB
+  serial adapter is **literally never needed again** — all updates go over the network.
+
+---
+
+## CURRENT BUILD — board, power & parts (OVERRIDES the BOM / shopping list below)
+
+The BOM, shopping list, casing and "why wired" sections further down were written when the
+plan was wired-Ethernet. The **locked build** (see banner) changes these specifics. Use this
+list; treat the older tables as reference only:
+
+**Board:** **ESP32 WROOM-32 (Wi-Fi)** — NOT the WT32-ETH01. (Antenna near a plastic wall edge.)
+**Connectivity:** Wi-Fi light-sleep. **DROP** all of: WT32-ETH01, RJ45 jack/patch lead, PoE
+splitter/injector, USB 5 V PSU, USB-C PSU, Schottky diode-OR fallback. None are used.
+**First flash only:** a 3.3 V USB-serial adapter on the WROOM-32 header — needed once, then
+never again (updates go OTA, see the OTA rule above). Most WROOM-32 dev boards have onboard
+USB-serial, so even that may be unnecessary.
+
+**Power = deck-derived, no plugs** (per banner), buffered by the reservoir cap:
+- **1000 µF low-ESR** across the 5 V tap + **100 µF + 0.1 µF** at the board + **2.2–10 Ω**
+  inrush resistor feeding the big cap.
+
+**Keep from the lists below:** the optocoupler/opto-MOSFET output stage + its resistors, the
+signal connector (DIN / WIST-10 / 3.5 mm jack), prototyping bits, hook-up wire, and (A77) the
+27 V→5 V buck + fuse. **Enclosure: plastic** (Wi-Fi), per the `cases/` v5 files.
+
+---
+
+
+
 **Goal:** Control a Panasonic NV-FS90 S-VHS VCR from a Wirenboard PLC. The FS90 has **no
 factory wired-control port** (AV1/AV2 SCART + IR only), so we **add one**: tap the deck's
 internal IR-receiver output and bring it to a new rear 3.5 mm jack — recreating the Pioneer
@@ -92,7 +166,7 @@ separate tap (e.g. an FIP/syscon line) — out of scope.
 | Signal | baseband IR, idle-high, active-low | **same** |
 | Output stage | one open-collector onto tip | **same** |
 | Firmware | replay raw remote timings, baseband | **same** |
-| Power | USB/PoE (no jack power) | **same** |
+| Power | deck +5 V tap (no jack power) | **same** |
 | Status | one-way | **same** |
 | Extra work | none (jack exists) | **drill + solder one tap wire** |
 
@@ -135,6 +209,18 @@ IR receiver module (behind front window)
 
 ### Reversibility
 Remove the tap wire and the jack; the deck is exactly stock. Nothing cut, nothing rerouted.
+
+
+### Optional: make the added jack carry +5 V too (3-conductor)
+
+Since you are **building this jack from scratch**, you can make it a **3-conductor (TRS) jack**
+and carry power on it, exactly like the Pioneer stereo-jack option:
+- **tip -> IR-OUT net** (your injected baseband signal, parallel tap as above),
+- **ring -> an internal +5 V rail** (the deck-power feed, instead of a separate pigtail),
+- **sleeve -> GND**.
+Then a single 3.5 mm stereo cable carries signal + 5 V + GND to the box. This replaces the
+"power pigtail through the grommet" with one tidy cable. Optional — the pigtail is simpler; the
+3-conductor jack is tidier. Either way meter the +5 V rail under load first.
 
 ### The accepted trade-off
 Internal IR sensor stays live → a stray remote press or strong ambient IR can still reach the
@@ -283,6 +369,34 @@ Different: the FS90 has **no factory wired port**, so you **add a Pioneer-style 
 a **parallel (no-cut) tap on the internal IR-receiver output** brought to a drilled-in rear
 jack. The only device of the four requiring opening the unit and soldering to an internal node
 — but a single wire, reversible, and it cures the IR-blaster reliability problem.
+
+---
+
+
+## Reusing your existing Wirenboard IR-blaster codes (no re-capture needed)
+
+You already have working IR codes for this deck in your Wirenboard IR blaster. **Those are the
+same codes you need here** — reuse them directly; you can skip capturing from scratch.
+
+Why they're identical: an IR command = **data** (protocol + command bits) riding on a **38 kHz
+carrier** (only needed for the through-air hop). The blaster sends data+carrier through the air;
+this build injects the **same data with the carrier stripped** (baseband) into the deck — and the
+deck's IR receiver strips the carrier anyway, so the bits reaching the syscon are identical. You
+are just delivering the same command one stage further downstream (over a wire), which is what
+fixes the unreliable air path (especially the awkwardly-placed Panasonic).
+
+How to reuse:
+- **Export the codes from Wirenboard** — preferably the **decoded protocol + hex** (most robust;
+  in firmware call the matching IRremote/IRMP *send* function with carrier set to 0/off). Raw
+  mark/space timings work too (replay them on the open-collector pin, carrier off).
+- **The only change vs a blaster: carrier OFF.** You're driving a logic line, not an IR LED — no
+  38 kHz. Everything else (data, timing, repeat frames) is unchanged.
+- **Repeat frames:** if a baseband command registers unreliably, replay it twice / include the
+  protocol's repeat frame — the same behaviour your blaster already uses for held buttons.
+- **Verify carrier-off** once on a scope (or by it simply working): a modulated signal fed into a
+  baseband node may not decode.
+
+This makes your proven, already-working codes the ground truth — better than fresh captures.
 
 ---
 
