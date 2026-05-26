@@ -76,3 +76,4 @@ run_mypy.sh
 backup/
 docker_manager_config.json
 
+.state/

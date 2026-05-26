@@ -1,0 +1,56 @@
+# ops/docker-compose.yml — standard-Docker deploy for the Wirenboard.
+# Replaces the WB-native docker_manager path (action_plan §5.1: "want standard
+# tooling, accept the WB-integration trade-offs").
+#
+# Both services run on the host network so they reach the WB's mosquitto
+# broker on localhost:1883 — the WB's broker is the system MQTT, not a
+# separate container.
+#
+# Bring up:   docker compose up -d
+# Update:     ./update.sh                 (pulls + restarts)
+# Stop:       docker compose down
+# Logs:       docker compose logs -f      ([backend|ui] to filter)
+#
+# A systemd unit (wb-mqtt-bridge.service) runs `up -d` on boot. See INSTALL.md.
+
+services:
+  backend:
+    image: ghcr.io/droman42/wb-mqtt-bridge:latest
+    container_name: wb-mqtt-bridge
+    restart: unless-stopped
+    network_mode: host                # reach WB mosquitto on localhost:1883
+    mem_limit: 256m
+    cpus: 0.5
+    volumes:
+      # Config travels with the cloned repo (single source of truth). No separate
+      # config tarball: `git pull` updates the device/scenario/etc. JSONs.
+      - ../backend/config:/app/config:ro
+      # Runtime state — SQLite state store + logs. Lives under .state/ (gitignored)
+      # so a `git pull` never touches it.
+      - ../.state/data:/app/data
+      - ../.state/logs:/app/logs
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  ui:
+    image: ghcr.io/droman42/wb-mqtt-ui:latest
+    container_name: wb-mqtt-ui
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - backend
+    mem_limit: 128m
+    cpus: 0.3
+    environment:
+      # nginx envsubst inside the UI image picks these up at start
+      # (ui/docker-entrypoint.sh) — see ui/README.md.
+      BACKEND_HOST: "127.0.0.1"
+      BACKEND_PORT: "8000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
