@@ -404,9 +404,12 @@ class LgTv(BaseDevice[LgTvState]):
             logger.info(f"Setting up LG TV: {self.device_name}")
             await self.emit_progress(f"Setting up LG TV {self.device_name}", "action_progress")
             
-            # Use host from configuration directly
-            self.state.ip_address = self.tv_config.ip_address
-            self.state.mac_address = self.tv_config.mac_address
+            # Use host from configuration directly. Coalesce both into one update_state call so
+            # the state-change callback chain fires once (persistence + WB publish).
+            self.update_state(
+                ip_address=self.tv_config.ip_address,
+                mac_address=self.tv_config.mac_address,
+            )
             
             # Initialize client key for WebOS 
             self.client_key = self.tv_config.client_key
@@ -430,7 +433,7 @@ class LgTv(BaseDevice[LgTvState]):
                 await self.emit_progress(f"Could not connect to {self.device_name} - will retry later", "action_progress")
                 
             # Update power state based on connection result
-            self.state.power = "off" if not connection_success else "on"
+            self.update_state(power="off" if not connection_success else "on")
             
             return True  # Setup completed even if connection failed
             
@@ -455,33 +458,33 @@ class LgTv(BaseDevice[LgTvState]):
             await self.emit_progress(f"Connecting to {self.device_name} at {self.state.ip_address}", "action_progress")
             
             # Update state to indicate connection attempt
-            self.state.connected = False
-            
+            self.update_state(connected=False)
+
             # Attempt connection to the TV
             connection_result = await self._connect_to_tv()
-            
+
             if connection_result:
                 logger.info(f"Successfully connected to TV {self.get_name()}")
                 await self.emit_progress(f"Successfully connected to {self.device_name}", "action_success")
-                self.state.connected = True
+                self.update_state(connected=True)
                 self.clear_error()
-                
+
                 # Initialize control interfaces after successful connection
                 await self._initialize_control_interfaces()
-                
+
                 # Update TV state after successful connection
                 await self._update_tv_state()
             else:
                 logger.error(f"Failed to connect to TV {self.get_name()}")
                 await self.emit_progress(f"Failed to connect to {self.device_name}", "action_error")
-                self.state.connected = False
+                self.update_state(connected=False)
                 if not self.state.error:
                     self.set_error("Failed to connect to TV")
-                    
+
             return connection_result
         except Exception as e:
             logger.error(f"Unexpected error connecting to TV {self.get_name()}: {str(e)}")
-            self.state.connected = False
+            self.update_state(connected=False)
             self.set_error(str(e))
             return False
     
@@ -499,7 +502,7 @@ class LgTv(BaseDevice[LgTvState]):
             await self.emit_progress(f"Shutting down LG TV {self.device_name}", "action_progress")
             
             # Update state to indicate shutdown
-            self.state.connected = False
+            self.update_state(connected=False)
             
             # Disconnect from TV
             if self.client:
@@ -519,7 +522,7 @@ class LgTv(BaseDevice[LgTvState]):
                 self._cached_input_sources = []
             
             # Set final state for reporting purposes
-            self.state.power = "off"  # Power state is off after disconnection
+            self.update_state(power="off")  # Power state is off after disconnection
             
             return True
         except Exception as e:
@@ -720,10 +723,13 @@ class LgTv(BaseDevice[LgTvState]):
             media_control = cast(Any, self.media)
             volume_info = await media_control.get_volume()
             if volume_info:
-                # Use a default value of 0 only if nothing is returned from the TV
-                self.state.volume = volume_info.get("volume", 0)
-                self.state.mute = volume_info.get("muted", False)
-                logger.debug(f"Updated volume state: volume={self.state.volume}, mute={self.state.mute}")
+                # Use a default value of 0 only if nothing is returned from the TV. Coalesce
+                # volume + mute into a single update_state call so the callback chain fires
+                # once (one persistence write, one WB-publish batch).
+                new_volume = volume_info.get("volume", 0)
+                new_mute = volume_info.get("muted", False)
+                self.update_state(volume=new_volume, mute=new_mute)
+                logger.debug(f"Updated volume state: volume={new_volume}, mute={new_mute}")
                 return True
             logger.debug("Could not get volume info: empty response")
             return False
@@ -745,7 +751,7 @@ class LgTv(BaseDevice[LgTvState]):
             if self.app:
                 foreground_app = await self.app.foreground_app()
                 if foreground_app and isinstance(foreground_app, dict):
-                    self.state.current_app = foreground_app.get("appId")
+                    self.update_state(current_app=foreground_app.get("appId"))
                     return True
             return False
         except Exception as e:
@@ -765,7 +771,7 @@ class LgTv(BaseDevice[LgTvState]):
             # Use InputControl's get_input method directly
             input_info = await self.input_control.get_input()
             if input_info and "inputId" in input_info:
-                self.state.input_source = input_info.get("inputId")
+                self.update_state(input_source=input_info.get("inputId"))
                 return True
             return False
         except Exception as e:
@@ -869,12 +875,16 @@ class LgTv(BaseDevice[LgTvState]):
                     )
                     
                     if result.get("success", False):
-                        self.state.power = "on"
-                        self.state.last_command = LastCommand(
-                            action="power_on",
-                            source="api",
-                            timestamp=datetime.now(),
-                            params={"method": "webos_api"}
+                        # Coalesce power + last_command into one update_state — single callback
+                        # chain fire (one persistence write, one WB-publish batch).
+                        self.update_state(
+                            power="on",
+                            last_command=LastCommand(
+                                action="power_on",
+                                source="api",
+                                timestamp=datetime.now(),
+                                params={"method": "webos_api"},
+                            ),
                         )
                         success = True
                         logger.info("Power on via WebOS API successful")
@@ -895,22 +905,22 @@ class LgTv(BaseDevice[LgTvState]):
                 # Connect to re-initialize all control interfaces
                 await self.connect()
             else:
-                self.state.last_command = LastCommand(
+                self.update_state(last_command=LastCommand(
                     action="power_on",
                     source="api",
                     timestamp=datetime.now(),
-                    params={"status": "failed"}
-                )
-                
+                    params={"status": "failed"},
+                ))
+
             return success
         except Exception as e:
             logger.error(f"Error powering on TV: {str(e)}")
-            self.state.last_command = LastCommand(
+            self.update_state(last_command=LastCommand(
                 action="power_on",
                 source="api",
                 timestamp=datetime.now(),
-                params={"error": str(e)}
-            )
+                params={"error": str(e)},
+            ))
             return False
             
     async def _power_on_with_wol(self) -> bool:
@@ -933,17 +943,17 @@ class LgTv(BaseDevice[LgTvState]):
         if wol_success:
             logger.info("Wake-on-LAN packet sent successfully")
             # We can't be certain the TV will power on, but we've done our part
-            # Assume it worked for state tracking purposes
-            self.state.power = "on"
-            
-            # Use LastCommand object instead of string
-            self.state.last_command = LastCommand(
-                action="power_on",
-                source="wol",
-                timestamp=datetime.now(),
-                params={"method": "wol", "mac_address": mac_address}
+            # Assume it worked for state tracking purposes. Coalesce both writes.
+            self.update_state(
+                power="on",
+                last_command=LastCommand(
+                    action="power_on",
+                    source="wol",
+                    timestamp=datetime.now(),
+                    params={"method": "wol", "mac_address": mac_address},
+                ),
             )
-            
+
             return True
         else:
             logger.error("Failed to send Wake-on-LAN packet")
@@ -1843,7 +1853,7 @@ class LgTv(BaseDevice[LgTvState]):
                 
                 if result.get("returnValue", False):
                     # Update state
-                    self.state.input_source = input_name
+                    self.update_state(input_source=input_name)
                     await self._update_last_command("set_input", params, "api")
                     return self.create_command_result(
                         success=True,
@@ -1904,12 +1914,12 @@ class LgTv(BaseDevice[LgTvState]):
             source: Source of the command (e.g., "api", "wol")
         """
         try:
-            self.state.last_command = LastCommand(
+            self.update_state(last_command=LastCommand(
                 action=action,
                 source=source,
                 timestamp=datetime.now(),
                 params=params if params else {}
-            )
+            ))
         except Exception as e:
             # Log error but don't prevent the main action from completing
             logger.error(f"Error updating last_command state for action '{action}': {e}")
@@ -2030,10 +2040,11 @@ class LgTv(BaseDevice[LgTvState]):
                     # Update state if needed
                     if state_key_to_update:
                         if requires_level:
-                            self.state.volume = level
+                            self.update_state(volume=level)
                         elif requires_state:
-                            self.state.mute = state
-                        
+                            self.update_state(mute=state)
+
+
                     # Update volume state if requested
                     if update_volume_after:
                         await self._update_volume_state()
@@ -2079,41 +2090,44 @@ class LgTv(BaseDevice[LgTvState]):
                 )
                 
                 if result.get("success", False):
-                    self.state.power = "off"
-                    self.state.last_command = LastCommand(
-                        action="power_off",
-                        source="api",
-                        timestamp=datetime.now()
+                    # Coalesce power + last_command into one update_state — single callback fire.
+                    self.update_state(
+                        power="off",
+                        last_command=LastCommand(
+                            action="power_off",
+                            source="api",
+                            timestamp=datetime.now(),
+                        ),
                     )
                     return True
                 else:
                     logger.warning(f"Power off failed: {result.get('error', 'Unknown error')}")
                     error_msg = result.get('error', 'Unknown error')
-                    self.state.last_command = LastCommand(
+                    self.update_state(last_command=LastCommand(
                         action="power_off",
                         source="api",
                         timestamp=datetime.now(),
-                        params={"error": error_msg}
-                    )
+                        params={"error": error_msg},
+                    ))
                     return False
             else:
                 logger.error("Cannot power off: Not connected to TV")
-                self.state.last_command = LastCommand(
+                self.update_state(last_command=LastCommand(
                     action="power_off",
                     source="api",
                     timestamp=datetime.now(),
-                    params={"error": "Not connected to TV"}
-                )
+                    params={"error": "Not connected to TV"},
+                ))
                 return False
-            
+
         except Exception as e:
             logger.error(f"Error powering off TV: {str(e)}")
-            self.state.last_command = LastCommand(
+            self.update_state(last_command=LastCommand(
                 action="power_off",
                 source="api",
                 timestamp=datetime.now(),
-                params={"error": str(e)}
-            )
+                params={"error": str(e)},
+            ))
             return False
 
     async def _execute_input_command(self, action_name: str, button_method_name: str) -> CommandResult:
@@ -2232,51 +2246,52 @@ class LgTv(BaseDevice[LgTvState]):
             mac_address = self.state.mac_address
             if not mac_address:
                 logger.error("Cannot use Wake-on-LAN: No MAC address configured for TV")
-                self.state.last_command = LastCommand(
+                self.update_state(last_command=LastCommand(
                     action="wake_on_lan",
                     source="api",
                     timestamp=datetime.now(),
-                    params={"error": "No MAC address configured"}
-                )
+                    params={"error": "No MAC address configured"},
+                ))
                 return False
-                
+
             logger.info(f"Sending Wake-on-LAN packet to TV {self.get_name()} (MAC: {mac_address})")
             await self.emit_progress(f"Sending Wake-on-LAN packet to {self.device_name}", "action_progress")
-            
+
             # Use the send_wol_packet method from BaseDevice
             wol_success = await self.send_wol_packet(mac_address, self.broadcast_ip)
-            
+
             if wol_success:
                 logger.info("Wake-on-LAN packet sent successfully")
                 await self.emit_progress(f"Wake-on-LAN packet sent to {self.device_name}", "action_success")
-                self.state.last_command = LastCommand(
-                    action="wake_on_lan",
-                    source="api",
-                    timestamp=datetime.now(),
-                    params={"mac_address": mac_address}
+                # Coalesce last_command + assumed power=on into one update_state.
+                self.update_state(
+                    power="on",
+                    last_command=LastCommand(
+                        action="wake_on_lan",
+                        source="api",
+                        timestamp=datetime.now(),
+                        params={"mac_address": mac_address},
+                    ),
                 )
-                # We can't know for sure if the TV will turn on,
-                # but update the expected state for consistency
-                self.state.power = "on"
                 return True
             else:
                 logger.error("Failed to send Wake-on-LAN packet")
-                self.state.last_command = LastCommand(
+                self.update_state(last_command=LastCommand(
                     action="wake_on_lan",
                     source="api",
                     timestamp=datetime.now(),
-                    params={"error": "Failed to send packet"}
-                )
+                    params={"error": "Failed to send packet"},
+                ))
                 return False
-                
+
         except Exception as e:
             logger.error(f"Error sending Wake-on-LAN packet: {str(e)}")
-            self.state.last_command = LastCommand(
+            self.update_state(last_command=LastCommand(
                 action="wake_on_lan",
                 source="api",
                 timestamp=datetime.now(),
-                params={"error": str(e)}
-            )
+                params={"error": str(e)},
+            ))
             return False
     
     async def _execute_pointer_command(
