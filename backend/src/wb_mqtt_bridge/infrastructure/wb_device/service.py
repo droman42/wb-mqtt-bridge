@@ -3,10 +3,15 @@
 import json
 import logging
 import re
+from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Awaitable
 
 from wb_mqtt_bridge.domain.ports import MessageBusPort
 from wb_mqtt_bridge.infrastructure.config.models import BaseDeviceConfig
+
+# Type alias for the per-device state provider injected at WB setup. Lets WB-publish
+# read the device's current state at callback time without holding a device reference.
+StateProvider = Callable[[], Any]
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +78,7 @@ class WBVirtualDeviceService:
         entity_id: Optional[str] = None,      # Virtual entity abstraction (Phase 3 enhancement)
         entity_name: Optional[str] = None,    # Virtual entity abstraction (Phase 3 enhancement)
         capabilities: Any = None,             # device capability map → WB exposure/type/order (Layer-3 re-key)
+        state_provider: Optional[StateProvider] = None,  # zero-arg callable returning current device state — used by publish_device_state_changes
     ) -> bool:
         """Set up WB virtual device using existing config schema patterns.
         
@@ -126,7 +132,8 @@ class WBVirtualDeviceService:
                 "device_type": device_type or (config.device_class if hasattr(config, 'device_class') else 'device'),
                 "device_name": wb_device_name,  # Store the virtual device name
                 "wb_device_id": wb_device_id,   # Store virtual WB device ID for MQTT operations
-                "config_device_id": config_device_id  # Store original config device ID for reference
+                "config_device_id": config_device_id,  # Store original config device ID for reference
+                "state_provider": state_provider,  # zero-arg callable → current device state (Invariant B chokepoint)
             }
             self._command_executors[tracking_device_id] = command_executor
             
@@ -284,13 +291,19 @@ class WBVirtualDeviceService:
             # Process parameters from payload using command configuration
             params = self._process_wb_command_payload_from_config(control_name, cmd_config, payload)
             
-            # Execute the command via callback (use tracking device ID)
+            # Execute the command via callback (use tracking device ID).
             executor = self._command_executors[tracking_device_id]
             await executor(control_name, payload, params)
-            
-            # Update WB control state to reflect the command (use virtual WB device ID)
-            await self._update_wb_control_state(wb_device_id, control_name, payload)
-            
+
+            # Note: we no longer echo the incoming payload back to the value topic here.
+            # The driver's `update_state(...)` call inside its handler triggers the state-
+            # change callback chain, which publishes the device's RESULTING state via
+            # `publish_device_state_changes`. Echoing the incoming payload would be (a)
+            # redundant in the happy path and (b) wrong when the driver settles on a value
+            # different from what was sent (toggle, normalization, rejection). Drivers that
+            # don't call `update_state` are bugs and are caught by the per-driver audit, not
+            # papered over here.
+
             return True
             
         except Exception as e:
@@ -781,6 +794,137 @@ class WBVirtualDeviceService:
             logger.debug(f"Updated WB control state for {device_id}/{control_name}: {safe_payload}")
         except Exception as e:
             logger.error(f"Error updating WB control state for {device_id}/{control_name}: {str(e)}")
+
+    # ------------------------------------------------------------------------
+    # Invariant B chokepoint: republish WB control value topics after device state changes.
+    # Registered as a state-change callback on every WB-enabled device by BaseDevice
+    # (`_setup_wb_virtual_device` calls `register_state_change_callback(wb_service.publish_device_state_changes)`).
+    # The callback chain dispatches `(device_id, changed_fields)` synchronously from
+    # `BaseDevice._notify_state_change`; we schedule the actual MQTT publishes async via
+    # `asyncio.create_task` to avoid blocking the caller (matches the persistence callback pattern).
+    # ------------------------------------------------------------------------
+
+    def publish_device_state_changes(self, device_id: str, changed_fields: List[str]) -> None:
+        """Sync state-change callback that schedules WB value-topic publishes.
+
+        Sync entry point + ``asyncio.create_task`` keeps this callable from ``BaseDevice.
+        _notify_state_change`` regardless of whether the caller is sync or async — matches
+        ``DeviceManager._persist_state_callback``.
+        """
+        if not changed_fields:
+            return
+        if device_id not in self._active_devices:
+            # Device wasn't WB-enabled (no virtual device) — silent no-op, not an error
+            return
+        try:
+            import asyncio
+            asyncio.create_task(self._async_publish_state_changes(device_id, list(changed_fields)))
+        except RuntimeError as e:
+            logger.warning(f"Cannot schedule WB state publish for {device_id} (no event loop): {e}")
+
+    async def _async_publish_state_changes(self, device_id: str, changed_fields: List[str]) -> None:
+        """Read the device's current state and publish each changed field to its WB control(s)."""
+        try:
+            device_info = self._active_devices.get(device_id)
+            if not device_info:
+                return  # device was unregistered between schedule and run
+
+            wb_device_id = device_info["wb_device_id"]
+            state_provider = device_info.get("state_provider")
+            if state_provider is None:
+                # Older code path didn't inject a provider — nothing to publish. (Tests / mocks.)
+                return
+
+            # Read current state once for this batch
+            state_obj = state_provider()
+            if hasattr(state_obj, "dict"):
+                state_dict = state_obj.dict()
+            elif hasattr(state_obj, "__dict__"):
+                state_dict = state_obj.__dict__
+            else:
+                logger.warning(f"Cannot extract state dict from {type(state_obj).__name__} for {device_id}")
+                return
+
+            config = device_info["config"]
+            field_to_controls = self._build_state_field_to_control_map(config)
+
+            for field in changed_fields:
+                control_names = field_to_controls.get(field)
+                if not control_names:
+                    continue  # no WB control mapped for this state field — silent skip
+                if field not in state_dict:
+                    continue
+                payload = self._wb_payload_for_value(state_dict[field])
+                for control_name in control_names:
+                    await self._update_wb_control_state(wb_device_id, control_name, payload)
+        except Exception as e:
+            logger.error(f"Error publishing WB state changes for {device_id}: {e}")
+
+    def _build_state_field_to_control_map(self, config: Union[BaseDeviceConfig, Dict[str, Any]]) -> Dict[str, List[str]]:
+        """Build ``{state_field_name: [wb_control_name, ...]}`` from a device config.
+
+        Two sources, in this order:
+        1. **Explicit** ``wb_state_mappings`` in the device config — for cases where the state
+           field name doesn't match any WB control name (e.g. ``input_source`` → ``input``).
+           Value may be a single string or a list (one state field → multiple WB controls).
+        2. **By-name convention** fallback — for every WB control NOT already covered by an
+           explicit mapping, assume there's a state field of the same name. This is the common
+           case (``power`` command → ``power`` control → ``power`` state field).
+
+        Pushbutton/momentary controls are **excluded** — they have no state to track.
+        """
+        result: Dict[str, List[str]] = {}
+
+        # 1) Explicit mappings from config
+        explicit = None
+        if isinstance(config, dict):
+            explicit = config.get('wb_state_mappings')
+        else:
+            explicit = getattr(config, 'wb_state_mappings', None)
+
+        if explicit:
+            for field, control_or_controls in explicit.items():
+                if isinstance(control_or_controls, str):
+                    result[field] = [control_or_controls]
+                elif isinstance(control_or_controls, (list, tuple)):
+                    result[field] = [c for c in control_or_controls if isinstance(c, str)]
+
+        # 2) By-name convention fallback — any WB control not already mapped by an explicit
+        #    entry maps from a state field of the same name. Pushbuttons skipped.
+        try:
+            wb_controls = self.build_wb_controls_from_config(config)
+        except Exception as e:
+            logger.debug(f"Could not enumerate WB controls for state mapping ({e}); using explicit map only")
+            wb_controls = {}
+
+        explicit_controls = {c for controls in result.values() for c in controls}
+        for control_name, control_info in wb_controls.items():
+            meta_type = (control_info.get("meta", {}) or {}).get("type")
+            if meta_type == "pushbutton":
+                continue  # momentary controls have no state
+            if control_name in explicit_controls:
+                continue  # already covered by an explicit mapping (from a possibly differently-named field)
+            # Convention: WB control name == state field name
+            result.setdefault(control_name, []).append(control_name)
+            # Dedupe in case the same control_name happened to also appear via explicit map
+            result[control_name] = list(dict.fromkeys(result[control_name]))
+
+        return result
+
+    @staticmethod
+    def _wb_payload_for_value(value: Any) -> str:
+        """Convert a Python state value to the WB MQTT payload string.
+
+        WB conventions: bool → '0'/'1'; None → '0' (also avoids the empty-retained-payload
+        bug that drops the control from the WB UI); Enum → its value; everything else → str().
+        """
+        if value is None:
+            return "0"
+        if isinstance(value, bool):
+            return "1" if value else "0"
+        if isinstance(value, Enum):
+            return str(value.value)
+        return str(value)
     
     def _validate_wb_configuration_from_config(self, config: Union[BaseDeviceConfig, Dict[str, Any]]) -> Tuple[bool, Dict[str, Any]]:
         """Validate WB configuration from config object."""

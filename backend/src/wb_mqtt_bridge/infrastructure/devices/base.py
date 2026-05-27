@@ -77,15 +77,23 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
         
         # Use WB service to set up virtual device - clean delegation. Pass the capability map so WB
         # exposure/type/order is keyed off domain+kind+exposed (Layer-3 re-key), not the config group.
+        # Also pass `state_provider=self.get_current_state` so the WB service can read the current
+        # state on demand from the publish_device_state_changes callback (Invariant B chokepoint).
         success = await self.wb_service.setup_wb_device_from_config(
             config=self.config,
             command_executor=self._execute_wb_command_from_service,
             driver_name="wb_mqtt_bridge",
             device_type=self.config.device_class.lower() if hasattr(self.config, 'device_class') else None,
             capabilities=self.capabilities,
+            state_provider=self.get_current_state,
         )
-        
+
         if success:
+            # Wire the WB publish callback into the state-change chain so future state changes
+            # propagate to /devices/<id>/controls/<x> value topics. Invariant B is now held by
+            # construction: any path that calls update_state on this device → callback chain
+            # → both persistence AND WB publish run. No more "WB UI silently stale" surprises.
+            self.register_state_change_callback(self.wb_service.publish_device_state_changes)
             logger.info(f"WB virtual device emulation enabled for {self.device_id}")
         else:
             logger.error(f"Failed to setup WB virtual device for {self.device_id}")
