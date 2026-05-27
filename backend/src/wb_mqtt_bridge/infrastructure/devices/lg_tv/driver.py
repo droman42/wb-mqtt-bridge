@@ -929,12 +929,22 @@ class LgTv(BaseDevice[LgTvState]):
             return False
         
         try:
-            # Use ApplicationControl's foreground_app method
-            if self.app:
-                foreground_app = await self.app.foreground_app()
-                if foreground_app and isinstance(foreground_app, dict):
-                    self.update_state(current_app=foreground_app.get("appId"))
-                    return True
+            # asyncwebostv 0.3.x exposes the foreground app as `get_current()` (the same URI
+            # that backs `subscribe_get_current`). It returns an Application model wrapping
+            # the raw payload (`.data` dict; also `__getitem__` for `app["appId"]`). The old
+            # `foreground_app()` method no longer exists — pre-0.3 bridge code that called
+            # it failed silently with AttributeError("foreground_app").
+            #
+            # Defensive payload extraction mirrors _on_foreground_app_change so future
+            # library tweaks (raw dict pass-through, attribute renames) don't silently regress.
+            current = await self.app.get_current()
+            if current is None:
+                return False
+            data = current.data if hasattr(current, "data") else current
+            app_id = data.get("appId") if isinstance(data, dict) else None
+            if app_id is not None:
+                self.update_state(current_app=app_id)
+                return True
             return False
         except Exception as e:
             logger.debug(f"Could not get current app info: {str(e)}")
