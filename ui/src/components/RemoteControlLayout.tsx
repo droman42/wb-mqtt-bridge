@@ -992,21 +992,25 @@ const PointerZone = ({ zone, deviceStructure, onAction, className, isActionPendi
     }
   };
 
-  const _handleClick = () => {
+  const handleClick = () => {
     if (pointerPad.clickAction) {
       // Use sourceDeviceId if available (for inherited actions), otherwise use scenario device
       const targetDeviceId = pointerPad.clickAction.sourceDeviceId || deviceStructure.deviceId;
+      // No params — webOS pointer click takes none (see asyncwebostv pointer_spec.md §4).
       onAction(pointerPad.clickAction.actionName, {}, targetDeviceId);
     }
   };
 
   return (
     <div className={cn("zone-pointer", className)}>
-      <span className="zone-legend">Pointer Pad (relative)</span>
+      <span className="zone-legend">Pointer Pad (tap = click, drag = move)</span>
       <div className="zone-content pointer-content">
         <PointerPad
           mode="relative"
           onMove={handleMove}
+          // PointerPad fires onClick for short taps (no/minimal movement) and onMove
+          // for drag gestures. The tap-vs-pan threshold lives inside PointerPad.
+          onClick={pointerPad.clickAction ? handleClick : undefined}
           className="w-full h-full bg-white/10 border border-white/20 rounded-lg"
         />
       </div>
