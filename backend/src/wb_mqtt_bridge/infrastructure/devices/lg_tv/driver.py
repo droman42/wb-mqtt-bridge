@@ -6,7 +6,7 @@ import ssl
 from typing import Dict, Any, List, Optional, Tuple, Union, cast
 
 # Import WebOSTV classes for higher-level API access
-from asyncwebostv import WebOSTV, SecureWebOSTV
+from asyncwebostv import WebOSTV, SecureWebOSTV, app_id_to_input_id
 
 # Keep original imports for backward compatibility
 
@@ -281,7 +281,19 @@ class LgTv(BaseDevice[LgTvState]):
 
     async def _on_foreground_app_change(self, success: bool, payload: Any) -> None:
         """Subscription callback for `applicationManager/getForegroundAppInfo`. Payload is
-        an Application model wrapping the raw dict — access fields via .data."""
+        an Application model wrapping the raw dict — access fields via .data.
+
+        Derives BOTH `current_app` AND `input_source` from the foreground-app event,
+        coalesced into a single `update_state(...)` call so the chokepoint fires once
+        per logical event (one persistence write, one WB-publish batch). The
+        `input_source` derivation uses `asyncwebostv.app_id_to_input_id` — which
+        returns `"HDMI_<N>"` for `com.webos.app.hdmi<N>` foreground apps and `None`
+        for everything else (launcher, installed apps, Live TV — no external input
+        active). webOS has no documented "current external input" endpoint
+        independent of the foreground app (per the v0.3.2 library spec research at
+        asyncwebostv `docs/subscription_spec.md` § "Current External Input"); the
+        foreground-app subscription is the single source of truth for both fields.
+        """
         if not success:
             logger.warning(f"Foreground-app subscription error for {self.get_name()}: {payload}")
             return
@@ -291,7 +303,13 @@ class LgTv(BaseDevice[LgTvState]):
             data = payload.data if hasattr(payload, "data") else payload
             app_id = data.get("appId") if isinstance(data, dict) else None
             if app_id is not None:
-                self.update_state(current_app=app_id)
+                # Always update current_app; input_source becomes the derived HDMI port
+                # when foreground is com.webos.app.hdmi<N>, else None (truthful "no
+                # external input active" — see asyncwebostv pointer/subscription specs).
+                self.update_state(
+                    current_app=app_id,
+                    input_source=app_id_to_input_id(app_id),
+                )
         except Exception as e:
             logger.warning(f"Failed to apply foreground-app subscription event for {self.get_name()}: {e}")
 
@@ -858,31 +876,32 @@ class LgTv(BaseDevice[LgTvState]):
     
     async def _update_tv_state(self) -> bool:
         """Update the TV state information.
-        
-        Retrieves current volume, mute state, current app, and input source
-        from the TV.
-        
+
+        Polls current volume + foreground app from the TV as an initial seed for
+        state at connect time; subscriptions take over for delta updates from
+        there. `input_source` is NOT polled separately — it's derived from the
+        foreground-app subscription via `app_id_to_input_id` (see
+        `_on_foreground_app_change`), the single source of truth on webOS where
+        no documented current-external-input endpoint exists.
+
         Returns:
             True if at least some state information was updated, False otherwise
         """
         if not self.client or not self.state.connected:
             logger.debug("Cannot update TV state: Not connected")
             return False
-            
-        # Track if any updates happened
-        update_success = False
-        
+
         # Get volume info
         volume_updated = await self._update_volume_state()
-        
-        # Get current app
+
+        # Get current app — also seeds input_source via app_id_to_input_id
+        # (single source of truth on webOS, which has no current-external-input
+        # endpoint). The foreground-app subscription's first event arrives
+        # shortly after this and keeps both fields in sync from then on.
         app_updated = await self._update_current_app()
-        
-        # Get input source
-        input_updated = await self._update_input_source()
-        
-        # Consider success if any of the updates worked
-        update_success = volume_updated or app_updated or input_updated
+
+        # Consider success if any of the polls worked
+        update_success = volume_updated or app_updated
         
         if not update_success:
             logger.debug("No TV state information could be updated")
@@ -943,33 +962,33 @@ class LgTv(BaseDevice[LgTvState]):
             data = current.data if hasattr(current, "data") else current
             app_id = data.get("appId") if isinstance(data, dict) else None
             if app_id is not None:
-                self.update_state(current_app=app_id)
+                # Coalesce current_app + input_source into one update_state call so
+                # the chokepoint fires once per logical event (one persistence
+                # write, one WB-publish batch). Mirrors _on_foreground_app_change
+                # — same derivation, same single source of truth. Eliminates the
+                # brief window where input_source would be None between this
+                # connect-time poll and the subscription's first event.
+                self.update_state(
+                    current_app=app_id,
+                    input_source=app_id_to_input_id(app_id),
+                )
                 return True
             return False
         except Exception as e:
             logger.debug(f"Could not get current app info: {str(e)}")
             return False
-            
-    async def _update_input_source(self) -> bool:
-        """Update input source information using InputControl.
-        
-        Returns:
-            True if update was successful, False otherwise
-        """
-        if not self.input_control:
-            return False
-        
-        try:
-            # Use InputControl's get_input method directly
-            input_info = await self.input_control.get_input()
-            if input_info and "inputId" in input_info:
-                self.update_state(input_source=input_info.get("inputId"))
-                return True
-            return False
-        except Exception as e:
-            logger.debug(f"Could not get input source info: {str(e)}")
-            return False
-    
+
+    # NOTE: _update_input_source() removed in the 2026-05-27 input_source rewrite.
+    # The old polling helper called `InputControl.get_input()` and matched on
+    # `"inputId" in input_info`; webOS has no documented current-external-input
+    # endpoint, so the response was silent and the helper always returned False
+    # without populating state. Now input_source is derived from the foreground
+    # app id via `app_id_to_input_id` — done inline in `_update_current_app`
+    # (connect-time seed) and `_on_foreground_app_change` (subscription deltas).
+    # See asyncwebostv `docs/subscription_spec.md` § "Current External Input"
+    # and the v0.3.2 changelog for the spec-research rationale.
+
+
     async def _execute_with_monitoring(self, control, method_name: str, *args, **kwargs) -> Dict[str, Any]:
         """Execute a control method with monitoring and handle common result patterns.
         
