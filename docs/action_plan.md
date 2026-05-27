@@ -306,10 +306,36 @@ code/models/config behind — budget real time for this; do not skip it.
      unexpected* error during startup (not the now-handled device/scenario cases) leaks partial
      resources (sockets/ports → a hung process). Wrap startup → best-effort release on failure +
      re-raise. (The common zombie cause — `load_scenarios` `SystemExit` — is already fixed.)
-   - **Teardown noise.** `Task was destroyed but it is pending` (pyatv `CompanionAPI.disconnect`
-     not awaited to completion) and `_GatheringFuture exception was never retrieved` (the 2 s
-     cancel-gather); also tune the 2 s background-task cancellation. Cosmetic — the process exits
-     fine on SIGTERM today.
+   - **Teardown noise → PROMOTED 2026-05-27 to user-visible (3× Ctrl-C, 50 s hang).** Originally
+     classified cosmetic (`Task was destroyed but it is pending` from pyatv `CompanionAPI.
+     disconnect` not awaited to completion; `_GatheringFuture exception was never retrieved`
+     from the 2 s cancel-gather). **Field-observed during the LG TV HW pass on 2026-05-27**
+     while stopping the backend with Ctrl-C: user had to press Ctrl-C **three times**; the
+     process hung for **~50 seconds** between the first cancel signal and the eventual force
+     exit. Log analysis (`backend/logs/service.log`, 14:13:57 → 14:14:47) shows the **entire
+     bootstrap lifespan shutdown phase (`bootstrap.py:285-357`, the code after `yield`) never
+     executed** — none of its INFO lines (`"System shutting down..."`, `"Shutting down devices..."`,
+     `"Disconnecting MQTT client..."`, `"System shutdown complete"`, etc.) appear. What logged
+     instead: uvicorn's signal handler cancelling background tasks directly (SSE generators,
+     pymotivaxmc2 dispatcher, MQTT client task), then 50 s silence, then **2 `Unclosed client
+     session` aiohttp errors from GC** — almost certainly the 2 pyatv (Apple TV) instances
+     whose `CompanionAPI.disconnect` doesn't drain on cancel. So the cluster of issues is:
+     (a) lifespan shutdown phase is being **bypassed**, not just made noisy — uvicorn's
+     SIGINT handler cancels the lifespan generator without resuming the after-`yield` block;
+     (b) pyatv teardown keeps the loop alive for ~50 s before GC; (c) the orchestrated cleanup
+     (state-store close, WB virtual-device offline marking, device.shutdown() per device,
+     including the LG TV's `_teardown_subscriptions` added in `5a09fd1`) **is never reached**.
+     **NOT caused by today's commits** — `_teardown_subscriptions` only runs from inside
+     `LgTv.shutdown()` which only runs inside `shutdown_devices()` which is part of the
+     bypassed lifespan phase. State integrity preserved (writes are transactional through
+     the operating life of the process, not buffered until shutdown). **Workaround at the
+     rack today:** `kill -TERM <pid>` (often handled differently by uvicorn) or accept the
+     Ctrl-C-x3 dance — no data loss. **When fixing:** (1) register an explicit SIGINT/SIGTERM
+     handler in the entry point that drives the lifespan shutdown explicitly before uvicorn's
+     cancel cascade; (2) wrap `atv.disconnect()` in `asyncio.wait_for(..., timeout=2.0)` with
+     per-device timeout logging; (3) investigate whether the FastAPI/uvicorn version we run
+     has the lifespan-cancel-bypass regression that's been reported upstream in uvicorn 0.27+.
+     Also tune the 2 s background-task cancellation if needed.
    - **Device auto-reconnect/retry** for devices that failed setup (kept registered as
      disconnected) — so an off-at-boot eMotiva becomes controllable once it powers on, without a
      restart. (Follow-up to keep-registered.)
