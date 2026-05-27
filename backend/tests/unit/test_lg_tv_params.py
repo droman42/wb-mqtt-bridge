@@ -209,3 +209,44 @@ def test_disconnected_state_flag_writable(device):
     assert device.state.connected is False
     device.state.connected = True
     assert device.state.connected is True
+
+
+# ---------------------------------------------------------------------------
+# Power-state subscription mapping
+#
+# The asyncwebostv 0.3.0 spec (docs/subscription_spec.md) ports the
+# production-verified power-state value list from aiowebostv + aiopylgtv. Our
+# `_lg_tv_is_on` helper must collapse those values to the binary on/off the
+# driver state model uses. Lock the mapping in so a future "let me just add
+# Suspend to the on-list" change can't silently drift.
+#
+# The driver wiring (subscribe_power_state → _on_power_state_change → update_state)
+# is integration-shaped and verified at the rack; here we just pin the mapping.
+# ---------------------------------------------------------------------------
+
+import pytest as _pytest  # alias to avoid colliding with the existing `pytest` import
+
+
+@_pytest.mark.parametrize(
+    "raw_state,expected_on",
+    [
+        # Operational / accepts commands → ON
+        ("Active",       True),
+        ("Screen Off",   True),   # display off, system live, still accepts commands
+        ("Screen Saver", True),
+        # Off or standby / will not accept commands → OFF
+        ("Power Off",      False),
+        ("Suspend",        False),
+        ("Active Standby", False),
+        (None,             False),  # older webOS that doesn't implement the endpoint
+        # Defensive: any unknown value (future webOS state we haven't characterised)
+        # falls through to ON — see _LG_TV_OFF_STATES rationale.
+        ("BrandNewState",  True),
+        ("",               True),
+    ],
+)
+def test_lg_tv_power_state_mapping(raw_state, expected_on):
+    """Regression for _lg_tv_is_on. Values from asyncwebostv 0.3.0
+    docs/subscription_spec.md "Power States"."""
+    from wb_mqtt_bridge.infrastructure.devices.lg_tv.driver import _lg_tv_is_on
+    assert _lg_tv_is_on(raw_state) is expected_on

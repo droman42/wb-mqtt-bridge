@@ -20,6 +20,22 @@ from wb_mqtt_bridge.utils.types import CommandResult
 
 logger = logging.getLogger(__name__)
 
+# webOS power-state values that mean "TV is on, accepts commands" — derived from the
+# asyncwebostv subscription_spec.md "Power States" section (values verified against
+# aiowebostv + aiopylgtv in production). The inverse list — None / "Power Off" /
+# "Suspend" / "Active Standby" — counts as OFF. Unknown values (future webOS versions)
+# fall through to ON, which is the safer default: commands attempted on an actually-off
+# TV fail visibly, whereas commands skipped against a TV we wrongly think is off are
+# silent. The mapping is mirrored in test_lg_tv_power_state_mapping for regression
+# protection.
+_LG_TV_OFF_STATES = frozenset({None, "Power Off", "Suspend", "Active Standby"})
+
+
+def _lg_tv_is_on(state: Optional[str]) -> bool:
+    """Map a webOS power-state string to our binary on/off. See _LG_TV_OFF_STATES."""
+    return state not in _LG_TV_OFF_STATES
+
+
 class LgTv(BaseDevice[LgTvState]):
     """Implementation of an LG TV controlled over the network using AsyncWebOSTV library."""
     
@@ -51,6 +67,13 @@ class LgTv(BaseDevice[LgTvState]):
         self.system = None
         self.media = None
         self.app = None
+        # Subscription bookkeeping. asyncwebostv 0.3.0 contract: per-control `subscriptions`
+        # dicts are NOT cleared by client.close(), so we must (a) unsubscribe explicitly
+        # before close and (b) treat each (re)connect as a fresh slate — new WebOSTV → new
+        # MediaControl/SystemControl/ApplicationControl → new subscriptions. The flag tracks
+        # whether subscribe_* has been called on the current generation of control objects;
+        # _teardown_subscriptions is a no-op when False (e.g. shutdown without ever connecting).
+        self._subscriptions_active = False
         self.tv_control = None
         self.input_control = None
         self.source_control = None
@@ -195,7 +218,151 @@ class LgTv(BaseDevice[LgTvState]):
         except Exception as e:
             logger.error(f"Error initializing control interfaces: {str(e)}")
             return False
-            
+
+    # ------------------------------------------------------------------------
+    # Real-time subscriptions (asyncwebostv 0.3.0 — see docs/subscription_spec.md).
+    # These replace the "state is whatever we last read at connect" model with
+    # event-driven sync, so TV-side changes (volume via remote, power off via remote,
+    # app switch via launcher) propagate without us re-polling. Callbacks all route
+    # through self.update_state() — the chokepoint then runs persistence + WB-publish
+    # for free (see state-sync chokepoint, commit 5d289af). Initial state is still
+    # seeded by the polling helpers in _update_tv_state since not every webOS version
+    # fires an initial event on subscribe; subscriptions take over from there.
+    #
+    # Three subscriptions selected (per user-approved option B, audit 2026-05-27):
+    #   1. SystemControl.subscribe_power_state — biggest gap, closes "physical-remote
+    #      power-off invisible" bug. ⚠ Endpoint may differ on webOS 4.x+ (tvpower
+    #      service); library currently targets the legacy URI. Watch for silent
+    #      no-fires on HW; if so, file with library Claude for a URI flip.
+    #   2. MediaControl.subscribe_get_volume — volume + mute deltas. webOS fires this
+    #      on every volume-bar display even if value unchanged; the chokepoint's
+    #      `changed_fields` early-return dedupes for free.
+    #   3. ApplicationControl.subscribe_get_current — foreground-app changes. The
+    #      payload is an Application object, not a raw dict; access via .data.
+    # ------------------------------------------------------------------------
+
+    async def _on_volume_change(self, success: bool, payload: Any) -> None:
+        """Subscription callback for `audio/getVolume`. Coalesces volume+mute into one
+        update_state call so the chokepoint fires once per logical event."""
+        if not success:
+            logger.warning(f"Volume subscription error for {self.get_name()}: {payload}")
+            return
+        try:
+            new_volume = payload.get("volume") if isinstance(payload, dict) else None
+            new_mute = payload.get("muted") if isinstance(payload, dict) else None
+            # Only update fields that the event actually carried (defensive — webOS
+            # sometimes sends partial payloads). update_state's changed_fields check
+            # dedupes no-op updates, so over-eager calls are cheap.
+            updates: Dict[str, Any] = {}
+            if new_volume is not None:
+                updates["volume"] = new_volume
+            if new_mute is not None:
+                updates["mute"] = new_mute
+            if updates:
+                self.update_state(**updates)
+        except Exception as e:
+            logger.warning(f"Failed to apply volume subscription event for {self.get_name()}: {e}")
+
+    async def _on_power_state_change(self, success: bool, payload: Any) -> None:
+        """Subscription callback for `com.webos.service.power/power/getPowerState`. Maps
+        the webOS state string to our binary on/off via _lg_tv_is_on."""
+        if not success:
+            logger.warning(f"Power-state subscription error for {self.get_name()}: {payload}")
+            return
+        try:
+            raw_state = payload.get("state") if isinstance(payload, dict) else None
+            new_power = "on" if _lg_tv_is_on(raw_state) else "off"
+            logger.debug(
+                f"Power-state event for {self.get_name()}: webOS state={raw_state!r} → power={new_power!r}"
+            )
+            self.update_state(power=new_power)
+        except Exception as e:
+            logger.warning(f"Failed to apply power-state subscription event for {self.get_name()}: {e}")
+
+    async def _on_foreground_app_change(self, success: bool, payload: Any) -> None:
+        """Subscription callback for `applicationManager/getForegroundAppInfo`. Payload is
+        an Application model wrapping the raw dict — access fields via .data."""
+        if not success:
+            logger.warning(f"Foreground-app subscription error for {self.get_name()}: {payload}")
+            return
+        try:
+            # Library wraps in an Application object with a .data dict per subscription_spec.md.
+            # Be defensive: if a future library version passes the raw dict through, handle both.
+            data = payload.data if hasattr(payload, "data") else payload
+            app_id = data.get("appId") if isinstance(data, dict) else None
+            if app_id is not None:
+                self.update_state(current_app=app_id)
+        except Exception as e:
+            logger.warning(f"Failed to apply foreground-app subscription event for {self.get_name()}: {e}")
+
+    async def _setup_subscriptions(self) -> None:
+        """Register the three real-time subscriptions against the current control objects.
+        Called from connect() after _initialize_control_interfaces() + _update_tv_state()
+        seed the initial state. Idempotent in the safe direction: each control's own
+        `subscriptions` dict raises ValueError on double-subscribe, which we catch and
+        log so a retry path doesn't crash. Degrades gracefully — a failure on any one
+        subscription leaves the driver in polling-only mode for that field but doesn't
+        block the others or the connect itself."""
+        if self._subscriptions_active:
+            logger.debug(f"Subscriptions already active for {self.get_name()}; skipping setup")
+            return
+
+        attempts: List[Tuple[str, Any]] = []
+        if self.media is not None:
+            attempts.append(("volume", self.media.subscribe_get_volume(self._on_volume_change)))
+        if self.system is not None:
+            attempts.append(("power_state", self.system.subscribe_power_state(self._on_power_state_change)))
+        if self.app is not None:
+            attempts.append(("foreground_app", self.app.subscribe_get_current(self._on_foreground_app_change)))
+
+        ok_count = 0
+        for name, coro in attempts:
+            try:
+                await coro
+                ok_count += 1
+                logger.info(f"Subscribed to {name} updates for {self.get_name()}")
+            except ValueError as ve:
+                # "Already subscribed" — the control object survived a partial setup.
+                # Library reconnect contract says discard controls; if we see this, our
+                # bookkeeping has drifted from reality. Log loudly, don't block.
+                logger.warning(
+                    f"Subscription {name} for {self.get_name()} reports already-subscribed "
+                    f"— stale control object? {ve}"
+                )
+            except Exception as e:
+                logger.warning(f"Failed to subscribe to {name} for {self.get_name()}: {e}")
+
+        if ok_count > 0:
+            self._subscriptions_active = True
+
+    async def _teardown_subscriptions(self) -> None:
+        """Unsubscribe and clear bookkeeping BEFORE client.close(). Per-subscription
+        try/except so one failure doesn't block the others; clears the flag at the end
+        regardless so a subsequent connect starts clean (the new controls created by the
+        next WebOSTV won't share the flag)."""
+        if not self._subscriptions_active:
+            return
+
+        attempts: List[Tuple[str, Any]] = []
+        if self.media is not None:
+            attempts.append(("volume", self.media.unsubscribe_get_volume()))
+        if self.system is not None:
+            attempts.append(("power_state", self.system.unsubscribe_power_state()))
+        if self.app is not None:
+            attempts.append(("foreground_app", self.app.unsubscribe_get_current()))
+
+        for name, coro in attempts:
+            try:
+                await coro
+                logger.debug(f"Unsubscribed from {name} for {self.get_name()}")
+            except ValueError:
+                # "Not subscribed" — fine, treat as already cleaned up.
+                pass
+            except Exception as e:
+                logger.warning(f"Failed to unsubscribe from {name} for {self.get_name()}: {e}")
+
+        self._subscriptions_active = False
+
     async def _refresh_app_cache(self) -> bool:
         """Refresh the cached list of available apps from the TV.
         
@@ -469,11 +636,21 @@ class LgTv(BaseDevice[LgTvState]):
                 self.update_state(connected=True)
                 self.clear_error()
 
-                # Initialize control interfaces after successful connection
+                # Initialize control interfaces after successful connection. Library
+                # reconnect contract: the new WebOSTV created above gives us a fresh
+                # set of control objects (media/system/app/etc.), so no stale subscription
+                # state from a prior connection can leak. Subscriptions go on these fresh
+                # controls.
                 await self._initialize_control_interfaces()
 
-                # Update TV state after successful connection
+                # Seed initial state via one-shot polling (not every webOS version sends
+                # an initial event on subscribe; this guarantees we have a baseline).
                 await self._update_tv_state()
+
+                # Register real-time subscriptions (volume, power_state, foreground_app)
+                # so future TV-side changes propagate without re-polling. Failures here
+                # degrade to polling-only — they don't block the connect.
+                await self._setup_subscriptions()
             else:
                 logger.error(f"Failed to connect to TV {self.get_name()}")
                 await self.emit_progress(f"Failed to connect to {self.device_name}", "action_error")
@@ -506,6 +683,11 @@ class LgTv(BaseDevice[LgTvState]):
             
             # Disconnect from TV
             if self.client:
+                # Unsubscribe BEFORE close so we send the protocol-level cancellation
+                # while the WebSocket is still alive. Library 0.3.0 clears its waiters /
+                # subscribers in close(), but the per-control `subscriptions` dicts are
+                # NOT cleared — explicit unsubscribe here is correct teardown.
+                await self._teardown_subscriptions()
                 try:
                     # WebOSTV.close() handles closing all connections including input
                     await self.client.close()
