@@ -162,7 +162,7 @@ wheels = [
 
 [[package]]
 name = "asyncwebostv"
-version = "0.3.1"
+version = "0.3.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -170,9 +170,9 @@ dependencies = [
     { name = "twine" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b8/55/fdd61d2b869514a71340b6a5156d802b0754cc71ede2e95738919ed02dd2/asyncwebostv-0.3.1.tar.gz", hash = "sha256:3004973395ca726cd2a5b012440f4af05686ae6d20480dc2f4814a847d6db33e", size = 25724 }
+sdist = { url = "https://files.pythonhosted.org/packages/af/27/8b8a8626e94aa6d257a45db887b76a5b410150d352e0e8dc4a01318ddee1/asyncwebostv-0.3.4.tar.gz", hash = "sha256:c15b84fff5106970590c5df9567b55a33c07838c1c4b4cb734a8911ec87ac718", size = 28359 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/94/e4/a2e30fd846bcb7643b9df3f0ed78480d92a0800a58ef4a16c741894d1bcb/asyncwebostv-0.3.1-py3-none-any.whl", hash = "sha256:0681ff7befcafaf9dfef0daae3cd87bb92692d31e0fe475e49e4a80ec7dab061", size = 28574 },
+    { url = "https://files.pythonhosted.org/packages/c2/b8/9ad986d242600ad6702ef39e7affb94d0519bda948c83e7dc8cf0fc5e10f/asyncwebostv-0.3.4-py3-none-any.whl", hash = "sha256:3ab161350a0f961f9b6a6cbdcfb695730bbdfb3cd1987a93a96c8f9bdf281a93", size = 31261 },
 ]
 
 [[package]]
@@ -1824,7 +1824,7 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.8.1,<4" },
     { name = "aiomqtt", specifier = ">=2.0,<3" },
     { name = "aiosqlite", specifier = ">=0.19.0,<1" },
-    { name = "asyncwebostv", specifier = "==0.3.1" },
+    { name = "asyncwebostv", specifier = "==0.3.4" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=21.0" },
     { name = "broadlink", specifier = ">=0.18.0,<1" },
     { name = "fastapi", specifier = ">=0.103.0,<1" },

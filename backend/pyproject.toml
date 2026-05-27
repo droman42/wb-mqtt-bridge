@@ -36,7 +36,7 @@ dependencies = [
     # Device-specific libraries (PyPI versions - Phase 1 migration)
     "broadlink>=0.18.0,<1",
     "pymotivaxmc2==0.6.7", # Migrated from Git to PyPI
-    "asyncwebostv==0.3.1", # PyPI; v0.3.1 = HW-pass-driven payload-contract fixes (power_state URI flip to tvpower service; get_volume + get_input return-funcs normalise webOS-side payload wrappers; v0.3.0 = subscription-lifecycle hardening)
+    "asyncwebostv==0.3.4", # PyPI; v0.3.4 close-callback registry (auto-closes pointer socket on client.close); v0.3.3 pointer wire-format fixes + pointer_spec.md; v0.3.2 input_source derived from foreground_app + app_id_to_input_id helper; v0.3.1 = payload-contract fixes; v0.3.0 = subscription-lifecycle hardening
     # Network and HTTP libraries
     "websockets>=15.0.1,<16",
     "pyOpenSSL>=23.2.0,<27",
