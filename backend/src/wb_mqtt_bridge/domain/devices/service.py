@@ -272,13 +272,19 @@ class DeviceManager:
             except Exception:
                 logger.error(f"Could not inspect state object structure for {device_id}")
             
-    def _persist_state_callback(self, device_id: str):
+    def _persist_state_callback(self, device_id: str, changed_fields: Optional[List[str]] = None):
         """
         Callback to handle device state changes. Schedules the state to be persisted.
-        This method is designed to be called from device instances when their state changes.
-        
+        Registered on every device by ``register_state_change_callback`` during init.
+
+        Persistence saves the **full** device state (idempotent), so ``changed_fields`` is
+        accepted but not read — its presence is for the chokepoint signature shared with
+        per-field-aware callbacks (e.g. the WB-publish callback). The ``Optional`` default
+        keeps older test mocks calling ``cb(device_id)`` working.
+
         Args:
-            device_id: The ID of the device whose state changed
+            device_id: The ID of the device whose state changed.
+            changed_fields: Field names that changed (not used; see above).
         """
         # DEBUG: Log all state change callbacks
         logger.debug(f"[STATE_DEBUG] _persist_state_callback triggered for {device_id}")

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional, cast, Union, Generic, Tuple
+from typing import Dict, Any, List, Optional, cast, Union, Generic, Tuple, Callable
 import logging
 import json
 import re
@@ -40,7 +40,11 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
         # Layer 1 capability map (canonical domain.action -> native commands). Attached at
         # bootstrap from config/capabilities/; None until then. See scenario redesign §5.
         self.capabilities: Optional[CapabilityMap] = None
-        self._state_change_callback = None  # Callback for state changes
+        # State-change callbacks (list — append via register_state_change_callback).
+        # Each is invoked as cb(device_id, changed_fields: List[str]) on every state change.
+        # Multiple registrations supported so persistence + WB-publish + future hooks can all
+        # ride the same chokepoint (see docs/architecture.md "state-change callback chain").
+        self._state_change_callbacks: List[Callable[[str, List[str]], Any]] = []
 
         # Register action handlers
         self._register_handlers()
@@ -639,57 +643,65 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
         
         # Store current state for comparison
         previous_state = self.state.dict(exclude_unset=True)
-        
+
         # Create a new state object with updated values
         updated_data = self.state.dict(exclude_unset=True)
         updated_data.update(updates)
-        
-        # Check if there are actual changes
-        has_changes = False
-        for key, value in updates.items():
-            if key not in previous_state or previous_state[key] != value:
-                has_changes = True
-                break
-        
+
+        # Build the list of fields whose values actually changed (callbacks consume this to
+        # know which controls to republish, etc. — empty list ⇒ early-return; full list ⇒
+        # republish-everything).
+        changed_fields = [
+            key for key, value in updates.items()
+            if key not in previous_state or previous_state[key] != value
+        ]
+
         # If no changes, exit early
-        if not has_changes:
+        if not changed_fields:
             # logger.debug(f"No actual state changes for {self.device_name}")
             return
-        
+
         # Preserve the concrete state type when updating
         state_cls = type(self.state)  # Get the actual class of the current state
         self.state = state_cls(**updated_data)  # Create a new instance of the same class
-        
+
         # Validate complete state after update
         if hasattr(self.state, 'validate_serializable'):
             is_state_valid, state_errors = self.state.validate_serializable()
             if not is_state_valid:
                 logger.warning(f"Device {self.device_id}: State contains non-serializable fields after update: {', '.join(state_errors)}")
-        
+
         logger.debug(f"Updated state for {self.device_name}: {updates}")
-        
+
         # Notify about state change only if there were actual changes
-        self._notify_state_change()
+        self._notify_state_change(changed_fields)
     
-    def _notify_state_change(self):
-        """Notify the registered callback about state changes and emit SSE event."""
-        # Notify persistence callback
-        if self._state_change_callback:
+    def _notify_state_change(self, changed_fields: List[str]):
+        """Dispatch a state change to every registered callback + emit the SSE event.
+
+        Args:
+            changed_fields: Field names whose values changed in this update. Callbacks
+                that care about per-field updates (e.g. WB value-topic republish) use this;
+                callbacks that don't (e.g. persistence — saves the full state regardless)
+                ignore it. Empty list is a no-op (``update_state`` early-returns above; this
+                method is not called).
+        """
+        for cb in self._state_change_callbacks:
             try:
-                # DEBUG: Log all state change notifications
-                logger.debug(f"[BASE_DEVICE_DEBUG] _notify_state_change called for {self.device_id}")
-                
-                self._state_change_callback(self.device_id)
+                cb(self.device_id, changed_fields)
             except Exception as e:
-                logger.error(f"Error notifying state change for device {self.device_id}: {str(e)}")
-        
-        # Emit state change via SSE
+                cb_name = getattr(cb, '__qualname__', repr(cb))
+                logger.error(
+                    f"State-change callback {cb_name} failed for device {self.device_id}: {e}"
+                )
+
+        # Emit state change via SSE (event-publisher port; injected at bootstrap)
         try:
             import asyncio
-            
+
             # Get current state for broadcast
             current_state = self.get_current_state()
-            
+
             # Prepare state event data
             state_event_data = {
                 "device_id": self.device_id,
@@ -697,7 +709,7 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
                 "state": current_state.dict() if hasattr(current_state, 'dict') else current_state,
                 "timestamp": datetime.now().isoformat()
             }
-            
+
             # Create task to broadcast state change
             if self.event_publisher is not None:
                 asyncio.create_task(
@@ -706,15 +718,16 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
                         data=state_event_data,
                     )
                 )
-            
+
             logger.debug(f"State change SSE event queued for device {self.device_id}")
-            
+
         except Exception as e:
             logger.error(f"Error emitting state change SSE event for device {self.device_id}: {str(e)}")
-                
-    def register_state_change_callback(self, callback):
-        """Register a callback to be notified when state changes."""
-        self._state_change_callback = callback
+
+    def register_state_change_callback(self, callback: Callable[[str, List[str]], Any]):
+        """Append a state-change callback. Multiple callbacks may be registered; all are
+        invoked on every state change with ``(device_id, changed_fields)``."""
+        self._state_change_callbacks.append(callback)
     
     async def execute_action(
         self, 

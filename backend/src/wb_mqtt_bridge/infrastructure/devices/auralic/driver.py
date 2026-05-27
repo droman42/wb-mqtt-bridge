@@ -131,10 +131,11 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                 self.update_state(warning="IR control not configured - only standby mode available")
                 await self.emit_progress("IR control not configured - only standby mode available", "action_progress")
             
-            # Force a state persistence to ensure the database has all fields
-            # This solves the issue of AuralicDeviceState not being fully serialized
-            if self._state_change_callback:
-                self._state_change_callback(self.device_id)
+            # Force a full state-change notification so registered callbacks (persistence +
+            # WB-publish) see every field — solves the AuralicDeviceState not-fully-serialized
+            # case at first boot and republishes all WB controls to the discovered state.
+            if self._state_change_callbacks:
+                self._notify_state_change(list(self.state.dict().keys()))
             
             logger.info(f"Auralic device {self.get_name()} initialized")
             await self.emit_progress(f"Auralic device {self.device_name} initialized successfully", "action_progress")
