@@ -16,7 +16,7 @@ These tests cover the handler / execute_action contract. The full WB-service con
 import asyncio
 import pytest
 import pytest_asyncio
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 from wb_mqtt_bridge.infrastructure.devices.wirenboard_ir_device.driver import WirenboardIRDevice
@@ -71,9 +71,10 @@ def _make_config() -> WirenboardIRDeviceConfig:
 @pytest.fixture
 def mqtt_client():
     mqtt = MagicMock()
-    fut = asyncio.Future()
-    fut.set_result(True)
-    mqtt.publish = MagicMock(return_value=fut)
+    # AsyncMock avoids constructing a Future at fixture-build time — Python 3.11.15+
+    # raises RuntimeError("no current event loop") for asyncio.Future() in sync
+    # contexts. Same behaviour: `await mqtt.publish(...)` yields True.
+    mqtt.publish = AsyncMock(return_value=True)
     return mqtt
 
 

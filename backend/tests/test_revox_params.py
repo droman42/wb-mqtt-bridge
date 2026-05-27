@@ -58,9 +58,11 @@ def _make_config(sequence_delay: int = 3) -> RevoxA77ReelToReelConfig:
 @pytest.fixture
 def mqtt_client():
     m = MagicMock(spec=MQTTClient)
-    fut = asyncio.Future()
-    fut.set_result(None)
-    m.publish = MagicMock(return_value=fut)
+    # AsyncMock(return_value=None) builds NO Future at fixture-construction time
+    # — Python 3.11.15+ raises RuntimeError("no current event loop") if you call
+    # asyncio.Future() from a sync context. Same observable behaviour: `await
+    # m.publish(...)` yields None; `m.publish.assert_called_once()` etc still work.
+    m.publish = AsyncMock(return_value=None)
     return m
 
 
@@ -111,8 +113,9 @@ async def test_execute_sequence_sends_stop_then_target(device, mqtt_client):
 async def test_execute_sequence_respects_custom_delay():
     """The configured reel_to_reel.sequence_delay is what _execute_sequence sleeps for."""
     mqtt = MagicMock(spec=MQTTClient)
-    fut = asyncio.Future(); fut.set_result(None)
-    mqtt.publish = MagicMock(return_value=fut)
+    # Same AsyncMock pattern as the module's mqtt_client fixture — kept here for
+    # consistency even though inside an async test a manual Future would also work.
+    mqtt.publish = AsyncMock(return_value=None)
 
     cfg = _make_config(sequence_delay=7)
     d = RevoxA77ReelToReel(cfg, mqtt)
