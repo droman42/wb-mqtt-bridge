@@ -74,6 +74,33 @@ class SSEManager(EventPublisherPort):
         self._is_shutting_down = False
         # Track active event generator tasks for proper cleanup
         self._active_tasks: Set[asyncio.Task] = set()
+        # Live uvicorn Server reference (set at startup by app.main). Lets the
+        # SSE event generators poll `server.should_exit` — uvicorn flips that
+        # flag on SIGINT BEFORE waiting for connections to drain, which is the
+        # one signal that arrives early enough to let the generators return
+        # cleanly so uvicorn's drain wait completes (instead of hanging forever
+        # on long-lived SSE connections). See action_plan.md §5.1 #8 for the
+        # full causal chain. Optional — None in tests / when launched some other
+        # way; falls back to the in-process `_is_shutting_down` flag only.
+        self._uvicorn_server: Optional[Any] = None
+
+    def set_uvicorn_server(self, server: Any) -> None:
+        """Wire the live uvicorn Server so event generators can poll
+        `server.should_exit`. Called once from app.main at startup."""
+        self._uvicorn_server = server
+
+    def _shutdown_signaled(self) -> bool:
+        """True if EITHER the in-process shutdown ran OR uvicorn was asked to
+        exit. The uvicorn check is what makes 1st-Ctrl-C work — `should_exit`
+        flips before uvicorn waits for the drain. Defensive `getattr` so a
+        future uvicorn rename doesn't crash the generators (they'd just fall
+        back to the in-process flag, behaving as pre-fix)."""
+        if self._is_shutting_down:
+            return True
+        server = self._uvicorn_server
+        if server is not None and getattr(server, "should_exit", False):
+            return True
+        return False
     
     async def add_connection(self, channel: SSEChannel, queue: asyncio.Queue) -> None:
         """Add a new SSE connection to a channel"""
@@ -211,11 +238,13 @@ class SSEManager(EventPublisherPort):
                 yield welcome_event.format()
                 
                 while True:
-                    # Quick shutdown check first
-                    if self._is_shutting_down:
+                    # Quick shutdown check first. _shutdown_signaled() checks BOTH the in-process
+                    # shutdown flag AND uvicorn's `server.should_exit` — the latter is what makes
+                    # the 1st Ctrl-C work (it flips before uvicorn waits for the connection drain).
+                    if self._shutdown_signaled():
                         logger.info(f"Server shutdown detected, closing {channel.value} SSE connection")
                         break
-                    
+
                     # Check if client disconnected (but don't await it as it might block)
                     try:
                         if await asyncio.wait_for(request.is_disconnected(), timeout=0.1):
@@ -224,7 +253,7 @@ class SSEManager(EventPublisherPort):
                     except asyncio.TimeoutError:
                         # Client still connected, continue
                         pass
-                    
+
                     try:
                         # Try to get an event from the queue with a short timeout
                         try:
@@ -232,16 +261,16 @@ class SSEManager(EventPublisherPort):
                             yield event_data
                         except asyncio.TimeoutError:
                             # No events in queue, send keepalive and check shutdown again
-                            if self._is_shutting_down:
+                            if self._shutdown_signaled():
                                 break
-                            
+
                             keepalive_event = SSEEvent(
                                 event_type="keepalive",
                                 data={"timestamp": datetime.now().isoformat()},
                                 channel=channel
                             )
                             yield keepalive_event.format()
-                            
+
                     except Exception as e:
                         logger.error(f"Error processing SSE event for {channel.value}: {e}")
                         break
