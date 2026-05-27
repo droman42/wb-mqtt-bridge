@@ -228,11 +228,47 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             return False
 
     async def disconnect_from_device(self) -> bool:
-        """Disconnect from the Apple TV."""
+        """Disconnect from the Apple TV.
+
+        pyatv's `AppleTV.close()` is sync BUT returns `Set[asyncio.Task]` —
+        per-protocol cleanup tasks (CompanionAPI disconnect, MRP teardown,
+        etc.) that the caller must await for the underlying aiohttp
+        ClientSession resources to be properly released. Pre-fix, this
+        method called `self.atv.close()` and dropped the returned set,
+        which left those aiohttp sessions orphaned — observed at exit as
+        `Unclosed client session` warnings from GC + a long shutdown hang
+        keeping the asyncio loop alive. See action_plan §5.1 #8 (Part 2).
+
+        Bounded with `asyncio.wait_for(..., timeout=2.0)` so a stuck pyatv
+        cleanup task can't block the lifespan's per-device shutdown loop —
+        on timeout, log + cancel the stragglers and continue. The next
+        device's `shutdown()` still gets its turn.
+        """
         if self.atv:
             try:
                 logger.info(f"[{self.device_id}] Disconnecting...")
-                self.atv.close() # pyatv close is synchronous
+                pending_tasks = self.atv.close()  # sync; returns Set[asyncio.Task]
+                if pending_tasks:
+                    try:
+                        await asyncio.wait_for(
+                            asyncio.gather(*pending_tasks, return_exceptions=True),
+                            timeout=2.0,
+                        )
+                        logger.info(
+                            f"[{self.device_id}] pyatv cleanup tasks completed cleanly "
+                            f"({len(pending_tasks)} task(s))."
+                        )
+                    except asyncio.TimeoutError:
+                        still_pending = [t for t in pending_tasks if not t.done()]
+                        logger.warning(
+                            f"[{self.device_id}] pyatv cleanup did not complete within 2 s — "
+                            f"{len(still_pending)} task(s) still pending; cancelling. "
+                            f"Some pyatv-side resources (aiohttp ClientSession etc.) may leak."
+                        )
+                        for t in still_pending:
+                            t.cancel()
+                else:
+                    logger.debug(f"[{self.device_id}] pyatv close() returned no pending tasks.")
                 logger.info(f"[{self.device_id}] Disconnected.")
                 return True
             except Exception as e:
