@@ -3,15 +3,6 @@ revision = 1
 requires-python = ">=3.11"
 
 [[package]]
-name = "aiofiles"
-version = "24.1.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/0b/03/a88171e277e8caa88a4c77808c20ebb04ba74cc4681bf1e9416c862de237/aiofiles-24.1.0.tar.gz", hash = "sha256:22a075c9e5a3810f0c2e48f3008c94d68c65d763b9b03857924c99e57355166c", size = 30247 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a5/45/30bb92d442636f570cb5651bc661f52b610e2eec3f891a5dc3a4c3667db0/aiofiles-24.1.0-py3-none-any.whl", hash = "sha256:b4ec55f4195e3eb5d7abd1bf7e061763e864dd4954231fb8539a0ef8bb8260e5", size = 15896 },
-]
-
-[[package]]
 name = "aiohappyeyeballs"
 version = "2.6.1"
 source = { registry = "https://pypi.org/simple" }
@@ -83,34 +74,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/f6/0b/b5524b3bb4b01e91bc4323aad0c2fcaebdf2f1b4d2eb22743948ba364958/aiohttp-3.11.18-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:9d4df95ad522c53f2b9ebc07f12ccd2cb15550941e11a5bbc5ddca2ca56316d7", size = 1666614 },
     { url = "https://files.pythonhosted.org/packages/c7/b7/3d7b036d5a4ed5a4c704e0754afe2eef24a824dfab08e6efbffb0f6dd36a/aiohttp-3.11.18-cp313-cp313-win32.whl", hash = "sha256:cdd1bbaf1e61f0d94aced116d6e95fe25942f7a5f42382195fd9501089db5d78", size = 411358 },
     { url = "https://files.pythonhosted.org/packages/1e/3c/143831b32cd23b5263a995b2a1794e10aa42f8a895aae5074c20fda36c07/aiohttp-3.11.18-cp313-cp313-win_amd64.whl", hash = "sha256:bdd619c27e44382cf642223f11cfd4d795161362a5a1fc1fa3940397bc89db01", size = 437658 },
-]
-
-[[package]]
-name = "aiohttp-socks"
-version = "0.10.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "aiohttp" },
-    { name = "python-socks" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/25/c0/dfc948c2aff58db2846192d744dc889bd634b9f3cc7d0fca85ef3c7e9cd4/aiohttp_socks-0.10.1.tar.gz", hash = "sha256:49f2e1f8051f2885719beb1b77e312b5a27c3e4b60f0b045a388f194d995e068", size = 10445 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d3/04/7ff144f7465e83cf87459ffd74688871918496acd4816507cca1af5623d3/aiohttp_socks-0.10.1-py3-none-any.whl", hash = "sha256:6fd4d46c09f952f971a011ff446170daab8d539cf5310c0627f8423df2fb15ea", size = 10119 },
-]
-
-[[package]]
-name = "aiohttp-sse-client"
-version = "0.2.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "aiohttp" },
-    { name = "attrs" },
-    { name = "multidict" },
-    { name = "yarl" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/71/c3/4825c5f37909a70c8018924b3d521847dd7acf1fce7e1054574bafed2271/aiohttp-sse-client-0.2.1.tar.gz", hash = "sha256:5004e29271624af586158dc7166cb0687a7a5997aab5b808f4b53400e1b72e3b", size = 13698 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/25/c9/ad514e70a549db22e118f0366c0bb38c5a90cb407978cb6c3d1482760889/aiohttp_sse_client-0.2.1-py2.py3-none-any.whl", hash = "sha256:42c81ee9213e9fc8bc412b063bac3a813e02e75250c4c8049222234d41c9b024", size = 6957 },
 ]
 
 [[package]]
@@ -199,21 +162,17 @@ wheels = [
 
 [[package]]
 name = "asyncwebostv"
-version = "0.2.7"
+version = "0.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "aiofiles" },
     { name = "aiohttp" },
-    { name = "aiohttp-socks" },
-    { name = "aiohttp-sse-client" },
     { name = "build" },
     { name = "twine" },
-    { name = "typing-extensions" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/12/bb/137db8b597e5b470b3df367285cdc3b796fb70f234bba5973c54914362cf/asyncwebostv-0.2.7.tar.gz", hash = "sha256:96a9f2d9f562ffff0ae34e8db4c46f257c76ed4ba581a7229f04dd8de6cf0d15", size = 23912 }
+sdist = { url = "https://files.pythonhosted.org/packages/f4/5e/1d01ecc0f742e0ca27e9465e722c847bba663e75377ad325ac913352109b/asyncwebostv-0.3.0.tar.gz", hash = "sha256:6965091bc62f4a6f9748feb0cb681d511920339e749f24ff0afed4b689695722", size = 25170 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1c/e9/8b1bdbe6b211e98b2510bfa913809dd58f228a96293446f494c94bd2ba58/asyncwebostv-0.2.7-py3-none-any.whl", hash = "sha256:ae3c58bf30c76829f59ae796efae3d9c0a8627d7c09ee94d43f145c6f6f8859d", size = 26603 },
+    { url = "https://files.pythonhosted.org/packages/2e/99/5bd179364eefe421ac6d84ea48f9fafda1bdf6541b933d080b73da94093f/asyncwebostv-0.3.0-py3-none-any.whl", hash = "sha256:317705d9817625d2e522b6d0bfae942db1d84db1d9240af2204cd0ef4dce0b1b", size = 27995 },
 ]
 
 [[package]]
@@ -1442,15 +1401,6 @@ wheels = [
 ]
 
 [[package]]
-name = "python-socks"
-version = "2.7.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/db/56/a21c65c9968fbdb442b177a4f6f42d150c4bc66c179606193ee86e5b5dc5/python_socks-2.7.1.tar.gz", hash = "sha256:f1a0bb603830fe81e332442eada96757b8f8dec02bd22d1d6f5c99a79704c550", size = 230371 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/59/a5/8bc495f162f6ff6a805a0bd558312db2cc8d6aa6279324ba8180af64f777/python_socks-2.7.1-py3-none-any.whl", hash = "sha256:2603c6454eeaeb82b464ad705be188989e8cf1a4a16f0af3c921d6dd71a49cec", size = 54980 },
-]
-
-[[package]]
 name = "pywin32-ctypes"
 version = "0.2.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1759,7 +1709,7 @@ wheels = [
 
 [[package]]
 name = "twine"
-version = "6.1.0"
+version = "6.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "id" },
@@ -1772,9 +1722,9 @@ dependencies = [
     { name = "rich" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c8/a2/6df94fc5c8e2170d21d7134a565c3a8fb84f9797c1dd65a5976aaf714418/twine-6.1.0.tar.gz", hash = "sha256:be324f6272eff91d07ee93f251edf232fc647935dd585ac003539b42404a8dbd", size = 168404 }
+sdist = { url = "https://files.pythonhosted.org/packages/e0/a8/949edebe3a82774c1ec34f637f5dd82d1cf22c25e963b7d63771083bbee5/twine-6.2.0.tar.gz", hash = "sha256:e5ed0d2fd70c9959770dce51c8f39c8945c574e18173a7b81802dab51b4b75cf", size = 172262 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7c/b6/74e927715a285743351233f33ea3c684528a0d374d2e43ff9ce9585b73fe/twine-6.1.0-py3-none-any.whl", hash = "sha256:a47f973caf122930bf0fbbf17f80b83bc1602c9ce393c7845f289a3001dc5384", size = 40791 },
+    { url = "https://files.pythonhosted.org/packages/3a/7a/882d99539b19b1490cac5d77c67338d126e4122c8276bf640e411650c830/twine-6.2.0-py3-none-any.whl", hash = "sha256:418ebf08ccda9a8caaebe414433b0ba5e25eb5e4a927667122fbe8f829f985d8", size = 42727 },
 ]
 
 [[package]]
@@ -1874,7 +1824,7 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.8.1,<4" },
     { name = "aiomqtt", specifier = ">=2.0,<3" },
     { name = "aiosqlite", specifier = ">=0.19.0,<1" },
-    { name = "asyncwebostv", specifier = "==0.2.7" },
+    { name = "asyncwebostv", specifier = "==0.3.0" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=21.0" },
     { name = "broadlink", specifier = ">=0.18.0,<1" },
     { name = "fastapi", specifier = ">=0.103.0,<1" },
