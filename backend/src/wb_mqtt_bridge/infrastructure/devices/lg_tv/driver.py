@@ -1491,42 +1491,12 @@ class LgTv(BaseDevice[LgTvState]):
         return await self._get_available_apps_internal()
     
     # Handler methods for cursor control
-    async def handle_move_cursor(
-        self, 
-        cmd_config: StandardCommandConfig, 
-        params: Dict[str, Any]
-    ) -> CommandResult:
-        """Handle move cursor action.
-        
-        Moves the cursor to an absolute position on the screen, using percentage values (0-100).
-        
-        Args:
-            cmd_config: Command configuration
-            params: Dictionary containing x and y coordinates (0-100)
-            
-        Returns:
-            CommandResult: Result of the command execution
-        """
-        # Validate parameters
-        if not params or "x" not in params or "y" not in params:
-            error_msg = "Missing required parameters: 'x' and 'y' are required"
-            logger.error(error_msg)
-            return self.create_command_result(success=False, error=error_msg)
-        
-        try:
-            x = int(params["x"])
-            y = int(params["y"])
-        except (ValueError, TypeError):
-            error_msg = f"Invalid coordinates: x={params.get('x')}, y={params.get('y')}"
-            logger.error(error_msg)
-            return self.create_command_result(success=False, error=error_msg)
-        
-        return await self._execute_pointer_command(
-            action_name="move_cursor",
-            required_params=True,
-            use_ws_send=True,
-            params={"x": x, "y": y}
-        )
+    # NOTE: handle_move_cursor (absolute 0–100 % positioning) was removed in the
+    # 2026-05-27 pointer rewrite. webOS exposes NO absolute-positioning endpoint
+    # on its pointer socket (only deltas) — see asyncwebostv docs/pointer_spec.md
+    # §4. The action had never actually worked; the corresponding `move_cursor`
+    # entry was also removed from the device configs and from the LgTv capability
+    # map's pointer.actions. Use `move_cursor_relative` for all cursor motion.
 
     async def handle_move_cursor_relative(
         self, 
@@ -2493,86 +2463,75 @@ class LgTv(BaseDevice[LgTvState]):
         use_ws_send: bool,
         params: Optional[Dict[str, Any]] = None
     ) -> CommandResult:
-        """Execute a pointer control command.
-        
+        """Execute a pointer control command via the dedicated pointer socket.
+
+        Rewrite of 2026-05-27: this method previously hand-rolled JSON `{type:
+        "move", payload: {x, y}}` and shipped via `self.client.send_message(
+        "ssap://com.webos.service.pointer/move", payload)` on the MAIN SSAP
+        socket. webOS silently drops those messages — the pointer service has
+        no SSAP handler at that URI; cursor commands go through a separate
+        plain-text-framed WebSocket (see asyncwebostv docs/pointer_spec.md §1,
+        §3). The hand-rolled path had been dead code that never produced a
+        visible cursor on screen, regardless of params.
+
+        Now routes through the library's `InputControl.move(dx, dy)` /
+        `.click()` methods, which use `_pointer_websocket` with the correct
+        wire format. The pointer socket is lazy-connected by the library on
+        first use and torn down automatically by `client.close()` via the
+        v0.3.4 close-callback registry — no per-call connection management
+        needed here.
+
         Args:
-            action_name: Name of the action (for logging and state updates)
-            required_params: Whether parameters are required (x,y or dx,dy)
-            use_ws_send: Whether to use direct WebSocket send
-            params: Dictionary containing parameters for the command
-            
-        Returns:
-            CommandResult: Result of the command execution
+            action_name: One of "move_cursor_relative" or "click". Anything
+                else returns an error result (the absolute "move_cursor"
+                action was removed in the same commit — webOS has no
+                absolute-positioning endpoint).
+            required_params: Reserved (unused). Action handlers validate
+                their own params before calling here.
+            use_ws_send: Reserved (unused). Kept for signature stability;
+                the library always uses the pointer socket internally.
+            params: Action-specific parameters (`dx`/`dy` for
+                move_cursor_relative; empty dict for click).
         """
         try:
             logger.info(f"Executing pointer command: {action_name}")
-            
-            # Default params to empty dict if None
             params = params or {}
-            
+
             if not self.client or not self.state.connected:
                 error_msg = f"Cannot execute pointer command {action_name}: Not connected to TV"
                 logger.error(error_msg)
                 self.set_error(error_msg)
                 return self.create_command_result(success=False, error=error_msg)
-                
-            # Execute the appropriate pointer command based on action name
-            if action_name == "move_cursor":
-                # Absolute cursor movement (x,y)
-                x = params.get("x")
-                y = params.get("y")
-                
-                logger.debug(f"Moving cursor to position: x={x}, y={y}")
-                
-                # Construct WebOS command payload
-                payload = {
-                    "type": "move",
-                    "payload": {
-                        "x": float(x) / 100.0,  # Convert from 0-100 to 0-1 scale
-                        "y": float(y) / 100.0
-                    }
-                }
-                
-                # Send command directly via WebSocket
-                result = await self.client.send_message("ssap://com.webos.service.pointer/move", payload)
-                
-            elif action_name == "move_cursor_relative":
-                # Relative cursor movement (dx,dy)
-                dx = params.get("dx")
-                dy = params.get("dy")
-                
+
+            if not self.input_control:
+                error_msg = f"Cannot execute pointer command {action_name}: InputControl not initialized"
+                logger.error(error_msg)
+                self.set_error(error_msg)
+                return self.create_command_result(success=False, error=error_msg)
+
+            # Route to the library's pointer-socket methods. The library lazily
+            # connects the pointer socket on first call; subsequent calls reuse it.
+            if action_name == "move_cursor_relative":
+                dx = int(params.get("dx", 0))
+                dy = int(params.get("dy", 0))
                 logger.debug(f"Moving cursor by relative amount: dx={dx}, dy={dy}")
-                
-                # Construct WebOS command payload
-                payload = {
-                    "type": "moveBy",
-                    "payload": {
-                        "dx": float(dx) / 10.0,  # Convert to appropriate scale
-                        "dy": float(dy) / 10.0
-                    }
-                }
-                
-                # Send command directly via WebSocket
-                result = await self.client.send_message("ssap://com.webos.service.pointer/move", payload)
-                
+                result = await self.input_control.move(dx, dy)
             elif action_name == "click":
                 logger.debug("Sending click at current cursor position")
-                
-                # Send click command
-                result = await self.client.send_message("ssap://com.webos.service.pointer/click", {})
-                
+                result = await self.input_control.click()
             else:
                 error_msg = f"Unknown pointer command: {action_name}"
                 logger.error(error_msg)
                 self.set_error(error_msg)
                 return self.create_command_result(success=False, error=error_msg)
-            
+
             # Update last command
             await self._update_last_command(action_name, params, "api")
-            
-            # Check result
+
+            # The library returns {"returnValue": True} on successful WebSocket send
+            # (the pointer protocol has no acknowledgement frame; see pointer_spec.md §3).
             if result and isinstance(result, dict) and result.get("returnValue", False):
-                self.clear_error()  # Clear any previous errors on success
+                self.clear_error()
                 return self.create_command_result(
                     success=True,
                     message=f"Pointer command {action_name} executed successfully"

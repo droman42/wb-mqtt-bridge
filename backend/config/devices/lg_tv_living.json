@@ -98,14 +98,6 @@
         {"name": "level", "type": "range", "min": 0, "max": 100, "required": true, "description": "Volume level (0-100)"}
       ]
     },
-    "move_cursor": {
-      "action": "move_cursor",
-      "description": "Move Cursor to Position",
-      "params": [
-        {"name": "x", "type": "range", "min": 0, "max": 100, "required": true, "description": "X coordinate (0-100)"},
-        {"name": "y", "type": "range", "min": 0, "max": 100, "required": true, "description": "Y coordinate (0-100)"}
-      ]
-    },
     "move_cursor_relative": {
       "action": "move_cursor_relative",
       "description": "Move Cursor Relative",

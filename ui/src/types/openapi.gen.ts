@@ -140,38 +140,28 @@ export interface paths {
          *
          *     ## LG TV Actions:
          *
-         *     * **move_cursor** - Move cursor to absolute position x,y
-         *       ```json
-         *       {
-         *         "action": "move_cursor",
-         *         "params": {
-         *           "x": 500,
-         *           "y": 300,
-         *           "drag": false
-         *         }
-         *       }
-         *       ```
-         *
-         *     * **move_cursor_relative** - Move cursor by dx,dy relative to current position
+         *     * **move_cursor_relative** - Move cursor by dx,dy relative to current position.
+         *       webOS exposes no absolute-positioning endpoint on its pointer socket — only
+         *       deltas are meaningful (see asyncwebostv docs/pointer_spec.md §4). The former
+         *       `move_cursor` (absolute 0–100 %) action was removed in the 2026-05-27 pointer
+         *       rewrite; it had never actually worked.
          *       ```json
          *       {
          *         "action": "move_cursor_relative",
          *         "params": {
-         *           "dx": 100,
-         *           "dy": -50,
-         *           "drag": false
+         *           "dx": 10,
+         *           "dy": -5
          *         }
          *       }
          *       ```
          *
-         *     * **click** - Click at position x,y
+         *     * **click** - Click at the current cursor position. webOS's pointer click
+         *       protocol takes no coordinates; position the cursor with `move_cursor_relative`
+         *       first if needed.
          *       ```json
          *       {
          *         "action": "click",
-         *         "params": {
-         *           "x": 500,
-         *           "y": 300
-         *         }
+         *         "params": {}
          *       }
          *       ```
          *

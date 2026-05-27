@@ -978,11 +978,17 @@ const PointerZone = ({ zone, deviceStructure, onAction, className, isActionPendi
 
   const { pointerPad } = zone.content;
 
-  const handleMove = (deltaX: number, deltaY: number) => {
+  const handleMove = (dx: number, dy: number) => {
     if (pointerPad.moveAction) {
       // Use sourceDeviceId if available (for inherited actions), otherwise use scenario device
       const targetDeviceId = pointerPad.moveAction.sourceDeviceId || deviceStructure.deviceId;
-      onAction(pointerPad.moveAction.actionName, { deltaX, deltaY }, targetDeviceId);
+      // Param keys MUST match the backend action's param_map (see e.g.
+      // backend/config/capabilities/classes/LgTv.json pointer.actions.move →
+      // move_cursor_relative with {dx, dy}). The previous `{deltaX, deltaY}`
+      // were rejected at backend validation; the absolute `move_cursor` action
+      // was also dropped in the 2026-05-27 pointer rewrite — webOS has no
+      // absolute-positioning endpoint. Only relative deltas are meaningful.
+      onAction(pointerPad.moveAction.actionName, { dx, dy }, targetDeviceId);
     }
   };
 

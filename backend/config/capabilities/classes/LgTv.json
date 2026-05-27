@@ -52,8 +52,7 @@
   "pointer": {
     "kind": "momentary",
     "actions": {
-      "move": { "command": "move_cursor", "param_map": { "x": "x", "y": "y" } },
-      "move_rel": { "command": "move_cursor_relative", "param_map": { "dx": "dx", "dy": "dy" } },
+      "move": { "command": "move_cursor_relative", "param_map": { "dx": "dx", "dy": "dy" } },
       "click": { "command": "click" }
     }
   }
