@@ -83,7 +83,7 @@ def test_movie_appletv_full_plan_from_cold():
 
     # inputs derived from topology destination ports
     assert _find(plan, "living_room_tv", "input").target == "hdmi2"
-    assert _find(plan, "processor", "input").target == "hdmi2"
+    assert _find(plan, "processor", "input").target == "source2"
     assert _find(plan, "mf_amplifier", "input").target == "aux2"
     # Apple TV is a pure source: no input action
     assert _find(plan, "appletv_living", "input") is None
@@ -97,7 +97,7 @@ def test_movie_appletv_translation_fixes_rc1_and_value_maps():
     assert lg_input.command == "set_input_source" and lg_input.params == {"source": "hdmi2"}
     # eMotiva identity param
     emo_input = _find(plan, "processor", "input")
-    assert emo_input.command == "set_input" and emo_input.params == {"input": "hdmi2"}
+    assert emo_input.command == "set_input" and emo_input.params == {"input": "source2"}
     # IR amp: toggle power + value-mapped input
     assert _find(plan, "mf_amplifier", "power").command == "power"
     assert _find(plan, "mf_amplifier", "input").command == "input_aux2"
@@ -121,7 +121,7 @@ def test_movie_appletv_ordering_matches_manual_sequence():
 def test_diff_skips_already_satisfied():
     devices = _movie_appletv_devices(
         appletv_living=_device("AppleTVDevice", "appletv_living", power="on"),
-        processor=_device("EMotivaXMC2", "processor", power="on", zone2_power="on", input_source="hdmi2"),
+        processor=_device("EMotivaXMC2", "processor", power="on", zone2_power="on", input_source="source2"),
         living_room_tv=_device("LgTv", "living_room_tv", power="on", input_source="hdmi2"),
         mf_amplifier=_device("WirenboardIRDevice", "mf_amplifier", power="on", input="aux2"),
     )
@@ -142,7 +142,7 @@ def test_resolve_ld_path_emits_manual_step_and_cd_input():
     input_targets, involved, manual_steps, warnings = resolve_targets(ld, TOPOLOGY)
 
     assert input_targets["upscaler"] == "video"
-    assert input_targets["processor"] == "hdmi3"
+    assert input_targets["processor"] == "source3"
     assert input_targets["mf_amplifier"] == "cd"  # via the manual hub
     assert {"ld_player", "upscaler", "processor", "living_room_tv", "mf_amplifier"} <= involved
     assert "dodocus" not in involved  # manual node is not a device
@@ -283,7 +283,7 @@ def test_build_power_off_plan_powers_off_on_devices():
     devices = {
         "living_room_tv": _device("LgTv", "living_room_tv", power="on", input_source="hdmi2"),
         "mf_amplifier": _device("WirenboardIRDevice", "mf_amplifier", power="on", input="aux2"),
-        "processor": _device("EMotivaXMC2", "processor", power="on", zone2_power="on", input_source="hdmi2"),
+        "processor": _device("EMotivaXMC2", "processor", power="on", zone2_power="on", input_source="source2"),
     }
     plan = build_power_off_plan(["living_room_tv", "mf_amplifier", "processor"], devices)
     cmds = {(a.device_id, a.command) for a in plan.actions}
@@ -331,15 +331,15 @@ def test_movie_ld_plan_uses_manual_hub_and_upscaler_delay():
     ups_in = _find(plan, "upscaler", "input")
     assert ups_in.target == "video" and ups_in.command == "input_video" and ups_in.pre_delay_ms == 4500
     assert _find(plan, "upscaler", "power") is None
-    # processor routed to hdmi3; LD powered via toggle
-    assert _find(plan, "processor", "input").target == "hdmi3"
+    # processor routed to source3; LD powered via toggle
+    assert _find(plan, "processor", "input").target == "source3"
     assert _find(plan, "ld_player", "power").command == "power"
 
 
 def test_movie_zappiti_has_no_manual_steps():
     plan = build_plan(_scenario("movie_zappiti"), TOPOLOGY, _all_devices())
     assert plan.manual_steps == []  # audio runs through the eMotiva, not the manual hub
-    assert _find(plan, "processor", "input").target == "hdmi1"
+    assert _find(plan, "processor", "input").target == "source1"
     assert _find(plan, "mf_amplifier", "input").command == "input_aux2"
 
 

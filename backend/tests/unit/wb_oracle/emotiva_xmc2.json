@@ -51,12 +51,12 @@
       }
     },
     "set_input": {
-      "initial_state": "hdmi1",
+      "initial_state": "source1",
       "meta": {
         "order": 250,
         "readonly": false,
         "title": {
-          "en": "Switch to input"
+          "en": "Select logical source (Input button)"
         },
         "type": "text"
       }

@@ -31,9 +31,9 @@
     },
     "set_input": {
       "action": "set_input",
-      "description": "Switch to input",
+      "description": "Select logical source (Input button)",
       "params": [
-        { "name": "input", "type": "string", "required": true, "default": "hdmi1", "description": "HDMI input name" }
+        { "name": "input", "type": "string", "required": true, "default": "source1", "description": "Logical source / Input button (source1-source8)" }
       ]
     },
     "set_volume": {

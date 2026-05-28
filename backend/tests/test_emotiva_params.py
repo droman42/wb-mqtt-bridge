@@ -5,7 +5,7 @@ resistance went through setup(), which makes real network connections to a
 pymotivaxmc2 EmotivaController. It also asserted on private helpers
 (`_power_zone`, `_set_zone_volume`, `_toggle_zone_mute`) that no longer exist
 — the handlers now call `self.client.power_on(zone=...)`, `.power_off(...)`,
-`.set_volume(...)`, `.mute(...)`, `.select_input(...)` directly.
+`.set_volume(...)`, `.mute(...)`, `.select_source(...)` directly.
 
 Rewritten as targeted handler tests that bypass setup() by injecting a fake
 EmotivaController as `self.client` and flipping `state.connected` to True.
@@ -92,6 +92,8 @@ def fake_client():
     client.set_volume = AsyncMock()
     client.mute = AsyncMock()
     client.select_input = AsyncMock()
+    client.select_source = AsyncMock()
+    client.get_input_names = AsyncMock(return_value={1: {"name": "ZAPPITI", "visible": True}})
     client.status = AsyncMock(return_value={})
     client.subscribe = AsyncMock()
     client.unsubscribe = AsyncMock()
@@ -183,11 +185,11 @@ async def test_mute_toggle_main_zone(device, fake_client):
 
 
 @pytest.mark.asyncio
-async def test_set_input_calls_client_select_input(device, fake_client):
-    """set_input requires the device to be powered on (production refuses otherwise)."""
+async def test_set_input_calls_client_select_source(device, fake_client):
+    """set_input selects the logical source via select_source(N) (powered on)."""
     device.state.power = PowerState.ON
-    result = await device.handle_set_input(device.config.commands["set_input"], {"input": "hdmi1"})
-    fake_client.select_input.assert_awaited()
+    result = await device.handle_set_input(device.config.commands["set_input"], {"input": "source1"})
+    fake_client.select_source.assert_awaited_once_with(1)
     assert result["success"] is True
 
 
@@ -195,6 +197,6 @@ async def test_set_input_calls_client_select_input(device, fake_client):
 async def test_set_input_refused_when_powered_off(device, fake_client):
     """When power=OFF, set_input is refused (semantic safeguard from the driver)."""
     device.state.power = PowerState.OFF
-    result = await device.handle_set_input(device.config.commands["set_input"], {"input": "hdmi1"})
+    result = await device.handle_set_input(device.config.commands["set_input"], {"input": "source1"})
     assert result["success"] is False
-    fake_client.select_input.assert_not_awaited()
+    fake_client.select_source.assert_not_awaited()

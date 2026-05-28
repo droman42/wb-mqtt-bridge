@@ -19,11 +19,11 @@
   },
 
   "links": [
-    { "from": "appletv_living:hdmi", "to": "processor:hdmi2",       "carries": ["video", "audio"] },
+    { "from": "appletv_living:hdmi", "to": "processor:source2",     "carries": ["video", "audio"] },
     { "from": "ld_player:av",        "to": "upscaler:video",        "carries": ["video"] },
     { "from": "vhs_player:av",       "to": "upscaler:s_vhs",        "carries": ["video"] },
-    { "from": "upscaler:out",        "to": "processor:hdmi3",       "carries": ["video"] },
-    { "from": "video:hdmi",          "to": "processor:hdmi1",       "carries": ["video", "audio"] },
+    { "from": "upscaler:out",        "to": "processor:source3",     "carries": ["video"] },
+    { "from": "video:hdmi",          "to": "processor:source1",     "carries": ["video", "audio"] },
     { "from": "processor:hdmi_out",  "to": "living_room_tv:hdmi2",  "carries": ["video"] },
 
     { "from": "living_room_tv:arc",  "to": "processor:arc",         "carries": ["audio"] },

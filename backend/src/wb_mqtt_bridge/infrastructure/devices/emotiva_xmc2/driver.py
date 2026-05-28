@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional, Union, Tuple
 
 # Updated imports for new library
 from pymotivaxmc2 import EmotivaController
-from pymotivaxmc2.enums import Property, Input, Zone
+from pymotivaxmc2.enums import Property, Zone
 
 from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 from wb_mqtt_bridge.domain.devices.models import EmotivaXMC2State, LastCommand
@@ -28,8 +28,11 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
     This class implements control for the Emotiva XMC-2 processor using the pymotivaxmc2 library.
     
     Input Selection:
-    - The device supports inputs like: hdmi1, hdmi2, coax1, optical1, tuner
-    - These correspond to the values in the Input enum from pymotivaxmc2.enums
+    - Inputs are the device's logical sources (Input buttons), addressed by the canonical
+      'source1'..'source8' token.
+    - The driver maps 'sourceN' to the device's select_source(N), and maps the device's
+      reported source NAME ("ZAPPITI") back to 'sourceN' via get_input_names(). This
+      device-specific translation lives here so the reconciler stays device-agnostic.
     
     State Management:
     - The device maintains state for power, volume, mute, inputs, etc.
@@ -59,9 +62,14 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         super().__init__(config, mqtt_client)
         
         self.client: Optional[EmotivaController] = None
-        
+
         # Add a lock to protect setup from concurrent calls
         self._setup_lock = asyncio.Lock()
+
+        # Logical-source (Input button) maps, pulled from the device via get_input_names().
+        # index (1-8) -> {"name": str, "visible": bool}; normalized source name -> index.
+        self._source_buttons: Dict[int, Dict[str, Any]] = {}
+        self._source_index_by_name: Dict[str, int] = {}
         
         # Initialize device state with Pydantic model
         self.state: EmotivaXMC2State = EmotivaXMC2State(
@@ -159,6 +167,12 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                         # DEBUG: Log state refresh attempt
                         logger.debug(f"[EMOTIVA_DEBUG] Starting initial state refresh during setup (device={self.get_name()})")
                         
+                        # Build the logical-source map first so the initial SOURCE read
+                        # resolves to a 'sourceN' token.
+                        try:
+                            await self._refresh_source_map()
+                        except Exception as e:
+                            logger.warning(f"Failed to load source map during setup: {str(e)}")
                         # Refresh all properties at once
                         updated_properties = await self._refresh_device_state()
                         
@@ -352,8 +366,8 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             updates["zone2_volume"] = processed_value
         elif property_name == "mute":
             updates["mute"] = processed_value
-        elif property_name == "source":  # Changed from "input"
-            updates["input_source"] = new_value  # Use raw value for input_source
+        elif property_name == "source":  # device reports the source NAME ("ZAPPITI")
+            updates["input_source"] = self._source_token(new_value)
         elif property_name == "video_input":
             updates["video_input"] = new_value
         elif property_name == "audio_input":
@@ -403,7 +417,44 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         # For other properties, return as is
         return value
 
+    @staticmethod
+    def _norm_source_name(name: Any) -> str:
+        """Normalize a source name for matching (the device pads names, e.g. 'ZAPPITI   ')."""
+        return str(name).strip().casefold()
 
+    @staticmethod
+    def _source_index_from_token(value: Any) -> Optional[int]:
+        """Parse the canonical 'sourceN' token (or a bare 1-8 index) to an int 1-8, else None."""
+        s = str(value).strip().lower()
+        if s.startswith("source"):
+            s = s[len("source"):].lstrip("_")
+        try:
+            n = int(s)
+        except (ValueError, TypeError):
+            return None
+        return n if 1 <= n <= 8 else None
+
+    def _source_token(self, name: Any) -> Optional[str]:
+        """Map the device's reported source name -> canonical 'sourceN' (N = Input-button
+        index) using the cached map; fall back to the stripped raw name if unknown."""
+        if name is None:
+            return None
+        idx = self._source_index_by_name.get(self._norm_source_name(name))
+        return f"source{idx}" if idx is not None else str(name).strip()
+
+    async def _refresh_source_map(self) -> None:
+        """Pull Input-button names/visibility from the device and rebuild the source maps.
+        All device-specific source translation is sourced here (infrastructure), keeping
+        the reconciler device-agnostic."""
+        if not self.client:
+            return
+        buttons = await self.client.get_input_names()
+        self._source_buttons = buttons or {}
+        self._source_index_by_name = {
+            self._norm_source_name(info["name"]): idx
+            for idx, info in self._source_buttons.items()
+            if info.get("name")
+        }
 
     def update_state(self, **kwargs) -> None:
         """
@@ -603,9 +654,9 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 processed_value = self._process_property_value(prop_name, value)
                 updated_properties[prop_name] = processed_value
                 
-                # Handle input property specially
+                # Handle input property specially (device reports the source NAME)
                 if prop == Property.SOURCE:
-                    self.update_state(input_source=value)
+                    self.update_state(input_source=self._source_token(value))
                 else:
                     self.update_state(**{self.VALID_PROPERTIES.get(prop, prop_name): processed_value})
                     
@@ -975,154 +1026,69 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             return self.create_command_result(success=False, error=f"Failed to toggle zone 2 power: {str(e)}")
 
     async def handle_set_input(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
-        """Handle setting input source by input ID.
-        
-        This method supports setting inputs using the format recognized by the Emotiva controller.
-        Supported inputs include: hdmi1-hdmi8, coax1-coax4, optical1-optical4, tuner
-        
-        Args:
-            cmd_config: Command configuration
-            params: Parameters containing input ID
-            
-        Returns:
-            Command execution result
+        """Select a logical source (Input button) via the device's ``source_N`` command.
+
+        Accepts the canonical ``sourceN`` token (or a bare 1-8 index). The token<->index and
+        device-name<->token translation lives here so the reconciler stays device-agnostic.
         """
-        # DEBUG: Log command start with full context
-        logger.debug(f"[EMOTIVA_DEBUG] set_input command received: params={params}, connected={self.state.connected}, current_input={self.state.input_source} (device={self.get_name()})")
-        
-        # If client is not initialized or not connected, reconnect first
+        logger.debug(f"[EMOTIVA_DEBUG] set_input received: params={params}, connected={self.state.connected}, current_input={self.state.input_source} (device={self.get_name()})")
+
         if not self.client or not self.state.connected:
-            # DEBUG: Log reconnection trigger
-            logger.debug(f"[EMOTIVA_DEBUG] Triggering reconnection for set_input: client={self.client is not None}, connected={self.state.connected} (device={self.get_name()})")
-            logger.info(f"Device {self.get_name()} not connected, attempting reconnection before setting input")
             try:
                 await self.setup()
             except Exception as e:
-                return await self._handle_command_error(
-                    "reconnect device",
-                    e,
-                    {"action": "set_input"}
-                )
-        
-        # Validate parameters
+                return await self._handle_command_error("reconnect device", e, {"action": "set_input"})
+
         if not params:
             return self.create_command_result(success=False, error="Missing input parameters")
-        
-        # Get and validate input parameter
+
         input_param = self._get_parameter_definition(cmd_config, "input")
-        is_valid, input_id, error_msg = self._validate_parameter(
+        is_valid, raw_value, error_msg = self._validate_parameter(
             param_name="input",
             param_value=params.get("input"),
             param_type=input_param.type if input_param else "string",
-            action="set_input"
+            action="set_input",
         )
-        
         if not is_valid:
             return self.create_command_result(success=False, error=error_msg)
-        
-        try:
-            # Normalize the input ID to lowercase
-            normalized_input = input_id.lower()
-            
-            # Check if device is powered on - can't change input if off
-            if self.state.power != PowerState.ON:
-                # If power state is None, try to synchronize
-                if self.state.power is None:
-                    try:
-                        # Use _refresh_device_state to update multiple properties at once
-                        await self._refresh_device_state()
-                        logger.debug(f"Refreshed device state before set input, power={self.state.power}")
-                    except Exception as e:
-                        logger.warning(f"Failed to refresh state before set input: {str(e)}")
-                
-                # Check again after synchronization
-                if self.state.power != PowerState.ON:
-                    error_message = "Cannot set input while device is powered off"
-                    logger.warning(error_message)
-                    await self.emit_progress(error_message, "action_error")
-                    return self.create_command_result(
-                        success=False,
-                        error=error_message,
-                        power=self.state.power.value if self.state.power else "off",
-                        input=normalized_input
-                    )
-            
-            # Check if this is already the current input
-            if self.state.input_source == normalized_input:
-                logger.debug(f"Input already set to {normalized_input}, skipping command")
-                await self.emit_progress(f"Input already set to {normalized_input}", "action_progress")
-                return self.create_command_result(
-                    success=True,
-                    message=f"Input already set to {normalized_input}",
-                    input=normalized_input
-                )
-                
-            # If input state is unknown, synchronize state
-            if self.state.input_source is None:
-                try:
-                    # Use our _refresh_device_state method to efficiently query multiple properties
-                    updated_properties = await self._refresh_device_state()
-                    logger.debug(f"Refreshed device state before set input, current_input={self.state.input_source}")
-                    
-                    # Check again if already set to requested input
-                    if self.state.input_source == normalized_input:
-                        logger.debug(f"Input already set to {normalized_input} (verified), skipping command")
-                        await self.emit_progress(f"Input already set to {normalized_input} (verified)", "action_progress")
-                        return self.create_command_result(
-                            success=True,
-                            message=f"Input already set to {normalized_input} (verified)",
-                            input=normalized_input,
-                            updated_properties=list(updated_properties.keys()) if updated_properties else []
-                        )
-                except Exception as e:
-                    logger.warning(f"Failed to refresh state: {str(e)}")
-                    # Continue with input selection even if we couldn't verify state
-            
-            # Try to find the matching Input enum
-            input_enum = None
-            try:
-                # First try to find the enum by name (uppercase, like HDMI1)
-                input_enum = getattr(Input, normalized_input.upper())
-            except (AttributeError, ValueError):
-                # If not a direct match, try to find a close match
-                for enum_value in Input:
-                    if enum_value.value.lower() == normalized_input:
-                        input_enum = enum_value
-                        break
-            
-            if input_enum:
-                # Use the enum directly
-                await self.client.select_input(input_enum)
-                logger.debug(f"Selected input using enum: {input_enum}")
-            else:
-                # Fall back to using string if enum not found
-                logger.debug(f"No matching enum found for input '{normalized_input}', using string value")
-                await self.client.select_input(normalized_input)
-            
-            # Update our internal state
-            self.update_state(input_source=normalized_input)
-            
-            # Clear any errors
-            self.clear_error()
-            
-            # Update the last command information
-            self._update_last_command("set_input", {"input": normalized_input})
-            
-            # Emit success message
-            await self.emit_progress(f"Input set to {normalized_input}", "action_success")
-            
-            # Return success result
+
+        index = self._source_index_from_token(raw_value)
+        if index is None:
             return self.create_command_result(
-                success=True,
-                message=f"Input set to {normalized_input} successfully",
-                input=normalized_input
+                success=False, error=f"Invalid source '{raw_value}' (expected source1-source8)"
             )
+        token = f"source{index}"
+
+        # Can't change input while powered off.
+        if self.state.power != PowerState.ON:
+            if self.state.power is None:
+                try:
+                    await self._refresh_device_state()
+                except Exception as e:
+                    logger.warning(f"Failed to refresh state before set input: {str(e)}")
+            if self.state.power != PowerState.ON:
+                error_message = "Cannot set input while device is powered off"
+                logger.warning(error_message)
+                await self.emit_progress(error_message, "action_error")
+                return self.create_command_result(
+                    success=False, error=error_message, input=token,
+                    power=self.state.power.value if self.state.power else "off",
+                )
+
+        # Already on this source?
+        if self.state.input_source == token:
+            await self.emit_progress(f"Input already set to {token}", "action_progress")
+            return self.create_command_result(success=True, message=f"Input already set to {token}", input=token)
+
+        try:
+            await self.client.select_source(index)
+            self.update_state(input_source=token)  # optimistic; the SOURCE notification confirms
+            self.clear_error()
+            self._update_last_command("set_input", {"input": token})
+            await self.emit_progress(f"Input set to {token}", "action_success")
+            return self.create_command_result(success=True, message=f"Input set to {token} successfully", input=token)
         except Exception as e:
-            return await self._handle_command_error(
-                f"set input to {input_id}",
-                e,
-                {"input": normalized_input}
-            )
+            return await self._handle_command_error(f"set input to {token}", e, {"input": token})
             
     async def handle_set_volume(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """Handle setting volume level.
@@ -1504,64 +1470,30 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         cmd_config: StandardCommandConfig, 
         params: Dict[str, Any]
     ) -> CommandResult:
-        """Handle retrieving available input sources for the Emotiva XMC2.
-        
-        Returns a list of all available input sources as pairs of input_id and input_name.
-        The Emotiva XMC2 has a fixed set of inputs defined by the hardware specification.
-        
-        Args:
-            cmd_config: Command configuration
-            params: Dictionary containing optional parameters (unused)
-            
-        Returns:
-            CommandResult: Result of the command execution with a list of available inputs
+        """List the device's visible Input buttons (logical sources).
+
+        Returns ``{input_id: "sourceN", input_name: <user-assigned label>}`` for each visible
+        Input button, read live from the device via ``get_input_names()``.
         """
+        if not self.client or not self.state.connected:
+            try:
+                await self.setup()
+            except Exception as e:
+                return await self._handle_command_error("reconnect device", e, {"action": "get_available_inputs"})
         try:
-            logger.info("Retrieving available input sources for Emotiva XMC2")
-            
-            # Create mapping from Input enum values to human-readable names
-            input_name_mapping = {
-                Input.HDMI1: "HDMI 1",
-                Input.HDMI2: "HDMI 2", 
-                Input.HDMI3: "HDMI 3",
-                Input.HDMI4: "HDMI 4",
-                Input.HDMI5: "HDMI 5",
-                Input.HDMI6: "HDMI 6",
-                Input.HDMI7: "HDMI 7",
-                Input.HDMI8: "HDMI 8",
-                Input.COAX1: "Coaxial 1",
-                Input.COAX2: "Coaxial 2", 
-                Input.COAX3: "Coaxial 3",
-                Input.COAX4: "Coaxial 4",
-                Input.OPTICAL1: "Optical 1",
-                Input.OPTICAL2: "Optical 2",
-                Input.OPTICAL3: "Optical 3", 
-                Input.OPTICAL4: "Optical 4",
-                Input.TUNER: "FM/AM Tuner"
-            }
-            
-            # Format the input sources as pairs of input_id and input_name
-            formatted_inputs = []
-            
-            for input_enum, human_name in input_name_mapping.items():
-                formatted_inputs.append({
-                    "input_id": input_enum.value,  # e.g., "hdmi1", "coax1", "optical1", "tuner"
-                    "input_name": human_name       # e.g., "HDMI 1", "Coaxial 1", "FM/AM Tuner"
-                })
-            
-            logger.info(f"Found {len(formatted_inputs)} available input sources")
-            
-            # Update the last command information
+            await self._refresh_source_map()
+            formatted_inputs = [
+                {"input_id": f"source{idx}", "input_name": str(info.get("name", "")).strip()}
+                for idx, info in sorted(self._source_buttons.items())
+                if info.get("visible", True)
+            ]
+            logger.info(f"Found {len(formatted_inputs)} visible input sources")
             self._update_last_command("get_available_inputs", {})
-            
             return self.create_command_result(
                 success=True,
                 message=f"Retrieved {len(formatted_inputs)} input sources",
-                data=formatted_inputs
+                data=formatted_inputs,
             )
-            
         except Exception as e:
-            error_msg = f"Error retrieving input sources: {str(e)}"
-            logger.error(error_msg)
-            return self.create_command_result(success=False, error=error_msg)
+            return await self._handle_command_error("retrieve input sources", e, {"action": "get_available_inputs"})
 

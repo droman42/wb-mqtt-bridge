@@ -546,7 +546,7 @@ class EmotivaPowerParams(BaseModel):
 
 class EmotivaInputParams(BaseModel):
     """Parameters for Emotiva set_input action."""
-    input: str = Field(..., description="Input source name (e.g., hdmi1, hdmi2, optical1)")
+    input: str = Field(..., description="Logical source / Input button, canonical 'sourceN' token (source1-source8)")
 
 class TvActionType(str, Enum):
     POWER_ON = "power_on"
