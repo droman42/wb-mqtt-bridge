@@ -18,6 +18,14 @@ from wb_mqtt_bridge.domain.ports import DevicePort, EventPublisherPort
 
 logger = logging.getLogger(__name__)
 
+# State fields that are ephemeral bookkeeping rather than observable device state. A change
+# to ONLY these must not run the persistence (state.db) or WB value-topic-republish
+# callbacks: `last_command` churns on every momentary action (e.g. a throttled pointer drag
+# still streams ~16/sec), which would mean a SQLite write + WB-publish per move for a field
+# that maps to no WB control and isn't load-bearing for assumed-state continuity. The
+# in-memory state + SSE event still carry last_command, so the UI sees the latest action.
+_EPHEMERAL_STATE_FIELDS = frozenset({"last_command"})
+
 class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
     """Base class for all device implementations."""
     
@@ -694,14 +702,19 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
                 ignore it. Empty list is a no-op (``update_state`` early-returns above; this
                 method is not called).
         """
-        for cb in self._state_change_callbacks:
-            try:
-                cb(self.device_id, changed_fields)
-            except Exception as e:
-                cb_name = getattr(cb, '__qualname__', repr(cb))
-                logger.error(
-                    f"State-change callback {cb_name} failed for device {self.device_id}: {e}"
-                )
+        # Run the persistence + WB-publish callbacks only when a non-ephemeral (observable)
+        # field actually changed. A change to ONLY ephemeral fields (last_command) still
+        # updates in-memory state and is broadcast via SSE below, but must not churn
+        # state.db / WB topics — see _EPHEMERAL_STATE_FIELDS.
+        if any(field not in _EPHEMERAL_STATE_FIELDS for field in changed_fields):
+            for cb in self._state_change_callbacks:
+                try:
+                    cb(self.device_id, changed_fields)
+                except Exception as e:
+                    cb_name = getattr(cb, '__qualname__', repr(cb))
+                    logger.error(
+                        f"State-change callback {cb_name} failed for device {self.device_id}: {e}"
+                    )
 
         # Emit state change via SSE (event-publisher port; injected at bootstrap)
         try:

@@ -2513,7 +2513,7 @@ class LgTv(BaseDevice[LgTvState]):
                 move_cursor_relative; empty dict for click).
         """
         try:
-            logger.info(f"Executing pointer command: {action_name}")
+            logger.debug(f"Executing pointer command: {action_name}")
             params = params or {}
 
             if not self.client or not self.state.connected:

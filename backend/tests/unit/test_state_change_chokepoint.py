@@ -16,15 +16,22 @@ These tests lock the invariants in so they can't silently regress:
   — the chokepoint publishes the resulting state instead).
 """
 
+from datetime import datetime
 from enum import Enum
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import asyncio
 import pytest
 
+from wb_mqtt_bridge.domain.devices.models import LastCommand
 from wb_mqtt_bridge.domain.ports import MessageBusPort
-from wb_mqtt_bridge.infrastructure.config.models import BaseCommandConfig, CommandParameterDefinition
+from wb_mqtt_bridge.infrastructure.config.models import (
+    BaseCommandConfig,
+    BaseDeviceConfig,
+    CommandParameterDefinition,
+)
+from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 from wb_mqtt_bridge.infrastructure.wb_device.service import WBVirtualDeviceService
 
 pytestmark = pytest.mark.unit
@@ -296,3 +303,58 @@ async def test_handle_wb_message_does_not_echo_incoming_payload(wb_service, mess
         f"single source of truth for value-topic publishes. Got unexpected publishes: "
         f"{value_publishes}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Test 7 — ephemeral-only state changes (last_command) skip the callbacks
+# ---------------------------------------------------------------------------
+
+
+class _ChokepointDevice(BaseDevice):
+    """Minimal concrete BaseDevice — only setup/shutdown are abstract."""
+
+    async def setup(self) -> bool:  # pragma: no cover - not exercised
+        return True
+
+    async def shutdown(self) -> bool:  # pragma: no cover - not exercised
+        return True
+
+
+def _chokepoint_device():
+    cfg = BaseDeviceConfig(
+        device_id="cp_dev",
+        device_name="Chokepoint Device",
+        device_class="TestDev",
+        config_class="BaseDeviceConfig",
+        commands={},
+    )
+    return _ChokepointDevice(cfg)
+
+
+def test_last_command_only_change_skips_persist_and_wb_callbacks():
+    """A change to ONLY ephemeral fields (last_command — e.g. every throttled pointer move)
+    must NOT run the registered persist/WB-publish callbacks; a change to a real observable
+    field must. The in-memory state still updates either way."""
+    device = _chokepoint_device()
+    spy = Mock()
+    device.register_state_change_callback(spy)
+
+    # last_command-only update → callbacks skipped, but state still updates in memory.
+    device.update_state(last_command=LastCommand(
+        action="move_cursor_relative", source="api", timestamp=datetime.now(), params={"dx": 3, "dy": 1}
+    ))
+    spy.assert_not_called()
+    assert device.state.last_command is not None
+    assert device.state.last_command.action == "move_cursor_relative"
+
+    # A real observable field (error) changing → callbacks run, with that field in changed_fields.
+    device.update_state(error="boom")
+    spy.assert_called_once()
+    assert "error" in spy.call_args.args[1]
+
+    # Mixed change (real + ephemeral) → callbacks still run (a meaningful field changed).
+    spy.reset_mock()
+    device.update_state(error=None, last_command=LastCommand(
+        action="select", source="api", timestamp=datetime.now(), params=None
+    ))
+    spy.assert_called_once()
