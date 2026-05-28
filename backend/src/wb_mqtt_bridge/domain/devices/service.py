@@ -390,9 +390,13 @@ class DeviceManager:
             
             # DEBUG: Log action result
             logger.debug(f"[DEVICE_MGR_DEBUG] Action result for {device_id}: {result}")
-            
-            # Persist state after action
-            await self._persist_state(device_id)
+
+            # No explicit persist here: persistence rides the state-change chokepoint callback
+            # (_persist_state_callback, registered per device at setup), which fires on every
+            # REAL state change for all action sources (HTTP/MQTT/scenario). An unconditional
+            # persist here was redundant — it double-wrote every real action and wrote once per
+            # pointer move for a last_command-only change (nothing observable changed). Don't
+            # re-add it; see _EPHEMERAL_STATE_FIELDS in infrastructure/devices/base.py.
             return result
         except Exception as e:
             logger.error(f"Error performing action '{action}' on device {device_id}: {str(e)}")
