@@ -37,7 +37,12 @@ def test_emotiva_multizone_power():
 def test_appletv_has_no_input_and_maps_pointer():
     m = load_capability_map("AppleTVDevice", "appletv_living", CAPS)
     assert "input" not in m.domains()  # pure source
-    assert m.get("pointer").actions["move"].param_map == {"dx": "deltaX", "dy": "deltaY"}
+    # Pad move passes {dx,dy} straight through (identity), matching what the UI dispatches;
+    # the driver translates the delta into a directional swipe. Pad click → select (the
+    # coordinate-free OK), since a relative pad can't supply touch_at_position's x/y.
+    assert m.get("pointer").actions["move"].param_map == {"dx": "dx", "dy": "dy"}
+    assert m.get("pointer").actions["click"].command == "select"
+    assert "tap" not in m.get("pointer").actions
     assert m.get("power").feedback is True
 
 

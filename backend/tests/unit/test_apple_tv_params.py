@@ -65,6 +65,13 @@ def _make_config() -> AppleTVDeviceConfig:
             "stop": StandardCommandConfig(action="stop"),
             "menu": StandardCommandConfig(action="menu"),
             "home": StandardCommandConfig(action="home"),
+            "pointer_gesture": StandardCommandConfig(
+                action="pointer_gesture",
+                params=[
+                    CommandParameterDefinition(name="dx", type="range", min=-1000, max=1000, required=True),
+                    CommandParameterDefinition(name="dy", type="range", min=-1000, max=1000, required=True),
+                ],
+            ),
             "set_volume": StandardCommandConfig(
                 action="set_volume",
                 params=[CommandParameterDefinition(
@@ -225,3 +232,23 @@ async def test_playstatus_update_routes_through_helper(device):
     playing.device_state = None  # keep it simple: idle path
     listener.playstatus_update(MagicMock(), playing)
     device._update_playing_state.assert_called_once_with(playing)
+
+
+# --- Pointer pad: movement → directional gesture ---------------------------
+
+
+@pytest.mark.asyncio
+async def test_pointer_gesture_translates_movement_to_direction(device, fake_atv):
+    """Pad drag → Apple TV directional swipe. The UI dispatches {dx, dy}; the handler must
+    read those names (it previously read deltaX/deltaY → KeyError, and the config required
+    deltaX/deltaY → param validation rejected {dx,dy}). Driven through execute_action so it
+    exercises param validation + dispatch + the dominant-axis translation."""
+    # rightward swipe past the 10.0 gesture threshold → right
+    result = await device.execute_action("pointer_gesture", {"dx": 50, "dy": 0}, source="api")
+    assert result["success"] is True, result
+    fake_atv.remote_control.right.assert_awaited_once()
+
+    # upward swipe (negative dy dominates) → up
+    result = await device.execute_action("pointer_gesture", {"dx": 0, "dy": -50}, source="api")
+    assert result["success"] is True, result
+    fake_atv.remote_control.up.assert_awaited_once()

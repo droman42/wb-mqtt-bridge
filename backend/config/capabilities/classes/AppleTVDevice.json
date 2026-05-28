@@ -34,8 +34,8 @@
   "pointer": {
     "kind": "momentary",
     "actions": {
-      "move": { "command": "pointer_gesture", "param_map": { "dx": "deltaX", "dy": "deltaY" } },
-      "tap": { "command": "touch_at_position", "param_map": { "x": "x", "y": "y" } }
+      "move": { "command": "pointer_gesture", "param_map": { "dx": "dx", "dy": "dy" } },
+      "click": { "command": "select" }
     }
   },
   "volume": {
