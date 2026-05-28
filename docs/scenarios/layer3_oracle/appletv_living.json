@@ -193,37 +193,46 @@
       "showHide": false,
       "isEmpty": false,
       "content": {
-        "volumeSlider": {
-          "action": {
-            "actionName": "set_volume",
-            "displayName": "Set Volume",
-            "description": "Set Volume",
-            "parameters": [
-              {
-                "name": "level",
-                "type": "range",
-                "min": 0,
-                "max": 100,
-                "required": true,
-                "description": "Volume level (0-100)"
-              }
-            ],
-            "group": "default",
-            "icon": {
-              "iconLibrary": "material",
-              "iconName": "VolumeUp",
-              "iconVariant": "outlined",
-              "fallbackIcon": "volume",
-              "confidence": 0.9
+        "volumeButtons": [
+          {
+            "upAction": {
+              "actionName": "volume_up",
+              "displayName": "Volume Up",
+              "description": "Volume Up",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "fallback",
+                "iconName": "volume_up",
+                "fallbackIcon": "volume_up",
+                "confidence": 0.0
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              },
+              "params": {}
             },
-            "uiHints": {
-              "buttonSize": "medium",
-              "buttonStyle": "secondary"
+            "downAction": {
+              "actionName": "volume_down",
+              "displayName": "Volume Down",
+              "description": "Volume Down",
+              "parameters": [],
+              "group": "default",
+              "icon": {
+                "iconLibrary": "fallback",
+                "iconName": "volume_down",
+                "fallbackIcon": "volume_down",
+                "confidence": 0.0
+              },
+              "uiHints": {
+                "buttonSize": "medium",
+                "buttonStyle": "secondary"
+              },
+              "params": {}
             }
-          },
-          "orientation": "vertical",
-          "showValue": true
-        }
+          }
+        ]
       },
       "layout": {
         "priority": 1,

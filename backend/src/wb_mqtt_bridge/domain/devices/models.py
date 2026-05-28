@@ -333,9 +333,8 @@ class AppleTVState(BaseDeviceState):
     album: Optional[str] = None
     position: Optional[int] = None
     total_time: Optional[int] = None
-    volume: Optional[int] = None
     ip_address: Optional[str] = None
-    
+
     # Override model_dump to handle any special cases specific to AppleTVState
     def model_dump(self, **kwargs) -> Dict[str, Any]:
         """

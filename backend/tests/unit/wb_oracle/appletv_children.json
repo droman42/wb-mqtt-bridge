@@ -154,19 +154,6 @@
         "type": "pushbutton"
       }
     },
-    "set_volume": {
-      "initial_state": "50",
-      "meta": {
-        "max": 100.0,
-        "min": 0.0,
-        "order": 408,
-        "readonly": false,
-        "title": {
-          "en": "Set Volume"
-        },
-        "type": "range"
-      }
-    },
     "stop": {
       "initial_state": "0",
       "meta": {
@@ -223,7 +210,6 @@
     "/devices/appletv_children/controls/previous/on",
     "/devices/appletv_children/controls/volume_up/on",
     "/devices/appletv_children/controls/volume_down/on",
-    "/devices/appletv_children/controls/set_volume/on",
     "/devices/appletv_children/controls/launch_app/on",
     "/devices/appletv_children/controls/menu/on",
     "/devices/appletv_children/controls/home/on",

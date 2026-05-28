@@ -62,7 +62,6 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             album=None,
             position=None,
             total_time=None,
-            volume=None,
             ip_address=config.apple_tv.ip_address
         )
         
@@ -476,33 +475,23 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             
             # Get playback state (only if powered on)
             playing_info = await self.atv.metadata.playing()
-            
-            # Store the current values before calling _update_playing_state which modifies state
-            # Get volume if available (only if powered on). pyatv `Audio.volume` is a
-            # PROPERTY in percent (0.0-100.0), not a coroutine — accessing it raises
-            # NotSupportedError when the device/protocol can't report volume.
-            volume_level = None
-            try:
-                vol = self.atv.audio.volume  # percent, 0.0-100.0
-                if vol is not None:
-                    volume_level = int(vol)
-            except Exception as e:
-                logger.debug(f"[{self.device_id}] Could not get volume: {e}")
-            
+
             # Update playing state via the helper method (which now uses update_state)
             self._update_playing_state(playing_info)
-            
-            # Now update the app, power, and volume
+
+            # Now update the app + power. Volume is intentionally NOT read: this Apple TV
+            # exposes no Companion volume control (no `_mcF` Volume flag), so `audio.volume`
+            # is always 0.0 — reading it just clobbered state with a false 0. Volume is
+            # driven out-of-band via the WB IR blaster (volume_up/volume_down), no readback.
             status_params = {
                 "power": power_state,
                 "app": current_app,
                 "playback_state": self.state.playback_state,
             }
-            
+
             self.update_state(
                 power=power_state,
                 app=current_app,
-                volume=volume_level,
                 error=None, # Clear error on successful refresh
                 last_command=LastCommand(
                     action="refresh_status",
@@ -1255,105 +1244,6 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
                 error=error_msg
             )
 
-    async def handle_set_volume(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
-        """
-        Set the volume level (0-100).
-        
-        Args:
-            cmd_config: Command configuration
-            params: Parameters with 'level' key for volume level (0-100)
-            
-        Returns:
-            CommandResult: Result of the command execution
-        """
-        if not await self._ensure_connected():
-            return self.create_command_result(
-                success=False,
-                error="Failed to connect to Apple TV"
-            )
-             
-        if not hasattr(self.atv, "audio") or not hasattr(self.atv.audio, "set_volume"):
-            error_msg = "Volume control not available on this device"
-            logger.warning(f"[{self.device_id}] {error_msg}")
-            return self.create_command_result(
-                success=False,
-                error=error_msg
-            )
-
-        try:
-            # Get the level from params
-            if "level" in params:
-                level = params["level"]
-                level = max(0, min(100, level))  # Clamp value to valid range
-            else:
-                error_msg = "No volume level provided in params"
-                logger.error(f"[{self.device_id}] {error_msg}")
-                return self.create_command_result(
-                    success=False,
-                    error=error_msg
-                )
-                
-            logger.info(f"[{self.device_id}] Setting volume to {level}%...")
-
-            # pyatv `Audio.set_volume(level)` takes PERCENT (0.0-100.0), NOT a 0-1 fraction.
-            # Passing level/100 here silently set the volume ~100x too low (≈mute).
-            try:
-                await asyncio.wait_for(
-                    self.atv.audio.set_volume(float(level)),
-                    timeout=8.0  # Slightly longer timeout than pyatv's internal 5 second timeout
-                )
-                logger.info(f"[{self.device_id}] Volume set successfully")
-            except asyncio.TimeoutError:
-                logger.warning(f"[{self.device_id}] Volume set command timed out, but command may have been processed")
-                # Don't return an error - volume change might still have worked
-                # The audio listener will update our state if the volume actually changed
-            except Exception as e:
-                logger.warning(f"[{self.device_id}] Volume set command failed: {e}")
-                # Still continue - sometimes the command works despite the error
-            
-            # Update state immediately (optimistic) - the audio listener will correct this if needed
-            self.update_state(
-                volume=level,
-                last_command=LastCommand(
-                    action="set_volume",
-                    source="api",
-                    timestamp=datetime.now(),
-                    params={"level": level}
-                )
-            )
-            
-            # Schedule a delayed refresh to get the actual volume level
-            asyncio.create_task(self._delayed_refresh(delay=2.0))
-            
-            return self.create_command_result(
-                success=True,
-                message=f"Volume set to {level}% (command sent)"
-            )
-            
-        except ValueError:
-            error_msg = "Invalid volume level: Must be integer 0-100."
-            logger.error(f"[{self.device_id}] {error_msg}")
-            return self.create_command_result(
-                success=False,
-                error=error_msg
-            )
-        except NotImplementedError:
-            error_msg = "Set volume not implemented by this device/protocol."
-            logger.warning(f"[{self.device_id}] {error_msg}")
-            return self.create_command_result(
-                success=False,
-                error=error_msg
-            )
-        except Exception as e:
-            error_msg = f"Error setting volume: {str(e)}"
-            logger.error(f"[{self.device_id}] {error_msg}", exc_info=True)
-            self.update_state(error=error_msg)
-            await self.emit_progress(error_msg, "action_error")
-            return self.create_command_result(
-                success=False,
-                error=error_msg
-            )
-
     async def handle_volume_up(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Increase the volume.
@@ -1754,32 +1644,13 @@ class PyATVDeviceListener(DeviceListener, PushListener, PowerListener, AudioList
             self.device.emit_progress(f"Power state changed to {power}", "action_progress"))
 
     def volume_update(self, old_level: float, new_level: float):
-        """
-        Called by pyatv when device volume level changes.
-        
-        Args:
-            old_level: Previous volume level (0.0-100.0)
-            new_level: New volume level (0.0-100.0)
-        """
-        logger.info(f"[{self.device.device_id}] Volume changed from {old_level:.1f}% to {new_level:.1f}%")
-        
-        # Update device state with real volume level from device
-        self.device.update_state(
-            volume=int(new_level),  # Convert to integer percentage
-            last_command=LastCommand(
-                action="volume_update",
-                source="device",
-                timestamp=datetime.now(),
-                params={
-                    "old_level": old_level,
-                    "new_level": new_level
-                }
-            )
+        """AudioListener callback (required by the interface). This device tracks NO volume
+        state — Apple TV exposes no usable Companion volume here (no `_mcF` Volume flag), and
+        volume is driven out-of-band via the WB IR blaster with no readback. Log only; never
+        writes state. See the §5.1 #7 Apple TV volume investigation."""
+        logger.debug(
+            f"[{self.device.device_id}] volume_update {old_level:.1f}% -> {new_level:.1f}% (not tracked)"
         )
-        
-        # Schedule state publish
-        self.loop.call_soon_threadsafe(asyncio.create_task, 
-            self.device.emit_progress(f"Volume changed to {new_level:.1f}%", "action_progress"))
 
     def outputdevices_update(self, old_devices, new_devices):
         """
