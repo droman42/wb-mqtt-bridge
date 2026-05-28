@@ -54,6 +54,7 @@ REG_BANK_TO_RAM = 5501       # holding: write N -> load bank N into RAM (non-com
 COIL_EDIT_BASE = 5199        # coil 5199+N: write 1 = enter edit (ROM->RAM), write 0 = COMMIT RAM->ROM
 MAX_WRITE_REGS = 121         # write-multiple (0x10) chunk; Modbus caps at 123
 MAX_READ_REGS = 125          # read (0x03) chunk; Modbus caps at 125
+VERIFY_READ_TRIES = 6        # read-back after a large-code commit can be transiently wrong; retry
 
 _PARITY = {"N": "none", "E": "even", "O": "odd"}
 _DATA_RE = re.compile(r"0x[0-9a-fA-F]+")
@@ -214,14 +215,27 @@ def main() -> int:
         subprocess.run(["systemctl", "stop", "wb-mqtt-serial"], check=True)
         toggled = True
     failures = 0
+    restored = 0
+    attempted = 0
     try:
         time.sleep(2)
         for e in plan:
+            attempted += 1
             call = make_modbus_caller(args.port, e["slave"], args.baud, args.parity, args.stopbits)
             try:
                 write_bank(call, e["rom"], e["buf"], args.settle)
-                got = code_part(read_back(call, e["rom"], len(e["expected"]) + 4))
+                # A read-back immediately after committing a LARGE code can return transient
+                # garbage for several seconds (confirmed on 207's 500-1200B ld_player/vhs codes:
+                # the commit is correct, but the next read or two come back wrong). So retry the
+                # verify read, spaced out, before ever declaring a mismatch.
+                got = None
+                for _ in range(VERIFY_READ_TRIES):
+                    got = code_part(read_back(call, e["rom"], len(e["expected"]) + 4))
+                    if got == e["expected"]:
+                        break
+                    time.sleep(3)
                 if got == e["expected"]:
+                    restored += 1
                     print(f"  {e['blaster']} ROM{e['rom']:<3} OK   ({e['nbytes']}B verified)")
                 else:
                     failures += 1
@@ -239,7 +253,10 @@ def main() -> int:
         if toggled:
             print("Restarting wb-mqtt-serial...")
             subprocess.run(["systemctl", "start", "wb-mqtt-serial"], check=False)
-    print(f"\nDone: {len(plan) - failures}/{len(plan)} bank(s) restored & verified.")
+    skipped = len(plan) - attempted
+    print(f"\nDone: {restored}/{len(plan)} restored & verified"
+          + (f"; {failures} FAILED" if failures else "")
+          + (f"; {skipped} not attempted" if skipped else "") + ".")
     return 1 if failures else 0
 
 
