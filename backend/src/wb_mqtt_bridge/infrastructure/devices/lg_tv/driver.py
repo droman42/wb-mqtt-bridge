@@ -2033,10 +2033,14 @@ class LgTv(BaseDevice[LgTvState]):
             
             logger.info(f"Setting input source to '{input_name}' (ID: {input_id})")
             
-            # Switch to the input source
-            if self.source_control:
-                result = await self.source_control.set_source_input(input_id)
-                
+            # Switch to the input source. In asyncwebostv the switch verb lives on
+            # InputControl — InputControl.set_input(id) wraps ssap://tv/switchInput with
+            # {"inputId": id} and returns the response payload (incl. returnValue).
+            # SourceControl only lists/reads sources; set_source_input never existed, which
+            # is why the switch silently raised AttributeError("set_source_input").
+            if self.input_control:
+                result = await self.input_control.set_input(input_id)
+
                 if result.get("returnValue", False):
                     # Update state
                     self.update_state(input_source=input_name)
@@ -2050,7 +2054,7 @@ class LgTv(BaseDevice[LgTvState]):
                 logger.error(error_msg)
                 return self.create_command_result(success=False, error=error_msg)
             else:
-                error_msg = "Source control is not available"
+                error_msg = "Input control is not available"
                 logger.error(error_msg)
                 return self.create_command_result(success=False, error=error_msg)
         except Exception as e:

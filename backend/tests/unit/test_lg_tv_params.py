@@ -270,13 +270,16 @@ async def test_set_input_source_action_resolves_and_switches(device):
     found no handler (manual UI switch AND scenario-driven HDMI switching both broke).
 
     Driven through execute_action (not the handler directly) so it exercises the action→
-    handler resolution that was the actual bug.
+    handler resolution that was the actual bug. Asserts on the REAL asyncwebostv method
+    (InputControl.set_input wrapping ssap://tv/switchInput) — the switch verb lives on
+    InputControl, not SourceControl; the driver previously called a non-existent
+    SourceControl.set_source_input.
     """
     device._cached_input_sources = [{"id": "HDMI_2", "label": "Emotiva XMC"}]
-    device.source_control.set_source_input = AsyncMock(return_value={"returnValue": True})
+    device.input_control.set_input = AsyncMock(return_value={"returnValue": True})
 
     result = await device.execute_action("set_input_source", {"source": "HDMI_2"}, source="api")
 
     assert result["success"] is True, result
-    device.source_control.set_source_input.assert_awaited_once_with("HDMI_2")
+    device.input_control.set_input.assert_awaited_once_with("HDMI_2")
     assert device.state.input_source == "Emotiva XMC"
