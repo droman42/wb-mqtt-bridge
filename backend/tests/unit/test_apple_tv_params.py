@@ -64,6 +64,8 @@ def _make_config() -> AppleTVDeviceConfig:
             "stop": StandardCommandConfig(action="stop"),
             "menu": StandardCommandConfig(action="menu"),
             "home": StandardCommandConfig(action="home"),
+            "volume_up": StandardCommandConfig(action="volume_up"),
+            "volume_down": StandardCommandConfig(action="volume_down"),
             "pointer_gesture": StandardCommandConfig(
                 action="pointer_gesture",
                 params=[
@@ -222,3 +224,32 @@ async def test_pointer_gesture_translates_movement_to_direction(device, fake_atv
     result = await device.execute_action("pointer_gesture", {"dx": 0, "dy": -50}, source="api")
     assert result["success"] is True, result
     fake_atv.remote_control.up.assert_awaited_once()
+
+
+# --- Volume: IR via WB blaster ----------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_volume_up_fires_ir_when_configured(device):
+    """With an IR topic set, volume_up publishes "1" to the WB ROM-play topic (Companion volume
+    is unusable on these tvOS 26.5 units; volume is driven via the WB IR blaster — §5.1 #7)."""
+    device.ir_volume_up_topic = "/devices/wb-msw-v3_207/controls/Play from ROM5/on"
+    device.mqtt_client.publish = AsyncMock()
+
+    result = await device.handle_volume_up(device.config.commands["volume_up"], {})
+
+    assert result["success"] is True, result
+    device.mqtt_client.publish.assert_awaited_once_with(
+        "/devices/wb-msw-v3_207/controls/Play from ROM5/on", "1"
+    )
+
+
+@pytest.mark.asyncio
+async def test_volume_down_falls_back_to_companion_without_ir_topic(device, fake_atv):
+    """No IR topic → volume_down uses the Companion remote path (the inert HID fallback)."""
+    device.ir_volume_down_topic = None
+    device.mqtt_client.publish = AsyncMock()
+
+    await device.handle_volume_down(device.config.commands["volume_down"], {})
+
+    device.mqtt_client.publish.assert_not_awaited()  # did NOT fire IR

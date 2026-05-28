@@ -38,7 +38,12 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
         
         # Get Apple TV configuration directly from the config
         self.apple_tv_config = self.config.apple_tv
-        
+
+        # IR volume topics (WB IR-blaster ROM-play). Apple TV has no usable Companion volume
+        # here, so volume_up/down fire these learned IR codes instead. None ⇒ HID fallback.
+        self.ir_volume_up_topic = getattr(self.apple_tv_config, 'ir_volume_up_topic', None)
+        self.ir_volume_down_topic = getattr(self.apple_tv_config, 'ir_volume_down_topic', None)
+
         self.loop = None
         self.atv = None  # pyatv device instance (renamed from self.device)
         self.atv_config = None # pyatv config object (renamed from self.config)
@@ -1244,53 +1249,45 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
                 error=error_msg
             )
 
+    async def _send_ir_command(self, mqtt_topic: str) -> bool:
+        """Fire a learned IR code by publishing to a WB IR-blaster ROM-play topic
+        (e.g. /devices/wb-msw-v3_207/controls/Play from ROM5/on). Returns True on publish."""
+        if not self.mqtt_client:
+            logger.error(f"[{self.device_id}] MQTT client not available for IR command")
+            return False
+        try:
+            logger.debug(f"[{self.device_id}] Firing IR via {mqtt_topic}")
+            await self.mqtt_client.publish(mqtt_topic, "1")
+            return True
+        except Exception as e:
+            logger.error(f"[{self.device_id}] Failed to fire IR command on {mqtt_topic}: {e}")
+            return False
+
     async def handle_volume_up(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
-        """
-        Increase the volume.
-        
-        Args:
-            cmd_config: Command configuration
-            params: Parameters (unused)
-            
-        Returns:
-            CommandResult: Result of the command execution
-        """
-        remote_cmd_result = await self._execute_remote_command("volume_up")
-        if remote_cmd_result["success"]:
-            asyncio.create_task(self._delayed_refresh())
+        """Increase volume. Fires the learned volume-up IR via the WB blaster when configured
+        (Apple TV has no usable Companion volume — see §5.1 #7); else falls back to the
+        Companion HID button. No state readback (volume isn't tracked)."""
+        if self.ir_volume_up_topic:
+            ok = await self._send_ir_command(self.ir_volume_up_topic)
             return self.create_command_result(
-                success=True,
-                message="Volume up command executed successfully"
+                success=ok,
+                message="Volume up (IR) sent" if ok else None,
+                error=None if ok else "Failed to send volume up IR command",
             )
-        else:
-            return self.create_command_result(
-                success=False,
-                error="Failed to send volume up command"
-            )
+        return await self._execute_remote_command("volume_up")
 
     async def handle_volume_down(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
-        """
-        Decrease the volume.
-        
-        Args:
-            cmd_config: Command configuration
-            params: Parameters (unused)
-            
-        Returns:
-            CommandResult: Result of the command execution
-        """
-        remote_cmd_result = await self._execute_remote_command("volume_down")
-        if remote_cmd_result["success"]:
-            asyncio.create_task(self._delayed_refresh())
+        """Decrease volume. Fires the learned volume-down IR via the WB blaster when configured
+        (Apple TV has no usable Companion volume — see §5.1 #7); else falls back to the
+        Companion HID button. No state readback (volume isn't tracked)."""
+        if self.ir_volume_down_topic:
+            ok = await self._send_ir_command(self.ir_volume_down_topic)
             return self.create_command_result(
-                success=True,
-                message="Volume down command executed successfully"
+                success=ok,
+                message="Volume down (IR) sent" if ok else None,
+                error=None if ok else "Failed to send volume down IR command",
             )
-        else:
-            return self.create_command_result(
-                success=False,
-                error="Failed to send volume down command"
-            )
+        return await self._execute_remote_command("volume_down")
 
     async def handle_launch_app(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """

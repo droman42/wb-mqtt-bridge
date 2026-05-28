@@ -45,6 +45,16 @@ class AppleTVConfig(BaseModel):
     gesture_threshold: float = 10.0
     touch_delay: float = 0.1
     select_delay: float = 0.2
+    # IR volume control: Apple TV exposes no usable Companion volume (no `_mcF` Volume flag;
+    # see §5.1 #7), so volume_up/volume_down fire learned IR codes through a WB IR blaster ROM
+    # slot instead (same pattern as the Auralic's ir_power_*_topic). When unset, the handlers
+    # fall back to the (typically inert) Companion HID button.
+    ir_volume_up_topic: Optional[str] = Field(
+        None, description="MQTT topic (WB IR-blaster ROM-play) fired for volume up"
+    )
+    ir_volume_down_topic: Optional[str] = Field(
+        None, description="MQTT topic (WB IR-blaster ROM-play) fired for volume down"
+    )
 
 class LgTvConfig(BaseModel):
     """Schema for LG WebOS TV device configuration."""
