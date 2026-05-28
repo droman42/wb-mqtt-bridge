@@ -1147,7 +1147,7 @@ wheels = [
 [[package]]
 name = "pyatv"
 version = "0.17.0"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/postlund/pyatv?rev=9177803dec6a165d4610d5d63fe09562820fccdb#9177803dec6a165d4610d5d63fe09562820fccdb" }
 dependencies = [
     { name = "aiohttp" },
     { name = "chacha20poly1305-reuseable" },
@@ -1161,10 +1161,6 @@ dependencies = [
     { name = "tabulate" },
     { name = "tinytag" },
     { name = "zeroconf" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/51/98/cbe72f386c0dcfa1d815aef12216315d59870bbb349925cf89ed64efa4e8/pyatv-0.17.0.tar.gz", hash = "sha256:3408bfb442d1676ee4cde4d71d7715d3083e577a088be2ce9d96b86d0e0adec5", size = 1692508 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/89/5d/fd555dab9405c9238c5c01335d2ea70f12887d41273057355fe1c509e13d/pyatv-0.17.0-py3-none-any.whl", hash = "sha256:39d4000f19ab402808a7a098d4bc1d0f92959542b2d4c40a138be5b5832f4f8f", size = 462629 },
 ]
 
 [[package]]
@@ -1835,7 +1831,7 @@ requires-dist = [
     { name = "openhomedevice", git = "https://github.com/droman42/openhomedevice.git?rev=6e862a1022f59a21c57c501dcf040f81d12ebfaf" },
     { name = "paho-mqtt", specifier = ">=1.6.1,<2" },
     { name = "psutil", specifier = ">=7.0.0,<8" },
-    { name = "pyatv", specifier = "==0.17.0" },
+    { name = "pyatv", git = "https://github.com/postlund/pyatv?rev=9177803dec6a165d4610d5d63fe09562820fccdb" },
     { name = "pydantic", specifier = ">=2.11.0,<3" },
     { name = "pymotivaxmc2", specifier = "==0.6.7" },
     { name = "pyopenssl", specifier = ">=23.2.0,<27" },

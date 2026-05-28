@@ -6,7 +6,7 @@ future change reintroduces:
   - A moving ``branch =`` git ref in ``[tool.uv.sources]``         (DEP-01)
   - An ``lxml`` dependency on the openhomedevice path              (ARMv7 constraint)
   - An unbounded direct PyPI dependency specifier                  (DEP-03)
-  - A removal of the immutable openhomedevice SHA or the PyPI pyatv pin
+  - A removal of the immutable openhomedevice SHA or the immutable pyatv git-SHA pin
 
 The tests are pure-unit (no I/O other than reading the two checked-in config
 files). They are CWD-independent because they resolve paths relative to *this*
@@ -98,30 +98,37 @@ def test_openhomedevice_pinned_to_immutable_sha():
     )
 
 
-def test_pyatv_not_on_git_source():
-    """pyatv must NOT appear in [tool.uv.sources]; it must be a plain PyPI dep.
+def test_pyatv_pinned_to_immutable_git_sha():
+    """pyatv must be pinned to an IMMUTABLE upstream commit SHA — never a moving branch.
 
-    The git-commit pin (postlund/pyatv@f75e718) was required because the protobuf
-    fix was unreleased.  Once it shipped in pyatv 0.17.0 the dep was migrated to
-    PyPI.  Reintroducing a git source (especially upstream ``postlund/pyatv``)
-    would put us back on an ephemeral ref we cannot control.
+    pyatv was on a PyPI exact pin (==0.17.0), but tvOS 26.4/26.5 silently drop Companion
+    *query* commands (FetchAttentionState→power, app_list, set_volume) unless a
+    TVRCSessionStart handshake is sent at connect. That fix landed on master (#2855) but is
+    not in any release yet (0.17.0 predates it), so pyatv is temporarily pinned to an
+    immutable master SHA. The pin MUST be a 40-char commit SHA on postlund/pyatv (reproducible),
+    NOT a branch (DEP-01 spirit). Move back to a PyPI exact pin once a release contains #2855.
     """
     data = _load_pyproject()
-    sources: dict = data.get("tool", {}).get("uv", {}).get("sources", {})
-
-    assert "pyatv" not in sources, (
-        "pyatv must be installed from PyPI, not from a git source.  "
-        "Remove it from [tool.uv.sources] and keep the 'pyatv==X.Y.Z' PyPI pin."
-    )
-
-    # Belt-and-suspenders: the dependencies array must not reference a git URL for pyatv.
     deps: list[str] = data.get("project", {}).get("dependencies", [])
-    git_pyatv = [d for d in deps if "pyatv" in d and "git+" in d]
-    assert not git_pyatv, (
-        "Found a git+ URL for pyatv in [project].dependencies: "
-        + ", ".join(git_pyatv)
-        + ".  Use the PyPI exact-pin form 'pyatv==X.Y.Z' instead."
+
+    pyatv_entries = [d for d in deps if re.match(r"\s*pyatv(\s|@|=|$)", d)]
+    assert pyatv_entries, "pyatv is missing from [project].dependencies."
+
+    spec = pyatv_entries[0]
+    assert re.search(
+        r"pyatv\s*@\s*git\+https://github\.com/postlund/pyatv@[0-9a-f]{40}\b", spec
+    ), (
+        "pyatv must be pinned to an immutable upstream commit SHA, e.g. "
+        "'pyatv @ git+https://github.com/postlund/pyatv@<40-hex-sha>'. "
+        f"Got: {spec!r}. (A branch ref or a non-SHA git ref is forbidden — DEP-01.)"
     )
+
+    # Guard against a moving branch sneaking into [tool.uv.sources] for pyatv.
+    sources: dict = data.get("tool", {}).get("uv", {}).get("sources", {})
+    if "pyatv" in sources:
+        assert "branch" not in sources["pyatv"], (
+            "pyatv [tool.uv.sources] uses a moving 'branch =' ref; use an immutable 'rev =' SHA."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -129,26 +136,22 @@ def test_pyatv_not_on_git_source():
 # ---------------------------------------------------------------------------
 
 
-def test_pyatv_exact_pypi_pin_present():
-    """pyproject.toml [project].dependencies must contain 'pyatv==0.17.0' (exact PyPI pin).
+def test_pyatv_pin_is_the_expected_sha():
+    """The pyatv pin must be the reviewed, hardware-verified SHA.
 
-    The exact pin was chosen after verifying the protobuf fix shipped in 0.16.1+.
-    Bumping to a different exact pin is fine; removing the pin or loosening it
-    to a range without updating this test is not.
+    Advancing it is a conscious decision: bump the SHA here AND re-verify against a
+    tvOS 26.x Apple TV that the Companion queries still work. When pyatv cuts a release
+    containing #2855, switch back to a 'pyatv==X.Y.Z' PyPI pin (and update this test).
     """
+    expected_sha = "9177803dec6a165d4610d5d63fe09562820fccdb"
     data = _load_pyproject()
     deps: list[str] = data.get("project", {}).get("dependencies", [])
 
-    pyatv_entries = [d for d in deps if re.match(r"\s*pyatv", d)]
-    assert pyatv_entries, (
-        "pyatv is missing from [project].dependencies.  "
-        "Add 'pyatv==0.17.0' (or a new exact pin after a conscious upgrade)."
-    )
-
-    exact_pins = [d for d in pyatv_entries if "==" in d]
-    assert exact_pins, (
-        "pyatv in [project].dependencies is not an exact pin (==).  "
-        f"Found: {pyatv_entries}.  Use 'pyatv==X.Y.Z'."
+    pyatv_entries = [d for d in deps if re.match(r"\s*pyatv(\s|@|=|$)", d)]
+    assert pyatv_entries and expected_sha in pyatv_entries[0], (
+        f"pyatv pin must be the reviewed SHA {expected_sha}; "
+        f"got: {pyatv_entries[0] if pyatv_entries else None!r}. "
+        "Update this test only when intentionally advancing the pin (re-verify on tvOS 26.x)."
     )
 
 

@@ -49,8 +49,13 @@ dependencies = [
     "aiosqlite>=0.19.0,<1",
     # Auralic device support (fork with ARM lxml fix, pinned to immutable SHA)
     "openhomedevice @ git+https://github.com/droman42/openhomedevice.git@6e862a1022f59a21c57c501dcf040f81d12ebfaf",
-    # Apple TV support (migrated to PyPI — protobuf fix shipped in 0.16.1+)
-    "pyatv==0.17.0",
+    # Apple TV support. Pinned to a master SHA (not a release) because tvOS 26.4/26.5
+    # silently drop Companion query commands (FetchAttentionState→power, app_list,
+    # set_volume) unless a TVRCSessionStart handshake is sent at connect. That fix landed
+    # on master via #2855 but is not in any release yet (0.17.0 predates it). Verified
+    # against our tvOS 26.5 units. Move to the first release containing #2855 when it ships.
+    # See pyatv issues #2845 / #2856 / #2823.
+    "pyatv @ git+https://github.com/postlund/pyatv@9177803dec6a165d4610d5d63fe09562820fccdb",
     # Note: asyncio>=3.4.3 removed - built into Python 3.11+
     "psutil>=7.0.0,<8",
 ]
