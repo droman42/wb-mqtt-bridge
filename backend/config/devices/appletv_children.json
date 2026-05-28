@@ -10,6 +10,8 @@
     "gesture_threshold": 15.0,
     "touch_delay": 0.12,
     "select_delay": 0.25,
+    "ir_volume_up_topic": "/devices/wb-msw-v3_220/controls/Play from ROM1/on",
+    "ir_volume_down_topic": "/devices/wb-msw-v3_220/controls/Play from ROM2/on",
     "protocols": {
       "Companion": {
         "identifier": null,
