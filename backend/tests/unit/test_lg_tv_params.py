@@ -61,6 +61,10 @@ def _make_config() -> LgTvDeviceConfig:
             "play": StandardCommandConfig(action="play"),
             "pause": StandardCommandConfig(action="pause"),
             "stop": StandardCommandConfig(action="stop"),
+            "set_input_source": StandardCommandConfig(
+                action="set_input_source",
+                params=[CommandParameterDefinition(name="source", type="string", required=True)],
+            ),
         },
     )
 
@@ -250,3 +254,29 @@ def test_lg_tv_power_state_mapping(raw_state, expected_on):
     docs/subscription_spec.md "Power States"."""
     from wb_mqtt_bridge.infrastructure.devices.lg_tv.driver import _lg_tv_is_on
     assert _lg_tv_is_on(raw_state) is expected_on
+
+
+# --- Input source: action-name + param contract regression ------------------
+
+
+@pytest.mark.asyncio
+async def test_set_input_source_action_resolves_and_switches(device):
+    """Regression for the dispatch mismatch that silently 404'd LG input switching.
+
+    The whole system (device config, LgTv capability `select.command`, the reconciler,
+    and movie scenarios) uses action **set_input_source** with a **source** param. The
+    driver handler must register under that exact name and read `source` — it previously
+    was `handle_set_input` reading `params["input"]`, so `execute_action("set_input_source")`
+    found no handler (manual UI switch AND scenario-driven HDMI switching both broke).
+
+    Driven through execute_action (not the handler directly) so it exercises the action→
+    handler resolution that was the actual bug.
+    """
+    device._cached_input_sources = [{"id": "HDMI_2", "label": "Emotiva XMC"}]
+    device.source_control.set_source_input = AsyncMock(return_value={"returnValue": True})
+
+    result = await device.execute_action("set_input_source", {"source": "HDMI_2"}, source="api")
+
+    assert result["success"] is True, result
+    device.source_control.set_source_input.assert_awaited_once_with("HDMI_2")
+    assert device.state.input_source == "Emotiva XMC"

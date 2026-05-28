@@ -1978,27 +1978,32 @@ class LgTv(BaseDevice[LgTvState]):
             logger.error(error_msg)
             return False, error_msg
     
-    async def handle_set_input(
-        self, 
-        cmd_config: StandardCommandConfig, 
+    async def handle_set_input_source(
+        self,
+        cmd_config: StandardCommandConfig,
         params: Dict[str, Any]
     ) -> CommandResult:
         """Handle setting input source.
-        
+
+        Registered as the ``set_input_source`` action to match the device config command
+        and the LgTv capability (`select.command = set_input_source`, `param_map.input → source`)
+        — the reconciler + scenario paths emit `set_input_source` with a `source` param. (eMotiva
+        uses `set_input`/`input`; LG is intentionally distinct.)
+
         Args:
             cmd_config: Command configuration
-            params: Dictionary containing input parameter for input source
-            
+            params: Dictionary containing the ``source`` parameter (input name or ID)
+
         Returns:
             CommandResult: Result of the command execution
         """
         # Extract input source from params
-        if not params or "input" not in params:
-            error_msg = "Missing required 'input' parameter"
+        if not params or "source" not in params:
+            error_msg = "Missing required 'source' parameter"
             logger.error(error_msg)
             return self.create_command_result(success=False, error=error_msg)
-        
-        input_source = params["input"]
+
+        input_source = params["source"]
         
         try:
             if not self.source_control or not self.client or not self.state.connected:
@@ -2035,7 +2040,7 @@ class LgTv(BaseDevice[LgTvState]):
                 if result.get("returnValue", False):
                     # Update state
                     self.update_state(input_source=input_name)
-                    await self._update_last_command("set_input", params, "api")
+                    await self._update_last_command("set_input_source", params, "api")
                     return self.create_command_result(
                         success=True,
                         message=f"Input source set to '{input_name}' successfully"
