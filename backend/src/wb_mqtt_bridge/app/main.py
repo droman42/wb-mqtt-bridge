@@ -22,7 +22,16 @@ def main() -> None:
     )
     server = uvicorn.Server(config)
     sse_manager.set_uvicorn_server(server)
-    server.run()
+    try:
+        server.run()
+    except KeyboardInterrupt:
+        # After a graceful shutdown, uvicorn's Server.capture_signals re-raises the
+        # SIGINT it captured (so an embedding program sees standard Ctrl-C semantics).
+        # The asyncio runner turns that into a KeyboardInterrupt out of server.run().
+        # We've already torn down cleanly by this point — swallow it for a quiet exit
+        # instead of dumping a CancelledError/KeyboardInterrupt traceback. uvicorn's own
+        # CLI relies on click doing this catch; our console_script must do it itself.
+        pass
 
 
 if __name__ == "__main__":
