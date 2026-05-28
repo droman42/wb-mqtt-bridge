@@ -1,35 +1,40 @@
 #!/usr/bin/env python3
 """Back up WB-MSW v3 IR ROM codes that wb-mqtt-bridge configs reference, before a firmware upgrade.
 
-WHY: upgrading a WB-MSW v3 firmware WIPES its learned IR ROM banks (confirmed by Wiren Board docs:
-"saving command banks before updating is recommended using a script"). This reads every ROM bank
-any device config references for a given blaster and writes them to a CSV (codes base64-encoded),
-so they survive the upgrade.
+WHY: upgrading a WB-MSW v3 firmware WIPES its learned IR ROM banks. This reads every ROM bank
+any device config references for the given blaster(s) and writes them to CSV (codes base64), so
+they survive the upgrade.
 
-MECHANISM (per the WB-MSx Consumer IR Manual — Modbus):
-  For ROM bank i on the module (Modbus slave = the numeric suffix of the blaster name):
-    1. write coil  (5200 + i)  -> copy ROM bank i into the RAM buffer (NON-destructive to ROM)
-    2. read input  (5400 + i)  -> code size in bytes
-    3. read holding 2000..     -> the code: uint16 durations (10 us quanta), ends with two 0x0000
-  ROM banks: 1..N (flash). RAM buffer: regs 2000-2509 (scratch).
+RUNS ON THE WB CONTROLLER. It drives the `modbus_client` CLI (shipped on every Wiren Board
+controller — no Python deps) and needs exclusive bus access, so by default it stops
+`wb-mqtt-serial` for the duration and restarts it after.
 
-This runs ON the WB controller and needs exclusive bus access, so by default it stops
-`wb-mqtt-serial` for the duration of the read and restarts it after (same as the firmware updater).
+MECHANISM (verified on a live WB-MSW v3 against /usr/share/wb-mqtt-serial/templates/config-wb-msw_v3.json):
+  Modbus slave = the numeric suffix of the blaster name (wb-msw-v3_207 -> slave 207).
+  Registers are 0-based (the address on the wire); pass them to modbus_client WITHOUT -0.
+  For ROM bank N (the same N as a config's rom_position / "Play from ROM<N>"):
+    1. write holding reg 5501 = N   -> "BANK -> RAM": copies ROM bank N into the RAM buffer.
+       (Universal loader for all banks. The per-bank "ROM<N> -> RAM" coils 5199+N only cover
+        banks 1-32; 5501 reaches every bank — verified up to ROM80.)
+    2. read input reg  (5399 + N)   -> "ROM<N> size": the code size in bytes.
+    3. read holding regs 2000..     -> the code: uint16 durations, big-endian, 10 us quanta,
+       terminated by repeated 0x0000. Modbus caps a read at 125 regs/frame, so reads are chunked.
+  Each duration register is one mark/space; e.g. a captured NEC code starts 0x038b 0x01c3
+  (9.07 ms / 4.51 ms leader) then 0x003a / 0x00a9 bit timings.
 
-RESTORE: writing arbitrary codes back INTO a ROM bank is NOT documented by Wiren Board (there is
-no confirmed save-RAM->ROM coil; coil 5300+i only records from a physical remote). This script is
-therefore BACKUP-ONLY. The CSV preserves every code (base64) so you can (a) re-learn from the
-original remotes using the CSV as the checklist, or (b) restore programmatically later once the
-save mechanism is confirmed with Wiren Board.
+RESTORE IS NOT SUPPORTED BY THE FIRMWARE. The WB-MSW v3 register map exposes only LOAD
+(ROM->RAM / BANK->RAM), LEARN-from-a-physical-remote (coils 5300+N, holding 5502), and
+ERASE (coil 5000 "Reset all ROM"). There is NO RAM->ROM "save" control, so codes cannot be
+written back from this CSV programmatically. This CSV is therefore the safety net: after a
+firmware upgrade, banks must be re-learned from the original remotes (CSV = the per-ROM
+checklist). DANGER: never write coil 5000 (erases all banks).
 
 Usage:
-    # dry run — just show which ROMs are referenced (no hardware access, safe anywhere):
-    python3 ir_backup.py wb-msw-v3_207 --scan-only
+    # dry run -- list referenced ROMs only, no hardware (safe anywhere):
+    python3 ir_backup.py wb-msw-v3_207 wb-msw-v3_218 wb-msw-v3_220 --scan-only
 
-    # full backup on the WB controller:
-    sudo python3 ir_backup.py wb-msw-v3_207 --port /dev/ttyRS485-1 --baud 9600
-
-Requires `pymodbus` for the hardware read (`pip3 install pymodbus`); --scan-only needs nothing.
+    # real backup on the WB controller (one service-stop window for all blasters):
+    sudo python3 ir_backup.py wb-msw-v3_207 wb-msw-v3_218 wb-msw-v3_220 --port /dev/ttyRS485-2
 """
 from __future__ import annotations
 
@@ -44,11 +49,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Modbus register/coil map (WB-MSx Consumer IR Manual), parameterised by ROM bank index i:
-COIL_EDIT_ROM_TO_RAM = 5200   # write 1 -> copy ROM bank i into RAM (regs 2000..); non-destructive
-REG_CODE_SIZE_BYTES = 5400    # input register: size of ROM bank i's code, in bytes
-REG_RAM_BASE = 2000           # holding registers: the code lives at 2000.. (one uint16 per register)
-RAM_MAX_REGS = 510            # RAM buffer is 2000-2509
+# WB-MSW v3 IR register map (0-based wire addresses; verified on hardware):
+REG_BANK_TO_RAM = 5501       # holding: write N -> copy ROM bank N into the RAM buffer
+REG_CODE_SIZE_BASE = 5400    # input:  ROM<N> code size in bytes lives at 5400 + (N-1) = 5399 + N
+REG_RAM_BASE = 2000          # holding: the loaded code, one uint16 duration per register
+MAX_REGS_PER_READ = 125      # Modbus caps a single read at 125 registers
 
 
 def derive_slave_address(blaster: str) -> int:
@@ -95,14 +100,14 @@ def scan_configs(blaster: str, config_dir: Path) -> dict[int, list[str]]:
             continue
         device_id = cfg.get("device_id", cfg_path.stem)
 
-        # Pattern A — per-command location + rom_position
+        # Pattern A -- per-command location + rom_position
         for cmd_name, cmd in (cfg.get("commands") or {}).items():
             if isinstance(cmd, dict) and cmd.get("location") == blaster and cmd.get("rom_position") is not None:
                 rom = int(cmd["rom_position"])
                 desc = cmd.get("description", "")
                 add(rom, f"{device_id}:{cmd_name}" + (f" ({desc})" if desc else ""))
 
-        # Pattern B — full "Play from ROM<i>" topic anywhere in the config (sub-configs)
+        # Pattern B -- full "Play from ROM<i>" topic anywhere in the config (sub-configs)
         def on_str(s: str, _did=device_id):
             m = topic_re.search(s)
             if m:
@@ -112,36 +117,107 @@ def scan_configs(blaster: str, config_dir: Path) -> dict[int, list[str]]:
     return dict(sorted(refs.items()))
 
 
-def read_rom_code(client, slave: int, rom: int):
-    """Return (size_bytes, raw_bytes) for ROM bank `rom`, or raise on failure. Read-only to ROM."""
-    # 1) copy ROM bank -> RAM (non-destructive to the ROM bank itself)
-    wr = client.write_coil(COIL_EDIT_ROM_TO_RAM + rom, True, slave=slave)
-    if wr.isError():
-        raise RuntimeError(f"edit(ROM{rom}->RAM) coil {COIL_EDIT_ROM_TO_RAM + rom} failed: {wr}")
+_PARITY = {"N": "none", "E": "even", "O": "odd"}
+_DATA_RE = re.compile(r"0x[0-9a-fA-F]+")
+
+
+def make_modbus_caller(port, slave, baud, parity, stopbits):
+    """Return call(func, addr, count=None, write=None) -> stdout+stderr from modbus_client."""
+    base = ["modbus_client", "-mrtu", f"-a{slave}", f"-b{baud}", "-d8",
+            f"-s{stopbits}", f"-p{_PARITY[parity]}"]
+
+    def call(func, addr, count=None, write=None):
+        cmd = base + [f"-t{func}", f"-r{addr}"]
+        if count is not None:
+            cmd.append(f"-c{count}")
+        cmd.append(port)
+        if write is not None:
+            cmd.append(str(write))
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        return res.stdout + res.stderr
+
+    return call
+
+
+def _parse_regs(output: str) -> list[int] | None:
+    """Pull the register values out of a modbus_client 'Data: 0x.. 0x..' line."""
+    m = re.search(r"Data:\s*(.*)", output)
+    if not m:
+        return None
+    return [int(tok, 16) for tok in _DATA_RE.findall(m.group(1))]
+
+
+def read_rom_code(call, rom: int) -> tuple[int, bytes]:
+    """Return (size_bytes, raw_bytes) for ROM bank `rom`. Read-only to ROM (load + read only)."""
+    # 1) copy ROM bank N -> RAM (non-destructive; universal loader for all banks)
+    out = call("0x06", REG_BANK_TO_RAM, write=rom)
+    if "written" not in out and "SUCCESS" not in out:
+        raise RuntimeError(f"BANK->RAM (reg {REG_BANK_TO_RAM}={rom}) failed: {out.strip()}")
     # 2) code size in bytes
-    sz = client.read_input_registers(REG_CODE_SIZE_BYTES + rom, count=1, slave=slave)
-    if sz.isError():
-        raise RuntimeError(f"read size reg {REG_CODE_SIZE_BYTES + rom} failed: {sz}")
-    size_bytes = sz.registers[0]
+    out = call("0x04", REG_CODE_SIZE_BASE + rom - 1, count=1)
+    regs = _parse_regs(out)
+    if not regs:
+        raise RuntimeError(f"size read (reg {REG_CODE_SIZE_BASE + rom - 1}) failed: {out.strip()}")
+    size_bytes = regs[0]
     if size_bytes == 0:
         return 0, b""  # empty/unused bank
-    n_regs = min(math.ceil(size_bytes / 2), RAM_MAX_REGS)
-    # 3) the code from RAM (one uint16 duration per register, big-endian)
-    rd = client.read_holding_registers(REG_RAM_BASE, count=n_regs, slave=slave)
-    if rd.isError():
-        raise RuntimeError(f"read RAM regs {REG_RAM_BASE}..{REG_RAM_BASE + n_regs - 1} failed: {rd}")
-    raw = b"".join(struct.pack(">H", r) for r in rd.registers)[:size_bytes]
+    n_regs = math.ceil(size_bytes / 2)
+    # 3) the code from RAM, chunked at the 125-reg Modbus ceiling
+    vals: list[int] = []
+    off = 0
+    while off < n_regs:
+        chunk = min(MAX_REGS_PER_READ, n_regs - off)
+        out = call("0x03", REG_RAM_BASE + off, count=chunk)
+        r = _parse_regs(out)
+        if r is None or len(r) < chunk:
+            raise RuntimeError(f"RAM read at {REG_RAM_BASE + off} x{chunk} failed: {out.strip()}")
+        vals.extend(r[:chunk])
+        off += chunk
+    raw = b"".join(struct.pack(">H", v) for v in vals)[:size_bytes]
     return size_bytes, raw
+
+
+CSV_FIELDS = ["blaster", "modbus_address", "rom", "code_size_bytes",
+              "code_base64", "referenced_by", "status"]
+
+
+def backup_blaster(blaster: str, refs: dict[int, list[str]], call, out_dir: Path) -> Path:
+    slave = derive_slave_address(blaster)
+    print(f"--- {blaster} (slave {slave}): {len(refs)} bank(s) ---")
+    rows = []
+    for rom, who in refs.items():
+        try:
+            size, raw = read_rom_code(call, rom)
+            b64 = base64.b64encode(raw).decode() if raw else ""
+            status = "ok" if raw else "EMPTY"
+            print(f"  ROM{rom:<3} {status:5} {size:>4} bytes")
+        except Exception as e:  # one bad bank shouldn't abort the whole backup
+            size, b64, status = 0, "", f"ERROR: {e}"
+            print(f"  ROM{rom:<3} {status}", file=sys.stderr)
+        rows.append({
+            "blaster": blaster, "modbus_address": slave, "rom": rom,
+            "code_size_bytes": size, "code_base64": b64,
+            "referenced_by": "; ".join(who), "status": status,
+        })
+    out = out_dir / f"ir_backup_{blaster}.csv"
+    with out.open("w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=CSV_FIELDS)
+        w.writeheader()
+        w.writerows(rows)
+    ok = sum(1 for r in rows if r["status"] == "ok")
+    print(f"  -> {out}  ({ok}/{len(rows)} banks captured)")
+    return out
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("blaster", help="blaster name, e.g. wb-msw-v3_207 (suffix = Modbus slave addr)")
+    ap.add_argument("blasters", nargs="+", help="blaster name(s), e.g. wb-msw-v3_207 (suffix = Modbus slave)")
     ap.add_argument("--config-dir", type=Path,
                     default=Path(__file__).resolve().parent.parent / "backend" / "config" / "devices",
                     help="device configs dir (default: ../backend/config/devices)")
-    ap.add_argument("--out", type=Path, help="CSV output (default: ./ir_backup_<blaster>.csv)")
-    ap.add_argument("--port", help="serial port, e.g. /dev/ttyRS485-1 (required unless --scan-only)")
+    ap.add_argument("--out-dir", type=Path, default=Path.cwd(),
+                    help="dir for ir_backup_<blaster>.csv files (default: cwd)")
+    ap.add_argument("--port", default="/dev/ttyRS485-2", help="serial port (default: /dev/ttyRS485-2)")
     ap.add_argument("--baud", type=int, default=9600)
     ap.add_argument("--parity", default="N", choices=["N", "E", "O"])
     ap.add_argument("--stopbits", type=int, default=2, choices=[1, 2])
@@ -153,23 +229,25 @@ def main() -> int:
     if not args.config_dir.is_dir():
         raise SystemExit(f"config dir not found: {args.config_dir}")
 
-    slave = derive_slave_address(args.blaster)
-    refs = scan_configs(args.blaster, args.config_dir)
-    print(f"{args.blaster}: Modbus slave {slave}; {len(refs)} ROM bank(s) referenced:")
-    for rom, who in refs.items():
-        print(f"  ROM{rom:<3} <- {', '.join(who)}")
-    if not refs:
-        print("  (nothing references this blaster — nothing to back up)")
-        return 0
+    # Scan all blasters up front (cheap, no hardware).
+    scanned = {}
+    for blaster in args.blasters:
+        refs = scan_configs(blaster, args.config_dir)
+        scanned[blaster] = refs
+        slave = derive_slave_address(blaster)
+        print(f"{blaster}: Modbus slave {slave}; {len(refs)} ROM bank(s) referenced:")
+        for rom, who in refs.items():
+            print(f"  ROM{rom:<3} <- {', '.join(who)}")
+        if not refs:
+            print("  (nothing references this blaster)")
+
     if args.scan_only:
         return 0
-
-    if not args.port:
-        raise SystemExit("--port is required for a real backup (or use --scan-only)")
-    try:
-        from pymodbus.client import ModbusSerialClient
-    except ImportError:
-        raise SystemExit("pymodbus not installed — run: pip3 install pymodbus  (or use --scan-only)")
+    if not any(scanned.values()):
+        print("Nothing to back up.")
+        return 0
+    if not args.out_dir.is_dir():
+        raise SystemExit(f"--out-dir not found: {args.out_dir}")
 
     toggled = False
     if not args.no_toggle_service:
@@ -177,34 +255,14 @@ def main() -> int:
         subprocess.run(["systemctl", "stop", "wb-mqtt-serial"], check=True)
         toggled = True
     try:
-        client = ModbusSerialClient(port=args.port, baudrate=args.baud, parity=args.parity,
-                                    stopbits=args.stopbits, bytesize=8, timeout=2.0)
-        if not client.connect():
-            raise SystemExit(f"cannot open serial port {args.port}")
-        out = args.out or Path.cwd() / f"ir_backup_{args.blaster}.csv"
-        rows = []
-        for rom, who in refs.items():
-            try:
-                size, raw = read_rom_code(client, slave, rom)
-                b64 = base64.b64encode(raw).decode() if raw else ""
-                status = "ok" if raw else "EMPTY"
-                print(f"  ROM{rom:<3} {status:5} {size:>4} bytes")
-            except Exception as e:  # one bad bank shouldn't abort the whole backup
-                size, b64, status = 0, "", f"ERROR: {e}"
-                print(f"  ROM{rom:<3} {status}", file=sys.stderr)
-            rows.append({
-                "blaster": args.blaster, "modbus_address": slave, "rom": rom,
-                "code_size_bytes": size, "code_base64": b64,
-                "referenced_by": "; ".join(who), "status": status,
-            })
-        client.close()
-        with out.open("w", newline="") as fh:
-            w = csv.DictWriter(fh, fieldnames=["blaster", "modbus_address", "rom",
-                                               "code_size_bytes", "code_base64", "referenced_by", "status"])
-            w.writeheader()
-            w.writerows(rows)
-        ok = sum(1 for r in rows if r["status"] == "ok")
-        print(f"Wrote {out}  ({ok}/{len(rows)} banks captured)")
+        import time
+        time.sleep(2)  # let the bus settle after the service releases it
+        for blaster, refs in scanned.items():
+            if not refs:
+                continue
+            call = make_modbus_caller(args.port, derive_slave_address(blaster),
+                                      args.baud, args.parity, args.stopbits)
+            backup_blaster(blaster, refs, call, args.out_dir)
     finally:
         if toggled:
             print("Restarting wb-mqtt-serial...")
