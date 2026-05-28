@@ -5,7 +5,7 @@ from datetime import datetime
 
 from pyatv import scan, connect
 from pyatv.const import Protocol as ProtocolType, PowerState
-from pyatv.interface import DeviceListener, Playing, AudioListener
+from pyatv.interface import DeviceListener, PushListener, PowerListener, Playing, AudioListener
 try:
     from pyatv.interface import KeyboardListener
     KEYBOARD_LISTENER_AVAILABLE = True
@@ -43,6 +43,11 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
         self.atv = None  # pyatv device instance (renamed from self.device)
         self.atv_config = None # pyatv config object (renamed from self.config)
         self._app_list: Dict[str, str] = {} # Maps lowercase app name to app identifier
+        # pyatv stores listeners as WEAK references (pyatv.support.state_producer:
+        # `self.__listener = weakref.ref(target)`). We MUST hold a strong reference
+        # ourselves for the lifetime of the connection, or the listener is GC'd and
+        # every callback (connection/volume/power/playback) silently stops firing.
+        self._pyatv_listener: Optional["PyATVDeviceListener"] = None
 
         # Initialize state with typed Pydantic model
         self.state = AppleTVState(
@@ -66,7 +71,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
 
     async def setup(self) -> bool:
         """Set up the Apple TV device connection."""
-        self.loop = asyncio.get_event_loop()
+        self.loop = asyncio.get_running_loop()
         
         try:
             ip_address = self.apple_tv_config.ip_address
@@ -157,22 +162,42 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
                 )
             )
             
-            # Assign listener for connection events and updates
+            # Assign listener for connection events and updates. Keep a STRONG
+            # reference on self — pyatv holds only a weakref (see __init__ note),
+            # so a local would be GC'd and silently kill all callbacks.
             listener = PyATVDeviceListener(self)
+            self._pyatv_listener = listener
             self.atv.listener = listener
-            
-            # Note: PowerListener is not supported by Companion protocol, only MRP
-            # So we don't set up power state listener for automatic notifications
-            
+
+            # Power state listener. pyatv 0.17.0's Companion power module DOES push
+            # SystemStatus updates (powerstate_update) when its initial FetchAttentionState
+            # probe succeeds at connect (i.e. the device is awake). If the device is asleep
+            # at connect the probe fails (pyatv logs "Could not fetch SystemStatus") and this
+            # never fires — that's inherent, not a registration bug. Registering is harmless
+            # in the failed case and gives live power feedback whenever the unit is reachable.
+            if hasattr(self.atv, "power") and hasattr(self.atv.power, "listener"):
+                self.atv.power.listener = listener
+                logger.info(f"[{self.device_id}] Power listener configured for power-state updates")
+
+            # Push updater for real-time playback updates (playstatus_update). Companion may
+            # or may not support push; start() raises NotSupportedError if not, in which case
+            # we fall back to the post-command _delayed_refresh polling already in place.
+            try:
+                self.atv.push_updater.listener = listener
+                self.atv.push_updater.start()
+                logger.info(f"[{self.device_id}] Push updater started for playback updates")
+            except Exception as e:
+                logger.debug(f"[{self.device_id}] Push updates unavailable ({e}); using polling only")
+
             # Set up audio listener for real-time volume updates
             if hasattr(self.atv, "audio") and hasattr(self.atv.audio, "listener"):
                 self.atv.audio.listener = listener
                 logger.info(f"[{self.device_id}] Audio listener configured for volume updates")
-            
+
             # Set up keyboard listener for virtual keyboard focus (Companion protocol)
             if hasattr(self.atv, "keyboard") and hasattr(self.atv.keyboard, "listener") and KEYBOARD_LISTENER_AVAILABLE:
                 self.atv.keyboard.listener = listener
-                logger.info(f"[{self.device_id}] Keyboard listener configured for focus state updates") 
+                logger.info(f"[{self.device_id}] Keyboard listener configured for focus state updates")
             
             # Perform initial status refresh and app list update
             await self.handle_refresh_status(
@@ -247,6 +272,11 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
         if self.atv:
             try:
                 logger.info(f"[{self.device_id}] Disconnecting...")
+                # Stop push updates before tearing the connection down (best effort).
+                try:
+                    self.atv.push_updater.stop()
+                except Exception:
+                    pass
                 pending_tasks = self.atv.close()  # sync; returns Set[asyncio.Task]
                 if pending_tasks:
                     try:
@@ -277,6 +307,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             finally:
                 # Update state even if close fails
                 self.atv = None
+                self._pyatv_listener = None  # drop strong ref; allow GC after disconnect
                 self.update_state(
                     connected=False,
                     power="off", # Assume off if disconnected
@@ -447,15 +478,16 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             playing_info = await self.atv.metadata.playing()
             
             # Store the current values before calling _update_playing_state which modifies state
-            # Get volume if available (only if powered on)
+            # Get volume if available (only if powered on). pyatv `Audio.volume` is a
+            # PROPERTY in percent (0.0-100.0), not a coroutine — accessing it raises
+            # NotSupportedError when the device/protocol can't report volume.
             volume_level = None
-            if hasattr(self.atv, "audio") and hasattr(self.atv.audio, "volume"):
-                try:
-                    vol = await self.atv.audio.volume() # 0.0 to 1.0
-                    if vol is not None:
-                        volume_level = int(vol * 100)
-                except (NotImplementedError, Exception) as e:
-                    logger.debug(f"[{self.device_id}] Could not get volume: {e}")
+            try:
+                vol = self.atv.audio.volume  # percent, 0.0-100.0
+                if vol is not None:
+                    volume_level = int(vol)
+            except Exception as e:
+                logger.debug(f"[{self.device_id}] Could not get volume: {e}")
             
             # Update playing state via the helper method (which now uses update_state)
             self._update_playing_state(playing_info)
@@ -677,7 +709,8 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
                 error=None  # Clear any previous errors on success
             )
             
-            # Schedule delayed refresh to verify actual power state (no PowerListener for Companion protocol)
+            # Schedule delayed refresh to verify actual power state (powerstate_update only
+            # fires if the device was awake at connect; the refresh is the reliable confirm)
             asyncio.create_task(self._delayed_refresh(delay=2.0))
             
             return self.create_command_result(
@@ -744,7 +777,8 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
                 error=None  # Clear any previous errors on success
             )
             
-            # Schedule delayed refresh to verify actual power state (no PowerListener for Companion protocol)
+            # Schedule delayed refresh to verify actual power state (powerstate_update only
+            # fires if the device was awake at connect; the refresh is the reliable confirm)
             asyncio.create_task(self._delayed_refresh(delay=2.0))
             
             return self.create_command_result(
@@ -781,7 +815,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("play")
-        if remote_cmd_result:
+        if remote_cmd_result["success"]:
             asyncio.create_task(self._delayed_refresh()) # Refresh after action
             return self.create_command_result(
                 success=True,
@@ -805,7 +839,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("pause")
-        if remote_cmd_result:
+        if remote_cmd_result["success"]:
             asyncio.create_task(self._delayed_refresh()) # Refresh after action
             return self.create_command_result(
                 success=True,
@@ -829,7 +863,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("stop")
-        if remote_cmd_result:
+        if remote_cmd_result["success"]:
             asyncio.create_task(self._delayed_refresh()) # Refresh after action
             return self.create_command_result(
                 success=True,
@@ -853,7 +887,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("next")
-        if remote_cmd_result:
+        if remote_cmd_result["success"]:
             asyncio.create_task(self._delayed_refresh()) # Refresh after action
             return self.create_command_result(
                 success=True,
@@ -877,7 +911,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("previous")
-        if remote_cmd_result:
+        if remote_cmd_result["success"]:
             asyncio.create_task(self._delayed_refresh()) # Refresh after action
             return self.create_command_result(
                 success=True,
@@ -901,7 +935,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("menu")
-        if remote_cmd_result:
+        if remote_cmd_result["success"]:
             return self.create_command_result(
                 success=True,
                 message="Menu command executed successfully"
@@ -924,7 +958,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("home")
-        if remote_cmd_result:
+        if remote_cmd_result["success"]:
             return self.create_command_result(
                 success=True,
                 message="Home command executed successfully"
@@ -947,7 +981,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("select")
-        if remote_cmd_result:
+        if remote_cmd_result["success"]:
             return self.create_command_result(
                 success=True,
                 message="Select command executed successfully"
@@ -970,7 +1004,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("up")
-        if remote_cmd_result:
+        if remote_cmd_result["success"]:
             return self.create_command_result(
                 success=True,
                 message="Up command executed successfully"
@@ -993,7 +1027,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("down")
-        if remote_cmd_result:
+        if remote_cmd_result["success"]:
             return self.create_command_result(
                 success=True,
                 message="Down command executed successfully"
@@ -1016,7 +1050,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("left")
-        if remote_cmd_result:
+        if remote_cmd_result["success"]:
             return self.create_command_result(
                 success=True,
                 message="Left command executed successfully"
@@ -1039,7 +1073,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("right")
-        if remote_cmd_result:
+        if remote_cmd_result["success"]:
             return self.create_command_result(
                 success=True,
                 message="Right command executed successfully"
@@ -1075,7 +1109,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             )
             
         remote_cmd_result = await self._execute_remote_command("screensaver")
-        if remote_cmd_result:
+        if remote_cmd_result["success"]:
             return self.create_command_result(
                 success=True,
                 message="Screensaver activated successfully"
@@ -1370,14 +1404,13 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
                     error=error_msg
                 )
                 
-            normalized_level = level / 100.0
-            
-            logger.info(f"[{self.device_id}] Setting volume to {level}% ({normalized_level})...")
-            
-            # Try setting volume with a timeout to handle companion protocol issues
+            logger.info(f"[{self.device_id}] Setting volume to {level}%...")
+
+            # pyatv `Audio.set_volume(level)` takes PERCENT (0.0-100.0), NOT a 0-1 fraction.
+            # Passing level/100 here silently set the volume ~100x too low (≈mute).
             try:
                 await asyncio.wait_for(
-                    self.atv.audio.set_volume(normalized_level),
+                    self.atv.audio.set_volume(float(level)),
                     timeout=8.0  # Slightly longer timeout than pyatv's internal 5 second timeout
                 )
                 logger.info(f"[{self.device_id}] Volume set successfully")
@@ -1444,7 +1477,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("volume_up")
-        if remote_cmd_result:
+        if remote_cmd_result["success"]:
             asyncio.create_task(self._delayed_refresh())
             return self.create_command_result(
                 success=True,
@@ -1468,7 +1501,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("volume_down")
-        if remote_cmd_result:
+        if remote_cmd_result["success"]:
             asyncio.create_task(self._delayed_refresh())
             return self.create_command_result(
                 success=True,
@@ -1681,19 +1714,21 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
 
 # === PyATV Listener ===
 
-class PyATVDeviceListener(DeviceListener, AudioListener):
+class PyATVDeviceListener(DeviceListener, PushListener, PowerListener, AudioListener):
     """
-    Listener for pyatv events (connection status, updates, audio, keyboard).
-    
-    Enhanced for Companion protocol support with additional listener interfaces.
-    Note: PowerListener is not supported by Companion protocol, only MRP.
-    KeyboardListener methods are implemented conditionally based on availability.
+    Listener for pyatv events: connection (DeviceListener), playback
+    (PushListener), power (PowerListener) and volume (AudioListener).
+
+    Registered on the matching pyatv StateProducers in `connect_to_device`.
+    The device holds a STRONG reference (`self._pyatv_listener`) because pyatv
+    stores only a weakref. KeyboardListener focus handling is wired separately
+    and only when that interface is available.
     """
     
     def __init__(self, device: AppleTVDevice):
         """Initialize the listener with a reference to the AppleTVDevice."""
         self.device = device  # Reference to the main AppleTVDevice instance
-        self.loop = asyncio.get_event_loop()
+        self.loop = asyncio.get_running_loop()
 
     def connection_lost(self, exception):
         """
@@ -1746,18 +1781,19 @@ class PyATVDeviceListener(DeviceListener, AudioListener):
             self.loop.call_soon_threadsafe(asyncio.create_task,
                 self.device.emit_progress("Connection closed", "action_progress"))
 
-    def device_update(self, playing: Playing):
+    def playstatus_update(self, updater, playing: Playing):
         """
-        Called by pyatv when media playback state changes.
-        
+        PushListener callback: pyatv pushes a new playback state.
+
         Args:
-            playing: Object containing the current playback information
+            updater: The PushUpdater that produced this update (unused).
+            playing: Object containing the current playback information.
         """
-        logger.debug(f"[{self.device.device_id}] Received device update (playing): {playing}")
-        
+        logger.debug(f"[{self.device.device_id}] Received playstatus update: {playing}")
+
         # Update state using helper
         self.device._update_playing_state(playing)
-        
+
         # Record playback update in last_command
         if playing and playing.device_state:
             playback_info = {
@@ -1765,7 +1801,7 @@ class PyATVDeviceListener(DeviceListener, AudioListener):
                 "title": playing.title,
                 "artist": playing.artist,
             }
-            
+
             self.device.update_state(
                 last_command=LastCommand(
                     action="playback_update",
@@ -1774,35 +1810,59 @@ class PyATVDeviceListener(DeviceListener, AudioListener):
                     params=playback_info
                 )
             )
-        
+
         # Schedule state publish
-        self.loop.call_soon_threadsafe(asyncio.create_task, 
+        self.loop.call_soon_threadsafe(asyncio.create_task,
             self.device.emit_progress(f"Playback state updated: {playing.device_state.name if playing and playing.device_state else 'idle'}", "playback_update"))
 
-    def device_error(self, error: Exception):
+    def playstatus_error(self, updater, exception: Exception):
         """
-        Called by pyatv on certain device errors (less common).
-        
+        PushListener callback: pyatv hit an error producing push updates.
+
         Args:
-            error: The exception that occurred
+            updater: The PushUpdater that produced this error (unused).
+            exception: The exception that occurred.
         """
-        logger.error(f"[{self.device.device_id}] Received device error from listener: {error}")
-        
+        logger.error(f"[{self.device.device_id}] Push update error: {exception}")
+
         self.device.update_state(
-            error=f"Listener error: {str(error)}",
+            error=f"Listener error: {str(exception)}",
             last_command=LastCommand(
-                action="device_error",
+                action="playstatus_error",
                 source="device",
                 timestamp=datetime.now(),
-                params={"error": str(error)}
+                params={"error": str(exception)}
             )
         )
-        
-        self.loop.call_soon_threadsafe(asyncio.create_task, 
-            self.device.emit_progress(f"Device error: {str(error)}", "action_error"))
 
-    # PowerListener methods removed - not supported by Companion protocol
-    # Power state changes can only be detected via manual refresh_status calls
+        self.loop.call_soon_threadsafe(asyncio.create_task,
+            self.device.emit_progress(f"Device error: {str(exception)}", "action_error"))
+
+    def powerstate_update(self, old_state: PowerState, new_state: PowerState):
+        """
+        PowerListener callback: pyatv pushes a power-state change (Companion
+        SystemStatus). Only fires when pyatv's connect-time FetchAttentionState
+        probe succeeded (device awake at connect); otherwise never called.
+
+        Args:
+            old_state: Previous PowerState.
+            new_state: New PowerState.
+        """
+        power = "on" if new_state == PowerState.On else "off"
+        logger.info(f"[{self.device.device_id}] Power state changed: {old_state} -> {new_state} ({power})")
+
+        self.device.update_state(
+            power=power,
+            last_command=LastCommand(
+                action="powerstate_update",
+                source="device",
+                timestamp=datetime.now(),
+                params={"old_state": str(old_state), "new_state": str(new_state)}
+            )
+        )
+
+        self.loop.call_soon_threadsafe(asyncio.create_task,
+            self.device.emit_progress(f"Power state changed to {power}", "action_progress"))
 
     def volume_update(self, old_level: float, new_level: float):
         """

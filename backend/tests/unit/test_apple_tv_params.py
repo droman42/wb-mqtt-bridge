@@ -15,7 +15,8 @@ Coverage:
   - Power: handle_power_on / handle_power_off via self.atv.power.{turn_on,turn_off}
   - Remote control: handle_play / handle_pause / handle_stop / handle_menu /
     handle_home — all delegate to self.atv.remote_control.<verb>
-  - Audio: handle_set_volume scales 0-100 -> 0.0-1.0 for self.atv.audio.set_volume
+  - Audio: handle_set_volume passes 0-100 percent through to self.atv.audio.set_volume
+    (pyatv's contract is percent 0.0-100.0, NOT a 0-1 fraction)
   - Apps: handle_launch_app resolves an app name to its bundle id and calls
     self.atv.apps.launch_app
   - Disconnect guard: when state.connected is False AND _ensure_connected fails,
@@ -24,7 +25,11 @@ Coverage:
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from wb_mqtt_bridge.infrastructure.devices.apple_tv.driver import AppleTVDevice
+from pyatv.const import PowerState
+from wb_mqtt_bridge.infrastructure.devices.apple_tv.driver import (
+    AppleTVDevice,
+    PyATVDeviceListener,
+)
 from wb_mqtt_bridge.infrastructure.config.models import (
     AppleTVDeviceConfig,
     AppleTVConfig,
@@ -91,7 +96,8 @@ def fake_atv():
     # audio
     atv.audio = MagicMock()
     atv.audio.set_volume = AsyncMock()
-    atv.audio.volume = AsyncMock(return_value=0.5)
+    # pyatv `Audio.volume` is a PROPERTY in percent (0-100), not a coroutine.
+    atv.audio.volume = 50.0
     # apps
     atv.apps = MagicMock()
     atv.apps.launch_app = AsyncMock()
@@ -156,17 +162,17 @@ async def test_handle_home_invokes_atv_home(device, fake_atv):
 
 
 @pytest.mark.asyncio
-async def test_set_volume_scales_to_pyatv_float(device, fake_atv):
-    """pyatv's audio.set_volume takes a 0.0-1.0 float; handler scales 0-100 to that range."""
+async def test_set_volume_passes_percent(device, fake_atv):
+    """pyatv's audio.set_volume takes percent (0.0-100.0); handler passes level through."""
     await device.handle_set_volume(device.config.commands["set_volume"], {"level": 75})
-    fake_atv.audio.set_volume.assert_awaited_once_with(0.75)
+    fake_atv.audio.set_volume.assert_awaited_once_with(75.0)
     assert device.state.volume == 75
 
 
 @pytest.mark.asyncio
 async def test_set_volume_50_percent(device, fake_atv):
     await device.handle_set_volume(device.config.commands["set_volume"], {"level": 50})
-    fake_atv.audio.set_volume.assert_awaited_once_with(0.5)
+    fake_atv.audio.set_volume.assert_awaited_once_with(50.0)
     assert device.state.volume == 50
 
 
@@ -182,3 +188,40 @@ async def test_launch_app_resolves_name_to_bundle_id(device, fake_atv):
     }
     await device.handle_launch_app(device.config.commands["launch_app"], {"app": "YouTube"})
     fake_atv.apps.launch_app.assert_awaited_once_with("com.google.youtube")
+
+
+# --- Listener push callbacks (PushListener / PowerListener) ------------------
+
+
+def test_listener_is_concrete():
+    """All pyatv ABC methods are implemented — a future pyatv bump that adds an
+    abstractmethod will make this fail loudly instead of silently breaking push."""
+    assert PyATVDeviceListener.__abstractmethods__ == frozenset()
+
+
+@pytest.mark.asyncio
+async def test_powerstate_update_maps_to_state(device):
+    """PowerListener.powerstate_update flips device power state via update_state."""
+    device.update_state = MagicMock()
+    device.emit_progress = AsyncMock()
+    listener = PyATVDeviceListener(device)  # constructed inside the running loop
+
+    listener.powerstate_update(PowerState.Off, PowerState.On)
+    assert device.update_state.call_args.kwargs["power"] == "on"
+
+    listener.powerstate_update(PowerState.On, PowerState.Off)
+    assert device.update_state.call_args.kwargs["power"] == "off"
+
+
+@pytest.mark.asyncio
+async def test_playstatus_update_routes_through_helper(device):
+    """PushListener.playstatus_update feeds the Playing object into _update_playing_state."""
+    device._update_playing_state = MagicMock()
+    device.update_state = MagicMock()
+    device.emit_progress = AsyncMock()
+    listener = PyATVDeviceListener(device)
+
+    playing = MagicMock()
+    playing.device_state = None  # keep it simple: idle path
+    listener.playstatus_update(MagicMock(), playing)
+    device._update_playing_state.assert_called_once_with(playing)
