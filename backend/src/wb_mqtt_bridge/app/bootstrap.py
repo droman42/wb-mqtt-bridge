@@ -291,28 +291,15 @@ def create_app() -> FastAPI:
             # Shutdown SSE connections first to prevent blocking
             logger.info("Shutting down SSE connections...")
             await sse_manager.shutdown()
-            
-            # Cancel any remaining background tasks that might prevent shutdown
-            logger.info("Cancelling background tasks...")
-            all_tasks = [task for task in asyncio.all_tasks() if not task.done()]
-            current_task = asyncio.current_task()
-            background_tasks = [task for task in all_tasks if task != current_task]
-            
-            if background_tasks:
-                logger.info(f"Found {len(background_tasks)} background tasks to cancel")
-                for task in background_tasks:
-                    if not task.done():
-                        task.cancel()
-                
-                # Wait briefly for tasks to cancel gracefully
-                try:
-                    await asyncio.wait_for(
-                        asyncio.gather(*background_tasks, return_exceptions=True),
-                        timeout=2.0  # Reduced timeout
-                    )
-                except (asyncio.TimeoutError, asyncio.CancelledError):
-                    logger.warning("Background task cancellation interrupted or timed out")
-            
+
+            # NOTE: do NOT blanket-cancel asyncio.all_tasks() here. We run inside uvicorn's
+            # lifespan task, and all_tasks() also contains uvicorn's own serve task — which is
+            # parked in `lifespan.shutdown()` awaiting our completion. Cancelling it tears the
+            # serve task out from under us (CancelledError out the top of asyncio.run) and
+            # prematurely kills the MQTT task before the ordered disconnect below. The ordered
+            # teardown that follows stops every task we own; asyncio.run() cancels any stragglers
+            # after the lifespan returns cleanly. See action_plan.md §5.1 #8.
+
             # Flush in-flight (real) state writes BEFORE marking shutdown, so the last operating
             # state is persisted. After this, the persistence callback stops saving — device
             # teardown mutates state to disconnected/off, which must NOT overwrite the assumed state.
