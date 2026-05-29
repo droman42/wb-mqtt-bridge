@@ -55,6 +55,8 @@ COIL_EDIT_BASE = 5199        # coil 5199+N: write 1 = enter edit (ROM->RAM), wri
 MAX_WRITE_REGS = 121         # write-multiple (0x10) chunk; Modbus caps at 123
 MAX_READ_REGS = 125          # read (0x03) chunk; Modbus caps at 125
 VERIFY_READ_TRIES = 6        # read-back after a large-code commit can be transiently wrong; retry
+WRITE_RETRIES = 4            # RAM/commit writes can transiently NAK ("Slave Device Busy") right
+                             # after a large write; retry before giving up
 
 _PARITY = {"N": "none", "E": "even", "O": "odd"}
 _DATA_RE = re.compile(r"0x[0-9a-fA-F]+")
@@ -78,6 +80,18 @@ def make_modbus_caller(port, slave, baud, parity, stopbits):
 
 def _ok(out: str) -> bool:
     return ("written" in out) or ("SUCCESS" in out)
+
+
+def _write(call, func: str, addr: int, vals, tries: int = WRITE_RETRIES, delay: float = 0.5):
+    """Write (coil/holding) with retry. The WB-MSW transiently returns 'Slave Device Busy'
+    right after a large RAM write, so a single attempt at the commit can spuriously fail."""
+    out = ""
+    for _ in range(tries):
+        out = call(func, addr, write_vals=vals)
+        if _ok(out):
+            return out
+        time.sleep(delay)
+    raise RuntimeError(f"{func} @ {addr} (={vals}) failed after {tries} tries: {out.strip()[:120]}")
 
 
 def _parse_regs(out: str) -> list[int] | None:
@@ -130,20 +144,55 @@ def read_back(call, bank: int, nregs: int) -> list[int]:
 
 
 def write_bank(call, bank: int, buf: list[int], settle: float) -> None:
-    """enter edit (coil 5199+N=1) -> write RAM in chunks -> commit (coil 5199+N=0)."""
+    """enter edit (coil 5199+N=1) -> write RAM in chunks -> commit (coil 5199+N=0).
+
+    A bank left in edit mode LOCKS the blaster's entire playback ('Play from ROM' then returns
+    Slave Device Busy for *every* bank). So this guarantees the bank leaves edit mode even when a
+    write fails: on error it reloads the committed ROM back into RAM and commits, exiting edit with
+    the bank's *prior* content intact rather than persisting a partial write or leaving it locked.
+    """
     coil = COIL_EDIT_BASE + bank
-    if not _ok(call("0x05", coil, write_vals=[1])):
-        raise RuntimeError(f"enter edit (coil {coil}=1) failed")
-    time.sleep(settle)
-    off = 0
-    while off < len(buf):
-        chunk = buf[off:off + MAX_WRITE_REGS]
-        if not _ok(call("0x10", REG_RAM_BASE + off, write_vals=chunk)):
-            raise RuntimeError(f"write RAM at {REG_RAM_BASE + off} x{len(chunk)} failed")
-        off += len(chunk)
-    if not _ok(call("0x05", coil, write_vals=[0])):
-        raise RuntimeError(f"commit (coil {coil}=0) failed")
+    _write(call, "0x05", coil, [1])                 # enter edit (retried)
+    committed = False
+    try:
+        time.sleep(settle)
+        off = 0
+        while off < len(buf):
+            chunk = buf[off:off + MAX_WRITE_REGS]
+            _write(call, "0x10", REG_RAM_BASE + off, chunk)
+            off += len(chunk)
+        time.sleep(1)                               # let the RAM write settle before committing
+        _write(call, "0x05", coil, [0])             # commit RAM->ROM (retried; transient busy after big writes)
+        committed = True
+    finally:
+        if not committed:
+            # Never leave the bank locked in edit mode: reload committed ROM -> RAM, then commit,
+            # so we exit edit with the prior content (best-effort; preflight clears any residue).
+            for _ in range(WRITE_RETRIES):
+                try:
+                    call("0x06", REG_BANK_TO_RAM, write_vals=[bank])
+                    if _ok(call("0x05", coil, write_vals=[0])):
+                        break
+                except Exception:
+                    pass
+                time.sleep(0.5)
     time.sleep(2)
+
+
+def clear_stuck_edit(call) -> list[int]:
+    """Clear any bank left in edit mode (coil 5199+N=1) by a prior failed/interrupted run -- a
+    single stuck edit coil locks the whole blaster's playback. Reads banks 1-80 in one frame, then
+    for each stuck bank reloads the committed ROM and commits (exits edit, prior content intact).
+    Returns the banks it cleared."""
+    regs = _parse_regs(call("0x01", COIL_EDIT_BASE + 1, count=80)) or []  # coils 5200..5279 = banks 1..80
+    cleared = []
+    for i, v in enumerate(regs):
+        if v == 1:
+            bank = i + 1
+            call("0x06", REG_BANK_TO_RAM, write_vals=[bank])     # reload ROM->RAM
+            call("0x05", COIL_EDIT_BASE + bank, write_vals=[0])  # commit (exit edit)
+            cleared.append(bank)
+    return cleared
 
 
 def load_rows(csv_paths: list[Path], only_rom: set[int] | None):
@@ -219,6 +268,13 @@ def main() -> int:
     attempted = 0
     try:
         time.sleep(2)
+        # Preflight: clear any bank left in edit mode by a prior failed/interrupted run -- a stuck
+        # edit coil locks the blaster's entire playback (every Play -> Slave Device Busy).
+        for slave in sorted({e["slave"] for e in plan}):
+            pcall = make_modbus_caller(args.port, slave, args.baud, args.parity, args.stopbits)
+            stuck = clear_stuck_edit(pcall)
+            if stuck:
+                print(f"  preflight: slave {slave} had bank(s) {stuck} stuck in edit mode -> cleared")
         for e in plan:
             attempted += 1
             call = make_modbus_caller(args.port, e["slave"], args.baud, args.parity, args.stopbits)
