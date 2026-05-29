@@ -4,7 +4,7 @@ from typing import Dict, Any, List, Optional, cast, Tuple
 from datetime import datetime
 from urllib.parse import urlparse
 import xml.etree.ElementTree as ET
-import requests
+import aiohttp
 
 from openhomedevice.device import Device as OpenHomeDevice
 from async_upnp_client.search import SsdpSearchListener
@@ -84,6 +84,8 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
         self.update_interval = self.config.auralic.update_interval
         self.discovery_mode = self.config.auralic.discovery_mode
         self.device_url = self.config.auralic.device_url
+        self.op_timeout = self.config.auralic.op_timeout
+        self.reconnect_interval = self.config.auralic.reconnect_interval
         self.openhome_device = None
         self._update_task = None
         self._deep_sleep_mode = False  # Track if device is in deep sleep mode
@@ -174,37 +176,53 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             logger.error(f"Error during device shutdown: {str(e)}")
             return False
     
-    def _get_device_properties(self, device_url: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    async def _op(self, coro, timeout: Optional[float] = None):
+        """Await an OpenHome call under a per-operation timeout.
+
+        Auralic enforces a ~10s UPnP subscription timeout and can wedge/stand-by mid-call; without
+        a bound a single hung call would stall the polling loop (and pile up behind the interval) or
+        block an action indefinitely. Raises asyncio.TimeoutError on expiry."""
+        return await asyncio.wait_for(coro, timeout=timeout if timeout is not None else self.op_timeout)
+
+    async def _get_device_properties_async(
+        self, device_url: str
+    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """
-        Extract device type, friendly name, and manufacturer from device XML.
-        
+        Extract device type, friendly name, and manufacturer from the device description XML.
+
+        Async (aiohttp) so it never blocks the event loop during discovery (discovery can fan out
+        across several candidate locations).
+
         Args:
             device_url: The URL to the device's XML description
-            
+
         Returns:
             Tuple containing (device_type, friendly_name, manufacturer)
         """
         try:
-            response = requests.get(device_url, timeout=5)
-            if response.status_code != 200:
-                logger.debug(f"Failed to fetch device XML: HTTP {response.status_code}")
-                return None, None, None
-                
+            timeout = aiohttp.ClientTimeout(total=5)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(device_url) as response:
+                    if response.status != 200:
+                        logger.debug(f"Failed to fetch device XML: HTTP {response.status}")
+                        return None, None, None
+                    text = await response.text()
+
             # Parse XML
-            root = ET.fromstring(response.text)
-            
+            root = ET.fromstring(text)
+
             # Find namespace
             ns = {"": root.tag.split("}")[0].strip("{") if "}" in root.tag else "urn:schemas-upnp-org:device-1-0"}
-            
+
             # Extract device type and friendly name
             device_node = root.find(".//device", ns)
             if device_node is None:
                 return None, None, None
-                
+
             device_type = device_node.findtext("deviceType", "", ns)
             friendly_name = device_node.findtext("friendlyName", "", ns)
             manufacturer = device_node.findtext("manufacturer", "", ns)
-            
+
             return device_type, friendly_name, manufacturer
         except Exception as e:
             logger.debug(f"Error extracting device properties: {str(e)}")
@@ -214,70 +232,62 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
         """Discover Auralic device URL using async_upnp_client, filtered by IP address."""
         try:
             logger.info(f"Discovering UPnP devices at IP {self.ip_address}...")
-            
-            # Store discovered devices
-            discovered_devices = []
-            
+
+            # Collect candidate locations in the SSDP callback (sync, no blocking I/O), then fetch
+            # + classify their description XML asynchronously after the search completes.
+            candidate_locations: List[str] = []
+
             def device_discovered(response):
-                """Callback for when a device is discovered."""
+                """Callback for when a device is discovered (sync — just records the location)."""
                 try:
-                    # Extract location URL from SSDP response
                     location = response.get('LOCATION') or response.get('location')
                     if not location:
                         return
-                    
-                    # Extract IP from location URL  
-                    parsed_url = urlparse(location)
-                    device_ip = parsed_url.hostname
-                    
-                    # Only process devices at our target IP
-                    if device_ip == self.ip_address:
+                    # Only keep devices at our target IP
+                    if urlparse(location).hostname == self.ip_address and location not in candidate_locations:
                         logger.debug(f"Found device at {self.ip_address}: {location}")
-                        
-                        # Get device properties from XML description
-                        device_type, friendly_name, manufacturer = self._get_device_properties(location)
-                        
-                        # Check if this is an Auralic device by manufacturer or name
-                        is_auralic_by_manufacturer = (manufacturer and "AURALIC" in str(manufacturer).upper())
-                        is_matching_name = (friendly_name and self.device_name.lower() in str(friendly_name).lower())
-                        
-                        if is_auralic_by_manufacturer or is_matching_name:
-                            device_info = {
-                                "location": location,
-                                "friendly_name": friendly_name or 'Unknown',
-                                "manufacturer": manufacturer or 'Unknown',
-                                "device_type": device_type
-                            }
-                            
-                            logger.info(f"Found potential device: {device_info['friendly_name']} ({device_info['device_type']}) at {location}")
-                            discovered_devices.append(device_info)
-                            
+                        candidate_locations.append(location)
                 except Exception as e:
                     logger.debug(f"Error processing discovered device: {e}")
-            
+
             # Create SSDP search listener
             search_listener = SsdpSearchListener(
                 callback=device_discovered,
                 timeout=4,  # 4 second timeout
                 search_target='ssdp:all'  # Search for all devices
             )
-            
+
             # Start discovery
             await search_listener.async_start()
             try:
                 # Perform the search
                 search_listener.async_search()  # This is not an async method either
-                
+
                 # Wait for responses (timeout is handled by the listener)
                 await asyncio.sleep(4.5)  # Slightly longer than timeout to catch late responses
-                
+
             finally:
                 search_listener.async_stop()  # This is not an async method
-            
+
+            # Fetch + classify each candidate's description XML asynchronously.
+            discovered_devices = []
+            for location in candidate_locations:
+                device_type, friendly_name, manufacturer = await self._get_device_properties_async(location)
+                is_auralic_by_manufacturer = (manufacturer and "AURALIC" in str(manufacturer).upper())
+                is_matching_name = (friendly_name and self.device_name.lower() in str(friendly_name).lower())
+                if is_auralic_by_manufacturer or is_matching_name:
+                    logger.info(f"Found potential device: {friendly_name or 'Unknown'} ({device_type}) at {location}")
+                    discovered_devices.append({
+                        "location": location,
+                        "friendly_name": friendly_name or 'Unknown',
+                        "manufacturer": manufacturer or 'Unknown',
+                        "device_type": device_type,
+                    })
+
             if not discovered_devices:
                 logger.error(f"No Auralic devices found at IP {self.ip_address}")
                 return None
-                
+
             logger.debug(f"Found {len(discovered_devices)} matching devices, applying prioritization")
             
             # Prioritize devices by device type and name match (same logic as before)
@@ -317,37 +327,16 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             logger.error(f"Error during device discovery: {str(e)}")
             return None
 
-    def _discover_device_url(self) -> Optional[str]:
-        """Synchronous wrapper for async device discovery."""
-        # Since this is called from sync context, we need to run the async version
-        try:
-            # Try to use existing event loop
-            asyncio.get_running_loop()
-            # If we're here, we're in an async context but being called synchronously
-            # This shouldn't happen in normal operation, but let's handle it gracefully
-            logger.warning("_discover_device_url called synchronously from async context")
-            # Create a new thread to avoid blocking the current loop
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(asyncio.run, self._discover_device_url_async())
-                return future.result(timeout=10)  # 10 second timeout
-        except RuntimeError:
-            # No running loop, safe to create a new one
-            return asyncio.run(self._discover_device_url_async())
-        except Exception as e:
-            logger.error(f"Error in sync wrapper for device discovery: {e}")
-            return None
-    
     async def _create_openhome_device(self) -> Optional[OpenHomeDevice]:
         """Create and initialize openhomedevice connection."""
         try:
             device_url = None
-            
+
             if self.discovery_mode:
                 # Use async_upnp_client to discover the device
                 logger.info(f"Using discovery mode to find Auralic device at {self.ip_address}")
-                device_url = self._discover_device_url()
-                
+                device_url = await self._discover_device_url_async()
+
                 if not device_url:
                     logger.error(f"Failed to discover Auralic device at {self.ip_address}")
                     return None
@@ -361,8 +350,8 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                     # They change their port number on each boot, so discovery is required
                     logger.warning("No fixed URL will work reliably with Auralic devices as they use dynamic ports")
                     logger.info(f"Attempting to discover Auralic device at {self.ip_address}")
-                    device_url = self._discover_device_url()
-                    
+                    device_url = await self._discover_device_url_async()
+
                     if not device_url:
                         logger.error(f"Failed to discover Auralic device at {self.ip_address}")
                         return None
@@ -376,7 +365,7 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             
             # Handle the device initialization (which sets up event subscriptions)
             try:
-                await device.init()
+                await self._op(device.init(), timeout=self.op_timeout * 2)
                 logger.info("Successfully initialized OpenHome device connection")
             except Exception as e:
                 if "412" in str(e):
@@ -386,105 +375,145 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                 else:
                     # Reraise other errors
                     raise
-            
+
             # Quick check to see if we can communicate with the device
             try:
-                standby = await device.is_in_standby()
+                standby = await self._op(device.is_in_standby())
                 logger.info(f"Successfully connected to Auralic device, standby state: {standby}")
             except Exception as e:
                 logger.warning(f"Connected to device but got error checking standby state: {e}")
                 if "412" in str(e):
                     logger.warning("This is likely due to the 10-second event subscription limit")
                     logger.warning("Basic control functions should still work despite these errors")
-            
+
             return device
                 
         except Exception as e:
             logger.error(f"Error connecting to Auralic device: {str(e)}")
             return None
     
+    async def _attempt_reconnect(self) -> bool:
+        """Re-discover the device and rebuild the OpenHome client.
+
+        Auralic reassigns its HTTP port on every boot, so a connection that goes stale (device
+        rebooted, returned from standby, or briefly dropped) can only be recovered by a fresh SSDP
+        discovery — not by reusing the old location. Returns True on success."""
+        logger.info(f"Attempting to (re)discover Auralic device {self.get_name()}")
+        device = await self._create_openhome_device()
+        if not device:
+            return False
+        self.openhome_device = device
+        self._deep_sleep_mode = False
+        await self._update_device_state()      # sets connected=True so the sources refresh below runs
+        await self._refresh_sources_cache()
+        logger.info(f"Reconnected to Auralic device {self.get_name()}")
+        return True
+
     async def _update_state_periodically(self) -> None:
-        """Periodically update device state in background."""
-        consecutive_errors = 0
-        max_errors = 3  # After this many errors, assume device is in deep sleep
-        
+        """Periodically update device state in background.
+
+        On a wired LAN the device should normally be reachable; when it isn't (powered off, or a
+        reboot changed its port) we keep state honest and attempt a bounded SSDP re-discovery every
+        `reconnect_interval` seconds rather than giving up. Logging is rate-limited to the
+        connected<->unreachable transitions so a long-offline device doesn't flood the log."""
+        last_reconnect = 0.0
+        was_connected = self.state.connected
+        loop = asyncio.get_event_loop()
+
         while True:
             try:
-                # If device is marked as in deep sleep mode, update state accordingly
                 if self._deep_sleep_mode:
-                    # logger.debug("Device in deep sleep mode, skipping state update")
+                    # Truly powered off via IR — stay quiet; power-on is the IR handler's job.
                     self.update_state(connected=False, power="off", deep_sleep=True)
-                    consecutive_errors += 1
+                elif self.openhome_device is None:
+                    # Never connected (e.g. offline at boot) — retry discovery on the cadence.
+                    if loop.time() - last_reconnect >= self.reconnect_interval:
+                        last_reconnect = loop.time()
+                        await self._attempt_reconnect()
                 else:
-                    # Normal state update
                     await self._update_device_state()
-                    consecutive_errors = 0  # Reset error counter on success
-                
+                    if not self.state.connected and loop.time() - last_reconnect >= self.reconnect_interval:
+                        # Connection went stale (likely a reboot → new port) — rediscover.
+                        last_reconnect = loop.time()
+                        await self._attempt_reconnect()
+
+                # Rate-limited transition logging.
+                if self.state.connected and not was_connected:
+                    logger.info(f"Auralic device {self.get_name()} is reachable")
+                elif not self.state.connected and was_connected:
+                    logger.warning(f"Auralic device {self.get_name()} is unreachable — will keep retrying every {self.reconnect_interval}s")
+                was_connected = self.state.connected
+
                 await asyncio.sleep(self.update_interval)
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Error updating device state: {str(e)}")
-                consecutive_errors += 1
-                
-                # If we have too many consecutive errors, assume device is in deep sleep
-                if consecutive_errors >= max_errors and not self._deep_sleep_mode:
-                    logger.warning(f"Had {consecutive_errors} consecutive errors updating state - assuming device is in deep sleep")
-                    self._deep_sleep_mode = True
-                    self.update_state(connected=False, power="off", error="Lost connection to device", deep_sleep=True)
-                
+                logger.debug(f"Auralic periodic update error: {e}")
                 await asyncio.sleep(self.update_interval)
     
     async def _update_device_state(self) -> None:
-        """Update current device state."""
+        """Update current device state.
+
+        A cheap liveness probe (is_in_standby) runs first under a timeout; if it fails, the device
+        is unreachable and we bail immediately (marking disconnected) instead of firing five more
+        calls that would each have to time out. Every OpenHome call is bounded by `_op`.
+        track_info is isolated so a single bad/garbled DIDL payload can't drop the whole device to
+        disconnected — we keep the rest of the state and leave the track fields stale."""
         if not self.openhome_device:
             self.update_state(connected=False, deep_sleep=self._deep_sleep_mode)
             return
-        
+
+        # Liveness probe — fast-fail when unreachable.
         try:
-            # Get transport state (playing, paused, etc)
-            transport_state = await self.openhome_device.transport_state()
-            
-            # Get standby state
-            in_standby = await self.openhome_device.is_in_standby()
+            in_standby = await self._op(self.openhome_device.is_in_standby())
+        except Exception as e:
+            self.update_state(connected=False, error=str(e), deep_sleep=self._deep_sleep_mode)
+            return
+
+        try:
             power_state = "off" if in_standby else "on"
-            
-            # Get current track info
-            track_info = await self.openhome_device.track_info()
-            
-            # Get volume and mute status
-            volume = await self.openhome_device.volume()
-            mute = await self.openhome_device.is_muted()
-            
-            # Get current source
-            sources = await self.openhome_device.sources()
+            transport_state = await self._op(self.openhome_device.transport_state())
+
+            # Volume/mute may be absent on this unit (no Volume service) — the lib returns None;
+            # don't write None into the non-optional state fields.
+            volume = await self._op(self.openhome_device.volume())
+            mute = await self._op(self.openhome_device.is_muted())
+
+            # Current source
+            sources = await self._op(self.openhome_device.sources())
             current_source = None
-            
             try:
-                # Use source() method instead of source_index()
-                source_index = await self.openhome_device.source()
-                # Check if source_index is a valid integer and in range
+                source_index = await self._op(self.openhome_device.source())
                 if isinstance(source_index, int) and 0 <= source_index < len(sources):
                     current_source = sources[source_index]["name"]
             except Exception as e:
                 logger.debug(f"Could not get current source: {str(e)}")
-            
-            # Update state
-            self.update_state(
-                connected=True,
-                power=power_state,
-                volume=volume,
-                mute=mute,
-                source=current_source,
-                transport_state=transport_state,
-                track_title=track_info.get("title"),
-                track_artist=track_info.get("artist"),
-                track_album=track_info.get("album"),
-                deep_sleep=False  # Device is connected, so not in deep sleep
-            )
-            
+
+            updates: Dict[str, Any] = {
+                "connected": True,
+                "power": power_state,
+                "source": current_source,
+                "transport_state": transport_state,
+                "deep_sleep": False,  # Device is connected, so not in deep sleep
+            }
+            if volume is not None:
+                updates["volume"] = volume
+            if mute is not None:
+                updates["mute"] = mute
+
+            # Track metadata in its own guard — a bad DIDL payload shouldn't disconnect the device.
+            try:
+                track_info = await self._op(self.openhome_device.track_info())
+                updates["track_title"] = track_info.get("title")
+                updates["track_artist"] = track_info.get("artist")
+                updates["track_album"] = track_info.get("album")
+            except Exception as e:
+                logger.debug(f"Could not parse track info (keeping prior values): {str(e)}")
+
+            self.update_state(**updates)
+
         except Exception as e:
-            logger.error(f"Error updating device state: {str(e)}")
+            logger.debug(f"Error updating device state: {str(e)}")
             self.update_state(connected=False, error=str(e), deep_sleep=self._deep_sleep_mode)
 
     async def _refresh_sources_cache(self) -> bool:
@@ -811,9 +840,9 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                     error="Device not connected"
                 )
                 
-            await self.openhome_device.play()
+            await self._op(self.openhome_device.play())
             await self._update_device_state()
-            
+
             return self.create_command_result(
                 success=True,
                 message="Playback started"
@@ -834,9 +863,9 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                     error="Device not connected"
                 )
                 
-            await self.openhome_device.pause()
+            await self._op(self.openhome_device.pause())
             await self._update_device_state()
-            
+
             return self.create_command_result(
                 success=True,
                 message="Playback paused"
@@ -857,9 +886,9 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                     error="Device not connected"
                 )
                 
-            await self.openhome_device.stop()
+            await self._op(self.openhome_device.stop())
             await self._update_device_state()
-            
+
             return self.create_command_result(
                 success=True,
                 message="Playback stopped"
@@ -879,10 +908,11 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                     success=False,
                     error="Device not connected"
                 )
-                
-            await self.openhome_device.skip()  # Use skip() instead of next()
+
+            # OpenHome's skip takes a signed offset: +1 = next, -1 = previous.
+            await self._op(self.openhome_device.skip(1))
             await self._update_device_state()
-            
+
             return self.create_command_result(
                 success=True,
                 message="Skipped to next track"
@@ -902,14 +932,14 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                     success=False,
                     error="Device not connected"
                 )
-                
-            # The OpenHome library doesn't have a previous() method
-            # This needs to be implemented differently or skipped
-            logger.warning("Previous track function not implemented in OpenHome library")
-            
+
+            # OpenHome's skip takes a signed offset: -1 = previous.
+            await self._op(self.openhome_device.skip(-1))
+            await self._update_device_state()
+
             return self.create_command_result(
-                success=False,
-                error="Previous track function is not supported"
+                success=True,
+                message="Skipped to previous track"
             )
         except Exception as e:
             logger.error(f"Error executing previous: {str(e)}")
@@ -942,8 +972,8 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             volume = max(0, min(100, int(volume)))
             
             # Set volume
-            await self.openhome_device.set_volume(volume)
-            
+            await self._op(self.openhome_device.set_volume(volume))
+
             # Update state
             await self._update_device_state()
             
@@ -967,9 +997,9 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                     error="Device not connected"
                 )
                 
-            await self.openhome_device.increase_volume()
+            await self._op(self.openhome_device.increase_volume())
             await self._update_device_state()
-            
+
             return self.create_command_result(
                 success=True,
                 message="Volume increased"
@@ -990,9 +1020,9 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                     error="Device not connected"
                 )
                 
-            await self.openhome_device.decrease_volume()
+            await self._op(self.openhome_device.decrease_volume())
             await self._update_device_state()
-            
+
             return self.create_command_result(
                 success=True,
                 message="Volume decreased"
@@ -1014,14 +1044,21 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                 )
                 
             # Get current mute state
-            is_muted = await self.openhome_device.is_muted()
-            
+            is_muted = await self._op(self.openhome_device.is_muted())
+
+            # A unit with no Volume service returns None — there's nothing to mute.
+            if is_muted is None:
+                return self.create_command_result(
+                    success=False,
+                    error="Mute/volume control is not available on this device"
+                )
+
             # Toggle mute state
-            await self.openhome_device.set_mute(not is_muted)
-            
+            await self._op(self.openhome_device.set_mute(not is_muted))
+
             # Update state
             await self._update_device_state()
-            
+
             return self.create_command_result(
                 success=True,
                 message=f"Device {'unmuted' if is_muted else 'muted'}"

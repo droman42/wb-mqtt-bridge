@@ -47,8 +47,13 @@ dependencies = [
     "pyyaml>=6.0,<7",
     "jsonschema>=4.4.0,<5",
     "aiosqlite>=0.19.0,<1",
-    # Auralic device support (fork with ARM lxml fix, pinned to immutable SHA)
+    # Auralic device support (fork with ARM lxml fix, pinned to immutable SHA).
+    # Upstream 2.3.1 still hard-requires lxml>=4.8.0 (the ARM build problem) — the fork is
+    # upstream 2.3.1 code minus lxml (stdlib ElementTree); do NOT move to upstream. 2026-05-29.
     "openhomedevice @ git+https://github.com/droman42/openhomedevice.git@6e862a1022f59a21c57c501dcf040f81d12ebfaf",
+    # openhomedevice's only runtime dep; pinned explicitly so a transitive bump can't reintroduce
+    # the DIDL-Lite metadata-parse break (openhomedevice issue #23, async_upnp_client 0.39->0.40).
+    "async_upnp_client>=0.40,<0.45",
     # Apple TV support. Pinned to a master SHA (not a release) because tvOS 26.4/26.5
     # silently drop Companion query commands (FetchAttentionState→power, app_list,
     # set_volume) unless a TVRCSessionStart handshake is sent at connect. That fix landed

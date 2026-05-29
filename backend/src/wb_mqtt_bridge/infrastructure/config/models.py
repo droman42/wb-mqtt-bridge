@@ -103,6 +103,20 @@ class AuralicConfig(BaseModel):
         ge=5,  # At least 5 seconds
         le=60  # At most 60 seconds
     )
+    op_timeout: float = Field(
+        5.0,
+        description="Per-call timeout (seconds) for OpenHome operations, so a wedged/standby "
+                    "device cannot hang the polling loop or an action",
+        gt=0,
+        le=30,
+    )
+    reconnect_interval: int = Field(
+        60,
+        description="Minimum seconds between automatic SSDP re-discovery attempts while the "
+                    "device is unreachable (it reassigns its HTTP port on each boot)",
+        ge=10,
+        le=600,
+    )
 
 class IRCommandConfig(BaseCommandConfig):
     """Command configuration for IR-controlled devices."""

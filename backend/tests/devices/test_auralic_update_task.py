@@ -7,6 +7,8 @@ launches a long-lived update loop and attempts openhomedevice network
 discovery. Rewritten to drive `_update_device_state` directly — the same
 state-update semantics, without the task-lifecycle infrastructure.
 """
+import asyncio
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
@@ -104,3 +106,90 @@ async def test_update_device_state_handles_openhome_errors(device):
     assert device.state.connected is False
     assert device.state.error is not None
     assert "Connection lost" in device.state.error
+
+
+@pytest.mark.asyncio
+async def test_update_device_state_tolerates_none_volume_and_mute(device):
+    """A unit without a Volume service returns None for volume/mute; those must not be written
+    into the non-optional state fields (they'd fail validation) — connected still True."""
+    oh = _make_fake_openhome()
+    oh.volume = AsyncMock(return_value=None)
+    oh.is_muted = AsyncMock(return_value=None)
+    device.openhome_device = oh
+
+    await device._update_device_state()
+
+    assert device.state.connected is True
+    assert device.state.volume == 0       # default, unchanged
+    assert device.state.mute is False     # default, unchanged
+
+
+@pytest.mark.asyncio
+async def test_update_device_state_metadata_error_keeps_connected(device):
+    """A bad/garbled DIDL track payload must not drop the whole device to disconnected."""
+    oh = _make_fake_openhome()
+    oh.track_info = AsyncMock(side_effect=Exception("garbled DIDL & <foo>"))
+    device.openhome_device = oh
+
+    await device._update_device_state()
+
+    assert device.state.connected is True
+    assert device.state.transport_state == "Playing"
+    assert device.state.track_title is None  # not populated, but device stays usable
+
+
+@pytest.mark.asyncio
+async def test_update_device_state_liveness_probe_failure_fast_fails(device):
+    """If the is_in_standby liveness probe fails, we bail immediately (no further calls)."""
+    oh = _make_fake_openhome()
+    oh.is_in_standby = AsyncMock(side_effect=Exception("unreachable"))
+    device.openhome_device = oh
+
+    await device._update_device_state()
+
+    assert device.state.connected is False
+    oh.transport_state.assert_not_awaited()  # bailed before the rest of the sequence
+
+
+@pytest.mark.asyncio
+async def test_update_device_state_times_out(device):
+    """A hung OpenHome call is bounded by op_timeout and marks the device disconnected."""
+    device.op_timeout = 0.01
+    oh = _make_fake_openhome()
+
+    async def _slow_transport():
+        await asyncio.sleep(0.5)
+        return "Playing"
+
+    oh.transport_state = _slow_transport
+    device.openhome_device = oh
+
+    await device._update_device_state()
+
+    assert device.state.connected is False
+
+
+@pytest.mark.asyncio
+async def test_attempt_reconnect_wires_new_device(device):
+    """_attempt_reconnect rebuilds the OpenHome client via discovery and refreshes state."""
+    fake = _make_fake_openhome()
+    device._create_openhome_device = AsyncMock(return_value=fake)
+    device._deep_sleep_mode = True
+
+    ok = await device._attempt_reconnect()
+
+    assert ok is True
+    assert device.openhome_device is fake
+    assert device._deep_sleep_mode is False
+    assert device.state.connected is True
+
+
+@pytest.mark.asyncio
+async def test_attempt_reconnect_returns_false_when_discovery_fails(device):
+    """When discovery can't find the device, reconnect reports failure and leaves no client."""
+    device._create_openhome_device = AsyncMock(return_value=None)
+
+    ok = await device._attempt_reconnect()
+
+    assert ok is False
+    assert device.openhome_device is None

@@ -121,20 +121,19 @@ async def test_handle_stop_invokes_openhome_stop(device, fake_openhome):
 
 
 @pytest.mark.asyncio
-async def test_handle_next_invokes_openhome_skip(device, fake_openhome):
-    """handle_next maps to openhome.skip() (the openhomedevice lib has no next())."""
+async def test_handle_next_invokes_openhome_skip_plus_one(device, fake_openhome):
+    """handle_next maps to openhome.skip(1) — the lib's skip takes a signed offset (+1 = next)."""
     result = await device.handle_next(device.config.commands["next"], {})
-    fake_openhome.skip.assert_awaited_once()
+    fake_openhome.skip.assert_awaited_once_with(1)
     assert result["success"] is True
 
 
 @pytest.mark.asyncio
-async def test_handle_previous_returns_unsupported(device, fake_openhome):
-    """handle_previous is intentionally unsupported (openhomedevice has no previous())."""
+async def test_handle_previous_invokes_openhome_skip_minus_one(device, fake_openhome):
+    """handle_previous maps to openhome.skip(-1) (previous = a negative skip offset)."""
     result = await device.handle_previous(device.config.commands["previous"], {})
-    assert result["success"] is False
-    # And nothing on the openhome client should have been called.
-    fake_openhome.previous.assert_not_awaited() if hasattr(fake_openhome, "previous") else None
+    fake_openhome.skip.assert_awaited_once_with(-1)
+    assert result["success"] is True
 
 
 # --- Volume handlers ---------------------------------------------------------
@@ -191,6 +190,15 @@ async def test_handle_mute_toggles(device, fake_openhome):
     args, _ = fake_openhome.set_mute.call_args
     # First arg is the new mute target — toggled from False to True.
     assert args[0] is True
+
+
+@pytest.mark.asyncio
+async def test_handle_mute_unavailable_when_no_volume_service(device, fake_openhome):
+    """A unit with no Volume service has is_muted()->None; mute returns a clean failure, no set_mute."""
+    fake_openhome.is_muted = AsyncMock(return_value=None)
+    result = await device.handle_mute(device.config.commands["mute"], {})
+    assert result["success"] is False
+    fake_openhome.set_mute.assert_not_awaited()
 
 
 # --- Disconnect guard --------------------------------------------------------
