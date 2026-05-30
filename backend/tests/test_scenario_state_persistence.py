@@ -3,18 +3,13 @@
 This file is a thin complement to tests/unit/test_scenario_manager.py — most
 state-persistence behaviors are already covered there in unit form
 (test_persist_state, test_restore_state, test_restore_state_nonexistent_scenario,
-test_refresh_state, test_switch_scenario_transition). The two cases here that
-those don't cover one-to-one are kept:
+test_get_scenario_state_*, test_switch_scenario_transition). The case kept here
+is the full round-trip: a persisted scenario_id, written by one ScenarioManager
+instance, is observed by a freshly-constructed second instance.
 
-  1. A persisted scenario_id, written by one ScenarioManager instance, is
-     observed by a freshly-constructed second instance (full round-trip).
-  2. _refresh_state is resilient when one of the scenario's devices raises
-     during get_current_state (state still surfaces for the remaining devices).
-
-The previous version of this file expected a richer persistence shape — a
-full ScenarioState dict under key 'scenario:last'. Production now persists
-only the active scenario_id under 'active_scenario'; ScenarioState is rebuilt
-from current device state at restore time.
+Persistence shape: only the active scenario_id is stored under 'active_scenario'.
+ScenarioState is recomputed live from current device states on every query (no
+snapshot held).
 """
 import json
 import pytest
@@ -159,9 +154,6 @@ async def test_save_and_restore_state_across_manager_instances(device_manager, r
     assert manager_b.current_scenario.scenario_id == "movie_night"
 
 
-# The previous file also asserted that _refresh_state degrades gracefully when one
-# device's get_current_state raises (returning a partial ScenarioState with the
-# remaining devices). Production behavior does NOT degrade: _refresh_state lets
-# the exception propagate. Keeping a test that asserts "graceful degradation"
-# would lock in a contract production doesn't provide. If/when production gains
-# per-device try/except in _refresh_state, add a positive test back here.
+# Note: the live recompute in get_scenario_state() does NOT degrade gracefully when one
+# device's get_current_state raises — the exception propagates. If/when production gains
+# per-device try/except in get_scenario_state(), add a positive test for that here.

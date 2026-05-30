@@ -151,11 +151,14 @@ async def get_scenario_state():
     """
     if not scenario_manager:
         raise HTTPException(status_code=503, detail="Service not fully initialized")
-    
-    if not scenario_manager.scenario_state:
+
+    if not scenario_manager.current_scenario:
         raise HTTPException(status_code=404, detail="No active scenario")
-    
-    return scenario_manager.scenario_state
+
+    # Always recompute live from device states. The manager holds no scenario-state snapshot.
+    return scenario_manager.get_scenario_state(
+        scenario_manager.current_scenario.scenario_id
+    )
 
 @router.get("/scenario/{scenario_id}/state", response_model=ScenarioState)
 async def get_specific_scenario_state(scenario_id: str):

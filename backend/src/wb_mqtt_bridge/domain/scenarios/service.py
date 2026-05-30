@@ -54,11 +54,10 @@ class ScenarioManager:
         self.scenario_map: Dict[str, Scenario] = {}  # scenario_id -> Scenario
         self.scenario_definitions: Dict[str, ScenarioDefinition] = {}  # scenario_id -> definition
         self.current_scenario: Optional[Scenario] = None
-        self.scenario_state: Optional[ScenarioState] = None
         # Manual notes (e.g. "set Dodocus to LD") from the most recent activation/switch;
-        # preserved across state refreshes, cleared on shutdown/deactivate. The transition-
-        # aware load-bearing fix (§5.1 #1): this is what surfaces on /scenario/state so the
-        # UI can display Dodocus prompts that movie_ld/vhs need for audio.
+        # cleared on shutdown/deactivate. The transition-aware load-bearing fix (§5.1 #1):
+        # surfaced via get_scenario_state() so the UI can display Dodocus prompts that
+        # movie_ld/vhs need for audio.
         self._activation_manual_steps: List[ManualStep] = []
         # scenario_id/filename -> reason, for scenarios skipped at load (Bug 2: never fatal).
         self.scenario_load_errors: Dict[str, str] = {}
@@ -245,8 +244,7 @@ class ScenarioManager:
         
         # 3. Update manager state
         self.current_scenario = incoming
-        await self._refresh_state()
-        
+
         # 4. Persist state
         await self._persist_state()
         
@@ -278,12 +276,11 @@ class ScenarioManager:
         activation = await execute_plan(build_plan(incoming.definition, self.topology, devices), devices)
 
         self.current_scenario = incoming
-        # Capture the activation's manual notes; _refresh_state below attaches them to
-        # scenario_state so /scenario/state surfaces them (single source of truth).
+        # Capture the activation's manual notes; get_scenario_state() threads them into the
+        # live recompute so /scenario/state surfaces them (single source of truth).
         self._activation_manual_steps = [
             ManualStep(node=m.node, instruction=m.instruction) for m in activation.manual_steps
         ]
-        await self._refresh_state()
         await self._persist_state()
 
         failures = [
@@ -328,40 +325,14 @@ class ScenarioManager:
             logger.debug(f"[SCENARIO_DEBUG] Executing role action on scenario {self.current_scenario.scenario_id}: {role}.{command}")
             
             result = await self.current_scenario.execute_role_action(role, command, **params)
-            
+
             # DEBUG: Log role action result
             logger.debug(f"[SCENARIO_DEBUG] Role action result: {result}")
-            
-            # Update scenario state after action
-            await self._refresh_state()
-            
+
             return result
         except Exception as e:
             logger.error(f"Error executing role action {role}.{command}: {str(e)}")
             raise
-    
-    async def _refresh_state(self) -> None:
-        """
-        Refresh the scenario state based on current device states.
-        """
-        if not self.current_scenario:
-            self.scenario_state = None
-            return
-        
-        # Create a new state object
-        device_states = {}
-        
-        for dev_id in self.current_scenario.definition.devices:
-            device = self.device_manager.get_device(dev_id)
-            if device:
-                state = device.get_current_state()
-                device_states[dev_id] = self._convert_device_state(state)
-        
-        self.scenario_state = ScenarioState(
-            scenario_id=self.current_scenario.scenario_id,
-            devices=device_states,
-            manual_steps=list(self._activation_manual_steps),
-        )
     
     async def _persist_state(self) -> None:
         """
@@ -429,7 +400,6 @@ class ScenarioManager:
             result["success"] = False
         finally:
             self.current_scenario = None
-            self.scenario_state = None
             self._activation_manual_steps = []
         return result
 
@@ -446,7 +416,6 @@ class ScenarioManager:
                 f"on the hardware (call deactivate() to power off)"
             )
         self.current_scenario = None
-        self.scenario_state = None
         self._activation_manual_steps = []
 
     def get_scenario_state(self, scenario_id: str) -> ScenarioState:
@@ -466,17 +435,22 @@ class ScenarioManager:
         if scenario_id not in self.scenario_map:
             raise ValueError(f"Scenario '{scenario_id}' not found")
         
-        # If this is the currently active scenario, RECOMPUTE its device states from each device's
-        # LIVE state — never return the frozen lifecycle snapshot (self.scenario_state), which would
-        # drift after a manual fix on a device page. One source of truth = device.get_current_state().
-        # See ui_backend_contract.md "Scenario state binding".
+        # For the active scenario: read each device's LIVE state fresh on every call. The single
+        # source of truth is device.get_current_state(); we hold no snapshot. manual_steps are
+        # activation-scoped (not derivable from device state) and threaded in from
+        # self._activation_manual_steps so transition notes (Dodocus hub, "press Play", etc.)
+        # survive every query. See ui_backend_contract.md "Scenario state binding".
         if self.current_scenario and self.current_scenario.scenario_id == scenario_id:
             device_states: Dict[str, DeviceState] = {}
             for dev_id in self.current_scenario.definition.devices:
                 device = self.device_manager.get_device(dev_id)
                 if device:
                     device_states[dev_id] = self._convert_device_state(device.get_current_state())
-            return ScenarioState(scenario_id=scenario_id, devices=device_states)
+            return ScenarioState(
+                scenario_id=scenario_id,
+                devices=device_states,
+                manual_steps=list(self._activation_manual_steps),
+            )
 
         # For inactive scenarios, return a basic state without device states
         # since we can't get real-time device states for inactive scenarios

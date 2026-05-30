@@ -80,7 +80,7 @@ class _MockScenarioManager:
             for sid in SAMPLE_SCENARIOS
         }
         self.current_scenario = None
-        self.scenario_state = None
+        self._live_state: ScenarioState | None = None
         self.switch_scenario = AsyncMock()
         self.execute_role_action = AsyncMock(return_value={"status": "success"})
         self.start_scenario = AsyncMock()
@@ -90,7 +90,7 @@ class _MockScenarioManager:
         if scenario_id not in self.scenario_map:
             return
         self.current_scenario = self.scenario_map[scenario_id]
-        self.scenario_state = ScenarioState(
+        self._live_state = ScenarioState(
             scenario_id=scenario_id,
             devices={
                 "tv": DeviceState(power=True, input="hdmi1"),
@@ -99,9 +99,9 @@ class _MockScenarioManager:
         )
 
     def get_scenario_state(self, scenario_id: str) -> ScenarioState:
-        if not self.scenario_state:
-            raise ScenarioError("No scenario state", "no_state", True)
-        return self.scenario_state
+        if not self._live_state or self._live_state.scenario_id != scenario_id:
+            return ScenarioState(scenario_id=scenario_id, devices={})
+        return self._live_state
 
 
 class _MockRoomManager:
@@ -258,7 +258,7 @@ def test_get_scenario_state_success(client, mock_scenario_manager):
 def test_get_scenario_state_no_active(client, mock_scenario_manager):
     """No active scenario -> 404 (or another 4xx)."""
     mock_scenario_manager.current_scenario = None
-    mock_scenario_manager.scenario_state = None
+    mock_scenario_manager._live_state = None
     response = client.get("/scenario/state")
     assert response.status_code in (404, 400)
 

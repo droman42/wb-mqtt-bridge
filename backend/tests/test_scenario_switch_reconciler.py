@@ -84,9 +84,9 @@ async def test_switch_activates_movie_appletv_via_reconciler():
 
     assert result["success"]
     assert sm.current_scenario.scenario_id == "movie_appletv"
-    # ScenarioState owns activation manual notes now (single source of truth via /scenario/state).
+    # get_scenario_state() owns activation manual notes (single source of truth via /scenario/state).
     # movie_appletv routes via the processor — no Dodocus hop, so no manual steps.
-    assert sm.scenario_state is not None and sm.scenario_state.manual_steps == []
+    assert sm.get_scenario_state("movie_appletv").manual_steps == []
 
     dev_seq = [d for d, _ in calls]
     # TV power before eMotiva power (HDMI-ARC ordering edge)
@@ -139,9 +139,9 @@ async def test_switch_ld_surfaces_dodocus_manual_step():
     result = await sm.switch_scenario("movie_ld")
 
     assert result["success"]
-    # Activation manual notes live on ScenarioState now (single source of truth for the UI).
-    assert sm.scenario_state is not None
-    assert any("LD position" in m.instruction for m in sm.scenario_state.manual_steps)
+    # Activation manual notes surface via get_scenario_state (single source of truth for the UI).
+    live = sm.get_scenario_state("movie_ld")
+    assert any("LD position" in m.instruction for m in live.manual_steps)
     # upscaler input switched (to video) but never powered (auto-powers with the source)
     assert ("upscaler", "input_video") in calls
     assert ("upscaler", "power_on") not in calls
@@ -179,20 +179,20 @@ async def test_transition_to_ld_surfaces_dodocus_note_on_switch_and_clears_on_de
 
     # Start with appletv — audio routes via the processor, no Dodocus hop, no manual notes.
     await sm.switch_scenario("movie_appletv")
-    assert sm.scenario_state is not None and sm.scenario_state.manual_steps == []
+    assert sm.get_scenario_state("movie_appletv").manual_steps == []
 
     # Transition to movie_ld — Dodocus 'Set to LD' must surface on the switch.
     await sm.switch_scenario("movie_ld")
-    assert sm.scenario_state is not None
-    assert sm.scenario_state.scenario_id == "movie_ld"
+    live = sm.get_scenario_state("movie_ld")
+    assert live.scenario_id == "movie_ld"
     assert any(
         m.node == "dodocus" and "LD position" in m.instruction
-        for m in sm.scenario_state.manual_steps
+        for m in live.manual_steps
     )
 
-    # Deactivate clears scenario_state (and the activation notes); the next start
+    # Deactivate clears the current_scenario (and the activation notes); the next start
     # gets fresh manual_steps, with no leftover from movie_ld.
     await sm.deactivate()
-    assert sm.scenario_state is None
+    assert sm.current_scenario is None
     await sm.switch_scenario("movie_appletv")
-    assert sm.scenario_state is not None and sm.scenario_state.manual_steps == []
+    assert sm.get_scenario_state("movie_appletv").manual_steps == []

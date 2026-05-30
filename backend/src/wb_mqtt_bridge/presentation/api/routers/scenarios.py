@@ -128,13 +128,15 @@ async def switch_scenario(data: SwitchScenarioRequest):
 
         # Broadcast scenario state change via SSE. `state` carries manual_steps now
         # (ScenarioState.manual_steps) — clients refetch /scenario/state on this event.
-        if scenario_manager.scenario_state:
+        if scenario_manager.current_scenario:
             await sse_manager.broadcast(
                 channel=SSEChannel.SCENARIOS,
                 event_type="scenario_switched",
                 data={
                     "scenario_id": data.id,
-                    "state": scenario_manager.scenario_state.model_dump(),
+                    "state": scenario_manager.get_scenario_state(
+                        scenario_manager.current_scenario.scenario_id
+                    ).model_dump(),
                     "timestamp": datetime.now().isoformat()
                 }
             )
@@ -187,13 +189,15 @@ async def start_scenario(data: StartScenarioRequest):
 
         # Broadcast scenario state change via SSE. `state` carries manual_steps now
         # (ScenarioState.manual_steps) — clients refetch /scenario/state on this event.
-        if scenario_manager.scenario_state:
+        if scenario_manager.current_scenario:
             await sse_manager.broadcast(
                 channel=SSEChannel.SCENARIOS,
                 event_type="scenario_started",
                 data={
                     "scenario_id": data.id,
-                    "state": scenario_manager.scenario_state.model_dump(),
+                    "state": scenario_manager.get_scenario_state(
+                        scenario_manager.current_scenario.scenario_id
+                    ).model_dump(),
                     "timestamp": datetime.now().isoformat()
                 }
             )
@@ -245,7 +249,7 @@ async def shutdown_scenario(data: ShutdownScenarioRequest):
         # DOES power off the gear (distinct from process shutdown, which leaves hardware as-is).
         await scenario_manager.deactivate()
 
-        # Broadcast scenario state change via SSE. After deactivate(), scenario_state is
+        # Broadcast scenario state change via SSE. After deactivate(), current_scenario is
         # cleared (and so are the manual notes); clients reading /scenario/state will get 404.
         await sse_manager.broadcast(
             channel=SSEChannel.SCENARIOS,
@@ -285,7 +289,7 @@ async def execute_role_action(data: ActionRequest):
         result = await scenario_manager.execute_role_action(data.role, data.command, data.params)
         
         # Broadcast scenario state update via SSE
-        if scenario_manager.scenario_state:
+        if scenario_manager.current_scenario:
             await sse_manager.broadcast(
                 channel=SSEChannel.SCENARIOS,
                 event_type="role_action_executed",
@@ -293,7 +297,9 @@ async def execute_role_action(data: ActionRequest):
                     "role": data.role,
                     "command": data.command,
                     "params": data.params,
-                    "state": scenario_manager.scenario_state.model_dump(),
+                    "state": scenario_manager.get_scenario_state(
+                        scenario_manager.current_scenario.scenario_id
+                    ).model_dump(),
                     "timestamp": datetime.now().isoformat()
                 }
             )

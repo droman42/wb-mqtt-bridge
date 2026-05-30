@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch, AsyncMock
 
 from wb_mqtt_bridge.domain.scenarios.service import ScenarioManager
 from wb_mqtt_bridge.domain.scenarios.scenario import Scenario, ScenarioError
-from wb_mqtt_bridge.domain.scenarios.models import ScenarioState, DeviceState
+from wb_mqtt_bridge.domain.scenarios.models import ScenarioState, DeviceState, ManualStep
 
 pytestmark = pytest.mark.unit
 
@@ -430,9 +430,8 @@ class TestScenarioManager:
 
         assert manager.current_scenario is not None
         assert manager.current_scenario.scenario_id == "movie_mode"
-        # scenario_state is rebuilt fresh from current device states, not loaded from store.
-        assert manager.scenario_state is not None
-        assert manager.scenario_state.scenario_id == "movie_mode"
+        # Live state recomputes from current device states (no snapshot is held).
+        assert manager.get_scenario_state("movie_mode").scenario_id == "movie_mode"
 
     @pytest.mark.asyncio
     async def test_restore_state_nonexistent_scenario(self, mock_device_manager, mock_room_manager, mock_store, scenario_dir):
@@ -454,26 +453,68 @@ class TestScenarioManager:
         assert manager.current_scenario is None
 
     @pytest.mark.asyncio
-    async def test_refresh_state(self, scenario_manager, mock_device_manager):
-        """_refresh_state() builds a ScenarioState from the current devices' state.
-
-        Production iterates `current_scenario.definition.devices`, calls `get_current_state()`
-        on each, and converts via `_convert_device_state` into DeviceState entries.
-        We mainly verify that a ScenarioState is produced for the active scenario,
-        keyed by the active scenario_id, with an entry per scenario device that
-        the device_manager knows about.
-        """
+    @pytest.mark.asyncio
+    async def test_get_scenario_state_covers_all_definition_devices(
+        self, scenario_manager, mock_device_manager
+    ):
+        """The live-recompute path produces a ScenarioState keyed by the active id, with
+        one DeviceState entry per device in the scenario definition (replaces the prior
+        snapshot-based _refresh_state coverage)."""
         await scenario_manager.initialize()
         await scenario_manager.switch_scenario("movie_mode")
 
-        # Update mock device states (these aren't Pydantic BaseDeviceState
-        # instances — _convert_device_state has a generic-fallback path).
-        mock_device_manager.devices["tv"].state = {"power": True, "input": "hdmi1"}
-        mock_device_manager.devices["soundbar"].state = {"power": True, "volume": 30}
+        live = scenario_manager.get_scenario_state("movie_mode")
 
-        await scenario_manager._refresh_state()
+        assert live.scenario_id == "movie_mode"
+        assert set(live.devices.keys()) == {"tv", "soundbar", "lights"}
 
-        assert scenario_manager.scenario_state is not None
-        assert scenario_manager.scenario_state.scenario_id == "movie_mode"
-        # All three devices ("tv", "soundbar", "lights") in movie_mode should be represented.
-        assert set(scenario_manager.scenario_state.devices.keys()) == {"tv", "soundbar", "lights"}
+    @pytest.mark.asyncio
+    async def test_get_scenario_state_recomputes_live_after_device_change(
+        self, scenario_manager, mock_device_manager
+    ):
+        """get_scenario_state(active_id) must re-read each device's state on every
+        call, never return the activation-time snapshot. Guards the bug fixed
+        2026-05-30: GET /scenario/state used to return self.scenario_state, which
+        drifted after any manual fix on a device page."""
+        from types import SimpleNamespace
+
+        await scenario_manager.initialize()
+        await scenario_manager.switch_scenario("movie_mode")
+
+        # Simulate a manual fix on the TV's device page AFTER activation.
+        # SimpleNamespace exposes attributes the way _safe_get_device_field expects;
+        # a plain dict returns None for every field (hasattr won't see dict keys).
+        mock_device_manager.devices["tv"].state = SimpleNamespace(
+            power=True, input="hdmi2"
+        )
+
+        live = scenario_manager.get_scenario_state("movie_mode")
+
+        assert live.scenario_id == "movie_mode"
+        assert live.devices["tv"].power is True
+        assert live.devices["tv"].input == "hdmi2"
+
+    @pytest.mark.asyncio
+    async def test_get_scenario_state_includes_activation_manual_steps(
+        self, scenario_manager
+    ):
+        """The live-recompute path must thread activation-scoped manual_steps
+        through, so transition notes (Dodocus hub, "press Play", etc.) survive
+        any query. Guards the bug fixed 2026-05-30: the live path silently
+        dropped manual_steps, leaving the per-scenario endpoint without the
+        load-bearing notes from the 2026-05-26 transition-aware-manual-notes
+        work."""
+        await scenario_manager.initialize()
+        await scenario_manager.switch_scenario("movie_mode")
+
+        scenario_manager._activation_manual_steps = [
+            ManualStep(node="dodocus_hub", instruction="Set Dodocus hub to LD"),
+            ManualStep(node="kuzma", instruction="Power on Kuzma, cue the record"),
+        ]
+
+        live = scenario_manager.get_scenario_state("movie_mode")
+
+        assert len(live.manual_steps) == 2
+        assert live.manual_steps[0].node == "dodocus_hub"
+        assert live.manual_steps[0].instruction == "Set Dodocus hub to LD"
+        assert live.manual_steps[1].node == "kuzma"
