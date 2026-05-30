@@ -35,7 +35,7 @@ dependencies = [
     "paho-mqtt>=1.6.1,<2",
     # Device-specific libraries (PyPI versions - Phase 1 migration)
     "broadlink>=0.18.0,<1",
-    "pymotivaxmc2==0.6.8", # Migrated from Git to PyPI; 0.6.8 adds select_source()/get_input_names() + configurable ack_timeout
+    "pymotivaxmc2==0.6.9", # PyPI; 0.6.9 subscribe() auto-dispatches initial values through registered @on(prop) callbacks + EmotivaController.subscribe now waits for confirmation and returns the dict (handoff 2026-05-30); 0.6.8 adds select_source()/get_input_names() + configurable ack_timeout
     "asyncwebostv==0.3.5", # PyPI; v0.3.5 _close_callbacks fire on remote close too (handoff 2026-05-30); v0.3.4 close-callback registry (auto-closes pointer socket on client.close); v0.3.3 pointer wire-format fixes + pointer_spec.md; v0.3.2 input_source derived from foreground_app + app_id_to_input_id helper; v0.3.1 = payload-contract fixes; v0.3.0 = subscription-lifecycle hardening
     # Network and HTTP libraries
     "websockets>=15.0.1,<16",

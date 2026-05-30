@@ -157,45 +157,20 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 for prop in self.PROPERTIES_TO_MONITOR:
                     self._register_property_callback(prop)
                 
-                # Attempt to subscribe to properties
+                # Build the logical-source map first so SOURCE values dispatched by
+                # subscribe() (or any later notification) resolve to a 'sourceN' token.
+                try:
+                    await self._refresh_source_map()
+                except Exception as e:
+                    logger.warning(f"Failed to load source map during setup: {str(e)}")
+
+                # Attempt to subscribe to properties. pymotivaxmc2 0.6.9 dispatches the
+                # subscribe response's initial values through the registered @on(prop)
+                # callbacks (the same path as ongoing notifications). State is seeded
+                # via _handle_property_change as a side-effect — no separate refresh needed.
                 try:
                     await self.client.subscribe(self.PROPERTIES_TO_MONITOR)
                     logger.info(f"Successfully subscribed to properties for {self.get_name()}")
-                    
-                    # Query initial state for key properties using _refresh_device_state
-                    try:
-                        # DEBUG: Log state refresh attempt
-                        logger.debug(f"[EMOTIVA_DEBUG] Starting initial state refresh during setup (device={self.get_name()})")
-                        
-                        # Build the logical-source map first so the initial SOURCE read
-                        # resolves to a 'sourceN' token.
-                        try:
-                            await self._refresh_source_map()
-                        except Exception as e:
-                            logger.warning(f"Failed to load source map during setup: {str(e)}")
-                        # Refresh all properties at once
-                        updated_properties = await self._refresh_device_state()
-                        
-                        # DEBUG: Enhanced state logging
-                        logger.debug(f"[EMOTIVA_DEBUG] Initial state refresh completed: {updated_properties} (device={self.get_name()})")
-                        
-                        # Log the initial power state which is most critical
-                        if "power" in updated_properties:
-                            logger.debug(f"Initial power state: {updated_properties['power']}")
-                        
-                        # Log other important properties if power is on
-                        if self.state.power == PowerState.ON:
-                            if "volume" in updated_properties:
-                                logger.debug(f"Initial volume: {updated_properties['volume']}")
-                            if "mute" in updated_properties:
-                                logger.debug(f"Initial mute state: {updated_properties['mute']}")
-                            if "source" in updated_properties:
-                                logger.debug(f"Initial input source: {updated_properties['source']}")
-                    except Exception as e:
-                        # DEBUG: Log state refresh failure
-                        logger.debug(f"[EMOTIVA_DEBUG] Initial state refresh failed: {str(e)} (device={self.get_name()})")
-                        logger.warning(f"Failed to query initial state: {str(e)}")
-                        # Continue setup even if initial state query fails
                     
                     # Update state with successful connection
                     self.clear_error()
@@ -364,8 +339,9 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             updates["volume"] = processed_value
         elif property_name == "zone2_volume":
             updates["zone2_volume"] = processed_value
-        elif property_name == "mute":
-            updates["mute"] = processed_value
+        # No mute / zone2_mute branches — the device never pushes either (Emotiva protocol
+        # §4.2 has no notification entry; pymotivaxmc2's Property enum omits them).
+        # Mute is optimistic-only in handle_mute_toggle.
         elif property_name == "source":  # device reports the source NAME ("ZAPPITI")
             updates["input_source"] = self._source_token(new_value)
         elif property_name == "video_input":
@@ -408,12 +384,12 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 return float(value)
             except (ValueError, TypeError):
                 return 0.0
-        elif property_name == "mute":
-            # Convert mute to boolean
-            if isinstance(value, str):
-                return value.lower() in ("on", "true", "1", "yes")
-            return bool(value)
-        
+
+        # mute / zone2_mute are deliberately absent — Emotiva protocol §4.2 has no
+        # notification for either; pymotivaxmc2's Property enum correctly omits them
+        # too, so this method never receives a "mute" property_name. Mute is
+        # optimistic-only in handle_mute_toggle.
+
         # For other properties, return as is
         return value
 
@@ -751,14 +727,19 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             )
         
         try:
-            # Power on the specified zone
+            # Power on the specified zone.
+            # Main zone: no optimistic write — state is seeded by the device's notifications
+            # (dispatched through _handle_property_change) PLUS the defensive subscribe +
+            # refresh path below, both of which fire after the command ack.
+            # Zone 2: KEEP the optimistic write — until rack-verified that the explicit
+            # zone2_power_on command (distinct from the zone2_power_toggle path that was
+            # verified 2026-05-30) triggers the same zone2_power notification.
             if zone == Zone.MAIN:
                 await self.client.power_on(zone=zone)
-                self.update_state(power=PowerState.ON)
-                logger.info("Main zone powered on successfully")
+                logger.info("Main zone power_on command sent")
             elif zone == Zone.ZONE2:
                 await self.client.power_on(zone=zone)
-                self.update_state(zone2_power=PowerState.ON)
+                self.update_state(zone2_power=PowerState.ON)  # optimistic; see comment above
                 logger.info("Zone 2 powered on successfully")
             else:
                 logger.warning(f"Unsupported zone: {zone}")
@@ -1193,15 +1174,16 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             )
         
         try:
-            # Set volume for the specified zone
+            # Set volume for the specified zone. Both main and zone-2 volume notifications
+            # are rack-verified to fire ~180ms after ack (see action_plan §6 2026-05-30).
+            # State is updated via _handle_property_change on that notification — no
+            # optimistic write needed.
             if zone == Zone.MAIN:
                 await self.client.set_volume(level, zone=zone)
-                self.update_state(volume=level)
-                logger.debug(f"Set main zone volume to {level} dB")
+                logger.debug(f"Set main zone volume command sent: {level} dB")
             elif zone == Zone.ZONE2:
                 await self.client.set_volume(level, zone=zone)
-                self.update_state(zone2_volume=level)
-                logger.debug(f"Set zone 2 volume to {level} dB")
+                logger.debug(f"Set zone 2 volume command sent: {level} dB")
             else:
                 logger.warning(f"Unsupported zone: {zone}")
                 return self.create_command_result(
@@ -1449,17 +1431,13 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                         logger.debug(f"Synchronized Zone2 volume: {volume}")
                     except Exception as e:
                         logger.warning(f"Failed to synchronize Zone2 volume: {str(e)}")
-                        
-                    # Query Zone2 mute state
-                    try:
-                        mute_result = await self.client.status(Property.ZONE2_MUTE)
-                        mute = mute_result.get(Property.ZONE2_MUTE)
-                        self.update_state(zone2_mute=mute)
-                        updated_properties["zone2_mute"] = mute
-                        logger.debug(f"Synchronized Zone2 mute state: {mute}")
-                    except Exception as e:
-                        logger.warning(f"Failed to synchronize Zone2 mute state: {str(e)}")
-                
+
+                    # Zone2 mute: NO sync path. Emotiva protocol §4.2 doesn't include
+                    # zone2_mute as a notification property; pymotivaxmc2's Property enum
+                    # correctly omits it too — Property.ZONE2_MUTE doesn't exist, so any
+                    # status(Property.ZONE2_MUTE) call would AttributeError. Mute (both
+                    # zones) is optimistic-only in handle_mute_toggle.
+
                 return updated_properties
             except Exception as e:
                 logger.error(f"Error synchronizing Zone2 state: {str(e)}")

@@ -1281,14 +1281,14 @@ wheels = [
 
 [[package]]
 name = "pymotivaxmc2"
-version = "0.6.8"
+version = "0.6.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d2/66/98a03354b8c8d0d9432e10bcc33af34dd1482d6eb21ee43ca7a91527a0c0/pymotivaxmc2-0.6.8.tar.gz", hash = "sha256:da55a4f45b0b46372f132c71008bfb9d4085859a7cca4708b751e644e089f1e1", size = 22322 }
+sdist = { url = "https://files.pythonhosted.org/packages/e7/c5/2584a3db7e3bec9d45febe7fad035a51dcbc05100d9e6fbb69ce8bd14e21/pymotivaxmc2-0.6.9.tar.gz", hash = "sha256:d917b92cfb508be5fb0e35b22ad4013412c19cb93dc58d50294e468333de3681", size = 23602 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6e/87/ec89dc8cd736ba68942d03d0db8e5b7a7a342d31a7aff78bf8b564acd4da/pymotivaxmc2-0.6.8-py3-none-any.whl", hash = "sha256:832d88427e31cb0e890bf69ccd0025e946bbb9a3ecddb45584f0c16c6e1e9531", size = 25297 },
+    { url = "https://files.pythonhosted.org/packages/49/f2/e600364b7e4bbdd1606421e6675aeebd9052b188f2b626f03fdcfe1d61a4/pymotivaxmc2-0.6.9-py3-none-any.whl", hash = "sha256:afd045cf1bc089f54c677bb6dd95ae02d6dd70b29ad51896b4ba29cbb77d1253", size = 26606 },
 ]
 
 [[package]]
@@ -1835,7 +1835,7 @@ requires-dist = [
     { name = "psutil", specifier = ">=7.0.0,<8" },
     { name = "pyatv", git = "https://github.com/postlund/pyatv?rev=9177803dec6a165d4610d5d63fe09562820fccdb" },
     { name = "pydantic", specifier = ">=2.11.0,<3" },
-    { name = "pymotivaxmc2", specifier = "==0.6.8" },
+    { name = "pymotivaxmc2", specifier = "==0.6.9" },
     { name = "pyopenssl", specifier = ">=23.2.0,<27" },
     { name = "pysqlite3-binary", marker = "extra == 'dev'", specifier = ">=0.5.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
