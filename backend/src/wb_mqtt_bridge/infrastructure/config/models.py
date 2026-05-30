@@ -66,7 +66,16 @@ class LgTvConfig(BaseModel):
     cert_file: Optional[str] = None
     ssl_options: Optional[Dict[str, Any]] = None
     timeout: int = 15
-    reconnect_interval: Optional[int] = None
+    reconnect_interval: int = Field(
+        30,
+        ge=10,
+        le=600,
+        description=(
+            "Seconds between TCP probes to the TV's WSS port (3001). The health loop "
+            "uses this cadence to disambiguate 'TV off' (probe fails) from 'WS hiccup' "
+            "(probe OK → reconnect). Lower = faster recovery, more network noise."
+        ),
+    )
     
     def model_post_init(self, __context: Any) -> None:
         """Validate that cert_file exists if secure=True"""

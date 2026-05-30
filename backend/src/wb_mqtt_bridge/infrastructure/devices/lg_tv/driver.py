@@ -77,7 +77,17 @@ class LgTv(BaseDevice[LgTvState]):
         self.tv_control = None
         self.input_control = None
         self.source_control = None
-        
+
+        # Health-loop bookkeeping. The WebSocket can die silently (remote-close path in
+        # asyncwebostv): the library callback we register in connect() flips connected=False
+        # immediately, and the health loop here probes TCP:3001 on a cadence to (a)
+        # disambiguate "TV off" (probe fails → power=off) from "WS hiccup" (probe OK →
+        # reconnect), (b) catch silent deaths the library callback misses (safety net),
+        # (c) auto-reconnect when the TV comes back. _shutting_down suppresses both the
+        # callback's state mutation and the loop body during intentional teardown.
+        self._health_loop_task: Optional[asyncio.Task] = None
+        self._shutting_down: bool = False
+
         # Get the TV config directly from the config
         self.tv_config = self.config.tv
         
@@ -381,6 +391,94 @@ class LgTv(BaseDevice[LgTvState]):
 
         self._subscriptions_active = False
 
+    # --- Health / reconnect loop (added 2026-05-30 with asyncwebostv 0.3.5) ---
+
+    async def _on_websocket_close(self) -> None:
+        """Library callback fired when the WebSocket is gone — clean ``close()`` OR remote drop.
+
+        Marks the device disconnected immediately so the bridge stops lying about a dead
+        socket. Does NOT touch ``power`` (could be a transient hiccup; the health loop's
+        TCP probe disambiguates "TV off" → power=off from "WS hiccup" → reconnect) and
+        does NOT trigger reconnect here (single orchestration point = the health loop).
+        Skipped during ``_shutting_down`` so intentional teardown doesn't churn state.
+        """
+        if self._shutting_down:
+            return
+        logger.info(f"{self.get_name()}: WebSocket closed, marking disconnected")
+        self._subscriptions_active = False
+        self.update_state(connected=False)
+
+    async def _tcp_probe(self, port: int = 3001, timeout: float = 2.0) -> bool:
+        """Quick TCP open/close against the TV's WSS port to check liveness.
+
+        Returns True if the TV accepts a TCP connection (regardless of TLS/WS handshake),
+        False on timeout / refusal / network error. No payload sent — read-only signal
+        that won't wake the TV. Used by the health loop to disambiguate "TV genuinely off"
+        from "WebSocket hiccup with TV still alive".
+        """
+        if not self.state.ip_address:
+            return False
+        try:
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(self.state.ip_address, port),
+                timeout=timeout,
+            )
+            writer.close()
+            try:
+                await writer.wait_closed()
+            except Exception:
+                pass
+            return True
+        except (asyncio.TimeoutError, OSError, ConnectionError):
+            return False
+
+    async def _health_loop(self) -> None:
+        """Periodic TCP probe + reconnect orchestration. Runs for the lifetime of the device.
+
+        State machine per tick:
+          - connected + probe OK     → no-op (happy path; safety net catches missed callbacks)
+          - connected + probe FAIL   → silent death detected (library callback didn't fire,
+                                       or already-dead at boot); mark connected=False + power=off
+          - disconnected + probe OK  → TV reachable, attempt reconnect via connect()
+          - disconnected + probe FAIL → TV genuinely off; ensure power=off; stay quiet
+
+        Transitions are logged at INFO/WARNING; steady-state is silent. ``connect()`` is
+        idempotent and re-registers subscriptions + close callback on success.
+        """
+        was_connected = self.state.connected
+        while not self._shutting_down:
+            try:
+                reachable = await self._tcp_probe()
+
+                if reachable and not self.state.connected:
+                    logger.info(f"{self.get_name()}: TV reachable, attempting reconnect")
+                    await self.connect()
+                elif not reachable and self.state.connected:
+                    logger.info(f"{self.get_name()}: TV unreachable, marking disconnected (silent close)")
+                    self._subscriptions_active = False
+                    self.update_state(connected=False, power="off")
+                elif not reachable and self.state.power != "off":
+                    # Stay marked off when TV is unreachable but state didn't say off yet
+                    # (e.g. immediately after the close callback flipped connected=False
+                    # but left power alone).
+                    self.update_state(power="off")
+
+                # Rate-limited transition logging (no per-tick spam).
+                if self.state.connected and not was_connected:
+                    logger.info(f"{self.get_name()} reconnected")
+                elif not self.state.connected and was_connected:
+                    logger.warning(
+                        f"{self.get_name()} disconnected — probing every {self.tv_config.reconnect_interval}s"
+                    )
+                was_connected = self.state.connected
+
+                await asyncio.sleep(self.tv_config.reconnect_interval)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.debug(f"LG TV health loop error: {e}")
+                await asyncio.sleep(self.tv_config.reconnect_interval)
+
     async def _refresh_app_cache(self) -> bool:
         """Refresh the cached list of available apps from the TV.
         
@@ -619,7 +717,13 @@ class LgTv(BaseDevice[LgTvState]):
                 
             # Update power state based on connection result
             self.update_state(power="off" if not connection_success else "on")
-            
+
+            # Start the health loop regardless of initial-connect outcome. Even if the
+            # TV was off at boot, the loop will keep probing and auto-reconnect when it
+            # comes back. Stop the loop in shutdown().
+            if self._health_loop_task is None or self._health_loop_task.done():
+                self._health_loop_task = asyncio.create_task(self._health_loop())
+
             return True  # Setup completed even if connection failed
             
         except Exception as e:
@@ -669,6 +773,16 @@ class LgTv(BaseDevice[LgTvState]):
                 # so future TV-side changes propagate without re-polling. Failures here
                 # degrade to polling-only — they don't block the connect.
                 await self._setup_subscriptions()
+
+                # Wire the asyncwebostv 0.3.5 close-callback so a remote-side WebSocket
+                # drop (TV powered off / standby / network blip) flips connected=False
+                # within ms instead of leaving the bridge's state lying until the next
+                # command attempt. Library fires `_close_callbacks` from BOTH the
+                # explicit close() path and `_handle_messages`'s ConnectionClosed branch.
+                try:
+                    self.client.client.register_close_callback(self._on_websocket_close)
+                except Exception as e:
+                    logger.warning(f"Failed to register close callback for {self.get_name()}: {e}")
             else:
                 logger.error(f"Failed to connect to TV {self.get_name()}")
                 await self.emit_progress(f"Failed to connect to {self.device_name}", "action_error")
@@ -695,10 +809,25 @@ class LgTv(BaseDevice[LgTvState]):
         try:
             logger.info(f"Shutting down LG TV device: {self.device_name}")
             await self.emit_progress(f"Shutting down LG TV {self.device_name}", "action_progress")
-            
+
+            # Flag the close-callback + health loop so they short-circuit during our
+            # intentional teardown (no spurious connected=False writes, no reconnect attempts).
+            self._shutting_down = True
+
+            # Cancel the health loop before tearing down the client — its body holds no
+            # client references during sleep, but cancelling first removes any chance of
+            # it racing with client.close().
+            if self._health_loop_task and not self._health_loop_task.done():
+                self._health_loop_task.cancel()
+                try:
+                    await self._health_loop_task
+                except asyncio.CancelledError:
+                    pass
+            self._health_loop_task = None
+
             # Update state to indicate shutdown
             self.update_state(connected=False)
-            
+
             # Disconnect from TV
             if self.client:
                 # Unsubscribe BEFORE close so we send the protocol-level cancellation
