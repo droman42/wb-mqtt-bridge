@@ -5,7 +5,7 @@
 // .gen fallback was removed at A2).
 import { useEffect, useMemo } from 'react';
 import { useLogStore } from '../stores/useLogStore';
-import { useExecuteDeviceAction, useScenarioLayout, useScenarioState, useStartScenario, useShutdownScenario } from '../hooks/useApi';
+import { useExecuteDeviceAction, useScenarioLayout, useScenarioState, useSwitchScenario, useShutdownScenario } from '../hooks/useApi';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import { useRoomStore } from '../stores/useRoomStore';
 import { RemoteControlLayout } from './RemoteControlLayout';
@@ -14,7 +14,10 @@ import { manifestToDeviceStructure } from '../lib/layoutManifestAdapter';
 export function RuntimeScenarioPage({ scenarioId }: { scenarioId: string }) {
   const { addLog } = useLogStore();
   const executeAction = useExecuteDeviceAction();
-  const startScenario = useStartScenario();
+  // Power-on routes through /scenario/switch (not /scenario/start) so it handles both cold-start
+  // (no current scenario → outgoing=None branch) AND hand-off from an already-active scenario
+  // via the reconciler delta path. /scenario/start 409s when anything is active.
+  const switchScenario = useSwitchScenario();
   const shutdownScenario = useShutdownScenario();
   const { statePanelOpen } = useSettingsStore();
   const { selectScenario } = useRoomStore();
@@ -43,7 +46,7 @@ export function RuntimeScenarioPage({ scenarioId }: { scenarioId: string }) {
 
     // The scenario power zone (no sourceDeviceId) drives the lifecycle, not a device action.
     if (action === 'power_on') {
-      startScenario.mutate(scenarioId);
+      switchScenario.mutate({ id: scenarioId, graceful: true });
       addLog({ level: 'info', message: `Starting scenario: ${scenarioId}`, details: params });
       return;
     }
@@ -85,9 +88,13 @@ export function RuntimeScenarioPage({ scenarioId }: { scenarioId: string }) {
       <RemoteControlLayout
         deviceStructure={deviceStructure}
         onAction={handleAction}
-        isActionPending={executeAction.isPending || startScenario.isPending || shutdownScenario.isPending}
-        actionError={executeAction.error || startScenario.error || shutdownScenario.error}
-        lastAction={executeAction.variables?.action.action}
+        isActionPending={executeAction.isPending || switchScenario.isPending || shutdownScenario.isPending}
+        actionError={executeAction.error || switchScenario.error || shutdownScenario.error}
+        lastAction={
+          switchScenario.isPending ? 'power_on'
+          : shutdownScenario.isPending ? 'power_off'
+          : executeAction.variables?.action.action
+        }
         className="w-full"
         lifecycleActive={lifecycleActive}
         // Transition-aware reconciler notes (§5.1 #1) — only when THIS scenario is the

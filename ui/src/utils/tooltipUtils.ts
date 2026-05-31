@@ -64,12 +64,15 @@ export function createScenarioTooltip(actionName: string, actionDescription: str
  */
 export function createScenarioStartHTTPDetails(scenarioId: string): HTTPRequestDetails {
   const baseUrl = runtimeConfig.apiBaseUrl || '/api';
-  
+
+  // Routes through /scenario/switch so power-on works whether or not another scenario is
+  // already active (the dedicated /scenario/start 409s when a scenario is running).
   return {
     method: 'POST',
-    url: `${baseUrl}/scenario/start`,
+    url: `${baseUrl}/scenario/switch`,
     body: {
-      id: scenarioId
+      id: scenarioId,
+      graceful: true
     }
   };
 }
