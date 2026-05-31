@@ -261,14 +261,14 @@ class ScenarioManager:
         """Devices a scenario touches: derived from topology for thin scenarios, else the
         explicit legacy `devices` list."""
         if scenario.definition.source:
-            return resolve_targets(scenario.definition, self.topology)[1]
+            return resolve_targets(scenario.definition, self.topology)[2]
         return set(scenario.definition.devices)
 
     async def _switch_via_reconciler(self, outgoing, incoming, *, graceful: bool) -> Dict[str, Any]:
         """Diff-based transition: power off outgoing-only devices, then reconcile the incoming
         activity from topology + capabilities + assumed state."""
         devices = self.device_manager.devices
-        incoming_involved = resolve_targets(incoming.definition, self.topology)[1]
+        incoming_involved = resolve_targets(incoming.definition, self.topology)[2]
         outgoing_involved = self._involved_devices(outgoing) if outgoing else set()
         to_power_off = (outgoing_involved - incoming_involved) if graceful else outgoing_involved
 
@@ -385,7 +385,7 @@ class ScenarioManager:
         try:
             if self._reconciler_enabled and sc.definition.source:
                 devices = self.device_manager.devices
-                involved = sorted(resolve_targets(sc.definition, self.topology)[1])
+                involved = sorted(resolve_targets(sc.definition, self.topology)[2])
                 exec_result = await execute_plan(build_power_off_plan(involved, devices), devices)
                 result["powered_off"] = involved
                 result["failures"] = [

@@ -56,6 +56,14 @@ class TopologyLink(BaseModel):
         """The input value to select on the sink device for this link."""
         return self._port(self.to)
 
+    @property
+    def src_port(self) -> str:
+        """The output port on the source device. Consumed by the reconciler's
+        symmetric src-side path: when a source device's input capability declares
+        ``source_modes`` and the src_port matches, the reconciler emits a
+        ``set_input(src_port)`` on the source (engaging its "output mode")."""
+        return self._port(self.from_)
+
 
 class OrderingEdge(BaseModel):
     """``first`` must complete before ``then`` runs; ``delay_ms`` is an extra wait

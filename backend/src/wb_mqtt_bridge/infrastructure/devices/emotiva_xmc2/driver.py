@@ -411,12 +411,72 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         return n if 1 <= n <= 8 else None
 
     def _source_token(self, name: Any) -> Optional[str]:
-        """Map the device's reported source name -> canonical 'sourceN' (N = Input-button
-        index) using the cached map; fall back to the stripped raw name if unknown."""
+        """Map the device's reported source name -> canonical token.
+
+        - "HDMI ARC" → "arc" (special source: HDMI ARC is a peer to the configurable
+          Input buttons but isn't bound to one — per protocol §4.2 + per-Input Setup
+          menu's Audio Input options, ARC isn't selectable as a per-Input audio source
+          on the XMC-2. The canonical "arc" token is what the topology + scenario
+          reconciler use to refer to it. Engaged via _power_cycle_for_arc.)
+        - Configured Input-button names → "sourceN" via the cached get_input_names() map
+        - Unknown names → stripped raw string (fallback)
+        """
         if name is None:
             return None
+        name_str = str(name).strip()
+        if name_str == "HDMI ARC":
+            return "arc"
         idx = self._source_index_by_name.get(self._norm_source_name(name))
-        return f"source{idx}" if idx is not None else str(name).strip()
+        return f"source{idx}" if idx is not None else name_str
+
+    async def _power_cycle_for_arc(self) -> CommandResult:
+        """Power-cycle the eMotiva to force HDMI ARC re-engagement.
+
+        HDMI ARC engages on power-up when CEC is enabled and the TV is broadcasting
+        from its internal mode (NOT from any HDMI input). Command.ARC was rack-
+        verified 2026-05-30 to hang the device, so this off→on cycle is the only
+        reliable mechanism.
+
+        PRECONDITION (orchestrated by topology ordering + the LG TV's own
+        set_input_source(arc) → handle_home, scheduled before this via the topology
+        ordering edges at config/topology.json:43-46): the TV must be on its internal
+        mode. If the TV is on an HDMI input when this fires, ARC won't engage and the
+        cycle becomes an off→on no-op for state.input_source — the user would see no
+        audio change. The reconciler's symmetric src_port mechanism ensures the TV is
+        sent set_input_source(arc) (which translates to handle_home in the LG driver)
+        before this power-cycle is dispatched.
+        """
+        if self.state.input_source == "arc":
+            await self.emit_progress("Input already set to arc (ARC engaged)", "action_progress")
+            return self.create_command_result(
+                success=True, message="Input already set to arc (ARC engaged)", input="arc"
+            )
+        logger.info(f"set_input(arc): power-cycling {self.get_name()} to engage HDMI ARC")
+        try:
+            if self.state.power == PowerState.ON:
+                await self.client.power_off(zone=Zone.MAIN)
+                self.update_state(power=PowerState.OFF)
+                # Let the standby transition settle before powering back on. 3s is
+                # comfortable for the eMotiva to release the HDMI handshake without
+                # leaving the user waiting too long.
+                await asyncio.sleep(3.0)
+            await self.client.power_on(zone=Zone.MAIN)
+            # state.power + state.input_source will populate via notifications:
+            #   - Power notification → state.power = ON
+            #   - SOURCE notification ("HDMI ARC") → state.input_source = "arc"
+            #     (via _source_token's special mapping)
+            self.clear_error()
+            self._update_last_command("set_input", {"input": "arc"})
+            await self.emit_progress(
+                "Power-cycled processor to engage HDMI ARC", "action_success"
+            )
+            return self.create_command_result(
+                success=True, message="Power-cycled for HDMI ARC engagement", input="arc"
+            )
+        except Exception as e:
+            return await self._handle_command_error(
+                "power-cycle for HDMI ARC", e, {"input": "arc"}
+            )
 
     async def _refresh_source_map(self) -> None:
         """Pull Input-button names/visibility from the device and rebuild the source maps.
@@ -1033,10 +1093,19 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         if not is_valid:
             return self.create_command_result(success=False, error=error_msg)
 
+        # "arc" branch: HDMI ARC can't be reached via select_source/Command.ARC
+        # (Command.ARC rack-verified to hang the device 2026-05-30). The reliable
+        # workaround is a power-cycle on the eMotiva — ARC auto-engages on power-up
+        # when CEC is on and the TV is broadcasting from its internal mode. The TV
+        # state is orchestrated upstream by topology ordering + the LG TV's own
+        # set_input_source(arc) → handle_home.
+        if str(raw_value).strip().lower() == "arc":
+            return await self._power_cycle_for_arc()
+
         index = self._source_index_from_token(raw_value)
         if index is None:
             return self.create_command_result(
-                success=False, error=f"Invalid source '{raw_value}' (expected source1-source8)"
+                success=False, error=f"Invalid source '{raw_value}' (expected source1-source8 or arc)"
             )
         token = f"source{index}"
 

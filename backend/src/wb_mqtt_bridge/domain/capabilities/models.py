@@ -96,6 +96,17 @@ class Capability(BaseModel):
         default=None, description="query that enumerates options (e.g. get_available_inputs)"
     )
     zones: Optional[Dict[str, ZonePower]] = None
+    source_modes: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Topology src_port values this device responds to via its `select` action when it "
+            "is the SOURCE end of a link in an active scenario path (symmetric to dst_port → "
+            "input). Opt-in per device — leave None for sources whose output engages passively. "
+            "Example: LG TV `input.source_modes = ['arc']` makes the reconciler emit "
+            "`set_input_source(arc)` when the topology routes audio via `living_room_tv:arc`; "
+            "the driver translates that to `handle_home` (= 'be on internal mode')."
+        ),
+    )
 
     @model_validator(mode="after")
     def _shape(self) -> "Capability":

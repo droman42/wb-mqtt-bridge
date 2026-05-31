@@ -2133,7 +2133,17 @@ class LgTv(BaseDevice[LgTvState]):
             return self.create_command_result(success=False, error=error_msg)
 
         input_source = params["source"]
-        
+
+        # "arc" is a synthetic source value: it means "be on internal mode so the TV's
+        # HDMI ARC output carries audio to a downstream eMotiva." There's no webOS API
+        # for "go to internal mode" — pressing Home (or being on any non-HDMI app) is
+        # the equivalent. Driven by the reconciler's symmetric src_port mechanism when
+        # an audio topology link from this TV uses src_port="arc" and this driver's
+        # input capability declares "arc" in source_modes.
+        if input_source == "arc":
+            logger.info(f"set_input_source(arc) → handle_home (TV internal mode for ARC audio)")
+            return await self.handle_home(cmd_config, params)
+
         try:
             if not self.source_control or not self.client or not self.state.connected:
                 error_msg = f"Cannot set input source to {input_source}: Not connected to TV"

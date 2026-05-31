@@ -92,10 +92,24 @@ def _find_path(
 
 
 def resolve_targets(scenario, topology: Topology):
-    """Return ``(input_targets, involved, manual_steps, warnings)`` for a thin scenario."""
+    """Return ``(input_targets, source_targets, involved, manual_steps, warnings)``
+    for a thin scenario.
+
+    Symmetric src/dst handling: ``input_targets[dst] = link.dst_port`` for destination
+    devices (the existing path — the sink's input must be set to receive the signal),
+    AND ``source_targets[src] = link.src_port`` for source devices (the new path —
+    the source's "output mode" may need to be engaged for the link to carry the
+    signal). The src-side mechanism is opt-in via the device's ``input.source_modes``
+    capability declaration; build_plan only emits an action when src_port appears in
+    that allowlist. Conflict resolution: dst wins for mid-chain devices (a device that
+    is destination of one link and source of the next keeps its dst_port target; the
+    src-port slot is skipped via the ``not in source_targets and not in input_targets``
+    guards below).
+    """
     adj = _adjacency(topology)
     manual_nodes = set(topology.nodes)
     input_targets: Dict[str, str] = {}
+    source_targets: Dict[str, str] = {}
     involved: Set[str] = set()
     manual_steps: List[ManualStep] = []
     warnings: List[str] = []
@@ -126,9 +140,23 @@ def resolve_targets(scenario, topology: Topology):
             input_targets[dst] = link.dst_port
             involved.add(dst)
 
+            # Symmetric source-side: record src_port as a soft target. build_plan
+            # only emits an action if the source device's input capability opts in
+            # via `source_modes` (default: skip — most sources output passively).
+            # dst wins for mid-chain devices: skip if already set as a destination
+            # or as a source from a prior link.
+            src = link.src_node
+            if (
+                src not in manual_nodes
+                and src not in input_targets
+                and src not in source_targets
+            ):
+                source_targets[src] = link.src_port
+                involved.add(src)
+
     walk(scenario.display, "video")
     walk(scenario.audio, "audio")
-    return input_targets, involved, manual_steps, warnings
+    return input_targets, source_targets, involved, manual_steps, warnings
 
 
 # --- 2/3. diff + translate ---------------------------------------------------
@@ -324,7 +352,9 @@ def build_plan(scenario, topology: Topology, devices: Dict[str, Any]) -> Reconci
     ``devices`` maps device_id -> device (each with ``.capabilities`` and ``.get_current_state()``).
     """
     plan = ReconcilePlan()
-    input_targets, involved, manual_steps, warnings = resolve_targets(scenario, topology)
+    input_targets, source_targets, involved, manual_steps, warnings = resolve_targets(
+        scenario, topology
+    )
     plan.manual_steps = manual_steps
     plan.warnings.extend(warnings)
 
@@ -354,6 +384,24 @@ def build_plan(scenario, topology: Topology, devices: Dict[str, Any]) -> Reconci
                 plan.warnings.append(f"device '{device_id}' has no input capability")
             elif input_cap.reconcile:
                 action = _input_action(device_id, input_cap, state, input_targets[device_id], plan.warnings)
+                if action is not None:
+                    raw.append(action)
+                else:
+                    plan.already_satisfied.append(f"{device_id}.input")
+        elif device_id in source_targets:
+            # Source-side (src_port → set_input) is opt-in via input.source_modes. Most
+            # sources output passively (Apple TV / Zappiti / Auralic → always-on HDMI/SPDIF
+            # output, no engagement needed), so the default of None silently skips. Only
+            # devices that declare the src_port in source_modes get an action emitted.
+            input_cap = cap_map.get("input")
+            src_port = source_targets[device_id]
+            if (
+                input_cap is not None
+                and input_cap.reconcile
+                and input_cap.source_modes is not None
+                and src_port in input_cap.source_modes
+            ):
+                action = _input_action(device_id, input_cap, state, src_port, plan.warnings)
                 if action is not None:
                     raw.append(action)
                 else:

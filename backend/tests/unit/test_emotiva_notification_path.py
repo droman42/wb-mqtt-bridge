@@ -55,6 +55,10 @@ def _make_config() -> EmotivaXMC2DeviceConfig:
                 action="mute_toggle",
                 params=[CommandParameterDefinition(name="zone", type="integer", min=1, max=2, required=False)],
             ),
+            "set_input": StandardCommandConfig(
+                action="set_input",
+                params=[CommandParameterDefinition(name="input", type="string", required=True)],
+            ),
         },
     )
 
@@ -104,9 +108,11 @@ def test_handle_property_change_source_with_token_mapping(device: EMotivaXMC2):
 
 
 def test_handle_property_change_source_unknown_name_falls_back(device: EMotivaXMC2):
-    """Unknown source name falls back to the stripped raw name (no token translation)."""
-    device._handle_property_change("source", None, "HDMI ARC")
-    assert device.state.input_source == "HDMI ARC"
+    """Unknown source name falls back to the stripped raw name (no token translation).
+    Distinguished from 'HDMI ARC' which has a dedicated mapping to 'arc' — see
+    test_source_token_maps_hdmi_arc_to_arc below."""
+    device._handle_property_change("source", None, "Some Vendor Source")
+    assert device.state.input_source == "Some Vendor Source"
 
 
 # --- The dead mute branches must stay dead --------------------------------
@@ -196,3 +202,100 @@ async def test_handle_mute_toggle_does_optimistically_write_mute(device: EMotiva
     assert result["success"] is True
     device.client.mute.assert_awaited_once()
     assert device.state.mute is True  # optimistic write happened
+
+
+# --- HDMI ARC handling (set_input(arc) + _source_token mapping) -----------
+
+
+def test_source_token_maps_hdmi_arc_to_arc(device: EMotivaXMC2):
+    """The device reports its source name as 'HDMI ARC' (rack-verified). _source_token
+    translates that to the canonical 'arc' token used by topology + reconciler. Without
+    this mapping, state.input_source stays 'HDMI ARC' and reconciler's already_satisfied
+    check fails forever (target='arc' != state='HDMI ARC' → power-cycle on every pass)."""
+    assert device._source_token("HDMI ARC") == "arc"
+    assert device._source_token("HDMI ARC ") == "arc"  # trim whitespace
+    # Configured Input buttons still map via the source_index_by_name path
+    device._source_index_by_name = {"zappiti": 1}
+    assert device._source_token("ZAPPITI") == "source1"
+    # Unknown names fall back to stripped raw
+    assert device._source_token("Some Other Source") == "Some Other Source"
+
+
+@pytest.mark.asyncio
+async def test_handle_set_input_arc_routes_to_power_cycle(device: EMotivaXMC2):
+    """set_input(arc) must NOT call select_source (which would fail — arc isn't 1-8);
+    it must trigger the power-cycle workaround. Command.ARC was rack-verified to hang
+    the device (2026-05-30), so power-cycle is the only safe path."""
+    device.state.power = PowerState.ON
+    device.state.input_source = "source2"
+
+    # Stub the power_cycle helper so we don't actually sleep in the test
+    device._power_cycle_for_arc = AsyncMock(
+        return_value={"success": True, "input": "arc", "message": "Power-cycled for HDMI ARC engagement"}
+    )
+
+    cmd = device.config.commands["set_input"]
+    result = await device.handle_set_input(cmd, {"input": "arc"})
+
+    device._power_cycle_for_arc.assert_awaited_once()
+    device.client.select_source.assert_not_called()  # no source_N command
+    assert result["success"] is True
+    assert result["input"] == "arc"
+
+
+@pytest.mark.asyncio
+async def test_power_cycle_for_arc_short_circuits_when_already_arc(device: EMotivaXMC2):
+    """If state.input_source is already 'arc', no power-cycle. Guards against the
+    cycle firing on every reconciler pass when ARC is already engaged (would
+    otherwise be unbearable — the eMotiva would cycle 30+ seconds on every scenario
+    activation when nothing needs to change)."""
+    device.state.power = PowerState.ON
+    device.state.input_source = "arc"
+
+    result = await device._power_cycle_for_arc()
+
+    assert result["success"] is True
+    device.client.power_off.assert_not_called()
+    device.client.power_on.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_power_cycle_for_arc_emits_off_then_on_when_powered(device: EMotivaXMC2):
+    """When the eMotiva is on and on a different source, power-cycle = off → sleep → on.
+    Sleep is short-circuited to 0 in the test."""
+    import asyncio as _asyncio
+    device.state.power = PowerState.ON
+    device.state.input_source = "source2"
+
+    # short-circuit the 3s sleep
+    real_sleep = _asyncio.sleep
+    sleep_calls = []
+    async def fast_sleep(s):
+        sleep_calls.append(s)
+        await real_sleep(0)
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(_asyncio, "sleep", fast_sleep)
+        result = await device._power_cycle_for_arc()
+
+    device.client.power_off.assert_awaited_once()
+    device.client.power_on.assert_awaited_once()
+    assert sleep_calls and sleep_calls[0] >= 1.0  # confirms the standby wait
+    assert result["success"] is True
+    assert result["input"] == "arc"
+
+
+@pytest.mark.asyncio
+async def test_power_cycle_for_arc_skips_power_off_when_already_off(device: EMotivaXMC2):
+    """If the eMotiva is already off, no need for power_off first — just power_on,
+    and rely on auto-engagement of ARC on power-up."""
+    import asyncio as _asyncio
+    device.state.power = PowerState.OFF
+    device.state.input_source = None
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(_asyncio, "sleep", AsyncMock())
+        result = await device._power_cycle_for_arc()
+
+    device.client.power_off.assert_not_called()
+    device.client.power_on.assert_awaited_once()
+    assert result["success"] is True

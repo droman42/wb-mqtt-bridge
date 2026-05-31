@@ -139,7 +139,7 @@ def test_resolve_ld_path_emits_manual_step_and_cd_input():
         scenario_id="movie_ld", name="LD",
         source="ld_player", display="living_room_tv", audio="mf_amplifier",
     )
-    input_targets, involved, manual_steps, warnings = resolve_targets(ld, TOPOLOGY)
+    input_targets, _source_targets, involved, manual_steps, warnings = resolve_targets(ld, TOPOLOGY)
 
     assert input_targets["upscaler"] == "video"
     assert input_targets["processor"] == "source3"
@@ -166,7 +166,7 @@ def test_manual_source_node_anchors_path_without_being_controlled():
         }
     )
     scn = ScenarioDefinition(scenario_id="m", name="m", source="turntable", audio="amp")
-    input_targets, involved, manual_steps, warnings = resolve_targets(scn, topo)
+    input_targets, _source_targets, involved, manual_steps, warnings = resolve_targets(scn, topo)
 
     assert input_targets == {"amp": "cd"}        # sink input resolved through the manual source
     assert involved == {"amp"}                   # the manual source is NOT a device to control
@@ -367,7 +367,7 @@ def _music_devices(**overrides):
 )
 def test_music_scenarios_resolve_and_build_clean(name, amp_input, manual_pos, passive_source):
     scn = _scenario(name)
-    input_targets, involved, manual_steps, warnings = resolve_targets(scn, TOPOLOGY)
+    input_targets, _source_targets, involved, manual_steps, warnings = resolve_targets(scn, TOPOLOGY)
 
     assert input_targets["mf_amplifier"] == amp_input  # amp input auto-selected from topology
     assert "mf_amplifier" in involved
@@ -384,9 +384,129 @@ def test_music_scenarios_resolve_and_build_clean(name, amp_input, manual_pos, pa
 def test_music_turntable_surfaces_both_manual_hops():
     """The turntable path runs Kuzma → Sugden PA4 (power on) → Dodocus (Phono) → amp:cd,
     so BOTH inline manual nodes surface a note; neither passive node is controlled."""
-    _, involved, manual_steps, warnings = resolve_targets(_scenario("music_turntable"), TOPOLOGY)
+    _, _source_targets, involved, manual_steps, warnings = resolve_targets(_scenario("music_turntable"), TOPOLOGY)
     notes = {m.node: m.instruction for m in manual_steps}
     assert "Power on" in notes.get("sugden_pa4", "")
     assert "Phono" in notes.get("dodocus", "")
     assert "kuzma" not in involved and "sugden_pa4" not in involved
     assert warnings == []
+
+
+# --- Symmetric src_port mechanism (HDMI ARC) ---------------------------------
+
+
+def _tv_on_speakers_devices(**overrides):
+    base = {
+        "living_room_tv": _device("LgTv", "living_room_tv", input_source=None),
+        "processor": _device("EMotivaXMC2", "processor", zone2_power=None, input_source=None),
+        "mf_amplifier": _device("WirenboardIRDevice", "mf_amplifier", input=None),
+    }
+    base.update(overrides)
+    return base
+
+
+def test_tv_on_speakers_resolves_with_source_targets():
+    """tv_on_speakers has source=living_room_tv: the TV is at the START of the audio path.
+    The symmetric src_port mechanism puts the TV in source_targets (not input_targets) with
+    src_port='arc' from the topology link `living_room_tv:arc → processor:arc`."""
+    scn = _scenario("tv_on_speakers")
+    input_targets, source_targets, involved, _manual_steps, warnings = resolve_targets(scn, TOPOLOGY)
+
+    # Destinations on the audio path get input_targets per dst_port (existing behavior)
+    assert input_targets.get("processor") == "arc"
+    assert input_targets.get("mf_amplifier") == "aux2"
+    # TV is source — gets source_targets from src_port (new behavior)
+    assert source_targets.get("living_room_tv") == "arc"
+    # TV is NOT in input_targets (it's not a destination on this path)
+    assert "living_room_tv" not in input_targets
+    # All three on the audio path are involved
+    assert {"living_room_tv", "processor", "mf_amplifier"}.issubset(involved)
+    assert warnings == []
+
+
+def test_tv_on_speakers_plan_emits_tv_internal_via_source_modes():
+    """build_plan emits set_input_source(arc) on the TV (driven by source_targets +
+    LgTv input capability declaring 'arc' in source_modes). Driver translates to
+    handle_home internally — the reconciler stays generic."""
+    scn = _scenario("tv_on_speakers")
+    plan = build_plan(scn, TOPOLOGY, _tv_on_speakers_devices())
+
+    # TV gets an input action with target='arc'
+    tv_input = next(
+        (a for a in plan.actions if a.device_id == "living_room_tv" and a.domain == "input"),
+        None,
+    )
+    assert tv_input is not None, "expected an input action on living_room_tv"
+    assert tv_input.target == "arc"
+    assert tv_input.command == "set_input_source"
+    # Processor also gets set_input(arc) from its dst_port
+    processor_input = next(
+        (a for a in plan.actions if a.device_id == "processor" and a.domain == "input"),
+        None,
+    )
+    assert processor_input is not None and processor_input.target == "arc"
+
+    assert plan.warnings == []
+
+
+def test_tv_on_speakers_already_satisfied_when_tv_on_internal_and_processor_on_arc():
+    """If the TV's input_source is already 'arc' (driver maps 'home'/internal there) AND
+    the processor's input_source is already 'arc', the reconciler emits no input actions
+    (both already_satisfied). Guards against the power-cycle firing on every activation
+    when ARC is already engaged."""
+    scn = _scenario("tv_on_speakers")
+    devices = _tv_on_speakers_devices(
+        living_room_tv=_device("LgTv", "living_room_tv", power="on", input_source="arc"),
+        processor=_device(
+            "EMotivaXMC2", "processor", power="on", zone2_power="off", input_source="arc",
+        ),
+        mf_amplifier=_device(
+            "WirenboardIRDevice", "mf_amplifier", power="on", input="aux2",
+        ),
+    )
+    plan = build_plan(scn, TOPOLOGY, devices)
+
+    tv_input = [a for a in plan.actions if a.device_id == "living_room_tv" and a.domain == "input"]
+    processor_input = [a for a in plan.actions if a.device_id == "processor" and a.domain == "input"]
+    assert tv_input == [], "TV input should be already_satisfied"
+    assert processor_input == [], "Processor input should be already_satisfied"
+    assert "living_room_tv.input" in plan.already_satisfied
+    assert "processor.input" in plan.already_satisfied
+
+
+def test_source_targets_skipped_when_device_has_no_source_modes():
+    """A source device with an `input` capability but NO `source_modes` declaration must
+    NOT trigger a set_input action from the src_port mechanism. Example: Auralic streamer
+    is the source of `streamer:out → mf_amplifier:balanced`, has an input capability, but
+    declares no source_modes — reconciler must silently skip the src-side action (Auralic
+    would fail set_input('out') since 'out' isn't a valid Auralic input)."""
+    # music_auralic: source=streamer, audio=mf_amplifier. Streamer→amp link has src_port='out'.
+    scn = _scenario("music_auralic")
+    _, source_targets, _, _, _ = resolve_targets(scn, TOPOLOGY)
+    # source_targets DOES record the src_port (resolve_targets is unconditional)
+    assert source_targets.get("streamer") == "out"
+    # ...but build_plan must NOT emit an action for it (no source_modes in Auralic cap)
+    devices = {
+        "streamer": _device("AuralicDevice", "streamer", source=None),
+        "mf_amplifier": _device("WirenboardIRDevice", "mf_amplifier", input=None),
+    }
+    plan = build_plan(scn, TOPOLOGY, devices)
+    streamer_input = [a for a in plan.actions if a.device_id == "streamer" and a.domain == "input"]
+    assert streamer_input == [], "streamer should not get a set_input action — no source_modes"
+    # And no warning is emitted for the silently-skipped src target
+    assert not any("streamer" in w and "input" in w for w in plan.warnings)
+
+
+def test_source_targets_skipped_when_device_has_no_input_capability():
+    """A source device with no input capability at all (Apple TV) must be silently skipped
+    by the src_port mechanism — no warnings (warnings are reserved for dst_port targets
+    that fail, where the topology made a hard claim about a destination's input)."""
+    scn = _scenario("movie_appletv")
+    _, source_targets, _, _, _ = resolve_targets(scn, TOPOLOGY)
+    assert source_targets.get("appletv_living") == "hdmi"  # src_port from appletv→processor link
+
+    plan = build_plan(scn, TOPOLOGY, _movie_appletv_devices())
+    appletv_input = [a for a in plan.actions if a.device_id == "appletv_living" and a.domain == "input"]
+    assert appletv_input == []
+    # No warning for appletv input (Apple TV has no input capability — expected for sources)
+    assert not any("appletv_living" in w and "input capability" in w for w in plan.warnings)
