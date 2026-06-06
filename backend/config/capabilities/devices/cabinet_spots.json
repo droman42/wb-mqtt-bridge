@@ -1,0 +1,9 @@
+{
+  "power": {
+    "kind": "momentary",
+    "actions": {
+      "on":  { "command": "power_on" },
+      "off": { "command": "power_off" }
+    }
+  }
+}

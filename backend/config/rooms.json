@@ -49,5 +49,19 @@
       "kitchen_hood"
     ],
     "default_scenario": null
+  },
+
+  "cabinet": {
+    "room_id": "cabinet",
+    "names": {
+      "en": "Study",
+      "ru": "Кабинет",
+      "de": "Arbeitszimmer"
+    },
+    "description": "Home office / study (the §P3.7 voice-integration slice's test room)",
+    "devices": [
+      "cabinet_spots"
+    ],
+    "default_scenario": null
   }
-} 
+}

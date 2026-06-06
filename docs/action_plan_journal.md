@@ -11,6 +11,28 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-06 (§P3.7 slice #14 — cabinet_spots wired)** — Slice's first device authored
+  per the §P3.7 directory convention. Three files: `backend/config/devices/wb-devices/cabinet/
+  cabinet_spots.json` (WB-passthrough config: device_id `cabinet_spots`, bilingual names
+  Споты/Spots, `room: "cabinet"`, two commands publishing `1`/`0` to
+  `/devices/wb-mr6c_51/controls/K4/on`, state mirror on `/devices/wb-mr6c_51/controls/K4`);
+  `backend/config/capabilities/devices/cabinet_spots.json` (canonical `power.on/off` →
+  native `power_on/power_off` per the existing capability-map convention shape — `kind:
+  "momentary"`, no `state_field` for slice 1); `backend/config/rooms.json` extended with the
+  `cabinet` entry (ru "Кабинет", en "Study", de "Arbeitszimmer"; description tags it as
+  the §P3.7 slice's test room; `devices: ["cabinet_spots"]`). The `wb_passthrough` entry
+  point (added to backend/pyproject.toml during #13) needed `uv pip install -e .` to
+  register — done. **New test file** `tests/unit/test_slice_cabinet_spots.py` (4 tests)
+  pins the integration: the cabinet_spots.json parses cleanly into `WbPassthroughDeviceConfig`
+  (locks the file's shape to the model); the recursive `discover_config_files` walks into
+  the `wb-devices/cabinet/` subtree AND still finds the existing flat AV configs (regression
+  guard for the convention); the capability map's native command names agree with the
+  device config's `commands` keys (catches the easy mistake of renaming one side and not
+  the other); the `rooms.json` carries cabinet with the bilingual names + cabinet_spots
+  membership. **Full suite: 421 passed, 0 failed** (was 417 — +4 from this slice). Hexagonal
+  layering preserved (the new files are config + tests; no code changes). Slice tasks
+  remaining: #15 (canonical endpoint), #17 (minimum catalog), #18 (rack verification).
+  #15 + #17 can run in parallel.
 - **2026-06-06 (§P3.7 — single-room model + wb-devices/<room>/ directory convention)** —
   Contract correction made before #14: **a device belongs to exactly one room**, not a list.
   The earlier draft's multi-room schema (and the `global` room as an opt-in tag for

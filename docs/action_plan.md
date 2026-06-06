@@ -310,7 +310,7 @@ onboarding:
 | # | Task | Effort |
 |---|------|--------|
 | 13 | **DONE 2026-06-06.** Generic WB-passthrough driver (`infrastructure/devices/wb_passthrough/driver.py`): config-driven (one command = one publish; static `value` OR first-param-derived payload with int/bool/float coercion to match WB UI semantics); subscribes per state_topic AND its per-control `meta/error` companion (`r`/`w`/`p` flags drive `state.reachable`); state mirror flows through `update_state` — no direct `self.state.x =` (chokepoint static guard verified). Loop guard: `enable_wb_emulation` defaults to **False** on `WbPassthroughDeviceConfig` so BaseDevice skips `_setup_wb_virtual_device` (no feedback loop). New `room: Optional[str]` field on `BaseDeviceConfig` (default `None`; single-room model — see A1). 15 driver-pattern tests; full suite 417 passed. | DONE |
-| 14 | First device config: `wb-mr6c_51/K4` (cabinet spots) at `backend/config/devices/wb-devices/cabinet/cabinet_spots.json`, capability map, `rooms.json` entry for `cabinet`. | ~½ day |
+| 14 | **DONE 2026-06-06.** `backend/config/devices/wb-devices/cabinet/cabinet_spots.json` (first config in the new `wb-devices/<room>/` subtree); `backend/config/capabilities/devices/cabinet_spots.json` (canonical `power.on/off` → native `power_on/power_off`); `backend/config/rooms.json` extended with the `cabinet` entry (ru "Кабинет" / en "Study" / de "Arbeitszimmer"). `wb_passthrough` entry point now registered with the venv. New `tests/unit/test_slice_cabinet_spots.py` pins the Pydantic parse, the recursive scanner discovery, the capability map ↔ device-config command-name agreement, and the rooms.json shape (4 tests; full suite 421 pass). | DONE |
 | 15 | `POST /devices/{id}/canonical` endpoint: error-code enum (6 codes, HTTP-mapped), synchronous-with-500 ms-default semantics, subscribe to `wb-mqtt-serial` per-device error topics. | ~1 day |
 | 16 | **DONE 2026-06-06.** `device_name → names: {ru, en}` schema widening + one-shot migration of the 13 existing AV configs (Pydantic `LocalizedName` model in `domain/devices/config.py`; configs rewritten; runtime DTOs `BaseDeviceState.device_name` + `LayoutManifest.device_name` preserved as flat strings projected from `names.ru` so the UI surface is unchanged; UI's one config-side read fixed in `useDataSync.ts`). 401 backend tests pass; UI typecheck + lint clean. | DONE |
 | 17 | `GET /system/catalog` minimum: returns this device + its room; content-hash version; retained `bridge/catalog/version` nudge on `/reload`. | ~½ day |
@@ -704,6 +704,7 @@ The dated history lives in **[`docs/action_plan_journal.md`](action_plan_journal
 
 **Recent entries** (newest first; full content + earlier entries in the journal):
 
+- 2026-06-06 — §P3.7 slice #14 — cabinet_spots wired (device config + capability map + rooms.json entry; 421 tests pass)
 - 2026-06-06 — §P3.7 — single-room model + `wb-devices/<room>/` directory convention (contract correction; recursive config scan)
 - 2026-06-06 — §P3.7 slice #13 — generic WB-passthrough driver DONE (417 tests pass, loop guard verified)
 - 2026-06-06 — §P3.7 slice #16 — device_name → names bilingual migration DONE (401 tests pass, UI clean)

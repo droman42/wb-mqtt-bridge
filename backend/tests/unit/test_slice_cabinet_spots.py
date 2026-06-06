@@ -1,0 +1,82 @@
+"""Slice integration test for §P3.7 #14 — cabinet_spots.
+
+Pins three things end-to-end against the actual committed slice configs:
+
+1. The cabinet_spots.json device config under `backend/config/devices/wb-devices/cabinet/`
+   parses into a WbPassthroughDeviceConfig (Pydantic) — the names+room+commands+state_topics
+   shape is exactly what the driver expects.
+2. The recursive config scanner (utils/validation.py, switched to glob `**/*.json` for the
+   single-room directory convention) actually discovers a config in a wb-devices/<room>/
+   subtree. A regression here would silently make the slice device invisible to ConfigManager.
+3. The capability map at `backend/config/capabilities/devices/cabinet_spots.json` maps
+   canonical `power.on/off` → native `power_on/power_off`, matching the device's commands.
+
+These are pure file-load + schema tests — no MQTT, no FastAPI, no hardware. The
+WB-passthrough driver unit tests (test_wb_passthrough.py) cover the behavioural side.
+"""
+import json
+from pathlib import Path
+
+import pytest
+
+from wb_mqtt_bridge.infrastructure.config.models import WbPassthroughDeviceConfig
+from wb_mqtt_bridge.utils.validation import discover_config_files
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+DEVICE_CFG = REPO_ROOT / "backend" / "config" / "devices" / "wb-devices" / "cabinet" / "cabinet_spots.json"
+CAP_MAP = REPO_ROOT / "backend" / "config" / "capabilities" / "devices" / "cabinet_spots.json"
+ROOMS_JSON = REPO_ROOT / "backend" / "config" / "rooms.json"
+
+
+def test_cabinet_spots_json_parses_as_wb_passthrough_config():
+    raw = json.loads(DEVICE_CFG.read_text())
+    cfg = WbPassthroughDeviceConfig(**raw)
+    assert cfg.device_id == "cabinet_spots"
+    assert cfg.device_class == "WbPassthroughDevice"
+    assert cfg.config_class == "WbPassthroughDeviceConfig"
+    assert cfg.names.ru == "Споты"
+    assert cfg.names.en == "Spots"
+    assert cfg.room == "cabinet"
+    # Loop guard: passthrough never owns the underlying control.
+    assert cfg.enable_wb_emulation is False
+    # Commands point at the actual WB blaster slave + channel from §P3.7 A1.
+    assert cfg.commands["power_on"].topic == "/devices/wb-mr6c_51/controls/K4/on"
+    assert cfg.commands["power_on"].value == "1"
+    assert cfg.commands["power_off"].value == "0"
+    # State mirror picks the value-topic (without /on suffix), per the WB convention.
+    assert cfg.state_topics == {"power": "/devices/wb-mr6c_51/controls/K4"}
+
+
+def test_recursive_scanner_finds_config_under_wb_devices_room_subdir():
+    """The §P3.7 directory convention puts WB-passthrough configs at
+    `wb-devices/<room>/<device_id>.json`. The scanner MUST recurse, else the device is
+    invisible to ConfigManager."""
+    files = discover_config_files(str(REPO_ROOT / "backend" / "config" / "devices"))
+    assert str(DEVICE_CFG) in files, (
+        f"cabinet_spots.json under wb-devices/cabinet/ was not discovered. "
+        f"Found {len(files)} configs; check utils/validation.discover_config_files is "
+        f"using recursive glob."
+    )
+    # Existing flat AV configs MUST still be found (no regression).
+    assert str(REPO_ROOT / "backend" / "config" / "devices" / "lg_tv_living.json") in files
+
+
+def test_capability_map_resolves_power_on_off_to_native_commands():
+    """Canonical `power.on/off` must map onto the native command names the device config
+    exposes — otherwise the canonical endpoint (#15) can't route. This is the contract."""
+    cap = json.loads(CAP_MAP.read_text())
+    assert cap["power"]["actions"]["on"]["command"] == "power_on"
+    assert cap["power"]["actions"]["off"]["command"] == "power_off"
+    # Cross-check: those native command names exist on the device config.
+    dev_cfg = json.loads(DEVICE_CFG.read_text())
+    assert "power_on" in dev_cfg["commands"]
+    assert "power_off" in dev_cfg["commands"]
+
+
+def test_rooms_json_carries_cabinet_with_bilingual_names():
+    rooms = json.loads(ROOMS_JSON.read_text())
+    assert "cabinet" in rooms, "cabinet room missing from rooms.json"
+    cab = rooms["cabinet"]
+    assert cab["names"]["ru"] == "Кабинет"
+    assert cab["names"]["en"] == "Study"
+    assert "cabinet_spots" in cab["devices"]
