@@ -11,6 +11,29 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-06 (§P3.7 #18 cold-start fix — retained-message opt-in per topic)** —
+  Final follow-up surfaced by the user at the rack: after the AV-driver fix, the bridge
+  booted clean but the FIRST `power_off` after restart 503'd whenever the relay was
+  already off. Cause: `MqttClient`'s receive loop globally skips retained messages, so
+  the broker's retained current value (`"0"` on `/devices/wb-mr6c_51/controls/K4`) was
+  delivered on subscribe but never dispatched -- `state.mirrored` stayed empty, the
+  no_op short-circuit couldn't detect "already at target," and the publish-then-wait
+  path timed out because the device doesn't republish unchanged values. The global
+  skip is safe behaviour (a retained `/on` command payload would otherwise replay a
+  stale action), so removing it wholesale isn't right. **Fix**: opt-in per topic.
+  `MqttClient.subscribe()` gained a `process_retained=False` kwarg; topics opted in are
+  tracked in a new `_retained_allowed_topics: Set[str]`; the receive loop's retained-skip
+  now also checks that set. `WbPassthroughDevice.setup()` passes `process_retained=True`
+  for both the value topic AND the per-control `meta/error` topic so the broker's
+  retained current-state and current-error payloads are seeded into state on connect.
+  AV drivers and the WB virtual-device `/on` command subscriptions stay at the default
+  (skip retained) -- behavioural change is bounded to WB-passthrough subscriptions.
+  5 new tests covering: default opt-out, opt-in adds topic, opt-in coexists with
+  default, default initial state, and a driver-level assertion that setup() passes
+  `process_retained=True` for both value and meta/error subscriptions. Full suite 453
+  passed (was 448, +5). With this fix the cold-start case in the test_publish_no_op
+  driver test (mirror unseen → no_op=False → publish-wait → potential 503) gets reduced
+  to "broker has no retained value for the control," which is the genuinely-rare path.
 - **2026-06-06 (§P3.7 #18 follow-up #2 — AV-driver instantiation regression + fix + signature test)** —
   Previous bootstrap fix added `wb_service=self._wb_service` to the device-class
   constructor call in `DeviceManager.initialize_devices`. `BaseDevice.__init__` accepts

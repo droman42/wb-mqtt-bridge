@@ -109,6 +109,22 @@ async def test_setup_subscribes_to_value_and_error_topic_per_state_field(device,
 
 
 @pytest.mark.asyncio
+async def test_setup_opts_into_retained_message_processing(device, mqtt):
+    """Both the value-topic mirror AND the meta/error subscription must pass
+    `process_retained=True` so the broker's retained "current state" payload is
+    actually dispatched on connect. Otherwise the FIRST request after a bridge restart
+    that targets the device's already-current value (`power_off` when it's already off)
+    hits the canonical endpoint's 500 ms wait with an empty mirrored state, no echo
+    arrives (the device doesn't republish unchanged values), and we 503. See §P3.7 #18
+    cold-start fix."""
+    await device.setup()
+    for call in mqtt.subscribe.await_args_list:
+        assert call.kwargs.get("process_retained") is True, (
+            f"subscribe to {call.args[0]!r} did not opt into retained-message processing"
+        )
+
+
+@pytest.mark.asyncio
 async def test_setup_returns_false_without_mqtt_client():
     dev = WbPassthroughDevice(_slice_config(), mqtt_client=None)
     assert await dev.setup() is False

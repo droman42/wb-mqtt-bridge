@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Dict, Any, Callable, Optional, List
+from typing import Any, Callable, Dict, List, Optional, Set
 import json
 
 from aiomqtt import Client, MqttError, Will
@@ -44,6 +44,14 @@ class MQTTClient(MessageBusPort):
         self.message_handlers: Dict[str, Callable] = {}
         # Map of topics to devices that have subscribed to them
         self.topic_subscribers: Dict[str, List[str]] = {}
+        # Topics whose retained-on-subscribe message MUST be dispatched (opt-in). The
+        # global default is to skip retained messages so we don't accidentally execute
+        # commands a retained payload would re-issue (e.g. a /on topic retaining "1").
+        # State-mirroring subscriptions (WB-passthrough's state_topics + meta/error)
+        # opt in -- the retained payload IS the current value and seeding it lets the
+        # canonical endpoint's no_op short-circuit detect "already at target" on the
+        # FIRST request after startup (§P3.7 #18 cold-start fix).
+        self._retained_allowed_topics: Set[str] = set()
 
         self.guard = maintenance_guard
         
@@ -224,8 +232,13 @@ class MQTTClient(MessageBusPort):
                                 logger.info(f"Skipping message on topic {topic} because it's in the maintenance window")
                                 continue
 
-                            # Skip processing of retained messages
-                            if message.retain:
+                            # Skip retained messages by default -- they're replays the bridge
+                            # didn't issue and processing them could re-execute commands. State-
+                            # mirroring subscriptions opt in via `subscribe(..., process_retained=
+                            # True)` because for them the retained payload IS the current value
+                            # and seeding it lets the canonical endpoint detect "already at target"
+                            # on the FIRST request after startup (§P3.7 #18 cold-start fix).
+                            if message.retain and topic not in self._retained_allowed_topics:
                                 logger.debug(f"Skipping retained message on topic {topic}")
                                 continue
                             
@@ -370,15 +383,27 @@ class MQTTClient(MessageBusPort):
             logger.error(f"Failed to publish to {topic}: {str(e)}")
             return False
 
-    async def subscribe(self, topic: str, callback: Callable[[str, str], None]) -> None:
+    async def subscribe(
+        self,
+        topic: str,
+        callback: Callable[[str, str], None],
+        process_retained: bool = False,
+    ) -> None:
         """Subscribe to a topic on the message bus.
-        
+
         Args:
-            topic: The topic pattern to subscribe to
-            callback: Function to call when messages arrive (topic, payload)
+            topic: The topic pattern to subscribe to.
+            callback: Function to call when messages arrive ``(topic, payload)``.
+            process_retained: When True, retained-on-subscribe messages for this exact
+                topic are dispatched to the callback. Default False -- the global skip
+                in the receive loop applies, so a retained payload on (say) a `/on`
+                command topic won't trigger a startup action. Opt in for state-mirroring
+                subscriptions where the retained payload IS the current value.
         """
         # Register the callback for this topic
         self.message_handlers[topic] = callback
+        if process_retained:
+            self._retained_allowed_topics.add(topic)
         
         # If we're already connected, subscribe to the topic
         if self.connected and self.client:

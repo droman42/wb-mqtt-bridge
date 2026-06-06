@@ -79,15 +79,29 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
     # -- setup / shutdown ----------------------------------------------------
 
     async def setup(self) -> bool:
-        """Subscribe to every value topic + its per-control meta/error companion."""
+        """Subscribe to every value topic + its per-control meta/error companion.
+
+        Both subscriptions opt into retained-message processing via
+        ``process_retained=True`` -- the retained payload on a value topic IS the current
+        value of the control, so seeding state.mirrored from it lets the canonical
+        endpoint's no_op short-circuit detect "already at target" on the FIRST request
+        after a bridge restart (e.g. fire `power_off` when the relay is already off and
+        get a clean 200 instead of a 503 timeout). The meta/error topic opts in for the
+        same reason -- if a control was sick when the bridge died, the retained flag
+        tells us on restart.
+        """
         if not self.mqtt_client:
             logger.warning(f"[{self.device_name}] no mqtt_client; cannot subscribe — state will not mirror.")
             return False
         for field, topic in self.config.state_topics.items():
-            await self.mqtt_client.subscribe(topic, partial(self._on_value_message, field))
+            await self.mqtt_client.subscribe(
+                topic, partial(self._on_value_message, field), process_retained=True,
+            )
             self._subscribed_topics.append(topic)
             error_topic = f"{topic}/meta/error"
-            await self.mqtt_client.subscribe(error_topic, partial(self._on_error_message, field))
+            await self.mqtt_client.subscribe(
+                error_topic, partial(self._on_error_message, field), process_retained=True,
+            )
             self._subscribed_topics.append(error_topic)
             logger.info(f"[{self.device_name}] mirroring {field!r} from {topic} (+ meta/error)")
         return True
