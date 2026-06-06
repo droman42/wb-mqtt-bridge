@@ -11,6 +11,36 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-06 (§P3.7 slice #17 — `GET /system/catalog` DONE)** — The catalog Irene
+  fetches on startup (and after a version bump). New endpoint in
+  `presentation/api/routers/system.py`; builder in a new `presentation/api/catalog.py`
+  module that walks `DeviceManager.devices` + `RoomManager.list()` and projects to the
+  catalog DTOs (`CatalogResponse` / `CatalogRoom` / `CatalogDevice` /
+  `CatalogCapability` / `CatalogAction` in `schemas.py`). Deliberately separate from the
+  Layer-3 layout manifest (which is UI-shaped); the catalog is the contract for any
+  non-UI consumer. Per-device capabilities walked from the attached `CapabilityMap`
+  (so the resolution chain from class → profile → per-device override authored in #14
+  flows through naturally). For slice 1 we surface action *names* only (no param
+  descriptors; param introspection lands with #19 / vocab extension); sensor `fields`
+  shape stubbed in the DTO but populated when sensor capability profiles arrive.
+  Devices without `room` set (the current AV configs until bulk onboarding) surface as
+  `room: null`. The `version` field is a 16-hex short SHA-256 over the canonical JSON
+  of `{rooms, devices}`; rooms + devices are sorted by id before hashing so insertion
+  order can't randomise the hash. **Retained `bridge/catalog/version` MQTT topic
+  published at the end of `reload_system_task`** so Irene's catalog consumer can
+  subscribe and only re-fetch when the hash differs from the last seen one --
+  retained-flag set so late-joining subscribers still see it. The publish is
+  best-effort: failure logs a warning but never masks a successful reload. 9 tests in
+  `tests/unit/test_system_catalog.py` pinning the slice payload, all-locales for both
+  rooms and devices, null-room AV devices, deterministic version, content-change ->
+  hash-change, insertion-order-independence, the live FastAPI route, and the 503 path
+  when managers aren't initialised. **Full suite: 442 passed, 0 failed** (was 433,
+  +9). openapi.json + UI types regenerated; the catalog DTOs + `GET /system/catalog`
+  + the catalog-version MQTT constant all surface in the OpenAPI doc. Hexagonal LAW
+  preserved (presentation gained `catalog.py` importing only from `domain.capabilities`
+  + presentation schemas; no new cross-layer additions). **Voice integration slice is
+  now feature-complete on the bridge side -- #18 is the rack walk with the user at the
+  cabinet.**
 - **2026-06-06 (§P3.7 slice #15 — canonical action endpoint DONE)** — Irene's first
   live-integration unblock. `POST /devices/{device_id}/canonical` accepts
   `{capability, action, params?}` and resolves canonical → native via the device's
