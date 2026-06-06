@@ -11,6 +11,23 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-06 (§P3.7 — single-room model + wb-devices/<room>/ directory convention)** —
+  Contract correction made before #14: **a device belongs to exactly one room**, not a list.
+  The earlier draft's multi-room schema (and the `global` room as an opt-in tag for
+  "выключи всё") was reversed by the user. Now: `BaseDeviceConfig.room: Optional[str]`
+  (was `rooms: List[str]`); `global` is a regular room for whole-house controls only (rare);
+  cross-room actions like "выключи свет везде" are Irene's job -- she resolves them from the
+  catalog by iterating rooms and firing the relevant capability on each device. Directory
+  convention for WB-passthrough configs: `backend/config/devices/wb-devices/<room>/<device_id>.json`
+  (one file per logical device, grouped by its room; room sub-directory names use the WB
+  HomeUI dashboard ids — non-Cyrillic — `cabinet/livingroom/children/…`). Existing AV
+  configs stay flat at `backend/config/devices/*.json`. Implementation: `utils/validation.py`
+  config scan switched from `glob("*.json")` to `glob("**/*.json", recursive=True)` so the
+  new subtree loads naturally and existing flat AV configs continue to work; #13 test
+  fixtures updated (`rooms=["cabinet", "global"]` → `room="cabinet"`); §P3.7 A1 sub-section
+  + the contract draft's pillar B + C.5 sections rewritten to match (catalog JSON example
+  uses `"room": "living_room"`; the `global` room is illustrated as empty in the sample).
+  417 backend tests pass; openapi.json + UI types regenerated; UI typecheck + lint clean.
 - **2026-06-06 (§P3.7 slice #13 — generic WB-passthrough driver DONE)** — Foundation that
   #14 (first device config) and #18 (e2e verification) ride on. New
   `infrastructure/devices/wb_passthrough/driver.py` (~180 LoC) implements a fully

@@ -99,11 +99,11 @@ automations get the same view). Shape:
     {"id": "living_room", "names": {"ru": "Гостиная",  "en": "Living Room"},
      "devices": ["lg_tv", "appletv_living", "wb-mdm3_83"]},
     {"id": "global",      "names": {"ru": "Весь дом",  "en": "Whole House"},
-     "devices": ["wb-mdm3_83", "wb-mr6c_47", "wb-mrgbw-d-fw3_10"]}
+     "devices": []}
   ],
   "devices": [
     {"id": "lg_tv", "names": {"ru": "Телевизор LG", "en": "LG TV"},
-     "class": "LgTv", "rooms": ["living_room"],
+     "class": "LgTv", "room": "living_room",
      "capabilities": [
        {"name": "power",  "actions": [{"name": "on"}, {"name": "off"}]},
        {"name": "volume", "actions": [
@@ -112,7 +112,7 @@ automations get the same view). Shape:
                                       "labels": {"ru": "уровень", "en": "level"}}]},
          {"name": "up"}, {"name": "down"}, {"name": "mute"}]}]},
     {"id": "wb-msw-v3_207", "names": {"ru": "Сенсоры гостиной", "en": "Living Room Sensors"},
-     "class": "WbMswSensors", "rooms": ["living_room"],
+     "class": "WbMswSensors", "room": "living_room",
      "capabilities": [
        {"name": "sensor",
         "fields": [
@@ -133,8 +133,10 @@ work; no backwards-compat shim accepting both forms.
 Voice resolves "какая температура в гостиной" → room → device with `sensor` capability →
 field `temperature` → read from the bridge's state cache.
 
-**Devices are multi-room** (`rooms` is a list). Most are in just one. Used for the `global`
-room (see C.5).
+**One device, one room** (`room: Optional[str]`). Cross-room actions like "выключи свет
+везде" are Irene's job — she resolves them from the catalog by iterating rooms and firing
+the relevant capability on each device. The `global` room exists for genuinely whole-house
+controls only (rare); it is NOT an opt-in tag for "выключи всё" (see C.5).
 
 **Refresh nudge**: retained `bridge/catalog/version` (content hash) bumped on `/reload` or
 config change. Irene resubscribes when it sees a new version.
@@ -173,7 +175,7 @@ config style):
   "device_id": "wb-mdm3_83",
   "device_class": "WbPassthroughDevice",
   "names": {"ru": "Свет в гостиной", "en": "Living Room Light"},
-  "rooms": ["living_room", "global"],
+  "room": "living_room",
   "commands": {
     "power_on":       {"topic": "/devices/wb-mdm3_83/controls/Channel 1/on", "value": "1"},
     "power_off":      {"topic": "/devices/wb-mdm3_83/controls/Channel 1/on", "value": "0"},
@@ -223,11 +225,16 @@ config is the source of truth — no automatic mapping to HA.
 
 - **Authoring source**: bootstrap `rooms.json` by importing the WB HomeUI's room→device
   grouping (config file location identified during implementation; one-shot, not manual).
-- **Multi-room membership**: a device CAN be in multiple rooms. Most are in one.
-- **`global` room — explicit membership.** A device is in `global` only if its config lists
-  it. "Выключи свет везде" resolves to `global` → only devices that **opted in** respond
-  (typically lights, dimmers, RGB; NOT the fridge, HVAC, sensors, AV gear). Deliberately
-  safer than auto-including every controllable device.
+- **One device, one room** (`room: Optional[str]`) — a device belongs to exactly one room.
+  Tightened from an earlier multi-room draft on 2026-06-06; cross-room actions are Irene's
+  responsibility (see B).
+- **`global` is a regular room for whole-house controls only** — not an opt-in tag for
+  "выключи всё". "Выключи свет везде" is resolved by Irene from the catalog (iterate rooms;
+  fire the relevant capability on each device); the bridge does not synthesize a
+  cross-room group from `global` membership.
+- **Directory layout** for WB-passthrough configs: `backend/config/devices/wb-devices/<room>/<device_id>.json`
+  (one config file per logical device, grouped by its room). Existing AV configs stay
+  flat at `backend/config/devices/*.json`. The config scanner recurses into subdirectories.
 
 ### C.6 Devices to onboard
 

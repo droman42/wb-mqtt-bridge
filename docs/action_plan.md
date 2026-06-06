@@ -295,22 +295,22 @@ truth (the broker). The contract has three pillars:
   `wb-mqtt-serial`'s per-device error topic for deterministic offline detection.
 - **B. Voice-friendly catalog read** — `GET /system/catalog` (neutral, not voice-specific), flat
   capability-shaped projection of devices + rooms; **all locales** for both rooms and devices;
-  sensors as ONE `sensor` capability with read-only `fields`; multi-room device membership;
+  sensors as ONE `sensor` capability with read-only `fields`; **one device, one room** (cross-room
+  actions like "выключи свет везде" resolved by Irene from the catalog, by iterating rooms);
   refresh nudge via retained `bridge/catalog/version` (content hash).
 - **C. Native WB onboarding** — generic **data-driven WB-passthrough driver** in
   `infrastructure/devices/wb_passthrough/`; explicit param types per command (no
   `meta/type` introspection); composition (RGB, HVAC) in a **capability-adapter layer ABOVE the
-  driver**; `global` room with **explicit membership** for "выключи всё" — fridge/HVAC/sensors/AV
-  gear deliberately excluded; loop guard on the state-sync chokepoint (no WB-publish callback for
-  passthrough devices).
+  driver**; `global` is a regular room for whole-house controls only (rare); loop guard on the
+  state-sync chokepoint (no WB-publish callback for passthrough devices).
 
 **Vertical slice first** — prove the whole stack against one live voice command before bulk
 onboarding:
 
 | # | Task | Effort |
 |---|------|--------|
-| 13 | **DONE 2026-06-06.** Generic WB-passthrough driver (`infrastructure/devices/wb_passthrough/driver.py`): config-driven (one command = one publish; static `value` OR first-param-derived payload with int/bool/float coercion to match WB UI semantics); subscribes per state_topic AND its per-control `meta/error` companion (`r`/`w`/`p` flags drive `state.reachable`); state mirror flows through `update_state` — no direct `self.state.x =` (chokepoint static guard verified). Loop guard: `enable_wb_emulation` defaults to **False** on `WbPassthroughDeviceConfig` so BaseDevice skips `_setup_wb_virtual_device` (no feedback loop). New `rooms: List[str]` field added to `BaseDeviceConfig` (default `[]`). 15 driver-pattern tests; full suite 417 passed. | DONE |
-| 14 | First device config: one `wb-mr6c` relay channel in the children's room (capability map, room entry, `global` opt-in). | ~½ day |
+| 13 | **DONE 2026-06-06.** Generic WB-passthrough driver (`infrastructure/devices/wb_passthrough/driver.py`): config-driven (one command = one publish; static `value` OR first-param-derived payload with int/bool/float coercion to match WB UI semantics); subscribes per state_topic AND its per-control `meta/error` companion (`r`/`w`/`p` flags drive `state.reachable`); state mirror flows through `update_state` — no direct `self.state.x =` (chokepoint static guard verified). Loop guard: `enable_wb_emulation` defaults to **False** on `WbPassthroughDeviceConfig` so BaseDevice skips `_setup_wb_virtual_device` (no feedback loop). New `room: Optional[str]` field on `BaseDeviceConfig` (default `None`; single-room model — see A1). 15 driver-pattern tests; full suite 417 passed. | DONE |
+| 14 | First device config: `wb-mr6c_51/K4` (cabinet spots) at `backend/config/devices/wb-devices/cabinet/cabinet_spots.json`, capability map, `rooms.json` entry for `cabinet`. | ~½ day |
 | 15 | `POST /devices/{id}/canonical` endpoint: error-code enum (6 codes, HTTP-mapped), synchronous-with-500 ms-default semantics, subscribe to `wb-mqtt-serial` per-device error topics. | ~1 day |
 | 16 | **DONE 2026-06-06.** `device_name → names: {ru, en}` schema widening + one-shot migration of the 13 existing AV configs (Pydantic `LocalizedName` model in `domain/devices/config.py`; configs rewritten; runtime DTOs `BaseDeviceState.device_name` + `LayoutManifest.device_name` preserved as flat strings projected from `names.ru` so the UI surface is unchanged; UI's one config-side read fixed in `useDataSync.ts`). 401 backend tests pass; UI typecheck + lint clean. | DONE |
 | 17 | `GET /system/catalog` minimum: returns this device + its room; content-hash version; retained `bridge/catalog/version` nudge on `/reload`. | ~½ day |
@@ -337,10 +337,23 @@ Slice concrete artifacts — ready for #13 (driver) / #14 (config) / #15 (canoni
 consume. Test room: **cabinet** (where the user works; observation closes the loop).
 
 Three files to author for the slice:
-- `backend/config/devices/cabinet_spots.json` — WB-passthrough device config
+- `backend/config/devices/wb-devices/cabinet/cabinet_spots.json` — WB-passthrough device
+  config (new directory convention, see below)
 - `backend/config/capabilities/devices/cabinet_spots.json` — canonical→native map (shape per
   existing `config/capabilities/devices/*.json` convention)
-- `backend/config/rooms.json` — extend with `cabinet` + `global`
+- `backend/config/rooms.json` — extend with `cabinet`
+
+**Directory convention — `wb-devices/<room>/<device_id>.json`** (settled 2026-06-06).
+Existing AV configs stay flat at `backend/config/devices/*.json`. **WB-passthrough configs
+live in `backend/config/devices/wb-devices/<room>/<device_id>.json`** — one config file per
+logical device, grouped by its (single) room. **A device belongs to exactly one room.**
+Devices with no physical room (whole-house controls — rare) live directly in
+`backend/config/devices/wb-devices/<device_id>.json` and use room id `global`. The room
+sub-directory names are the WB UI dashboard ids (non-Cyrillic: `cabinet`, `livingroom`,
+`children`, …) to match A2's findings. Sensors follow the same layout (e.g.
+`wb-devices/livingroom/livingroom_sensors.json`); no separate `sensors/` subtree. The config
+scanner (`utils/validation.py`) recurses into subdirectories, so flat AV configs continue to
+load unchanged.
 
 **`cabinet_spots.json`** (WB-passthrough driver consumes this):
 
@@ -349,7 +362,7 @@ Three files to author for the slice:
   "device_id": "cabinet_spots",
   "device_class": "WbPassthroughDevice",
   "names": {"ru": "Споты", "en": "Spots"},
-  "rooms": ["cabinet", "global"],
+  "room": "cabinet",
   "commands": {
     "power_on":  {"topic": "/devices/wb-mr6c_51/controls/K4/on", "value": "1"},
     "power_off": {"topic": "/devices/wb-mr6c_51/controls/K4/on", "value": "0"}
@@ -373,21 +386,19 @@ with paired brightness) gets exercised in slice 2 / bulk; slice 1 stays pure-`po
 ```json
 [
   {"id": "cabinet", "names": {"ru": "Кабинет", "en": "Study"},
-   "devices": ["cabinet_spots"]},
-  {"id": "global",  "names": {"ru": "Весь дом", "en": "Whole House"},
    "devices": ["cabinet_spots"]}
 ]
 ```
 
-`cabinet_spots` opts into `global` from day one. A single-device `global` is meaningless in
-isolation, but the 1-line addition exercises the **multi-room device-membership schema** on
-the slice (instead of waiting until bulk to discover schema problems) and lets bulk lights
-join the same `global` without reshaping rooms.json.
+`cabinet` gets a single entry for the slice device. The `global` room exists for
+genuinely-global devices only (whole-house controls); `cabinet_spots` does not belong there.
+**Cross-room actions** ("выключи свет везде") are resolved by Irene from the catalog — she
+iterates rooms and fires the relevant capability on each device — not via a shared room tag.
 
 **Names: bilingual from day one** (`names: {ru, en}`), per the contract's all-locales rule.
 Slice authoring uses ru = WB-UI verbatim, en = natural home-context renderings: `Споты` =
-Spots, `Кабинет` = Study, `Весь дом` = Whole House. Adjust before #16 (the AV-configs
-migration) if other en preferences exist (Office / Spotlights / …).
+Spots, `Кабинет` = Study. Adjust before #16 (the AV-configs migration) if other en
+preferences exist (Office / Spotlights / …).
 
 **Voice command the slice proves**: «включи свет в кабинете» / «включи споты»
 (en: "turn on the study lights" / "turn on the spots").
@@ -461,11 +472,13 @@ analysis of 40 unique WB slaves: **15 (38%) serve multiple rooms** — the worst
 (`wb-mr6c_51/52`, `wb-mr6cu_31`, `setpoints_floor`, `wb-gpio`), plus `setpoints_radiator` (4),
 the dimmers `wb-mdm3_83/87` (3 each), `wb-mr6c_47/58` (3), `setpoints_curtain` (3), and the
 RGB dimmers `wb-mrgbw-d-fw3_10/238` (2). This is the install pattern, not an outlier — one
-relay module is fanned out to wherever channels are needed. A per-slave model can't answer
-`rooms: […]`. Even single-room slaves often host several distinct logical things (a dimmer
-slave = K1 relay-light + Channel 1 dimmer-light; an RGB slave = two paired Channel/Brightness
-composite lights). Expected bulk count: **~50–80 logical devices** across 10 rooms,
-mechanically generated by #21 from the cells.
+relay module is fanned out to wherever channels are needed. With the **single-room model**
+(`room: str`, settled 2026-06-06 — see A1), a per-slave config can't answer "which one room
+am I in?" for these slaves. Even single-room slaves often host several distinct logical
+things (a dimmer slave = K1 relay-light + Channel 1 dimmer-light; an RGB slave = two paired
+Channel/Brightness composite lights). Expected bulk count: **~50–80 logical devices** across
+10 rooms, mechanically generated by #21 from the cells (placed at
+`backend/config/devices/wb-devices/<room>/<device_id>.json` per the directory convention).
 
 **Composite-control shapes the WB-passthrough driver + capability adapters must handle.**
 
@@ -691,6 +704,7 @@ The dated history lives in **[`docs/action_plan_journal.md`](action_plan_journal
 
 **Recent entries** (newest first; full content + earlier entries in the journal):
 
+- 2026-06-06 — §P3.7 — single-room model + `wb-devices/<room>/` directory convention (contract correction; recursive config scan)
 - 2026-06-06 — §P3.7 slice #13 — generic WB-passthrough driver DONE (417 tests pass, loop guard verified)
 - 2026-06-06 — §P3.7 slice #16 — device_name → names bilingual migration DONE (401 tests pass, UI clean)
 - 2026-06-06 — A3 — wb-mqtt-serial error topic convention nailed (per-control, `r`/`w`/`p`); all pre-work DONE
