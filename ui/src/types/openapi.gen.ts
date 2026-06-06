@@ -1195,10 +1195,10 @@ export interface components {
             /** @description Bilingual display name; see LocalizedName. */
             names: components["schemas"]["LocalizedName"];
             /**
-             * Rooms
-             * @description Room ids the device belongs to (matches `rooms.json`). Multi-room allowed; the `global` room is opt-in for 'выключи всё'-style commands. Empty list for AV gear that doesn't yet live in a room (gets populated during bulk onboarding, §P3.7 #21).
+             * Room
+             * @description Room id (matches an entry in `rooms.json`). A device belongs to **exactly one** room. Devices that don't fit any physical room (whole-house controls) live in the special `global` room. Cross-room actions ("выключи свет везде") are resolved by Irene from the catalog -- by iterating rooms -- not via shared membership. `None` for AV gear that doesn't yet have a room (populated during bulk onboarding, §P3.7 #21).
              */
-            rooms?: string[];
+            room?: string | null;
             /**
              * Wb Controls
              * @description Custom Wirenboard control definitions
