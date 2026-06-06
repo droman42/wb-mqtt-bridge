@@ -1,6 +1,6 @@
 # Action Plan — wb-mqtt-bridge
 
-**Status:** Living master plan. Updated 2026-05-25.
+**Status:** Living master plan. Updated 2026-06-06.
 **Scope:** The `wb-mqtt-bridge` **monorepo** (`backend/` + `ui/` + `wb-rules/` + `ops/` + `docs/`). The
 UI is no longer a separate repo — it was merged in during Phase 2.
 
@@ -14,8 +14,9 @@ This document captures the project state and a prioritized action plan, revised 
 authoritative **§6 Revision Log** of what's been done. **Read §6 first** in any session; everything
 else hangs off this file. As of 2026-05-25 the major redesign is delivered and hardware-verified
 (scenario reconciler · monorepo · Layer-3 runtime rendering + the build-time-codegen cutover). What
-remains is **§P3.6** (topology + round-2 scenarios), **§P4** (final acceptance + the mandatory
-scenario↔WB design), and the **§5.1** backlog.
+remains is **§P3.6** (topology + round-2 scenarios), **§P3.7** (voice integration + native WB
+onboarding — HIGH PRIORITY, agreed 2026-06-06; runs in parallel with the §5.1 rack pass), **§P4**
+(final acceptance + the mandatory scenario↔WB design), and the **§5.1** backlog.
 
 Roles of the other docs **now** (they were "driving" during the redesign; they've since settled):
 - `docs/ui_backend_contract.md` — **LIVING reference**: the UI↔backend contract + Layer-3 runtime
@@ -274,6 +275,71 @@ manual notes show; Auralic/A77 playback; passive ones show the right manual step
 room** (children_room_tv + appletv_children) was **deferred by the user** (skipped this round) — a
 possible round-3.
 
+### P3.7 — Voice integration & native WB onboarding (HIGH PRIORITY — agreed 2026-06-06)
+
+**Driving doc:** `docs/voice_integration_contract_draft.md` (AGREED bridge ↔ Irene contract).
+Sister-project counterpart: `wb-mqtt-voice/docs/design/mqtt_integration.md` §10 (Irene's ARCH-8,
+**blocked on this**).
+
+**Strategic shift.** The bridge becomes the **single authoritative device catalog + actuation
+backend for the whole house** — native Wirenboard gear *and* the AV devices it already bridges.
+wb-rules retains all rule/automation logic on the controller (unchanged); the bridge MIRRORS
+native control state by subscribing to MQTT value topics. Two writers (bridge + wb-rules), one
+truth (the broker). The contract has three pillars:
+
+- **A. Canonical action endpoint** — `POST /devices/{id}/canonical {capability, action, params}`,
+  thin façade over `perform_action` via the existing capability map. 6-code structured error enum
+  (HTTP-mirrored); synchronous with a **500 ms** default value-topic-echo timeout; subscribes to
+  `wb-mqtt-serial`'s per-device error topic for deterministic offline detection.
+- **B. Voice-friendly catalog read** — `GET /system/catalog` (neutral, not voice-specific), flat
+  capability-shaped projection of devices + rooms; **all locales** for both rooms and devices;
+  sensors as ONE `sensor` capability with read-only `fields`; multi-room device membership;
+  refresh nudge via retained `bridge/catalog/version` (content hash).
+- **C. Native WB onboarding** — generic **data-driven WB-passthrough driver** in
+  `infrastructure/devices/wb_passthrough/`; explicit param types per command (no
+  `meta/type` introspection); composition (RGB, HVAC) in a **capability-adapter layer ABOVE the
+  driver**; `global` room with **explicit membership** for "выключи всё" — fridge/HVAC/sensors/AV
+  gear deliberately excluded; loop guard on the state-sync chokepoint (no WB-publish callback for
+  passthrough devices).
+
+**Vertical slice first** — prove the whole stack against one live voice command before bulk
+onboarding:
+
+| # | Task | Effort |
+|---|------|--------|
+| 13 | Generic WB-passthrough driver skeleton (`infrastructure/devices/wb_passthrough/`) — config-driven, one command = one publish, subscribe to value topic, mirror state via `update_state` (loop-guarded: no WB-publish callback). Tests follow `device_test_pattern`. | ~1 day |
+| 14 | First device config: one `wb-mr6c` relay channel in the children's room (capability map, room entry, `global` opt-in). | ~½ day |
+| 15 | `POST /devices/{id}/canonical` endpoint: error-code enum (6 codes, HTTP-mapped), synchronous-with-500 ms-default semantics, subscribe to `wb-mqtt-serial` per-device error topics. | ~1 day |
+| 16 | `device_name → names: {ru, en}` schema widening + **one-shot migration** of the ~15 existing AV configs (no backwards-compat shim). | ~½ day |
+| 17 | `GET /system/catalog` minimum: returns this device + its room; content-hash version; retained `bridge/catalog/version` nudge on `/reload`. | ~½ day |
+| 18 | End-to-end verification: Irene ("включи свет в детской") → canonical → publish → value echo → 200 OK with post-state, within the 500 ms budget. Sister-project ARCH-8 sign-off. | rack + Irene |
+
+Slice total: ~3-4 dev days + a rack/Irene verification pass.
+
+**Bulk onboarding** (after the slice proves out):
+
+| # | Task | Effort |
+|---|------|--------|
+| 19 | Canonical capability vocab extension — `brightness`, `color`, `cover`, `climate`, `sensor` (read-only fields). Schemas in `config/capabilities/`. | ~½ day |
+| 20 | Composition layer above the driver — RGB (`"R;G;B"`), HVAC (mode + setpoint + fan, often across sub-devices). Lives next to the existing reconciler. | ~1 day |
+| 21 | `rooms.json` bootstrap — **one-shot import from the WB HomeUI config** (location identified during implementation); not manual. | ~½ day |
+| 22 | Bulk device configs — relays (5+), dimmers (3), RGB (3), covers (Dooyas), HVAC (3 rooms + setpoint vdevs), multi-sensors per room. ~30+ configs, mostly mechanical once the driver + adapters are stable. | ~3-5 days |
+| 23 | `wb-msw-v3_*` sensor side — decide unified config (IR + `sensor`) vs split entry; implement. | ~½ day |
+| 24 | Catalog completeness sweep + bulk end-to-end verification across rooms. | ~1 day |
+
+Bulk total: ~7-10 dev days.
+
+**Sequencing.** P3.7 runs in **parallel with the §5.1 rack pass** (different surfaces, no
+contention). Settles **before P4** (final acceptance), which then sweeps the larger surface.
+
+**Hexagonal LAW preserved** (`hexagonal-law-for-all-changes`): WB-passthrough driver in
+`infrastructure/devices/wb_passthrough/`; capability mappings in `config/capabilities/`; capability
+adapters next to the existing reconciler. No domain imports of infrastructure.
+
+**Deferred to v2** (the only thing the contract leaves open): batched group/room endpoint.
+Per-device calls cover v1 ("выключи свет везде" = N parallel canonical calls Irene resolves from
+the catalog).
+
 ### P4 — Final acceptance & cleanup (do this LAST, after the whole redesign lands)
 
 The scenario reconciler + monorepo + Layer 3 runtime rendering are being done **gradually**, so a
@@ -443,6 +509,32 @@ These were the only **unfinished** items in `docs/TODO.md` when it was archived 
 
 ## 6. Revision Log
 
+- **2026-06-06 (voice integration contract agreed + new §P3.7 HIGH-PRIORITY phase)** — Reconciled
+  the bridge ↔ Irene voice integration contract in this session with the user. The draft from
+  Irene's ARCH-7 (`docs/voice_integration_contract_draft.md`, originally written by a sister-repo
+  agent) had eight open questions; all settled here. Status DRAFT → AGREED 2026-06-06 (same
+  filename; commit `f40df01`). **Strategic shift recorded:** the bridge becomes the single
+  authoritative device catalog + actuation backend for the whole house — native Wirenboard gear
+  AND the AV devices it already bridges — and Irene talks only to the bridge. **wb-rules stays on
+  the controller** (unchanged); the bridge MIRRORS native state by subscribing to value topics +
+  `wb-mqtt-serial` per-device error topics. Two writers, one truth (the broker). Loop guard on the
+  state-sync chokepoint: passthrough devices register persist + SSE callbacks but NOT the
+  WB-publish callback (else we feedback-loop with the real device). Three pillars agreed:
+  **A** `POST /devices/{id}/canonical` (façade over `perform_action`, 6-code error enum,
+  synchronous with 500 ms default echo timeout); **B** dedicated `GET /system/catalog` (NOT the
+  Layer-3 UI manifest — flat, capability-shaped, all locales for both rooms and devices, sensor as
+  ONE capability with read-only `fields`, multi-room device membership, refresh nudge via retained
+  `bridge/catalog/version`); **C** generic data-driven WB-passthrough driver, explicit param types
+  (no `meta/type` introspection), composition (RGB / HVAC) in a capability-adapter layer ABOVE the
+  driver, `global` room with **explicit membership** (fridge / HVAC / sensors / AV gear
+  deliberately excluded from "выключи всё"). Schema changes: `device_name` (single string) widens
+  to `names: {ru, en, …}`; **one-shot migration of the ~15 existing AV configs**, no
+  backwards-compat shim. New **§P3.7** added to this plan (above) as HIGH PRIORITY — slice of 6
+  tasks (~3-4 dev days + rack/Irene verification) for the vertical "включи свет в детской", then
+  bulk of 6 tasks (~7-10 dev days) for the full house. Runs in parallel with the §5.1 rack pass
+  (different surfaces); settles before §P4. Irene's ARCH-8 implementation plan
+  (`wb-mqtt-voice/docs/design/mqtt_integration.md` §10) is **unblocked** by this. Memory
+  unchanged (no new entries needed — the contract is in the doc, the priority is in this plan).
 - **2026-05-30 (rack pass on eMotiva + 2 sibling-library handoffs + LG TV silent-WS-death fix + eMotiva cleanup + HDMI ARC scenario)** — Long afternoon/evening session. **eMotiva row of §5.1 #7 substantively closed at the rack:** power on/off both zones (independence verified in BOTH directions), zone-2 volume change (independent of zone 1), zone-2 mute (acked but no audible effect — empirically confirms the protocol §4.2 read-back gap is mirrored by an apparent write-side gap on the XMC-2; kept exposed per user direction). All driver findings flow correctly through the pymotivaxmc2 dispatcher → `_handle_property_change` chokepoint; the 2026-05-29 "intermittent No ack received" issue did NOT recur. **Side observation:** controller has no bridge running (`wb-mqtt-bridge.service` inactive, no Docker container; §P3 #8 INSTALL.md cutover still pending) — the live home was being served entirely by the dev-box backend (PID 121053). No client-id collision because production wasn't running. Worth flagging: the house is currently 100% dependent on the dev-box backend for MQTT bridging. **Two sibling-library handoffs round-trip (both shipped same day):** (a) `asyncwebostv` 0.3.4 → **0.3.5** — `_close_callbacks` now fire from `_handle_messages`'s `ConnectionClosed` branch (remote-side close), not just from the consumer's explicit `close()`. Same registry, two firing points, semantic now "the connection is gone by any means." Triggered by today's rack observation: LG TV WebSocket closed at 14:03:41 with no preceding subscription event, bridge state stayed `power:on / connected:true / current_app:ivi` for 15+ minutes until a manual API query exposed the lie. (b) `pymotivaxmc2` 0.6.8 → **0.6.9** — `subscribe()` now also dispatches initial property values through registered `@on(prop)` callbacks (the same path as ongoing notifications). Unifies subscribe-time + notification-time delivery under one channel. Library Claude also unified `EmotivaController.subscribe` onto the lower-level `Protocol.subscribe` (was returning None fire-and-forget; now waits for confirmation and returns the dict) — correctness improvement noted in handoff round-trip. **Three bridge commits.** `afe334f` **fix(lg_tv): detect silent WebSocket death + auto-recover via close callback + health loop** (closes #23). Wires the new asyncwebostv 0.3.5 callback. Adds `_on_websocket_close` (driver-side; flips `connected=False`, clears `_subscriptions_active`; no-op during `_shutting_down`; leaves `power` untouched — could be a transient hiccup), `_tcp_probe` (asyncio.open_connection to port 3001, no payload; read-only liveness signal that won't WoL the TV), and `_health_loop` (background task running every `reconnect_interval` seconds — default 30s; 4-state machine over connected×reachable). Time-to-truth on silent WS death drops from ∞ to ≤75s (45s WS-close timeout + 30s health tick) even when the power-state subscription event mysteriously doesn't fire (today's Bug A; separate investigation when reproducible). 11 regression tests covering callback semantics, TCP probe (success/timeout/OSError/no-IP), health-loop state machine all 4 quadrants + cancel + boot-with-TV-off. `02d11d4` **refactor(emotiva): single update path via notifications + drop verified-safe optimistic writes** (closes #21 + #22). Library bump to 0.6.9 lets `setup()` drop `_refresh_device_state()` — subscribe auto-dispatches initial values via callbacks. Dropped post-ack optimistic writes from `handle_set_volume` (both zones — notifications rack-verified to fire ~180ms after ack) and main-zone `handle_power_on` (existing post-command refresh covers state seeding). KEPT optimistic writes for power_off (both zones), zone2_power_on (push behaviour unverified for this specific command path), and mute (both zones — protocol-impossible read-back per §4.2). Each remaining optimistic write has a docstring explaining WHY it stays, to prevent cargo-cult removal. Dead-code removed: `status(Property.ZONE2_MUTE)` line in `_synchronize_state` (would AttributeError — Property.ZONE2_MUTE doesn't exist in pymotivaxmc2's enum, which correctly mirrors the protocol's command-vs-notification split); unreachable `mute` branches in `_handle_property_change` + `_process_property_value`. **Important framing from the discussion:** the library's enum split was always correct (Command has MUTE/ZONE2_MUTE; Property doesn't) — the "pretending mute is subscribable" was entirely bridge-side dead code, NOT a library issue. 12 regression tests covering the notification-driven path + guards against re-adding the dropped writes. `e5dffa4` **feat(scenarios): symmetric src_port mechanism + tv_on_speakers scenario (HDMI ARC)** (closes #24). Pre-investigation findings: HDMI ARC isn't bindable to an Input button on the XMC-2 (per-Input Setup menu's Audio Input override doesn't list ARC — user verified at rack); the protocol's `Command.ARC` is in the same family as raw HDMI connectors (`hdmi1-8`) and **hangs the device** when sent (user rack-verified — same family that caused the 2026-05-29 black-rectangle issue, fixed by migrating to `select_source(N)`); the reliable mechanism is the eMotiva's auto-engagement on power-up when CEC is on AND the TV is on internal mode (NOT HDMI). Implemented as a **clean reconciler extension** (instead of the legacy `startup_sequence` escape hatch): the reconciler now treats topology `src_port` symmetrically to `dst_port` — when a source device's `input` capability declares `source_modes`, the reconciler emits `set_input(src_port)` on the source. **LG TV opts in** with `source_modes: ["arc"]`; driver translates `set_input_source(arc)` → `handle_home` (no webOS API for "go to internal mode"; pressing Home satisfies the eMotiva's ARC precondition). **eMotiva `handle_set_input(arc)`** triggers `_power_cycle_for_arc` (off → 3s sleep → on, with already-satisfied short-circuit when state.input_source is already "arc"). `_source_token` maps the device's raw `"HDMI ARC"` → canonical `"arc"` token (needed for the already_satisfied check to work — without it the reconciler would power-cycle on every activation). **Topology unchanged** — existing link `living_room_tv:arc → processor:arc` + 3 ordering rules (lines 43-46) already encoded the design intent perfectly. Other source devices silently skipped — only LG TV opts in via `source_modes`. New scenario `config/scenarios/tv_on_speakers.json` — thin, reconciler-driven, no `startup_sequence`. **HW verification still owed** by the user at the next rack session (restart the bridge first to pick up all today's changes). 13 regression tests covering symmetric src_port behaviour, opt-in vs silent-skip (Auralic streamer's "out" src_port would otherwise trigger), ARC token mapping, power-cycle short-circuits, LG TV's home-button translation. **Day totals across both 2026-05-30 entries:** 7 commits (`63b2846` + `e7cbcb5` + `2ca40fa` + `afe334f` + `02d11d4` + `e5dffa4` + this one), 401 tests passing (was 365 at start of day; **+36 net**), 4 backlog tasks closed (#21/#22/#23/#24), 2 sibling-library bumps shipped same day (asyncwebostv 0.3.5, pymotivaxmc2 0.6.9), 1 new scenario, 1 new architectural primitive (symmetric src_port in reconciler — reusable for any future device with a source-side mode quirk). Hexagonal LAW clean across all commits.
 - **2026-05-30 (state-management audit → 2 stale-scenario-state bugs fixed + snapshot retired + chokepoint static guard)** — User-prompted audit of "how does device + scenario state actually work, what gets updated when, does the reconciler see manual device-page fixes." Answer for **device state**: every action source (FastAPI / WB MQTT-in / driver subscription / driver polling) routes through the single `BaseDevice.update_state(**)` chokepoint (`infrastructure/devices/base.py:639`) → fan-out to `state.db` persistence + WB value-topic publish + SSE broadcast. Per-driver verification: LG TV (3 webOS subscriptions), Apple TV (5 pyatv listeners), Auralic (polling loop), eMotiva (9 property callbacks) all chokepoint-clean; zero direct `self.state.X = Y` runtime assignments (LG TV's 2 `__init__`-only ip/mac copies are the documented exception). The 2026-05-27 LG TV cleanup (33 violations → 0) held across all four feedback drivers. **IR-family drivers** (`WirenboardIRDevice` / `RevoxA77` / `BroadlinkKitchenHood`) have no inbound feedback channel — optimistic state is structurally fragile and **only the 2 Wirenboard IR power handlers (`:235` / `:270`) carry idempotence guards** (input/volume/transport always send: nothing to compare against); the toggle handler at `:206` always sends too. Filed **§5.1 backlog item — per-action `force` flag** (commit `63b2846`) as the precision escape hatch for IR desync, with explicit non-goal of a scenario-level force (would fire toggle-code devices the wrong way). Answer for **scenario state / reconciler**: reconciler reads fresh `device.get_current_state()` at every `switch_scenario` (`reconciler.py:341`, no cache); a manual fix on a device page IS picked up at the next activation. **BUT the audit surfaced 2 real bugs** in `/scenario/state`: **Bug 1** `GET /scenario/state` (no-args, `routers/state.py:155-158`) returned the stale `ScenarioManager.scenario_state` snapshot (set once at activation by `_refresh_state()`, never refreshed) — exactly the failure mode the docstring on `get_scenario_state(id)` at `service.py:469-472` explicitly warned against; **Bug 2** the live recompute path in `get_scenario_state(active_id)` silently dropped `manual_steps` (activation-scoped notes from the 2026-05-26 transition-aware-manual-notes work would have been invisible to the per-scenario endpoint). **Fixes + cleanup** (commit `e7cbcb5`): live recompute now threads `list(self._activation_manual_steps)` through; no-args endpoint routes through the live recompute; with `get_scenario_state()` feature-complete the snapshot + `_refresh_state()` + their 3 callers became redundant — deleted. The 3 SSE broadcasts (`scenario_switched` / `scenario_started` / `role_action_executed`) that embedded the snapshot in event payloads now build payloads from `get_scenario_state(current_scenario.scenario_id).model_dump()`. Truthiness checks moved to `current_scenario` (the real sentinel). Single source of truth = `device.get_current_state()` walked at query time, no frozen snapshot anywhere. Persistence + restore paths untouched (they only depend on `scenario_id` under key `"active_scenario"`). **New static regression test** `test_chokepoint_static.py` — AST-based, auto-discovers via `glob("*/driver.py")`, parametrizes per driver, asserts no `self.state.X = Y` outside `__init__` (allows the documented LG TV exception). Plus 2 functional regression tests on `ScenarioManager` (live recompute reflects post-activation device changes; manual_steps survive every query). 4 existing test files rewired to query via `get_scenario_state()` instead of the deleted snapshot. **365 passed**. Hexagonal LAW clean (domain scenarios service + presentation only).
 - **2026-05-29 (Auralic streamer — research → robustness hardening pass; OpenHome is the RIGHT protocol)** — The `streamer` (Auralic Altair G1, `AuralicDevice` via `openhomedevice`) "never really worked." Broad web research (4 agents) + code review concluded the **protocol choice is correct and the only viable one**: Auralic is an **OpenHome device, not a standard UPnP-AV renderer** (no usable `AVTransport`), so DLNA/`async_upnp_client` DmrDevice would be *worse*; the failures are robustness + Auralic quirks. Implemented a hardening pass (mock-tested; **HW verification still owed by the user**, device is on **wired LAN**): (1) per-call timeouts via an `_op()` `wait_for` wrapper on every OpenHome call (a wedged/standby unit could hang the poll loop or an action); (2) `_update_device_state` does a fast liveness probe (`is_in_standby`) first and bails on failure instead of firing 5 more calls; (3) **auto-rediscovery** — the periodic loop now re-runs SSDP discovery every `reconnect_interval` (default 60s) when the connection goes stale (Auralic reassigns its HTTP port on every boot), instead of only recovering on an explicit IR power-on; (4) rate-limited connected↔unreachable transition logging (no per-interval traceback flood, openhomedevice #18); (5) **real bug fixed:** `handle_next` called `skip()` with no arg but the lib signature is `skip(offset)` → "next" always threw; now `skip(1)`, and `handle_previous` implemented as `skip(-1)` (was stubbed "unsupported"); (6) `None`-tolerant volume/mute (units without a Volume service return None → don't write into the non-optional state fields; mute reports a clean failure); (7) track-metadata parsing isolated so a garbled DIDL can't drop the device to disconnected; (8) **(a)** discovery rewritten async (aiohttp; SSDP callback only collects locations, classification fetched off-loop) — dropped the blocking `requests.get` and the thread-pool `asyncio.run` sync-wrapper. Config gained `op_timeout` (5.0) + `reconnect_interval` (60). **(b) decision — fork KEPT:** upstream `openhomedevice` 2.3.1 still hard-requires `lxml>=4.8.0` (confirmed via PyPI — the earlier "2.3.1 removed lxml" claim was wrong; the *fork* removed it). The fork = upstream 2.3.1 code minus lxml (stdlib ElementTree); the lean Docker final stage has no `libxml2`. So we kept the fork pin and instead **pinned `async_upnp_client>=0.40,<0.45`** as a direct dep (prevents the #23 DIDL-parse break from a transitive bump; `uv.lock` regenerated, 0.44.0 unchanged). Tests: Auralic suite 18→22 (skip offsets, None-volume, metadata-error-keeps-connected, liveness fast-fail, op_timeout, reconnect wiring); full suite **356 passed**. See [[auralic-streamer-openhome-direction]].
