@@ -198,6 +198,42 @@ async def test_meta_error_compound_rw_still_marks_unreachable(device):
 
 
 @pytest.mark.asyncio
+async def test_publish_flags_no_op_when_mirror_already_matches(device, mqtt):
+    """Idempotency: when state.mirrored already shows the target value, the publish goes
+    out (we keep the WB layer informed; cheap) but the result is flagged `no_op: True` so
+    the canonical endpoint can short-circuit its echo wait. Otherwise voice would get a
+    500 ms timeout + 503 on a routine "включи свет" when the light is already on."""
+    device.state.mirrored = {"power": "1"}  # echo from a previous successful power_on
+    result = await device.execute_action("power_on", {}, source="api")
+    assert result["success"] is True
+    assert result["data"]["no_op"] is True
+    mqtt.publish.assert_awaited_once_with("/devices/wb-mr6c_51/controls/K4/on", "1")
+
+
+@pytest.mark.asyncio
+async def test_publish_no_op_false_on_real_change(device, mqtt):
+    """The flag must be False (not just missing) when the publish IS a real change so
+    the endpoint knows to wait for the echo."""
+    device.state.mirrored = {"power": "0"}
+    result = await device.execute_action("power_on", {}, source="api")
+    assert result["success"] is True
+    assert result["data"]["no_op"] is False
+
+
+@pytest.mark.asyncio
+async def test_publish_no_op_false_when_mirror_unseen_yet(device, mqtt):
+    """Cold start (no echo yet): mirrored is empty, so we can't know whether it's already
+    at the target. Treat as a real change (no_op=False) so the endpoint waits for the
+    echo. (Limitation: if the device really is already at the target it won't echo and
+    the wait will 503 -- documented as a known cold-start edge case until retained-message
+    handling lands.)"""
+    assert device.state.mirrored == {}
+    result = await device.execute_action("power_on", {}, source="api")
+    assert result["success"] is True
+    assert result["data"]["no_op"] is False
+
+
+@pytest.mark.asyncio
 async def test_w_only_error_does_not_flip_reachable(device):
     """Per the convention, `w` is a write-side failure; the device may still be readable.
     We model `reachable` against read failures (`r`) only."""

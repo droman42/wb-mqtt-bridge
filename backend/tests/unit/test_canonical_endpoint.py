@@ -289,6 +289,68 @@ def test_internal_error_returns_500_for_non_param_handler_failure(faked):
     assert r.json()["detail"]["error"]["code"] == "internal_error"
 
 
+# ----- No-op short-circuit -------------------------------------------------
+
+
+def test_no_op_result_skips_wait_and_returns_immediately(faked):
+    """When the driver flags `data.no_op = True` (WB-passthrough's idempotency case --
+    device already at the requested value, no echo will arrive), the endpoint must NOT
+    wait for the echo. Otherwise voice gets a spurious 503 on "включи свет" when the
+    light is already on."""
+    dev = FakeDevice("cabinet_spots", _light_switch_cap_map(),
+                     {"mirrored": {"power": "1"}, "reachable": True})
+    faked.devices["cabinet_spots"] = dev
+
+    async def handler(d, cmd, params):
+        # Critically: handler does NOT call d._notify(). If the endpoint waited, it would
+        # 503-timeout. The no_op flag must short-circuit that wait.
+        return {
+            "success": True, "device_id": "cabinet_spots", "action": cmd,
+            "state": {}, "data": {"no_op": True},
+        }
+
+    faked.handlers["cabinet_spots"] = handler
+    r = faked.client.post(
+        "/devices/cabinet_spots/canonical",
+        json={"capability": "power", "action": "on"},
+    )
+    assert r.status_code == 200, r.json()
+    body = r.json()
+    assert body["success"] is True
+    # Current state is returned -- still shows mirrored at "1".
+    assert body["state"]["mirrored"] == {"power": "1"}
+
+
+def test_no_op_false_still_waits_for_echo(faked):
+    """Driver result with `data.no_op = False` (real change) must still wait for the
+    echo as before. AV handlers without `no_op` in data take the same path."""
+    dev = FakeDevice("cabinet_spots", _light_switch_cap_map(),
+                     {"mirrored": {}, "reachable": True})
+    faked.devices["cabinet_spots"] = dev
+
+    async def handler(d, cmd, params):
+        # Async echo schedules into the wait window.
+        async def echo():
+            import asyncio as _a
+            await _a.sleep(0.02)
+            d.state.mirrored = {"power": "1"}
+            d._notify()
+        import asyncio as _a
+        _a.create_task(echo())
+        return {
+            "success": True, "device_id": "cabinet_spots", "action": cmd,
+            "state": {}, "data": {"no_op": False},
+        }
+
+    faked.handlers["cabinet_spots"] = handler
+    r = faked.client.post(
+        "/devices/cabinet_spots/canonical",
+        json={"capability": "power", "action": "on"},
+    )
+    assert r.status_code == 200
+    assert r.json()["state"]["mirrored"] == {"power": "1"}
+
+
 # ----- Resolution detail: param_map renames canonical -> native ------------
 
 

@@ -375,6 +375,19 @@ async def execute_canonical_action(device_id: str, payload: CanonicalActionReque
             )
             raise HTTPException(status_code=status, detail=resp.model_dump())
 
+        # No-op short-circuit. WB-passthrough flags `data.no_op = True` when the device is
+        # already at the requested value -- the publish goes out but no echo lands, so
+        # waiting would 503 ("включи свет" when it's already on). Return success with
+        # the current state immediately. AV devices don't set this flag and keep going
+        # through the echo wait as before.
+        if (result.get("data") or {}).get("no_op"):
+            state = device.state.model_dump() if hasattr(device.state, "model_dump") else dict(device.state)
+            return CanonicalActionResponse(
+                success=True, device_id=device_id,
+                capability=payload.capability, action=payload.action,
+                state=state, error=None,
+            )
+
         try:
             await asyncio.wait_for(state_changed.wait(), timeout=CANONICAL_ECHO_TIMEOUT_S)
         except asyncio.TimeoutError:

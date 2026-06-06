@@ -11,6 +11,28 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-06 (§P3.7 #18 follow-up — idempotency: no_op short-circuit for repeat actions)** —
+  Slice gate passed; user immediately exercised the obvious follow-up case (fire the same
+  `power_on` twice). Second call 503'd because wb-mqtt-serial doesn't republish unchanged
+  values, so no echo arrived and the canonical endpoint timed out. The trace was honest:
+  before publishing, state already showed `mirrored={'power': '1'}` from the first call's
+  echo. **Fix**: `WbPassthroughDevice._publish_command` now compares the resolved
+  target payload against `state.mirrored[<matching state_field>]`. When they match the
+  publish still goes out (cheap; keeps the WB layer informed), but the result carries
+  `data.no_op = True`. The canonical endpoint checks the flag right after `perform_action`
+  returns: if set, return success immediately with the current state, skipping the echo
+  wait (which would 503-timeout). AV devices don't set the flag and stay on the existing
+  wait path. `_state_field_for_command` derives the matching mirror field by stripping the
+  `/on` suffix from the command topic and looking it up in `state_topics`. 3 new
+  driver-level tests (mirror-matches → no_op True; real change → no_op False; cold-start
+  unseen mirror → no_op False with documented limitation note) + 2 new canonical-endpoint
+  tests (no_op short-circuits the wait; no_op=False still waits). Full suite 447 passed
+  (was 442, +5). **Known cold-start edge case** (documented in the new test, not yet
+  fixed): if the bridge restarts while the relay is already at the user's target value,
+  the first request after restart still 503s because retained messages are skipped by
+  the MQTT client's main loop, so we don't seed `mirrored` on subscribe and can't detect
+  no_op. Addressed in a later pass (process-retained-on-this-subscription option, or a
+  one-shot poll at setup).
 - **2026-06-06 (§P3.7 slice #18 — DONE; voice integration slice physically validated)** —
   After the bootstrap/MQTT-framework fixes (previous journal entry), the user restarted
   the bridge and re-ran the rack test. **Full trace, in milliseconds**:

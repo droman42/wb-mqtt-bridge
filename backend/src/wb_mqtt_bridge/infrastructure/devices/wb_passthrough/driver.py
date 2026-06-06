@@ -111,6 +111,11 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
         Resolution: a static `value` takes precedence; otherwise the first declared param's
         value (stringified) is the payload. This matches the WB convention (one slider →
         one publish; one switch → one publish).
+
+        Sets `data.no_op = True` when our mirrored snapshot already shows the device at the
+        target value. The canonical endpoint short-circuits its echo wait when it sees that
+        flag — wb-mqtt-serial doesn't republish unchanged values, so the wait would 503
+        out otherwise on idempotent calls ("включи свет" when the light is already on).
         """
         if not self.mqtt_client:
             return self.create_command_result(success=False, error="mqtt_client not available")
@@ -122,6 +127,15 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
                 error=f"could not resolve payload for {cmd_name!r} "
                       f"(no static value AND no param value provided)",
             )
+
+        # Idempotency check BEFORE publishing. If we already see the device at the target
+        # value via the mirror, the publish is a no-op as far as state is concerned -- the
+        # device won't echo, and even if it did, update_state would filter the no-change.
+        # We still publish so the WB layer sees the command (cheap; harmless on relays);
+        # the canonical endpoint reads `no_op` to skip its echo wait.
+        state_field = self._state_field_for_command(cmd_config)
+        current = self.state.mirrored.get(state_field) if state_field else None
+        no_op = current is not None and current == payload
 
         try:
             await self.mqtt_client.publish(cmd_config.topic, payload)
@@ -137,11 +151,30 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
             timestamp=datetime.now(),
             params=dict(params) if params else None,
         ))
+        msg = f"published {payload!r} to {cmd_config.topic}"
+        if no_op:
+            msg += " (no-op: target already reached)"
         return self.create_command_result(
             success=True,
-            message=f"published {payload!r} to {cmd_config.topic}",
-            data={"topic": cmd_config.topic, "payload": payload},
+            message=msg,
+            data={"topic": cmd_config.topic, "payload": payload, "no_op": no_op},
         )
+
+    def _state_field_for_command(
+        self, cmd_config: WbPassthroughCommandConfig
+    ) -> Optional[str]:
+        """The state_topics key whose value-topic this command writes to. WB convention:
+        commands publish to `<value_topic>/on`, so we strip the suffix and look up which
+        state field mirrors that topic. Returns None if the command writes to anything
+        other than a known value topic (e.g. a side-channel command with no echo)."""
+        topic = cmd_config.topic
+        if not topic.endswith("/on"):
+            return None
+        base = topic[:-3]
+        for field, st in self.config.state_topics.items():
+            if st == base:
+                return field
+        return None
 
     @staticmethod
     def _resolve_payload(
