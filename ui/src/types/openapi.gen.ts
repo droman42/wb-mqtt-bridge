@@ -969,6 +969,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/system/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get System Catalog
+         * @description Voice-friendly catalog of devices + rooms (§P3.7 voice-integration slice #17).
+         *
+         *     Flat capability-shaped projection of the whole house for any non-UI consumer
+         *     (Irene first). All locales for both rooms and devices. The response carries a
+         *     `version` (short content hash) so callers can subscribe to retained
+         *     `bridge/catalog/version` MQTT and only re-fetch when it differs from the last
+         *     seen one. Stable independent of insertion order: rooms + devices are sorted by
+         *     id before hashing so the same content always hashes to the same value.
+         *
+         *     NOT the Layer-3 layout manifest -- that one is UI-shaped (panels, sliders,
+         *     positions). The catalog is the contract for capability-aware callers.
+         */
+        get: operations["get_system_catalog_system_catalog_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1373,6 +1403,87 @@ export interface components {
          * @enum {string}
          */
         CanonicalErrorCode: "device_not_found" | "capability_not_supported" | "action_not_supported" | "param_invalid" | "device_unreachable" | "internal_error";
+        /**
+         * CatalogAction
+         * @description A canonical action a device supports under a capability. `params` is `None` for
+         *     parameterless actions (`power.on`, `cover.open`) and a list of param descriptors
+         *     otherwise. Full param introspection (type, min/max, choices, labels) lands with the
+         *     vocab extension (#19); slice 1 only exposes parameterless actions.
+         */
+        CatalogAction: {
+            /** Name */
+            name: string;
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            }[] | null;
+        };
+        /**
+         * CatalogCapability
+         * @description One capability on a device, projected canonical-side. Sensor capabilities use
+         *     `fields` instead of `actions` (read-only; landed in #19+ for sensor devices).
+         */
+        CatalogCapability: {
+            /** Actions */
+            actions?: components["schemas"]["CatalogAction"][] | null;
+            /** Fields */
+            fields?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Name */
+            name: string;
+        };
+        /**
+         * CatalogDevice
+         * @description A device in the catalog. `room` is the device's single room (per the §P3.7
+         *     single-room model), `null` for devices whose room isn't set yet (most existing
+         *     AV gear until they're voice-onboarded).
+         */
+        CatalogDevice: {
+            /** Capabilities */
+            capabilities?: components["schemas"]["CatalogCapability"][];
+            /** Device Class */
+            device_class: string;
+            /** Id */
+            id: string;
+            /** Names */
+            names: {
+                [key: string]: string;
+            };
+            /** Room */
+            room?: string | null;
+        };
+        /**
+         * CatalogResponse
+         * @description Response for `GET /system/catalog`. `version` is a deterministic short hash of
+         *     the {rooms, devices} content -- the same payload always hashes to the same value,
+         *     so Irene can subscribe to the retained `bridge/catalog/version` MQTT topic (bumped
+         *     on `/reload` + config change) and only re-fetch when it differs from the last
+         *     seen one.
+         */
+        CatalogResponse: {
+            /** Devices */
+            devices: components["schemas"]["CatalogDevice"][];
+            /** Rooms */
+            rooms: components["schemas"]["CatalogRoom"][];
+            /** Version */
+            version: string;
+        };
+        /**
+         * CatalogRoom
+         * @description A room in the catalog. `devices` is the room's authored membership list
+         *     (from `rooms.json`).
+         */
+        CatalogRoom: {
+            /** Devices */
+            devices?: string[];
+            /** Id */
+            id: string;
+            /** Names */
+            names: {
+                [key: string]: string;
+            };
+        };
         /**
          * CommandParameterDefinition
          * @description Schema for command parameter definition.
@@ -3560,6 +3671,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SystemInfo"];
+                };
+            };
+        };
+    };
+    get_system_catalog_system_catalog_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogResponse"];
                 };
             };
         };
