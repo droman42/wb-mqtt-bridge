@@ -331,6 +331,82 @@ Slice total: ~3-4 dev days + a rack/Irene verification pass.
 
 Bulk total: ~7-10 dev days.
 
+**Pre-work findings — A1 (2026-06-06)**
+
+Slice concrete artifacts — ready for #13 (driver) / #14 (config) / #15 (canonical endpoint) to
+consume. Test room: **cabinet** (where the user works; observation closes the loop).
+
+Three files to author for the slice:
+- `backend/config/devices/cabinet_spots.json` — WB-passthrough device config
+- `backend/config/capabilities/devices/cabinet_spots.json` — canonical→native map (shape per
+  existing `config/capabilities/devices/*.json` convention)
+- `backend/config/rooms.json` — extend with `cabinet` + `global`
+
+**`cabinet_spots.json`** (WB-passthrough driver consumes this):
+
+```json
+{
+  "device_id": "cabinet_spots",
+  "device_class": "WbPassthroughDevice",
+  "names": {"ru": "Споты", "en": "Spots"},
+  "rooms": ["cabinet", "global"],
+  "commands": {
+    "power_on":  {"topic": "/devices/wb-mr6c_51/controls/K4/on", "value": "1"},
+    "power_off": {"topic": "/devices/wb-mr6c_51/controls/K4/on", "value": "0"}
+  },
+  "state_topics": {
+    "power": "/devices/wb-mr6c_51/controls/K4"
+  },
+  "error_topic": "/devices/wb-mr6c_51/meta/error"
+}
+```
+
+The `error_topic` shape is the working assumption; **A3 verifies the actual name on the live
+broker before code lands** — it's the last open pre-work step.
+
+**Capability map** maps canonical `power.on/off` → native `power_on/power_off` (one
+two-action entry per the existing convention). The two-capability composite shape (lights
+with paired brightness) gets exercised in slice 2 / bulk; slice 1 stays pure-`power`.
+
+**`rooms.json` additions**:
+
+```json
+[
+  {"id": "cabinet", "names": {"ru": "Кабинет", "en": "Study"},
+   "devices": ["cabinet_spots"]},
+  {"id": "global",  "names": {"ru": "Весь дом", "en": "Whole House"},
+   "devices": ["cabinet_spots"]}
+]
+```
+
+`cabinet_spots` opts into `global` from day one. A single-device `global` is meaningless in
+isolation, but the 1-line addition exercises the **multi-room device-membership schema** on
+the slice (instead of waiting until bulk to discover schema problems) and lets bulk lights
+join the same `global` without reshaping rooms.json.
+
+**Names: bilingual from day one** (`names: {ru, en}`), per the contract's all-locales rule.
+Slice authoring uses ru = WB-UI verbatim, en = natural home-context renderings: `Споты` =
+Spots, `Кабинет` = Study, `Весь дом` = Whole House. Adjust before #16 (the AV-configs
+migration) if other en preferences exist (Office / Spotlights / …).
+
+**Voice command the slice proves**: «включи свет в кабинете» / «включи споты»
+(en: "turn on the study lights" / "turn on the spots").
+
+**Validation steps for #18 (e2e at the rack, user observes from the cabinet)**:
+
+1. `POST /devices/cabinet_spots/canonical {capability:"power", action:"on"}` → 200 within
+   500 ms with `state: {power: "on"}`.
+2. Spots physically on (observable).
+3. Bridge subscription receives the value-topic echo on
+   `/devices/wb-mr6c_51/controls/K4` → `update_state` runs the persist + SSE callbacks but
+   **NOT** the WB-publish callback (loop guard verified by checking the broker for no
+   bridge-originated echo back to the same topic).
+4. `POST … action:"off"` → reverse, same path.
+5. Independent wb-rules write to `/devices/wb-mr6c_51/controls/K4/on` (or the user flipping
+   the wall switch if wired) → bridge mirrors the new state without re-publishing.
+
+**Pre-work A1 status: DONE.** Only A3 remains before code on the slice starts.
+
 **Pre-work findings — A2 (2026-06-06)**
 
 **WB HomeUI config located**: `/etc/wb-webui.conf` → `/mnt/data/etc/wb-webui.conf` (860 KB
@@ -580,6 +656,7 @@ The dated history lives in **[`docs/action_plan_journal.md`](action_plan_journal
 
 **Recent entries** (newest first; full content + earlier entries in the journal):
 
+- 2026-06-06 — A1 — slice artifacts nailed for cabinet_spots (room: cabinet)
 - 2026-06-06 — A2 — WB HomeUI config located + composite-control patterns documented
 - 2026-06-06 — voice integration contract agreed + new §P3.7 HIGH-PRIORITY phase
 - 2026-05-30 — eMotiva rack pass + 2 sibling-library handoffs + LG TV silent-WS-death fix + HDMI ARC scenario

@@ -11,6 +11,23 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-06 (A1 — slice artifacts nailed for cabinet_spots)** — Concrete-ed Step A1 of
+  the §P3.7 voice-onboarding pre-work. Test room: **cabinet** (where the user works —
+  physical observation closes the slice verification loop). Three files locked for slice
+  authoring: `backend/config/devices/cabinet_spots.json` (WB-passthrough config; explicit
+  topics — write `/devices/wb-mr6c_51/controls/K4/on`, value mirror
+  `/devices/wb-mr6c_51/controls/K4`, error `…/meta/error` placeholder pending A3),
+  `backend/config/capabilities/devices/cabinet_spots.json` (canonical `power.on/off` →
+  native `power_on/power_off`), and a `rooms.json` extension adding `cabinet` + `global`.
+  **Names bilingual from day one** per the contract's all-locales rule: ru = WB-UI verbatim
+  (Споты / Кабинет / Весь дом), en = natural home-context renderings (Spots / Study / Whole
+  House). `cabinet_spots` opts into `global` from day one so the multi-room schema gets
+  exercised on the slice. Slice voice command: «включи свет в кабинете» / «включи споты».
+  Validation steps for #18 written into §P3.7 (5-step rack walk: canonical POST → 500 ms
+  response → physical observation → value-echo subscription updates state without
+  WB-publish-loop → reverse). Pre-work status: **A1 + A2 done; only A3 (verify
+  `wb-mqtt-serial`'s actual per-device error topic shape on the live broker) remains**
+  before #13 starts.
 - **2026-06-06 (A2 — WB HomeUI config located + composite-control patterns documented)** —
   Resolved Step A2 of the §P3.7 voice-onboarding pre-work. Located the WB HomeUI dashboard
   config at `/etc/wb-webui.conf` → `/mnt/data/etc/wb-webui.conf` (860 KB JSON). 10 real rooms
