@@ -1044,11 +1044,6 @@ export interface components {
              * @default null
              */
             total_time: number | null;
-            /**
-             * Volume
-             * @default null
-             */
-            volume: number | null;
         };
         /**
          * AuralicDeviceState
@@ -1191,14 +1186,14 @@ export interface components {
             device_class: string;
             /** Device Id */
             device_id: string;
-            /** Device Name */
-            device_name: string;
             /**
              * Enable Wb Emulation
              * @description Enable Wirenboard virtual device emulation
              * @default true
              */
             enable_wb_emulation: boolean;
+            /** @description Bilingual display name; see LocalizedName. */
+            names: components["schemas"]["LocalizedName"];
             /**
              * Wb Controls
              * @description Custom Wirenboard control definitions
@@ -1695,6 +1690,21 @@ export interface components {
              * @default null
              */
             volume: number | null;
+        };
+        /**
+         * LocalizedName
+         * @description Bilingual display name for a device or room. `ru` + `en` required; additional locales
+         *     accepted (e.g. `de`, `fr`) and surfaced as-is via the catalog. Lives on `BaseDeviceConfig`
+         *     as `names` (replacing the previous flat `device_name`). Per §P3.7 voice-integration
+         *     contract: every entity carries names in every locale the catalog supports.
+         */
+        LocalizedName: {
+            /** En */
+            en: string;
+            /** Ru */
+            ru: string;
+        } & {
+            [key: string]: unknown;
         };
         /** MQTTBrokerConfigResponse */
         MQTTBrokerConfigResponse: {

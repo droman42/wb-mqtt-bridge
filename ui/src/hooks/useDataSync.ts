@@ -2,10 +2,11 @@ import { useEffect } from 'react';
 import { useRoomStore } from '../stores/useRoomStore';
 import { useRooms, useAllDeviceConfigs, useScenarios } from './useApi';
 
-// Type for device configuration from the API
+// Type for device configuration from the API. `names` is the bilingual display name
+// (LocalizedName on the backend); see §P3.7 voice-integration contract.
 interface DeviceConfig {
   device_id: string;
-  device_name: string;
+  names: { ru: string; en: string; [locale: string]: string };
   room_id?: string;
   device_class?: string;
   config_class?: string;
@@ -62,8 +63,8 @@ export const useDataSync = () => {
         return {
           id: deviceId,
           name: {
-            en: config.device_name || deviceId,
-            ru: config.device_name || deviceId,
+            en: config.names?.en || deviceId,
+            ru: config.names?.ru || deviceId,
           },
           roomId: roomId, // Use the mapped room ID
           type: config.device_class || 'unknown',
