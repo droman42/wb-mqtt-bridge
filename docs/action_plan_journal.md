@@ -11,6 +11,31 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-06 (§P3.7 slice #18 — DONE; voice integration slice physically validated)** —
+  After the bootstrap/MQTT-framework fixes (previous journal entry), the user restarted
+  the bridge and re-ran the rack test. **Full trace, in milliseconds**:
+  `15:39:57.496 POST /devices/cabinet_spots/canonical {capability:"power", action:"on"}`
+  → bridge publishes `1` to `/devices/wb-mr6c_51/controls/K4/on` →
+  `15:39:57.501 echo `1` received on /devices/wb-mr6c_51/controls/K4` (round-trip
+  publish→echo: **5 ms**, well under the 500 ms canonical-endpoint budget) →
+  `15:39:57.502 update_state(mirrored={'power': '1'}, error_flags={}, reachable=True)` →
+  state-change callback chain fires (persistence + the canonical endpoint's one-shot
+  waiter) → `15:39:57.502 HTTP/1.1 200 OK`. Relay physically clicked; the user observed
+  the cabinet spots come on. The full chain — voice contract → canonical endpoint → WB
+  publish → wb-mqtt-serial → physical relay → value-topic echo → bridge subscription →
+  update_state → callback chain → 200 OK with post-state — is end-to-end live. The
+  chokepoint suppressed the `last_command`-only updates as designed (the inner
+  `_publish_command` update and the outer `perform_action` wrap), so the waiter only
+  fired on the meaningful `mirrored` echo. **§P3.7 slice #18 is DONE.** The voice
+  integration vertical slice is feature-complete on the bridge side AND validated against
+  real hardware — the slice gate is crossed. Irene ARCH-8 sign-off remains the only
+  external dependency to close out the slice formally; once Irene is on the controller
+  the same POST works against the live bridge with zero further changes here. **Slice
+  totals**: 6 slice tasks (#13/#14/#15/#16/#17/#18) + 3 pre-work items
+  (A1/A2/A3) + 2 mid-slice corrections (single-room model + capability-profile
+  mechanism) + 2 bug fixes (the bootstrap/MQTT-subscribe wiring), all done in a single
+  session. Suite stayed green at 442 throughout. Hexagonal LAW held end-to-end. Next
+  major work: §P3.7 bulk (#19-#24), starting whenever the user is ready.
 - **2026-06-06 (§P3.7 #18 first rack run -- two-prong subscription wiring bug + fix)** —
   User exercised the slice at the rack with the real WB-MR6c at slave 51 channel K4. The
   relay clicked on POST `/devices/cabinet_spots/canonical` (publish out worked) but the
