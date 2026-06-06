@@ -11,6 +11,28 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-06 (A3 — wb-mqtt-serial error topic convention nailed; all pre-work DONE)** —
+  Closed the last pre-work item for §P3.7's slice. Verified on the live broker AND
+  cross-checked against the Wirenboard MQTT-conventions spec
+  (`github.com/wirenboard/conventions`): errors are **per-CONTROL**, not per-device as the
+  contract initially assumed. Topic: `/devices/{dev}/controls/{ctrl}/meta/error`, retained
+  when present, **absent when healthy**. Payload = combinable single-char codes — `r` = read
+  error / device reports an error, `w` = write error, `p` = read period miss; compound
+  payloads possible (`rw`, `rwp`). Three live `r` samples seen on the broker
+  (`wb-msw2_100/Buzzer`, `dooya_0x0101/Position`, `dooya_0x0102/Position`); slice slave
+  `wb-mr6c_51/K4` has no error topic at all = healthy. Clearing semantics per spec: after a
+  successful read the `r` flag is removed BEFORE the new good value is published (value +
+  flag stay consistent); the `w` flag clears only on a successful write. Device-level
+  `/devices/{dev}/meta/error` is also defined by the convention but isn't populated on this
+  controller from per-control errors — the per-control topic is the authoritative signal.
+  **Bridge wiring tightened**: WB-passthrough driver derives error topics **automatically**
+  from each `state_topic` (subscribes to `<state_topic>/meta/error`) and additionally to the
+  device-level topic for each unique device id — no explicit `error_topic` field in the
+  device config. A1's `cabinet_spots.json` example updated to drop the `error_topic`
+  placeholder that was a stand-in pending A3. Contract draft tightened in two places (write
+  semantics + pillar C.1 subscription rule) to say "per-control `meta/error`" with a
+  reference to A3. Documented in §P3.7 as a "Pre-work findings — A3" sub-section.
+  **All pre-work A1+A2+A3 done; #13 (WB-passthrough driver skeleton) can start.**
 - **2026-06-06 (A1 — slice artifacts nailed for cabinet_spots)** — Concrete-ed Step A1 of
   the §P3.7 voice-onboarding pre-work. Test room: **cabinet** (where the user works —
   physical observation closes the slice verification loop). Three files locked for slice

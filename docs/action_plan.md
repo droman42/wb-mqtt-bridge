@@ -356,13 +356,13 @@ Three files to author for the slice:
   },
   "state_topics": {
     "power": "/devices/wb-mr6c_51/controls/K4"
-  },
-  "error_topic": "/devices/wb-mr6c_51/meta/error"
+  }
 }
 ```
 
-The `error_topic` shape is the working assumption; **A3 verifies the actual name on the live
-broker before code lands** — it's the last open pre-work step.
+No explicit error topic field: per A3 below, errors are per-CONTROL and the WB-passthrough
+driver subscribes to `<state_topic>/meta/error` automatically for every state mirror. No
+authoring needed.
 
 **Capability map** maps canonical `power.on/off` → native `power_on/power_off` (one
 two-action entry per the existing convention). The two-capability composite shape (lights
@@ -405,7 +405,42 @@ migration) if other en preferences exist (Office / Spotlights / …).
 5. Independent wb-rules write to `/devices/wb-mr6c_51/controls/K4/on` (or the user flipping
    the wall switch if wired) → bridge mirrors the new state without re-publishing.
 
-**Pre-work A1 status: DONE.** Only A3 remains before code on the slice starts.
+**Pre-work A1 status: DONE.**
+
+**Pre-work findings — A3 (2026-06-06)**
+
+**WB convention verified on the live broker + against the Wirenboard MQTT-conventions spec
+(github.com/wirenboard/conventions).** Errors are **per-control, not per-device**:
+
+- **Topic**: `/devices/{dev}/controls/{ctrl}/meta/error` — retained when present, absent when
+  healthy. The slice slave's `wb-mr6c_51/K4` has no `meta/error` topic at all → healthy.
+- **Payload**: single-character codes that combine — `r` = read error / device reports an
+  error, `w` = write error, `p` = read period miss. Compound payloads are possible (e.g.
+  `rw`, `rwp`). Live samples observed: three controls currently flagged `r`
+  (`wb-msw2_100/Buzzer`, `dooya_0x0101/Position`, `dooya_0x0102/Position`).
+- **Clearing semantics** (per spec): after a successful read, the `r` flag is removed and
+  THEN the new good value is published — value-topic and error-flag are kept consistent. The
+  `w` flag is removed only after a successful write.
+- A **device-level `/devices/{dev}/meta/error`** is also defined by the convention but isn't
+  populated on this controller from per-control errors; the per-control topic is the
+  authoritative signal we'll subscribe to. The driver subscribes to the device-level topic
+  too as a cheap redundant signal.
+
+**Bridge wiring** (refines the §P3.7 pillar-A bullet — same idea, sharper shape):
+
+- The WB-passthrough driver **derives error topics from `state_topics` automatically** — for
+  every `state_topic` `/devices/X/controls/Y` the driver subscribes to
+  `/devices/X/controls/Y/meta/error`. **No explicit error field in the device config.**
+- The driver also subscribes to `/devices/{dev}/meta/error` for each unique device id seen in
+  `commands` or `state_topics`.
+- Any non-empty payload on a capability's monitoring error topic marks that capability —
+  and consequently the device — `device_unreachable` for canonical-endpoint purposes.
+
+**Net config impact**: A1's `cabinet_spots.json` example (above) now drops the
+`error_topic` field; the driver does the work.
+
+**Pre-work A3 status: DONE.** All three pre-work items (A1 + A2 + A3) resolved; #13 can
+start.
 
 **Pre-work findings — A2 (2026-06-06)**
 
@@ -656,6 +691,7 @@ The dated history lives in **[`docs/action_plan_journal.md`](action_plan_journal
 
 **Recent entries** (newest first; full content + earlier entries in the journal):
 
+- 2026-06-06 — A3 — wb-mqtt-serial error topic convention nailed (per-control, `r`/`w`/`p`); all pre-work DONE
 - 2026-06-06 — A1 — slice artifacts nailed for cabinet_spots (room: cabinet)
 - 2026-06-06 — A2 — WB HomeUI config located + composite-control patterns documented
 - 2026-06-06 — voice integration contract agreed + new §P3.7 HIGH-PRIORITY phase

@@ -79,9 +79,10 @@ existing capability map → native command + `param_map` rename → the current 
 **Write semantics — synchronous with timeout.** After the bridge publishes the underlying
 command, it waits for the device's value-topic echo (default **500 ms**, configurable per
 driver) before returning. The response contains the post-action state. On timeout →
-`device_unreachable`. `wb-mqtt-serial`'s per-device error topic is the deterministic
-complement: subscribing to it makes "device offline" detection immediate rather than
-timeout-bound. Long-running actions (covers / curtains take seconds) can declare a larger
+`device_unreachable`. `wb-mqtt-serial`'s per-control `…/meta/error` topics are the
+deterministic complement: subscribing to them makes "device offline" detection immediate
+rather than timeout-bound (verified A3 — payload is combinable single chars `r` / `w` / `p`,
+retained when present, absent when healthy). Long-running actions (covers / curtains take seconds) can declare a larger
 timeout at the driver level.
 
 ## B. Catalog read surface
@@ -146,10 +147,12 @@ wb-rules / wb-mqtt-serial keep all rule/automation logic. The bridge does not re
 about rules. For each native control the bridge represents, it:
 
 - **Writes** to `…/controls/{ctrl}/on` when the canonical endpoint is called.
-- **Subscribes** to `…/controls/{ctrl}` (value topic) and to `wb-mqtt-serial`'s per-device
-  `…/meta/error` (or equivalent) for offline detection. Every change — whether the bridge
-  wrote it, wb-rules wrote it, HomeUI wrote it, or a physical switch flipped it — flows into
-  `BaseDevice.update_state` (the existing state-sync chokepoint).
+- **Subscribes** to `…/controls/{ctrl}` (value topic) and to the matching per-control
+  `…/controls/{ctrl}/meta/error` (Wirenboard MQTT convention; combinable single-char codes
+  `r` / `w` / `p`, retained when present, absent when healthy — see action_plan §P3.7 A3 for
+  the verified shape). Every value change — whether the bridge wrote it, wb-rules wrote it,
+  HomeUI wrote it, or a physical switch flipped it — flows into `BaseDevice.update_state`
+  (the existing state-sync chokepoint).
 
 **Loop guard.** For bridge-OWNED virtual devices, `update_state` triggers a callback that
 publishes back to the virtual-device value topic. For WB-passthrough devices the bridge is
