@@ -11,6 +11,24 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-06 (§P3.7 #18 follow-up #2 — AV-driver instantiation regression + fix + signature test)** —
+  Previous bootstrap fix added `wb_service=self._wb_service` to the device-class
+  constructor call in `DeviceManager.initialize_devices`. `BaseDevice.__init__` accepts
+  `wb_service`, but all 7 AV driver subclasses override `__init__` with the narrower
+  `(config, mqtt_client=None)` signature. Result: every AV device TypeError'd at
+  instantiation; the bridge booted with **only `cabinet_spots`** registered (the
+  WB-passthrough driver does accept it). The two test fakes I'd widened to match (with
+  `wb_service=None`) masked the production breakage. **Fix**: removed `wb_service=` from
+  the constructor call. AV drivers keep receiving `wb_service` via the existing
+  attribute-setter loop in bootstrap (`device.wb_service = wb_service`);
+  `WbPassthroughDevice` doesn't need it at construction (its
+  `enable_wb_emulation=False` skips the BaseDevice path that uses it). **Regression
+  test**: new `tests/unit/test_device_class_init_signatures.py` walks every driver
+  registered via the `wb_mqtt_bridge.devices` entry-point group and asserts each accepts
+  the kwargs `DeviceManager.initialize_devices` passes (currently
+  `{"mqtt_client"}` -- one place to update when the call signature changes). Catches
+  this whole class of regression at unit-test time instead of when the bridge boots with
+  fewer devices than authored. Full suite 448 passed (was 447, +1).
 - **2026-06-06 (§P3.7 #18 follow-up — idempotency: no_op short-circuit for repeat actions)** —
   Slice gate passed; user immediately exercised the obvious follow-up case (fire the same
   `power_on` twice). Second call 503'd because wb-mqtt-serial doesn't republish unchanged

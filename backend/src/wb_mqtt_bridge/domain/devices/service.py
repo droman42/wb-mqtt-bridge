@@ -125,11 +125,17 @@ class DeviceManager:
                     continue
                 
                 # Instantiate the device with typed configuration AND the already-constructed
-                # mqtt_client / wb_service so `setup()` can register MQTT subscriptions on
-                # behalf of the device (the WB-passthrough state_topic mirroring path).
-                # AV drivers ignore these in setup(); WB-passthrough subscribes via them.
+                # `mqtt_client` so `setup()` can register MQTT subscriptions on behalf of
+                # the device (the WB-passthrough state_topic mirroring path). AV drivers
+                # ignore mqtt_client in setup(); WB-passthrough subscribes via it.
+                # `wb_service` is deliberately NOT passed here -- the existing AV driver
+                # subclasses override __init__ with `(config, mqtt_client=None)` and don't
+                # accept it. Bootstrap assigns `device.wb_service = wb_service` after this
+                # loop via the existing attribute-setter pattern; WbPassthroughDevice
+                # doesn't need wb_service at construction (its `enable_wb_emulation=False`
+                # skips the BaseDevice path that uses it).
                 try:
-                    device = device_class(config, mqtt_client=self._mqtt_client, wb_service=self._wb_service)
+                    device = device_class(config, mqtt_client=self._mqtt_client)
                 except Exception as e:
                     logger.error(f"Failed to instantiate device {device_id} of type {device_class_name}: {str(e)}")
                     continue
