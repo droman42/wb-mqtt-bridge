@@ -560,3 +560,16 @@ class TvActionType(str, Enum):
     MOVE_CURSOR_RELATIVE = "move_cursor_relative"
     CLICK = "click"
     WAKE_ON_LAN = "wake_on_lan" 
+
+class WbPassthroughState(BaseDeviceState):
+    """Runtime state for a WB-passthrough device.
+
+    `mirrored` carries the last value seen on each subscribed value topic (keyed by the
+    state-field name from `state_topics`). `reachable` flips False as soon as ANY state
+    topic's per-control `meta/error` carries an `r` flag (Wirenboard MQTT convention --
+    see §P3.7 A3); `error_flags` records the raw per-field flag string so callers can see
+    which control(s) are sick.
+    """
+    mirrored: Dict[str, str] = Field(default_factory=dict)
+    reachable: bool = True
+    error_flags: Dict[str, str] = Field(default_factory=dict)

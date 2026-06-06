@@ -133,6 +133,52 @@ class IRCommandConfig(BaseCommandConfig):
     location: str = Field(..., description="IR blaster location identifier")
     rom_position: str = Field(..., description="ROM position for the IR code")
 
+
+class WbPassthroughCommandConfig(BaseCommandConfig):
+    """Command on a WB-passthrough device — publishes to a Wirenboard control topic.
+
+    For parameter-less commands declare a static `value` (e.g. `"1"` for power_on).
+    For parameter-carrying commands omit `value` and declare `params` via the inherited
+    BaseCommandConfig.params: the driver renders the first param's value as the payload
+    (matches the WB convention — one slider → one publish). See §P3.7 A1 for the slice
+    `cabinet_spots.json` example.
+    """
+    topic: str = Field(..., description="MQTT topic to publish to (typically `/devices/<wb-device>/controls/<control>/on`).")
+    value: Optional[str] = Field(None, description="Static payload published verbatim. Omit when `params` is set.")
+
+
+class WbPassthroughDeviceConfig(BaseDeviceConfig):
+    """Configuration for a generic Wirenboard-passthrough device.
+
+    The bridge is NOT the owner of the underlying WB control — wb-mqtt-serial (and any
+    wb-rules acting through it) is. This device class mirrors the control's state by
+    subscribing to its value topic AND its per-control `meta/error` topic (Wiren Board
+    MQTT convention — see §P3.7 A3), and writes by publishing to the same `/on` topic
+    when a canonical action lands. `enable_wb_emulation` defaults to False so the bridge
+    skips its own WB virtual-device registration — that's the loop guard: no
+    state-change callback re-publishes to the value topic (else we'd feedback-loop with
+    the real device).
+    """
+    enable_wb_emulation: bool = Field(False, description="Passthrough mirrors, never owns. Override only with care.")
+    commands: Dict[str, WbPassthroughCommandConfig] = Field(default_factory=dict)
+    state_topics: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Map of state-field name → MQTT value topic to subscribe to. The driver mirrors "
+                    "each topic's payload into `state.mirrored[name]` and subscribes to "
+                    "`<topic>/meta/error` for the per-control error flag (`r`/`w`/`p`).",
+    )
+
+    @classmethod
+    def process_commands(cls, commands_data: Dict[str, Dict[str, Any]]) -> Dict[str, WbPassthroughCommandConfig]:
+        processed: Dict[str, WbPassthroughCommandConfig] = {}
+        for cmd_name, cmd_config in commands_data.items():
+            if not isinstance(cmd_config, dict):
+                raise ValueError(f"Command {cmd_name} has invalid format, must be a dictionary")
+            if "topic" not in cmd_config:
+                raise ValueError(f"WB-passthrough command {cmd_name} missing required field: topic")
+            processed[cmd_name] = WbPassthroughCommandConfig(**cmd_config)
+        return processed
+
 # Device-specific parameter models
 class RevoxA77ReelToReelParams(BaseModel):
     """Parameters specific to Revox A77 Reel-to-Reel device."""

@@ -65,6 +65,13 @@ class BaseDeviceConfig(BaseModel):
     """Base schema for device configuration."""
     device_id: str
     names: LocalizedName = Field(..., description="Bilingual display name; see LocalizedName.")
+    rooms: List[str] = Field(
+        default_factory=list,
+        description="Room ids the device belongs to (matches `rooms.json`). Multi-room allowed; "
+                    "the `global` room is opt-in for 'выключи всё'-style commands. Empty list "
+                    "for AV gear that doesn't yet live in a room (gets populated during bulk "
+                    "onboarding, §P3.7 #21).",
+    )
     device_category: DeviceCategory = Field(DeviceCategory.DEVICE, description="The category of the device (e.g., 'device' or 'appliance')")
     # New required fields for dynamic class loading
     device_class: str = Field(..., description="The device implementation class name (e.g., 'LgTv')")

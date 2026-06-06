@@ -518,6 +518,14 @@
             "$ref": "#/components/schemas/LocalizedName",
             "description": "Bilingual display name; see LocalizedName."
           },
+          "rooms": {
+            "description": "Room ids the device belongs to (matches `rooms.json`). Multi-room allowed; the `global` room is opt-in for 'выключи всё'-style commands. Empty list for AV gear that doesn't yet live in a room (gets populated during bulk onboarding, §P3.7 #21).",
+            "items": {
+              "type": "string"
+            },
+            "title": "Rooms",
+            "type": "array"
+          },
           "wb_controls": {
             "anyOf": [
               {
