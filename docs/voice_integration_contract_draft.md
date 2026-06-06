@@ -1,130 +1,245 @@
-# Voice integration — contract draft (from the Irene side)
+# Voice integration — agreed contract (bridge ↔ Irene)
 
-**Status:** DRAFT, written 2026-06-06 from the **Irene voice-assistant** design session (sister repo
-`wb-mqtt-voice`, task ARCH-7). This is a **request for discussion**, not a spec — it states what the
-voice assistant needs *from* wb-mqtt-bridge, so the bridge session can decide feasibility, placement,
-and shape. The Irene-side design is in `wb-mqtt-voice/docs/design/mqtt_integration.md`.
+**Status:** AGREED 2026-06-06 — reconciled in the bridge session with the user. Originated as a
+draft from the **Irene voice-assistant** design session (sister repo `wb-mqtt-voice`, task
+ARCH-7); see prior revision in git history for the open-question form. This is the contract
+Irene's ARCH-8 implementation builds against
+(`wb-mqtt-voice/docs/design/mqtt_integration.md` §10 — blocked on it).
 
-> Same author, two projects. The strategic decision (made on the Irene side, with the user) is:
-> **wb-mqtt-bridge becomes the single authoritative device catalog + actuation backend for the whole
-> house — native Wirenboard gear *and* the AV devices it already bridges — and Irene talks only to the
-> bridge.** Irene owns voice; the bridge owns devices and all MQTT/home-automation conventions.
+> Same author, two projects. The strategic decision is:
+> **wb-mqtt-bridge becomes the single authoritative device catalog + actuation backend for the
+> whole house — native Wirenboard gear *and* the AV devices it already bridges — and Irene
+> talks only to the bridge.** Irene owns voice; the bridge owns devices and all
+> MQTT/home-automation conventions. wb-rules retains all rule/automation logic on the
+> controller (unchanged); the bridge MIRRORS native control state by subscribing to MQTT value
+> topics. Two writers (bridge + wb-rules), one truth (the broker).
 
 ---
 
 ## 0. Why this lands on the bridge
 
-The real deployment is one Wirenboard 7 controller that is both the MQTT broker and the home. Its
-broker carries the whole house under `/devices/{dev}/controls/{ctrl}`:
+The real deployment is one Wirenboard 7 controller that is both the MQTT broker and the home.
+Its broker carries the whole house under `/devices/{dev}/controls/{ctrl}`:
 
-- **Native WB gear** (managed by `wb-mqtt-serial` + `wb-rules`, *not* in this bridge today): lights &
-  dimmers (`wb-mr6c`, `wb-mdm3`, `wb-mrgbw-d`), curtains (`dooya`), HVAC, room multi-sensors
-  (`wb-msw-v3`), metering, leak.
-- **This bridge's virtual devices** (AV gear without native WB support): TVs, Apple TVs, eMotiva.
+- **Native WB gear** (managed by `wb-mqtt-serial` + `wb-rules`, *not* in this bridge today):
+  lights & dimmers (`wb-mr6c`, `wb-mdm3`, `wb-mrgbw-d`), curtains (`dooya`), HVAC, room
+  multi-sensors (`wb-msw-v3`), metering, leak.
+- **This bridge's virtual devices** (AV gear without native WB support): TVs, Apple TVs,
+  eMotiva.
 
 The voice assistant rejected talking to the raw broker directly (it would re-implement the
-device/capability/room model this bridge already has, against a semantically poor topic tree). Instead
-it consumes **this bridge** as the one normalized, capability-mapped, room-aware authority. That makes
-the voice side thin and convention-agnostic — but it asks three things of the bridge.
+device/capability/room model this bridge already has, against a semantically poor topic tree).
+Instead it consumes **this bridge** as the one normalized, capability-mapped, room-aware
+authority. That makes the voice side thin and convention-agnostic.
 
-## The ask, in one list
+## The contract, in three pillars
 
-- **A. A canonical action endpoint** — so callers speak `capability.action(params)`, not native
-  command names (the capability→native translation already exists internally; expose it on the input
-  path).
-- **B. A voice-friendly catalog read surface** — devices + rooms (with ru names) + per-device
-  capabilities + param schemas, pullable at startup.
-- **C. Onboard the native WB devices** — the bulk of the work; this bridge currently only models the
-  AV gear.
+- **A. Canonical action endpoint** — callers speak `capability.action(params)`, not native
+  command names. The capability→native translation already exists internally (the reconciler);
+  this exposes it on the input path.
+- **B. Voice-friendly catalog read surface** — devices + rooms + per-device capabilities +
+  param schemas, **all locales**, pullable at startup with an MQTT dirty-nudge for refresh.
+- **C. Onboard the native WB devices** — the bulk of the work; this bridge currently only
+  models the AV gear. Includes a generic WB-passthrough driver, capability adapters for
+  composite controls, and the wb-rules / bridge mirror boundary.
 
 ---
 
-## A. Canonical action endpoint (new)
+## A. Canonical action endpoint
 
-**Today:** `POST /devices/{device_id}/action {action, params}` takes a **native** command name
-(`set_volume`, `power_on`, …). The capability map (`config/capabilities/…`, canonical
-`volume.set` → native `set_volume`) is **internal-only** — used for UI/scenario rendering, not exposed
-on the action input path.
-
-**Why voice wants canonical:** "сделай громче" should map the *same way* for a TV, a processor, and an
-Apple TV — to `volume.up` — regardless of each device's native command name. A canonical vocabulary
-(`power`, `volume`, `input`, `playback`, `menu`, …) keeps the voice NLU per-**capability** (uniform)
-instead of per-device. The bridge already owns canonical↔native (the reconciler); voice just needs it
-on the wire.
-
-**Proposed shape** (illustrative — the bridge session decides the real path/DTO):
+**Path & DTO** — mirrors the existing `POST /devices/{id}/action` shape, swapping native
+command name for canonical `(capability, action)`:
 
 ```
-POST /devices/{device_id}/capability/{capability}/{action}
-  body: { "params": { "level": 50 } }
-  200:  { "success": true, "device_id": "...", "capability": "volume",
-          "action": "set", "state": { ... }, "error": null }
+POST /devices/{device_id}/canonical
+  body: { "capability": "volume", "action": "set", "params": { "level": 50 } }
+  200:  { "success": true,
+          "device_id": "lg_tv", "capability": "volume", "action": "set",
+          "state": { ... },        // post-action device state
+          "error": null }
+  4xx/5xx: { "success": false, "device_id": "lg_tv",
+             "error": { "code": "param_invalid", "message": "...",
+                        "field": "level", "reason": "out_of_range" } }
 ```
 
-Internally: resolve `(device, capability, action)` through the existing capability map → native
-command + param rename (`param_map`) → the current action path. Essentially a thin canonical façade
-over `perform_action`.
+Implementation: thin façade over `perform_action`. Resolve `(capability, action)` through the
+existing capability map → native command + `param_map` rename → the current action path.
 
-**Error semantics matter for spoken feedback.** Irene speaks the result, so it needs to distinguish:
-device/capability/action unknown · param out of range/missing · device unreachable · success. A
-structured `error` (code + message) beats a bare 500.
+**Error code enum.** Body always carries `error.code`; HTTP status mirrors it:
 
-Open: device-vs-room addressing (does voice always resolve to a `device_id` first, or is there a
-room-scoped command like "turn off the living room"?). Irene can resolve room→device itself from the
-catalog (B), so a per-device endpoint is sufficient for v1; room/group actions could come later.
+| Code | HTTP | Meaning |
+|---|---|---|
+| `device_not_found` | 404 | `device_id` unknown to the bridge |
+| `capability_not_supported` | 404 | device doesn't expose this capability |
+| `action_not_supported` | 404 | capability exists but not this action |
+| `param_invalid` | 400 | with `field` + `reason` (missing / out_of_range / wrong_type / unknown_choice) |
+| `device_unreachable` | 503 | transient; Irene can say "try again" |
+| `internal_error` | 500 | catch-all |
 
-## B. Catalog read surface for voice
+**Write semantics — synchronous with timeout.** After the bridge publishes the underlying
+command, it waits for the device's value-topic echo (default **500 ms**, configurable per
+driver) before returning. The response contains the post-action state. On timeout →
+`device_unreachable`. `wb-mqtt-serial`'s per-device error topic is the deterministic
+complement: subscribing to it makes "device offline" detection immediate rather than
+timeout-bound. Long-running actions (covers / curtains take seconds) can declare a larger
+timeout at the driver level.
 
-Irene pulls a catalog on startup and builds an in-memory device/room/capability model that drives NLU,
-entity resolution, and parameter clarification. It needs, per the **capability** view (to match the
-canonical write side):
+## B. Catalog read surface
 
-- **device list** — id, display name, class/type, which **room** it's in.
-- **rooms** — `GET /room/list` already gives `{room_id, names:{ru,en,de}, devices:[…]}`. The **ru
-  name is the resolution key** ("в гостиной" → `Гостиная` → `living_room`). Confirm this is the
-  intended matching key.
-- **per-device capabilities + actions** — which canonical capabilities a device supports.
-- **per-action param schema** — name, type, range/min/max, choices, required, and a **human (ideally
-  ru) label/description** — used to ask "какую яркость?" and validate before publish.
+**`GET /system/catalog`** — flat capability-shaped projection of the whole house. NOT the
+Layer-3 layout manifest (which is UI-oriented: sliders, buttons, panels). The catalog is the
+stable read contract for any non-UI consumer (Irene first, but HA / scenes / future
+automations get the same view). Shape:
 
-**Question for the session:** does the existing **Layer-3 layout/capability manifest**
-(`GET /devices/{id}/layout`) already expose enough (capabilities + param schema + labels) for voice,
-or is a **dedicated, stable `/voice/catalog`** (or `/system/catalog`) endpoint cleaner — one call
-returning the whole house in the shape voice wants, decoupled from UI-layout concerns? Irene prefers
-one stable read contract it can depend on.
+```json
+{
+  "version": "<content-hash>",
+  "rooms": [
+    {"id": "living_room", "names": {"ru": "Гостиная",  "en": "Living Room"},
+     "devices": ["lg_tv", "appletv_living", "wb-mdm3_83"]},
+    {"id": "global",      "names": {"ru": "Весь дом",  "en": "Whole House"},
+     "devices": ["wb-mdm3_83", "wb-mr6c_47", "wb-mrgbw-d-fw3_10"]}
+  ],
+  "devices": [
+    {"id": "lg_tv", "names": {"ru": "Телевизор LG", "en": "LG TV"},
+     "class": "LgTv", "rooms": ["living_room"],
+     "capabilities": [
+       {"name": "power",  "actions": [{"name": "on"}, {"name": "off"}]},
+       {"name": "volume", "actions": [
+         {"name": "set",  "params": [{"name": "level", "type": "int",
+                                      "min": 0, "max": 100, "required": true,
+                                      "labels": {"ru": "уровень", "en": "level"}}]},
+         {"name": "up"}, {"name": "down"}, {"name": "mute"}]}]},
+    {"id": "wb-msw-v3_207", "names": {"ru": "Сенсоры гостиной", "en": "Living Room Sensors"},
+     "class": "WbMswSensors", "rooms": ["living_room"],
+     "capabilities": [
+       {"name": "sensor",
+        "fields": [
+          {"name": "temperature", "type": "float", "unit": "°C",
+           "labels": {"ru": "температура", "en": "temperature"}},
+          {"name": "humidity",    "type": "float", "unit": "%"},
+          {"name": "co2",         "type": "int",   "unit": "ppm"}]}]}
+  ]
+}
+```
 
-**Refresh (optional):** Irene pulls on startup. For live changes, an MQTT nudge it can subscribe to
-(e.g. retained `irene/catalog/dirty` bumped on `POST /reload`/config change) lets it re-pull without
-polling. Nice-to-have, not v1-blocking.
+**All locales for both rooms and devices.** Irene knows the language of the incoming request
+and picks the matching label. `device_name` (currently single string) widens to
+`names: {ru, en, …}` — **one-shot migration of the existing AV configs** as part of this
+work; no backwards-compat shim accepting both forms.
+
+**Sensor capability shape: one `sensor` capability with read-only `fields`.** No actions.
+Voice resolves "какая температура в гостиной" → room → device with `sensor` capability →
+field `temperature` → read from the bridge's state cache.
+
+**Devices are multi-room** (`rooms` is a list). Most are in just one. Used for the `global`
+room (see C.5).
+
+**Refresh nudge**: retained `bridge/catalog/version` (content hash) bumped on `/reload` or
+config change. Irene resubscribes when it sees a new version.
 
 ## C. Onboard the native Wirenboard devices
 
-This is the largest piece and is entirely bridge-side. Today the bridge models only the AV gear; the
-native WB devices (the bulk of the house) are absent. To become the single authority it must model
-them. Observed native classes that need onboarding:
+### C.1 Boundary: rules stay on the controller, bridge mirrors
 
-| Device class | Examples (live) | Capabilities needed |
-|---|---|---|
-| relay/light | `wb-mr6c_47/51/52/58` ('Light'), `wb-mr6cu_31` ('Heat') | `power` (on/off per channel) |
-| dimmer | `wb-mdm3_83/87/95` | `power`, `brightness` (range) |
-| RGB dimmer | `wb-mrgbw-d-fw3_10/11/238` ('Light') | `power`, `brightness`, `color` |
-| curtain/blind | `dooya_0x0101…0108`, `dooya_dm35eq_x_…` | `cover` (open/close/stop/position) |
-| HVAC | `hvac_livingroom/bedroom/children`, setpoint vdevs | `climate` (mode, setpoint) |
-| sensor | `wb-msw-v3_*` (per room), `wb-w1`, `wb-map3e` | read-only state (for "is it warm?") |
+wb-rules / wb-mqtt-serial keep all rule/automation logic. The bridge does not read or care
+about rules. For each native control the bridge represents, it:
 
-**The gap:** the existing `WirenboardIRDevice` driver is IR-blaster-specific (ROM-slot topics). Native
-WB controls are plain `/devices/{dev}/controls/{ctrl}` read/write topics. So this likely needs **a new
-generic WB-passthrough driver class** (a device whose commands map directly to publishing on a native
-WB control topic, with `meta/type`-derived param types), plus:
+- **Writes** to `…/controls/{ctrl}/on` when the canonical endpoint is called.
+- **Subscribes** to `…/controls/{ctrl}` (value topic) and to `wb-mqtt-serial`'s per-device
+  `…/meta/error` (or equivalent) for offline detection. Every change — whether the bridge
+  wrote it, wb-rules wrote it, HomeUI wrote it, or a physical switch flipped it — flows into
+  `BaseDevice.update_state` (the existing state-sync chokepoint).
 
-- a `config/devices/{id}.json` per native device (commands → native WB control topics);
-- `config/capabilities/{classes|devices}/*.json` mapping those to canonical capabilities;
-- room assignment in `config/rooms.json` (the native devices' room membership — the controller's
-  HomeUI room grouping is the human source; it is **not** in the MQTT tree, so it must be authored
-  here).
+**Loop guard.** For bridge-OWNED virtual devices, `update_state` triggers a callback that
+publishes back to the virtual-device value topic. For WB-passthrough devices the bridge is
+NOT the owner — the chokepoint must NOT re-publish, or we feedback-loop with the real device.
+The WB-passthrough driver registers only the persist + SSE/UI callbacks, not the WB-publish
+one. This is the one structural change to the state-sync wiring; the chokepoint contract
+itself is unchanged.
 
-This is exactly the structured modeling the bridge is built for, but it's real work and the bottleneck
-for end-to-end voice control. Scope it in `docs/action_plan.md`.
+### C.2 Generic WB-passthrough driver
+
+One driver class, fully data-driven. **Adding a WB device = a config file, not code.**
+Per-command config declares the topic and param types explicitly — we deliberately do NOT
+introspect `…/meta/type` at runtime (more boilerplate, never wrong, matches the existing AV
+config style):
+
+```json
+{
+  "device_id": "wb-mdm3_83",
+  "device_class": "WbPassthroughDevice",
+  "names": {"ru": "Свет в гостиной", "en": "Living Room Light"},
+  "rooms": ["living_room", "global"],
+  "commands": {
+    "power_on":       {"topic": "/devices/wb-mdm3_83/controls/Channel 1/on", "value": "1"},
+    "power_off":      {"topic": "/devices/wb-mdm3_83/controls/Channel 1/on", "value": "0"},
+    "set_brightness": {"topic": "/devices/wb-mdm3_83/controls/Channel 1/on",
+                       "params": [{"name": "level", "type": "int",
+                                   "min": 0, "max": 100, "required": true}]}
+  },
+  "state_topics": {
+    "brightness": "/devices/wb-mdm3_83/controls/Channel 1",
+    "power":      "/devices/wb-mdm3_83/controls/Channel 1"
+  }
+}
+```
+
+Placement per hexagonal LAW: `infrastructure/devices/wb_passthrough/`. Tests follow
+`device_test_pattern` (real-driver `execute_action`, not mocks — see
+`mock-tests-miss-driver-bugs`).
+
+### C.3 Composition layer ABOVE the driver
+
+Composite WB controls — RGB (one control encoded as `"R;G;B"`), HVAC (mode + setpoint + fan,
+often across sub-devices) — are handled by a **capability-adapter layer above the driver**,
+NOT inside the driver. One canonical action resolves to one or more driver-level command
+invocations. The driver stays dumb: one config row = one WB control write.
+
+This layer lives next to the existing reconciler; it's the natural extension of the
+canonical→native resolution, just one-to-many instead of one-to-one. Per-capability adapters
+sit in `infrastructure/capabilities/` (or alongside the reconciler — placement settled in
+implementation).
+
+### C.4 Canonical capability vocabulary
+
+Current vocabulary is AV-flavoured (power / volume / input / playback / menu). Extending for
+native:
+
+- `power` — `on` / `off` (already exists)
+- `brightness` — `set(level)` / `up` / `down`
+- `color` — `set(rgb)` — composed (RGB string)
+- `cover` — `open` / `close` / `stop` / `set_position(pct)`
+- `climate` — `set_mode(mode)` / `set_setpoint(temp)` / `set_fan(speed)` — composed
+- `sensor` — read-only `fields` (temperature / humidity / illuminance / co2 / leak / …)
+
+We align with Home Assistant's capability namespace where it cleanly fits, but this bridge's
+config is the source of truth — no automatic mapping to HA.
+
+### C.5 Rooms
+
+- **Authoring source**: bootstrap `rooms.json` by importing the WB HomeUI's room→device
+  grouping (config file location identified during implementation; one-shot, not manual).
+- **Multi-room membership**: a device CAN be in multiple rooms. Most are in one.
+- **`global` room — explicit membership.** A device is in `global` only if its config lists
+  it. "Выключи свет везде" resolves to `global` → only devices that **opted in** respond
+  (typically lights, dimmers, RGB; NOT the fridge, HVAC, sensors, AV gear). Deliberately
+  safer than auto-including every controllable device.
+
+### C.6 Devices to onboard
+
+| Class            | Live examples                            | Capabilities              |
+|------------------|------------------------------------------|---------------------------|
+| relay/light      | wb-mr6c_47/51/52/58, wb-mr6cu_31         | power                     |
+| dimmer           | wb-mdm3_83/87/95                         | power, brightness         |
+| RGB dimmer       | wb-mrgbw-d-fw3_10/11/238                 | power, brightness, color  |
+| curtain/blind    | dooya_0x0101…0108, dooya_dm35eq_x_…      | cover                     |
+| HVAC             | hvac_livingroom/bedroom/children + vdevs | climate                   |
+| sensor           | wb-msw-v3_*, wb-w1, wb-map3e             | sensor (read-only)        |
+
+The `wb-msw-v3_*` units are already modeled in this bridge as IR blasters
+(`WirenboardIRDevice`). The sensor side becomes a separate device entry (or a unified config
+that exposes both `sensor` and IR-driven capabilities) — settled during implementation.
 
 ---
 
@@ -132,24 +247,49 @@ for end-to-end voice control. Scope it in `docs/action_plan.md`.
 
 To keep the boundary clean:
 
-- No voice/NLU/intent logic in the bridge — Irene owns all of that.
-- No Irene-specific endpoints beyond the generic canonical-action + catalog surfaces above (those are
-  useful to any non-UI caller, e.g. HA, automations).
-- Irene does not publish to raw WB control topics or hold native command names — it speaks canonical
-  to the bridge only.
+- No voice / NLU / intent logic in the bridge — Irene owns all of that.
+- No Irene-specific endpoints beyond the generic canonical-action + catalog surfaces — they're
+  useful to any non-UI caller.
+- Irene does not publish to raw WB control topics or hold native command names — it speaks
+  canonical to the bridge only.
 
-## Open questions for the bridge session
+## Hexagonal layering
 
-1. **A — canonical endpoint:** path/DTO; reuse of the capability reconciler on the input path;
-   structured error codes for spoken feedback.
-2. **B — catalog read:** is the Layer-3 layout manifest enough, or add a dedicated `/voice/catalog`?
-   Is the `rooms.json` ru name the resolution key? Optional MQTT catalog-dirty nudge.
-3. **C — native onboarding:** generic WB-passthrough driver design; capability maps for
-   relay/dimmer/RGB/curtain/HVAC; room authoring source; sensor read-state exposure.
-4. **Sequencing:** a thin vertical slice first (one room, one light, end-to-end) before bulk
-   onboarding, so the contract is proven against a live voice command early.
+Per the standing LAW (`hexagonal-law-for-all-changes`), every piece of this work preserves
+the layering:
+
+- WB-passthrough driver → `infrastructure/devices/wb_passthrough/`
+- Canonical endpoint → application / API layer (existing FastAPI), calling into the domain
+  service via the existing `perform_action`.
+- Catalog endpoint → application / API layer, reading the existing capability + config +
+  rooms registry.
+- Capability adapters (composition) → infrastructure capabilities layer, next to the
+  reconciler.
+- No domain imports of infrastructure; no config bleed-through into the domain.
+
+## Sequencing
+
+**Vertical slice first** — prove the whole stack against one live voice command before bulk
+onboarding:
+
+1. WB-passthrough driver skeleton (single `wb-mr6c` relay channel).
+2. One device config + capability map + room entry + `global` opt-in (children's room).
+3. Canonical endpoint live + minimal `/system/catalog` (just this device).
+4. `device_name → names` migration (one-shot across existing AV configs).
+5. Irene-side: "включи свет в детской" hits the canonical endpoint end-to-end and the light
+   responds with the post-state echo arriving inside the 500 ms budget.
+
+Then bulk-onboard the remaining native devices (per the table) + widen capability adapters
+(RGB, HVAC) + populate the `global` room + import `rooms.json` from the WB HomeUI config.
+
+## Deferred to v2
+
+- **Room / group endpoint**: per-device calls cover v1 ("выключи свет везде" = N parallel
+  canonical calls Irene resolves from the catalog). Batched-call endpoint (one HTTP call with
+  partial-failure reporting) only if N-calls-latency becomes a measurable voice-UX problem.
 
 ---
 
-_Reconcile this draft in the bridge session, then the agreed contract feeds Irene's ARCH-8
-implementation (`wb-mqtt-voice/docs/design/mqtt_integration.md` §10) — which is blocked on it._
+_With the contract agreed, the action plan (`docs/action_plan.md`) is updated separately to
+schedule the work. This document is the bridge ↔ Irene reference; Irene's ARCH-8
+implementation plan (`wb-mqtt-voice/docs/design/mqtt_integration.md` §10) builds against it._
