@@ -57,7 +57,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
         # Initialize state with typed Pydantic model
         self.state = AppleTVState(
             device_id=config.device_id,
-            device_name=config.device_name,
+            device_name=config.names.ru,
             connected=False,
             app=None,
             playback_state=None,

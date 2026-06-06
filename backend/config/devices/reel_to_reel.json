@@ -1,5 +1,8 @@
 {
-  "device_name": "Revox A77 MK4",
+  "names": {
+    "ru": "Магнитофон",
+    "en": "Reel-to-Reel"
+  },
   "device_id": "reel_to_reel",
   "alias": "reel_to_reel",
   "device_class": "RevoxA77ReelToReel",

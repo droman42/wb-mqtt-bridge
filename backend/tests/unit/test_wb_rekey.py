@@ -54,7 +54,7 @@ def _make_device(config_name: str, device_class: str):
     cfg = json.loads((ROOT / "config" / "devices" / f"{config_name}.json").read_text())
     commands = {n: StandardCommandConfig.model_validate(c) for n, c in cfg["commands"].items()}
     config = SimpleNamespace(
-        device_id=cfg["device_id"], device_name=cfg["device_name"],
+        device_id=cfg["device_id"], names=SimpleNamespace(**cfg["names"]),
         device_class=cfg["device_class"], device_category=cfg.get("device_category", "device"),
         enable_wb_emulation=cfg.get("enable_wb_emulation", True),
         wb_controls=cfg.get("wb_controls"),

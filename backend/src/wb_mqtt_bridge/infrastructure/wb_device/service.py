@@ -91,14 +91,16 @@ class WBVirtualDeviceService:
             entity_name: Virtual entity name override (for scenarios, uses scenario name instead of device_name)
         """
         try:
-            # Extract device identity from config
+            # Extract device identity from config. Bilingual names live under config.names
+            # (LocalizedName); WB virtual device meta uses the Russian rendering since the
+            # Wirenboard UI is ru-default in this deployment.
             if isinstance(config, dict):
                 config_device_id = config["device_id"]
-                config_device_name = config["device_name"]
+                config_device_name = config["names"]["ru"]
                 enable_wb = config.get("enable_wb_emulation", True)
             else:
                 config_device_id = config.device_id
-                config_device_name = config.device_name
+                config_device_name = config.names.ru
                 enable_wb = getattr(config, 'enable_wb_emulation', True)
             
             # Apply virtual entity overrides for WB operations (scenarios use scenario_id/name)

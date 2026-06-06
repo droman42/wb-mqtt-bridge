@@ -1,5 +1,8 @@
 {
-  "device_name": "Kitchen Hood",
+  "names": {
+    "ru": "Вытяжка",
+    "en": "Kitchen Hood"
+  },
   "device_id": "kitchen_hood",
   "device_category": "appliance",
   "alias": "kitchen_hood",
@@ -55,14 +58,18 @@
   "wb_controls": {
     "set_light": {
       "type": "switch",
-      "title": {"en": "Kitchen Light"},
+      "title": {
+        "en": "Kitchen Light"
+      },
       "order": 1
     },
     "set_speed": {
       "type": "range",
       "min": 0,
       "max": 4,
-      "title": {"en": "Fan Speed"},
+      "title": {
+        "en": "Fan Speed"
+      },
       "units": "",
       "order": 2
     }

@@ -42,7 +42,7 @@ def _ir(action: str, topic: str, rom: str) -> IRCommandConfig:
 def _make_config(sequence_delay: int = 3) -> RevoxA77ReelToReelConfig:
     return RevoxA77ReelToReelConfig(
         device_id="test_revox",
-        device_name="Test Revox A77",
+        names={"ru": "Test Revox A77", "en": "Test Revox A77"},
         device_class="RevoxA77ReelToReel",
         config_class="RevoxA77ReelToReelConfig",
         reel_to_reel=RevoxA77ReelToReelParams(sequence_delay=sequence_delay),

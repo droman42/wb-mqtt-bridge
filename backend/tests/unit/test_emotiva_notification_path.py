@@ -37,7 +37,7 @@ pytestmark = pytest.mark.unit
 def _make_config() -> EmotivaXMC2DeviceConfig:
     return EmotivaXMC2DeviceConfig(
         device_id="processor",
-        device_name="Test eMotiva",
+        names={"ru": "Test eMotiva", "en": "Test eMotiva"},
         device_class="EMotivaXMC2",
         config_class="EmotivaXMC2DeviceConfig",
         emotiva=AppEmotivaConfig(host="192.168.1.100"),

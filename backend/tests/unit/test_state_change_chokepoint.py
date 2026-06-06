@@ -57,7 +57,7 @@ def _config_dict(commands, *, wb_state_mappings=None):
     objects; dict form keeps tests readable)."""
     cfg = {
         "device_id": "test_dev",
-        "device_name": "Test Device",
+        "names": {"ru": "Test Device", "en": "Test Device"},
         "device_class": "TestDev",
         "enable_wb_emulation": True,
         "commands": commands,
@@ -323,7 +323,7 @@ class _ChokepointDevice(BaseDevice):
 def _chokepoint_device():
     cfg = BaseDeviceConfig(
         device_id="cp_dev",
-        device_name="Chokepoint Device",
+        names={"ru": "Chokepoint Device", "en": "Chokepoint Device"},
         device_class="TestDev",
         config_class="BaseDeviceConfig",
         commands={},

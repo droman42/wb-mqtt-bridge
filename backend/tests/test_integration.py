@@ -9,6 +9,7 @@ This test suite verifies:
 """
 
 import unittest
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch, AsyncMock
 import sys
 import os
@@ -46,7 +47,7 @@ class TestStateTypePreservation(unittest.TestCase):
         # Create a mock config for KitchenHood
         self.hood_config = MagicMock(spec=BroadlinkKitchenHoodConfig)
         self.hood_config.device_id = "kitchen_hood"
-        self.hood_config.device_name = "Kitchen Hood"
+        self.hood_config.names=SimpleNamespace(ru="Kitchen Hood", en="Kitchen Hood")
         self.hood_config.commands = {}
         self.hood_config.rf_codes = {"light": {"on": "code1", "off": "code2"}, "speed": {"0": "code3", "1": "code4"}}
         
@@ -59,7 +60,7 @@ class TestStateTypePreservation(unittest.TestCase):
         # Create a mock config for WirenboardIR
         self.ir_config = MagicMock(spec=WirenboardIRDeviceConfig)
         self.ir_config.device_id = "wirenboard_ir"
-        self.ir_config.device_name = "Wirenboard IR"
+        self.ir_config.names=SimpleNamespace(ru="Wirenboard IR", en="Wirenboard IR")
         self.ir_config.commands = {}
         
     def test_kitchen_hood_state_preservation(self):
@@ -114,7 +115,7 @@ class TestMQTTCommandPropagation(unittest.TestCase):
         # Create a mock config for KitchenHood
         self.hood_config = MagicMock(spec=BroadlinkKitchenHoodConfig)
         self.hood_config.device_id = "kitchen_hood"
-        self.hood_config.device_name = "Kitchen Hood"
+        self.hood_config.names=SimpleNamespace(ru="Kitchen Hood", en="Kitchen Hood")
         self.hood_config.commands = {
             "set_light": MagicMock(spec=StandardCommandConfig)
         }
@@ -129,7 +130,7 @@ class TestMQTTCommandPropagation(unittest.TestCase):
         # Create a mock config for WirenboardIR
         self.ir_config = MagicMock(spec=WirenboardIRDeviceConfig)
         self.ir_config.device_id = "wirenboard_ir"
-        self.ir_config.device_name = "Wirenboard IR"
+        self.ir_config.names=SimpleNamespace(ru="Wirenboard IR", en="Wirenboard IR")
         self.ir_config.commands = {
             "power_on": MagicMock(spec=IRCommandConfig)
         }
@@ -233,6 +234,7 @@ class TestAPIResponse(unittest.TestCase):
         # Set up mock state
         self.mock_state = KitchenHoodState(
             device_id="kitchen_hood",
+            # State keeps a flat device_name; bilingual `names` lives on config, not state.
             device_name="Kitchen Hood",
             light="on",
             speed=2,

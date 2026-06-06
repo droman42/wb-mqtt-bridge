@@ -94,7 +94,9 @@ class ConfigTester:
         """Test an individual device configuration"""
         device_result = {
             "device_id": device_id,
-            "device_name": config_data.get("device_name", "Unknown"),
+            # names is the new bilingual shape; project the russian rendering for the
+            # one-line per-device test report.
+            "device_name": (config_data.get("names") or {}).get("ru", "Unknown"),
             "device_class": config_data.get("device_class"),
             "config_class": config_data.get("config_class"),
             "command_count": len(config_data.get("commands", {})),

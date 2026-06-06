@@ -87,7 +87,7 @@ async def test_execute_action_exposure_gate():
             return None
 
     cfg = BaseDeviceConfig(
-        device_id="stub", device_name="Stub", device_class="X", config_class="Y",
+        device_id="stub", names={"ru": "Stub", "en": "Stub"}, device_class="X", config_class="Y",
         commands={"secret": StandardCommandConfig(action="secret", exposed=False)},
     )
     dev = _StubDev(cfg)

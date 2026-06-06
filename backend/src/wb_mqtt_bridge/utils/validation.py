@@ -17,7 +17,7 @@ from wb_mqtt_bridge.utils.class_loader import validate_class_exists
 logger = logging.getLogger(__name__)
 
 # Required fields for device configuration files
-REQUIRED_FIELDS = ["device_id", "device_name", "device_class", "config_class"]
+REQUIRED_FIELDS = ["device_id", "names", "device_class", "config_class"]
 
 def validate_config_file_structure(file_path: str) -> Tuple[bool, Optional[Dict[str, Any]], List[str]]:
     """

@@ -19,7 +19,7 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
         self.state: WirenboardIRState = WirenboardIRState(
             device_id=self.device_id,
             device_name=self.device_name,
-            alias=self.config.device_name
+            alias=self.config.names.ru
         )
         
         # Do not initialize action handlers here as it will be done in _register_handlers

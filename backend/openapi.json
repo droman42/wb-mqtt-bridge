@@ -255,18 +255,6 @@
             ],
             "default": null,
             "title": "Total Time"
-          },
-          "volume": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Volume"
           }
         },
         "required": [
@@ -520,15 +508,15 @@
             "title": "Device Id",
             "type": "string"
           },
-          "device_name": {
-            "title": "Device Name",
-            "type": "string"
-          },
           "enable_wb_emulation": {
             "default": true,
             "description": "Enable Wirenboard virtual device emulation",
             "title": "Enable Wb Emulation",
             "type": "boolean"
+          },
+          "names": {
+            "$ref": "#/components/schemas/LocalizedName",
+            "description": "Bilingual display name; see LocalizedName."
           },
           "wb_controls": {
             "anyOf": [
@@ -574,7 +562,7 @@
         },
         "required": [
           "device_id",
-          "device_name",
+          "names",
           "device_class",
           "config_class"
         ],
@@ -1598,6 +1586,26 @@
           "mac_address"
         ],
         "title": "LgTvState",
+        "type": "object"
+      },
+      "LocalizedName": {
+        "additionalProperties": true,
+        "description": "Bilingual display name for a device or room. `ru` + `en` required; additional locales\naccepted (e.g. `de`, `fr`) and surfaced as-is via the catalog. Lives on `BaseDeviceConfig`\nas `names` (replacing the previous flat `device_name`). Per §P3.7 voice-integration\ncontract: every entity carries names in every locale the catalog supports.",
+        "properties": {
+          "en": {
+            "title": "En",
+            "type": "string"
+          },
+          "ru": {
+            "title": "Ru",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ru",
+          "en"
+        ],
+        "title": "LocalizedName",
         "type": "object"
       },
       "MQTTBrokerConfigResponse": {

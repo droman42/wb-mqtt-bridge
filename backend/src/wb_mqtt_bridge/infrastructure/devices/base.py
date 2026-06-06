@@ -33,8 +33,13 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
         self.config = config
         # Use typed config directly - no fallbacks to dictionary access
         self.device_id = config.device_id
-        self.device_name = config.device_name
-        
+        # Bilingual names live on config.names (LocalizedName). For Russian-default surfaces
+        # (logs, the WB UI, the existing UI's state/layout DTOs) we project a flat
+        # display string from names.ru -- this is the same value users have always seen.
+        # The catalog endpoint (§P3.7 #17) consumes config.names directly for multi-locale.
+        self.names = config.names
+        self.device_name = self.names.ru
+
         # Initialize state with basic device identification
         self.state = BaseDeviceState(
             device_id=self.device_id,

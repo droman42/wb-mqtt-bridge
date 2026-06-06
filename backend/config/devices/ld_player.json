@@ -1,5 +1,8 @@
 {
-  "device_name": "Pioneer CLD-D925",
+  "names": {
+    "ru": "Лазердиск",
+    "en": "LaserDisc"
+  },
   "device_id": "ld_player",
   "alias": "ld_player",
   "device_class": "WirenboardIRDevice",

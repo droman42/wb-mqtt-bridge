@@ -66,7 +66,7 @@ def _make_config() -> EmotivaXMC2DeviceConfig:
     }
     return EmotivaXMC2DeviceConfig(
         device_id="test_processor",
-        device_name="Test XMC2 Processor",
+        names={"ru": "Test XMC2 Processor", "en": "Test XMC2 Processor"},
         device_class="EMotivaXMC2",
         config_class="EmotivaXMC2DeviceConfig",
         emotiva=EmotivaConfig(

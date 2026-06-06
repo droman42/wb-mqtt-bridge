@@ -1,12 +1,15 @@
 {
   "alias": "appletv_children",
   "device_id": "appletv_children",
-  "device_name": "Apple TV Children Room",
+  "names": {
+    "ru": "Apple TV",
+    "en": "Apple TV"
+  },
   "device_class": "AppleTVDevice",
   "config_class": "AppleTVDeviceConfig",
   "apple_tv": {
     "ip_address": "192.168.110.169",
-    "name": "\u0414\u0435\u0442\u0441\u043a\u0430\u044f (2939)",
+    "name": "Детская (2939)",
     "gesture_threshold": 15.0,
     "touch_delay": 0.12,
     "select_delay": 0.25,

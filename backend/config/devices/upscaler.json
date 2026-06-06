@@ -1,5 +1,8 @@
 {
-  "device_name": "DVDO Edge Green",
+  "names": {
+    "ru": "Апскейлер",
+    "en": "Upscaler"
+  },
   "device_id": "upscaler",
   "alias": "upscaler",
   "device_class": "WirenboardIRDevice",

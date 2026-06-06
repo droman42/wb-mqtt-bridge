@@ -62,7 +62,7 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
         # Initialize state with typed Pydantic model AFTER super().__init__
         self.state = AuralicDeviceState(
             device_id=config.device_id,
-            device_name=config.device_name,
+            device_name=config.names.ru,
             ip_address=config.auralic.ip_address,
             # Initialize all remaining fields from the schema
             volume=0,

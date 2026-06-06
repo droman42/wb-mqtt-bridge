@@ -25,7 +25,7 @@ pytestmark = pytest.mark.integration
 def _make_config() -> LgTvDeviceConfig:
     return LgTvDeviceConfig(
         device_id="test_lg_tv",
-        device_name="Test LG TV",
+        names={"ru": "Test LG TV", "en": "Test LG TV"},
         device_class="LgTv",
         config_class="LgTvDeviceConfig",
         tv=LgTvConfig(

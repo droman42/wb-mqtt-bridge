@@ -30,7 +30,7 @@ class TestWBVirtualDeviceService:
         """Create a sample device configuration."""
         return {
             "device_id": "test_device",
-            "device_name": "Test Device",
+            "names": {"ru": "Test Device", "en": "Test Device"},
             "device_class": "TestDevice",
             "enable_wb_emulation": True,
             "commands": {
@@ -103,7 +103,7 @@ class TestWBVirtualDeviceService:
         """Every control VALUE published at setup must be non-empty (so the WB UI renders it)."""
         import re
         config = {
-            "device_id": "amp", "device_name": "Amp", "device_class": "WirenboardIRDevice",
+            "device_id": "amp", "names": {"ru": "Amp", "en": "Amp"}, "device_class": "WirenboardIRDevice",
             "enable_wb_emulation": True,
             "commands": {
                 "power": {"action": "power", "group": "power", "description": "Power"},

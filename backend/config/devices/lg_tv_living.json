@@ -1,5 +1,8 @@
 {
-  "device_name": "LG OLED77G1RLA",
+  "names": {
+    "ru": "Телевизор",
+    "en": "TV"
+  },
   "device_id": "living_room_tv",
   "alias": "living_room_tv",
   "device_class": "LgTv",
@@ -95,15 +98,36 @@
       "action": "set_volume",
       "description": "Set Volume Level",
       "params": [
-        {"name": "level", "type": "range", "min": 0, "max": 100, "required": true, "description": "Volume level (0-100)"}
+        {
+          "name": "level",
+          "type": "range",
+          "min": 0,
+          "max": 100,
+          "required": true,
+          "description": "Volume level (0-100)"
+        }
       ]
     },
     "move_cursor_relative": {
       "action": "move_cursor_relative",
       "description": "Move Cursor Relative",
       "params": [
-        {"name": "dx", "type": "range", "min": -50, "max": 50, "required": true, "description": "X displacement (-50 to 50)"},
-        {"name": "dy", "type": "range", "min": -50, "max": 50, "required": true, "description": "Y displacement (-50 to 50)"}
+        {
+          "name": "dx",
+          "type": "range",
+          "min": -50,
+          "max": 50,
+          "required": true,
+          "description": "X displacement (-50 to 50)"
+        },
+        {
+          "name": "dy",
+          "type": "range",
+          "min": -50,
+          "max": 50,
+          "required": true,
+          "description": "Y displacement (-50 to 50)"
+        }
       ]
     },
     "click": {
@@ -114,15 +138,30 @@
       "action": "set_input_source",
       "description": "Set Input Source",
       "params": [
-        {"name": "source", "type": "string", "required": true, "description": "Input source name or ID (e.g., 'hdmi1', 'hdmi2')"}
+        {
+          "name": "source",
+          "type": "string",
+          "required": true,
+          "description": "Input source name or ID (e.g., 'hdmi1', 'hdmi2')"
+        }
       ]
     },
     "launch_app": {
       "action": "launch_app",
       "description": "Launch App",
       "params": [
-        {"name": "app_name", "type": "string", "required": false, "description": "App name to launch (preferred, at least one of app_name or app_id must be provided)"},
-        {"name": "app_id", "type": "string", "required": false, "description": "App ID to launch (alternative, at least one of app_name or app_id must be provided)"}
+        {
+          "name": "app_name",
+          "type": "string",
+          "required": false,
+          "description": "App name to launch (preferred, at least one of app_name or app_id must be provided)"
+        },
+        {
+          "name": "app_id",
+          "type": "string",
+          "required": false,
+          "description": "App ID to launch (alternative, at least one of app_name or app_id must be provided)"
+        }
       ]
     },
     "get_available_apps": {

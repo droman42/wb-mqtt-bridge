@@ -33,7 +33,7 @@ def _make_device(name: str, device_class: str):
     cfg = json.loads((ROOT / "config" / "devices" / f"{name}.json").read_text())
     commands = {n: StandardCommandConfig.model_validate(c) for n, c in cfg["commands"].items()}
     config = SimpleNamespace(
-        device_id=cfg["device_id"], device_name=cfg["device_name"],
+        device_id=cfg["device_id"], names=SimpleNamespace(**cfg["names"]),
         device_class=device_class, device_category="device", commands=commands,
     )
     dev = SimpleNamespace(

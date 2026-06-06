@@ -52,7 +52,7 @@ class LgTv(BaseDevice[LgTvState]):
         # Create initial state with default values
         self.state = LgTvState(
             device_id=self.config.device_id,
-            device_name=self.config.device_name,
+            device_name=self.config.names.ru,
             volume=None,  # Changed from 0 to None to indicate unknown initial volume
             mute=False,
             current_app=None,

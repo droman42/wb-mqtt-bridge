@@ -28,7 +28,7 @@ pytestmark = pytest.mark.integration
 def _make_config() -> AuralicDeviceConfig:
     return AuralicDeviceConfig(
         device_id="test_auralic",
-        device_name="Test Auralic",
+        names={"ru": "Test Auralic", "en": "Test Auralic"},
         device_class="AuralicDevice",
         config_class="AuralicDeviceConfig",
         commands={

@@ -9,6 +9,7 @@ from wb_mqtt_bridge.domain.devices.config import (  # noqa: F401
     BaseDeviceConfig,
     CommandParameterDefinition,
     DeviceCategory,
+    LocalizedName,
     StandardCommandConfig,
 )
 

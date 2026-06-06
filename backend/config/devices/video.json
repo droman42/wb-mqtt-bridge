@@ -1,5 +1,8 @@
 {
-  "device_name": "Zappiti Neo",
+  "names": {
+    "ru": "Медиаплеер",
+    "en": "Media Player"
+  },
   "device_id": "video",
   "alias": "video",
   "device_class": "WirenboardIRDevice",

@@ -37,7 +37,7 @@ def config_manager(tmpdir):
     # BroadlinkKitchenHoodConfig).
     kitchen_hood_config = {
         "device_id": "test_kitchen_hood",
-        "device_name": "Test Kitchen Hood",
+        "names": {"ru": "Test Kitchen Hood", "en": "Test Kitchen Hood"},
         "device_class": "BroadlinkKitchenHood",
         "config_class": "BroadlinkKitchenHoodConfig",
         "broadlink": {
@@ -71,7 +71,7 @@ def config_manager(tmpdir):
     # test_standard_device_config behavior).
     unknown_class_config = {
         "device_id": "test_unknown_class",
-        "device_name": "Test Unknown Class Device",
+        "names": {"ru": "Test Unknown Class Device", "en": "Test Unknown Class Device"},
         "device_class": "DeviceClassThatDoesNotExist",
         "config_class": "ConfigClassThatDoesNotExist",
         "commands": {},
@@ -91,7 +91,8 @@ def test_load_kitchen_hood_config(config_manager):
     kitchen_hood_config = config_manager.get_device_config("test_kitchen_hood")
 
     assert isinstance(kitchen_hood_config, BroadlinkKitchenHoodConfig)
-    assert kitchen_hood_config.device_name == "Test Kitchen Hood"
+    assert kitchen_hood_config.names.ru == "Test Kitchen Hood"
+    assert kitchen_hood_config.names.en == "Test Kitchen Hood"
     assert kitchen_hood_config.device_class == "BroadlinkKitchenHood"
     assert kitchen_hood_config.config_class == "BroadlinkKitchenHoodConfig"
 

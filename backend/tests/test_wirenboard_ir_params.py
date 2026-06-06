@@ -61,7 +61,7 @@ def _make_config() -> WirenboardIRDeviceConfig:
     )
     return WirenboardIRDeviceConfig(
         device_id="test_ir",
-        device_name="Test IR Device",
+        names={"ru": "Test IR Device", "en": "Test IR Device"},
         device_class="WirenboardIRDevice",
         config_class="WirenboardIRDeviceConfig",
         commands={"power": power_command, "set_volume": volume_command, "input_aux2": input_command},

@@ -296,7 +296,7 @@ class DeviceTester:
             if not device_name:
                 # Convert device_id like "living_room_tv" to "Living Room TV"
                 try:
-                    device_name = ' '.join(word.capitalize() for word in self.device_id.split('_'))
+                    names={'ru': ' ', 'en': ' '}.join(word.capitalize() for word in self.device_id.split('_'))
                     logger.info(f"Generated device name '{device_name}' from device_id")
                 except Exception as e:
                     logger.warning(f"Error generating name from device_id: {e}")

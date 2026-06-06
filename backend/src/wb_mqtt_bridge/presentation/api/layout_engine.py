@@ -289,7 +289,9 @@ def build_device_manifest(device: Any) -> LayoutManifest:
     state_schema = type(getattr(device, "state", None)).__name__ if getattr(device, "state", None) else None
     return LayoutManifest(
         device_id=cfg.device_id,
-        device_name=cfg.device_name,
+        # LayoutManifest.device_name stays a flat string (UI surface unchanged); the bilingual
+        # source of truth is cfg.names. UI consumes the russian rendering by default.
+        device_name=cfg.names.ru,
         device_class=cfg.device_class,
         remote_zones=zones,
         entity_kind="device",

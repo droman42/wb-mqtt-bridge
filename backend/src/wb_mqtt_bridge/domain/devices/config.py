@@ -10,13 +10,24 @@ which re-exports these names for compatibility.
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, validator
 
 
 class DeviceCategory(str, Enum):
     """Enumeration for device categories."""
     DEVICE = "device"
     APPLIANCE = "appliance"
+
+
+class LocalizedName(BaseModel):
+    """Bilingual display name for a device or room. `ru` + `en` required; additional locales
+    accepted (e.g. `de`, `fr`) and surfaced as-is via the catalog. Lives on `BaseDeviceConfig`
+    as `names` (replacing the previous flat `device_name`). Per §P3.7 voice-integration
+    contract: every entity carries names in every locale the catalog supports."""
+    model_config = ConfigDict(extra="allow")
+
+    ru: str
+    en: str
 
 
 class CommandParameterDefinition(BaseModel):
@@ -53,7 +64,7 @@ class StandardCommandConfig(BaseCommandConfig):
 class BaseDeviceConfig(BaseModel):
     """Base schema for device configuration."""
     device_id: str
-    device_name: str
+    names: LocalizedName = Field(..., description="Bilingual display name; see LocalizedName.")
     device_category: DeviceCategory = Field(DeviceCategory.DEVICE, description="The category of the device (e.g., 'device' or 'appliance')")
     # New required fields for dynamic class loading
     device_class: str = Field(..., description="The device implementation class name (e.g., 'LgTv')")

@@ -44,7 +44,7 @@ pytestmark = pytest.mark.integration
 def _make_config() -> AppleTVDeviceConfig:
     return AppleTVDeviceConfig(
         device_id="test_appletv",
-        device_name="Test Apple TV",
+        names={"ru": "Test Apple TV", "en": "Test Apple TV"},
         device_class="AppleTVDevice",
         config_class="AppleTVDeviceConfig",
         apple_tv=AppleTVConfig(

@@ -74,7 +74,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         # Initialize device state with Pydantic model
         self.state: EmotivaXMC2State = EmotivaXMC2State(
             device_id=self.config.device_id,
-            device_name=self.config.device_name,
+            device_name=self.config.names.ru,
             zone2_power=None,
             input_source=None,
             video_input=None,

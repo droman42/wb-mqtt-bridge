@@ -73,7 +73,7 @@ class _MockDevice(BaseDevice):
 def _make_config(device_id: str = "test_device") -> WirenboardIRDeviceConfig:
     return WirenboardIRDeviceConfig(
         device_id=device_id,
-        device_name="Test Persistence Device",
+        names={"ru": "Test Persistence Device", "en": "Test Persistence Device"},
         device_class="_MockDevice",
         config_class="WirenboardIRDeviceConfig",
         commands={

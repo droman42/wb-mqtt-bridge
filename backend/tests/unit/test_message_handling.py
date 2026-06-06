@@ -112,7 +112,7 @@ class TestMessageHandling(unittest.IsolatedAsyncioTestCase):
         
         # Set mock values for required attributes
         self.device.device_id = "test_device"
-        self.device.device_name = "Test Device"
+        self.device.names={"ru": "Test Device", "en": "Test Device"}
         self.device.update_state = AsyncMock()
         self.device.emit_progress = AsyncMock()
         

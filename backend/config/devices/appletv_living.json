@@ -1,12 +1,15 @@
 {
   "alias": "appletv_living",
   "device_id": "appletv_living",
-  "device_name": "Apple TV Living Room",
+  "names": {
+    "ru": "Apple TV",
+    "en": "Apple TV"
+  },
   "device_class": "AppleTVDevice",
   "config_class": "AppleTVDeviceConfig",
   "apple_tv": {
     "ip_address": "192.168.110.196",
-    "name": "\u0413\u043e\u0441\u0442\u0438\u043d\u0430\u044f (2)",
+    "name": "Гостиная (2)",
     "gesture_threshold": 12.0,
     "touch_delay": 0.1,
     "select_delay": 0.2,
