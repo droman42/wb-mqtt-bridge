@@ -11,6 +11,33 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-06 (§P3.7 #18 first rack run -- two-prong subscription wiring bug + fix)** —
+  User exercised the slice at the rack with the real WB-MR6c at slave 51 channel K4. The
+  relay clicked on POST `/devices/cabinet_spots/canonical` (publish out worked) but the
+  endpoint returned **503 device_unreachable**. Bridge log showed perform_action returning
+  `success: True` and the inner `_publish_command` updating `last_command` -- but
+  `mirrored` stayed `{}`. Two bugs surfaced (both latent until WB-passthrough became the
+  first driver to register MQTT subscriptions during its `setup()`):
+  - **Bootstrap ordering**: `DeviceManager.initialize_devices` instantiated devices with
+    `mqtt_client=None`; only AFTER the loop did bootstrap assign `device.mqtt_client =
+    mqtt_client`. So `WbPassthroughDevice.setup()` saw `None`, returned False with the
+    documented warning, and never queued any subscription.
+  - **MQTT-client framework**: `MqttClient._run_mqtt_client` only subscribed to topics
+    explicitly passed via `connect_and_subscribe(topic_handlers)` -- it ignored any
+    handlers queued via `subscribe()` before the broker came up. So even if setup() had
+    queued our state_topic + meta/error handlers, the broker never sent us their
+    messages.
+  Fix: `DeviceManager` gained `set_runtime_services(mqtt_client, wb_service)`; bootstrap
+  + /reload now wire those BEFORE `initialize_devices`, and the constructor receives both
+  via the existing `mqtt_client=` / `wb_service=` kwargs. `_run_mqtt_client` now
+  subscribes the **union** of `topics_to_subscribe` and `self.message_handlers.keys()` --
+  so any pre-queued handler reaches the broker. Two test fakes that took only
+  `mqtt_client=None` widened to accept the new `wb_service=None` kwarg.
+  **Known follow-up (deferred)**: when the canonical endpoint fires the same value as the
+  current `mirrored` (e.g. power_off when light is already off), `update_state` finds no
+  change → no callback → 500 ms timeout → 503. Mitigate later by waking the waiter on
+  ack-received rather than state-changed; for slice 1 the rack walk alternates values so
+  every call really does change state. **Full suite 442 passed.**
 - **2026-06-06 (§P3.7 slice #17 — `GET /system/catalog` DONE)** — The catalog Irene
   fetches on startup (and after a version bump). New endpoint in
   `presentation/api/routers/system.py`; builder in a new `presentation/api/catalog.py`

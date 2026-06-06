@@ -724,6 +724,7 @@ The dated history lives in **[`docs/action_plan_journal.md`](action_plan_journal
 
 **Recent entries** (newest first; full content + earlier entries in the journal):
 
+- 2026-06-06 — §P3.7 #18 first rack run — two-prong subscription wiring bug + fix (bootstrap ordering + `_run_mqtt_client` union-of-handlers; 442 tests pass)
 - 2026-06-06 — §P3.7 slice #17 — `GET /system/catalog` DONE (deterministic version hash, retained MQTT nudge on /reload, 9 tests; slice feature-complete on the bridge side)
 - 2026-06-06 — §P3.7 slice #15 — canonical action endpoint DONE (6-code error enum, 500 ms echo timeout, 10 tests; Irene unblocked for AV)
 - 2026-06-06 — §P3.7 — capability-profile mechanism + `light_switch` profile (cabinet_spots migrated; AV path unchanged; 423 tests pass)
