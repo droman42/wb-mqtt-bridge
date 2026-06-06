@@ -11,6 +11,34 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-06 (§P3.7 slice #13 — generic WB-passthrough driver DONE)** — Foundation that
+  #14 (first device config) and #18 (e2e verification) ride on. New
+  `infrastructure/devices/wb_passthrough/driver.py` (~180 LoC) implements a fully
+  data-driven Wirenboard passthrough: per-command publishing via `MqttClient.publish`,
+  per-state-topic subscription via `MqttClient.subscribe`, automatic `<topic>/meta/error`
+  companion subscription (Wiren Board MQTT convention from §P3.7 A3), and state mirroring
+  through `BaseDevice.update_state` so persistence + SSE callbacks fire normally.
+  **Loop guard** is structural and verified by the static chokepoint test:
+  `WbPassthroughDeviceConfig.enable_wb_emulation` defaults to **False**, so BaseDevice's
+  `_setup_wb_virtual_device` is skipped end-to-end -- without that callback in the chain,
+  an incoming value-topic update can't trigger a republish back to the same topic. Payload
+  resolution handles WB conventions: static `value` wins; otherwise the first declared
+  param's value with int/bool/float coercion (so a range slider "75.0" publishes as
+  "75" matching the WB UI). New types added: `WbPassthroughCommandConfig` (topic + value)
+  and `WbPassthroughDeviceConfig` (commands dict + state_topics map) in
+  `infrastructure/config/models.py`; `WbPassthroughState` (mirrored / reachable /
+  error_flags) in `domain/devices/models.py`. `rooms: List[str]` field added to
+  `BaseDeviceConfig` (default empty list) so the schema is ready for #14 +
+  catalog/rooms work without further changes. Entry point wired in
+  `backend/pyproject.toml` under `[project.entry-points."wb_mqtt_bridge.devices"]`.
+  15 driver-pattern tests (handler registration, setup subscriptions, write paths
+  static + param-derived + missing-param-fails-cleanly, mirror path, error path
+  `r`/`rw`/`w`/cleared); the existing chokepoint static guard (now covering 8 device
+  drivers including the new one) caught a stray `self.state.connected = ...` in
+  shutdown and was promptly removed. Full backend suite: **417 passed, 0 failed**.
+  Backend openapi.json + UI openapi.gen.ts regenerated; UI typecheck + lint clean.
+  Next slice tasks: #14 (cabinet_spots.json + capability map + room) + #15 (canonical
+  POST endpoint) — both can land now.
 - **2026-06-06 (§P3.7 slice #16 — device_name → names bilingual migration DONE)** — First
   coding task of the voice-integration slice. Schema: new `LocalizedName` Pydantic model
   (`ru: str, en: str, extra="allow"`) on `domain/devices/config.py`, re-exported from
