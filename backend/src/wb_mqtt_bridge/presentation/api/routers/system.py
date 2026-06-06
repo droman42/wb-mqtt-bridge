@@ -162,11 +162,16 @@ async def reload_system_task():
                 # Shutdown any existing devices
                 await device_manager.shutdown_devices()
                 
-                # Initialize devices with typed configs
+                # Initialize devices with typed configs. Wire the shared MQTT client BEFORE
+                # `initialize_devices` so WB-passthrough devices' setup() can register their
+                # state_topic + meta/error subscriptions on the right client (see §P3.7 #18
+                # postmortem). Existing AV drivers don't use mqtt_client in setup() so this
+                # is a no-op for them.
                 device_manager.config_manager = config_manager
+                device_manager.set_runtime_services(mqtt_client=mqtt_client)
                 await device_manager.initialize_devices(config_manager.get_all_device_configs())
-                
-                # Update MQTT client for each device
+
+                # Safety-net assignment (already set in the constructor; idempotent).
                 for device_id, device in device_manager.devices.items():
                     device.mqtt_client = mqtt_client
                 

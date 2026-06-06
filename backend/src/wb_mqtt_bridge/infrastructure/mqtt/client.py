@@ -197,9 +197,15 @@ class MQTTClient(MessageBusPort):
                     self.connected = True
                     self._connection_event.set()  # Signal that connection is established
                     logger.info(f"Connected to MQTT broker at {self.host}:{self.port}")
-                    
-                    # Subscribe to all topics
-                    for topic in topics_to_subscribe:
+
+                    # Subscribe to every topic with a registered handler. This is the union
+                    # of `topics_to_subscribe` (passed by `connect_and_subscribe`) AND any
+                    # handlers queued via `subscribe()` *before* the connection came up
+                    # (e.g. WB-passthrough devices' state_topic subscriptions registered in
+                    # their `setup()`). The pre-queued ones used to be stored but never
+                    # actually subscribed on the broker -- surfaced by §P3.7 #18.
+                    union_topics = list({*topics_to_subscribe, *self.message_handlers.keys()})
+                    for topic in union_topics:
                         await client.subscribe(topic)
                         logger.info(f"Subscribed to topic: {topic}")
                     

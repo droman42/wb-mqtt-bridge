@@ -26,6 +26,18 @@ class DeviceManager:
         self.state_repository = state_repository  # State persistence port
         self._persistence_tasks = set()  # Track active persistence tasks
         self._shutting_down = False  # Flag to indicate shutdown in progress
+        # Shared MQTT client + WB-virtual-device service wired in at bootstrap (or /reload)
+        # via `set_runtime_services()` BEFORE `initialize_devices` runs, so device
+        # constructors receive them and `setup()` can register MQTT subscriptions on behalf
+        # of the device (the WB-passthrough state_topic mirroring path). AV drivers ignore
+        # these in `setup()`; WB-passthrough subscribes via them.
+        self._mqtt_client = None
+        self._wb_service = None
+
+    def set_runtime_services(self, mqtt_client=None, wb_service=None) -> None:
+        """Wire the shared MQTT client + WB service before `initialize_devices` runs."""
+        self._mqtt_client = mqtt_client
+        self._wb_service = wb_service
     
     async def load_device_modules(self):
         """Load all device classes from entry points."""
@@ -112,9 +124,12 @@ class DeviceManager:
                     logger.error(f"Cannot instantiate abstract class {device_class_name} for device {device_id}")
                     continue
                 
-                # Instantiate the device with typed configuration (mqtt_client and wb_service assigned later by bootstrap)
+                # Instantiate the device with typed configuration AND the already-constructed
+                # mqtt_client / wb_service so `setup()` can register MQTT subscriptions on
+                # behalf of the device (the WB-passthrough state_topic mirroring path).
+                # AV drivers ignore these in setup(); WB-passthrough subscribes via them.
                 try:
-                    device = device_class(config, mqtt_client=None)
+                    device = device_class(config, mqtt_client=self._mqtt_client, wb_service=self._wb_service)
                 except Exception as e:
                     logger.error(f"Failed to instantiate device {device_id} of type {device_class_name}: {str(e)}")
                     continue

@@ -183,14 +183,20 @@ def create_app() -> FastAPI:
         if typed_configs:
             logger.info(f"Using {len(typed_configs)} typed device configurations")
         
-        # Initialize devices using typed configurations only
-        await device_manager.initialize_devices(config_manager.get_all_device_configs())
-        
-        # Create WB virtual device service
+        # Create WB virtual device service BEFORE initializing devices so device
+        # constructors receive it -- WB-passthrough devices' setup() needs both
+        # `mqtt_client` (to subscribe to state_topic + meta/error) and the service to
+        # decide whether to register the WB virtual device (which they skip via
+        # `enable_wb_emulation=False`).
         wb_service = WBVirtualDeviceService(message_bus=mqtt_client)
         logger.info("Created WB virtual device service")
-        
-        # Now set the MQTT client and WB service for each initialized device
+        device_manager.set_runtime_services(mqtt_client=mqtt_client, wb_service=wb_service)
+
+        # Initialize devices using typed configurations only
+        await device_manager.initialize_devices(config_manager.get_all_device_configs())
+
+        # Wire the SSE event-publisher port + safety-net `mqtt_client` / `wb_service`
+        # assignments (already set in the constructor; idempotent here).
         for device_id, device in device_manager.devices.items():
             device.mqtt_client = mqtt_client
             device.wb_service = wb_service

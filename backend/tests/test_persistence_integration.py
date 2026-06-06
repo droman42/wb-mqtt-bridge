@@ -46,8 +46,8 @@ class _MockDeviceState(BaseDeviceState):
 class _MockDevice(BaseDevice):
     """A minimal device whose actions update test_value on the state."""
 
-    def __init__(self, config, mqtt_client=None):
-        super().__init__(config, mqtt_client)
+    def __init__(self, config, mqtt_client=None, wb_service=None):
+        super().__init__(config, mqtt_client, wb_service=wb_service)
         self.state = _MockDeviceState(
             device_id=self.device_id,
             device_name=self.device_name,

@@ -13,7 +13,7 @@ from wb_mqtt_bridge.domain.devices.service import DeviceManager
 
 
 class _Dev:
-    def __init__(self, config, mqtt_client=None):
+    def __init__(self, config, mqtt_client=None, wb_service=None):
         self.config = config
         self.device_id = config.device_id
 
