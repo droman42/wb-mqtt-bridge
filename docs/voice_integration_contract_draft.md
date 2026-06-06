@@ -99,9 +99,12 @@ automations get the same view). Shape:
     {"id": "living_room", "names": {"ru": "Гостиная",  "en": "Living Room"},
      "devices": ["lg_tv", "appletv_living", "wb-mdm3_83"]},
     {"id": "global",      "names": {"ru": "Весь дом",  "en": "Whole House"},
-     "devices": []}
+     "devices": ["all_lights"]}
   ],
   "devices": [
+    {"id": "all_lights", "names": {"ru": "Весь свет", "en": "All Lights"},
+     "class": "WbScene", "room": "global",
+     "capabilities": [ {"name": "power", "actions": [{"name": "on"}, {"name": "off"}]} ]},
     {"id": "lg_tv", "names": {"ru": "Телевизор LG", "en": "LG TV"},
      "class": "LgTv", "room": "living_room",
      "capabilities": [
@@ -133,10 +136,12 @@ work; no backwards-compat shim accepting both forms.
 Voice resolves "какая температура в гостиной" → room → device with `sensor` capability →
 field `temperature` → read from the bridge's state cache.
 
-**One device, one room** (`room: Optional[str]`). Cross-room actions like "выключи свет
-везде" are Irene's job — she resolves them from the catalog by iterating rooms and firing
-the relevant capability on each device. The `global` room exists for genuinely whole-house
-controls only (rare); it is NOT an opt-in tag for "выключи всё" (see C.5).
+**One device, one room** (`room: Optional[str]`). Whole-house / group controls are modeled as
+**aggregate devices in the `global` room** (e.g. an `all_lights` device whose `power.off`
+wb-rules maps to the real per-light fan-out). "Выключи свет везде" resolves to that aggregate
+device and is a **single** canonical call — Irene does NOT iterate rooms or synthesize a group;
+she relies on the aggregate device being present in the catalog. The bridge (with wb-rules)
+owns the actual fan-out. See C.5.
 
 **Refresh nudge**: retained `bridge/catalog/version` (content hash) bumped on `/reload` or
 config change. Irene resubscribes when it sees a new version.
@@ -226,12 +231,13 @@ config is the source of truth — no automatic mapping to HA.
 - **Authoring source**: bootstrap `rooms.json` by importing the WB HomeUI's room→device
   grouping (config file location identified during implementation; one-shot, not manual).
 - **One device, one room** (`room: Optional[str]`) — a device belongs to exactly one room.
-  Tightened from an earlier multi-room draft on 2026-06-06; cross-room actions are Irene's
-  responsibility (see B).
-- **`global` is a regular room for whole-house controls only** — not an opt-in tag for
-  "выключи всё". "Выключи свет везде" is resolved by Irene from the catalog (iterate rooms;
-  fire the relevant capability on each device); the bridge does not synthesize a
-  cross-room group from `global` membership.
+  Tightened from an earlier multi-room draft on 2026-06-06.
+- **`global` is a regular room that holds whole-house AGGREGATE devices** (e.g. `all_lights`,
+  `all_blinds`) — the bridge/wb-rules implements each aggregate's fan-out to the real devices.
+  "Выключи свет везде" resolves to the `all_lights` aggregate device and is a **single**
+  canonical call; Irene does NOT iterate rooms or synthesize a cross-room group. So whole-house
+  group control is just normal per-device actuation against an aggregate device — the bridge
+  must **provide** these aggregate devices in `global` for the group commands voice should support.
 - **Directory layout** for WB-passthrough configs: `backend/config/devices/wb-devices/<room>/<device_id>.json`
   (one config file per logical device, grouped by its room). Existing AV configs stay
   flat at `backend/config/devices/*.json`. The config scanner recurses into subdirectories.
@@ -283,20 +289,23 @@ the layering:
 onboarding:
 
 1. WB-passthrough driver skeleton (single `wb-mr6c` relay channel).
-2. One device config + capability map + room entry + `global` opt-in (children's room).
+2. One device config + capability map + room entry (children's room).
 3. Canonical endpoint live + minimal `/system/catalog` (just this device).
 4. `device_name → names` migration (one-shot across existing AV configs).
 5. Irene-side: "включи свет в детской" hits the canonical endpoint end-to-end and the light
    responds with the post-state echo arriving inside the 500 ms budget.
 
 Then bulk-onboard the remaining native devices (per the table) + widen capability adapters
-(RGB, HVAC) + populate the `global` room + import `rooms.json` from the WB HomeUI config.
+(RGB, HVAC) + populate the `global` room with the **aggregate devices** (`all_lights`, etc.,
+each backed by a wb-rules scene/group) + import `rooms.json` from the WB HomeUI config.
 
 ## Deferred to v2
 
-- **Room / group endpoint**: per-device calls cover v1 ("выключи свет везде" = N parallel
-  canonical calls Irene resolves from the catalog). Batched-call endpoint (one HTTP call with
-  partial-failure reporting) only if N-calls-latency becomes a measurable voice-UX problem.
+- **Additional whole-house aggregate devices**: v1 ships only the aggregate `global` devices
+  the supported group commands need (e.g. `all_lights`). More group/scene aggregates (per-floor,
+  `all_blinds`, scenes) are added as the voice command set grows — each is just another device
+  in `global`, no new endpoint. (There is no client-side fan-out to optimize: every group control
+  is a single canonical call against an aggregate device.)
 
 ---
 
