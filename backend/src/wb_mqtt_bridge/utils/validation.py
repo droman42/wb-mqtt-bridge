@@ -113,10 +113,12 @@ def discover_config_files(config_dir: str) -> List[str]:
         logger.error(f"Configuration directory not found: {config_dir}")
         return config_files
     
-    # Find all JSON files
-    pattern = os.path.join(config_dir, "*.json")
-    config_files = glob.glob(pattern)
-    
+    # Find all JSON files (recursive) -- the WB-passthrough namespace lives at
+    # `<config_dir>/wb-devices/<room>/<device_id>.json` per the §P3.7 convention; existing
+    # flat AV configs at the root continue to load unchanged.
+    pattern = os.path.join(config_dir, "**", "*.json")
+    config_files = glob.glob(pattern, recursive=True)
+
     logger.info(f"Discovered {len(config_files)} configuration files in {config_dir}")
     return config_files
 

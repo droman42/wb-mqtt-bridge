@@ -9,7 +9,8 @@ Real driver, real config, mocked MQTT client. Exercises:
   flag in `state.error_flags`; clearing the flag flips it back.
 - loop guard: `enable_wb_emulation` defaults to False so the BaseDevice flow skips the
   WB virtual-device callback registration (no feedback loop with the real device).
-- multi-room schema works end-to-end (config carries `rooms: ["cabinet", "global"]`).
+- single-room schema works end-to-end (config carries `room: "cabinet"`; cross-room
+  actions like "выключи свет везде" are Irene's job, resolved from the catalog).
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock
@@ -29,7 +30,7 @@ def _slice_config() -> WbPassthroughDeviceConfig:
         names={"ru": "Споты", "en": "Spots"},
         device_class="WbPassthroughDevice",
         config_class="WbPassthroughDeviceConfig",
-        rooms=["cabinet", "global"],
+        room="cabinet",
         commands={
             "power_on":  WbPassthroughCommandConfig(action="power_on",  topic="/devices/wb-mr6c_51/controls/K4/on", value="1"),
             "power_off": WbPassthroughCommandConfig(action="power_off", topic="/devices/wb-mr6c_51/controls/K4/on", value="0"),
@@ -45,7 +46,7 @@ def _dimmer_config() -> WbPassthroughDeviceConfig:
         names={"ru": "Споты", "en": "Spots"},
         device_class="WbPassthroughDevice",
         config_class="WbPassthroughDeviceConfig",
-        rooms=["cabinet"],
+        room="cabinet",
         commands={
             "set_brightness": WbPassthroughCommandConfig(
                 action="set_brightness",
@@ -80,10 +81,10 @@ def test_passthrough_config_defaults_disable_wb_emulation():
     assert cfg.enable_wb_emulation is False
 
 
-def test_bilingual_names_and_multi_room_carry_through(device):
+def test_bilingual_names_and_single_room_carry_through(device):
     assert device.config.names.ru == "Споты"
     assert device.config.names.en == "Spots"
-    assert device.config.rooms == ["cabinet", "global"]
+    assert device.config.room == "cabinet"
     # BaseDevice's flat compat field projects ru, matching the UI/state surfaces.
     assert device.device_name == "Споты"
 
