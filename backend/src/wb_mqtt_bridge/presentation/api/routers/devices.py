@@ -1,13 +1,39 @@
+import asyncio
 import logging
-from typing import Dict
+from typing import Any, Dict
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 
 from wb_mqtt_bridge.domain.devices.config import BaseDeviceConfig
-from wb_mqtt_bridge.presentation.api.schemas import DeviceAction
+from wb_mqtt_bridge.presentation.api.schemas import (
+    CanonicalActionRequest,
+    CanonicalActionResponse,
+    CanonicalError,
+    CanonicalErrorCode,
+    DeviceAction,
+)
 from wb_mqtt_bridge.presentation.api.layout_engine import build_device_manifest
 from wb_mqtt_bridge.presentation.api.layout_manifest import LayoutManifest
 from wb_mqtt_bridge.utils.types import CommandResponse
+
+
+# §P3.7 #15: how long the canonical endpoint waits for a value-topic echo before
+# declaring `device_unreachable`. Synchronous devices (AV) settle their state during
+# perform_action so the wait completes immediately; WB-passthrough publishes-and-returns
+# and the bridge subscription mirrors the echo into state, firing the waiter callback.
+CANONICAL_ECHO_TIMEOUT_S = 0.5
+
+
+def _err_response(
+    device_id: str, capability: str, action: str,
+    code: CanonicalErrorCode, message: str,
+    field: str | None = None, reason: str | None = None,
+) -> CanonicalActionResponse:
+    return CanonicalActionResponse(
+        success=False, device_id=device_id, capability=capability, action=action,
+        state=None,
+        error=CanonicalError(code=code, message=message, field=field, reason=reason),
+    )
 
 # Create router with appropriate prefix and tags
 router = APIRouter(
@@ -217,6 +243,171 @@ async def execute_device_action(
     
     # Return the properly typed CommandResponse directly
     return result
+
+
+# §P3.7 voice-integration slice #15.
+_HTTP_FOR_CODE = {
+    CanonicalErrorCode.DEVICE_NOT_FOUND: 404,
+    CanonicalErrorCode.CAPABILITY_NOT_SUPPORTED: 404,
+    CanonicalErrorCode.ACTION_NOT_SUPPORTED: 404,
+    CanonicalErrorCode.PARAM_INVALID: 400,
+    CanonicalErrorCode.DEVICE_UNREACHABLE: 503,
+    CanonicalErrorCode.INTERNAL_ERROR: 500,
+}
+
+
+@router.post(
+    "/devices/{device_id}/canonical",
+    response_model=CanonicalActionResponse,
+    responses={
+        404: {"model": CanonicalActionResponse},
+        400: {"model": CanonicalActionResponse},
+        503: {"model": CanonicalActionResponse},
+        500: {"model": CanonicalActionResponse},
+    },
+)
+async def execute_canonical_action(device_id: str, payload: CanonicalActionRequest):
+    """Voice-friendly canonical action endpoint (§P3.7 slice #15).
+
+    Body: `{capability, action, params?}` -- the same canonical tuple Irene parses from
+    an utterance. The bridge resolves it through the device's capability map
+    (class → profile → per-device override; see #14) and invokes the native command
+    via `perform_action`.
+
+    Synchronous with a ~500 ms timeout: the response carries the **post-action**
+    device state once the value-topic echo arrives. For WB-passthrough devices the
+    echo flows through the MQTT subscription chain → `update_state` → registered
+    callbacks; we register a one-shot callback for the duration of the call so the
+    handler unblocks the instant the device acknowledges. AV drivers update state
+    synchronously inside `perform_action`, so the wait returns immediately for them.
+
+    Error codes (HTTP status mirrors `error.code`):
+      - `device_not_found` (404)
+      - `capability_not_supported` (404)
+      - `action_not_supported` (404)
+      - `param_invalid` (400) - currently mapped from any perform_action failure with
+        param-shaped error text; refined later if/when handlers distinguish cleanly.
+      - `device_unreachable` (503) - timeout OR `state.reachable` flipped False during
+        the wait (a per-control `meta/error` `r` flag landed; A3 convention).
+      - `internal_error` (500) - everything else.
+    """
+    if not device_manager:
+        raise HTTPException(status_code=503, detail="Service not fully initialized")
+
+    device = device_manager.get_device(device_id)
+    if not device:
+        resp = _err_response(
+            device_id, payload.capability, payload.action,
+            CanonicalErrorCode.DEVICE_NOT_FOUND, f"Device {device_id!r} not found",
+        )
+        raise HTTPException(status_code=404, detail=resp.model_dump())
+
+    # Resolve canonical -> native through the device's capability map.
+    cap_map = getattr(device, "capabilities", None)
+    if cap_map is None or payload.capability not in cap_map.root:
+        resp = _err_response(
+            device_id, payload.capability, payload.action,
+            CanonicalErrorCode.CAPABILITY_NOT_SUPPORTED,
+            f"Device {device_id!r} does not expose capability {payload.capability!r}",
+        )
+        raise HTTPException(status_code=404, detail=resp.model_dump())
+
+    cap = cap_map.root[payload.capability]
+    if payload.action not in cap.actions:
+        resp = _err_response(
+            device_id, payload.capability, payload.action,
+            CanonicalErrorCode.ACTION_NOT_SUPPORTED,
+            f"Capability {payload.capability!r} has no action {payload.action!r}",
+        )
+        raise HTTPException(status_code=404, detail=resp.model_dump())
+
+    cap_action = cap.actions[payload.action]
+    if not cap_action.command:
+        # `sequence` form not yet supported on the canonical endpoint; the reconciler
+        # path handles those. For slice 1 every profile uses single commands.
+        resp = _err_response(
+            device_id, payload.capability, payload.action,
+            CanonicalErrorCode.INTERNAL_ERROR,
+            f"Action {payload.action!r} on {payload.capability!r} has no native command "
+            f"(sequence-form actions not yet routable via canonical endpoint)",
+        )
+        raise HTTPException(status_code=500, detail=resp.model_dump())
+
+    native_command = cap_action.command
+    incoming = payload.params or {}
+    # canonical param names -> native param names (rename only); then capability-level
+    # fixed params (e.g. {"zone": 2}) overlay the result.
+    native_params: Dict[str, Any] = {
+        cap_action.param_map.get(k, k): v for k, v in incoming.items()
+    }
+    native_params.update(cap_action.params)
+
+    # Register a one-shot state-change waiter. perform_action will trigger callbacks
+    # via update_state when state changes -- synchronously for AV (so the event is
+    # already set when we await), asynchronously for WB-passthrough (set by the value-
+    # topic echo subscription).
+    state_changed = asyncio.Event()
+
+    def _waiter(_device_id: str, _changed_fields):
+        state_changed.set()
+
+    register = getattr(device, "register_state_change_callback", None)
+    if register is not None:
+        register(_waiter)
+    try:
+        result = await device_manager.perform_action(device_id, native_command, native_params)
+
+        if not result.get("success"):
+            err_text = str(result.get("error") or "unknown error")
+            # Param-shaped failures rarely come back uniformly today; until handlers
+            # distinguish, surface most failures as internal_error. Keyword sniff for the
+            # obvious "param missing / invalid" cases so voice sees a clean 400.
+            low = err_text.lower()
+            if "param" in low or "missing" in low or "required" in low or "invalid" in low:
+                code = CanonicalErrorCode.PARAM_INVALID
+                status = 400
+            else:
+                code = CanonicalErrorCode.INTERNAL_ERROR
+                status = 500
+            resp = _err_response(
+                device_id, payload.capability, payload.action,
+                code, err_text,
+            )
+            raise HTTPException(status_code=status, detail=resp.model_dump())
+
+        try:
+            await asyncio.wait_for(state_changed.wait(), timeout=CANONICAL_ECHO_TIMEOUT_S)
+        except asyncio.TimeoutError:
+            resp = _err_response(
+                device_id, payload.capability, payload.action,
+                CanonicalErrorCode.DEVICE_UNREACHABLE,
+                f"No state echo within {int(CANONICAL_ECHO_TIMEOUT_S * 1000)} ms",
+            )
+            raise HTTPException(status_code=503, detail=resp.model_dump())
+
+        # `state.reachable` is False when an `r`/`rw` meta/error landed during the wait
+        # (Wirenboard MQTT convention -- A3). AV states don't carry that field; default True.
+        if not getattr(device.state, "reachable", True):
+            err_flags = getattr(device.state, "error_flags", {})
+            resp = _err_response(
+                device_id, payload.capability, payload.action,
+                CanonicalErrorCode.DEVICE_UNREACHABLE,
+                f"Device reported per-control error during the wait: {err_flags!r}",
+            )
+            raise HTTPException(status_code=503, detail=resp.model_dump())
+
+        # Post-action state -- re-read AFTER the wait so WB-passthrough callers see the
+        # echoed value (perform_action's result snapshot was taken before the echo).
+        state = device.state.model_dump() if hasattr(device.state, "model_dump") else dict(device.state)
+        return CanonicalActionResponse(
+            success=True, device_id=device_id,
+            capability=payload.capability, action=payload.action,
+            state=state, error=None,
+        )
+    finally:
+        callbacks = getattr(device, "_state_change_callbacks", None)
+        if callbacks is not None and _waiter in callbacks:
+            callbacks.remove(_waiter)
 
 
 @router.get("/devices/{device_id}/layout", response_model=LayoutManifest, response_model_exclude_none=True)

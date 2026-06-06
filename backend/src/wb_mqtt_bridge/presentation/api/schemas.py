@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Dict, Any, List, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
@@ -76,6 +77,55 @@ class DeviceActionsResponse(BaseModel):
     """Schema for device actions list response."""
     device_id: str
     actions: List[Dict[str, str]]
+
+
+# ---- /devices/{id}/canonical request/response DTOs ------------------------
+# §P3.7 voice-integration slice #15. Voice (Irene) speaks canonical
+# (capability, action, params); the bridge resolves canonical -> native via the
+# capability registry (class -> profile -> per-device override; see #14 + the
+# capability-profile mechanism). Response is synchronous-with-timeout: the bridge
+# waits up to ~500ms for the device's value-topic echo before returning.
+
+
+class CanonicalActionRequest(BaseModel):
+    """Voice-side request to invoke a canonical (capability, action, params) tuple."""
+    capability: str = Field(..., description="Canonical capability name (e.g. 'power', 'volume', 'cover').")
+    action: str = Field(..., description="Action within the capability (e.g. 'on', 'set', 'up').")
+    params: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Canonical parameter names (renamed to native via the capability's param_map).",
+    )
+
+
+class CanonicalErrorCode(str, Enum):
+    """Structured error codes for the canonical endpoint. HTTP status mirrors these
+    (see /devices/{id}/canonical responses): 404 for the three 'not supported' codes,
+    400 for param_invalid, 503 for device_unreachable, 500 for internal_error."""
+    DEVICE_NOT_FOUND = "device_not_found"
+    CAPABILITY_NOT_SUPPORTED = "capability_not_supported"
+    ACTION_NOT_SUPPORTED = "action_not_supported"
+    PARAM_INVALID = "param_invalid"
+    DEVICE_UNREACHABLE = "device_unreachable"
+    INTERNAL_ERROR = "internal_error"
+
+
+class CanonicalError(BaseModel):
+    """Error envelope. `field` + `reason` populated for param_invalid; both optional."""
+    code: CanonicalErrorCode
+    message: str
+    field: Optional[str] = None
+    reason: Optional[str] = None
+
+
+class CanonicalActionResponse(BaseModel):
+    """Response envelope for /devices/{id}/canonical. On success, `state` carries the
+    post-action device state (after the value-topic echo within the 500ms window)."""
+    success: bool
+    device_id: str
+    capability: str
+    action: str
+    state: Optional[Dict[str, Any]] = None
+    error: Optional[CanonicalError] = None
 
 class SystemInfo(BaseModel):
     """Schema for system information."""

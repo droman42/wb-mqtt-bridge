@@ -670,6 +670,144 @@
         "title": "BroadcastResponse",
         "type": "object"
       },
+      "CanonicalActionRequest": {
+        "description": "Voice-side request to invoke a canonical (capability, action, params) tuple.",
+        "properties": {
+          "action": {
+            "description": "Action within the capability (e.g. 'on', 'set', 'up').",
+            "title": "Action",
+            "type": "string"
+          },
+          "capability": {
+            "description": "Canonical capability name (e.g. 'power', 'volume', 'cover').",
+            "title": "Capability",
+            "type": "string"
+          },
+          "params": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Canonical parameter names (renamed to native via the capability's param_map).",
+            "title": "Params"
+          }
+        },
+        "required": [
+          "capability",
+          "action"
+        ],
+        "title": "CanonicalActionRequest",
+        "type": "object"
+      },
+      "CanonicalActionResponse": {
+        "description": "Response envelope for /devices/{id}/canonical. On success, `state` carries the\npost-action device state (after the value-topic echo within the 500ms window).",
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "capability": {
+            "title": "Capability",
+            "type": "string"
+          },
+          "device_id": {
+            "title": "Device Id",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CanonicalError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "device_id",
+          "capability",
+          "action"
+        ],
+        "title": "CanonicalActionResponse",
+        "type": "object"
+      },
+      "CanonicalError": {
+        "description": "Error envelope. `field` + `reason` populated for param_invalid; both optional.",
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/CanonicalErrorCode"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "CanonicalError",
+        "type": "object"
+      },
+      "CanonicalErrorCode": {
+        "description": "Structured error codes for the canonical endpoint. HTTP status mirrors these\n(see /devices/{id}/canonical responses): 404 for the three 'not supported' codes,\n400 for param_invalid, 503 for device_unreachable, 500 for internal_error.",
+        "enum": [
+          "device_not_found",
+          "capability_not_supported",
+          "action_not_supported",
+          "param_invalid",
+          "device_unreachable",
+          "internal_error"
+        ],
+        "title": "CanonicalErrorCode",
+        "type": "string"
+      },
       "CommandParameterDefinition": {
         "description": "Schema for command parameter definition.",
         "properties": {
@@ -3646,6 +3784,99 @@
           }
         },
         "summary": "Execute Device Action",
+        "tags": [
+          "Devices"
+        ]
+      }
+    },
+    "/devices/{device_id}/canonical": {
+      "post": {
+        "description": "Voice-friendly canonical action endpoint (§P3.7 slice #15).\n\nBody: `{capability, action, params?}` -- the same canonical tuple Irene parses from\nan utterance. The bridge resolves it through the device's capability map\n(class → profile → per-device override; see #14) and invokes the native command\nvia `perform_action`.\n\nSynchronous with a ~500 ms timeout: the response carries the **post-action**\ndevice state once the value-topic echo arrives. For WB-passthrough devices the\necho flows through the MQTT subscription chain → `update_state` → registered\ncallbacks; we register a one-shot callback for the duration of the call so the\nhandler unblocks the instant the device acknowledges. AV drivers update state\nsynchronously inside `perform_action`, so the wait returns immediately for them.\n\nError codes (HTTP status mirrors `error.code`):\n  - `device_not_found` (404)\n  - `capability_not_supported` (404)\n  - `action_not_supported` (404)\n  - `param_invalid` (400) - currently mapped from any perform_action failure with\n    param-shaped error text; refined later if/when handlers distinguish cleanly.\n  - `device_unreachable` (503) - timeout OR `state.reachable` flipped False during\n    the wait (a per-control `meta/error` `r` flag landed; A3 convention).\n  - `internal_error` (500) - everything else.",
+        "operationId": "execute_canonical_action_devices__device_id__canonical_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CanonicalActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CanonicalActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CanonicalActionResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CanonicalActionResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CanonicalActionResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CanonicalActionResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Execute Canonical Action",
         "tags": [
           "Devices"
         ]
