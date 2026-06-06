@@ -251,6 +251,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/devices/{device_id}/canonical": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Execute Canonical Action
+         * @description Voice-friendly canonical action endpoint (§P3.7 slice #15).
+         *
+         *     Body: `{capability, action, params?}` -- the same canonical tuple Irene parses from
+         *     an utterance. The bridge resolves it through the device's capability map
+         *     (class → profile → per-device override; see #14) and invokes the native command
+         *     via `perform_action`.
+         *
+         *     Synchronous with a ~500 ms timeout: the response carries the **post-action**
+         *     device state once the value-topic echo arrives. For WB-passthrough devices the
+         *     echo flows through the MQTT subscription chain → `update_state` → registered
+         *     callbacks; we register a one-shot callback for the duration of the call so the
+         *     handler unblocks the instant the device acknowledges. AV drivers update state
+         *     synchronously inside `perform_action`, so the wait returns immediately for them.
+         *
+         *     Error codes (HTTP status mirrors `error.code`):
+         *       - `device_not_found` (404)
+         *       - `capability_not_supported` (404)
+         *       - `action_not_supported` (404)
+         *       - `param_invalid` (400) - currently mapped from any perform_action failure with
+         *         param-shaped error text; refined later if/when handlers distinguish cleanly.
+         *       - `device_unreachable` (503) - timeout OR `state.reachable` flipped False during
+         *         the wait (a per-control `meta/error` `r` flag landed; A3 convention).
+         *       - `internal_error` (500) - everything else.
+         */
+        post: operations["execute_canonical_action_devices__device_id__canonical_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/devices/{device_id}/layout": {
         parameters: {
             query?: never;
@@ -1267,6 +1309,70 @@ export interface components {
              */
             status: string;
         };
+        /**
+         * CanonicalActionRequest
+         * @description Voice-side request to invoke a canonical (capability, action, params) tuple.
+         */
+        CanonicalActionRequest: {
+            /**
+             * Action
+             * @description Action within the capability (e.g. 'on', 'set', 'up').
+             */
+            action: string;
+            /**
+             * Capability
+             * @description Canonical capability name (e.g. 'power', 'volume', 'cover').
+             */
+            capability: string;
+            /**
+             * Params
+             * @description Canonical parameter names (renamed to native via the capability's param_map).
+             */
+            params?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * CanonicalActionResponse
+         * @description Response envelope for /devices/{id}/canonical. On success, `state` carries the
+         *     post-action device state (after the value-topic echo within the 500ms window).
+         */
+        CanonicalActionResponse: {
+            /** Action */
+            action: string;
+            /** Capability */
+            capability: string;
+            /** Device Id */
+            device_id: string;
+            error?: components["schemas"]["CanonicalError"] | null;
+            /** State */
+            state?: {
+                [key: string]: unknown;
+            } | null;
+            /** Success */
+            success: boolean;
+        };
+        /**
+         * CanonicalError
+         * @description Error envelope. `field` + `reason` populated for param_invalid; both optional.
+         */
+        CanonicalError: {
+            code: components["schemas"]["CanonicalErrorCode"];
+            /** Field */
+            field?: string | null;
+            /** Message */
+            message: string;
+            /** Reason */
+            reason?: string | null;
+        };
+        /**
+         * CanonicalErrorCode
+         * @description Structured error codes for the canonical endpoint. HTTP status mirrors these
+         *     (see /devices/{id}/canonical responses): 404 for the three 'not supported' codes,
+         *     400 for param_invalid, 503 for device_unreachable, 500 for internal_error.
+         * @enum {string}
+         */
+        CanonicalErrorCode: "device_not_found" | "capability_not_supported" | "action_not_supported" | "param_invalid" | "device_unreachable" | "internal_error";
         /**
          * CommandParameterDefinition
          * @description Schema for command parameter definition.
@@ -2638,6 +2744,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    execute_canonical_action_devices__device_id__canonical_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CanonicalActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CanonicalActionResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CanonicalActionResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CanonicalActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CanonicalActionResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CanonicalActionResponse"];
                 };
             };
         };
