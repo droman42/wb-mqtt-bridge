@@ -6,6 +6,7 @@
     "ru": "Споты",
     "en": "Spots"
   },
+  "capability_profile": "light_switch",
   "room": "cabinet",
   "commands": {
     "power_on": {

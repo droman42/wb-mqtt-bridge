@@ -76,6 +76,55 @@ def test_missing_files_yield_empty_map(tmp_path):
     assert m.domains() == []
 
 
+def test_profile_merges_under_class_and_above_device_override(tmp_path):
+    """§P3.7 capability-profile resolution: class → profile → per-device, leaves win at the top.
+    Lets many WB-passthrough devices share one capability file (`light_switch` etc.) without
+    touching AV devices that don't set `capability_profile`."""
+    (tmp_path / "classes").mkdir()
+    (tmp_path / "profiles").mkdir()
+    (tmp_path / "devices").mkdir()
+    # Class default: not used by light_switch in practice, but the resolver must merge over it.
+    (tmp_path / "classes" / "WbPassthroughDevice.json").write_text(json.dumps({
+        "power": {"kind": "stateful", "feedback": True, "state_field": "power",
+                  "actions": {"on": {"command": "from_class"}}}
+    }))
+    # Profile: the shared light_switch shape.
+    (tmp_path / "profiles" / "light_switch.json").write_text(json.dumps({
+        "power": {"kind": "momentary",
+                  "actions": {"on": {"command": "power_on"}, "off": {"command": "power_off"}}}
+    }))
+    # Per-device override: stays valid for the rare instance tweak.
+    (tmp_path / "devices" / "cabinet_spots.json").write_text(json.dumps({
+        "power": {"actions": {"on": {"command": "instance_override"}}}
+    }))
+    m = load_capability_map("WbPassthroughDevice", "cabinet_spots", tmp_path,
+                            capability_profile="light_switch")
+    power = m.get("power")
+    # Device override beats profile beats class at the action leaf.
+    assert power.actions["on"].command == "instance_override"
+    # Profile contributes `off` (class didn't have it).
+    assert power.actions["off"].command == "power_off"
+    # And kind comes from the profile (overrode the class default "stateful").
+    assert power.kind == "momentary"
+
+
+def test_profile_omitted_when_capability_profile_is_none(tmp_path):
+    """A device that doesn't set capability_profile keeps the old class+device-override
+    behaviour byte-for-byte -- the AV path must not change."""
+    (tmp_path / "classes").mkdir()
+    (tmp_path / "profiles").mkdir()
+    (tmp_path / "classes" / "LgTv.json").write_text(json.dumps({
+        "power": {"kind": "stateful", "feedback": True, "state_field": "power",
+                  "actions": {"on": {"command": "power_on"}}}
+    }))
+    # A bogus profile sits next door; it must NOT be picked up.
+    (tmp_path / "profiles" / "light_switch.json").write_text(json.dumps({
+        "power": {"actions": {"on": {"command": "WRONG"}}}
+    }))
+    m = load_capability_map("LgTv", "tv1", tmp_path)  # capability_profile defaults to None
+    assert m.get("power").actions["on"].command == "power_on"
+
+
 def test_invalid_select_rejected():
     with pytest.raises(Exception):
         Capability.model_validate({"kind": "stateful", "select": {}})  # neither command nor by_value

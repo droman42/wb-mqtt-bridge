@@ -1,14 +1,24 @@
 """Load and merge device capability maps from ``config/capabilities/``.
 
-Resolution for a device: the class default (``classes/<device_class>.json``, shared by
-all instances of specific drivers) deep-merged with a per-device file
-(``devices/<device_id>.json``, the home for generic IR devices and per-instance
-overrides), with the device file winning. Either may be absent.
+Resolution for a device, in precedence order (lower → higher; higher wins at the leaves):
+
+1. **Class default** ``classes/<device_class>.json`` -- shared by all instances of a specific
+   driver, used by AV devices where the device-class is the capability shape (LgTv,
+   AppleTVDevice, EMotivaXMC2, …).
+2. **Capability profile** ``profiles/<capability_profile>.json`` -- shared by many devices of
+   the same *fixture kind* (every relay-light is `light_switch`; every paired switch+slider
+   is `dimmable_light`; every dooya is `cover`). Used by WB-passthrough where one driver
+   class hosts many distinct shapes; the profile keeps the map authored once for the whole
+   family. Loaded only when ``capability_profile`` is set on the device config.
+3. **Per-device override** ``devices/<device_id>.json`` -- the home for generic IR devices
+   (ld_player, mf_amplifier, …) and any per-instance tweak. Same slot as before.
+
+Any of the three may be absent.
 """
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Optional, Set
 
 from wb_mqtt_bridge.domain.capabilities.models import CapabilityAction, CapabilityMap
 
@@ -29,18 +39,26 @@ def _read(path: Path) -> Dict[str, Any]:
 
 
 def load_capability_map(
-    device_class: str, device_id: str, capabilities_dir: Path
+    device_class: str,
+    device_id: str,
+    capabilities_dir: Path,
+    capability_profile: Optional[str] = None,
 ) -> CapabilityMap:
     """Resolve and validate a device's capability map.
 
-    Returns an empty map if neither the class nor the device file exists.
-    Raises ``pydantic.ValidationError`` if a present file is malformed.
+    Returns an empty map if none of the three sources exist for this device.
+    Raises ``pydantic.ValidationError`` if any present file is malformed.
     """
     merged: Dict[str, Any] = {}
 
     class_file = capabilities_dir / "classes" / f"{device_class}.json"
     if class_file.exists():
         merged = _read(class_file)
+
+    if capability_profile:
+        profile_file = capabilities_dir / "profiles" / f"{capability_profile}.json"
+        if profile_file.exists():
+            merged = _deep_merge(merged, _read(profile_file))
 
     device_file = capabilities_dir / "devices" / f"{device_id}.json"
     if device_file.exists():
@@ -57,7 +75,10 @@ def attach_capability_maps(devices: Dict[str, Any], capabilities_dir: Path) -> N
     """
     for device_id, device in devices.items():
         device.capabilities = load_capability_map(
-            device.config.device_class, device_id, capabilities_dir
+            device.config.device_class,
+            device_id,
+            capabilities_dir,
+            getattr(device.config, "capability_profile", None),
         )
 
 

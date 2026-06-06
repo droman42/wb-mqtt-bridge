@@ -1165,6 +1165,11 @@ export interface components {
          * @description Base schema for device configuration.
          */
         BaseDeviceConfig: {
+            /**
+             * Capability Profile
+             * @description Name of a shared capability profile from `config/capabilities/profiles/`. Lets many similar devices (every relay-light, every cover, every heating loop) share one capability map authored once. The resolver merges the profile on top of the class-level map and then merges any per-instance override on top of that. `None` for devices whose capability shape is fully captured by their device-class file (the AV pattern -- LgTv, AppleTVDevice, etc.).
+             */
+            capability_profile?: string | null;
             /** Commands */
             commands?: {
                 [key: string]: components["schemas"]["BaseCommandConfig"];
@@ -2355,6 +2360,10 @@ export interface components {
         };
         /** ValidationError */
         ValidationError: {
+            /** Context */
+            ctx?: Record<string, never>;
+            /** Input */
+            input?: unknown;
             /** Location */
             loc: (string | number)[];
             /** Message */

@@ -1,15 +1,18 @@
 """Slice integration test for §P3.7 #14 — cabinet_spots.
 
-Pins three things end-to-end against the actual committed slice configs:
+Pins four things end-to-end against the actual committed slice configs:
 
 1. The cabinet_spots.json device config under `backend/config/devices/wb-devices/cabinet/`
-   parses into a WbPassthroughDeviceConfig (Pydantic) — the names+room+commands+state_topics
-   shape is exactly what the driver expects.
+   parses into a WbPassthroughDeviceConfig (Pydantic) — the names+room+capability_profile+
+   commands+state_topics shape is exactly what the driver expects.
 2. The recursive config scanner (utils/validation.py, switched to glob `**/*.json` for the
    single-room directory convention) actually discovers a config in a wb-devices/<room>/
    subtree. A regression here would silently make the slice device invisible to ConfigManager.
-3. The capability map at `backend/config/capabilities/devices/cabinet_spots.json` maps
-   canonical `power.on/off` → native `power_on/power_off`, matching the device's commands.
+3. The `light_switch` capability profile resolves through the loader for cabinet_spots and
+   maps canonical `power.on/off` → native `power_on/power_off`, matching the device config's
+   commands. (Profiles are §P3.7's scaling answer for the WB-passthrough family — many
+   devices share one capability file.)
+4. The rooms.json carries the cabinet entry with bilingual names + cabinet_spots membership.
 
 These are pure file-load + schema tests — no MQTT, no FastAPI, no hardware. The
 WB-passthrough driver unit tests (test_wb_passthrough.py) cover the behavioural side.
@@ -19,12 +22,13 @@ from pathlib import Path
 
 import pytest
 
+from wb_mqtt_bridge.infrastructure.capabilities.loader import load_capability_map
 from wb_mqtt_bridge.infrastructure.config.models import WbPassthroughDeviceConfig
 from wb_mqtt_bridge.utils.validation import discover_config_files
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEVICE_CFG = REPO_ROOT / "backend" / "config" / "devices" / "wb-devices" / "cabinet" / "cabinet_spots.json"
-CAP_MAP = REPO_ROOT / "backend" / "config" / "capabilities" / "devices" / "cabinet_spots.json"
+CAPS_DIR = REPO_ROOT / "backend" / "config" / "capabilities"
 ROOMS_JSON = REPO_ROOT / "backend" / "config" / "rooms.json"
 
 
@@ -37,6 +41,8 @@ def test_cabinet_spots_json_parses_as_wb_passthrough_config():
     assert cfg.names.ru == "Споты"
     assert cfg.names.en == "Spots"
     assert cfg.room == "cabinet"
+    # The capability shape comes from the shared light_switch profile, NOT a per-device file.
+    assert cfg.capability_profile == "light_switch"
     # Loop guard: passthrough never owns the underlying control.
     assert cfg.enable_wb_emulation is False
     # Commands point at the actual WB blaster slave + channel from §P3.7 A1.
@@ -61,16 +67,26 @@ def test_recursive_scanner_finds_config_under_wb_devices_room_subdir():
     assert str(REPO_ROOT / "backend" / "config" / "devices" / "lg_tv_living.json") in files
 
 
-def test_capability_map_resolves_power_on_off_to_native_commands():
+def test_light_switch_profile_resolves_power_on_off_to_native_commands():
     """Canonical `power.on/off` must map onto the native command names the device config
-    exposes — otherwise the canonical endpoint (#15) can't route. This is the contract."""
-    cap = json.loads(CAP_MAP.read_text())
-    assert cap["power"]["actions"]["on"]["command"] == "power_on"
-    assert cap["power"]["actions"]["off"]["command"] == "power_off"
+    exposes — otherwise the canonical endpoint (#15) can't route. The map comes from the
+    shared `light_switch` profile, resolved through the loader exactly the way bootstrap
+    does it; no per-device override file is involved."""
+    cap_map = load_capability_map(
+        device_class="WbPassthroughDevice",
+        device_id="cabinet_spots",
+        capabilities_dir=CAPS_DIR,
+        capability_profile="light_switch",
+    )
+    power = cap_map.root["power"]
+    assert power.actions["on"].command == "power_on"
+    assert power.actions["off"].command == "power_off"
     # Cross-check: those native command names exist on the device config.
     dev_cfg = json.loads(DEVICE_CFG.read_text())
     assert "power_on" in dev_cfg["commands"]
     assert "power_off" in dev_cfg["commands"]
+    # No per-device override exists (and shouldn't, for a stock light_switch).
+    assert not (CAPS_DIR / "devices" / "cabinet_spots.json").exists()
 
 
 def test_rooms_json_carries_cabinet_with_bilingual_names():

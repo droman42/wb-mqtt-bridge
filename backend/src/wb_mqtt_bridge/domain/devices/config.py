@@ -65,6 +65,16 @@ class BaseDeviceConfig(BaseModel):
     """Base schema for device configuration."""
     device_id: str
     names: LocalizedName = Field(..., description="Bilingual display name; see LocalizedName.")
+    capability_profile: Optional[str] = Field(
+        None,
+        description="Name of a shared capability profile from `config/capabilities/profiles/`. "
+                    "Lets many similar devices (every relay-light, every cover, every heating "
+                    "loop) share one capability map authored once. The resolver merges the "
+                    "profile on top of the class-level map and then merges any per-instance "
+                    "override on top of that. `None` for devices whose capability shape is fully "
+                    "captured by their device-class file (the AV pattern -- LgTv, AppleTVDevice, "
+                    "etc.).",
+    )
     room: Optional[str] = Field(
         None,
         description="Room id (matches an entry in `rooms.json`). A device belongs to **exactly "

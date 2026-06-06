@@ -11,6 +11,31 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-06 (§P3.7 — capability-profile mechanism + light_switch profile + cabinet_spots migration)** —
+  User flagged that the per-device capability file authored for cabinet_spots in #14 wouldn't
+  scale: ~50-80 WB-passthrough devices would each get a nearly-identical 6-line file.
+  Introduced **capability profiles**: a shared map at
+  `config/capabilities/profiles/<profile>.json`, referenced from the device config via a new
+  `capability_profile: Optional[str]` field on `BaseDeviceConfig`. Resolver order is now
+  class → profile → per-instance override (each step optional). **The AV path is unchanged**:
+  AV devices don't set `capability_profile`, so the profile-lookup step is skipped and the
+  existing class + per-instance behaviour is byte-for-byte preserved — locked by a regression
+  test. Slice 1's `light_switch` profile (`power.on/off` → `power_on/power_off`) is
+  authored; `cabinet_spots.json` declares `capability_profile: "light_switch"`; the per-device
+  `capabilities/devices/cabinet_spots.json` was deleted. Profile catalog documented in §P3.7
+  A1 (light_switch / dimmable_light / rgb_light / cover / heating_loop / hvac / sensor_room,
+  ~7 files covering ~80 logical devices in bulk). **Side note**: the 3 HVAC units are ESP32-
+  based — a dedicated `ESP32ManagedDevice` driver class may land alongside future ESP32 work;
+  deferred until we approach HVAC bulk. **§P3.7 #19** (capability vocab extension) updated
+  to reflect that the mechanism is now in: it becomes "author the remaining 6 profiles".
+  Loader updated (`infrastructure/capabilities/loader.py`: signature gained
+  `capability_profile=None`; `attach_capability_maps` passes it through). 2 new loader tests
+  in `test_capabilities.py` covering both the profile path AND the AV-path-unchanged
+  regression; slice test refined to call `load_capability_map` directly and verify the
+  profile resolves correctly. **Full suite: 423 passed, 0 failed** (was 421; +2 from the
+  loader tests). openapi.json + UI types regenerated; UI typecheck + lint clean. Hexagonal
+  LAW: domain gained the `capability_profile` field (domain stays pure); infra loader change
+  stays within infrastructure; no cross-layer additions.
 - **2026-06-06 (§P3.7 slice #14 — cabinet_spots wired)** — Slice's first device authored
   per the §P3.7 directory convention. Three files: `backend/config/devices/wb-devices/cabinet/
   cabinet_spots.json` (WB-passthrough config: device_id `cabinet_spots`, bilingual names

@@ -310,7 +310,7 @@ onboarding:
 | # | Task | Effort |
 |---|------|--------|
 | 13 | **DONE 2026-06-06.** Generic WB-passthrough driver (`infrastructure/devices/wb_passthrough/driver.py`): config-driven (one command = one publish; static `value` OR first-param-derived payload with int/bool/float coercion to match WB UI semantics); subscribes per state_topic AND its per-control `meta/error` companion (`r`/`w`/`p` flags drive `state.reachable`); state mirror flows through `update_state` — no direct `self.state.x =` (chokepoint static guard verified). Loop guard: `enable_wb_emulation` defaults to **False** on `WbPassthroughDeviceConfig` so BaseDevice skips `_setup_wb_virtual_device` (no feedback loop). New `room: Optional[str]` field on `BaseDeviceConfig` (default `None`; single-room model — see A1). 15 driver-pattern tests; full suite 417 passed. | DONE |
-| 14 | **DONE 2026-06-06.** `backend/config/devices/wb-devices/cabinet/cabinet_spots.json` (first config in the new `wb-devices/<room>/` subtree); `backend/config/capabilities/devices/cabinet_spots.json` (canonical `power.on/off` → native `power_on/power_off`); `backend/config/rooms.json` extended with the `cabinet` entry (ru "Кабинет" / en "Study" / de "Arbeitszimmer"). `wb_passthrough` entry point now registered with the venv. New `tests/unit/test_slice_cabinet_spots.py` pins the Pydantic parse, the recursive scanner discovery, the capability map ↔ device-config command-name agreement, and the rooms.json shape (4 tests; full suite 421 pass). | DONE |
+| 14 | **DONE 2026-06-06.** `backend/config/devices/wb-devices/cabinet/cabinet_spots.json` (first config in the new `wb-devices/<room>/` subtree) declaring `capability_profile: "light_switch"`; new shared profile `backend/config/capabilities/profiles/light_switch.json` (canonical `power.on/off` → native `power_on/power_off`) — every relay-light in the house will reference it (`light_switch`); `backend/config/rooms.json` extended with the `cabinet` entry. `wb_passthrough` entry point registered with the venv. New `tests/unit/test_slice_cabinet_spots.py` (4 tests) + 2 loader tests in `test_capabilities.py` pin Pydantic parse, recursive scanner discovery, profile resolution through `load_capability_map`, AV-path-unchanged regression, and rooms.json shape. Full suite 423 pass. | DONE |
 | 15 | `POST /devices/{id}/canonical` endpoint: error-code enum (6 codes, HTTP-mapped), synchronous-with-500 ms-default semantics, subscribe to `wb-mqtt-serial` per-device error topics. | ~1 day |
 | 16 | **DONE 2026-06-06.** `device_name → names: {ru, en}` schema widening + one-shot migration of the 13 existing AV configs (Pydantic `LocalizedName` model in `domain/devices/config.py`; configs rewritten; runtime DTOs `BaseDeviceState.device_name` + `LayoutManifest.device_name` preserved as flat strings projected from `names.ru` so the UI surface is unchanged; UI's one config-side read fixed in `useDataSync.ts`). 401 backend tests pass; UI typecheck + lint clean. | DONE |
 | 17 | `GET /system/catalog` minimum: returns this device + its room; content-hash version; retained `bridge/catalog/version` nudge on `/reload`. | ~½ day |
@@ -322,7 +322,7 @@ Slice total: ~3-4 dev days + a rack/Irene verification pass.
 
 | # | Task | Effort |
 |---|------|--------|
-| 19 | Canonical capability vocab extension — `brightness`, `color`, `cover`, `climate`, `sensor` (read-only fields). Schemas in `config/capabilities/`. | ~½ day |
+| 19 | Canonical capability vocab extension — `brightness`, `color`, `cover`, `climate`, `sensor` (read-only fields) — authored as **shared profiles** in `config/capabilities/profiles/` (one file per fixture kind: `dimmable_light`, `rgb_light`, `cover`, `heating_loop`, `hvac`, `sensor_room`); the profile mechanism + `light_switch` already landed in #14. | ~½ day |
 | 20 | Composition layer above the driver — RGB (`"R;G;B"`), HVAC (mode + setpoint + fan, often across sub-devices). Lives next to the existing reconciler. | ~1 day |
 | 21 | `rooms.json` bootstrap — **one-shot import from the WB HomeUI config** (location identified during implementation); not manual. | ~½ day |
 | 22 | Bulk device configs — relays (5+), dimmers (3), RGB (3), covers (Dooyas), HVAC (3 rooms + setpoint vdevs), multi-sensors per room. ~30+ configs, mostly mechanical once the driver + adapters are stable. | ~3-5 days |
@@ -338,9 +338,9 @@ consume. Test room: **cabinet** (where the user works; observation closes the lo
 
 Three files to author for the slice:
 - `backend/config/devices/wb-devices/cabinet/cabinet_spots.json` — WB-passthrough device
-  config (new directory convention, see below)
-- `backend/config/capabilities/devices/cabinet_spots.json` — canonical→native map (shape per
-  existing `config/capabilities/devices/*.json` convention)
+  config (new directory convention, see below); declares `capability_profile: "light_switch"`
+- `backend/config/capabilities/profiles/light_switch.json` — shared capability profile (the
+  canonical→native map) — written **once** for every relay-light in the house
 - `backend/config/rooms.json` — extend with `cabinet`
 
 **Directory convention — `wb-devices/<room>/<device_id>.json`** (settled 2026-06-06).
@@ -361,7 +361,9 @@ load unchanged.
 {
   "device_id": "cabinet_spots",
   "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
   "names": {"ru": "Споты", "en": "Spots"},
+  "capability_profile": "light_switch",
   "room": "cabinet",
   "commands": {
     "power_on":  {"topic": "/devices/wb-mr6c_51/controls/K4/on", "value": "1"},
@@ -374,12 +376,30 @@ load unchanged.
 ```
 
 No explicit error topic field: per A3 below, errors are per-CONTROL and the WB-passthrough
-driver subscribes to `<state_topic>/meta/error` automatically for every state mirror. No
-authoring needed.
+driver subscribes to `<state_topic>/meta/error` automatically for every state mirror.
 
-**Capability map** maps canonical `power.on/off` → native `power_on/power_off` (one
-two-action entry per the existing convention). The two-capability composite shape (lights
-with paired brightness) gets exercised in slice 2 / bulk; slice 1 stays pure-`power`.
+**Capability profiles — shared maps for the WB-passthrough family.** A new directory
+`config/capabilities/profiles/<profile>.json` holds capability maps shared by many devices
+of the same fixture kind. The resolver order is class → **profile** → per-instance override
+(profile loaded only when `capability_profile` is set; AV devices set it to `None` and the
+path stays byte-for-byte unchanged). Slice 1 uses **`light_switch`** = `power.on/off` →
+`power_on/power_off` (the only capability cabinet_spots needs). The catalog of profiles we'll
+author over the slice + bulk (matches §P3.7 A2's composite-control shapes):
+
+| Profile | Capabilities | Used by (approx) |
+|---|---|---|
+| `light_switch` | `power` | wb-mr6c relay channels — ~25 |
+| `dimmable_light` | `power` + `brightness` | wb-mdm3 switch+slider pairs — ~10 |
+| `rgb_light` | `power` + `brightness` + `color` | wb-mrgbw-d RGB strips — ~5 |
+| `cover` | `cover` (open/close/set_position) | dooya curtains — ~10 |
+| `heating_loop` | `climate` (mode + setpoint + room-temp) | radiator / floor loops — ~9 |
+| `hvac` | full `climate` (mode/fan/vane/setpoint) | hvac_* — 3 |
+| `sensor_room` | `sensor` with fields | wb-msw-v3 sensor sides — ~9 |
+
+The 3 HVAC units run on ESP32 and may eventually move to a dedicated
+**`ESP32ManagedDevice`** driver class (alongside future ESP32 work in this project). That
+decision is deferred until we approach the HVAC bulk; until then the `hvac` profile sits on
+the existing WB-passthrough driver.
 
 **`rooms.json` additions**:
 
@@ -704,6 +724,7 @@ The dated history lives in **[`docs/action_plan_journal.md`](action_plan_journal
 
 **Recent entries** (newest first; full content + earlier entries in the journal):
 
+- 2026-06-06 — §P3.7 — capability-profile mechanism + `light_switch` profile (cabinet_spots migrated; AV path unchanged; 423 tests pass)
 - 2026-06-06 — §P3.7 slice #14 — cabinet_spots wired (device config + capability map + rooms.json entry; 421 tests pass)
 - 2026-06-06 — §P3.7 — single-room model + `wb-devices/<room>/` directory convention (contract correction; recursive config scan)
 - 2026-06-06 — §P3.7 slice #13 — generic WB-passthrough driver DONE (417 tests pass, loop guard verified)
