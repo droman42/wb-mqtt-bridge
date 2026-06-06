@@ -11,6 +11,31 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-06 (A2 — WB HomeUI config located + composite-control patterns documented)** —
+  Resolved Step A2 of the §P3.7 voice-onboarding pre-work. Located the WB HomeUI dashboard
+  config at `/etc/wb-webui.conf` → `/mnt/data/etc/wb-webui.conf` (860 KB JSON). 10 real rooms
+  identified for the bootstrap importer (`entrance / hall / livingroom / kitchen / wc /
+  bathroom / bedroom / children / wardrobe / cabinet`); SVG dashboards + 3 cross-cutting
+  dashboards (`safe`, `power` = global scenarios, `av_teaching`) deliberately skipped.
+  **Locked the modeling decision: one logical bridge device per cell, NOT per WB slave** —
+  cross-room analysis of 40 unique slaves showed **15 (38%) span 2–5 rooms each** (worst
+  cases: 3 relay modules + GPIO + `setpoints_floor` all serving 5 rooms; `setpoints_radiator`
+  4; the dimmers + `setpoints_curtain` + more relays 3 each). A per-slave model can't answer
+  `rooms: […]`, and even single-room slaves often host multiple distinct logical things.
+  Expected bulk count: ~50–80 logical devices across 10 rooms. **Documented the
+  composite-control shapes** the WB-passthrough driver + capability adapters must handle:
+  (a) paired switch + brightness lights → one logical device with `power` + `brightness`
+  capabilities (no cross-device composition; just two-capability mapping); (b) heating loops
+  (actuator switch + setpoint slider + room-temp sensor, sometimes 3 per room as in cabinet)
+  → one logical device per loop with `climate` capability, multi-cell write through the
+  capability-adapter layer (#20); (c) RGB strips → `color.set(rgb)` adapter writes the
+  `"R;G;B"` string; (d) covers → position slider only, `dooya_dm35eq_x_*/Position`; (e) HVAC
+  `hvac_*/*` (7 cells) → single device, full `climate`. `*_permit_schedule` cells are
+  wb-rules schedule flags and are skipped during import. **Slice device locked**:
+  `wb-mr6c_51/K4 "Споты"` → logical id `cabinet_spots` in `cabinet` room; pure switch, no
+  composition; physical observation closes the verification loop because the user works in
+  the cabinet. Findings written into §P3.7 of the plan (Pre-work findings — A2 sub-section);
+  implementation step list (#13–24) unchanged.
 - **2026-06-06 (voice integration contract agreed + new §P3.7 HIGH-PRIORITY phase)** — Reconciled
   the bridge ↔ Irene voice integration contract in this session with the user. The draft from
   Irene's ARCH-7 (`docs/voice_integration_contract_draft.md`, originally written by a sister-repo
