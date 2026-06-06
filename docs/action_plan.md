@@ -312,7 +312,7 @@ onboarding:
 | 13 | Generic WB-passthrough driver skeleton (`infrastructure/devices/wb_passthrough/`) — config-driven, one command = one publish, subscribe to value topic, mirror state via `update_state` (loop-guarded: no WB-publish callback). Tests follow `device_test_pattern`. | ~1 day |
 | 14 | First device config: one `wb-mr6c` relay channel in the children's room (capability map, room entry, `global` opt-in). | ~½ day |
 | 15 | `POST /devices/{id}/canonical` endpoint: error-code enum (6 codes, HTTP-mapped), synchronous-with-500 ms-default semantics, subscribe to `wb-mqtt-serial` per-device error topics. | ~1 day |
-| 16 | `device_name → names: {ru, en}` schema widening + **one-shot migration** of the ~15 existing AV configs (no backwards-compat shim). | ~½ day |
+| 16 | **DONE 2026-06-06.** `device_name → names: {ru, en}` schema widening + one-shot migration of the 13 existing AV configs (Pydantic `LocalizedName` model in `domain/devices/config.py`; configs rewritten; runtime DTOs `BaseDeviceState.device_name` + `LayoutManifest.device_name` preserved as flat strings projected from `names.ru` so the UI surface is unchanged; UI's one config-side read fixed in `useDataSync.ts`). 401 backend tests pass; UI typecheck + lint clean. | DONE |
 | 17 | `GET /system/catalog` minimum: returns this device + its room; content-hash version; retained `bridge/catalog/version` nudge on `/reload`. | ~½ day |
 | 18 | End-to-end verification: Irene ("включи свет в детской") → canonical → publish → value echo → 200 OK with post-state, within the 500 ms budget. Sister-project ARCH-8 sign-off. | rack + Irene |
 
@@ -691,6 +691,7 @@ The dated history lives in **[`docs/action_plan_journal.md`](action_plan_journal
 
 **Recent entries** (newest first; full content + earlier entries in the journal):
 
+- 2026-06-06 — §P3.7 slice #16 — device_name → names bilingual migration DONE (401 tests pass, UI clean)
 - 2026-06-06 — A3 — wb-mqtt-serial error topic convention nailed (per-control, `r`/`w`/`p`); all pre-work DONE
 - 2026-06-06 — A1 — slice artifacts nailed for cabinet_spots (room: cabinet)
 - 2026-06-06 — A2 — WB HomeUI config located + composite-control patterns documented

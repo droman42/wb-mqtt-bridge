@@ -11,6 +11,31 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-06 (§P3.7 slice #16 — device_name → names bilingual migration DONE)** — First
+  coding task of the voice-integration slice. Schema: new `LocalizedName` Pydantic model
+  (`ru: str, en: str, extra="allow"`) on `domain/devices/config.py`, re-exported from
+  `infrastructure/config/models.py`. `BaseDeviceConfig.device_name: str` replaced by
+  `names: LocalizedName`. Wire DTOs deliberately kept compatible — `BaseDeviceState.device_name`
+  and `LayoutManifest.device_name` stay flat strings projected from `config.names.ru`, so the
+  UI's state/layout surfaces don't shift shape; only the *catalog* (Step 5, #17) will consume
+  `names` directly. Code sites updated: `BaseDevice.__init__` (`self.names = config.names`,
+  `self.device_name = self.names.ru` for back-compat with the existing logging + state init);
+  5 driver inits (`apple_tv`, `auralic`, `emotiva_xmc2`, `lg_tv`, `wirenboard_ir_device`) reading
+  `config.device_name` → `config.names.ru`; `WBVirtualDeviceService` reads `config.names.ru` for
+  the WB virtual device's display (WB UI is ru-default); `layout_engine.py` projects
+  `cfg.names.ru` into `LayoutManifest.device_name`; `utils/validation.py` REQUIRED_FIELDS swap.
+  All 13 AV configs rewritten with the agreed bilingual pairs (Apple TV / Apple TV; Телевизор /
+  TV; Процессор / AV Processor; Усилитель / Amplifier; Стример / Streamer; Медиаплеер /
+  Media Player; Апскейлер / Upscaler; Лазердиск / LaserDisc; Видеомагнитофон / VHS;
+  Магнитофон / Reel-to-Reel; Вытяжка / Kitchen Hood). 25 fixture replacements across the test
+  tree plus 5 contextual fixes (mock-config `.names = SimpleNamespace(...)`; KitchenHoodState
+  back to flat `device_name=`; one assertion update). **401 backend tests pass, 0 failed.**
+  UI side: `backend/openapi.json` regenerated via `wb_mqtt_bridge.cli.dump_openapi` (new
+  `LocalizedName` schema added; BaseDeviceConfig.names $ref'd; runtime DTOs unchanged shape),
+  `ui/src/types/openapi.gen.ts` regenerated (95ms, +17 lines net), `useDataSync.ts` updated to
+  read `config.names.ru/en` instead of the gone `config.device_name`. **UI typecheck + lint
+  clean.** Slice task #16 marked DONE in §P3.7. Next slice task is #13 (WB-passthrough driver
+  skeleton) -- the foundation for #14 + #18.
 - **2026-06-06 (A3 — wb-mqtt-serial error topic convention nailed; all pre-work DONE)** —
   Closed the last pre-work item for §P3.7's slice. Verified on the live broker AND
   cross-checked against the Wirenboard MQTT-conventions spec
