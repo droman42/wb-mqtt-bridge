@@ -1195,6 +1195,11 @@ export interface components {
             /** @description Bilingual display name; see LocalizedName. */
             names: components["schemas"]["LocalizedName"];
             /**
+             * Rooms
+             * @description Room ids the device belongs to (matches `rooms.json`). Multi-room allowed; the `global` room is opt-in for 'выключи всё'-style commands. Empty list for AV gear that doesn't yet live in a room (gets populated during bulk onboarding, §P3.7 #21).
+             */
+            rooms?: string[];
+            /**
              * Wb Controls
              * @description Custom Wirenboard control definitions
              */
