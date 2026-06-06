@@ -11,6 +11,23 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-07 (§P3.7 plan reconcile — aggregate-device model for `global`)** —
+  Re-read of `docs/voice_integration_contract_draft.md` against `action_plan.md` §P3.7 surfaced
+  one residual drift from the 2026-06-06 contract correction (commit `36b8fe6`): two places in
+  the plan still described "выключи свет везде" as Irene-iterating-rooms, where the agreed
+  model is a single canonical call against an aggregate device in `global` (e.g. `all_lights`).
+  Fixed both lines (§P3.7 pillar-B summary + A1 findings cross-room paragraph). Bulk task list
+  also missed the aggregate-device deliverable — inserted a new task **#22 (Aggregate devices
+  in `global`)** between rooms.json bootstrap and the per-room config sweep, ~½ day; renumbered
+  the three following tasks (22→23, 23→24, 24→25); updated the "bulk total" estimate to
+  ~7.5–10.5 dev days; updated the "#19-#24" range reference in the post-slice journal entry to
+  "#19-#25". Task #21 (rooms.json bootstrap) clarified to seed the `global` room as a top-level
+  entry. **User-declared scope boundary**: the bridge-side aggregate-device configs are in
+  scope for #22; the **controller-side wb-rules fan-out scenes that back each aggregate are
+  user tech debt** (out of bridge scope; the bridge just registers each aggregate as a normal
+  `WbPassthroughDevice` config whose `commands.power_*` topic points at the WB virtual control
+  the wb-rules scene listens on). Slice (#13-#18) needed no code change — contract drift was
+  entirely in the bulk-task description. No code touched.
 - **2026-06-06 (§P3.7 #18 cold-start fix — retained-message opt-in per topic)** —
   Final follow-up surfaced by the user at the rack: after the AV-driver fix, the bridge
   booted clean but the FIRST `power_off` after restart 503'd whenever the relay was
@@ -98,7 +115,7 @@ journal entries in §6). This file is the long tail.
   (A1/A2/A3) + 2 mid-slice corrections (single-room model + capability-profile
   mechanism) + 2 bug fixes (the bootstrap/MQTT-subscribe wiring), all done in a single
   session. Suite stayed green at 442 throughout. Hexagonal LAW held end-to-end. Next
-  major work: §P3.7 bulk (#19-#24), starting whenever the user is ready.
+  major work: §P3.7 bulk (#19-#25), starting whenever the user is ready.
 - **2026-06-06 (§P3.7 #18 first rack run -- two-prong subscription wiring bug + fix)** —
   User exercised the slice at the rack with the real WB-MR6c at slave 51 channel K4. The
   relay clicked on POST `/devices/cabinet_spots/canonical` (publish out worked) but the

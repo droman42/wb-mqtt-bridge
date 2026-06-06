@@ -295,8 +295,10 @@ truth (the broker). The contract has three pillars:
   `wb-mqtt-serial`'s per-device error topic for deterministic offline detection.
 - **B. Voice-friendly catalog read** — `GET /system/catalog` (neutral, not voice-specific), flat
   capability-shaped projection of devices + rooms; **all locales** for both rooms and devices;
-  sensors as ONE `sensor` capability with read-only `fields`; **one device, one room** (cross-room
-  actions like "выключи свет везде" resolved by Irene from the catalog, by iterating rooms);
+  sensors as ONE `sensor` capability with read-only `fields`; **one device, one room** (whole-house
+  controls like "выключи свет везде" resolved as a SINGLE canonical call against an aggregate
+  device in `global` — e.g. `all_lights` — NOT by Irene iterating rooms; the bridge ships the
+  aggregate devices the supported voice command set needs);
   refresh nudge via retained `bridge/catalog/version` (content hash).
 - **C. Native WB onboarding** — generic **data-driven WB-passthrough driver** in
   `infrastructure/devices/wb_passthrough/`; explicit param types per command (no
@@ -324,12 +326,13 @@ Slice total: ~3-4 dev days + a rack/Irene verification pass.
 |---|------|--------|
 | 19 | Canonical capability vocab extension — `brightness`, `color`, `cover`, `climate`, `sensor` (read-only fields) — authored as **shared profiles** in `config/capabilities/profiles/` (one file per fixture kind: `dimmable_light`, `rgb_light`, `cover`, `heating_loop`, `hvac`, `sensor_room`); the profile mechanism + `light_switch` already landed in #14. | ~½ day |
 | 20 | Composition layer above the driver — RGB (`"R;G;B"`), HVAC (mode + setpoint + fan, often across sub-devices). Lives next to the existing reconciler. | ~1 day |
-| 21 | `rooms.json` bootstrap — **one-shot import from the WB HomeUI config** (location identified during implementation); not manual. | ~½ day |
-| 22 | Bulk device configs — relays (5+), dimmers (3), RGB (3), covers (Dooyas), HVAC (3 rooms + setpoint vdevs), multi-sensors per room. ~30+ configs, mostly mechanical once the driver + adapters are stable. | ~3-5 days |
-| 23 | `wb-msw-v3_*` sensor side — decide unified config (IR + `sensor`) vs split entry; implement. | ~½ day |
-| 24 | Catalog completeness sweep + bulk end-to-end verification across rooms. | ~1 day |
+| 21 | `rooms.json` bootstrap — **one-shot import from the WB HomeUI config** (location identified during implementation); not manual. **Also seeds the `global` room** as a top-level entry (initially empty `devices: []`; populated by #22). | ~½ day |
+| 22 | **Aggregate devices in `global`** — author the v1 aggregate device configs the supported voice command set needs (`all_lights` first; cross-reference `wb-mqtt-voice` to decide whether `all_blinds` also ships in v1). Each is a normal `WbPassthroughDevice` config with `room: "global"`, `capability_profile: "light_switch"` (or matching profile), and a `commands.power_*` topic that points at a WB virtual control the wb-rules scene listens on. **Controller-side wb-rules fan-out scenes are user tech debt** — out of scope for this bridge work; the bridge only registers the aggregate device. | ~½ day |
+| 23 | Bulk device configs — relays (5+), dimmers (3), RGB (3), covers (Dooyas), HVAC (3 rooms + setpoint vdevs), multi-sensors per room. ~30+ configs, mostly mechanical once the driver + adapters are stable. | ~3-5 days |
+| 24 | `wb-msw-v3_*` sensor side — decide unified config (IR + `sensor`) vs split entry; implement. | ~½ day |
+| 25 | Catalog completeness sweep + bulk end-to-end verification across rooms (including each `global` aggregate device's canonical call landing on the broker, even if its wb-rules backing is still owed). | ~1 day |
 
-Bulk total: ~7-10 dev days.
+Bulk total: ~7.5-10.5 dev days.
 
 **Pre-work findings — A1 (2026-06-06)**
 
@@ -410,10 +413,13 @@ the existing WB-passthrough driver.
 ]
 ```
 
-`cabinet` gets a single entry for the slice device. The `global` room exists for
-genuinely-global devices only (whole-house controls); `cabinet_spots` does not belong there.
-**Cross-room actions** ("выключи свет везде") are resolved by Irene from the catalog — she
-iterates rooms and fires the relevant capability on each device — not via a shared room tag.
+`cabinet` gets a single entry for the slice device. The `global` room holds **aggregate
+devices** (e.g. `all_lights`) — one per supported whole-house command; `cabinet_spots` does not
+belong there. **Whole-house actions** ("выключи свет везде") are a SINGLE canonical call
+against the matching aggregate device in `global`; Irene does NOT iterate rooms. The bridge
+config ships each aggregate device; the controller-side wb-rules scene that fans the aggregate
+out to the real lights is **user tech debt** (the bridge writes to the aggregate's `/on`
+topic, wb-rules handles the per-light fan-out).
 
 **Names: bilingual from day one** (`names: {ru, en}`), per the contract's all-locales rule.
 Slice authoring uses ru = WB-UI verbatim, en = natural home-context renderings: `Споты` =
@@ -545,9 +551,11 @@ contention). Settles **before P4** (final acceptance), which then sweeps the lar
 `infrastructure/devices/wb_passthrough/`; capability mappings in `config/capabilities/`; capability
 adapters next to the existing reconciler. No domain imports of infrastructure.
 
-**Deferred to v2** (the only thing the contract leaves open): batched group/room endpoint.
-Per-device calls cover v1 ("выключи свет везде" = N parallel canonical calls Irene resolves from
-the catalog).
+**Deferred to v2** (the only thing the contract leaves open): additional whole-house aggregate
+devices beyond the v1 set (#22 ships the aggregates the v1 voice command set needs — e.g.
+`all_lights`; more group/scene aggregates like `all_blinds`, per-floor groups, named scenes are
+added as the voice command set grows, each as another normal device entry in `global` — no new
+endpoint).
 
 ### P4 — Final acceptance & cleanup (do this LAST, after the whole redesign lands)
 
@@ -724,6 +732,7 @@ The dated history lives in **[`docs/action_plan_journal.md`](action_plan_journal
 
 **Recent entries** (newest first; full content + earlier entries in the journal):
 
+- 2026-06-07 — §P3.7 plan reconcile — aggregate-device model for `global` (two stale lines fixed; new bulk task #22 for v1 aggregates like `all_lights`; renumber #22-#24→#23-#25; controller-side wb-rules scenes are user tech debt; no code touched)
 - 2026-06-06 — §P3.7 #18 cold-start fix — retained-message opt-in per topic (broker's retained "current value" now seeds `state.mirrored` on connect; first `power_off` after restart works; 453 tests pass)
 - 2026-06-06 — §P3.7 #18 follow-up #2 — AV-driver instantiation regression + fix + entry-point-signature test (drop `wb_service=` from `device_class(...)` call; 448 tests pass)
 - 2026-06-06 — §P3.7 #18 follow-up — idempotency no_op short-circuit (repeat actions return 200, not 503; 447 tests pass)
