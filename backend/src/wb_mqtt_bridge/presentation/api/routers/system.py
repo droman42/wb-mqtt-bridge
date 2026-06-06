@@ -2,13 +2,19 @@ import logging
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 
+from wb_mqtt_bridge.presentation.api.catalog import build_catalog
 from wb_mqtt_bridge.presentation.api.schemas import (
+    CatalogResponse,
     SystemConfigResponse,
     SystemInfo,
     ServiceInfo,
-    ReloadResponse
+    ReloadResponse,
 )
 from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
+
+# §P3.7 #17. Retained MQTT topic Irene subscribes to; the payload is the current
+# `/system/catalog` version hash. Bumped on /reload (after configs + devices reload).
+CATALOG_VERSION_TOPIC = "bridge/catalog/version"
 
 # Create router with appropriate prefix and tags
 router = APIRouter(
@@ -83,6 +89,25 @@ async def get_system_config():
         logger = logging.getLogger(__name__)
         logger.error(f"Error retrieving system config: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.get("/system/catalog", response_model=CatalogResponse)
+async def get_system_catalog():
+    """Voice-friendly catalog of devices + rooms (§P3.7 voice-integration slice #17).
+
+    Flat capability-shaped projection of the whole house for any non-UI consumer
+    (Irene first). All locales for both rooms and devices. The response carries a
+    `version` (short content hash) so callers can subscribe to retained
+    `bridge/catalog/version` MQTT and only re-fetch when it differs from the last
+    seen one. Stable independent of insertion order: rooms + devices are sorted by
+    id before hashing so the same content always hashes to the same value.
+
+    NOT the Layer-3 layout manifest -- that one is UI-shaped (panels, sliders,
+    positions). The catalog is the contract for capability-aware callers.
+    """
+    if not device_manager or not room_manager:
+        raise HTTPException(status_code=503, detail="Service not fully initialized")
+    return build_catalog(device_manager, room_manager)
+
 
 @router.post("/reload", response_model=ReloadResponse)
 async def reload_system(background_tasks: BackgroundTasks):
@@ -179,6 +204,23 @@ async def reload_system_task():
                         except Exception as e:
                             logger.error(f"Failed to setup WB emulation for device {device_id} after reload: {str(e)}")
                 
+            # §P3.7 #17: bump the retained catalog version so Irene's catalog consumer
+            # refetches. Done at the END so we publish the post-reload catalog hash --
+            # the broker carries it retained so late-joining subscribers still see it.
+            if mqtt_client and device_manager and room_manager:
+                try:
+                    catalog = build_catalog(device_manager, room_manager)
+                    await mqtt_client.publish(
+                        CATALOG_VERSION_TOPIC, catalog.version, retain=True
+                    )
+                    logger.info(
+                        f"Published catalog version {catalog.version!r} to "
+                        f"{CATALOG_VERSION_TOPIC} (retained) -- catalog-aware "
+                        f"subscribers can refetch."
+                    )
+                except Exception as e:  # never let the nudge mask a successful reload
+                    logger.warning(f"Failed to bump catalog version on /reload: {e}")
+
             logger.info("System reload completed successfully")
     except Exception as e:
         logger.error(f"Error during system reload: {str(e)}")

@@ -808,6 +808,182 @@
         "title": "CanonicalErrorCode",
         "type": "string"
       },
+      "CatalogAction": {
+        "description": "A canonical action a device supports under a capability. `params` is `None` for\nparameterless actions (`power.on`, `cover.open`) and a list of param descriptors\notherwise. Full param introspection (type, min/max, choices, labels) lands with the\nvocab extension (#19); slice 1 only exposes parameterless actions.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "params": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Params"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CatalogAction",
+        "type": "object"
+      },
+      "CatalogCapability": {
+        "description": "One capability on a device, projected canonical-side. Sensor capabilities use\n`fields` instead of `actions` (read-only; landed in #19+ for sensor devices).",
+        "properties": {
+          "actions": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CatalogAction"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actions"
+          },
+          "fields": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fields"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CatalogCapability",
+        "type": "object"
+      },
+      "CatalogDevice": {
+        "description": "A device in the catalog. `room` is the device's single room (per the §P3.7\nsingle-room model), `null` for devices whose room isn't set yet (most existing\nAV gear until they're voice-onboarded).",
+        "properties": {
+          "capabilities": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogCapability"
+            },
+            "title": "Capabilities",
+            "type": "array"
+          },
+          "device_class": {
+            "title": "Device Class",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "names": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Names",
+            "type": "object"
+          },
+          "room": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room"
+          }
+        },
+        "required": [
+          "id",
+          "names",
+          "device_class"
+        ],
+        "title": "CatalogDevice",
+        "type": "object"
+      },
+      "CatalogResponse": {
+        "description": "Response for `GET /system/catalog`. `version` is a deterministic short hash of\nthe {rooms, devices} content -- the same payload always hashes to the same value,\nso Irene can subscribe to the retained `bridge/catalog/version` MQTT topic (bumped\non `/reload` + config change) and only re-fetch when it differs from the last\nseen one.",
+        "properties": {
+          "devices": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogDevice"
+            },
+            "title": "Devices",
+            "type": "array"
+          },
+          "rooms": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogRoom"
+            },
+            "title": "Rooms",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "rooms",
+          "devices"
+        ],
+        "title": "CatalogResponse",
+        "type": "object"
+      },
+      "CatalogRoom": {
+        "description": "A room in the catalog. `devices` is the room's authored membership list\n(from `rooms.json`).",
+        "properties": {
+          "devices": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Devices",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "names": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Names",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "names"
+        ],
+        "title": "CatalogRoom",
+        "type": "object"
+      },
       "CommandParameterDefinition": {
         "description": "Schema for command parameter definition.",
         "properties": {
@@ -4769,6 +4945,28 @@
           }
         },
         "summary": "Get System Info",
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/system/catalog": {
+      "get": {
+        "description": "Voice-friendly catalog of devices + rooms (§P3.7 voice-integration slice #17).\n\nFlat capability-shaped projection of the whole house for any non-UI consumer\n(Irene first). All locales for both rooms and devices. The response carries a\n`version` (short content hash) so callers can subscribe to retained\n`bridge/catalog/version` MQTT and only re-fetch when it differs from the last\nseen one. Stable independent of insertion order: rooms + devices are sorted by\nid before hashing so the same content always hashes to the same value.\n\nNOT the Layer-3 layout manifest -- that one is UI-shaped (panels, sliders,\npositions). The catalog is the contract for capability-aware callers.",
+        "operationId": "get_system_catalog_system_catalog_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get System Catalog",
         "tags": [
           "System"
         ]

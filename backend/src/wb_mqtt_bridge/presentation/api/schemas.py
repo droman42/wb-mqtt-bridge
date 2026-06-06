@@ -127,6 +127,60 @@ class CanonicalActionResponse(BaseModel):
     state: Optional[Dict[str, Any]] = None
     error: Optional[CanonicalError] = None
 
+
+# ---- GET /system/catalog DTOs ---------------------------------------------
+# §P3.7 voice-integration slice #17. Flat capability-shaped projection of the whole
+# house for any non-UI consumer (Irene first). All locales for both rooms and devices.
+# The catalog deliberately stays separate from the Layer-3 layout manifest, which is
+# UI-shaped (panels, slider widgets, positions). Catalog is the stable read contract.
+
+
+class CatalogAction(BaseModel):
+    """A canonical action a device supports under a capability. `params` is `None` for
+    parameterless actions (`power.on`, `cover.open`) and a list of param descriptors
+    otherwise. Full param introspection (type, min/max, choices, labels) lands with the
+    vocab extension (#19); slice 1 only exposes parameterless actions."""
+    name: str
+    params: Optional[List[Dict[str, Any]]] = None
+
+
+class CatalogCapability(BaseModel):
+    """One capability on a device, projected canonical-side. Sensor capabilities use
+    `fields` instead of `actions` (read-only; landed in #19+ for sensor devices)."""
+    name: str
+    actions: Optional[List[CatalogAction]] = None
+    fields: Optional[List[Dict[str, Any]]] = None
+
+
+class CatalogDevice(BaseModel):
+    """A device in the catalog. `room` is the device's single room (per the §P3.7
+    single-room model), `null` for devices whose room isn't set yet (most existing
+    AV gear until they're voice-onboarded)."""
+    id: str
+    names: Dict[str, str]
+    device_class: str
+    room: Optional[str] = None
+    capabilities: List[CatalogCapability] = Field(default_factory=list)
+
+
+class CatalogRoom(BaseModel):
+    """A room in the catalog. `devices` is the room's authored membership list
+    (from `rooms.json`)."""
+    id: str
+    names: Dict[str, str]
+    devices: List[str] = Field(default_factory=list)
+
+
+class CatalogResponse(BaseModel):
+    """Response for `GET /system/catalog`. `version` is a deterministic short hash of
+    the {rooms, devices} content -- the same payload always hashes to the same value,
+    so Irene can subscribe to the retained `bridge/catalog/version` MQTT topic (bumped
+    on `/reload` + config change) and only re-fetch when it differs from the last
+    seen one."""
+    version: str
+    rooms: List[CatalogRoom]
+    devices: List[CatalogDevice]
+
 class SystemInfo(BaseModel):
     """Schema for system information."""
     version: str = __version__
