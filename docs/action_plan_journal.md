@@ -11,6 +11,37 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-06 (§P3.7 slice #15 — canonical action endpoint DONE)** — Irene's first
+  live-integration unblock. `POST /devices/{device_id}/canonical` accepts
+  `{capability, action, params?}` and resolves canonical → native via the device's
+  capability map (using the class → profile → per-device override chain from #14). New
+  DTOs in `presentation/api/schemas.py`: `CanonicalActionRequest`, `CanonicalActionResponse`,
+  `CanonicalError`, and a `CanonicalErrorCode` enum with the six contract codes. The
+  endpoint mirrors the codes to HTTP statuses (404 / 400 / 503 / 500 per the
+  `_HTTP_FOR_CODE` map). Synchronous-with-timeout semantics implemented by a one-shot
+  `register_state_change_callback` registered BEFORE `perform_action`: AV-style handlers
+  update state synchronously inside `perform_action` (the event is already set by the
+  time we await it); WB-passthrough handlers publish-and-return and the value-topic echo
+  fires the callback when it lands via the MQTT subscription chain. After the wait, the
+  endpoint checks `getattr(device.state, "reachable", True)` -- if a per-control
+  `meta/error` `r` flag landed during the window (Wirenboard MQTT convention, A3),
+  reachable goes False and the endpoint surfaces `device_unreachable` (503). The
+  capability action's `param_map` renames canonical param names to native before
+  `perform_action` sees them (e.g. `input` → `source` for an LG TV input-select) so
+  voice can speak the canonical vocabulary while drivers keep their existing signatures.
+  10 endpoint tests in `tests/unit/test_canonical_endpoint.py`: device_not_found,
+  capability_not_supported, action_not_supported, param_invalid (matched via keyword
+  on the handler's error text; refined later if/when handlers distinguish cleanly),
+  device_unreachable on TIMEOUT, device_unreachable on `reachable=False` flip during the
+  wait, internal_error, AV-sync happy path, WB-passthrough async-echo happy path,
+  param_map rename. **Full suite: 433 passed, 0 failed** (was 423, +10). openapi.json
+  + UI types regenerated; new schemas `CanonicalActionRequest` / `CanonicalActionResponse`
+  / `CanonicalError` / `CanonicalErrorCode` + the new `/devices/{device_id}/canonical`
+  path land in the OpenAPI doc. Hexagonal LAW preserved (presentation imports stay
+  presentation → domain only; no new cross-layer additions). **Irene can now integration-
+  test against the bridge: the canonical endpoint works against ANY AV device that has a
+  capability map (LG TV, Apple TV, eMotiva, …) the moment they're connected -- no
+  dependency on the WB-passthrough slice closing.**
 - **2026-06-06 (§P3.7 — capability-profile mechanism + light_switch profile + cabinet_spots migration)** —
   User flagged that the per-device capability file authored for cabinet_spots in #14 wouldn't
   scale: ~50-80 WB-passthrough devices would each get a nearly-identical 6-line file.
