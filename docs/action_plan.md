@@ -347,17 +347,23 @@ Three files to author for the slice:
   canonical→native map) — written **once** for every relay-light in the house
 - `backend/config/rooms.json` — extend with `cabinet`
 
-**Directory convention — `wb-devices/<room>/<device_id>.json`** (settled 2026-06-06).
-Existing AV configs stay flat at `backend/config/devices/*.json`. **WB-passthrough configs
-live in `backend/config/devices/wb-devices/<room>/<device_id>.json`** — one config file per
-logical device, grouped by its (single) room. **A device belongs to exactly one room.**
-Devices with no physical room (whole-house controls — rare) live directly in
-`backend/config/devices/wb-devices/<device_id>.json` and use room id `global`. The room
-sub-directory names are the WB UI dashboard ids (non-Cyrillic: `cabinet`, `livingroom`,
-`children`, …) to match A2's findings. Sensors follow the same layout (e.g.
-`wb-devices/livingroom/livingroom_sensors.json`); no separate `sensors/` subtree. The config
-scanner (`utils/validation.py`) recurses into subdirectories, so flat AV configs continue to
-load unchanged.
+**Directory convention — `wb-devices/<room>/<device_id>.json`** (settled 2026-06-06;
+naming rule refined 2026-06-08). Existing AV configs stay flat at
+`backend/config/devices/*.json`. **WB-passthrough configs live in
+`backend/config/devices/wb-devices/<room>/<device_id>.json`** — one config file per logical
+device, grouped by its (single) room. **A device belongs to exactly one room.** Devices
+with no physical room (whole-house aggregate devices — see #22) live in
+`backend/config/devices/wb-devices/global/<device_id>.json` and use room id `global`.
+**Sub-directory name = the bridge's room_id (matches `rooms.json` exactly), NOT the WB-UI
+dashboard id where they differ.** Examples: `wb-devices/living_room/` (bridge id
+`living_room`, WB dashboard `livingroom`); `wb-devices/children_room/` (bridge id
+`children_room`, WB dashboard `children`); `wb-devices/shower/` (bridge id `shower`, WB
+dashboard `wc`); `wb-devices/cabinet/` (both match). Earlier draft of this paragraph said
+"use WB-UI dashboard ids" — corrected mid-#23 once the inconsistency surfaced (device_id
+prefix, room_id, and subfolder all now use the SAME identifier). Sensors follow the same
+layout (e.g. `wb-devices/living_room/living_room_sensors.json`); no separate `sensors/`
+subtree. The config scanner (`utils/validation.py`) recurses into subdirectories, so flat
+AV configs continue to load unchanged.
 
 **`cabinet_spots.json`** (WB-passthrough driver consumes this):
 

@@ -6,8 +6,7 @@
     "actions": {
       "open":         { "command": "open" },
       "close":        { "command": "close" },
-      "set_position": { "command": "set_position", "param_map": { "pct": "pct" } },
-      "stop":         { "command": "stop" }
+      "set_position": { "command": "set_position", "param_map": { "pct": "pct" } }
     },
     "fields": [
       { "name": "position", "type": "int", "unit": "%",

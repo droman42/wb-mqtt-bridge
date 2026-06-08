@@ -172,17 +172,30 @@ def test_rgb_light_profile_carries_color_field_with_rgb_encoding():
     assert color_field.encoding == "{r};{g};{b}"
 
 
-def test_hvac_climate_enum_fields_carry_allowed_values():
-    """Enum fields (mode/fan/vane) declare their allowed values so the catalog consumer
-    can validate set-action params and render a fixed list."""
+def test_hvac_climate_actions_cover_mode_fan_vane_widevane_setpoint():
+    """`hvac` profile gives voice/UI 7 actions on the `climate` capability: on/off plus
+    set_mode / set_fan / set_vane / set_widevane / set_setpoint. The set_* params accept
+    integer codes whose meanings are documented in the mitsubishi2wb firmware README
+    (mode 0-4, fan 0-5, vane 0-6, widevane 0-6 — see sister repo for the mapping table).
+    Catalog deliberately does NOT expose mode/fan/vane/widevane as typed fields (mirrors
+    the heating_loop pattern §2.3 / 2.9): the WB controls publish raw int codes whose
+    meanings need an out-of-band table, so promising a typed `enum` field would lie.
+    Decision recorded 2026-06-08 alongside living_room HVAC authoring."""
     m = load_capability_map("WbPassthroughDevice", "any_hvac",
                              capabilities_dir=CAPS, capability_profile="hvac")
     climate = m.get("climate")
-    mode = next(f for f in climate.fields if f.name == "mode")
-    assert mode.type == "enum"
-    assert set(mode.values) == {"off", "cool", "heat", "auto", "fan", "dry"}
-    fan = next(f for f in climate.fields if f.name == "fan")
-    assert fan.values == ["auto", "low", "medium", "high"]
+    assert set(climate.actions) == {
+        "on", "off", "set_mode", "set_fan", "set_vane", "set_widevane", "set_setpoint",
+    }
+    # No mode/fan/vane/widevane in fields[] (raw int wire format would diverge from any
+    # enum claim). Only the two REAL typed surfaces survive.
+    assert {f.name for f in climate.fields} == {"temperature", "room_temperature"}
+    # `temperature` field is the SETPOINT (writable; mapped to WB control of the same
+    # name in the firmware — see set_setpoint action's device-config topic).
+    temperature = next(f for f in climate.fields if f.name == "temperature")
+    assert temperature.type == "float" and temperature.unit == "°C"
+    # Param-map renames are identity (canonical → native) for all set_* actions.
+    assert climate.actions["set_widevane"].param_map == {"direction": "direction"}
 
 
 def test_heating_loop_profile_has_climate_with_typed_measurement_fields():
@@ -213,11 +226,18 @@ def test_dimmable_light_inherits_power_plus_brightness_with_level_field():
     assert level.name == "level" and level.type == "int" and level.unit == "%"
 
 
-def test_cover_profile_has_open_close_set_position_stop_actions():
+def test_cover_profile_has_open_close_set_position_actions():
+    """`cover` exposes open/close/set_position; `stop` is intentionally NOT in the
+    profile -- Dooya position sliders have no native stop control and we don't (yet)
+    have a driver helper that re-publishes the current mirrored position to halt
+    motion mid-travel. Decision 2026-06-08 alongside living_room cover authoring:
+    keep the contract truthful (don't promise an action we can't honour); reconsider
+    if voice grows a stop-mid-motion command."""
     m = load_capability_map("WbPassthroughDevice", "any_cover",
                              capabilities_dir=CAPS, capability_profile="cover")
     actions = m.get("cover").actions
-    assert {"open", "close", "set_position", "stop"} == set(actions.keys())
+    assert {"open", "close", "set_position"} == set(actions.keys())
+    assert "stop" not in actions
     assert actions["set_position"].param_map == {"pct": "pct"}
 
 

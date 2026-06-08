@@ -1,0 +1,13 @@
+{
+  "device_id": "living_room_floor_lamp",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {"ru": "Торшер", "en": "Floor Lamp", "de": "Stehlampe"},
+  "capability_profile": "light_switch",
+  "room": "living_room",
+  "commands": {
+    "power_on":  {"topic": "/devices/wb-mr6c_47/controls/K3/on", "value": "1"},
+    "power_off": {"topic": "/devices/wb-mr6c_47/controls/K3/on", "value": "0"}
+  },
+  "state_topics": {"power": "/devices/wb-mr6c_47/controls/K3"}
+}

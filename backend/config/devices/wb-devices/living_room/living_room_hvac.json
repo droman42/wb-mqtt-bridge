@@ -1,0 +1,41 @@
+{
+  "device_id": "living_room_hvac",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {"ru": "Кондиционер", "en": "Air Conditioner", "de": "Klimaanlage"},
+  "capability_profile": "hvac",
+  "room": "living_room",
+  "commands": {
+    "power_on":     {"topic": "/devices/hvac_livingroom/controls/power/on", "value": "1"},
+    "power_off":    {"topic": "/devices/hvac_livingroom/controls/power/on", "value": "0"},
+    "set_mode": {
+      "topic": "/devices/hvac_livingroom/controls/mode/on",
+      "params": [{"name": "mode", "type": "range", "min": 0, "max": 4, "required": true}]
+    },
+    "set_fan": {
+      "topic": "/devices/hvac_livingroom/controls/fan/on",
+      "params": [{"name": "speed", "type": "range", "min": 0, "max": 5, "required": true}]
+    },
+    "set_vane": {
+      "topic": "/devices/hvac_livingroom/controls/vane/on",
+      "params": [{"name": "angle", "type": "range", "min": 0, "max": 6, "required": true}]
+    },
+    "set_widevane": {
+      "topic": "/devices/hvac_livingroom/controls/widevane/on",
+      "params": [{"name": "direction", "type": "range", "min": 0, "max": 6, "required": true}]
+    },
+    "set_setpoint": {
+      "topic": "/devices/hvac_livingroom/controls/temperature/on",
+      "params": [{"name": "temp", "type": "float", "min": 16, "max": 31, "required": true}]
+    }
+  },
+  "state_topics": {
+    "power":            "/devices/hvac_livingroom/controls/power",
+    "mode":             "/devices/hvac_livingroom/controls/mode",
+    "fan":              "/devices/hvac_livingroom/controls/fan",
+    "vane":             "/devices/hvac_livingroom/controls/vane",
+    "widevane":         "/devices/hvac_livingroom/controls/widevane",
+    "temperature":      {"topic": "/devices/hvac_livingroom/controls/temperature", "type": "float", "unit": "°C"},
+    "room_temperature": {"topic": "/devices/hvac_livingroom/controls/room_temperature", "type": "float", "unit": "°C"}
+  }
+}

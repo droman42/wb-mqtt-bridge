@@ -1,0 +1,13 @@
+{
+  "device_id": "living_room_window_light",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {"ru": "Подсветка окна", "en": "Window Accent", "de": "Fensterbeleuchtung"},
+  "capability_profile": "light_switch",
+  "room": "living_room",
+  "commands": {
+    "power_on":  {"topic": "/devices/wb-mr6c_58/controls/K1/on", "value": "1"},
+    "power_off": {"topic": "/devices/wb-mr6c_58/controls/K1/on", "value": "0"}
+  },
+  "state_topics": {"power": "/devices/wb-mr6c_58/controls/K1"}
+}

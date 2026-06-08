@@ -1,0 +1,19 @@
+{
+  "device_id": "living_room_tulle_right",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {"ru": "Тюль справа", "en": "Sheer (Right)", "de": "Gardine rechts"},
+  "capability_profile": "cover",
+  "room": "living_room",
+  "commands": {
+    "open":  {"topic": "/devices/dooya_0x0102/controls/Position/on", "value": "100"},
+    "close": {"topic": "/devices/dooya_0x0102/controls/Position/on", "value": "0"},
+    "set_position": {
+      "topic": "/devices/dooya_0x0102/controls/Position/on",
+      "params": [{"name": "pct", "type": "range", "min": 0, "max": 100, "required": true}]
+    }
+  },
+  "state_topics": {
+    "position": {"topic": "/devices/dooya_0x0102/controls/Position", "type": "int", "unit": "%"}
+  }
+}

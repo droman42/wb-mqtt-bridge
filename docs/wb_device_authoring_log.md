@@ -44,6 +44,185 @@ the user calls `commit and push`; assistant pauses until `continue` arrives.
 
 ## 1. Per-device session log
 
+### 1.2 Living room (room id `living_room`, WB dashboard `livingroom`)
+
+#### 1.2.1 Lighting widget (5 devices in one round-trip)
+
+User pasted the full **Освещение** widget JSON from `/etc/wb-webui.conf` verbatim. First
+time we've worked from raw WB-UI JSON instead of A2-fragment summaries — qualitatively
+different experience (see §3.5).
+
+The widget contained 5 logical fixtures (one paired switch+brightness, four simple
+switches):
+
+| device_id | ru | en | de | profile | WB control(s) |
+|---|---|---|---|---|---|
+| `living_room_spots` | Споты | Spots | Spots | `dimmable_light` | `wb-mdm3_83/K3` + `Channel 3` |
+| `living_room_window_light` | Подсветка окна | Window Accent | Fensterbeleuchtung | `light_switch` | `wb-mr6c_58/K1` |
+| `living_room_floor_lamp` | Торшер | Floor Lamp | Stehlampe | `light_switch` | `wb-mr6c_47/K3` |
+| `living_room_desk_lamp` | Настольная лампа | Desk Lamp | Tischlampe | `light_switch` | `wb-mr6c_47/K4` |
+| `living_room_union_cabinet` | Тумба Юнион | Union Cabinet | Union-Sideboard | `light_switch` | `wb-mr6c_58/K2` |
+
+**Workflow shift.** Because the input was raw WB-UI JSON, assistant could:
+- Read the `cell.name` ru labels directly (no guessing).
+- Detect the paired switch+brightness from `wb-mdm3_83/K3` + `wb-mdm3_83/Channel 3`
+  topology and auto-propose `dimmable_light` for it.
+- Detect simple switches from `wb-mr6c_*/K*` cells of `type: switch` (no paired slider)
+  and propose `light_switch`.
+- Render the 5 complete configs in a single response and ask 4 bulk questions instead
+  of 5 round-trips.
+
+**User response (one line).** `1. living_room_, 2. all ok, 3. yes, 4. yes` — all 5
+configs approved as-drafted, device_id prefix confirmed, en/de translations accepted.
+
+**Resolved-in-one-pass.** Five files written, all parsed cleanly, no further round-trips.
+
+**Observations.**
+- "Тумба Юнион" — assistant guessed "Union Cabinet" for en (Юнион ≈ Union brand
+  transliteration); user accepted without correction. Worth confirming the actual
+  meaning if it ever matters for voice intent matching ("turn on the Union" — what's
+  Union?).
+- "Канал 3" (the slider's cell label, literally "Channel 3") is a WB-UI naming
+  fallback when no human-meaningful name is set; correctly ignored — the slider is
+  the brightness companion of K3 "Споты", not its own fixture.
+- en + de translations for room lighting were "all ok" first try — small enough surface
+  that defaults landed cleanly.
+
+#### 1.2.2 Curtain widgets (4 devices, 2 widgets)
+
+User pasted both **Карниз Справа** (right rail) and **Карниз Слева** (left rail) widget
+JSONs at once. Each rail has two layers: heavy curtain (`Штора`) and sheer (`Тюль`),
+each on its own Dooya motor exposing a single `Position` slider (range 0-100).
+
+| device_id | ru | en | de | profile | WB control |
+|---|---|---|---|---|---|
+| `living_room_curtain_right` | Штора справа | Curtain (Right) | Vorhang rechts | `cover` | `dooya_0x0101/Position` |
+| `living_room_tulle_right` | Тюль справа | Sheer (Right) | Gardine rechts | `cover` | `dooya_0x0102/Position` |
+| `living_room_curtain_left` | Штора слева | Curtain (Left) | Vorhang links | `cover` | `dooya_0x0103/Position` |
+| `living_room_tulle_left` | Тюль слева | Sheer (Left) | Gardine links | `cover` | `dooya_0x0104/Position` |
+
+**Disambiguation pattern.** The WB-UI cells are just `Штора` and `Тюль` — the rail
+side (left/right) lives in the parent widget's name, not the cell. Cells with raw WB
+labels would be ambiguous in voice ("open the curtain" — which?). Bridge device names
+inject the side suffix (`Штора справа`) so voice resolution is unambiguous. User
+chose option (a) — disambiguated names. Pattern likely applies anywhere multiple
+identical fixtures live across widgets.
+
+**device_id ordering**: user picked **layer-then-side** (`*_curtain_right`,
+`*_tulle_left`). Pattern: most-specific-thing first, location modifier last.
+
+**Cross-cutting decision triggered: `cover.stop` dropped from the profile** (see §2.9
+below).
+
+**User response.** `1. layer-then-side 2. (a) 3. (b)` — three numbered answers to the
+three numbered questions (#4 and #5 implicit "no change to assistant's defaults").
+
+**Resolved-in-one-pass.** Four files written + one profile edit + one test rename.
+482 tests still green.
+
+#### 1.2.3 HVAC — `living_room_hvac` (most complex device so far)
+
+Most complex device shape yet. The `Кондиционер` widget JSON exposed 7 cells; my §P3.7 #19
+hvac profile draft (authored without the firmware in front of me) had three concrete
+errors that surfaced as soon as the live widget data + firmware source arrived:
+
+| Cell | Type per WB JSON | What the profile claimed | Reality (from `mitsubishi2wb` firmware) |
+|---|---|---|---|
+| `power` | switch | on/off actions ✓ | matches |
+| `mode` | **range** (NOT enum) | enum off/cool/heat/auto/fan/dry | int 0-4 (0=Auto, 1=Dry, 2=Cool, 3=Heat, 4=Fan) |
+| `fan` | range | enum auto/low/medium/high | int 0-5 (0=Auto, 1=Quiet, 2=1, 3=2, 4=3, 5=4) |
+| `vane` | range | enum auto/1-5/swing | int 0-6 (0=Auto, 1=Swing, 2..6 = pos 1..5) |
+| `widevane` | range | **NOT IN PROFILE** | int 0-6 (Swing, <<, <, \|, >, >>, <>) |
+| `temperature` | temperature | a separate read-only field | **writable — IS the setpoint** |
+| `room_temperature` | temperature | matches | matches |
+
+**The discovery method** — user pointed assistant at the sister project
+`/home/droman42/development/mitsubishi2wb` (the ESP8266 firmware that bridges the
+Mitsubishi unit to MQTT, written by `mavlyutov`). Reading the firmware README's value
+mapping table (`### WB ac terms`) plus the `.ino` source for topic generation
+(`mitsubishi2wb.ino` lines 121-127) + value publishing (lines 887-949) + setpoint
+handler (lines 1064-1067) gave a complete, authoritative picture in one pass. The
+README also defined the min/max setpoint range (defaults `min_temp = 16.0`, `max_temp
+= 31.0` from `config.h`).
+
+**Profile changes applied** (3 in one edit):
+1. Drop `mode/fan/vane` enum fields from `fields[]` — mirror §2.3 / §2.9 pattern (raw
+   int wire format → don't promise typed state with named values).
+2. Add `set_widevane` action — was missing entirely.
+3. Drop fictional `setpoint` and supply-`temperature` fields; replace with two real
+   ones: `temperature` (the WB writable cell that's actually the setpoint, kept as
+   field name to match the WB topic; the *label* says "setpoint") and `room_temperature`
+   (the read-only sensor).
+
+`state_field` also changed from `mode` to `power` (the actual switch that says "is the
+unit on?"); `mode` is meaningful only when power is on, and the reconciler should track
+power state to decide on/off.
+
+**Action params** kept descriptive (`mode`, `speed`, `angle`, `direction`, `temp`) even
+though the values are integer codes — reads cleanly in voice DSL. Voice consumer
+(Irene) needs the firmware mapping table baked in to translate `"поставь охлаждение"`
+→ `set_mode(mode=2)`. Schema extension for labelled enum codes proposed but **deferred**
+(my lean, user accepted) — voice can carry the table client-side until the pain
+recurs.
+
+| device_id | ru | en | de | profile |
+|---|---|---|---|---|
+| `living_room_hvac` | Кондиционер | Air Conditioner | Klimaanlage | `hvac` |
+
+**Cross-cutting reminder from user**: "we will address it again, as we will move HVACs
+to the new class — ESP32ManagedDevice". For now `device_class: WbPassthroughDevice` per
+the 2026-06-08 lock-in decision (ESP32ManagedDevice introduced when ESP32-specific
+surfaces are needed, behaviourally identical until then). When the class lands, the
+HVAC configs (this one + the future bedroom + children ones) all need `device_class:
+ESP32ManagedDevice` + matching `config_class`. See §2.11 below.
+
+**User response.** `accepted, but we will address it again, as we will move HVACs to
+the new class - ESP32ManagedDevice`. One-line approval + scope reminder.
+
+**Resolved-in-one-pass.** One file written + one profile rewrite + one test rewrite.
+482 tests still green.
+
+#### 1.2.4 Heating loop — `living_room_heating` (last one for the room)
+
+Single heating loop from the **Обогрев** widget. Differs from cabinet's two loops in
+two ways worth noting:
+
+1. **Room temperature is the actual wb-msw sensor** (`wb-msw-v3_207/Temperature`), not
+   a 1-wire loop-feedback sensor. The `room_temperature` field is now semantically
+   accurate here (the soft mismatch flagged for cabinet's loops doesn't apply).
+
+2. **Actuator has `"invert": true`** in the WB-UI cell's `extra` map. Likely a
+   normally-closed valve where wire `"0"` = open (heating ON) and `"1"` = closed
+   (heating OFF). My `mode_on` writes `"0"`, `mode_off` writes `"1"` — flipped from
+   cabinet's loops. User confirmed.
+
+| device_id | ru | en | de | profile | actuator | setpoint | room temp |
+|---|---|---|---|---|---|---|---|
+| `living_room_heating` | Обогрев | Heating | Heizung | `heating_loop` | `wb-gpio/EXT3_R3A2` (inverted) | `setpoints_radiator/livingroom_temp` | `wb-msw-v3_207/Temperature` |
+
+**User response.** `Y on all` — one-line approval, no corrections.
+
+**Resolved-in-one-pass.** One file written. 482 tests still green.
+
+---
+
+### 1.2.5 Living room session summary
+
+**11 devices, room complete** (sensors deferred to global-room session):
+
+| Profile | Count | Devices |
+|---|---|---|
+| `light_switch` | 4 | window_light, floor_lamp, desk_lamp, union_cabinet |
+| `dimmable_light` | 1 | spots |
+| `cover` | 4 | curtain_right, tulle_right, curtain_left, tulle_left |
+| `hvac` | 1 | hvac (flagged for ESP32ManagedDevice migration) |
+| `heating_loop` | 1 | heating |
+
+Profile-side changes accumulated during living_room: cover.stop dropped (§2.9), hvac
+profile rewritten to match firmware reality (§1.2.3).
+
+---
+
 ### 1.1 Cabinet (room id `cabinet`, WB dashboard `cabinet`)
 
 #### 1.1.0 `cabinet_spots` — pre-existing slice device (reference)
@@ -149,6 +328,34 @@ to dig into documentation (we'll do it together with global room)." Sensors requ
 WB-MSW firmware documentation review (some firmware variants ship subsets of the
 declared sensor set; some have per-control naming quirks).
 
+#### 1.1.5 + 1.1.6 Cabinet covers (added retroactively during session 2)
+
+User noticed mid-living-room session that we'd missed cabinet's covers in session 1.
+Pasted the **Карниз** widget (cabinet curtain rail) JSON with 2 cells + a schedule cell
+to ignore. Different Dooya motor model (`dooya_dm35eq_x_*` instead of `dooya_*` plain)
+but exposes the same `Position` slider 0-100 — same `cover` profile applies. The cells
+are roller blinds (`ролл`), not curtains — cabinet has rollers, living_room has
+curtain+sheer pairs.
+
+| device_id | ru | en | de | profile | WB control |
+|---|---|---|---|---|---|
+| `cabinet_roller_right` | Правый ролл | Roller (Right) | Rollo rechts | `cover` | `dooya_dm35eq_x_0x0105/Position` |
+| `cabinet_roller_left` | Левый ролл | Roller (Left) | Rollo links | `cover` | `dooya_dm35eq_x_0x0106/Position` |
+
+**Naming nuance.** WB cells were already disambiguated (`Правый ролл` / `Левый ролл`
+with side baked in) so ru kept verbatim — no need to inject side suffix like the
+living_room covers (where cells were bare `Штора` × 2 across 2 widgets and needed
+disambiguation). Pattern that's emerging: if the WB cell name is already unique within
+the room, keep it verbatim; if not, append the disambiguator. See §2.10 below.
+
+**Schedule cell** (`setpoints_curtain/cabinet_permit_schedule`, type=switch) ignored
+per user direction — that's a wb-rules schedule-permit flag, not a device control.
+Same pattern as A2's broader "skip `*_permit_schedule` cells" rule.
+
+**User response.** `all confirmed` — one-line approval, no corrections.
+
+**Resolved-in-one-pass.** Two files written, cabinet now at **6 devices** total.
+
 ---
 
 ## 2. Accumulated decisions
@@ -209,6 +416,85 @@ User skipped #22 to do #23 first. Implication: the `global` room exists in
 `rooms.json` but stays empty until aggregates are authored later (after #23 or
 deferred indefinitely depending on voice command coverage).
 
+### 2.11 HVAC configs are flagged for `device_class` migration to `ESP32ManagedDevice`
+
+Per the 2026-06-08 lock-in decision (see action_plan.md §P3.7 #19 and the journal entry
+of that date): the 3 HVAC units in this house WILL be hosted on a new
+`ESP32ManagedDevice` class, behaviourally identical to `WbPassthroughDevice` at v1 ship,
+but designed to grow ESP32-specific surfaces (provisioning state, OTA progress, NVS
+identity, sleep/wake telemetry, firmware version). That class doesn't exist yet — its
+introduction was tied to "when HVAC bulk configs are written".
+
+**Current state.** First HVAC config (`living_room_hvac`) authored with
+`device_class: WbPassthroughDevice`. User flagged this for revisit during authoring.
+
+**Migration owed.** When `ESP32ManagedDevice` is introduced as a code change:
+- Add the class in `infrastructure/devices/esp32_managed/driver.py` (subclass of
+  `WbPassthroughDevice` for v1, override-points reserved for ESP32-specific telemetry).
+- Add the matching `ESP32ManagedDeviceConfig` model.
+- Register the entry point.
+- Update all HVAC device configs (`living_room_hvac`, future `bedroom_hvac`,
+  `children_room_hvac`) — change `device_class` + `config_class` only; everything else
+  stays.
+
+Doing the migration in one pass (when all 3 HVAC configs exist) makes more sense than
+introducing the class for a single device.
+
+### 2.10 Naming pattern for ru: WB-verbatim when unambiguous, disambiguate when not
+
+Living room had `Штора` × 2 + `Тюль` × 2 across two widgets — bare cell names
+identical, side context lived only in widget name. Bridge had to inject side suffix
+(`Штора справа` etc.) so the catalog/voice could distinguish them.
+
+Cabinet had `Правый ролл` + `Левый ролл` in one widget — cells already disambiguated.
+Bridge kept ru verbatim.
+
+**Rule.** If `cell.name` is unique within the room's authoring scope, keep verbatim.
+If multiple cells share a name (typically across widgets in the same room), append
+the natural disambiguator (side, layer, slave-id, whatever the room's structure
+provides). Encoded as a per-room judgment call — no rigid convention forced.
+
+### 2.9 `cover.stop` dropped from the profile
+
+**The problem.** The `cover` profile originally declared four actions: `open` / `close` /
+`set_position` / `stop`. Dooya position sliders have NO native stop control — they
+just move toward whatever position you write. There's a possible "fake stop"
+implementation (re-publish the current mirrored position to halt motion mid-travel)
+but no driver helper for it yet.
+
+**Three options offered.**
+- (a) Omit `stop` from device configs only; profile still claims it; voice gets
+  `action_not_supported` if invoked. Soft contract lie.
+- (b) Drop `stop` from the profile entirely. Truthful catalog.
+- (c) Defer — implement `stop` later as "re-write mirrored position". Helper needed.
+
+**User chose (b).** Cleanest contract: don't promise what we can't deliver. If voice
+ever needs stop-mid-motion, switch to (c) (add the helper, restore profile entry).
+
+Same shape as the §2.3 `heating_loop.mode` decision: keep the catalog truthful.
+
+### 2.8 Subfolder name = bridge room_id (NOT WB-UI dashboard id)
+
+**Surfaced mid-session 2.** The original action_plan A1 paragraph said
+"sub-directory names are the WB UI dashboard ids" (e.g. `livingroom/`, `children/`).
+This conflicts with §P3.7 #21's decision to KEEP legacy bridge room_ids (`living_room`,
+`children_room`) and the user's broader pattern of using room_id as the prefix for
+device_ids. Net result was three different names for the same concept:
+
+- room_id: `living_room`
+- subfolder I initially wrote: `livingroom` ← inconsistent
+- device_id prefix: `living_room_`
+
+**Fixed.** Subfolder renamed `livingroom/ → living_room/`. Action_plan paragraph
+rewritten to read "Sub-directory name = the bridge's room_id (matches `rooms.json`
+exactly), NOT the WB-UI dashboard id where they differ." The same rule will apply when
+authoring `children_room/`, `shower/`, etc. Aggregate-device configs (when authored)
+land in `wb-devices/global/`.
+
+**Why it almost slipped through.** Assistant followed the older A1 paragraph
+literally without cross-checking against the user's other naming decisions. User
+caught it on the first room where the room_id ≠ WB-dashboard-id.
+
 ### 2.7 Cabinet sensors deferred to a global-room session
 
 User explicitly batched all sensor authoring with the eventual global-room work.
@@ -251,6 +537,31 @@ The `heating_loop.mode: enum ["off","on"]` declaration looked fine in isolation 
 (`"0"` / `"1"`) had to map onto it. A schema-aware authoring linter could surface
 this proactively ("you declared this field as enum but the WB control publishes
 booleans — pick a fix").
+
+### 3.6 Stale doc paragraphs are a real footgun — cross-check before quoting
+
+The A1 paragraph saying "subfolder = WB dashboard id" was authored 2026-06-06 and
+became outdated 2026-06-08 when #21 settled on the legacy room_id preservation. The
+assistant didn't reread #21's outcome against the A1 paragraph before writing the
+first `livingroom/` config — it just followed the older line. User caught it. Lesson:
+when about to follow a documented convention, sanity-check against later decisions in
+the same document. (Or — better — keep one document as the source of truth and remove
+the stale claim, which is what this fix did.)
+
+### 3.5 Raw WB-UI JSON paste massively reduces friction (vs. A2-fragment summaries)
+
+When the user pasted the living_room **Освещение** widget JSON directly from
+`/etc/wb-webui.conf`, 5 lights authored in **one round-trip** (one assistant proposal,
+one user line `1., 2. all ok, 3. yes, 4. yes`). Compare with cabinet's heating loops:
+2 devices, 3 round-trips, multiple corrections, A2 had to be repaired mid-conversation.
+
+The qualitative difference is striking: with raw JSON the assistant can read every
+cell's `id` (= `slave/control`), `name` (ru label), and `type` (switch/range/...)
+directly. Pairing detection (K3 + Channel 3 → dimmable_light) is mechanical. Profile
+proposal is rule-based. The only judgment calls left are:
+- en/de translations
+- device_id naming convention (set once per room/session)
+- edge-case naming ("is Юнион a brand?")
 
 ### 3.4 Per-loop temperature sensor on a separate 1-wire module wasn't predictable
 
@@ -297,6 +608,16 @@ When the user (or importer) declares a `state_topic` with a type that conflicts 
 the profile's declared field type, surface the mismatch with the three resolutions
 we discussed (str / bool / drop from fields[]). Decision-support, not auto-resolve.
 
+### 4.6 Reading sister-firmware code beats inferring from MQTT shape alone
+
+The HVAC's `mitsubishi2wb.ino` documented the exact `int → meaning` mappings for
+mode/fan/vane/widevane in its README, plus min/max temp defaults, plus the publish
+semantics for every cell. Without that source the assistant would have guessed
+(possibly wrong) at the value codes, the setpoint semantics (is `temperature` writable
+or read-only?), and the safe range. Pattern: when authoring a device backed by a known
+firmware source, READ THE FIRMWARE FIRST. Treat it as the authoritative wire-format
+spec.
+
 ### 4.5 Topology gaps the importer can't fill
 
 Some details probably never live in `/etc/wb-webui.conf`:
@@ -337,3 +658,7 @@ These require user disclosure regardless. A staged UI could surface them as
 - **2026-06-08** — Session 1: cabinet (3 new devices + heating_loop profile fix).
   Committed `913cbf9`. 482 tests passing. Sensors deferred. User called `pause`;
   living_room next when `continue` arrives.
+- **2026-06-08** — Session 2 (in progress): living_room. Lighting widget (5 devices)
+  done in one round-trip via raw WB-UI JSON paste — see §1.2.1 and §3.5. Remaining
+  living_room categories pending: dimmers/RGB beyond Споты, curtains (Dooyas),
+  heating loops, HVAC (`hvac_livingroom`), sensors (deferred to global-room session).
