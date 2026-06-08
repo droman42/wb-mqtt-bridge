@@ -1,0 +1,13 @@
+{
+  "device_id": "children_room_ceiling_accent",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {"ru": "Подсветка потолка", "en": "Ceiling Accent", "de": "Deckenbeleuchtung"},
+  "capability_profile": "light_switch",
+  "room": "children_room",
+  "commands": {
+    "power_on":  {"topic": "/devices/wb-mrgbw-d-fw3_11/controls/RGB Strip/on", "value": "1"},
+    "power_off": {"topic": "/devices/wb-mrgbw-d-fw3_11/controls/RGB Strip/on", "value": "0"}
+  },
+  "state_topics": {"power": "/devices/wb-mrgbw-d-fw3_11/controls/RGB Strip"}
+}

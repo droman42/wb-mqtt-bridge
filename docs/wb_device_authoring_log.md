@@ -44,6 +44,75 @@ the user calls `commit and push`; assistant pauses until `continue` arrives.
 
 ## 1. Per-device session log
 
+### 1.3 Children's room (room id `children_room`, WB dashboard `children`)
+
+#### 1.3.1 Lighting widget (4 devices in one round-trip)
+
+User pasted the **Освещение** widget JSON. 5 cells → 4 logical devices (one paired
+switch+brightness + 3 simple switches + 1 RGB strip used as on/off).
+
+| device_id | ru | en | de | profile | WB control(s) |
+|---|---|---|---|---|---|
+| `children_room_spots` | Споты | Spots | Spots | `dimmable_light` | `wb-mdm3_87/K3` + `Channel 3` |
+| `children_room_ceiling_accent` | Подсветка потолка | Ceiling Accent | Deckenbeleuchtung | `light_switch` | `wb-mrgbw-d-fw3_11/RGB Strip` |
+| `children_room_behind_column` | За колонной | Behind Column | Hinter der Säule | `light_switch` | `wb-mr6c_51/K2` |
+| `children_room_by_wardrobe` | У Гардероба | By Wardrobe | Beim Kleiderschrank | `light_switch` | `wb-mr6c_51/K3` |
+
+**Notable shape**: an RGB strip cell exposed as just a `switch` in the widget (no
+brightness/color slider companions). User confirmed (a) on/off-only — modeled as
+`light_switch`, not `rgb_light`. The wb-mrgbw-d-fw3 controller can drive RGB but in this
+room it's treated as a single fixed-color accent.
+
+**Cross-room slave**: `wb-mr6c_51` already hosts `cabinet_spots` (K4) — it now also
+hosts the children's room K2/K3. A2's "15 slaves serve multiple rooms" finding observed
+in practice. No special handling needed — each device's config references the slave
+path it cares about.
+
+**User response.** `(a) light_switch only, all device_ids and translations approved` —
+one-line approval.
+
+**Resolved-in-one-pass.** Four files written. 482 tests still green.
+
+#### 1.3.2 HVAC — `children_room_hvac` (clone of living_room_hvac)
+
+Same Mitsubishi unit shape; topic prefix `hvac_children` instead of `hvac_livingroom`.
+No new profile decisions — fully mechanical clone. Assistant skipped the Q&A round and
+wrote directly; user-implicit approval via the bulk-children_room flow. Same
+ESP32ManagedDevice migration flag applies (§2.11).
+
+| device_id | ru/en/de | profile |
+|---|---|---|
+| `children_room_hvac` | Кондиционер / Air Conditioner / Klimaanlage | `hvac` |
+
+#### 1.3.3 Heating loop — `children_room_heating` (clone of living_room_heating)
+
+Same shape as `living_room_heating`: wb-gpio actuator with `invert: true` (so `mode_on`
+writes `"0"`), setpoints_radiator setpoint, wb-msw-v3 room sensor. Different topics:
+actuator `EXT3_R3A3`, setpoint `children_temp`, sensor `wb-msw-v3_220`. Cloned without
+Q&A; user-implicit approval.
+
+| device_id | ru/en/de | profile |
+|---|---|---|
+| `children_room_heating` | Обогрев / Heating / Heizung | `heating_loop` |
+
+### 1.3.4 Children's room session summary
+
+**6 devices, room complete** (sensors deferred):
+
+| Profile | Count | Devices |
+|---|---|---|
+| `light_switch` | 3 | ceiling_accent, behind_column, by_wardrobe |
+| `dimmable_light` | 1 | spots |
+| `hvac` | 1 | hvac (ESP32ManagedDevice migration flagged) |
+| `heating_loop` | 1 | heating |
+
+No profile-side changes — children_room reused the shapes settled by living_room
+authoring. Once we have a fully canonical shape per category, subsequent rooms become
+mechanical clones with just the topic prefix swap. The first room of each category
+pays the design cost; the rest are copy-paste.
+
+---
+
 ### 1.2 Living room (room id `living_room`, WB dashboard `livingroom`)
 
 #### 1.2.1 Lighting widget (5 devices in one round-trip)
@@ -538,6 +607,32 @@ The `heating_loop.mode: enum ["off","on"]` declaration looked fine in isolation 
 this proactively ("you declared this field as enum but the WB control publishes
 booleans — pick a fix").
 
+### 3.7 rooms.json `devices` list silently drifted from device configs
+
+**Surfaced mid-children_room (session 3).** User asked "did we update rooms.json with new
+registered devices?" — answer: no, not since the slice. **19 devices** had been authored
+between slice and children_room without anyone updating rooms.json's per-room `devices`
+field. The catalog's room → devices projection reads from RoomManager (rooms.json), so
+all 19 would have been invisible to voice/UI as room members despite existing with
+`room: <id>` set on the device configs.
+
+**Compounding problem**: AV configs (the 13 pre-§P3.7 devices in
+`backend/config/devices/*.json`) **have no `room` field set at all** — their room
+membership lives ONLY in rooms.json. So today the system has TWO sources of truth:
+
+- **WB-passthrough side**: `room` field on the device config (forward direction)
+- **AV side**: membership only in rooms.json (reverse direction)
+
+The two sources weren't kept in sync because no test enforced it. Added
+`test_rooms_json_devices_match_wb_passthrough_configs` to `test_rooms_bootstrap.py`
+that walks every WB-passthrough config and asserts its `device_id` appears in the
+correct room's `devices` list. Fails loud the moment they drift. Test count 482 → 483.
+
+**Architectural question logged for later** (see §4.8): should we make device-config
+`room` the single source of truth and have RoomManager populate `devices` at load
+time? Would eliminate the drift class entirely but requires backfilling `room` on
+the 13 AV configs.
+
 ### 3.6 Stale doc paragraphs are a real footgun — cross-check before quoting
 
 The A1 paragraph saying "subfolder = WB dashboard id" was authored 2026-06-06 and
@@ -607,6 +702,33 @@ has a Position slider only, propose `cover`. The mappings are mostly mechanical.
 When the user (or importer) declares a `state_topic` with a type that conflicts with
 the profile's declared field type, surface the mismatch with the three resolutions
 we discussed (str / bool / drop from fields[]). Decision-support, not auto-resolve.
+
+### 4.8 Eliminate the rooms.json `devices` duplication
+
+Right now device → room is declared in TWO places:
+- WB-passthrough device config: `room: "<room_id>"` field
+- rooms.json: `<room_id>.devices: [...]` list
+
+The two have to be hand-kept in sync. Drift was silent until §3.7 above. Two cleanup
+shapes worth considering for a packaged version:
+
+- **(a) Derive at load time** — drop `devices` from rooms.json entirely; RoomManager
+  populates it from DeviceManager by grouping devices by their `room` field.
+  Requires backfilling `room` on the 13 AV configs (one-off migration).
+- **(b) Make rooms.json a thin metadata file** — keep names + description + default
+  scenario; drop `devices` from the schema. Catalog projects via DeviceManager group-by.
+
+Both eliminate the drift class. The drift-guard test added in §3.7 is a band-aid
+acknowledging the duplication, not removing it.
+
+### 4.7 First room per category pays the design cost; rest are clones
+
+Cabinet's heating loops surfaced the `heating_loop.mode` profile question. Living_room's
+HVAC surfaced the bigger HVAC profile rewrite. Living_room's covers surfaced the
+`cover.stop` question. ONCE each profile is settled, subsequent rooms with the same
+category are mechanical clones — children_room reused all of living_room's settled
+shapes with zero new Q&A. Implication for any future packaging: profile authoring is
+a one-time cost per fixture kind; per-room device configs are the volume.
 
 ### 4.6 Reading sister-firmware code beats inferring from MQTT shape alone
 

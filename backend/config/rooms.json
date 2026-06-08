@@ -17,7 +17,18 @@
       "mf_amplifier",
       "ld_player",
       "vhs_player",
-      "reel_to_reel"
+      "reel_to_reel",
+      "living_room_spots",
+      "living_room_window_light",
+      "living_room_floor_lamp",
+      "living_room_desk_lamp",
+      "living_room_union_cabinet",
+      "living_room_curtain_right",
+      "living_room_tulle_right",
+      "living_room_curtain_left",
+      "living_room_tulle_left",
+      "living_room_hvac",
+      "living_room_heating"
     ],
     "default_scenario": null
   },
@@ -32,7 +43,13 @@
     "description": "Children room with TV and Apple TV (WB dashboard `children`)",
     "devices": [
       "children_room_tv",
-      "appletv_children"
+      "appletv_children",
+      "children_room_spots",
+      "children_room_ceiling_accent",
+      "children_room_behind_column",
+      "children_room_by_wardrobe",
+      "children_room_hvac",
+      "children_room_heating"
     ],
     "default_scenario": null
   },
@@ -60,7 +77,12 @@
     },
     "description": "Home office / study (the §P3.7 voice-integration slice's test room)",
     "devices": [
-      "cabinet_spots"
+      "cabinet_spots",
+      "cabinet_backlight",
+      "cabinet_floor",
+      "cabinet_windowsill",
+      "cabinet_roller_right",
+      "cabinet_roller_left"
     ],
     "default_scenario": null
   },

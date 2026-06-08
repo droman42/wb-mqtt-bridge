@@ -94,6 +94,38 @@ def test_new_rooms_start_with_empty_devices():
         )
 
 
+def test_rooms_json_devices_match_wb_passthrough_configs():
+    """Drift guard (§P3.7 #23): every WB-passthrough device config under
+    `wb-devices/<room>/` MUST also appear in rooms.json's `devices` list for that room.
+    The catalog's room → devices projection reads from RoomManager (rooms.json), so a
+    device declared with `room: foo` but missing from `foo.devices` is invisible to
+    voice/UI even though it exists. Catches the kind of drift surfaced mid-children_room
+    session on 2026-06-08 where 19 devices had piled up missing from rooms.json."""
+    import sys as _sys
+    _sys.path.insert(0, "src")
+    from wb_mqtt_bridge.infrastructure.config.models import WbPassthroughDeviceConfig
+
+    wb_devices_dir = ROOMS_JSON.parent / "devices" / "wb-devices"
+    by_room: dict[str, set[str]] = {}
+    for p in wb_devices_dir.rglob("*.json"):
+        cfg = WbPassthroughDeviceConfig(**json.loads(p.read_text()))
+        by_room.setdefault(cfg.room or "<missing>", set()).add(cfg.device_id)
+
+    rooms = _load()
+    missing: list[str] = []
+    for room_id, devs in by_room.items():
+        listed = set(rooms.get(room_id, {}).get("devices", []))
+        for dev in devs:
+            if dev not in listed:
+                missing.append(f"{dev!r} (room={room_id!r})")
+    assert not missing, (
+        "rooms.json `devices` list is out of sync with WB-passthrough configs — "
+        "the following devices declare a room but aren't listed in that room's `devices`:\n  "
+        + "\n  ".join(sorted(missing))
+        + "\nEither add them to rooms.json or drop the `room` field from the device config."
+    )
+
+
 def test_wb_dashboard_mapping_documented_in_description():
     """For the rooms whose symbolic id differs from the WB-UI dashboard id, the importer
     (#23) needs the dashboard hint somewhere. We carry it in the description for now (a
