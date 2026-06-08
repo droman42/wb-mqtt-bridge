@@ -185,14 +185,22 @@ def test_hvac_climate_enum_fields_carry_allowed_values():
     assert fan.values == ["auto", "low", "medium", "high"]
 
 
-def test_heating_loop_profile_has_climate_with_three_fields():
+def test_heating_loop_profile_has_climate_with_typed_measurement_fields():
     """Heating loop is the most composite simple shape: actuator (on/off) + setpoint slider
-    + room-temp sensor reads. Modeled as one `climate` capability with field reads."""
+    + room-temp sensor reads. Modeled as one `climate` capability. Actions: on/off (momentary,
+    publish to the actuator) + set_setpoint (param-carrying). Fields: `setpoint` and
+    `room_temperature` only -- the on/off mode is INTENTIONALLY NOT a typed catalog field
+    (mirrors the light_switch pattern: WB controls publish raw `"0"`/`"1"`, devices mirror
+    that bare string for internal no_op detection, but the catalog doesn't promise a
+    typed `mode` field whose values would diverge from the wire payload). Decision recorded
+    2026-06-08 alongside cabinet heating-loop authoring."""
     m = load_capability_map("WbPassthroughDevice", "any_radiator",
                              capabilities_dir=CAPS, capability_profile="heating_loop")
     climate = m.get("climate")
     assert {a for a in climate.actions} == {"on", "off", "set_setpoint"}
-    assert {f.name for f in climate.fields} == {"mode", "setpoint", "room_temperature"}
+    # Mode is reachable via on/off actions; intentionally NOT exposed as a typed field.
+    assert {f.name for f in climate.fields} == {"setpoint", "room_temperature"}
+    assert climate.state_field == "mode"  # reconciler still tracks on/off state internally
 
 
 def test_dimmable_light_inherits_power_plus_brightness_with_level_field():

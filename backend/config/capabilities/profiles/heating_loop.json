@@ -9,8 +9,6 @@
       "set_setpoint":  { "command": "set_setpoint", "param_map": { "temp": "temp" } }
     },
     "fields": [
-      { "name": "mode", "type": "enum", "values": ["off", "on"],
-        "labels": { "ru": "режим", "en": "mode" } },
       { "name": "setpoint", "type": "float", "unit": "°C",
         "labels": { "ru": "уставка", "en": "setpoint" } },
       { "name": "room_temperature", "type": "float", "unit": "°C",

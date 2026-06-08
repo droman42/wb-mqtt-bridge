@@ -1,0 +1,33 @@
+{
+  "device_id": "cabinet_windowsill",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {
+    "ru": "Подоконник",
+    "en": "Windowsill Heater",
+    "de": "Fensterbankheizung"
+  },
+  "capability_profile": "heating_loop",
+  "room": "cabinet",
+  "commands": {
+    "mode_on":  {"topic": "/devices/wb-gpio/controls/EXT3_R3A5/on", "value": "1"},
+    "mode_off": {"topic": "/devices/wb-gpio/controls/EXT3_R3A5/on", "value": "0"},
+    "set_setpoint": {
+      "topic": "/devices/setpoints_floor/controls/cabinet2_temp/on",
+      "params": [{"name": "temp", "type": "float", "min": 5, "max": 30, "required": true}]
+    }
+  },
+  "state_topics": {
+    "mode": "/devices/wb-gpio/controls/EXT3_R3A5",
+    "setpoint": {
+      "topic": "/devices/setpoints_floor/controls/cabinet2_temp",
+      "type": "float",
+      "unit": "°C"
+    },
+    "room_temperature": {
+      "topic": "/devices/wb-m1w2_56/controls/External Sensor 2",
+      "type": "float",
+      "unit": "°C"
+    }
+  }
+}
