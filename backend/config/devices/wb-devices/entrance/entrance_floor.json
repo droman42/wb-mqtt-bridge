@@ -1,0 +1,29 @@
+{
+  "device_id": "entrance_floor",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {"ru": "Теплый пол", "en": "Floor Heating", "de": "Fußbodenheizung"},
+  "capability_profile": "heating_loop",
+  "room": "entrance",
+  "commands": {
+    "mode_on":  {"topic": "/devices/wb-mr6cu_31/controls/K1/on", "value": "1"},
+    "mode_off": {"topic": "/devices/wb-mr6cu_31/controls/K1/on", "value": "0"},
+    "set_setpoint": {
+      "topic": "/devices/setpoints_floor/controls/entrance_temp/on",
+      "params": [{"name": "temp", "type": "float", "min": 5, "max": 30, "required": true}]
+    }
+  },
+  "state_topics": {
+    "mode": "/devices/wb-mr6cu_31/controls/K1",
+    "setpoint": {
+      "topic": "/devices/setpoints_floor/controls/entrance_temp",
+      "type": "float",
+      "unit": "°C"
+    },
+    "room_temperature": {
+      "topic": "/devices/wb-m1w2_114/controls/External Sensor 1",
+      "type": "float",
+      "unit": "°C"
+    }
+  }
+}

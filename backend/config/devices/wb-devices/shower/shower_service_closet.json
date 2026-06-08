@@ -1,0 +1,13 @@
+{
+  "device_id": "shower_service_closet",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {"ru": "Инженерный шкаф", "en": "Service Closet", "de": "Technikschrank"},
+  "capability_profile": "light_switch",
+  "room": "shower",
+  "commands": {
+    "power_on":  {"topic": "/devices/wb-mr6c_52/controls/K6/on", "value": "1"},
+    "power_off": {"topic": "/devices/wb-mr6c_52/controls/K6/on", "value": "0"}
+  },
+  "state_topics": {"power": "/devices/wb-mr6c_52/controls/K6"}
+}

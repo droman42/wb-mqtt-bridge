@@ -37,10 +37,21 @@ from wb_mqtt_bridge.presentation.api.schemas import (
 )
 
 
-def _project_capability_actions(cap_map: Optional[CapabilityMap]) -> list[CatalogCapability]:
+def _project_capability_actions(
+    cap_map: Optional[CapabilityMap],
+    mirrored_field_names: Optional[set[str]] = None,
+) -> list[CatalogCapability]:
     """Walk a CapabilityMap and project to the catalog's capability shape — actions and
     (since §P3.7 #19) read-only fields. Param introspection per-action is still owed work
-    and not yet surfaced."""
+    and not yet surfaced.
+
+    `mirrored_field_names` (§P3.7 #23 / sauna-sensor case): the set of field names the
+    device actually mirrors via `state_topics`. When provided, profile fields[] are
+    FILTERED to only the names in the set -- so a device with `sensor_room` profile that
+    only mirrors `temperature` + `humidity` emits only those two in the catalog, not the
+    full 5 the profile declares. When `None` (AV devices that don't have `state_topics`
+    at all), no filtering happens and every profile-declared field is emitted as before.
+    """
     out: list[CatalogCapability] = []
     if cap_map is None:
         return out
@@ -50,6 +61,8 @@ def _project_capability_actions(cap_map: Optional[CapabilityMap]) -> list[Catalo
             actions.append(CatalogAction(name=action_name, params=None))
         fields: list[CatalogField] = []
         for f in cap.fields:
+            if mirrored_field_names is not None and f.name not in mirrored_field_names:
+                continue
             fields.append(CatalogField(
                 name=f.name,
                 type=f.type,
@@ -82,12 +95,21 @@ def _project_devices(devices_iterable: Iterable) -> list[CatalogDevice]:
             names_dict = dict(names)
         else:
             names_dict = dict(vars(names))
+        # Field filtering by what the device actually mirrors (§P3.7 #23 sauna-sensor case).
+        # WB-passthrough configs declare `state_topics`; AV configs don't have that attribute.
+        # `None` = no filter (AV devices keep emitting every profile-declared field).
+        state_topics = getattr(cfg, "state_topics", None)
+        mirrored_field_names: Optional[set[str]] = (
+            set(state_topics.keys()) if state_topics is not None else None
+        )
         out.append(CatalogDevice(
             id=cfg.device_id,
             names=names_dict,
             device_class=cfg.device_class,
             room=getattr(cfg, "room", None),
-            capabilities=_project_capability_actions(getattr(device, "capabilities", None)),
+            capabilities=_project_capability_actions(
+                getattr(device, "capabilities", None), mirrored_field_names,
+            ),
         ))
     out.sort(key=lambda d: d.id)  # stable order -> stable hash
     return out

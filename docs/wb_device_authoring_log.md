@@ -44,6 +44,88 @@ the user calls `commit and push`; assistant pauses until `continue` arrives.
 
 ## 1. Per-device session log
 
+### 1.10 Wardrobe (room id `wardrobe`, WB dashboard `wardrobe`)
+
+2 light devices — smallest physical room.
+
+| device_id | ru | en | de | profile | WB control(s) |
+|---|---|---|---|---|---|
+| `wardrobe_spots` | Споты | Spots | Spots | **`light_switch`** | `wb-mr6c_51/K5` |
+| `wardrobe_shelves_light` | Подсветка полок | Shelves Accent | Regalbeleuchtung | `dimmable_light` | `wb-mrgbw-d-fw3_10/Channel 2 (R)` + `Brightness` |
+
+**First non-dimmable Споты** across all rooms — wardrobe's spots are on a wb-mr6c
+relay (no brightness control). All previous rooms' "Споты" were on wb-mdm3 dimmers.
+The catalog naturally exposes the difference (no `set_brightness` action, no `level`
+field) — voice/UI can render appropriately per-device.
+
+**RGB controller exhaustion** — `wb-mrgbw-d-fw3_10` now uses all 3 RGB channels:
+R (wardrobe shelves), G (bedroom window), B (bedroom shelves), driving 3 independent
+single-color fixtures across 2 rooms.
+
+**Slave fully used** — `wb-mr6c_51` now has all 6 channels mapped: K1 (hall), K2 +
+K3 (children), K4 (cabinet), K5 (wardrobe), K6 (bedroom). 5 rooms.
+
+### 1.9 Bathroom (room id `bathroom`, WB dashboard `bathroom`)
+
+5 devices: 4 lights + floor heating. Both shelf lights needed name disambiguation
+(Полка над ванной / Полка над унитазом) → device_ids follow layer-then-location
+pattern (`bathroom_shelf_bath`, `bathroom_shelf_toilet`), en uses parenthetical form
+(`Shelf (Bath)`, `Shelf (Toilet)`).
+
+| device_id | profile | WB control(s) |
+|---|---|---|
+| `bathroom_spots` | `dimmable_light` | `wb-mdm3_95/K2` + `Channel 2` |
+| `bathroom_mirror` | `light_switch` | `wb-mr6c_52/K2` |
+| `bathroom_shelf_bath` | `light_switch` | `wb-mr6c_58/K6` |
+| `bathroom_shelf_toilet` | `light_switch` | `wb-mr6c_58/K5` |
+| `bathroom_floor` | `heating_loop` | `wb-mr6cu_31/K3` + setpoints_floor/wc2_temp + wb-m1w2_173 floor sensor |
+
+**Slave fully used** — `wb-mr6c_58` now has all 6 channels mapped: K1 + K2 (living),
+K3 + K4 (bedroom), K5 + K6 (bathroom). 3 rooms.
+
+### 1.8 Shower (room id `shower`, WB dashboard `wc`)
+
+6 devices: 4 lights + floor heating + sauna sensors (the ONE sensor exception to the
+"sensors deferred" rule — see §2.14 for the catalog-filter design decision triggered).
+
+| device_id | profile | notes |
+|---|---|---|
+| `shower_spots` | `dimmable_light` | `wb-mdm3_83/K2` + `Channel 2` |
+| `shower_mirror` | `light_switch` | `wb-mr6c_47/K2` |
+| `shower_sauna` | `dimmable_light` | `wb-mrgbw-d-fw3_238/Channel 1 (B)` — single-color RGB channel |
+| `shower_service_closet` | `light_switch` | `wb-mr6c_52/K6` — Инженерный шкаф (utility cabinet) |
+| `shower_floor` | `heating_loop` | `wb-mr6cu_31/K2` + setpoints_floor/wc1_temp + wb-m1w2_114 floor sensor (legacy `wc1_*` topic naming) |
+| `shower_sauna_sensors` | `sensor_room` | wb-msw2_100 — only 2 of 5 profile fields (temperature + humidity); triggered catalog-filter feature §2.14 |
+
+### 1.7 Hall (room id `hall`, WB dashboard `hall`)
+
+3 light devices. Only category present.
+
+| device_id | profile | WB control(s) |
+|---|---|---|
+| `hall_spots` | `dimmable_light` | `wb-mdm3_87/K2` + `Channel 2` |
+| `hall_track_1` | `light_switch` | `wb-mr6c_51/K1` (Трек 1 = track light 1) |
+| `hall_track_2` | `light_switch` | `wb-mr6c_52/K3` |
+
+### 1.6 Entrance (room id `entrance`, WB dashboard `entrance`)
+
+Smallest room so far. 2 devices authored; widget had 4 additional cells that the user
+chose to skip — see new pattern note §2.13.
+
+| device_id | ru | en | de | profile | WB control(s) |
+|---|---|---|---|---|---|
+| `entrance_spots` | Споты | Spots | Spots | `dimmable_light` | `wb-mdm3_83/K1` + `Channel 1` |
+| `entrance_cabinet_accent` | Подсветка шкафа | Cabinet Accent | Schrankbeleuchtung | `light_switch` | `wb-mr6c_52/K5` |
+
+Naming nuance: `Шкаф` here is the entrance coat/shoe cabinet (a piece of furniture in
+the entryway), NOT the `wardrobe` ROOM (Гардеробная, walk-in closet). device_id
+`entrance_cabinet_accent` avoids the conflict; `entrance_wardrobe` would have read
+ambiguously against the wardrobe room id.
+
+**User response.** `approve all 2` — bulk approval.
+
+---
+
 ### 1.5 Kitchen (room id `kitchen`, WB dashboard `kitchen`)
 
 Compact room: 4 WB-passthrough devices (no curtains, no HVAC, just lights + floor
@@ -621,6 +703,57 @@ User skipped #22 to do #23 first. Implication: the `global` room exists in
 `rooms.json` but stays empty until aggregates are authored later (after #23 or
 deferred indefinitely depending on voice command coverage).
 
+### 2.14 Catalog field projection is now FILTERED by what each device actually mirrors
+
+**Surfaced during shower's sauna sensors (1.6.2 / shower_sauna_sensors).** The sauna
+has only 2 of the `sensor_room` profile's 5 fields (temperature + humidity; no co2 /
+illuminance / sound_level). User chose option (a) — use the existing profile — but
+asked: "make all fields optional so that it can go from 1 to 5 fields".
+
+**Implementation.** `_project_capability_actions` in `presentation/api/catalog.py` now
+accepts a `mirrored_field_names: Optional[set[str]]` parameter. `_project_devices`
+extracts the set from each device's `state_topics` keys and passes it. Fields whose
+name isn't in the set are skipped. AV devices (no `state_topics` attribute at all)
+pass `None`, which DISABLES filtering — they keep emitting every profile-declared
+field unchanged. So:
+
+| Device shape | `state_topics` | Filter behaviour | Catalog fields emitted |
+|---|---|---|---|
+| WB-passthrough, all fields mirrored | full dict | filtered, all present | all profile fields |
+| WB-passthrough, partial mirror (sauna) | subset | filtered, partial | only mirrored fields |
+| AV (no state_topics attribute) | absent | filter disabled | all profile fields |
+
+**Why it matters.** Voice/UI consumers reading the catalog now see exactly what the
+state endpoint will populate. No more promised fields with permanent nulls. Removes
+the soft asymmetry that lived between catalog claims and state surface for sensor
+devices that don't fit the canonical 5-field shape.
+
+**Tests added** (2): `test_catalog_filters_profile_fields_to_what_device_actually_mirrors`
+(sauna case — only 2 of 5 fields), `test_catalog_keeps_all_profile_fields_when_device_has_no_state_topics`
+(AV regression guard). 483 → 485 passing.
+
+### 2.13 WB-UI widgets often mix actuators with input sensors / counters / wall switches
+
+Surfaced in entrance lighting widget (1.6.1). The widget had 7 cells:
+- 2 actuator devices we authored (Споты dimmable + Подсветка шкафа switch)
+- 1 motion sensor input (`wb-gpio/EXT2_IN1` "Движение")
+- 1 door open sensor input (`wb-gpio/EXT2_IN4` "Открытие")
+- 1 physical wall switch input (`wb-mdm3_83/Input 1` "Выключатель")
+- 1 switch counter readout (`wb-mdm3_83/Input 1 counter` "Счетчик")
+
+The 4 non-actuator cells are signals the WB UI displays for the user's awareness +
+that wb-rules can react to, but they aren't things the bridge ACTUATES. User direction
+this round was to skip them entirely: "but here we take only spots and Подсветка
+шкафа".
+
+**Pattern**: a WB-UI widget can mix actuators and input signals on the same panel. The
+bridge's WB-passthrough configs are about ACTUATION — input signals belong in a
+separate concept (perhaps a `sensor` profile for binary inputs + counters; perhaps
+nothing at all, leaving wb-rules to handle them). For the importer-driven future
+(§4.1), the rule of thumb is: cells whose value can change in response to a /on
+publish are candidates for WB-passthrough configs; cells that only ever publish their
+own state are skipped (or routed to a different model).
+
 ### 2.12 Dooya position semantics differ by motor model
 
 **Surfaced retroactively during bedroom session.** User caught this watching the
@@ -964,10 +1097,23 @@ These require user disclosure regardless. A staged UI could surface them as
 
 ## 6. Sessions log (timestamped checkpoints)
 
+- **2026-06-08** — Sessions 4–7 (rapid pace): bedroom (11) + kitchen (4) + entrance (3)
+  + hall (3) + shower (6 incl. sauna sensors) + bathroom (5) + wardrobe (2) =
+  **34 devices added** across 7 rooms in one continuous run. Profile changes: cover
+  drops `stop`, hvac rewritten end-to-end against firmware, heating_loop drops `mode`
+  field. Catalog gains state_topics-driven field filtering (§2.14, triggered by the
+  sauna's partial sensor_room mirror). Drift-guard added (§3.7). Per-device-class
+  Dooya inversion fix for cabinet rollers (§2.12). 485 passing. **#23 COMPLETE**:
+  57 devices across all 10 physical rooms. `global` (#22) and sensor backlog
+  (most rooms' wb-msw multi-sensors) remain.
+- **2026-06-08** — Session 3: children_room (6 devices: lights × 4 + hvac + heating).
+  Mid-session user caught rooms.json drift (19 missing); fixed + added drift-guard
+  test. Committed `ecc5759`. 483 passing.
+- **2026-06-08** — Session 2: living_room. 11 devices (lights × 5 + covers × 4 +
+  hvac + heating). HVAC profile reworked from sister-firmware
+  `/home/droman42/development/mitsubishi2wb` (see §1.2.3 / §4.6). cover.stop dropped
+  (§2.9). Subfolder convention `wb-devices/<room>/` correction (§2.8). Committed
+  `edc345f`. 482 passing.
 - **2026-06-08** — Session 1: cabinet (3 new devices + heating_loop profile fix).
   Committed `913cbf9`. 482 tests passing. Sensors deferred. User called `pause`;
   living_room next when `continue` arrives.
-- **2026-06-08** — Session 2 (in progress): living_room. Lighting widget (5 devices)
-  done in one round-trip via raw WB-UI JSON paste — see §1.2.1 and §3.5. Remaining
-  living_room categories pending: dimmers/RGB beyond Споты, curtains (Dooyas),
-  heating loops, HVAC (`hvac_livingroom`), sensors (deferred to global-room session).

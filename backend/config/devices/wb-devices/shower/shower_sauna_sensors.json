@@ -1,0 +1,13 @@
+{
+  "device_id": "shower_sauna_sensors",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {"ru": "Сенсоры сауны", "en": "Sauna Sensors", "de": "Sauna-Sensoren"},
+  "capability_profile": "sensor_room",
+  "room": "shower",
+  "commands": {},
+  "state_topics": {
+    "temperature": {"topic": "/devices/wb-msw2_100/controls/External Sensor 1", "type": "float", "unit": "°C"},
+    "humidity":    {"topic": "/devices/wb-msw2_100/controls/Humidity",          "type": "float", "unit": "%"}
+  }
+}

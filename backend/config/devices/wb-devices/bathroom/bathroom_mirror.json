@@ -1,0 +1,13 @@
+{
+  "device_id": "bathroom_mirror",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {"ru": "Зеркало", "en": "Mirror", "de": "Spiegel"},
+  "capability_profile": "light_switch",
+  "room": "bathroom",
+  "commands": {
+    "power_on":  {"topic": "/devices/wb-mr6c_52/controls/K2/on", "value": "1"},
+    "power_off": {"topic": "/devices/wb-mr6c_52/controls/K2/on", "value": "0"}
+  },
+  "state_topics": {"power": "/devices/wb-mr6c_52/controls/K2"}
+}

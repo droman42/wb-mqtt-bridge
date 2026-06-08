@@ -11,6 +11,62 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-08 (§P3.7 #23 DONE — 57 WB-passthrough device configs across all 10 physical rooms)** —
+  Largest bulk task in the voice integration phase, completed in one extended interactive
+  session. **Per-room counts**: bedroom 11, living_room 11, cabinet 6, children_room 6,
+  shower 6, bathroom 5, kitchen 4, hall 3, entrance 3, wardrobe 2 = **57 total**. **Per-
+  profile distribution**: light_switch × 23, dimmable_light × 13, heating_loop × 9,
+  cover × 8, hvac × 3, sensor_room × 1 (the sauna's wb-msw2_100). Workflow was user
+  pasting raw WB-UI widget JSONs from `/etc/wb-webui.conf`, assistant proposing complete
+  device configs per category with terse Q&A, writing files + extending rooms.json
+  incrementally; once profile shapes settled, additional rooms collapsed to
+  copy-paste-with-topic-swap. **Profile changes accumulated during authoring**: (1)
+  `cover.stop` dropped — Dooya position sliders have no native stop control; (2) `hvac`
+  profile rewritten end-to-end after reading sister-firmware
+  `/home/droman42/development/mitsubishi2wb` — dropped fictional enum fields for
+  mode/fan/vane (wire is int codes, not named strings), added missing `set_widevane`
+  action, corrected `temperature` field to BE the writable setpoint (not a separate
+  read-only); (3) `heating_loop.mode` dropped from fields[] to mirror light_switch
+  pattern; (4) `sensor_room` made effectively "1-to-5 fields" by introducing catalog-
+  side filtering (next item). **Catalog enhancement**: `_project_capability_actions`
+  gained `mirrored_field_names: Optional[set[str]]` parameter so a device using a
+  profile with N fields but mirroring only K<N of them surfaces only the K mirrored
+  fields in the catalog. Triggered by the sauna sensors widget that had only
+  temperature + humidity from the sensor_room profile's 5 declared fields. AV devices
+  (no state_topics attribute) pass `None` → filter disabled → backward-compatible.
+  **rooms.json drift-guard test**: walks every WB-passthrough config and asserts its
+  device_id is in the correct room's `devices` list. Caught the silent 19-device drift
+  surfaced when user asked "did we update rooms.json?" mid-session 3; now prevents
+  recurrence. **Cabinet roller cover semantic fix**: `dooya_dm35eq_x_*` motors invert
+  position (0=open, 100=closed); open/close action values swapped for both cabinet
+  rollers. `set_position(pct)` semantic gap on inverted devices documented as deferred
+  follow-up. **Subfolder convention correction**: `wb-devices/<room>/` uses bridge
+  room_id (matches rooms.json), NOT the WB-UI dashboard id where they differ; action_
+  plan A1 paragraph rewritten mid-session 2 once the inconsistency surfaced. **Live
+  authoring log** at `docs/wb_device_authoring_log.md` captures every per-device
+  decision, 14 accumulated cross-room rules (naming conventions, ru-verbatim-vs-
+  disambiguate pattern, profile-vs-wire mismatch handling, etc.), 7 friction
+  observations (A2 incompleteness, stale doc paragraphs, terse-reply interpretation
+  risk, etc.), and 9 automation opportunities (read /etc/wb-webui.conf directly,
+  schema-aware linter, derive rooms.json from device configs, eliminate the
+  duplicated source-of-truth, etc.) — explicit input for any future packaged version
+  of this onboarding flow. **HVAC migration flagged**: three HVAC configs
+  (living_room_hvac, children_room_hvac, bedroom_hvac) currently on
+  `WbPassthroughDevice` class; will migrate to `ESP32ManagedDevice` when that class
+  is introduced (per the 2026-06-08 lock-in decision; class to be added when ESP32-
+  specific surfaces are needed). **Multi-sensor backlog**: most rooms' wb-msw-v3_*
+  multi-sensors deferred to a focused future session for firmware-doc cross-
+  reference; only the sauna's wb-msw2_100 (2 simple fields) included in #23. The
+  sauna case is what proved out the catalog-filtering feature, paving the way for
+  partial multi-sensor exposures later. **Test count**: 482 → **485** passing
+  (+3 net: drift-guard test, catalog filter test, catalog filter-disabled regression
+  guard; renames + content updates for several existing tests). **Hexagonal LAW
+  clean** — catalog filter change is presentation-layer-internal, no domain imports
+  touched. **Commits**: 913cbf9 (cabinet) + edc345f (living_room) + ecc5759 (drift
+  fix + children_room) + 53ddde0 (bedroom + cover semantic) + b65630d (kitchen) +
+  this commit (remaining 5 rooms + sauna sensors + catalog filter + #23 DONE).
+  **Next**: #22 (aggregate devices in `global` — `all_lights` first) + #24 (the
+  multi-sensor bulk that #23 deferred) + #25 (catalog completeness sweep + e2e).
 - **2026-06-08 (§P3.7 #21 DONE — rooms.json full WB-UI sweep + global)** —
   Second task of the bulk phase. **All 10 WB-UI dashboards from A2 findings now have
   matching `rooms.json` entries**: existing `living_room` / `children_room` / `kitchen` /

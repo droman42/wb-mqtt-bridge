@@ -1,0 +1,13 @@
+{
+  "device_id": "wardrobe_spots",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {"ru": "Споты", "en": "Spots", "de": "Spots"},
+  "capability_profile": "light_switch",
+  "room": "wardrobe",
+  "commands": {
+    "power_on":  {"topic": "/devices/wb-mr6c_51/controls/K5/on", "value": "1"},
+    "power_off": {"topic": "/devices/wb-mr6c_51/controls/K5/on", "value": "0"}
+  },
+  "state_topics": {"power": "/devices/wb-mr6c_51/controls/K5"}
+}

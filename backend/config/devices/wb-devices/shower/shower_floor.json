@@ -1,0 +1,29 @@
+{
+  "device_id": "shower_floor",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {"ru": "Теплый пол", "en": "Floor Heating", "de": "Fußbodenheizung"},
+  "capability_profile": "heating_loop",
+  "room": "shower",
+  "commands": {
+    "mode_on":  {"topic": "/devices/wb-mr6cu_31/controls/K2/on", "value": "1"},
+    "mode_off": {"topic": "/devices/wb-mr6cu_31/controls/K2/on", "value": "0"},
+    "set_setpoint": {
+      "topic": "/devices/setpoints_floor/controls/wc1_temp/on",
+      "params": [{"name": "temp", "type": "float", "min": 5, "max": 30, "required": true}]
+    }
+  },
+  "state_topics": {
+    "mode": "/devices/wb-mr6cu_31/controls/K2",
+    "setpoint": {
+      "topic": "/devices/setpoints_floor/controls/wc1_temp",
+      "type": "float",
+      "unit": "°C"
+    },
+    "room_temperature": {
+      "topic": "/devices/wb-m1w2_114/controls/External Sensor 2",
+      "type": "float",
+      "unit": "°C"
+    }
+  }
+}

@@ -99,7 +99,11 @@
       "de": "Eingang"
     },
     "description": "Entry hall just inside the front door",
-    "devices": [],
+    "devices": [
+      "entrance_spots",
+      "entrance_cabinet_accent",
+      "entrance_floor"
+    ],
     "default_scenario": null
   },
 
@@ -111,7 +115,11 @@
       "de": "Flur"
     },
     "description": "Inner corridor connecting the rooms",
-    "devices": [],
+    "devices": [
+      "hall_spots",
+      "hall_track_1",
+      "hall_track_2"
+    ],
     "default_scenario": null
   },
 
@@ -123,7 +131,14 @@
       "de": "Dusche"
     },
     "description": "Shower room (WB dashboard `wc`)",
-    "devices": [],
+    "devices": [
+      "shower_spots",
+      "shower_mirror",
+      "shower_sauna",
+      "shower_service_closet",
+      "shower_floor",
+      "shower_sauna_sensors"
+    ],
     "default_scenario": null
   },
 
@@ -135,7 +150,13 @@
       "de": "Badezimmer"
     },
     "description": "Bathroom with tub and sink",
-    "devices": [],
+    "devices": [
+      "bathroom_spots",
+      "bathroom_mirror",
+      "bathroom_shelf_bath",
+      "bathroom_shelf_toilet",
+      "bathroom_floor"
+    ],
     "default_scenario": null
   },
 
@@ -171,7 +192,10 @@
       "de": "Garderobe"
     },
     "description": "Walk-in wardrobe",
-    "devices": [],
+    "devices": [
+      "wardrobe_spots",
+      "wardrobe_shelves_light"
+    ],
     "default_scenario": null
   },
 

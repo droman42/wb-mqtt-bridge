@@ -281,6 +281,61 @@ def test_catalog_emits_rgb_field_with_encoding():
     assert color.fields[0].encoding == "{r};{g};{b}"
 
 
+def test_catalog_filters_profile_fields_to_what_device_actually_mirrors():
+    """§P3.7 #23 / sauna-sensor case (2026-06-08): a device using a profile with N fields
+    but mirroring only K<N of them must surface ONLY the K mirrored fields in the catalog,
+    not all N from the profile. The sauna in the shower room uses `sensor_room` (5 declared
+    fields: temperature/humidity/co2/illuminance/sound_level) but its wb-msw2_100 only
+    exposes temperature + humidity -- the catalog should reflect that truthfully so voice
+    consumers don't see promised co2/illuminance/sound_level fields with nothing behind
+    them."""
+    cfg = SimpleNamespace(
+        device_id="shower_sauna_sensors",
+        names=SimpleNamespace(ru="Сенсоры сауны", en="Sauna Sensors",
+                              model_dump=lambda: {"ru": "Сенсоры сауны", "en": "Sauna Sensors"}),
+        device_class="WbPassthroughDevice",
+        room="shower",
+        # Only 2 of the profile's 5 sensor fields are actually mirrored.
+        state_topics={
+            "temperature": SimpleNamespace(topic="...", type="float", unit="°C"),
+            "humidity":    SimpleNamespace(topic="...", type="float", unit="%"),
+        },
+    )
+    cap_map = CapabilityMap.model_validate(_sensor_cap_map_dict())
+    sensor = SimpleNamespace(config=cfg, capabilities=cap_map)
+    dm = SimpleNamespace(devices={"shower_sauna_sensors": sensor})
+    rm = MagicMock(); rm.list.return_value = []
+    cat = build_catalog(dm, rm)
+    cap = cat.devices[0].capabilities[0]
+    assert cap.name == "sensor"
+    field_names = {f.name for f in cap.fields}
+    assert field_names == {"temperature", "humidity"}, (
+        f"expected only the 2 mirrored fields; got {field_names}"
+    )
+
+
+def test_catalog_keeps_all_profile_fields_when_device_has_no_state_topics():
+    """AV devices don't carry `state_topics` at all -- the filtering must SKIP for them
+    so they keep emitting every profile-declared field unchanged. Regression guard for
+    the §P3.7 #23 catalog filter change."""
+    sensors = _fake_device(
+        device_id="livingroom_sensors",
+        names={"ru": "Сенсоры", "en": "Sensors"},
+        device_class="WbPassthroughDevice",
+        room="livingroom",
+        cap_map_dict=_sensor_cap_map_dict(),
+    )
+    # The _fake_device helper does NOT add a `state_topics` attribute -- represents the
+    # AV-config shape. The catalog must therefore keep all 5 sensor_room fields.
+    assert not hasattr(sensors.config, "state_topics")
+    dm = SimpleNamespace(devices={"livingroom_sensors": sensors})
+    rm = MagicMock(); rm.list.return_value = []
+    cat = build_catalog(dm, rm)
+    cap = cat.devices[0].capabilities[0]
+    field_names = {f.name for f in cap.fields}
+    assert field_names == {"temperature", "humidity", "co2", "illuminance", "sound_level"}
+
+
 def test_version_changes_when_a_capability_field_is_added(slice_managers):
     """Adding a `fields[]` entry to any capability MUST bump the catalog version, so Irene
     re-fetches when the typed surface widens (a new sensor field exposed, RGB encoding

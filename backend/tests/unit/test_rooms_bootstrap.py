@@ -84,21 +84,20 @@ def test_legacy_rooms_preserve_existing_device_membership():
     assert "cabinet_spots" in raw["cabinet"]["devices"]
 
 
-def test_rooms_not_yet_onboarded_are_still_empty():
-    """Rooms that #23 hasn't reached yet stay empty (no devices listed). As each room's
-    WB-passthrough configs land, it leaves this list -- watch the diff over time:
+def test_global_room_stays_empty_until_aggregate_devices_land():
+    """`global` is the only room that should still be empty after #23 completes -- it's
+    reserved for whole-house aggregate devices (#22) which are deferred until the voice
+    command set requires them. All physical rooms are onboarded by the end of #23.
 
-    - #21 (rooms.json bootstrap): all 6 new rooms started empty
-    - #23 cabinet: cabinet had a slice device already; new rooms still empty
-    - #23 living_room / children_room: those rooms filled; this list unchanged
-    - #23 bedroom (2026-06-08): bedroom filled and dropped from this list
+    Trajectory:
+    - #21 bootstrap: 6 new rooms + global all started empty
+    - #23: every physical room got at least one device; global stays untouched
 
-    Today's still-empty set: entrance / hall / shower / bathroom / wardrobe / global."""
+    Today's still-empty set: global only (#22 fills it when voice command set requires)."""
     raw = _load()
-    for room_id in ("entrance", "hall", "shower", "bathroom", "wardrobe"):
-        assert raw[room_id]["devices"] == [], (
-            f"{room_id} hasn't been onboarded by #23 yet; should be empty until then"
-        )
+    assert raw["global"]["devices"] == [], (
+        "global should stay empty until §P3.7 #22 ships the aggregate devices"
+    )
 
 
 def test_rooms_json_devices_match_wb_passthrough_configs():
