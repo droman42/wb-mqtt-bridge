@@ -2,25 +2,12 @@
   "device_id": "cabinet_spots",
   "device_class": "WbPassthroughDevice",
   "config_class": "WbPassthroughDeviceConfig",
-  "names": {
-    "ru": "Споты",
-    "en": "Spots"
-  },
+  "names": {"ru": "Споты", "en": "Spots", "de": "Spots"},
   "capability_profile": "light_switch",
   "room": "cabinet",
   "commands": {
-    "power_on": {
-      "description": "Включить споты",
-      "topic": "/devices/wb-mr6c_51/controls/K4/on",
-      "value": "1"
-    },
-    "power_off": {
-      "description": "Выключить споты",
-      "topic": "/devices/wb-mr6c_51/controls/K4/on",
-      "value": "0"
-    }
+    "power_on":  {"topic": "/devices/wb-mr6c_51/controls/K4/on", "value": "1"},
+    "power_off": {"topic": "/devices/wb-mr6c_51/controls/K4/on", "value": "0"}
   },
-  "state_topics": {
-    "power": "/devices/wb-mr6c_51/controls/K4"
-  }
+  "state_topics": {"power": "/devices/wb-mr6c_51/controls/K4"}
 }
