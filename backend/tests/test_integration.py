@@ -48,21 +48,23 @@ class TestStateTypePreservation(unittest.TestCase):
         self.hood_config = MagicMock(spec=BroadlinkKitchenHoodConfig)
         self.hood_config.device_id = "kitchen_hood"
         self.hood_config.names=SimpleNamespace(ru="Kitchen Hood", en="Kitchen Hood")
+        self.hood_config.room = "kitchen"
         self.hood_config.commands = {}
         self.hood_config.rf_codes = {"light": {"on": "code1", "off": "code2"}, "speed": {"0": "code3", "1": "code4"}}
-        
+
         # Create a mock broadlink config
         self.hood_config.broadlink = MagicMock()
         self.hood_config.broadlink.host = "192.168.1.100"
         self.hood_config.broadlink.mac = "00:11:22:33:44:55"
         self.hood_config.broadlink.device_code = "0x5213"
-        
+
         # Create a mock config for WirenboardIR
         self.ir_config = MagicMock(spec=WirenboardIRDeviceConfig)
         self.ir_config.device_id = "wirenboard_ir"
         self.ir_config.names=SimpleNamespace(ru="Wirenboard IR", en="Wirenboard IR")
+        self.ir_config.room = None
         self.ir_config.commands = {}
-        
+
     def test_kitchen_hood_state_preservation(self):
         """Test that KitchenHoodState type is preserved during update_state."""
         # Create a real KitchenHood device with mocked config
@@ -116,21 +118,23 @@ class TestMQTTCommandPropagation(unittest.TestCase):
         self.hood_config = MagicMock(spec=BroadlinkKitchenHoodConfig)
         self.hood_config.device_id = "kitchen_hood"
         self.hood_config.names=SimpleNamespace(ru="Kitchen Hood", en="Kitchen Hood")
+        self.hood_config.room = "kitchen"
         self.hood_config.commands = {
             "set_light": MagicMock(spec=StandardCommandConfig)
         }
         self.hood_config.rf_codes = {"light": {"on": "code1", "off": "code2"}, "speed": {"0": "code3", "1": "code4"}}
-        
+
         # Create a mock broadlink config
         self.hood_config.broadlink = MagicMock()
         self.hood_config.broadlink.host = "192.168.1.100"
         self.hood_config.broadlink.mac = "00:11:22:33:44:55"
         self.hood_config.broadlink.device_code = "0x5213"
-        
+
         # Create a mock config for WirenboardIR
         self.ir_config = MagicMock(spec=WirenboardIRDeviceConfig)
         self.ir_config.device_id = "wirenboard_ir"
         self.ir_config.names=SimpleNamespace(ru="Wirenboard IR", en="Wirenboard IR")
+        self.ir_config.room = None
         self.ir_config.commands = {
             "power_on": MagicMock(spec=IRCommandConfig)
         }

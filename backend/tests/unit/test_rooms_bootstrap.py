@@ -59,76 +59,52 @@ def test_every_room_has_trilingual_ru_en_de_names():
         assert "de" in names and names["de"], f"{room_id} missing/empty de name"
 
 
-def test_global_room_present_and_empty_for_aggregate_devices():
-    """`global` is where whole-house aggregate devices live (§P3.7 #22). It seeds empty:
-    the aggregate device configs are added in #22 and they bring themselves in via the
-    standard device → room membership flow."""
+def test_rooms_json_carries_no_devices_arrays():
+    """Post room-refactor (2026-06-08): rooms.json carries ONLY spatial metadata
+    (room_id + names + description + default_scenario). Per-room `devices` is DERIVED
+    from `DeviceManager` at load time via `DevicePort.get_room()`. Any authored
+    `devices` array would be ignored anyway; assert it's absent so we don't grow
+    stale arrays again."""
+    raw = _load()
+    offenders = [rid for rid, r in raw.items() if "devices" in r]
+    assert not offenders, (
+        f"rooms.json entries should NOT carry a `devices` array (derived at load time): {offenders}"
+    )
+
+
+def test_global_room_metadata_present():
+    """`global` is where whole-house aggregate devices live (§P3.7 #22). Stays declared
+    in rooms.json with metadata only; the derived devices list will populate from
+    DeviceManager once #22's aggregate device configs land."""
     raw = _load()
     g = raw["global"]
     assert g["names"]["ru"] == "Весь дом"
     assert g["names"]["en"] == "Whole House"
-    assert g["devices"] == [], (
-        "global must start empty; aggregate devices are added in §P3.7 #22"
-    )
 
 
-def test_legacy_rooms_preserve_existing_device_membership():
-    """Renaming-by-stealth check: the bootstrap MUST NOT drop devices from the rooms that
-    already had members (`living_room`, `children_room`, `kitchen`, `cabinet`). If a device
-    is missing here it'll silently fall out of every catalog/scenario reference."""
+def test_every_device_config_declares_a_known_room():
+    """Forward-direction drift guard (replaces the legacy reverse-direction one that
+    walked rooms.json devices lists). Every device config in `backend/config/devices/`
+    -- WB-passthrough subtree AND flat AV configs -- must declare a `room` matching an
+    entry in `rooms.json`. (`room: null` is allowed for genuinely unassigned devices,
+    though after the §P3.7 #23 backfill there shouldn't be any.) Catches the situation
+    where someone adds a device with `room: "kitchne"` typo or references a room that
+    hasn't been authored yet."""
     raw = _load()
-    assert "living_room_tv" in raw["living_room"]["devices"]
-    assert "processor" in raw["living_room"]["devices"]
-    assert "children_room_tv" in raw["children_room"]["devices"]
-    assert "kitchen_hood" in raw["kitchen"]["devices"]
-    assert "cabinet_spots" in raw["cabinet"]["devices"]
+    valid_rooms = set(raw.keys())
 
-
-def test_global_room_stays_empty_until_aggregate_devices_land():
-    """`global` is the only room that should still be empty after #23 completes -- it's
-    reserved for whole-house aggregate devices (#22) which are deferred until the voice
-    command set requires them. All physical rooms are onboarded by the end of #23.
-
-    Trajectory:
-    - #21 bootstrap: 6 new rooms + global all started empty
-    - #23: every physical room got at least one device; global stays untouched
-
-    Today's still-empty set: global only (#22 fills it when voice command set requires)."""
-    raw = _load()
-    assert raw["global"]["devices"] == [], (
-        "global should stay empty until §P3.7 #22 ships the aggregate devices"
-    )
-
-
-def test_rooms_json_devices_match_wb_passthrough_configs():
-    """Drift guard (§P3.7 #23): every WB-passthrough device config under
-    `wb-devices/<room>/` MUST also appear in rooms.json's `devices` list for that room.
-    The catalog's room → devices projection reads from RoomManager (rooms.json), so a
-    device declared with `room: foo` but missing from `foo.devices` is invisible to
-    voice/UI even though it exists. Catches the kind of drift surfaced mid-children_room
-    session on 2026-06-08 where 19 devices had piled up missing from rooms.json."""
-    import sys as _sys
-    _sys.path.insert(0, "src")
-    from wb_mqtt_bridge.infrastructure.config.models import WbPassthroughDeviceConfig
-
-    wb_devices_dir = ROOMS_JSON.parent / "devices" / "wb-devices"
-    by_room: dict[str, set[str]] = {}
-    for p in wb_devices_dir.rglob("*.json"):
-        cfg = WbPassthroughDeviceConfig(**json.loads(p.read_text()))
-        by_room.setdefault(cfg.room or "<missing>", set()).add(cfg.device_id)
-
-    rooms = _load()
-    missing: list[str] = []
-    for room_id, devs in by_room.items():
-        listed = set(rooms.get(room_id, {}).get("devices", []))
-        for dev in devs:
-            if dev not in listed:
-                missing.append(f"{dev!r} (room={room_id!r})")
-    assert not missing, (
-        "rooms.json `devices` list is out of sync with WB-passthrough configs — "
-        "the following devices declare a room but aren't listed in that room's `devices`:\n  "
-        + "\n  ".join(sorted(missing))
-        + "\nEither add them to rooms.json or drop the `room` field from the device config."
+    devices_dir = ROOMS_JSON.parent / "devices"
+    bad: list[str] = []
+    for p in devices_dir.rglob("*.json"):
+        spec = json.loads(p.read_text())
+        room = spec.get("room")
+        if room is None:
+            continue  # explicitly unassigned (allowed)
+        if room not in valid_rooms:
+            bad.append(f"{p.name} declares room={room!r} (not in rooms.json)")
+    assert not bad, (
+        "Device configs reference unknown room ids:\n  " + "\n  ".join(bad)
+        + f"\nKnown rooms: {sorted(valid_rooms)}"
     )
 
 

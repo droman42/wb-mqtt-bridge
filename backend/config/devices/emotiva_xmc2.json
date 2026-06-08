@@ -1,6 +1,7 @@
 {
   "alias": "processor",
   "device_id": "processor",
+  "room": "living_room",
   "names": {
     "ru": "Процессор",
     "en": "AV Processor"

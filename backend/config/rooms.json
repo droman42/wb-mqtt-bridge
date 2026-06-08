@@ -7,32 +7,8 @@
       "de": "Wohnzimmer"
     },
     "description": "Main lounge with TV, processor and media devices (WB dashboard `livingroom`)",
-    "devices": [
-      "living_room_tv",
-      "processor",
-      "appletv_living",
-      "streamer",
-      "upscaler",
-      "video",
-      "mf_amplifier",
-      "ld_player",
-      "vhs_player",
-      "reel_to_reel",
-      "living_room_spots",
-      "living_room_window_light",
-      "living_room_floor_lamp",
-      "living_room_desk_lamp",
-      "living_room_union_cabinet",
-      "living_room_curtain_right",
-      "living_room_tulle_right",
-      "living_room_curtain_left",
-      "living_room_tulle_left",
-      "living_room_hvac",
-      "living_room_heating"
-    ],
     "default_scenario": null
   },
-
   "children_room": {
     "room_id": "children_room",
     "names": {
@@ -41,19 +17,8 @@
       "de": "Kinderzimmer"
     },
     "description": "Children room with TV and Apple TV (WB dashboard `children`)",
-    "devices": [
-      "children_room_tv",
-      "appletv_children",
-      "children_room_spots",
-      "children_room_ceiling_accent",
-      "children_room_behind_column",
-      "children_room_by_wardrobe",
-      "children_room_hvac",
-      "children_room_heating"
-    ],
     "default_scenario": null
   },
-
   "kitchen": {
     "room_id": "kitchen",
     "names": {
@@ -62,16 +27,8 @@
       "de": "Küche"
     },
     "description": "Kitchen area with smart appliances",
-    "devices": [
-      "kitchen_hood",
-      "kitchen_spots",
-      "kitchen_chandelier",
-      "kitchen_backlight",
-      "kitchen_floor"
-    ],
     "default_scenario": null
   },
-
   "cabinet": {
     "room_id": "cabinet",
     "names": {
@@ -80,17 +37,8 @@
       "de": "Arbeitszimmer"
     },
     "description": "Home office / study (the §P3.7 voice-integration slice's test room)",
-    "devices": [
-      "cabinet_spots",
-      "cabinet_backlight",
-      "cabinet_floor",
-      "cabinet_windowsill",
-      "cabinet_roller_right",
-      "cabinet_roller_left"
-    ],
     "default_scenario": null
   },
-
   "entrance": {
     "room_id": "entrance",
     "names": {
@@ -99,14 +47,8 @@
       "de": "Eingang"
     },
     "description": "Entry hall just inside the front door",
-    "devices": [
-      "entrance_spots",
-      "entrance_cabinet_accent",
-      "entrance_floor"
-    ],
     "default_scenario": null
   },
-
   "hall": {
     "room_id": "hall",
     "names": {
@@ -115,14 +57,8 @@
       "de": "Flur"
     },
     "description": "Inner corridor connecting the rooms",
-    "devices": [
-      "hall_spots",
-      "hall_track_1",
-      "hall_track_2"
-    ],
     "default_scenario": null
   },
-
   "shower": {
     "room_id": "shower",
     "names": {
@@ -131,17 +67,8 @@
       "de": "Dusche"
     },
     "description": "Shower room (WB dashboard `wc`)",
-    "devices": [
-      "shower_spots",
-      "shower_mirror",
-      "shower_sauna",
-      "shower_service_closet",
-      "shower_floor",
-      "shower_sauna_sensors"
-    ],
     "default_scenario": null
   },
-
   "bathroom": {
     "room_id": "bathroom",
     "names": {
@@ -150,16 +77,8 @@
       "de": "Badezimmer"
     },
     "description": "Bathroom with tub and sink",
-    "devices": [
-      "bathroom_spots",
-      "bathroom_mirror",
-      "bathroom_shelf_bath",
-      "bathroom_shelf_toilet",
-      "bathroom_floor"
-    ],
     "default_scenario": null
   },
-
   "bedroom": {
     "room_id": "bedroom",
     "names": {
@@ -168,22 +87,8 @@
       "de": "Schlafzimmer"
     },
     "description": "Master bedroom",
-    "devices": [
-      "bedroom_spots",
-      "bedroom_window_light",
-      "bedroom_shelves_light",
-      "bedroom_nightstand_right",
-      "bedroom_nightstand_left",
-      "bedroom_sconce_right",
-      "bedroom_sconce_left",
-      "bedroom_hvac",
-      "bedroom_heating",
-      "bedroom_curtain",
-      "bedroom_tulle"
-    ],
     "default_scenario": null
   },
-
   "wardrobe": {
     "room_id": "wardrobe",
     "names": {
@@ -192,13 +97,8 @@
       "de": "Garderobe"
     },
     "description": "Walk-in wardrobe",
-    "devices": [
-      "wardrobe_spots",
-      "wardrobe_shelves_light"
-    ],
     "default_scenario": null
   },
-
   "global": {
     "room_id": "global",
     "names": {
@@ -207,7 +107,6 @@
       "de": "Ganzes Haus"
     },
     "description": "Aggregate whole-house devices (e.g. all_lights). Each aggregate is a regular WbPassthroughDevice config whose `/on` topic the wb-rules scene listens on; populated by §P3.7 #22.",
-    "devices": [],
     "default_scenario": null
   }
 }

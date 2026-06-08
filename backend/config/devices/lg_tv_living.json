@@ -4,6 +4,7 @@
     "en": "TV"
   },
   "device_id": "living_room_tv",
+  "room": "living_room",
   "alias": "living_room_tv",
   "device_class": "LgTv",
   "config_class": "LgTvDeviceConfig",

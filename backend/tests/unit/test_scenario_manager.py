@@ -55,14 +55,20 @@ class MockDeviceManager:
         return self.devices.get(device_id)
 
 class MockDevice:
-    """Mock device for testing"""
-    def __init__(self, device_id):
+    """Mock device for testing. Carries a `room` (defaulting to `living_room` to match
+    the test fixtures' scenario.room_id), exposed via `get_room()` so the new scenario
+    room-membership validator passes."""
+    def __init__(self, device_id, room="living_room"):
         self.device_id = device_id
+        self.room = room
         self.state = {"power": False}
         self.execute_action = AsyncMock(return_value={"status": "success"})
 
     def get_current_state(self):
         return self.state
+
+    def get_room(self):
+        return self.room
 
     def get_available_commands(self):
         from types import SimpleNamespace
@@ -164,14 +170,53 @@ class TestScenarioManager:
     async def test_initialize_loads_scenarios(self, scenario_manager):
         """Test that initialize loads scenario definitions"""
         await scenario_manager.initialize()
-        
+
         assert len(scenario_manager.scenario_definitions) == 2
         assert "movie_mode" in scenario_manager.scenario_definitions
         assert "reading_mode" in scenario_manager.scenario_definitions
-        
+
         assert len(scenario_manager.scenario_map) == 2
         assert isinstance(scenario_manager.scenario_map["movie_mode"], Scenario)
         assert isinstance(scenario_manager.scenario_map["reading_mode"], Scenario)
+
+    @pytest.mark.asyncio
+    async def test_room_membership_validation_hard_fails_on_mismatch(
+        self, mock_room_manager, mock_store, scenario_dir,
+    ):
+        """Scenario room-membership validation (room-refactor 2026-06-08): when a
+        scenario declares `room_id` but one of its devices reports a DIFFERENT room
+        via `get_room()`, bootstrap MUST hard-fail with a ScenarioError naming the
+        violation. This catches typos / stale references / drift between scenario
+        configs and device configs."""
+        # Build a device manager where `tv` belongs to bedroom, NOT living_room as
+        # the movie_mode scenario expects.
+        tv = MockDevice("tv", room="bedroom")
+        soundbar = MockDevice("soundbar", room="living_room")
+        lights = MockDevice("lights", room="living_room")
+        bad_dm = MockDeviceManager({"tv": tv, "soundbar": soundbar, "lights": lights})
+        sm = ScenarioManager(
+            device_manager=bad_dm,
+            room_manager=mock_room_manager,
+            state_repository=mock_store,
+            scenario_dir=scenario_dir,
+        )
+        with pytest.raises(ScenarioError) as exc_info:
+            await sm.initialize()
+        msg = str(exc_info.value)
+        assert "movie_mode" in msg
+        assert "'tv'" in msg
+        assert "bedroom" in msg
+
+    @pytest.mark.asyncio
+    async def test_room_membership_validation_passes_when_all_devices_align(
+        self, scenario_manager,
+    ):
+        """Positive case: the default fixture has every device in living_room and both
+        scenarios declare room_id=living_room. initialize() succeeds without raising."""
+        await scenario_manager.initialize()  # default fixture; no exception expected
+        # Sanity: validator did run and found nothing to complain about.
+        assert "movie_mode" in scenario_manager.scenario_definitions
+        assert "reading_mode" in scenario_manager.scenario_definitions
 
     @pytest.mark.asyncio
     async def test_load_scenarios(self, scenario_manager):

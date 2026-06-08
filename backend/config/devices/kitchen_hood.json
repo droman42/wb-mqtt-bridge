@@ -4,6 +4,7 @@
     "en": "Kitchen Hood"
   },
   "device_id": "kitchen_hood",
+  "room": "kitchen",
   "device_category": "appliance",
   "alias": "kitchen_hood",
   "device_class": "BroadlinkKitchenHood",

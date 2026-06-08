@@ -1023,23 +1023,17 @@ Net effect: voice and UI see one consistent convention ("100 = open" everywhere)
 the driver hides the device-family quirk. ~10 LOC + a config-side flag + tests.
 Worth doing when set_position becomes a real voice command; deferring for now.
 
-### 4.8 Eliminate the rooms.json `devices` duplication
+### 4.8 ~~Eliminate the rooms.json `devices` duplication~~ — **DONE 2026-06-08**
 
-Right now device → room is declared in TWO places:
-- WB-passthrough device config: `room: "<room_id>"` field
-- rooms.json: `<room_id>.devices: [...]` list
-
-The two have to be hand-kept in sync. Drift was silent until §3.7 above. Two cleanup
-shapes worth considering for a packaged version:
-
-- **(a) Derive at load time** — drop `devices` from rooms.json entirely; RoomManager
-  populates it from DeviceManager by grouping devices by their `room` field.
-  Requires backfilling `room` on the 13 AV configs (one-off migration).
-- **(b) Make rooms.json a thin metadata file** — keep names + description + default
-  scenario; drop `devices` from the schema. Catalog projects via DeviceManager group-by.
-
-Both eliminate the drift class. The drift-guard test added in §3.7 is a band-aid
-acknowledging the duplication, not removing it.
+Landed as a focused post-#23 refactor (5 phases A–E in one commit). Net result:
+`device.config.room` is the single source of truth; `DevicePort.get_room()` is the
+hexagon-clean domain contract; `RoomManager.reload()` derives `room.devices` at load
+time. rooms.json carries only metadata. The drift-guard test (§3.7) was replaced by
+forward-direction `test_every_device_config_declares_a_known_room`. The dormant
+`ScenarioDefinition.room_id` invariant got activated too — `ScenarioManager` now
+hard-fails bootstrap if any scenario's devices report a different room than the
+scenario declares. See action_plan_journal.md "Room-architecture refactor" entry for
+the full breakdown.
 
 ### 4.7 First room per category pays the design cost; rest are clones
 

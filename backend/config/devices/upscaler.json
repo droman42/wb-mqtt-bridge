@@ -4,6 +4,7 @@
     "en": "Upscaler"
   },
   "device_id": "upscaler",
+  "room": "living_room",
   "alias": "upscaler",
   "device_class": "WirenboardIRDevice",
   "config_class": "WirenboardIRDeviceConfig",

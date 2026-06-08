@@ -4,6 +4,7 @@
     "en": "Reel-to-Reel"
   },
   "device_id": "reel_to_reel",
+  "room": "living_room",
   "alias": "reel_to_reel",
   "device_class": "RevoxA77ReelToReel",
   "config_class": "RevoxA77ReelToReelConfig",

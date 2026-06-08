@@ -4,6 +4,7 @@
     "en": "Streamer"
   },
   "device_id": "streamer",
+  "room": "living_room",
   "alias": "streamer",
   "device_class": "AuralicDevice",
   "config_class": "AuralicDeviceConfig",

@@ -4,6 +4,7 @@
     "en": "Amplifier"
   },
   "device_id": "mf_amplifier",
+  "room": "living_room",
   "alias": "amplifier",
   "device_class": "WirenboardIRDevice",
   "config_class": "WirenboardIRDeviceConfig",

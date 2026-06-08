@@ -94,9 +94,19 @@ def test_light_switch_profile_resolves_power_on_off_to_native_commands():
 
 
 def test_rooms_json_carries_cabinet_with_bilingual_names():
+    """Pin cabinet's spatial metadata in rooms.json. Per the room-refactor (2026-06-08)
+    rooms.json no longer carries `devices` arrays -- per-room membership is derived from
+    DeviceManager at load time via `DevicePort.get_room()`. The membership assertion
+    that used to live here (`"cabinet_spots" in cab["devices"]`) was moved to the
+    forward-direction check at the device-config side: cabinet_spots.json must declare
+    `room: "cabinet"`, asserted below."""
     rooms = json.loads(ROOMS_JSON.read_text())
     assert "cabinet" in rooms, "cabinet room missing from rooms.json"
     cab = rooms["cabinet"]
     assert cab["names"]["ru"] == "Кабинет"
     assert cab["names"]["en"] == "Study"
-    assert "cabinet_spots" in cab["devices"]
+    # Forward-direction membership check: cabinet_spots.json must declare room=cabinet.
+    slice_cfg = json.loads(DEVICE_CFG.read_text())
+    assert slice_cfg.get("room") == "cabinet", (
+        "cabinet_spots.json should declare room=cabinet (forward-direction membership)"
+    )

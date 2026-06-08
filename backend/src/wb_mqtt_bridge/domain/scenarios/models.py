@@ -138,11 +138,22 @@ class ScenarioState(BaseModel):
         return v
 
 class RoomDefinition(BaseModel):
-    """Definition of a room and its contained devices."""
+    """Definition of a room and its contained devices.
+
+    `devices` is DERIVED at load time by `RoomManager` from `DeviceManager` (each device
+    declares its room via `DevicePort.get_room()`). Authored rooms.json files should
+    carry only the spatial metadata (room_id + names + description + default_scenario);
+    any legacy `devices` field is stripped and ignored. Default is an empty list so
+    the manager can populate it imperatively after parsing.
+    """
     room_id: str = Field(..., description="Unique identifier for the room")
     names: Dict[str, str] = Field(..., description="Localized names (locale code -> name)")
     description: str = Field("", description="Description of the room")
-    devices: List[str] = Field(..., description="List of device IDs in this room")
+    devices: List[str] = Field(
+        default_factory=list,
+        description="Device IDs in this room — POPULATED by RoomManager from DeviceManager at "
+                    "load time, NOT authored in rooms.json (any legacy authored array is ignored).",
+    )
     default_scenario: Optional[str] = Field(None, description="Default scenario ID for this room")
 
     @model_validator(mode="after")

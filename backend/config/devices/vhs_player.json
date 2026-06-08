@@ -4,6 +4,7 @@
     "en": "VHS"
   },
   "device_id": "vhs_player",
+  "room": "living_room",
   "alias": "vhs_player",
   "device_class": "WirenboardIRDevice",
   "config_class": "WirenboardIRDeviceConfig",

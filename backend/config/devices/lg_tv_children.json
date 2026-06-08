@@ -4,6 +4,7 @@
     "en": "TV"
   },
   "device_id": "children_room_tv",
+  "room": "children_room",
   "alias": "children_room_tv",
   "device_class": "LgTv",
   "config_class": "LgTvDeviceConfig",

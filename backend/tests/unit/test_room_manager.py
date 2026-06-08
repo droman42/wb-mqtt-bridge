@@ -8,35 +8,49 @@ from wb_mqtt_bridge.domain.scenarios.models import RoomDefinition
 
 pytestmark = pytest.mark.unit
 
-# Sample room data for testing
+# Sample room data for testing. Note: rooms.json no longer carries `devices` arrays
+# (room-refactor 2026-06-08) -- per-room membership is derived from DeviceManager via
+# `DevicePort.get_room()`. The mock devices below carry their room assignment and the
+# RoomManager populates `room.devices` from them.
 SAMPLE_ROOMS = {
     "living_room": {
         "room_id": "living_room",
         "names": {"en": "Living Room"},
         "description": "Main living area",
-        "devices": ["tv", "soundbar"],
         "default_scenario": "movie_night"
     },
     "kitchen": {
         "room_id": "kitchen",
         "names": {"en": "Kitchen"},
         "description": "Kitchen area",
-        "devices": ["fridge", "stove"],
         "default_scenario": None
     }
 }
 
+
+class _MockDevice:
+    """Minimal DevicePort-shaped fake: just enough for RoomManager to call get_room()."""
+    def __init__(self, room: str | None):
+        self._room = room
+
+    def get_room(self):
+        return self._room
+
+
 class MockDeviceManager:
-    """Mock DeviceManager for testing RoomManager"""
-    def __init__(self, device_ids=None):
-        self.devices = device_ids or {
-            "tv": {},
-            "soundbar": {},
-            "fridge": {},
-            "stove": {},
-            "lamp": {}  # Added lamp for reload test
-        }
-    
+    """Mock DeviceManager for testing RoomManager. Devices carry their room assignment
+    (mimics each driver's `BaseDevice.room` projected from `config.room`)."""
+
+    DEFAULT_LAYOUT = {
+        "tv": "living_room", "soundbar": "living_room",
+        "fridge": "kitchen", "stove": "kitchen",
+        "lamp": "bedroom",  # used by test_reload (asserts lamp lands in bedroom)
+    }
+
+    def __init__(self, device_to_room: dict | None = None):
+        layout = device_to_room if device_to_room is not None else self.DEFAULT_LAYOUT
+        self.devices = {did: _MockDevice(room) for did, room in layout.items()}
+
     def get_device(self, device_id):
         return self.devices.get(device_id)
 
@@ -105,83 +119,89 @@ class TestRoomManager:
         """Test that get_devices_by_room() returns the correct mapping"""
         devices_by_room = room_manager.get_devices_by_room()
         assert len(devices_by_room) == 2
-        assert devices_by_room["living_room"] == ["tv", "soundbar"]
+        # Devices are derived from MockDeviceManager + sorted; order is deterministic.
+        assert devices_by_room["living_room"] == ["soundbar", "tv"]
         assert devices_by_room["kitchen"] == ["fridge", "stove"]
-    
+
     def test_reload(self, room_manager, mock_config_dir, mock_device_manager):
-        """Test that reload() updates the rooms from the config file"""
+        """Test that reload() rebuilds the rooms from disk + repopulates devices from
+        the device manager (room-refactor 2026-06-08: devices field is derived, not read
+        from JSON)."""
         new_rooms = {
             "bedroom": {
                 "room_id": "bedroom",
                 "names": {"en": "Bedroom"},
-                "devices": ["lamp"],
                 "default_scenario": "sleep"
             }
         }
-        
-        # Patch _validate_devices_exist to avoid validation errors in test
-        with patch.object(room_manager, '_validate_devices_exist'):
-            with patch("json.loads", return_value=new_rooms):
-                with patch("pathlib.Path.read_text", return_value=json.dumps(new_rooms)):
-                    room_manager.reload()
-                    
-                    assert len(room_manager.rooms) == 1
-                    assert "bedroom" in room_manager.rooms
-                    assert "living_room" not in room_manager.rooms
-                    
-                    bedroom = room_manager.get("bedroom")
-                    assert bedroom is not None
-                    assert bedroom.names["en"] == "Bedroom"
-                    assert bedroom.devices == ["lamp"]
-    
+
+        with patch("json.loads", return_value=new_rooms):
+            with patch("pathlib.Path.read_text", return_value=json.dumps(new_rooms)):
+                room_manager.reload()
+
+                assert len(room_manager.rooms) == 1
+                assert "bedroom" in room_manager.rooms
+                assert "living_room" not in room_manager.rooms
+
+                bedroom = room_manager.get("bedroom")
+                assert bedroom is not None
+                assert bedroom.names["en"] == "Bedroom"
+                # MockDeviceManager's DEFAULT_LAYOUT puts `lamp` in `bedroom` -- derived
+                # populator picks it up automatically.
+                assert bedroom.devices == ["lamp"]
+
     def test_file_not_found(self, mock_config_dir, mock_device_manager):
         """Test handling of missing rooms.json file"""
         with patch("pathlib.Path.read_text", side_effect=FileNotFoundError):
             manager = RoomManager(mock_config_dir, mock_device_manager)
             assert len(manager.rooms) == 0
-    
+
     def test_invalid_json(self, mock_config_dir, mock_device_manager):
         """Test handling of invalid JSON in rooms.json"""
         with patch("pathlib.Path.read_text", return_value="invalid json"):
             manager = RoomManager(mock_config_dir, mock_device_manager)
             assert len(manager.rooms) == 0
-    
+
     def test_room_id_normalization(self, mock_config_dir, mock_device_manager):
         """Test that room_id is normalized to match the key if they differ"""
         rooms_with_mismatch = {
             "living_room": {
                 "room_id": "different_id",  # Mismatch with key
                 "names": {"en": "Living Room"},
-                "devices": ["tv"]
             }
         }
-        
+
         with patch("json.loads", return_value=rooms_with_mismatch):
             with patch("pathlib.Path.read_text", return_value=json.dumps(rooms_with_mismatch)):
                 with patch("logging.Logger.warning") as mock_warning:
                     manager = RoomManager(mock_config_dir, mock_device_manager)
-                    
+
                     assert len(manager.rooms) == 1
                     assert "living_room" in manager.rooms
                     assert manager.rooms["living_room"].room_id == "living_room"
-                    
+
                     # Verify warning was logged
-                    mock_warning.assert_called_once()
-    
-    def test_validate_devices_exist(self, mock_config_dir):
-        """Test that device validation works correctly"""
-        # Device manager with only some of the devices
-        device_manager = MockDeviceManager({"tv": {}, "fridge": {}})
-        
+                    mock_warning.assert_called()
+
+    def test_device_pointing_at_unknown_room_logs_warning_and_is_skipped(self, mock_config_dir):
+        """Replaces the legacy `_validate_devices_exist`: now the validation runs in the
+        OTHER direction (devices declare rooms; orphans are warned about). A device
+        whose `get_room()` returns a room_id not in rooms.json must NOT appear in any
+        room's devices list."""
+        device_manager = MockDeviceManager({
+            "tv": "living_room",
+            "ghost": "nonexistent_room",  # references a room not in SAMPLE_ROOMS
+        })
         with patch("json.loads", return_value=SAMPLE_ROOMS):
             with patch("pathlib.Path.read_text", return_value=json.dumps(SAMPLE_ROOMS)):
-                with patch("logging.Logger.error"):
-                    # Patch the _validate_devices_exist method to not raise exception but still log errors
-                    with patch.object(RoomManager, '_validate_devices_exist', side_effect=lambda room: None):
-                        manager = RoomManager(mock_config_dir, device_manager)
-                        
-                        assert len(manager.rooms) == 2
-    
+                with patch("logging.Logger.warning") as mock_warning:
+                    manager = RoomManager(mock_config_dir, device_manager)
+                    assert manager.rooms["living_room"].devices == ["tv"]
+                    # ghost is not in any room
+                    assert "ghost" not in [d for r in manager.rooms.values() for d in r.devices]
+                    # A warning was emitted naming the orphan device + its declared room.
+                    mock_warning.assert_called()
+
     def test_no_device_manager(self, mock_config_dir):
         """Test that RoomManager works even without a device manager"""
         with patch("json.loads", return_value=SAMPLE_ROOMS):

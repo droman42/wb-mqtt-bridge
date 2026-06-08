@@ -88,6 +88,17 @@ class DevicePort(ABC, Generic[StateT]):
         pass
 
     @abstractmethod
+    def get_room(self) -> Optional[str]:
+        """Return the device's room id (matching an entry in `rooms.json`), or `None`
+        when the device hasn't been assigned to a room yet. Mirrors `get_id` /
+        `get_name` -- the domain contract for a flat attribute projected from the
+        device's config. RoomManager + ScenarioManager call this through the port
+        instead of reaching into the concrete BaseDevice's `.config.room`, keeping
+        the hexagonal boundary intact (no domain → infrastructure reach).
+        """
+        pass
+
+    @abstractmethod
     async def setup(self) -> bool:
         """Initialise the device (connect, subscribe, restore state)."""
         pass

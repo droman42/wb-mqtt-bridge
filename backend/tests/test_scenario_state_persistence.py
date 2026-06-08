@@ -22,15 +22,21 @@ pytestmark = pytest.mark.integration
 
 
 class _MockDevice:
-    """A scenario-test device that responds to execute_action and exposes get_current_state."""
+    """A scenario-test device that responds to execute_action and exposes get_current_state.
+    Carries `room` (default `living_room` to match scenario.room_id fixture) so the
+    scenario room-membership validator passes."""
 
-    def __init__(self, device_id):
+    def __init__(self, device_id, room="living_room"):
         self.device_id = device_id
+        self.room = room
         self.state = {"power": False}
         self.execute_action = AsyncMock(return_value={"status": "success"})
 
     def get_current_state(self):
         return self.state
+
+    def get_room(self):
+        return self.room
 
     def get_available_commands(self):
         from types import SimpleNamespace

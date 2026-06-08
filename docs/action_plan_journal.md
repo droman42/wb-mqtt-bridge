@@ -11,6 +11,70 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-08 (Room-architecture refactor — single source of truth for room membership)** —
+  Architectural cleanup triggered by the rooms.json drift discovered mid-#23 (user
+  asked: "did we update rooms.json with new registered devices?" — answer was no for
+  19 devices). The fix at that time was a band-aid drift-guard test; this refactor
+  removes the duplication entirely. **Single source of truth**: each device declares
+  its room exactly once via `device.config.room`. `RoomManager` derives `room.devices`
+  from `DeviceManager` at load time via `DevicePort.get_room()`. rooms.json carries
+  only spatial metadata (room_id, names, description, default_scenario) — any legacy
+  `devices` field is ignored.
+  **Five phases in one commit**:
+    - **A**: Backfilled `room` on 13 AV configs (appletv_children → children_room,
+      kitchen_hood → kitchen, all other AV → living_room). Data-only, no code touched.
+    - **B**: `RoomManager.reload()` strips JSON-side `devices` arrays and populates
+      `room.devices` from `DeviceManager.devices` by calling `device.get_room()`. The
+      legacy `_validate_devices_exist` (rooms.json → DeviceManager direction) was
+      replaced with `_populate_devices_from_device_manager` (inverse direction): warns
+      on orphan devices (devices whose `get_room()` returns a room_id not in
+      rooms.json) but doesn't fail bootstrap.
+    - **C**: `RoomDefinition.devices` widened to `default_factory=list` (no longer
+      required field; the manager populates it). Dropped 19 `devices` arrays from
+      rooms.json — every entry is now metadata-only. Removed drift-guard
+      `test_rooms_json_devices_match_wb_passthrough_configs`; added forward-direction
+      `test_every_device_config_declares_a_known_room` (catches device configs that
+      reference unknown room_ids — typos, missing rooms.json entries, etc.).
+    - **D**: Added abstract `get_room() -> Optional[str]` to `DevicePort` (domain
+      contract). Added `self.room = config.room` flat attribute and `get_room()` impl
+      to `BaseDevice` — mirrors the existing `get_id` / `get_name` flat-projection
+      pattern. **This is the hexagonal-clean way**: domain managers (RoomManager,
+      ScenarioManager) call `device.get_room()` through the port instead of reaching
+      into the concrete `BaseDevice.config.room` (which would be a domain → infra
+      leak).
+    - **E**: Activated the long-dormant `ScenarioDefinition.room_id` invariant. The
+      schema had carried `room_id: Optional[str]` with a docstring promising "All
+      devices must be in this room" since the start of the scenario redesign, but the
+      validation was never implemented. Added `ScenarioManager._validate_room_membership()`
+      called from `initialize()` after `load_scenarios()`: walks every loaded
+      scenario, for those that declare `room_id`, asserts every device in the union
+      `devices ∪ {source, display, audio} ∪ roles.values()` reports the same room
+      via `get_room()`. **Hard-fails bootstrap** (raises `ScenarioError`) on mismatch
+      — catches typos, stale references, drift between scenario configs and device
+      configs. All 9 existing scenarios pass (they all declare `room_id: "living_room"`
+      and reference only living_room devices); zero existing scenarios broken by the
+      activation.
+  **Hexagon-clean throughout** (verified with grep before commit):
+    - Phase A: data-only, no imports.
+    - Phase B: RoomManager (domain) reads `DeviceManager.devices` (domain) and calls
+      `device.get_room()` (port) — all domain → domain.
+    - Phase C: schema cleanup in domain only.
+    - Phase D: `get_room()` added to port (domain), implemented in BaseDevice
+      (infrastructure). Direction: infrastructure implements domain abstraction — correct.
+    - Phase E: ScenarioManager (domain) reads `DeviceManager.devices` (domain) and
+      calls `device.get_room()` (port) — all domain → domain.
+  **Tests**: removed 1 (drift-guard), added 3 (forward-direction device→room check,
+  scenario validation positive + negative), updated several mocks (MockDevice gained
+  `get_room()`, integration test configs gained `room` attribute). Full suite **486
+  passing** (was 485 at #23 close; net +1).
+  **What this gives us going forward**: drift between rooms.json and device configs
+  is now structurally impossible (one place to declare, derived everywhere else).
+  Scenario room-membership is enforced — bootstrap aborts loudly on drift. UI is
+  already room-sensitive end-to-end (audit-confirmed in pre-implementation review);
+  zero UI changes needed. The architectural debts that remained from this discussion
+  (cover.set_position `invert_position` flag for inverted Dooyas; ESP32ManagedDevice
+  class introduction for the 3 HVACs) are tracked separately in the authoring log
+  and will land in their own focused sessions.
 - **2026-06-08 (§P3.7 #23 DONE — 57 WB-passthrough device configs across all 10 physical rooms)** —
   Largest bulk task in the voice integration phase, completed in one extended interactive
   session. **Per-room counts**: bedroom 11, living_room 11, cabinet 6, children_room 6,

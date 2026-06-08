@@ -4,6 +4,7 @@
     "en": "Media Player"
   },
   "device_id": "video",
+  "room": "living_room",
   "alias": "video",
   "device_class": "WirenboardIRDevice",
   "config_class": "WirenboardIRDeviceConfig",

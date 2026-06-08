@@ -68,17 +68,25 @@ class ScenarioManager:
     async def initialize(self) -> None:
         """
         Initialize the scenario manager by loading scenarios and restoring state.
-        
+
         This method:
         1. Loads all scenario definitions from JSON files
         2. Creates Scenario instances for each definition
-        3. Attempts to restore the previously active scenario
+        3. Validates room membership for every scenario that declares `room_id`
+        4. Attempts to restore the previously active scenario
         """
         # DEBUG: Log scenario manager initialization
         logger.debug("[SCENARIO_DEBUG] ScenarioManager.initialize() called")
-        
+
         # Load all scenario definitions
         await self.load_scenarios()
+
+        # Activate the room-membership invariant the schema has long promised
+        # ("All devices must be in this room"). Hard-fails the bootstrap on mismatch --
+        # a scenario whose devices live in a different room than the scenario declares
+        # would silently misroute voice/UI commands. Catches typos, stale references,
+        # and configs that drift out of sync with rooms.json.
+        self._validate_room_membership()
 
         # Load the signal topology (Layer 0) used by the reconciler.
         self.topology = load_topology(self.scenario_dir.parent / "topology.json")
@@ -143,7 +151,54 @@ class ScenarioManager:
             )
         else:
             logger.info(f"Loaded {len(self.scenario_map)} scenarios")
-    
+
+    def _validate_room_membership(self) -> None:
+        """Enforce the long-dormant `ScenarioDefinition.room_id` invariant: every device
+        a scenario references must report the SAME room via `DevicePort.get_room()`.
+
+        Activated 2026-06-08 as part of the room-refactor (single source of truth: each
+        device declares its room via `config.room`; RoomManager + this validator both
+        consume via the port). Hard-fails bootstrap on mismatch -- the only other shape
+        means voice/UI would silently misroute commands.
+
+        For each scenario with `room_id` set, walks the union of all device references:
+          - `devices` (legacy explicit list)
+          - `source` / `display` / `audio` (thin-scenario selection fields)
+          - `roles` values
+        Devices that aren't in `DeviceManager.devices` (e.g. PARKED ESP32-bridged sources
+        like b215 / kuzma) are skipped -- their absence is handled by other validation.
+        """
+        violations: list[str] = []
+        for sid, defn in self.scenario_definitions.items():
+            if not defn.room_id:
+                continue
+            referenced: set[str] = set(defn.devices)
+            for ref in (defn.source, defn.display, defn.audio):
+                if ref:
+                    referenced.add(ref)
+            referenced.update(defn.roles.values())
+            for did in sorted(referenced):
+                device = self.device_manager.devices.get(did)
+                if device is None:
+                    continue
+                dev_room = device.get_room() if hasattr(device, "get_room") else None
+                if dev_room != defn.room_id:
+                    violations.append(
+                        f"scenario {sid!r} declares room_id={defn.room_id!r} but device "
+                        f"{did!r} reports room={dev_room!r}"
+                    )
+        if violations:
+            raise ScenarioError(
+                "Scenario room-membership validation failed (each scenario's devices must "
+                "live in the room the scenario declares):\n  - " + "\n  - ".join(violations),
+                error_type="room_membership",
+                critical=True,
+            )
+        logger.info(
+            f"Scenario room-membership validation passed for "
+            f"{sum(1 for d in self.scenario_definitions.values() if d.room_id)} scenarios."
+        )
+
     async def switch_scenario(self, target_id: str, *, graceful: bool = True) -> Dict[str, Any]:
         """
         Perform a smart transition between scenarios with efficient device handling.

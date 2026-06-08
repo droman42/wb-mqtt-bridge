@@ -4,6 +4,7 @@
     "en": "LaserDisc"
   },
   "device_id": "ld_player",
+  "room": "living_room",
   "alias": "ld_player",
   "device_class": "WirenboardIRDevice",
   "config_class": "WirenboardIRDeviceConfig",

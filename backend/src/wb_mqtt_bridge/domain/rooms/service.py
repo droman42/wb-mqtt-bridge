@@ -36,23 +36,37 @@ class RoomManager:
     
     def reload(self) -> None:
         """
-        Load or reload room definitions from rooms.json.
-        
-        This method clears the current rooms and loads them from disk.
-        It validates that all referenced devices exist in the device manager.
+        Load or reload room definitions from rooms.json + DERIVE per-room device
+        membership from `DeviceManager`.
+
+        Source of truth shift (room-refactor 2026-06-08): rooms.json now carries ONLY
+        the spatial metadata (room_id, names, description, default_scenario). The
+        per-room `devices` list is DERIVED at load time by iterating
+        `DeviceManager.devices` and grouping by each device's `get_room()` (via
+        `DevicePort`). Any `devices` field still present in rooms.json is ignored.
+
+        This eliminates the duplicated source-of-truth that drifted silently during
+        §P3.7 #23 -- now drift is impossible by construction (single declaration site
+        per device: `device.config.room`).
+
+        Bootstrap order is already correct: bootstrap.py constructs DeviceManager and
+        populates `self._device_mgr.devices` before RoomManager is built. If a device
+        declares `room: "X"` but `X` isn't in rooms.json, we log a warning (the device
+        is still functional; it just won't appear in any room's catalog projection).
         """
         rooms_file = self._dir / "rooms.json"
         try:
             logger.info(f"Loading room definitions from {rooms_file}")
             raw = json.loads(rooms_file.read_text(encoding="utf-8"))
-            
+
             # Clear existing rooms
             self.rooms.clear()
-            
-            # Process each room definition
+
+            # 1) Parse the metadata-only RoomDefinition for every entry. Any `devices`
+            #    field present in the JSON is dropped before parsing -- the derived
+            #    list overwrites it below regardless.
             for rid, spec in raw.items():
                 try:
-                    # Normalize room_id to match key if not specified
                     if "room_id" not in spec:
                         spec["room_id"] = rid
                     elif spec["room_id"] != rid:
@@ -61,20 +75,21 @@ class RoomManager:
                             f"Using key '{rid}' as the canonical ID."
                         )
                         spec["room_id"] = rid
-                    
-                    # Create and validate room definition
-                    room = RoomDefinition.model_validate(spec)
-                    self._validate_devices_exist(room)
-                    
-                    # Store valid room
-                    self.rooms[rid] = room
-                    logger.debug(f"Loaded room {rid} with {len(room.devices)} devices")
-                    
+                    # Strip any legacy `devices` field so derived membership is the
+                    # sole writer; keeps behaviour identical whether the JSON still
+                    # carries the array (transitional) or has been cleaned (target).
+                    spec.pop("devices", None)
+                    self.rooms[rid] = RoomDefinition.model_validate(spec)
                 except Exception as e:
                     logger.error(f"Error processing room '{rid}': {str(e)}")
-            
-            logger.info(f"Successfully loaded {len(self.rooms)} rooms")
-            
+
+            # 2) Walk DeviceManager and group devices into their declared rooms.
+            self._populate_devices_from_device_manager()
+
+            logger.info(
+                f"Successfully loaded {len(self.rooms)} rooms; populated devices via DeviceManager."
+            )
+
         except FileNotFoundError:
             logger.warning(f"Room configuration file not found: {rooms_file}")
         except json.JSONDecodeError as e:
@@ -155,36 +170,56 @@ class RoomManager:
         return {room_id: list(room.devices) for room_id, room in self.rooms.items()}
 
     # ------------- Internal Methods -------------
-    
-    def _validate_devices_exist(self, room: RoomDefinition) -> None:
+
+    def _populate_devices_from_device_manager(self) -> None:
         """
-        Validate that all devices in a room definition exist in the system.
-        
-        Args:
-            room: The room definition to validate
-            
-        Raises:
-            ValueError: If a device doesn't exist in the device manager
+        Walk DeviceManager and populate each room's `devices` list from the devices
+        that declare it via `DevicePort.get_room()`. Devices whose `get_room()`
+        returns a room_id not in `self.rooms` log a warning -- they remain functional
+        but stay invisible to room-membership consumers (catalog, scenarios, voice).
+
+        Direction inverted from the legacy `_validate_devices_exist`: previously
+        rooms.json was authoritative and we checked that every listed device_id
+        existed; now device configs are authoritative and we group them by their
+        declared room.
         """
-        # Check if a device manager was provided during initialization
         if not self._device_mgr:
-            logger.warning(f"No device manager available for validating room '{room.room_id}'")
+            logger.warning("No device manager available; rooms will have empty `devices`.")
             return
-            
-        # Get attribute to handle different DeviceManager implementations
+
         devices_attr = getattr(self._device_mgr, "devices", None)
-        
         if not devices_attr:
-            logger.warning(f"Device manager doesn't have a 'devices' attribute - skipping validation for room '{room.room_id}'")
+            logger.warning("Device manager has no `devices` attribute; rooms will be empty.")
             return
-            
-        # Check each device in the room
-        unknown_devices = [d for d in room.devices if d not in devices_attr]
-        
-        if unknown_devices:
-            error_msg = f"Room '{room.room_id}' references unknown devices: {unknown_devices}"
-            logger.error(error_msg)
-            raise ValueError(error_msg)
+
+        # Reset every room to empty before populating (idempotent across reload()).
+        for room in self.rooms.values():
+            room.devices = []
+
+        unknown_room_count = 0
+        for device_id, device in devices_attr.items():
+            room_id = device.get_room() if hasattr(device, "get_room") else None
+            if room_id is None:
+                continue  # device explicitly unassigned (None is legal)
+            if room_id not in self.rooms:
+                logger.warning(
+                    f"Device {device_id!r} declares room {room_id!r} which is not in "
+                    f"rooms.json — device will not appear in any room's catalog projection."
+                )
+                unknown_room_count += 1
+                continue
+            self.rooms[room_id].devices.append(device_id)
+
+        # Keep deterministic order so the catalog hash stays stable across restarts.
+        for room in self.rooms.values():
+            room.devices.sort()
+
+        for room_id, room in self.rooms.items():
+            logger.debug(f"Room {room_id!r} populated with {len(room.devices)} devices.")
+        if unknown_room_count:
+            logger.warning(
+                f"{unknown_room_count} device(s) reference room_ids unknown to rooms.json."
+            )
 
     # PLACEHOLDER: Add proper implementation for resource cleanup
     async def shutdown(self) -> None:

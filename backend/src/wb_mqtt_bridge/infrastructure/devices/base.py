@@ -39,6 +39,11 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
         # The catalog endpoint (§P3.7 #17) consumes config.names directly for multi-locale.
         self.names = config.names
         self.device_name = self.names.ru
+        # Flat projection of config.room (single source of truth for room membership; see
+        # the room-refactor §P3.7 follow-up). RoomManager / ScenarioManager read this via
+        # `get_room()` through the DevicePort, not directly off config -- keeps the
+        # hexagonal boundary intact.
+        self.room: Optional[str] = config.room
 
         # Initialize state with basic device identification
         self.state = BaseDeviceState(
@@ -263,7 +268,12 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
     def get_name(self) -> str:
         """Return the device name."""
         return self.device_name
-    
+
+    def get_room(self) -> Optional[str]:
+        """Return the device's room id (matches `rooms.json`), or `None` when unassigned."""
+        return self.room
+
+
     @abstractmethod
     async def setup(self) -> bool:
         """Initialize the device. Called when the service starts."""
