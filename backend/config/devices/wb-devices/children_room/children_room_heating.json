@@ -6,15 +6,15 @@
   "capability_profile": "heating_loop",
   "room": "children_room",
   "commands": {
-    "mode_on":  {"topic": "/devices/wb-gpio/controls/EXT3_R3A3/on", "value": "0"},
-    "mode_off": {"topic": "/devices/wb-gpio/controls/EXT3_R3A3/on", "value": "1"},
+    "mode_on":  {"topic": "/devices/wb-gpio/controls/EXT3_R3A3/on", "value": "1"},
+    "mode_off": {"topic": "/devices/wb-gpio/controls/EXT3_R3A3/on", "value": "0"},
     "set_setpoint": {
       "topic": "/devices/setpoints_radiator/controls/children_temp/on",
       "params": [{"name": "temp", "type": "float", "min": 5, "max": 30, "required": true}]
     }
   },
   "state_topics": {
-    "mode": "/devices/wb-gpio/controls/EXT3_R3A3",
+    "mode": {"topic": "/devices/wb-gpio/controls/EXT3_R3A3", "type": "bool", "invert": true},
     "setpoint": {
       "topic": "/devices/setpoints_radiator/controls/children_temp",
       "type": "float",

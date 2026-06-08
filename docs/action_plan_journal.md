@@ -11,6 +11,40 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-08 (Invert flag extended to bool — heating switch inversions cleaned up)** —
+  Architectural symmetry follow-up: the cover invert fix (just landed) made covers
+  architecturally clean, but heating switches with inverted actuators (3 configs:
+  living_room_heating, children_room_heating, bedroom_heating) still carried the
+  band-aid value-swap workaround (`mode_on: "0"`, `mode_off: "1"` in each config) +
+  bare-string state_topic that held raw wire `"0"`/`"1"` -- the inverted semantic was
+  invisible from the state surface. Reading "is the heating on?" required out-of-band
+  knowledge of which wb-gpio pin maps to which valve orientation.
+  **Fix**: extended the existing `invert` flag to handle `type: "bool"` (toggle
+  `True`↔`False`) in addition to the existing `int`/`float` (`100 - value`). New
+  module-level helper `_toggle_bool_wire_form` preserves surface form (`"on"`↔`"off"`,
+  `"1"`↔`"0"`) so wire bytes stay consistent. The 3 heating configs migrated:
+    - state_topic mode: bare-string → `{topic, type: "bool", invert: true}`
+    - mode_on / mode_off reverted to natural sense (`"1"` = on, `"0"` = off)
+  **State.mirrored impact**: now carries typed `True`/`False` in natural sense, so any
+  consumer reading mode gets "is the heating on?" directly without per-device knowledge.
+  **No-op detection refactor (bug surfaced + fixed)**: the previous compare
+  (`str(current) == natural_payload`) worked for int (`str(25) == "25"`) but failed for
+  bool (`str(True) == "1"` is False). Replaced with type-aware compare: parse target
+  payload to typed form via `_parse_value`, compare to mirror's typed value. Falls back
+  to plain string compare when no spec is available. Fixes no_op short-circuit for
+  bool-typed fields generally, not just the heating case.
+  **Tests** (+8 in test_wb_passthrough.py): bool defaults, outbound toggle for mode_on
+  and mode_off, inbound toggle for wire 0 and wire 1, end-to-end roundtrip with no_op,
+  surface-form preservation in `_toggle_bool_wire_form` (incl. `"on"`/`"off"`/`"On"`/
+  `"true"` variants + unknown-passthrough), regression guard for non-inverted bare-str
+  fields. Full suite **502 passing** (was 495; +7 net).
+  **Hexagon LAW clean** (verified via grep) -- change is presentation-internal driver
+  wiring + per-config schema; no domain → infrastructure imports touched.
+  **NOT touched in this commit (asked separately)**: cabinet_windowsill on
+  wb-gpio/EXT3_R3A5 was authored as NOT inverted, but the cabinet "Обогрев" widget
+  was never pasted -- if it actually has `"invert": true` in its `extra` map, the
+  same migration applies (the file already uses the heating_loop profile; just needs
+  the state_topic widened + value swap added). Pending user confirmation.
 - **2026-06-08 (Cover `invert_position` flag — cabinet rollers fixed end-to-end)** —
   Follow-up on the deferred item from §P3.7 #23: cabinet's `dooya_dm35eq_x_*` motors
   publish wire 0=open / 100=closed (inverse of the other dooyas). Until now we'd

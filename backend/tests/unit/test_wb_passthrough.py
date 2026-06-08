@@ -561,3 +561,128 @@ async def test_invert_does_not_affect_non_inverted_field(mqtt):
     await dev._on_value_message("power", "/devices/wb-mr6c_51/controls/K4", "1")
     # power state_topic is bare-string (type=str), so mirror keeps the raw "1".
     assert dev.state.mirrored["power"] == "1"
+
+
+# --- invert flag: bool type (inverted heating actuators) ---------------------
+
+
+def _inverted_heating_config() -> WbPassthroughDeviceConfig:
+    """A heating loop with `invert: true` on a bool mode state_topic -- mimics the
+    living_room / children_room / bedroom heating actuators on `wb-gpio/EXT3_R3A2-4`
+    which are normally-closed valves: wire `"0"` = valve open (heating ON), wire
+    `"1"` = valve closed (heating OFF). With the flag, configs author in natural
+    sense (mode_on="1") and the driver flips at the wire."""
+    return WbPassthroughDeviceConfig(
+        device_id="livingroom_heating_test",
+        names={"ru": "Обогрев", "en": "Heating", "de": "Heizung"},
+        device_class="WbPassthroughDevice",
+        config_class="WbPassthroughDeviceConfig",
+        capability_profile="heating_loop",
+        room="living_room",
+        commands={
+            "mode_on":  WbPassthroughCommandConfig(
+                action="mode_on",
+                topic="/devices/wb-gpio/controls/EXT3_TEST/on",
+                value="1",
+            ),
+            "mode_off": WbPassthroughCommandConfig(
+                action="mode_off",
+                topic="/devices/wb-gpio/controls/EXT3_TEST/on",
+                value="0",
+            ),
+        },
+        state_topics={
+            "mode": {
+                "topic": "/devices/wb-gpio/controls/EXT3_TEST",
+                "type": "bool",
+                "invert": True,
+            },
+        },
+    )
+
+
+@pytest.mark.asyncio
+async def test_invert_bool_outbound_mode_on_publishes_zero(mqtt):
+    """mode_on config has value="1" (natural sense: ON). With invert on a bool wire,
+    the driver toggles to publish "0" -- the wire form for "valve open"."""
+    dev = WbPassthroughDevice(_inverted_heating_config(), mqtt_client=mqtt)
+    result = await dev.execute_action("mode_on", {}, source="api")
+    assert result["success"] is True
+    mqtt.publish.assert_awaited_once_with(
+        "/devices/wb-gpio/controls/EXT3_TEST/on", "0"
+    )
+
+
+@pytest.mark.asyncio
+async def test_invert_bool_outbound_mode_off_publishes_one(mqtt):
+    dev = WbPassthroughDevice(_inverted_heating_config(), mqtt_client=mqtt)
+    result = await dev.execute_action("mode_off", {}, source="api")
+    assert result["success"] is True
+    mqtt.publish.assert_awaited_once_with(
+        "/devices/wb-gpio/controls/EXT3_TEST/on", "1"
+    )
+
+
+@pytest.mark.asyncio
+async def test_invert_bool_inbound_wire_zero_stores_true_natural_sense(mqtt):
+    """Wire echo "0" (valve open) → parsed as bool False → inverted to True (natural
+    sense: heating IS on). State.mirrored shows the user-facing truth."""
+    dev = WbPassthroughDevice(_inverted_heating_config(), mqtt_client=mqtt)
+    await dev._on_value_message(
+        "mode", "/devices/wb-gpio/controls/EXT3_TEST", "0"
+    )
+    assert dev.state.mirrored == {"mode": True}
+
+
+@pytest.mark.asyncio
+async def test_invert_bool_inbound_wire_one_stores_false_natural_sense(mqtt):
+    dev = WbPassthroughDevice(_inverted_heating_config(), mqtt_client=mqtt)
+    await dev._on_value_message(
+        "mode", "/devices/wb-gpio/controls/EXT3_TEST", "1"
+    )
+    assert dev.state.mirrored == {"mode": False}
+
+
+@pytest.mark.asyncio
+async def test_invert_bool_roundtrip_mode_on_then_echo_then_no_op(mqtt):
+    """End-to-end: mode_on publishes "0" → device echoes "0" → mirror inverts to True
+    (natural sense: heating on) → next mode_on call short-circuits as no_op."""
+    dev = WbPassthroughDevice(_inverted_heating_config(), mqtt_client=mqtt)
+    # 1) publish mode_on -> wire "0"
+    await dev.execute_action("mode_on", {}, source="api")
+    # 2) device echoes wire "0"
+    await dev._on_value_message("mode", "/devices/wb-gpio/controls/EXT3_TEST", "0")
+    assert dev.state.mirrored["mode"] is True
+    # 3) repeat -> no_op (mirror already True, target also "on")
+    mqtt.publish.reset_mock()
+    result = await dev.execute_action("mode_on", {}, source="api")
+    assert result["success"] is True
+    assert result["data"]["no_op"] is True
+    mqtt.publish.assert_awaited_once()
+
+
+def test_invert_bool_static_passthrough_for_non_zero_one_forms():
+    """If someone authored a bool command with `value: "on"`/`"off"`, the toggle
+    should preserve the surface form (returning `"off"`/`"on"`, not `"1"`/`"0"`).
+    Unknown forms pass through unchanged."""
+    from wb_mqtt_bridge.infrastructure.devices.wb_passthrough.driver import (
+        _toggle_bool_wire_form,
+    )
+    assert _toggle_bool_wire_form("0") == "1"
+    assert _toggle_bool_wire_form("1") == "0"
+    assert _toggle_bool_wire_form("on") == "off"
+    assert _toggle_bool_wire_form("off") == "on"
+    assert _toggle_bool_wire_form("On") == "Off"
+    assert _toggle_bool_wire_form("true") == "false"
+    # Unknown forms pass through (safer than guessing).
+    assert _toggle_bool_wire_form("garbage") == "garbage"
+
+
+@pytest.mark.asyncio
+async def test_invert_bool_does_not_apply_to_non_inverted_str_field(mqtt):
+    """Regression: cabinet_spots's `power` state_topic is bare-string (no invert flag,
+    type defaults to str). The bool-toggle path must not catch it. Mirror keeps the
+    raw "1"."""
+    dev = WbPassthroughDevice(_slice_config(), mqtt_client=mqtt)
+    await dev._on_value_message("power", "/devices/wb-mr6c_51/controls/K4", "1")
+    assert dev.state.mirrored["power"] == "1"  # still raw string, not toggled

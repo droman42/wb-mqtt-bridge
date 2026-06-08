@@ -50,6 +50,23 @@ logger = logging.getLogger(__name__)
 _PLACEHOLDER_RE = re.compile(r"\{([a-zA-Z_][a-zA-Z0-9_]*)\}")
 
 
+def _toggle_bool_wire_form(payload: str) -> str:
+    """Flip a boolean-on-the-wire payload, preserving the surface form so the result
+    matches adjacent commands' static values byte-for-byte. WB controls publish `"0"`/
+    `"1"` overwhelmingly, but the WB-passthrough config schema doesn't FORCE that --
+    if someone writes a bool command with `value: "on"`, the inverted form should be
+    `"off"`, not `"1"`. Unknown forms (numeric strings outside 0/1, arbitrary text)
+    pass through unchanged -- safer than guessing."""
+    s = payload.strip()
+    pairs = (("0", "1"), ("false", "true"), ("off", "on"))
+    for low, high in pairs:
+        if s.lower() == low:
+            return high if s.islower() or not s.isalpha() else high.capitalize()
+        if s.lower() == high:
+            return low if s.islower() or not s.isalpha() else low.capitalize()
+    return payload
+
+
 def _parse_template(template: str, raw: str, coerce: Any = str) -> Dict[str, Any]:
     """Invert a `"{a};{b};{c}"`-style template against a concrete payload, producing the
     dict `{a: ..., b: ..., c: ...}`. Used for composite encodings like RGB
@@ -190,8 +207,21 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
         # device won't echo, and even if it did, update_state would filter the no-change.
         # We still publish so the WB layer sees the command (cheap; harmless on relays);
         # the canonical endpoint reads `no_op` to skip its echo wait.
+        # Compare in the field's TYPED space so a bool mirror (`True`) matches a config-
+        # side `"1"` and an int mirror (25) matches a config-side `"25"`. Falls back to
+        # plain string compare when no spec is available (side-channel command, or first
+        # echo before mirror seeded).
         current = self.state.mirrored.get(state_field) if state_field else None
-        no_op = current is not None and str(current) == natural_payload
+        if current is None:
+            no_op = False
+        elif target_spec is not None:
+            try:
+                target_typed = self._parse_value(natural_payload, target_spec)
+                no_op = current == target_typed
+            except (ValueError, TypeError):
+                no_op = str(current) == natural_payload
+        else:
+            no_op = str(current) == natural_payload
 
         # Final outbound transform: wire-format inversion if the target field has it.
         wire_payload = (
@@ -300,41 +330,59 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
 
     @staticmethod
     def _apply_inversion(value: Any, spec: StateTopicSpec) -> Any:
-        """If `spec.invert` is True and the value is numeric, return `100 - value`. Used
-        on the INBOUND mirror path (after _parse_value) so `state.mirrored` always carries
-        the natural-sense value, regardless of the device's wire-format orientation.
-        Symmetric counterpart for outbound writes is `_invert_wire_payload`.
-        Inverting non-numeric types (str/enum/rgb/bool) is meaningless and a no-op.
+        """If `spec.invert` is True, apply the wire-orientation flip on the INBOUND
+        mirror path (after _parse_value) so `state.mirrored` always carries the natural-
+        sense value regardless of device-family orientation. Symmetric counterpart for
+        outbound writes is `_invert_wire_payload`.
+
+        Inversion semantics per type:
+          - int/float: `100 - value` (percentage-like fields; e.g. cabinet rollers'
+            inverted position).
+          - bool: `not value` (toggle; e.g. inverted-valve heating actuators where
+            wire 0=heating-on, 1=heating-off).
+          - str/enum/rgb: no-op (inversion has no obvious meaning).
         """
         if not spec.invert:
             return value
-        if spec.type not in ("int", "float"):
-            return value
-        try:
-            return type(value)(100 - value)
-        except (TypeError, ValueError):
-            return value
+        if spec.type == "bool":
+            return not value if isinstance(value, bool) else value
+        if spec.type in ("int", "float"):
+            try:
+                return type(value)(100 - value)
+            except (TypeError, ValueError):
+                return value
+        return value
 
     @staticmethod
     def _invert_wire_payload(payload: str, spec: StateTopicSpec) -> str:
         """OUTBOUND counterpart of `_apply_inversion`: parse the natural-sense payload
-        string, apply `100 - value`, render back to string. Called by `_publish_command`
-        just before the MQTT publish so the wire format respects the device-family quirk
-        (cabinet rollers' 0=open / 100=closed) while configs + voice + state stay in
-        natural sense (100=open).
+        string, apply the type-appropriate flip, render back to string. Called by
+        `_publish_command` just before the MQTT publish so the wire format respects the
+        device-family quirk (cabinet rollers' 0=open / 100=closed; inverted heating
+        actuators' 0=on / 1=off) while configs + voice + state stay in natural sense.
 
-        Non-numeric types and parse failures pass through unchanged — flag is only
-        meaningful for int/float position fields. Floats with integer value render
-        without trailing `.0` to match the WB UI convention (see `_resolve_payload`)."""
-        if not spec.invert or spec.type not in ("int", "float"):
+        Type handling matches `_apply_inversion`:
+          - int: `str(100 - int(payload))`
+          - float: `str(100.0 - float(payload))` (integer-valued rendered without `.0`
+            to match WB UI convention; see `_resolve_payload`)
+          - bool: toggle the canonical wire form -- `"1"`↔`"0"`, `"true"`↔`"false"`,
+            `"on"`↔`"off"` (preserves the input's surface form so the wire bytes look
+            consistent with adjacent commands' static values)
+          - str/enum/rgb or parse failure: pass through unchanged
+        """
+        if not spec.invert:
             return payload
-        try:
-            if spec.type == "int":
-                return str(100 - int(payload))
-            v = 100.0 - float(payload)
-            return str(int(v)) if v.is_integer() else str(v)
-        except (TypeError, ValueError):
-            return payload
+        if spec.type == "bool":
+            return _toggle_bool_wire_form(payload)
+        if spec.type in ("int", "float"):
+            try:
+                if spec.type == "int":
+                    return str(100 - int(payload))
+                v = 100.0 - float(payload)
+                return str(int(v)) if v.is_integer() else str(v)
+            except (TypeError, ValueError):
+                return payload
+        return payload
 
     def _coerce_mirror(self, field: str, raw: str) -> Any:
         """Look up `field`'s StateTopicSpec, parse the raw payload to its typed form, apply
