@@ -6,14 +6,14 @@
   "capability_profile": "cover",
   "room": "cabinet",
   "commands": {
-    "open":  {"topic": "/devices/dooya_dm35eq_x_0x0105/controls/Position/on", "value": "0"},
-    "close": {"topic": "/devices/dooya_dm35eq_x_0x0105/controls/Position/on", "value": "100"},
+    "open":  {"topic": "/devices/dooya_dm35eq_x_0x0105/controls/Position/on", "value": "100"},
+    "close": {"topic": "/devices/dooya_dm35eq_x_0x0105/controls/Position/on", "value": "0"},
     "set_position": {
       "topic": "/devices/dooya_dm35eq_x_0x0105/controls/Position/on",
       "params": [{"name": "pct", "type": "range", "min": 0, "max": 100, "required": true}]
     }
   },
   "state_topics": {
-    "position": {"topic": "/devices/dooya_dm35eq_x_0x0105/controls/Position", "type": "int", "unit": "%"}
+    "position": {"topic": "/devices/dooya_dm35eq_x_0x0105/controls/Position", "type": "int", "unit": "%", "invert": true}
   }
 }

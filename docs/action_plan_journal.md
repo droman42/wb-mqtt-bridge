@@ -11,6 +11,49 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-08 (Cover `invert_position` flag — cabinet rollers fixed end-to-end)** —
+  Follow-up on the deferred item from §P3.7 #23: cabinet's `dooya_dm35eq_x_*` motors
+  publish wire 0=open / 100=closed (inverse of the other dooyas). Until now we'd
+  hand-swapped the static `open`/`close` action values in the cabinet roller configs
+  (open writing `"0"`, close writing `"100"`), but `set_position(pct)` passed `pct`
+  raw and so silently misrouted any non-midpoint percentage: voice asking for "25%
+  open" actually published `25` (= 75% open). State.mirrored also carried raw motor
+  values, so consumers saw misleading natural-sense readings.
+  **Fix**: added an `invert: bool = False` flag to `StateTopicSpec` (per-field, opt-in).
+  Driver applies `100 - value` SYMMETRICALLY at the wire boundary:
+    - **Outbound** (`_publish_command` + new `_invert_wire_payload`): natural-sense
+      payload from `_resolve_payload` → inverted just before publish. Configs stay in
+      natural sense.
+    - **Inbound** (`_coerce_mirror` + new `_apply_inversion`): typed value from
+      `_parse_value` → inverted before storing in `state.mirrored`. Mirror always
+      carries natural sense.
+  **No-op detection**: works correctly across the inversion because we now compare in
+  natural-sense throughout (mirror is natural-sense; new param value is natural-sense
+  via `_resolve_payload` BEFORE the wire-inversion step). The publish still happens
+  (the `data.no_op` flag tells the canonical endpoint to short-circuit the echo
+  wait).
+  **Cabinet roller configs reverted** to natural-sense: open=100, close=0,
+  set_position takes natural pct 0-100, with `invert: true` added to the position
+  state_topic. The driver hides the device-family quirk; configs no longer carry the
+  manual-swap workaround.
+  **Tests** (+8 in `test_wb_passthrough.py`):
+    - `test_state_topic_spec_invert_flag_defaults_false` / `_parses_true` — schema
+    - `test_invert_outbound_static_open/close_publishes_inverted_*` — static values flip
+    - `test_invert_outbound_set_position_25_publishes_75_wire_sense` — the core fix:
+      `set_position(pct=25)` now publishes `75` (= 25% open), not the broken `25`.
+    - `test_invert_outbound_set_position_midpoint_unchanged` — invariant: 50% is the
+      same in either sense
+    - `test_invert_inbound_mirror_stores_natural_sense` — echo `"75"` → mirrored 25
+    - `test_invert_roundtrip_set_then_mirror_consistent` — end-to-end: publish, echo,
+      mirror, repeat → no_op short-circuit works in inverted space
+    - `test_invert_does_not_affect_non_inverted_field` — regression guard for the
+      slice's cabinet_spots (no invert flag → behaviour unchanged)
+  Full suite **495 passing** (was 486; +9 net = +8 new + 1 already-added defaults
+  check). **Hexagon LAW clean** (verified via grep before commit) — change is
+  presentation-internal driver wiring + schema field; no domain → infrastructure
+  imports touched.
+  **Still deferred** (logged in authoring log, separate session): ESP32ManagedDevice
+  class introduction for the 3 HVAC configs.
 - **2026-06-08 (Room-architecture refactor — single source of truth for room membership)** —
   Architectural cleanup triggered by the rooms.json drift discovered mid-#23 (user
   asked: "did we update rooms.json with new registered devices?" — answer was no for

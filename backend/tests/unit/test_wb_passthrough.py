@@ -414,3 +414,150 @@ def test_state_topic_spec_normalises_bare_string_form():
     assert isinstance(spec, StateTopicSpec)
     assert spec.topic == "/devices/wb-mr6c_51/controls/K4"
     assert spec.type == "str"
+
+
+# --- invert flag (cabinet rollers / inverted-percentage devices) -------------
+
+
+def _inverted_cover_config() -> WbPassthroughDeviceConfig:
+    """A cover device with `invert: true` on the position state topic -- mimics the
+    cabinet rollers (dooya_dm35eq_x_*), where wire 0=open and 100=closed instead of the
+    natural sense. The configs are authored in NATURAL sense (open writes 100, close
+    writes 0, set_position takes natural pct); the driver flips at the wire boundary."""
+    return WbPassthroughDeviceConfig(
+        device_id="cabinet_roller_test",
+        names={"ru": "Ролл", "en": "Roller", "de": "Rollo"},
+        device_class="WbPassthroughDevice",
+        config_class="WbPassthroughDeviceConfig",
+        capability_profile="cover",
+        room="cabinet",
+        commands={
+            "open":  WbPassthroughCommandConfig(
+                action="open",
+                topic="/devices/dooya_dm35eq_x_test/controls/Position/on",
+                value="100",
+            ),
+            "close": WbPassthroughCommandConfig(
+                action="close",
+                topic="/devices/dooya_dm35eq_x_test/controls/Position/on",
+                value="0",
+            ),
+            "set_position": WbPassthroughCommandConfig(
+                action="set_position",
+                topic="/devices/dooya_dm35eq_x_test/controls/Position/on",
+                params=[CommandParameterDefinition(name="pct", type="range", min=0, max=100, required=True)],
+            ),
+        },
+        state_topics={
+            "position": {
+                "topic": "/devices/dooya_dm35eq_x_test/controls/Position",
+                "type": "int",
+                "unit": "%",
+                "invert": True,
+            },
+        },
+    )
+
+
+def test_state_topic_spec_invert_flag_defaults_false():
+    cfg = _slice_config()
+    assert cfg.state_topics["power"].invert is False
+
+
+def test_state_topic_spec_invert_flag_parses_true():
+    cfg = _inverted_cover_config()
+    assert cfg.state_topics["position"].invert is True
+
+
+@pytest.mark.asyncio
+async def test_invert_outbound_static_open_publishes_inverted_zero(mqtt):
+    """`open` config has value="100" (natural sense). For an inverted cover the driver
+    must publish "0" on the wire (motor's 0% travel position = fully open)."""
+    dev = WbPassthroughDevice(_inverted_cover_config(), mqtt_client=mqtt)
+    result = await dev.execute_action("open", {}, source="api")
+    assert result["success"] is True
+    mqtt.publish.assert_awaited_once_with(
+        "/devices/dooya_dm35eq_x_test/controls/Position/on", "0"
+    )
+
+
+@pytest.mark.asyncio
+async def test_invert_outbound_static_close_publishes_inverted_hundred(mqtt):
+    dev = WbPassthroughDevice(_inverted_cover_config(), mqtt_client=mqtt)
+    result = await dev.execute_action("close", {}, source="api")
+    assert result["success"] is True
+    mqtt.publish.assert_awaited_once_with(
+        "/devices/dooya_dm35eq_x_test/controls/Position/on", "100"
+    )
+
+
+@pytest.mark.asyncio
+async def test_invert_outbound_set_position_25_publishes_75_wire_sense(mqtt):
+    """The core voice-ergonomics fix: user/voice says "25% open"; the driver publishes
+    "75" (25% open = 75% motor travel for an inverted cover). Without the invert flag
+    we'd publish "25" which would actually be 75% open."""
+    dev = WbPassthroughDevice(_inverted_cover_config(), mqtt_client=mqtt)
+    result = await dev.execute_action("set_position", {"pct": 25}, source="api")
+    assert result["success"] is True
+    mqtt.publish.assert_awaited_once_with(
+        "/devices/dooya_dm35eq_x_test/controls/Position/on", "75"
+    )
+
+
+@pytest.mark.asyncio
+async def test_invert_outbound_set_position_midpoint_unchanged(mqtt):
+    """50% is the same in either sense; demonstrates the invariant that mid-position
+    looks the same regardless of wire orientation."""
+    dev = WbPassthroughDevice(_inverted_cover_config(), mqtt_client=mqtt)
+    result = await dev.execute_action("set_position", {"pct": 50}, source="api")
+    assert result["success"] is True
+    mqtt.publish.assert_awaited_once_with(
+        "/devices/dooya_dm35eq_x_test/controls/Position/on", "50"
+    )
+
+
+@pytest.mark.asyncio
+async def test_invert_inbound_mirror_stores_natural_sense(mqtt):
+    """Wire echo arrives as `"75"` (motor at 75% travel); the mirror inverts to natural
+    sense `25` (= 25% open) before storing in state.mirrored. Voice consumers reading
+    the state endpoint always see natural sense regardless of device family."""
+    dev = WbPassthroughDevice(_inverted_cover_config(), mqtt_client=mqtt)
+    await dev._on_value_message(
+        "position", "/devices/dooya_dm35eq_x_test/controls/Position", "75"
+    )
+    assert dev.state.mirrored == {"position": 25}
+    assert dev.state.reachable is True
+
+
+@pytest.mark.asyncio
+async def test_invert_roundtrip_set_then_mirror_consistent(mqtt):
+    """End-to-end: set_position(25) publishes 75; the device echoes 75; mirror inverts
+    back to 25; state.mirrored shows the natural target. The next set_position(25) call
+    then short-circuits as no_op."""
+    dev = WbPassthroughDevice(_inverted_cover_config(), mqtt_client=mqtt)
+    # 1) publish
+    await dev.execute_action("set_position", {"pct": 25}, source="api")
+    # 2) device echoes the wire value
+    await dev._on_value_message(
+        "position", "/devices/dooya_dm35eq_x_test/controls/Position", "75"
+    )
+    assert dev.state.mirrored["position"] == 25
+    # 3) repeat the same call -> no_op
+    mqtt.publish.reset_mock()
+    result = await dev.execute_action("set_position", {"pct": 25}, source="api")
+    assert result["success"] is True
+    assert result["data"]["no_op"] is True
+    # We still publish (cheap; keeps WB informed) but the wait can short-circuit.
+    mqtt.publish.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_invert_does_not_affect_non_inverted_field(mqtt):
+    """The slice's cabinet_spots is uninverted. Sanity: its publish + mirror behave
+    unchanged regardless of the new flag plumbing."""
+    dev = WbPassthroughDevice(_slice_config(), mqtt_client=mqtt)
+    await dev.execute_action("power_on", {}, source="api")
+    mqtt.publish.assert_awaited_once_with("/devices/wb-mr6c_51/controls/K4/on", "1")
+    await dev._on_value_message("power", "/devices/wb-mr6c_51/controls/K4", "1")
+    # power state_topic is bare-string (type=str), so mirror keeps the raw "1".
+    assert dev.state.mirrored["power"] == "1"

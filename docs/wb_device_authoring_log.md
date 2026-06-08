@@ -1004,24 +1004,17 @@ When the user (or importer) declares a `state_topic` with a type that conflicts 
 the profile's declared field type, surface the mismatch with the three resolutions
 we discussed (str / bool / drop from fields[]). Decision-support, not auto-resolve.
 
-### 4.9 Per-device `invert` flag for cover position (and similar)
+### 4.9 ~~Per-device `invert` flag for cover position~~ — **DONE 2026-06-08**
 
-The cabinet rollers' inverted Position semantics (§2.12) are a special case of the
-same class of problem as the heating actuators' `invert: true` flag (§1.2.4): the WB
-wire convention is the LOGICAL value, but the user-facing INTENT is the inverted
-value. We fixed both with hand-set `value:` swaps in the device config (open/close
-for covers; mode_on/mode_off for actuators), but `set_position(pct)` can't be fixed
-that way because it's a continuous range.
-
-A clean structural fix: add an `invert_position: bool` config flag on
-`WbPassthroughCommandConfig` (or on the per-field `StateTopicSpec`). The driver:
-- Inverts the published value (`pct=25` → publishes `100-25=75`) for outgoing writes.
-- Inverts the mirrored value (incoming `"75"` → stores `25`) so state.mirrored reads
-  natural-sense.
-
-Net effect: voice and UI see one consistent convention ("100 = open" everywhere);
-the driver hides the device-family quirk. ~10 LOC + a config-side flag + tests.
-Worth doing when set_position becomes a real voice command; deferring for now.
+Landed as `StateTopicSpec.invert: bool` (per-field flag). Driver applies `100 - value`
+symmetrically on outbound publish (just before MQTT publish, via
+`_invert_wire_payload`) and inbound mirror (just after type coercion, via
+`_apply_inversion`). Cabinet roller configs reverted to natural-sense
+(`open: "100"`, `close: "0"`, set_position takes natural pct) plus `invert: true` on
+the position state_topic. The driver hides the device-family quirk; configs + voice +
+state surface all speak the natural "100 = open" convention. The hand-swapped
+open/close workaround from §2.12 is gone — replaced by data, not code-side gymnastics.
+See action_plan_journal.md "Cover `invert_position` flag" entry for full details.
 
 ### 4.8 ~~Eliminate the rooms.json `devices` duplication~~ — **DONE 2026-06-08**
 

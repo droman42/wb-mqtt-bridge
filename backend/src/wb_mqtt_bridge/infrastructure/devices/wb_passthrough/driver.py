@@ -167,25 +167,41 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
         if not self.mqtt_client:
             return self.create_command_result(success=False, error="mqtt_client not available")
 
-        payload = self._resolve_payload(cmd_config, params)
-        if payload is None:
+        natural_payload = self._resolve_payload(cmd_config, params)
+        if natural_payload is None:
             return self.create_command_result(
                 success=False,
                 error=f"could not resolve payload for {cmd_name!r} "
                       f"(no static value AND no param value provided)",
             )
 
+        # The payload from _resolve_payload is in natural sense (configs are always
+        # authored in natural sense — set_position(25) means "25% open"). For idempotency
+        # comparison we stay in natural sense throughout, since state.mirrored is also
+        # natural-sense (the mirror path inverts incoming wire echoes via _coerce_mirror).
+        # We only convert to wire sense at the very last moment, just before publishing.
+        state_field = self._state_field_for_command(cmd_config)
+        target_spec = (
+            self.config.state_topics.get(state_field) if state_field else None
+        )
+
         # Idempotency check BEFORE publishing. If we already see the device at the target
         # value via the mirror, the publish is a no-op as far as state is concerned -- the
         # device won't echo, and even if it did, update_state would filter the no-change.
         # We still publish so the WB layer sees the command (cheap; harmless on relays);
         # the canonical endpoint reads `no_op` to skip its echo wait.
-        state_field = self._state_field_for_command(cmd_config)
         current = self.state.mirrored.get(state_field) if state_field else None
-        no_op = current is not None and current == payload
+        no_op = current is not None and str(current) == natural_payload
+
+        # Final outbound transform: wire-format inversion if the target field has it.
+        wire_payload = (
+            self._invert_wire_payload(natural_payload, target_spec)
+            if target_spec is not None and target_spec.invert
+            else natural_payload
+        )
 
         try:
-            await self.mqtt_client.publish(cmd_config.topic, payload)
+            await self.mqtt_client.publish(cmd_config.topic, wire_payload)
         except Exception as e:
             logger.error(f"[{self.device_name}] publish to {cmd_config.topic} failed: {e}")
             return self.create_command_result(success=False, error=str(e))
@@ -198,13 +214,13 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
             timestamp=datetime.now(),
             params=dict(params) if params else None,
         ))
-        msg = f"published {payload!r} to {cmd_config.topic}"
+        msg = f"published {wire_payload!r} to {cmd_config.topic}"
         if no_op:
             msg += " (no-op: target already reached)"
         return self.create_command_result(
             success=True,
             message=msg,
-            data={"topic": cmd_config.topic, "payload": payload, "no_op": no_op},
+            data={"topic": cmd_config.topic, "payload": wire_payload, "no_op": no_op},
         )
 
     def _state_field_for_command(
@@ -282,18 +298,57 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
             return _parse_template(spec.encoding or "{r};{g};{b}", raw, coerce=int)
         raise ValueError(f"unknown StateTopicSpec.type {t!r}")
 
+    @staticmethod
+    def _apply_inversion(value: Any, spec: StateTopicSpec) -> Any:
+        """If `spec.invert` is True and the value is numeric, return `100 - value`. Used
+        on the INBOUND mirror path (after _parse_value) so `state.mirrored` always carries
+        the natural-sense value, regardless of the device's wire-format orientation.
+        Symmetric counterpart for outbound writes is `_invert_wire_payload`.
+        Inverting non-numeric types (str/enum/rgb/bool) is meaningless and a no-op.
+        """
+        if not spec.invert:
+            return value
+        if spec.type not in ("int", "float"):
+            return value
+        try:
+            return type(value)(100 - value)
+        except (TypeError, ValueError):
+            return value
+
+    @staticmethod
+    def _invert_wire_payload(payload: str, spec: StateTopicSpec) -> str:
+        """OUTBOUND counterpart of `_apply_inversion`: parse the natural-sense payload
+        string, apply `100 - value`, render back to string. Called by `_publish_command`
+        just before the MQTT publish so the wire format respects the device-family quirk
+        (cabinet rollers' 0=open / 100=closed) while configs + voice + state stay in
+        natural sense (100=open).
+
+        Non-numeric types and parse failures pass through unchanged — flag is only
+        meaningful for int/float position fields. Floats with integer value render
+        without trailing `.0` to match the WB UI convention (see `_resolve_payload`)."""
+        if not spec.invert or spec.type not in ("int", "float"):
+            return payload
+        try:
+            if spec.type == "int":
+                return str(100 - int(payload))
+            v = 100.0 - float(payload)
+            return str(int(v)) if v.is_integer() else str(v)
+        except (TypeError, ValueError):
+            return payload
+
     def _coerce_mirror(self, field: str, raw: str) -> Any:
-        """Look up `field`'s StateTopicSpec, parse the raw payload to its typed form, and
-        return the typed value. On parse failure: log a warning and return the raw string
-        unchanged. We deliberately do NOT touch `state.error_flags` -- that's reserved for
-        WB-protocol per-control flags (`r`/`w`/`p`) and conflating it with internal parse
-        errors would mis-fire the `reachable` check (the device IS talking; WE just can't
-        decode this one payload)."""
+        """Look up `field`'s StateTopicSpec, parse the raw payload to its typed form, apply
+        the `invert` transform if set, and return the typed value. On parse failure: log a
+        warning and return the raw string unchanged. We deliberately do NOT touch
+        `state.error_flags` -- that's reserved for WB-protocol per-control flags
+        (`r`/`w`/`p`) and conflating it with internal parse errors would mis-fire the
+        `reachable` check (the device IS talking; WE just can't decode this one payload)."""
         spec = self.config.state_topics.get(field)
         if spec is None:
             return raw
         try:
-            return self._parse_value(raw, spec)
+            typed = self._parse_value(raw, spec)
+            return self._apply_inversion(typed, spec)
         except (ValueError, TypeError) as e:
             logger.warning(
                 f"[{self.device_name}] failed to parse {field!r} payload {raw!r} as {spec.type}: {e}"

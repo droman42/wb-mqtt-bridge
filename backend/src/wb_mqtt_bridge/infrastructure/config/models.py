@@ -160,6 +160,18 @@ class StateTopicSpec(BaseModel):
         description="Allowed values for `type=\"enum\"` (incoming payloads are validated against this list).",
     )
     unit: Optional[str] = Field(None, description="Display unit (`°C`, `%`, `ppm`, `lux`, `dB`).")
+    invert: bool = Field(
+        False,
+        description=(
+            "When True, the driver applies `100 - value` BOTH directions for this "
+            "field: outbound (publishes to commands that target this state topic) and "
+            "inbound (incoming mirror echoes). Catches inverted-percentage devices like "
+            "the cabinet's `dooya_dm35eq_x_*` rollers, where wire 0=open and 100=closed "
+            "instead of the natural sense. With this flag, voice/UI/configs all speak "
+            "the natural convention (100=open) and the driver hides the device-family "
+            "quirk. Only meaningful for `type` in {int, float}; ignored for str/rgb/enum."
+        ),
+    )
 
 
 class WbPassthroughCommandConfig(BaseCommandConfig):
