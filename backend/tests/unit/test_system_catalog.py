@@ -206,3 +206,99 @@ def test_get_system_catalog_503_when_managers_missing():
     client = TestClient(_app())
     r = client.get("/system/catalog")
     assert r.status_code == 503
+
+
+# ----- §P3.7 #19 -- sensor capability fields surface in the catalog ---------
+
+
+def _sensor_cap_map_dict() -> Dict:
+    """Mirrors the on-disk `config/capabilities/profiles/sensor_room.json`."""
+    return {
+        "sensor": {
+            "kind": "stateful", "reconcile": False,
+            "fields": [
+                {"name": "temperature", "type": "float", "unit": "°C",
+                 "labels": {"ru": "температура", "en": "temperature"}},
+                {"name": "humidity",    "type": "float", "unit": "%"},
+                {"name": "co2",         "type": "int",   "unit": "ppm"},
+                {"name": "illuminance", "type": "float", "unit": "lux"},
+                {"name": "sound_level", "type": "float", "unit": "dB"},
+            ],
+        }
+    }
+
+
+def test_catalog_emits_sensor_fields_with_type_unit_labels():
+    """A device that profiles `sensor_room` must surface its capability `fields[]` in the
+    catalog so voice/UI consumers can read + render typed values without out-of-band
+    knowledge."""
+    sensors = _fake_device(
+        device_id="livingroom_sensors",
+        names={"ru": "Сенсоры", "en": "Sensors"},
+        device_class="WbPassthroughDevice",
+        room="livingroom",
+        cap_map_dict=_sensor_cap_map_dict(),
+    )
+    dm = SimpleNamespace(devices={"livingroom_sensors": sensors})
+    rm = MagicMock(); rm.list.return_value = []
+    cat = build_catalog(dm, rm)
+    cap = cat.devices[0].capabilities[0]
+    assert cap.name == "sensor"
+    assert cap.actions is None  # pure read surface, no actions
+    fields_by_name = {f.name: f for f in cap.fields}
+    assert set(fields_by_name) == {"temperature", "humidity", "co2", "illuminance", "sound_level"}
+    assert fields_by_name["temperature"].type == "float"
+    assert fields_by_name["temperature"].unit == "°C"
+    assert fields_by_name["temperature"].labels == {"ru": "температура", "en": "temperature"}
+    assert fields_by_name["co2"].type == "int"
+    # No motion (dropped from v1 scope per §P3.7 #19 decision 2026-06-08).
+    assert "motion" not in fields_by_name
+
+
+def test_catalog_emits_rgb_field_with_encoding():
+    """RGB color is a typed dict on the wire (`"R;G;B"`); the catalog must carry the
+    `encoding` so Irene can parse the value-side echo back without guessing."""
+    rgb = _fake_device(
+        device_id="livingroom_rgb",
+        names={"ru": "Подсветка", "en": "Mood Light"},
+        device_class="WbPassthroughDevice",
+        room="livingroom",
+        cap_map_dict={
+            "color": {
+                "kind": "stateful", "feedback": True, "state_field": "color",
+                "actions": {"set": {"command": "set_color", "param_map": {"r": "r", "g": "g", "b": "b"}}},
+                "fields": [{"name": "color", "type": "rgb", "encoding": "{r};{g};{b}"}],
+            }
+        },
+    )
+    dm = SimpleNamespace(devices={"livingroom_rgb": rgb})
+    rm = MagicMock(); rm.list.return_value = []
+    cat = build_catalog(dm, rm)
+    color = cat.devices[0].capabilities[0]
+    assert color.actions and color.actions[0].name == "set"
+    assert color.fields and color.fields[0].name == "color"
+    assert color.fields[0].type == "rgb"
+    assert color.fields[0].encoding == "{r};{g};{b}"
+
+
+def test_version_changes_when_a_capability_field_is_added(slice_managers):
+    """Adding a `fields[]` entry to any capability MUST bump the catalog version, so Irene
+    re-fetches when the typed surface widens (a new sensor field exposed, RGB encoding
+    landed for a previously bare device, etc.)."""
+    dm, rm = slice_managers
+    before = build_catalog(dm, rm).version
+    # Widen cabinet_spots's `power` capability with a (contrived) state field.
+    extended_cap_map = {
+        "power": {
+            "kind": "momentary",
+            "actions": {"on": {"command": "power_on"}, "off": {"command": "power_off"}},
+        },
+        "brightness": {
+            "kind": "stateful", "feedback": True, "state_field": "level",
+            "actions": {"set": {"command": "set_brightness", "param_map": {"level": "level"}}},
+            "fields": [{"name": "level", "type": "int", "unit": "%"}],
+        }
+    }
+    dm.devices["cabinet_spots"].capabilities = CapabilityMap.model_validate(extended_cap_map)
+    after = build_catalog(dm, rm).version
+    assert before != after

@@ -138,18 +138,32 @@ class CanonicalActionResponse(BaseModel):
 class CatalogAction(BaseModel):
     """A canonical action a device supports under a capability. `params` is `None` for
     parameterless actions (`power.on`, `cover.open`) and a list of param descriptors
-    otherwise. Full param introspection (type, min/max, choices, labels) lands with the
-    vocab extension (#19); slice 1 only exposes parameterless actions."""
+    otherwise. Full param introspection (type, min/max, choices, labels) is owed work — the
+    catalog still surfaces action names only as of #19; deferred until voice needs it."""
     name: str
     params: Optional[List[Dict[str, Any]]] = None
 
 
+class CatalogField(BaseModel):
+    """A read-only field on a capability (e.g. `sensor.temperature`, `brightness.level`).
+    Mirrors the domain `CapabilityField` shape so voice/UI consumers can render and parse
+    values without out-of-band knowledge. Added §P3.7 #19."""
+    name: str
+    type: str
+    encoding: Optional[str] = None
+    values: Optional[List[str]] = None
+    unit: Optional[str] = None
+    labels: Optional[Dict[str, str]] = None
+
+
 class CatalogCapability(BaseModel):
-    """One capability on a device, projected canonical-side. Sensor capabilities use
-    `fields` instead of `actions` (read-only; landed in #19+ for sensor devices)."""
+    """One capability on a device, projected canonical-side. Sensor-shaped capabilities
+    have `fields` and no `actions`; momentary capabilities (`power`) have `actions` and
+    no `fields`; stateful action capabilities (brightness, color, climate, cover) may
+    have both."""
     name: str
     actions: Optional[List[CatalogAction]] = None
-    fields: Optional[List[Dict[str, Any]]] = None
+    fields: Optional[List[CatalogField]] = None
 
 
 class CatalogDevice(BaseModel):

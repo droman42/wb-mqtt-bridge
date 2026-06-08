@@ -31,25 +31,37 @@ from wb_mqtt_bridge.presentation.api.schemas import (
     CatalogAction,
     CatalogCapability,
     CatalogDevice,
+    CatalogField,
     CatalogResponse,
     CatalogRoom,
 )
 
 
 def _project_capability_actions(cap_map: Optional[CapabilityMap]) -> list[CatalogCapability]:
-    """Walk a CapabilityMap and project to the catalog's capability shape."""
+    """Walk a CapabilityMap and project to the catalog's capability shape — actions and
+    (since §P3.7 #19) read-only fields. Param introspection per-action is still owed work
+    and not yet surfaced."""
     out: list[CatalogCapability] = []
     if cap_map is None:
         return out
     for cap_name, cap in cap_map.root.items():
         actions: list[CatalogAction] = []
         for action_name in cap.actions:
-            # Param introspection is deferred to #19; surface the action name only for slice 1.
             actions.append(CatalogAction(name=action_name, params=None))
+        fields: list[CatalogField] = []
+        for f in cap.fields:
+            fields.append(CatalogField(
+                name=f.name,
+                type=f.type,
+                encoding=f.encoding,
+                values=f.values,
+                unit=f.unit,
+                labels=f.labels.model_dump() if f.labels is not None else None,
+            ))
         out.append(CatalogCapability(
             name=cap_name,
             actions=actions if actions else None,
-            fields=None,  # sensor capabilities (with `fields`) come in #19+
+            fields=fields if fields else None,
         ))
     return out
 

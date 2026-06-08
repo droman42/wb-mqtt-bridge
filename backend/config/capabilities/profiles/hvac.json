@@ -1,0 +1,29 @@
+{
+  "climate": {
+    "kind": "stateful",
+    "feedback": true,
+    "state_field": "mode",
+    "actions": {
+      "on":           { "command": "power_on" },
+      "off":          { "command": "power_off" },
+      "set_mode":     { "command": "set_mode",     "param_map": { "mode": "mode" } },
+      "set_fan":      { "command": "set_fan",      "param_map": { "speed": "speed" } },
+      "set_vane":     { "command": "set_vane",     "param_map": { "angle": "angle" } },
+      "set_setpoint": { "command": "set_setpoint", "param_map": { "temp": "temp" } }
+    },
+    "fields": [
+      { "name": "mode", "type": "enum", "values": ["off", "cool", "heat", "auto", "fan", "dry"],
+        "labels": { "ru": "режим", "en": "mode" } },
+      { "name": "fan", "type": "enum", "values": ["auto", "low", "medium", "high"],
+        "labels": { "ru": "вентилятор", "en": "fan" } },
+      { "name": "vane", "type": "enum", "values": ["auto", "1", "2", "3", "4", "5", "swing"],
+        "labels": { "ru": "жалюзи", "en": "vane" } },
+      { "name": "setpoint", "type": "float", "unit": "°C",
+        "labels": { "ru": "уставка", "en": "setpoint" } },
+      { "name": "temperature", "type": "float", "unit": "°C",
+        "labels": { "ru": "температура подачи", "en": "supply temperature" } },
+      { "name": "room_temperature", "type": "float", "unit": "°C",
+        "labels": { "ru": "температура в комнате", "en": "room temperature" } }
+    ]
+  }
+}

@@ -11,6 +11,48 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-08 (§P3.7 #19 DONE — capability vocab profiles + driver enrichment)** —
+  First task of the bulk phase landed. **Six capability profiles authored** in
+  `backend/config/capabilities/profiles/`: `dimmable_light` (wb-mdm3 switch+slider),
+  `rgb_light` (wb-mrgbw-d), `cover` (Dooya), `heating_loop` (radiator/floor),
+  `hvac` (full mitsubishi-style climate), `sensor_room` (wb-msw-v3 with 5 fields —
+  motion intentionally dropped, no v1 voice use case per user direction). **Schema
+  widening landed cleanly**: new `StateTopicSpec(topic, type, encoding?, values?, unit?)`
+  Pydantic model + a `mode="before"` `field_validator` on `state_topics` that normalises
+  the bare-string config form into `StateTopicSpec(topic=..., type="str")` — slice's
+  `cabinet_spots.json` and its tests parse unchanged. New optional `payload_template` on
+  `WbPassthroughCommandConfig` for composite payloads (RGB-style). New `CapabilityField`
+  model + `fields: List[CapabilityField]` on `Capability` (domain layer); `_shape`
+  validator widened to accept the pure-sensor shape (stateful + empty actions + non-empty
+  fields). **Driver helpers in the WB-passthrough driver** (~70 LOC): `_compose_payload`
+  uses `payload_template.format(**params)` for multi-param composite writes;
+  `_parse_value` does scalar coerce / enum validate / template-inverse (`"R;G;B"` →
+  `{r,g,b}` via the new module-level `_parse_template` regex); `_coerce_mirror` looks up
+  field spec, parses, logs on failure WITHOUT touching `error_flags` (that surface is
+  WB-protocol-only — `r`/`w`/`p` — so a parse failure must not falsely flip `reachable`).
+  `WbPassthroughState.mirrored` widened from `Dict[str, str]` to `Dict[str, Any]` so typed
+  values land directly (floats are floats, RGB is a dict, enums stay strings). **Catalog
+  builder enhancement**: new `CatalogField` DTO mirrors `CapabilityField`;
+  `_project_capability_actions` walks `cap.fields[]` and emits type/encoding/values/unit/
+  labels. Version hash naturally bumps when a capability `fields[]` entry changes (Irene
+  re-fetches when sensors become visible or a new encoding lands). **Footgun caught + fixed**:
+  `Capability.fields = Field(default_factory=list, ...)` raised `'FieldInfo' object is not
+  callable` because the prior `list: Optional[CapabilityAction] = Field(...)` declaration
+  in the same class body shadowed the builtin `list` — so `default_factory=list` resolved
+  to the FieldInfo, not the constructor. Switched to `default_factory=lambda: []` with an
+  inline comment so the next reader doesn't trip on it. **Tests**: 7 new profile/loader
+  tests (sensor 5 fields no motion + each profile's distinguishing shape), 9 new driver
+  tests (template parse + inverse, RGB compose + mirror round-trip, scalar coerce,
+  parse-failure log path that does NOT flag `error_flags`, slice bare-string back-compat
+  regression), 4 new catalog tests (sensor fields surface with labels, RGB encoding
+  surfaces, version bumps on field addition), 1 slice test pin update (typed `StateTopicSpec`
+  not raw string). **474 passed** (was 453). **Hexagonal LAW clean** — `grep` confirmed
+  zero `domain → infrastructure/presentation` imports (the new `CapabilityField` references
+  `LocalizedName` from `domain/devices/config.py`, same layer). Also swept the
+  `BaseDeviceConfig.room` docstring that still mentioned the deprecated "Irene iterates
+  rooms" model — fixed to match the aggregate-device-in-`global` resolution (matches the
+  2026-06-07 contract reconcile). **Next**: #21 (rooms.json bootstrap) + #22 (aggregate
+  devices in `global`).
 - **2026-06-08 (§P3.7 #20 collapse — composition folds into the driver; HVAC class locked)** —
   Follow-up discussion on the bulk plan. Re-examined yesterday's "the composition layer #20
   needs code that profiles can't carry" claim and found it overstated: the only items that

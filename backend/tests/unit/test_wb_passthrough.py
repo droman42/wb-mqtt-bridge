@@ -17,10 +17,14 @@ from unittest.mock import AsyncMock, MagicMock
 
 from wb_mqtt_bridge.infrastructure.config.models import (
     CommandParameterDefinition,
+    StateTopicSpec,
     WbPassthroughCommandConfig,
     WbPassthroughDeviceConfig,
 )
-from wb_mqtt_bridge.infrastructure.devices.wb_passthrough.driver import WbPassthroughDevice
+from wb_mqtt_bridge.infrastructure.devices.wb_passthrough.driver import (
+    WbPassthroughDevice,
+    _parse_template,
+)
 
 
 def _slice_config() -> WbPassthroughDeviceConfig:
@@ -256,3 +260,157 @@ async def test_w_only_error_does_not_flip_reachable(device):
     await device._on_error_message("power", "/devices/wb-mr6c_51/controls/K4/meta/error", "w")
     assert device.state.error_flags == {"power": "w"}
     assert device.state.reachable is True
+
+
+# --- §P3.7 #19 -- typed state_topics + payload_template + type coercion -----
+
+
+def _rgb_config() -> WbPassthroughDeviceConfig:
+    """A composite-payload device: `color.set(r,g,b)` is one WB publish with `"R;G;B"`,
+    one mirrored field of typed RGB. Exercises payload_template + rgb encoding round-trip."""
+    return WbPassthroughDeviceConfig(
+        device_id="livingroom_rgb",
+        names={"ru": "Подсветка", "en": "Mood Light"},
+        device_class="WbPassthroughDevice",
+        config_class="WbPassthroughDeviceConfig",
+        room="livingroom",
+        commands={
+            "set_color": WbPassthroughCommandConfig(
+                action="set_color",
+                topic="/devices/wb-mrgbw-d-fw3_10/controls/RGB Strip/on",
+                params=[
+                    CommandParameterDefinition(name="r", type="integer", min=0, max=255, required=True),
+                    CommandParameterDefinition(name="g", type="integer", min=0, max=255, required=True),
+                    CommandParameterDefinition(name="b", type="integer", min=0, max=255, required=True),
+                ],
+                payload_template="{r};{g};{b}",
+            ),
+        },
+        state_topics={
+            "color": {
+                "topic": "/devices/wb-mrgbw-d-fw3_10/controls/RGB Strip",
+                "type": "rgb",
+                "encoding": "{r};{g};{b}",
+            },
+        },
+    )
+
+
+def _sensor_config() -> WbPassthroughDeviceConfig:
+    """A pure-sensor (no commands) device that uses typed state_topics for all the
+    wb-msw-v3 fields. Exercises the type coercion paths for scalar reads."""
+    return WbPassthroughDeviceConfig(
+        device_id="livingroom_sensors",
+        names={"ru": "Сенсоры гостиной", "en": "Living Room Sensors"},
+        device_class="WbPassthroughDevice",
+        config_class="WbPassthroughDeviceConfig",
+        capability_profile="sensor_room",
+        room="livingroom",
+        state_topics={
+            "temperature": {"topic": "/devices/wb-msw-v3_207/controls/Temperature", "type": "float", "unit": "°C"},
+            "humidity":    {"topic": "/devices/wb-msw-v3_207/controls/Humidity",    "type": "float", "unit": "%"},
+            "co2":         {"topic": "/devices/wb-msw-v3_207/controls/CO2",         "type": "int",   "unit": "ppm"},
+            "illuminance": {"topic": "/devices/wb-msw-v3_207/controls/Illuminance", "type": "float", "unit": "lux"},
+            "sound_level": {"topic": "/devices/wb-msw-v3_207/controls/Sound Level", "type": "float", "unit": "dB"},
+        },
+    )
+
+
+def test_parse_template_inverse_round_trip():
+    """`"{r};{g};{b}"` + `"255;128;0"` → `{r:255, g:128, b:0}` (with int coerce). Used by
+    `_parse_value` for the `rgb` type and any future composite encoding."""
+    result = _parse_template("{r};{g};{b}", "255;128;0", coerce=int)
+    assert result == {"r": 255, "g": 128, "b": 0}
+
+
+def test_parse_template_rejects_payload_mismatching_separators():
+    with pytest.raises(ValueError, match="does not match template"):
+        _parse_template("{r};{g};{b}", "255,128,0", coerce=int)
+
+
+def test_parse_template_rejects_template_with_no_placeholders():
+    with pytest.raises(ValueError, match="no `{name}` placeholders"):
+        _parse_template("fixed_value", "anything")
+
+
+@pytest.mark.asyncio
+async def test_rgb_publish_uses_payload_template(mqtt):
+    """`color.set(r,g,b)` must compose `"R;G;B"` and publish once — the v1 way to drive
+    a composite WB control without a separate adapter layer."""
+    dev = WbPassthroughDevice(_rgb_config(), mqtt_client=mqtt)
+    result = await dev.execute_action("set_color", {"r": 255, "g": 128, "b": 0}, source="api")
+    assert result["success"] is True
+    mqtt.publish.assert_awaited_once_with(
+        "/devices/wb-mrgbw-d-fw3_10/controls/RGB Strip/on", "255;128;0"
+    )
+
+
+@pytest.mark.asyncio
+async def test_rgb_publish_with_missing_template_param_fails_cleanly(mqtt):
+    dev = WbPassthroughDevice(_rgb_config(), mqtt_client=mqtt)
+    result = await dev.execute_action("set_color", {"r": 255, "g": 128}, source="api")
+    assert result["success"] is False
+    mqtt.publish.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_rgb_mirror_inverse_parses_into_typed_dict(mqtt):
+    """The incoming value-topic echo `"255;128;0"` must coerce into the typed
+    `{r:255,g:128,b:0}` dict via the `encoding` template (state_topics → rgb)."""
+    dev = WbPassthroughDevice(_rgb_config(), mqtt_client=mqtt)
+    await dev._on_value_message("color", "/devices/wb-mrgbw-d-fw3_10/controls/RGB Strip", "255;128;0")
+    assert dev.state.mirrored == {"color": {"r": 255, "g": 128, "b": 0}}
+    assert dev.state.reachable is True
+
+
+@pytest.mark.asyncio
+async def test_sensor_float_payloads_coerce_to_typed_state(mqtt):
+    """Temperature/humidity/illuminance/sound_level all `type=float`; the raw `"21.5"` wire
+    string must land in state.mirrored as the float 21.5 (catalog/Irene get typed values
+    without consumer-side parsing)."""
+    dev = WbPassthroughDevice(_sensor_config(), mqtt_client=mqtt)
+    await dev._on_value_message("temperature", "/devices/wb-msw-v3_207/controls/Temperature", "21.5")
+    await dev._on_value_message("co2", "/devices/wb-msw-v3_207/controls/CO2", "650")
+    assert dev.state.mirrored["temperature"] == 21.5
+    assert isinstance(dev.state.mirrored["temperature"], float)
+    assert dev.state.mirrored["co2"] == 650
+    assert isinstance(dev.state.mirrored["co2"], int)
+
+
+@pytest.mark.asyncio
+async def test_malformed_typed_payload_logs_and_mirrors_raw_without_changing_reachable(mqtt, caplog):
+    """If a payload doesn't parse against its declared type, the driver logs a warning and
+    mirrors the raw string instead -- it does NOT touch `state.error_flags` (which is
+    WB-protocol-only: `r`/`w`/`p`) and `reachable` stays True (the device IS talking; WE
+    just can't decode this one message)."""
+    dev = WbPassthroughDevice(_sensor_config(), mqtt_client=mqtt)
+    import logging
+    caplog.set_level(logging.WARNING)
+    await dev._on_value_message("co2", "/devices/wb-msw-v3_207/controls/CO2", "not-a-number")
+    # Raw string preserved (lets downstream code see what arrived; no `None` surprise).
+    assert dev.state.mirrored["co2"] == "not-a-number"
+    # No WB-protocol flag fabricated.
+    assert "co2" not in dev.state.error_flags
+    assert dev.state.reachable is True
+    # Operator visibility lives in the log, not the state.
+    assert any("failed to parse 'co2'" in r.message for r in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_slice_bare_string_state_topic_still_mirrors_as_string(device):
+    """Back-compat regression: the slice's `state_topics={"power": "/topic"}` form must
+    keep mirroring `"1"` / `"0"` as raw strings (StateTopicSpec normalises with type=str).
+    Tests against the existing slice fixture so the cabinet_spots install doesn't change."""
+    await device._on_value_message("power", "/devices/wb-mr6c_51/controls/K4", "1")
+    assert device.state.mirrored == {"power": "1"}
+    assert isinstance(device.state.mirrored["power"], str)
+
+
+def test_state_topic_spec_normalises_bare_string_form():
+    """Bare-string `state_topics` config still parses -- key invariant for the slice's
+    existing cabinet_spots.json (no migration required)."""
+    cfg = _slice_config()
+    spec = cfg.state_topics["power"]
+    assert isinstance(spec, StateTopicSpec)
+    assert spec.topic == "/devices/wb-mr6c_51/controls/K4"
+    assert spec.type == "str"

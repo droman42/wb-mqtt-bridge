@@ -78,11 +78,12 @@ class BaseDeviceConfig(BaseModel):
     room: Optional[str] = Field(
         None,
         description="Room id (matches an entry in `rooms.json`). A device belongs to **exactly "
-                    "one** room. Devices that don't fit any physical room (whole-house controls) "
-                    "live in the special `global` room. Cross-room actions (\"выключи свет везде\") "
-                    "are resolved by Irene from the catalog -- by iterating rooms -- not via "
-                    "shared membership. `None` for AV gear that doesn't yet have a room "
-                    "(populated during bulk onboarding, §P3.7 #21).",
+                    "one** room. Aggregate whole-house controls (e.g. `all_lights`) live in the "
+                    "special `global` room. Whole-house actions (\"выключи свет везде\") resolve "
+                    "to a SINGLE canonical call against the matching aggregate device in `global` "
+                    "-- Irene does NOT iterate rooms; the bridge ships the aggregates the v1 "
+                    "voice command set needs (§P3.7 #22). `None` for AV gear that doesn't yet "
+                    "have a room (populated during bulk onboarding, §P3.7 #21+#23).",
     )
     device_category: DeviceCategory = Field(DeviceCategory.DEVICE, description="The category of the device (e.g., 'device' or 'appliance')")
     # New required fields for dynamic class loading

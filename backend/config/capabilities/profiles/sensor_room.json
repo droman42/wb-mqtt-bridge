@@ -1,0 +1,18 @@
+{
+  "sensor": {
+    "kind": "stateful",
+    "reconcile": false,
+    "fields": [
+      { "name": "temperature", "type": "float", "unit": "°C",
+        "labels": { "ru": "температура", "en": "temperature" } },
+      { "name": "humidity", "type": "float", "unit": "%",
+        "labels": { "ru": "влажность", "en": "humidity" } },
+      { "name": "co2", "type": "int", "unit": "ppm",
+        "labels": { "ru": "CO₂", "en": "CO₂" } },
+      { "name": "illuminance", "type": "float", "unit": "lux",
+        "labels": { "ru": "освещённость", "en": "illuminance" } },
+      { "name": "sound_level", "type": "float", "unit": "dB",
+        "labels": { "ru": "уровень шума", "en": "sound level" } }
+    ]
+  }
+}

@@ -12,6 +12,10 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
 
+from wb_mqtt_bridge.domain.devices.config import LocalizedName
+
+CapabilityFieldType = Literal["str", "int", "float", "bool", "rgb", "enum"]
+
 
 class CapabilityAction(BaseModel):
     """How to invoke one canonical action: a native ``command`` (or a ``sequence``
@@ -74,6 +78,30 @@ class ZonePower(BaseModel):
     actions: Dict[str, CapabilityAction]
 
 
+class CapabilityField(BaseModel):
+    """A read-only field on a stateful capability (e.g. `sensor.temperature`,
+    `climate.room_temperature`). Drives type-coercion on the device's mirrored state
+    and the catalog's per-field metadata so voice/UI consumers can render and parse
+    correctly without out-of-band knowledge. Added §P3.7 #19."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(..., description="Field name (matches the device's state_topics key).")
+    type: CapabilityFieldType = Field(..., description="Wire-to-typed coercion kind.")
+    encoding: Optional[str] = Field(
+        None,
+        description="Template-with-placeholders for composite values, e.g. `\"{r};{g};{b}\"` "
+                    "for `type=\"rgb\"`. The driver parses incoming echoes back into typed dicts.",
+    )
+    values: Optional[List[str]] = Field(
+        None, description="Allowed values for `type=\"enum\"`."
+    )
+    unit: Optional[str] = Field(None, description="Display unit (`°C`, `%`, `ppm`, `lux`, `dB`).")
+    labels: Optional[LocalizedName] = Field(
+        None, description="Localised display label (catalog surface; UI labels)."
+    )
+
+
 class Capability(BaseModel):
     """A canonical capability domain (``power``, ``input``, ``volume``, …)."""
 
@@ -107,11 +135,24 @@ class Capability(BaseModel):
             "the driver translates that to `handle_home` (= 'be on internal mode')."
         ),
     )
+    fields: List[CapabilityField] = Field(
+        # NOTE: `default_factory=list` would resolve to the FieldInfo of the `list` field
+        # above (class-body name shadow), not the builtin. The lambda dodges that.
+        default_factory=lambda: [],
+        description=(
+            "Read-only state surfaces for this capability (e.g. `sensor.temperature/humidity/co2`, "
+            "`climate.room_temperature`, `brightness.level`). Drives type coercion in the "
+            "WB-passthrough driver and the per-field metadata in the catalog. Empty for momentary "
+            "capabilities like `power` whose state lives in `state_field`. Added §P3.7 #19."
+        ),
+    )
 
     @model_validator(mode="after")
     def _shape(self) -> "Capability":
-        if self.kind == "stateful" and not (self.actions or self.select or self.zones):
-            raise ValueError("stateful capability needs one of `actions`, `select`, or `zones`")
+        if self.kind == "stateful" and not (self.actions or self.select or self.zones or self.fields):
+            raise ValueError(
+                "stateful capability needs one of `actions`, `select`, `zones`, or `fields`"
+            )
         return self
 
 

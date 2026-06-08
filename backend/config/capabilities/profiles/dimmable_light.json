@@ -1,0 +1,21 @@
+{
+  "power": {
+    "kind": "momentary",
+    "actions": {
+      "on":  { "command": "power_on" },
+      "off": { "command": "power_off" }
+    }
+  },
+  "brightness": {
+    "kind": "stateful",
+    "feedback": true,
+    "state_field": "level",
+    "actions": {
+      "set": { "command": "set_brightness", "param_map": { "level": "level" } }
+    },
+    "fields": [
+      { "name": "level", "type": "int", "unit": "%",
+        "labels": { "ru": "яркость", "en": "brightness" } }
+    ]
+  }
+}

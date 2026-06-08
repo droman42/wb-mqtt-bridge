@@ -50,7 +50,11 @@ def test_cabinet_spots_json_parses_as_wb_passthrough_config():
     assert cfg.commands["power_on"].value == "1"
     assert cfg.commands["power_off"].value == "0"
     # State mirror picks the value-topic (without /on suffix), per the WB convention.
-    assert cfg.state_topics == {"power": "/devices/wb-mr6c_51/controls/K4"}
+    # `state_topics` widened to typed StateTopicSpec in #19; the slice's bare-string form
+    # normalises to `type="str"` with the same topic — round-trip pin.
+    assert set(cfg.state_topics.keys()) == {"power"}
+    assert cfg.state_topics["power"].topic == "/devices/wb-mr6c_51/controls/K4"
+    assert cfg.state_topics["power"].type == "str"
 
 
 def test_recursive_scanner_finds_config_under_wb_devices_room_subdir():

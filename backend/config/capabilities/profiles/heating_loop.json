@@ -1,0 +1,20 @@
+{
+  "climate": {
+    "kind": "stateful",
+    "feedback": true,
+    "state_field": "mode",
+    "actions": {
+      "on":            { "command": "mode_on" },
+      "off":           { "command": "mode_off" },
+      "set_setpoint":  { "command": "set_setpoint", "param_map": { "temp": "temp" } }
+    },
+    "fields": [
+      { "name": "mode", "type": "enum", "values": ["off", "on"],
+        "labels": { "ru": "режим", "en": "mode" } },
+      { "name": "setpoint", "type": "float", "unit": "°C",
+        "labels": { "ru": "уставка", "en": "setpoint" } },
+      { "name": "room_temperature", "type": "float", "unit": "°C",
+        "labels": { "ru": "температура в комнате", "en": "room temperature" } }
+    ]
+  }
+}

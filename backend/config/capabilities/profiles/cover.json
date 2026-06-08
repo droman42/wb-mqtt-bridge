@@ -1,0 +1,17 @@
+{
+  "cover": {
+    "kind": "stateful",
+    "feedback": true,
+    "state_field": "position",
+    "actions": {
+      "open":         { "command": "open" },
+      "close":        { "command": "close" },
+      "set_position": { "command": "set_position", "param_map": { "pct": "pct" } },
+      "stop":         { "command": "stop" }
+    },
+    "fields": [
+      { "name": "position", "type": "int", "unit": "%",
+        "labels": { "ru": "положение", "en": "position" } }
+    ]
+  }
+}

@@ -135,6 +135,100 @@ def test_action_needs_exactly_one_invocation():
         Capability.model_validate({"kind": "momentary", "actions": {"x": {}}})  # no command/sequence
 
 
+# --- §P3.7 #19 -- capability profiles authored for bulk onboarding -----------
+
+
+def test_sensor_room_profile_has_5_read_only_fields_no_actions():
+    """`sensor_room` is the wb-msw-v3 sensor side. It's a pure read surface: no actions,
+    `reconcile=False` (the scenario reconciler shouldn't try to drive it), and a typed
+    field per WB control we surface to voice/UI. Motion is intentionally OUT (no v1 voice
+    use case per the §P3.7 #19 scope discussion 2026-06-08)."""
+    m = load_capability_map("WbPassthroughDevice", "any_msw",
+                             capabilities_dir=CAPS, capability_profile="sensor_room")
+    sensor = m.get("sensor")
+    assert sensor is not None and sensor.kind == "stateful"
+    assert sensor.reconcile is False
+    assert sensor.actions == {}
+    names = [f.name for f in sensor.fields]
+    assert names == ["temperature", "humidity", "co2", "illuminance", "sound_level"]
+    # Field metadata is what catalog consumers (Irene, UI) need for typed parse + display.
+    by = {f.name: f for f in sensor.fields}
+    assert by["temperature"].type == "float" and by["temperature"].unit == "°C"
+    assert by["co2"].type == "int" and by["co2"].unit == "ppm"
+    assert by["temperature"].labels.ru == "температура"
+
+
+def test_rgb_light_profile_carries_color_field_with_rgb_encoding():
+    """`color.set(r,g,b)` resolves to a single native command on a single WB control whose
+    payload is composed via the device config's `payload_template`. The PROFILE side
+    carries the field metadata used to PARSE the incoming echo back into `{r,g,b}`."""
+    m = load_capability_map("WbPassthroughDevice", "any_rgb",
+                             capabilities_dir=CAPS, capability_profile="rgb_light")
+    color = m.get("color")
+    assert color.actions["set"].command == "set_color"
+    assert color.actions["set"].param_map == {"r": "r", "g": "g", "b": "b"}
+    color_field = next(f for f in color.fields if f.name == "color")
+    assert color_field.type == "rgb"
+    assert color_field.encoding == "{r};{g};{b}"
+
+
+def test_hvac_climate_enum_fields_carry_allowed_values():
+    """Enum fields (mode/fan/vane) declare their allowed values so the catalog consumer
+    can validate set-action params and render a fixed list."""
+    m = load_capability_map("WbPassthroughDevice", "any_hvac",
+                             capabilities_dir=CAPS, capability_profile="hvac")
+    climate = m.get("climate")
+    mode = next(f for f in climate.fields if f.name == "mode")
+    assert mode.type == "enum"
+    assert set(mode.values) == {"off", "cool", "heat", "auto", "fan", "dry"}
+    fan = next(f for f in climate.fields if f.name == "fan")
+    assert fan.values == ["auto", "low", "medium", "high"]
+
+
+def test_heating_loop_profile_has_climate_with_three_fields():
+    """Heating loop is the most composite simple shape: actuator (on/off) + setpoint slider
+    + room-temp sensor reads. Modeled as one `climate` capability with field reads."""
+    m = load_capability_map("WbPassthroughDevice", "any_radiator",
+                             capabilities_dir=CAPS, capability_profile="heating_loop")
+    climate = m.get("climate")
+    assert {a for a in climate.actions} == {"on", "off", "set_setpoint"}
+    assert {f.name for f in climate.fields} == {"mode", "setpoint", "room_temperature"}
+
+
+def test_dimmable_light_inherits_power_plus_brightness_with_level_field():
+    m = load_capability_map("WbPassthroughDevice", "any_dimmer",
+                             capabilities_dir=CAPS, capability_profile="dimmable_light")
+    assert m.get("power").actions["on"].command == "power_on"
+    bright = m.get("brightness")
+    assert bright.actions["set"].command == "set_brightness"
+    level = bright.fields[0]
+    assert level.name == "level" and level.type == "int" and level.unit == "%"
+
+
+def test_cover_profile_has_open_close_set_position_stop_actions():
+    m = load_capability_map("WbPassthroughDevice", "any_cover",
+                             capabilities_dir=CAPS, capability_profile="cover")
+    actions = m.get("cover").actions
+    assert {"open", "close", "set_position", "stop"} == set(actions.keys())
+    assert actions["set_position"].param_map == {"pct": "pct"}
+
+
+def test_stateful_capability_with_fields_only_is_valid_shape():
+    """Sensor-shape: stateful, no actions, no select, no zones, but `fields` populated.
+    The `_shape` validator must accept this (per §P3.7 #19 widening)."""
+    cap = Capability.model_validate({
+        "kind": "stateful", "reconcile": False,
+        "fields": [{"name": "temperature", "type": "float", "unit": "°C"}],
+    })
+    assert cap.fields[0].name == "temperature"
+
+
+def test_stateful_capability_with_nothing_at_all_still_rejected():
+    """A stateful capability with NO actions/select/zones/fields is still meaningless."""
+    with pytest.raises(Exception):
+        Capability.model_validate({"kind": "stateful"})
+
+
 def test_attach_capability_maps_assigns_per_device():
     from types import SimpleNamespace
 

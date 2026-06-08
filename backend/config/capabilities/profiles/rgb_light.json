@@ -1,0 +1,36 @@
+{
+  "power": {
+    "kind": "momentary",
+    "actions": {
+      "on":  { "command": "power_on" },
+      "off": { "command": "power_off" }
+    }
+  },
+  "brightness": {
+    "kind": "stateful",
+    "feedback": true,
+    "state_field": "level",
+    "actions": {
+      "set": { "command": "set_brightness", "param_map": { "level": "level" } }
+    },
+    "fields": [
+      { "name": "level", "type": "int", "unit": "%",
+        "labels": { "ru": "яркость", "en": "brightness" } }
+    ]
+  },
+  "color": {
+    "kind": "stateful",
+    "feedback": true,
+    "state_field": "color",
+    "actions": {
+      "set": {
+        "command": "set_color",
+        "param_map": { "r": "r", "g": "g", "b": "b" }
+      }
+    },
+    "fields": [
+      { "name": "color", "type": "rgb", "encoding": "{r};{g};{b}",
+        "labels": { "ru": "цвет", "en": "color" } }
+    ]
+  }
+}

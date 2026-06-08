@@ -15,9 +15,10 @@ wb-rules acting through it) is. This driver:
   value-topic update can't trigger a republish back to the same value topic — we'd
   otherwise feedback-loop with the real device.
 
-Adding a new WB device is a config file, not code. The driver is data-driven; complex
-shapes (RGB strings, HVAC multi-cell, paired switch+brightness lights) are handled by the
-capability-adapter layer above (§P3.7 #20), not in here.
+Adding a new WB device is a config file, not code. The driver is data-driven; composite
+payload shapes (RGB `"r;g;b"`, multi-cell HVAC) are handled INSIDE this driver via typed
+`state_topics` specs (§P3.7 #19) + per-command `payload_template`, not in a separate
+adapter layer.
 """
 from __future__ import annotations
 
@@ -26,7 +27,10 @@ from datetime import datetime
 from functools import partial
 from typing import Any, Dict, List, Optional
 
+import re
+
 from wb_mqtt_bridge.infrastructure.config.models import (
+    StateTopicSpec,
     WbPassthroughCommandConfig,
     WbPassthroughDeviceConfig,
 )
@@ -41,6 +45,33 @@ from wb_mqtt_bridge.infrastructure.wb_device.service import WBVirtualDeviceServi
 from wb_mqtt_bridge.utils.types import CommandResult
 
 logger = logging.getLogger(__name__)
+
+
+_PLACEHOLDER_RE = re.compile(r"\{([a-zA-Z_][a-zA-Z0-9_]*)\}")
+
+
+def _parse_template(template: str, raw: str, coerce: Any = str) -> Dict[str, Any]:
+    """Invert a `"{a};{b};{c}"`-style template against a concrete payload, producing the
+    dict `{a: ..., b: ..., c: ...}`. Used for composite encodings like RGB
+    (`"{r};{g};{b}"` + `"255;128;0"` → `{r: 255, g: 128, b: 0}`).
+
+    Raises ValueError on a payload that doesn't match the template's literal separators
+    or whose parts can't be coerced.
+    """
+    names = _PLACEHOLDER_RE.findall(template)
+    if not names:
+        raise ValueError(f"template {template!r} has no `{{name}}` placeholders")
+    # Build a regex from the template: literal separators escaped, placeholders -> capture groups.
+    pattern = re.escape(template)
+    for n in names:
+        pattern = pattern.replace(re.escape("{" + n + "}"), "([^;,/\\s]+)", 1)
+    m = re.fullmatch(pattern, raw)
+    if not m:
+        raise ValueError(f"{raw!r} does not match template {template!r}")
+    parts = m.groups()
+    if len(parts) != len(names):
+        raise ValueError(f"template {template!r} expects {len(names)} groups, got {len(parts)}")
+    return {n: coerce(p) for n, p in zip(names, parts)}
 
 
 class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
@@ -62,7 +93,7 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
         )
         # Reverse map: MQTT value topic -> state-field name (for fast handler dispatch).
         self._state_topic_to_field: Dict[str, str] = {
-            topic: field for field, topic in self.config.state_topics.items()
+            spec.topic: field for field, spec in self.config.state_topics.items()
         }
         # Track which topics we actually subscribed to so shutdown is symmetric.
         self._subscribed_topics: List[str] = []
@@ -93,17 +124,19 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
         if not self.mqtt_client:
             logger.warning(f"[{self.device_name}] no mqtt_client; cannot subscribe — state will not mirror.")
             return False
-        for field, topic in self.config.state_topics.items():
+        for field, spec in self.config.state_topics.items():
             await self.mqtt_client.subscribe(
-                topic, partial(self._on_value_message, field), process_retained=True,
+                spec.topic, partial(self._on_value_message, field), process_retained=True,
             )
-            self._subscribed_topics.append(topic)
-            error_topic = f"{topic}/meta/error"
+            self._subscribed_topics.append(spec.topic)
+            error_topic = f"{spec.topic}/meta/error"
             await self.mqtt_client.subscribe(
                 error_topic, partial(self._on_error_message, field), process_retained=True,
             )
             self._subscribed_topics.append(error_topic)
-            logger.info(f"[{self.device_name}] mirroring {field!r} from {topic} (+ meta/error)")
+            logger.info(
+                f"[{self.device_name}] mirroring {field!r} ({spec.type}) from {spec.topic} (+ meta/error)"
+            )
         return True
 
     async def shutdown(self) -> bool:
@@ -185,8 +218,8 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
         if not topic.endswith("/on"):
             return None
         base = topic[:-3]
-        for field, st in self.config.state_topics.items():
-            if st == base:
+        for field, spec in self.config.state_topics.items():
+            if spec.topic == base:
                 return field
         return None
 
@@ -194,12 +227,26 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
     def _resolve_payload(
         cmd_config: WbPassthroughCommandConfig, params: Dict[str, Any]
     ) -> Optional[str]:
-        """Static `value` wins. Otherwise render the first declared param's value to the
-        wire payload using WB conventions: int-shaped floats lose their decimal (the WB
-        UI sends "75" not "75.0" for a 0-100 slider); booleans render as "1"/"0";
-        everything else falls back to str()."""
+        """Resolve the wire payload for a command, in precedence order:
+
+        1. **Static `value`** wins (e.g. `power_on` → `"1"`).
+        2. **`payload_template`** (multi-param composite, §P3.7 #19): format the template
+           with all provided params. Raises ValueError via `format()` if a placeholder is
+           missing — `_compose_payload` is called via `_publish_command` which catches it.
+        3. **Single-param** fallback: render the first declared param's value using WB
+           conventions — int-shaped floats lose their decimal (the WB UI sends "75" not
+           "75.0" for a 0-100 slider); booleans render as "1"/"0"; everything else `str()`.
+        """
         if cmd_config.value is not None:
             return cmd_config.value
+        if cmd_config.payload_template is not None:
+            try:
+                return cmd_config.payload_template.format(**params)
+            except KeyError as e:
+                logger.error(
+                    f"payload_template {cmd_config.payload_template!r} references missing param: {e}"
+                )
+                return None
         if cmd_config.params:
             for p in cmd_config.params:
                 if p.name in params and params[p.name] is not None:
@@ -213,9 +260,51 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
 
     # -- mirror path (incoming MQTT) -----------------------------------------
 
+    @staticmethod
+    def _parse_value(raw: str, spec: StateTopicSpec) -> Any:
+        """Coerce a raw wire payload into its declared type. Raises ValueError on a
+        malformed payload — caller is `_coerce_mirror`, which records a `parse` error
+        flag instead of dropping the value silently."""
+        t = spec.type
+        if t == "str":
+            return raw
+        if t == "int":
+            return int(raw)
+        if t == "float":
+            return float(raw)
+        if t == "bool":
+            return raw.strip().lower() in ("1", "true", "on")
+        if t == "enum":
+            if spec.values is not None and raw not in spec.values:
+                raise ValueError(f"{raw!r} not in allowed values {spec.values}")
+            return raw
+        if t == "rgb":
+            return _parse_template(spec.encoding or "{r};{g};{b}", raw, coerce=int)
+        raise ValueError(f"unknown StateTopicSpec.type {t!r}")
+
+    def _coerce_mirror(self, field: str, raw: str) -> Any:
+        """Look up `field`'s StateTopicSpec, parse the raw payload to its typed form, and
+        return the typed value. On parse failure: log a warning and return the raw string
+        unchanged. We deliberately do NOT touch `state.error_flags` -- that's reserved for
+        WB-protocol per-control flags (`r`/`w`/`p`) and conflating it with internal parse
+        errors would mis-fire the `reachable` check (the device IS talking; WE just can't
+        decode this one payload)."""
+        spec = self.config.state_topics.get(field)
+        if spec is None:
+            return raw
+        try:
+            return self._parse_value(raw, spec)
+        except (ValueError, TypeError) as e:
+            logger.warning(
+                f"[{self.device_name}] failed to parse {field!r} payload {raw!r} as {spec.type}: {e}"
+            )
+            return raw
+
     async def _on_value_message(self, field: str, topic: str, payload: str) -> None:
-        """A value-topic echo arrived. Mirror it into state and reset the field's error."""
-        new_mirrored = {**self.state.mirrored, field: payload}
+        """A value-topic echo arrived. Coerce per the field's spec, mirror the typed value
+        into state, and clear the field's error flag on a successful read."""
+        typed = self._coerce_mirror(field, payload)
+        new_mirrored = {**self.state.mirrored, field: typed}
         # Clear the per-field error flag on a successful read (per the convention spec the
         # broker would do the same; this keeps our snapshot consistent without a re-subscribe).
         new_errors = {k: v for k, v in self.state.error_flags.items() if k != field}
