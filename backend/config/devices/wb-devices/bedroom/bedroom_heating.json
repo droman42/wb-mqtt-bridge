@@ -1,0 +1,29 @@
+{
+  "device_id": "bedroom_heating",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {"ru": "Обогрев", "en": "Heating", "de": "Heizung"},
+  "capability_profile": "heating_loop",
+  "room": "bedroom",
+  "commands": {
+    "mode_on":  {"topic": "/devices/wb-gpio/controls/EXT3_R3A4/on", "value": "0"},
+    "mode_off": {"topic": "/devices/wb-gpio/controls/EXT3_R3A4/on", "value": "1"},
+    "set_setpoint": {
+      "topic": "/devices/setpoints_radiator/controls/bedroom_temp/on",
+      "params": [{"name": "temp", "type": "float", "min": 5, "max": 30, "required": true}]
+    }
+  },
+  "state_topics": {
+    "mode": "/devices/wb-gpio/controls/EXT3_R3A4",
+    "setpoint": {
+      "topic": "/devices/setpoints_radiator/controls/bedroom_temp",
+      "type": "float",
+      "unit": "°C"
+    },
+    "room_temperature": {
+      "topic": "/devices/wb-msw-v3_225/controls/Temperature",
+      "type": "float",
+      "unit": "°C"
+    }
+  }
+}

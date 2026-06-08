@@ -6,8 +6,8 @@
   "capability_profile": "cover",
   "room": "cabinet",
   "commands": {
-    "open":  {"topic": "/devices/dooya_dm35eq_x_0x0106/controls/Position/on", "value": "100"},
-    "close": {"topic": "/devices/dooya_dm35eq_x_0x0106/controls/Position/on", "value": "0"},
+    "open":  {"topic": "/devices/dooya_dm35eq_x_0x0106/controls/Position/on", "value": "0"},
+    "close": {"topic": "/devices/dooya_dm35eq_x_0x0106/controls/Position/on", "value": "100"},
     "set_position": {
       "topic": "/devices/dooya_dm35eq_x_0x0106/controls/Position/on",
       "params": [{"name": "pct", "type": "range", "min": 0, "max": 100, "required": true}]

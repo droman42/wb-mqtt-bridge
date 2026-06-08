@@ -44,6 +44,87 @@ the user calls `commit and push`; assistant pauses until `continue` arrives.
 
 ## 1. Per-device session log
 
+### 1.4 Bedroom (room id `bedroom`, WB dashboard `bedroom`)
+
+Largest single room so far (11 devices). Three categories authored: lights, HVAC,
+heating, curtains. Sensors deferred.
+
+#### 1.4.1 Lighting widget (7 devices in one round-trip)
+
+Most complex lighting widget yet: 10 cells → 7 logical devices. Two patterns worth
+flagging:
+
+**Multiple paired switch+brightness cells on one RGB controller**: `wb-mrgbw-d-fw3_10`
+has its `Channel 3 (G)` and `Channel 1 (B)` channels used as INDEPENDENT single-color
+dimmable lights (window accent + shelves accent). Same shape as cabinet_backlight on
+`wb-mrgbw-d-fw3_238/Channel 2 (R)`, but here two channels on the same controller drive
+two different fixtures. The fw3 controller can drive 4 channels independently (R/G/B/W)
+plus the all-channel "RGB Strip"; this room uses two of them.
+
+**Cross-room slave use accumulating**: `wb-mr6c_51` now hosts cabinet K4 + children
+K2/K3 + bedroom K6. `wb-mr6c_58` hosts living K1/K2 + bedroom K3/K4. Each device's
+config references the slave path it cares about; no special handling needed.
+
+| device_id | ru | en | de | profile | WB control(s) |
+|---|---|---|---|---|---|
+| `bedroom_spots` | Споты | Spots | Spots | `dimmable_light` | `wb-mdm3_95/K1` + `Channel 1` |
+| `bedroom_window_light` | Подсветка окна | Window Accent | Fensterbeleuchtung | `dimmable_light` | `wb-mrgbw-d-fw3_10/Channel 3 (G)` + `Brightness` |
+| `bedroom_shelves_light` | Подсветка полок | Shelves Accent | Regalbeleuchtung | `dimmable_light` | `wb-mrgbw-d-fw3_10/Channel 1 (B)` + `Brightness` |
+| `bedroom_nightstand_right` | Тумбочка справа | Nightstand (Right) | Nachttisch rechts | `light_switch` | `wb-mr6c_58/K3` |
+| `bedroom_nightstand_left` | Тумбочка слева | Nightstand (Left) | Nachttisch links | `light_switch` | `wb-mr6c_58/K4` |
+| `bedroom_sconce_right` | Бра справа | Sconce (Right) | Wandleuchte rechts | `light_switch` | `wb-mr6c_51/K6` |
+| `bedroom_sconce_left` | Бра слева | Sconce (Left) | Wandleuchte links | `light_switch` | `wb-mr6c_52/K1` |
+
+**User response.** `approve all 7, ranges go from 0 to 100` — bulk approval +
+range confirmation (which matched my draft).
+
+**Adjacent fix triggered**: `test_new_rooms_start_with_empty_devices` was asserting
+6 rooms still empty; bedroom no longer fits. Renamed test to
+`test_rooms_not_yet_onboarded_are_still_empty` and dropped bedroom from the empty list
+with a docstring tracking the trajectory ("rooms that #23 hasn't reached yet").
+Pattern will repeat for kitchen + remaining 5 rooms.
+
+#### 1.4.2 HVAC — `bedroom_hvac` (3rd Mitsubishi, mechanical clone)
+
+Identical shape to `living_room_hvac` / `children_room_hvac`. Topic prefix
+`hvac_bedroom`. Same ESP32ManagedDevice migration flag (§2.11). Written without Q&A;
+user-implicit approval.
+
+#### 1.4.3 Heating loop — `bedroom_heating` (mechanical clone)
+
+Same shape as `living_room_heating` / `children_room_heating`: wb-gpio actuator with
+`invert: true`, setpoints_radiator setpoint, wb-msw-v3 room sensor. Topics: actuator
+`EXT3_R3A4`, setpoint `bedroom_temp`, sensor `wb-msw-v3_225`. Written without Q&A.
+
+#### 1.4.4 Curtains — single rail (2 covers)
+
+Bedroom has a single curtain rail with both heavy + sheer layers (vs. living_room's
+TWO rails). Naming: no left/right qualifier needed → kept ru cells verbatim (`Штора`,
+`Тюль`); device_ids just `bedroom_curtain` and `bedroom_tulle`. Same §2.10 "verbatim
+when unambiguous" pattern that cabinet's rollers used.
+
+| device_id | ru | en | de | WB control |
+|---|---|---|---|---|
+| `bedroom_curtain` | Штора | Curtain | Vorhang | `dooya_0x0108/Position` |
+| `bedroom_tulle` | Тюль | Sheer | Gardine | `dooya_0x0107/Position` |
+
+### 1.4.5 Bedroom session summary
+
+**11 devices** (sensors deferred):
+
+| Profile | Count | Devices |
+|---|---|---|
+| `light_switch` | 4 | nightstand_right/left, sconce_right/left |
+| `dimmable_light` | 3 | spots, window_light, shelves_light |
+| `cover` | 2 | curtain, tulle |
+| `hvac` | 1 | hvac (ESP32ManagedDevice migration flagged) |
+| `heating_loop` | 1 | heating |
+
+Zero new profile-side changes. Drift-guard test happy throughout. The first three
+rooms paid the design cost; bedroom (and from here on) is pure copy-paste-with-topic-swap.
+
+---
+
 ### 1.3 Children's room (room id `children_room`, WB dashboard `children`)
 
 #### 1.3.1 Lighting widget (4 devices in one round-trip)
@@ -485,6 +566,38 @@ User skipped #22 to do #23 first. Implication: the `global` room exists in
 `rooms.json` but stays empty until aggregates are authored later (after #23 or
 deferred indefinitely depending on voice command coverage).
 
+### 2.12 Dooya position semantics differ by motor model
+
+**Surfaced retroactively during bedroom session.** User caught this watching the
+authoring log: the cabinet uses `dooya_dm35eq_x_*` motors where `position=0` means
+**fully open**, `position=100` means **fully closed**. The living_room and bedroom use
+plain `dooya_0x01xx` motors with the OPPOSITE convention (`0=closed, 100=open`).
+
+The 4 living_room covers and 2 bedroom covers were authored correctly (open writes
+"100"). The 2 cabinet rollers were authored **wrong** (open writes "100" → actually
+closes the roller). Fixed both: cabinet rollers now have `open: "0", close: "100"`.
+
+Per-device wire semantics for `Position`:
+
+| Motor family | `value=0` | `value=100` |
+|---|---|---|
+| `dooya_0x01XX` (living_room, bedroom) | fully closed | fully open |
+| `dooya_dm35eq_x_*` (cabinet) | **fully open** | **fully closed** |
+
+**Limitation NOT fixed** in this pass: the `set_position(pct)` action passes `pct`
+straight through to the WB slider. For the inverted cabinet motors, voice asking "set
+to 25%" intends "25% open" but publishing `25` to the cabinet's slider means "25% of
+motor travel" = "75% open". `open` and `close` actions work because each device's
+config maps them to the correct wire value; `set_position(50)` works *by coincidence*
+because 50% is the midpoint either way. Any other percentage diverges. Documented as a
+follow-up — see §4.9 for the structural fix path.
+
+**Lesson.** The Dooya model family appears in the WB topic name (`dooya_0x01XX` vs
+`dooya_dm35eq_x_*`). Future cover devices need a quick "which motor family is this?"
+check before drafting open/close values. An importer reading
+`/etc/wb-webui.conf` could look up the WB device's `meta` block (or a known
+model→semantics table) and propose the right defaults automatically.
+
 ### 2.11 HVAC configs are flagged for `device_class` migration to `ESP32ManagedDevice`
 
 Per the 2026-06-08 lock-in decision (see action_plan.md §P3.7 #19 and the journal entry
@@ -702,6 +815,25 @@ has a Position slider only, propose `cover`. The mappings are mostly mechanical.
 When the user (or importer) declares a `state_topic` with a type that conflicts with
 the profile's declared field type, surface the mismatch with the three resolutions
 we discussed (str / bool / drop from fields[]). Decision-support, not auto-resolve.
+
+### 4.9 Per-device `invert` flag for cover position (and similar)
+
+The cabinet rollers' inverted Position semantics (§2.12) are a special case of the
+same class of problem as the heating actuators' `invert: true` flag (§1.2.4): the WB
+wire convention is the LOGICAL value, but the user-facing INTENT is the inverted
+value. We fixed both with hand-set `value:` swaps in the device config (open/close
+for covers; mode_on/mode_off for actuators), but `set_position(pct)` can't be fixed
+that way because it's a continuous range.
+
+A clean structural fix: add an `invert_position: bool` config flag on
+`WbPassthroughCommandConfig` (or on the per-field `StateTopicSpec`). The driver:
+- Inverts the published value (`pct=25` → publishes `100-25=75`) for outgoing writes.
+- Inverts the mirrored value (incoming `"75"` → stores `25`) so state.mirrored reads
+  natural-sense.
+
+Net effect: voice and UI see one consistent convention ("100 = open" everywhere);
+the driver hides the device-family quirk. ~10 LOC + a config-side flag + tests.
+Worth doing when set_position becomes a real voice command; deferring for now.
 
 ### 4.8 Eliminate the rooms.json `devices` duplication
 

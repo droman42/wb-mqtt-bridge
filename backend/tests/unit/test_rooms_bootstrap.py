@@ -84,13 +84,20 @@ def test_legacy_rooms_preserve_existing_device_membership():
     assert "cabinet_spots" in raw["cabinet"]["devices"]
 
 
-def test_new_rooms_start_with_empty_devices():
-    """Every freshly bootstrapped room (no pre-slice devices) ships empty so #22 + #23 can
-    fill them through the normal config flow."""
+def test_rooms_not_yet_onboarded_are_still_empty():
+    """Rooms that #23 hasn't reached yet stay empty (no devices listed). As each room's
+    WB-passthrough configs land, it leaves this list -- watch the diff over time:
+
+    - #21 (rooms.json bootstrap): all 6 new rooms started empty
+    - #23 cabinet: cabinet had a slice device already; new rooms still empty
+    - #23 living_room / children_room: those rooms filled; this list unchanged
+    - #23 bedroom (2026-06-08): bedroom filled and dropped from this list
+
+    Today's still-empty set: entrance / hall / shower / bathroom / wardrobe / global."""
     raw = _load()
-    for room_id in ("entrance", "hall", "shower", "bathroom", "bedroom", "wardrobe"):
+    for room_id in ("entrance", "hall", "shower", "bathroom", "wardrobe"):
         assert raw[room_id]["devices"] == [], (
-            f"{room_id} should be empty until devices land via §P3.7 #22+#23"
+            f"{room_id} hasn't been onboarded by #23 yet; should be empty until then"
         )
 
 

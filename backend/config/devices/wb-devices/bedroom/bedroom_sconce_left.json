@@ -1,0 +1,13 @@
+{
+  "device_id": "bedroom_sconce_left",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {"ru": "Бра слева", "en": "Sconce (Left)", "de": "Wandleuchte links"},
+  "capability_profile": "light_switch",
+  "room": "bedroom",
+  "commands": {
+    "power_on":  {"topic": "/devices/wb-mr6c_52/controls/K1/on", "value": "1"},
+    "power_off": {"topic": "/devices/wb-mr6c_52/controls/K1/on", "value": "0"}
+  },
+  "state_topics": {"power": "/devices/wb-mr6c_52/controls/K1"}
+}

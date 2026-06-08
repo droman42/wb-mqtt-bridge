@@ -1,0 +1,19 @@
+{
+  "device_id": "bedroom_tulle",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {"ru": "Тюль", "en": "Sheer", "de": "Gardine"},
+  "capability_profile": "cover",
+  "room": "bedroom",
+  "commands": {
+    "open":  {"topic": "/devices/dooya_0x0107/controls/Position/on", "value": "100"},
+    "close": {"topic": "/devices/dooya_0x0107/controls/Position/on", "value": "0"},
+    "set_position": {
+      "topic": "/devices/dooya_0x0107/controls/Position/on",
+      "params": [{"name": "pct", "type": "range", "min": 0, "max": 100, "required": true}]
+    }
+  },
+  "state_topics": {
+    "position": {"topic": "/devices/dooya_0x0107/controls/Position", "type": "int", "unit": "%"}
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "device_id": "bedroom_nightstand_right",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {"ru": "Тумбочка справа", "en": "Nightstand (Right)", "de": "Nachttisch rechts"},
+  "capability_profile": "light_switch",
+  "room": "bedroom",
+  "commands": {
+    "power_on":  {"topic": "/devices/wb-mr6c_58/controls/K3/on", "value": "1"},
+    "power_off": {"topic": "/devices/wb-mr6c_58/controls/K3/on", "value": "0"}
+  },
+  "state_topics": {"power": "/devices/wb-mr6c_58/controls/K3"}
+}

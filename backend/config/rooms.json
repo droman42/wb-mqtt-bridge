@@ -143,7 +143,19 @@
       "de": "Schlafzimmer"
     },
     "description": "Master bedroom",
-    "devices": [],
+    "devices": [
+      "bedroom_spots",
+      "bedroom_window_light",
+      "bedroom_shelves_light",
+      "bedroom_nightstand_right",
+      "bedroom_nightstand_left",
+      "bedroom_sconce_right",
+      "bedroom_sconce_left",
+      "bedroom_hvac",
+      "bedroom_heating",
+      "bedroom_curtain",
+      "bedroom_tulle"
+    ],
     "default_scenario": null
   },
 
