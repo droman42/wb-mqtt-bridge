@@ -63,7 +63,11 @@
     },
     "description": "Kitchen area with smart appliances",
     "devices": [
-      "kitchen_hood"
+      "kitchen_hood",
+      "kitchen_spots",
+      "kitchen_chandelier",
+      "kitchen_backlight",
+      "kitchen_floor"
     ],
     "default_scenario": null
   },

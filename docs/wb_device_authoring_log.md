@@ -44,6 +44,61 @@ the user calls `commit and push`; assistant pauses until `continue` arrives.
 
 ## 1. Per-device session log
 
+### 1.5 Kitchen (room id `kitchen`, WB dashboard `kitchen`)
+
+Compact room: 4 WB-passthrough devices (no curtains, no HVAC, just lights + floor
+heating). The pre-existing AV device `kitchen_hood` remains.
+
+#### 1.5.1 Lighting widget (3 devices)
+
+| device_id | ru | en | de | profile | WB control(s) |
+|---|---|---|---|---|---|
+| `kitchen_spots` | Споты | Spots | Spots | `dimmable_light` | `wb-mdm3_87/K1` + `Channel 1` |
+| `kitchen_chandelier` | Люстра | Chandelier | Kronleuchter | `light_switch` | `wb-mr6c_47/K5` |
+| `kitchen_backlight` | Подсветка | Accent Light | Hintergrundbeleuchtung | `light_switch` | `wb-mr6c_47/K6` |
+
+Naming notes:
+- `Подсветка` (no qualifier) → `kitchen_backlight` device_id, matching cabinet_backlight
+  precedent for the un-qualified case (vs `_accent` for qualified `Подсветка <X>` like
+  bedroom's window/shelves accents).
+- Cross-room slave count: `wb-mr6c_47` now hosts living K3+K4 + kitchen K5+K6.
+
+**User response.** `approve all 3` — bulk approval.
+
+#### 1.5.2 Floor heating — `kitchen_floor`
+
+First heating loop with TWO available temperature sensors: room air
+(`wb-msw-v3_218/Temperature`) AND floor surface (`wb-m1w2_43/External Sensor 1`).
+User chose to **drop the air sensor and keep only the floor sensor** for this device,
+mapped to the existing `room_temperature` profile field name (same soft-mismatch
+pattern as cabinet's loops — see §2.5).
+
+Two notable departures from the other heating loops:
+1. **Actuator NOT inverted** — no `invert: true` in the widget's `extra` map for
+   `wb-mr6cu_31/K4`, so `mode_on` writes `"1"` (matches cabinet's loops; differs from
+   living/children/bedroom whose wb-gpio actuators were inverted).
+2. **wb-mr6cu_31** appears twice now: cabinet_floor on K5, kitchen_floor on K4. Same
+   slave, different channels.
+
+| device_id | ru | en | de | actuator | setpoint | temp |
+|---|---|---|---|---|---|---|
+| `kitchen_floor` | Теплый пол | Floor Heating | Fußbodenheizung | `wb-mr6cu_31/K4` (NOT inverted) | `setpoints_floor/kitchen_temp` | `wb-m1w2_43/External Sensor 1` |
+
+### 1.5.3 Kitchen session summary
+
+**4 devices** (no HVAC, no curtains, no sensors):
+
+| Profile | Count | Devices |
+|---|---|---|
+| `light_switch` | 2 | chandelier, backlight |
+| `dimmable_light` | 1 | spots |
+| `heating_loop` | 1 | floor |
+
+Zero profile-side changes. The smallest room so far — confirms that not every room
+has every category.
+
+---
+
 ### 1.4 Bedroom (room id `bedroom`, WB dashboard `bedroom`)
 
 Largest single room so far (11 devices). Three categories authored: lights, HVAC,

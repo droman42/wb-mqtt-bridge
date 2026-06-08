@@ -1,0 +1,13 @@
+{
+  "device_id": "kitchen_chandelier",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {"ru": "Люстра", "en": "Chandelier", "de": "Kronleuchter"},
+  "capability_profile": "light_switch",
+  "room": "kitchen",
+  "commands": {
+    "power_on":  {"topic": "/devices/wb-mr6c_47/controls/K5/on", "value": "1"},
+    "power_off": {"topic": "/devices/wb-mr6c_47/controls/K5/on", "value": "0"}
+  },
+  "state_topics": {"power": "/devices/wb-mr6c_47/controls/K5"}
+}
