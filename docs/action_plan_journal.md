@@ -11,6 +11,30 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-08 (§P3.7 #21 DONE — rooms.json full WB-UI sweep + global)** —
+  Second task of the bulk phase. **All 10 WB-UI dashboards from A2 findings now have
+  matching `rooms.json` entries**: existing `living_room` / `children_room` / `kitchen` /
+  `cabinet` preserved with their legacy symbolic ids (per user direction — the WB
+  dashboards `livingroom` / `children` map onto them via the importer in #23, not via a
+  rename), plus 6 new rooms: `entrance`, `hall`, `shower` (the WB dashboard labelled `wc`
+  is a shower room in the live home — symbolic id reflects the actual room), `bathroom`,
+  `bedroom`, `wardrobe`. Plus **`global`** for the whole-house aggregate devices that #22
+  will ship (`all_lights` first). The WB-dashboard → bridge-room mapping for the three
+  cases where ids differ is documented in each entry's `description`; a structured
+  `wb_dashboard_id` field can land alongside the actual config importer (#23) if needed.
+  **Locale coverage**: all 11 rooms carry **trilingual `ru/en/de`** names (de added to
+  the new rooms alongside the pre-slice rooms that already carried it; covers the §P3.7
+  voice contract's "all locales" rule and keeps the catalog locale-symmetric). Authored
+  by hand — 11 entries is small enough that a Python importer for the rooms specifically
+  is unnecessary churn. The full WB-config importer (which #23 needs to author ~50–80
+  device configs) is deferred until #23 starts. **Tests**: 8 new in
+  `test_rooms_bootstrap.py` pinning the on-disk file (not a mock fixture, so drift surfaces
+  immediately): full 11-room set, each entry validates as `RoomDefinition`, trilingual
+  coverage, `global` starts empty (`devices: []`; #22 fills it), legacy room device
+  memberships preserved, new rooms start empty, WB-dashboard ids documented for the mapped
+  rooms. Full suite **482 pass** (was 474). **Hexagonal LAW clean** — no code paths touched
+  outside `config/rooms.json` and the test file. **Next**: #22 (aggregate devices in
+  `global`).
 - **2026-06-08 (§P3.7 #19 DONE — capability vocab profiles + driver enrichment)** —
   First task of the bulk phase landed. **Six capability profiles authored** in
   `backend/config/capabilities/profiles/`: `dimmable_light` (wb-mdm3 switch+slider),
