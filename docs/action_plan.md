@@ -302,9 +302,10 @@ truth (the broker). The contract has three pillars:
   refresh nudge via retained `bridge/catalog/version` (content hash).
 - **C. Native WB onboarding** — generic **data-driven WB-passthrough driver** in
   `infrastructure/devices/wb_passthrough/`; explicit param types per command (no
-  `meta/type` introspection); composition (RGB, HVAC) in a **capability-adapter layer ABOVE the
-  driver**; `global` is a regular room for whole-house controls only (rare); loop guard on the
-  state-sync chokepoint (no WB-publish callback for passthrough devices).
+  `meta/type` introspection); composite payloads (RGB, HVAC) handled **inside** the driver via
+  typed `state_topics` metadata + `payload_template` (folded into #19; **no separate
+  adapter layer**); `global` is a regular room holding whole-house aggregate devices; loop
+  guard on the state-sync chokepoint (no WB-publish callback for passthrough devices).
 
 **Vertical slice first** — prove the whole stack against one live voice command before bulk
 onboarding:
@@ -324,15 +325,15 @@ Slice total: ~3-4 dev days + a rack/Irene verification pass.
 
 | # | Task | Effort |
 |---|------|--------|
-| 19 | Canonical capability vocab extension — `brightness`, `color`, `cover`, `climate`, `sensor` (read-only fields) — authored as **shared profiles** in `config/capabilities/profiles/` (one file per fixture kind: `dimmable_light`, `rgb_light`, `cover`, `heating_loop`, `hvac`, `sensor_room`); the profile mechanism + `light_switch` already landed in #14. | ~½ day |
-| 20 | Composition layer above the driver — RGB (`"R;G;B"`), HVAC (mode + setpoint + fan, often across sub-devices). Lives next to the existing reconciler. | ~1 day |
+| 19 | Capability vocab profiles + driver enrichment (folds the former #20 "composition layer"). Authoring: 6 shared profiles in `config/capabilities/profiles/` — `dimmable_light`, `rgb_light`, `cover`, `heating_loop`, `hvac`, `sensor_room` (the profile mechanism + `light_switch` already landed in #14). Schema: `state_topics` entries widen from bare `"field": "topic"` to optional `{"topic", "type", "encoding"?, "values"?}` (back-compat: bare form → `type: "str"`). Driver helpers (~50–100 LOC in `wb_passthrough/driver.py`): `_compose_payload(template, params)` (e.g. `"{r};{g};{b}".format(...)`), `_parse_value(raw, type, encoding)` (scalar coerce / template-inverse / enum lookup), `_coerce_mirror(field, raw)` (lookup field metadata, parse, store typed). Result: `state.mirrored` carries typed values, not raw strings — `GET /devices/{id}/state` returns typed; catalog emits typed defaults. Driver stays generic and data-driven; no separate adapter package. **#20 deleted** — composition collapses into typed `state_topics` + `payload_template`. | ~1.5 day |
+| ~~20~~ | ~~Composition layer above the driver~~ — **folded into #19** (driver-side helpers + typed `state_topics` schema cover the RGB/HVAC/sensor cases without a separate adapter layer). | — |
 | 21 | `rooms.json` bootstrap — **one-shot import from the WB HomeUI config** (location identified during implementation); not manual. **Also seeds the `global` room** as a top-level entry (initially empty `devices: []`; populated by #22). | ~½ day |
 | 22 | **Aggregate devices in `global`** — author the v1 aggregate device configs the supported voice command set needs (`all_lights` first; cross-reference `wb-mqtt-voice` to decide whether `all_blinds` also ships in v1). Each is a normal `WbPassthroughDevice` config with `room: "global"`, `capability_profile: "light_switch"` (or matching profile), and a `commands.power_*` topic that points at a WB virtual control the wb-rules scene listens on. **Controller-side wb-rules fan-out scenes are user tech debt** — out of scope for this bridge work; the bridge only registers the aggregate device. | ~½ day |
 | 23 | Bulk device configs — relays (5+), dimmers (3), RGB (3), covers (Dooyas), HVAC (3 rooms + setpoint vdevs), multi-sensors per room. ~30+ configs, mostly mechanical once the driver + adapters are stable. | ~3-5 days |
 | 24 | `wb-msw-v3_*` sensor side — decide unified config (IR + `sensor`) vs split entry; implement. | ~½ day |
 | 25 | Catalog completeness sweep + bulk end-to-end verification across rooms (including each `global` aggregate device's canonical call landing on the broker, even if its wb-rules backing is still owed). | ~1 day |
 
-Bulk total: ~7.5-10.5 dev days.
+Bulk total: ~7-9.5 dev days (was ~7.5-10.5; saves ~½–1 day net by eliminating the composition layer).
 
 **Pre-work findings — A1 (2026-06-06)**
 
@@ -399,10 +400,15 @@ author over the slice + bulk (matches §P3.7 A2's composite-control shapes):
 | `hvac` | full `climate` (mode/fan/vane/setpoint) | hvac_* — 3 |
 | `sensor_room` | `sensor` with fields | wb-msw-v3 sensor sides — ~9 |
 
-The 3 HVAC units run on ESP32 and may eventually move to a dedicated
-**`ESP32ManagedDevice`** driver class (alongside future ESP32 work in this project). That
-decision is deferred until we approach the HVAC bulk; until then the `hvac` profile sits on
-the existing WB-passthrough driver.
+The 3 HVAC units run on ESP32 and **will** be modeled as **`ESP32ManagedDevice`** — a new
+device class (alongside future ESP32 work in this project, see PARKED entry in §5 for the
+firmware scaffold). **At v1 ship, `ESP32ManagedDevice` is behaviourally identical to
+`WbPassthroughDevice`** (subscribes to value topics, publishes to `/on`, type-coerces via the
+profile metadata) — the `hvac` profile drives both. The distinct class exists so the HVAC
+units have a stable identity to grow into: future versions will expose **additional
+ESP32-specific capabilities to the system, specifically to the UI** (e.g. provisioning state,
+OTA progress, NVS-stored identity, sleep/wake telemetry, firmware version) that don't belong
+on a generic WB-passthrough device. Decision locked 2026-06-08.
 
 **`rooms.json` additions**:
 
@@ -523,12 +529,15 @@ Channel/Brightness composite lights). Expected bulk count: **~50–80 logical de
   **skip**). **Combine into one logical device per loop** with a `climate` capability:
   `set_mode(on/off)` → write the actuator switch; `set_setpoint(t)` → write the setpoint
   range; reads `room_temperature` from the sensor + `current_setpoint` from the setpoint
-  cell. Multi-cell write — handled by the capability-adapter layer (#20). Three logical
-  devices in cabinet Обогрев (radiator, floor1, floor2), not twelve.
+  cell. Multi-cell write — handled by the WB-passthrough driver's per-command topics (one
+  config command per cell, no separate adapter; see #19's `state_topics` typed schema). Three
+  logical devices in cabinet Обогрев (radiator, floor1, floor2), not twelve.
 
 - **RGB strip: one cell encoded `"R;G;B"`** — e.g. `wb-mrgbw-d-fw3_*/RGB Strip`. One logical
-  device with `power` + `brightness` + `color`; `color.set(rgb)` adapter composes the string
-  write. (Already in #20 scope.)
+  device with `power` + `brightness` + `color`; `color.set(r,g,b)` resolves via the
+  `rgb_light` profile to a single driver command with `payload_template: "{r};{g};{b}"`;
+  incoming echoes parse back into a typed `{r,g,b}` dict via the same template. All
+  data-driven, no adapter. (#19 scope.)
 
 - **Cover: single position slider** — `dooya_dm35eq_x_*/Position` (range 0–100). One logical
   device with `cover` capability: `open = set 100`, `close = set 0`, `set_position(pct)`.
@@ -732,6 +741,7 @@ The dated history lives in **[`docs/action_plan_journal.md`](action_plan_journal
 
 **Recent entries** (newest first; full content + earlier entries in the journal):
 
+- 2026-06-08 — §P3.7 #20 collapse — composition folds into the WB-passthrough driver via typed `state_topics` + `payload_template` (no separate adapter layer); HVAC class locked as `ESP32ManagedDevice` (v1: behaviourally WB-passthrough; grows UI-facing ESP32 surfaces later); #19 widens to ~1.5 day; bulk total ~7-9.5 days
 - 2026-06-07 — §P3.7 plan reconcile — aggregate-device model for `global` (two stale lines fixed; new bulk task #22 for v1 aggregates like `all_lights`; renumber #22-#24→#23-#25; controller-side wb-rules scenes are user tech debt; no code touched)
 - 2026-06-06 — §P3.7 #18 cold-start fix — retained-message opt-in per topic (broker's retained "current value" now seeds `state.mirrored` on connect; first `power_off` after restart works; 453 tests pass)
 - 2026-06-06 — §P3.7 #18 follow-up #2 — AV-driver instantiation regression + fix + entry-point-signature test (drop `wb_service=` from `device_class(...)` call; 448 tests pass)

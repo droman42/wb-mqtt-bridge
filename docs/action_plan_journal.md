@@ -11,6 +11,27 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-08 (§P3.7 #20 collapse — composition folds into the driver; HVAC class locked)** —
+  Follow-up discussion on the bulk plan. Re-examined yesterday's "the composition layer #20
+  needs code that profiles can't carry" claim and found it overstated: the only items that
+  genuinely needed code were RGB payload assembly + inverse parsing + type coercion on the
+  mirror, and **all three live cleanly inside the WB-passthrough driver** when `state_topics`
+  carries per-field `{type, encoding?, values?}` metadata. The driver gains three helpers
+  (~50–100 LOC): `_compose_payload(template, params)`, `_parse_value(raw, type, encoding)`,
+  `_coerce_mirror(field, raw)`. `state.mirrored` then carries typed values (floats, dicts,
+  enums) instead of raw strings — `GET /devices/{id}/state` returns typed; catalog emits typed
+  defaults; Irene and the UI both get coherent shapes without consumer-side parsing. **#20
+  deleted** (struck through with "folded into #19" note for traceability); #19's scope widens
+  accordingly to ~1.5 day; bulk total drops to ~7–9.5 dev days (from ~7.5–10.5). Updated the
+  pillar-C summary, the A2 composite-shapes prose for heating loops + RGB (both no longer
+  reference an adapter layer), and the bulk table header. **Decision locked**: the 3 HVAC
+  units WILL be a new device class **`ESP32ManagedDevice`** (not "may eventually move" — the
+  decision is taken). At v1 ship it's behaviourally identical to `WbPassthroughDevice` (same
+  subscribe/publish/coerce path, same `hvac` profile drives both); the distinct class exists
+  so HVAC has a stable identity to grow into — future versions expose ESP32-specific surfaces
+  **to the UI** (provisioning state, OTA progress, NVS identity, sleep/wake telemetry,
+  firmware version) that don't belong on a generic passthrough device. Aligns with the PARKED
+  ESP32 firmware scaffold in §5. No code touched.
 - **2026-06-07 (§P3.7 plan reconcile — aggregate-device model for `global`)** —
   Re-read of `docs/voice_integration_contract_draft.md` against `action_plan.md` §P3.7 surfaced
   one residual drift from the 2026-06-06 contract correction (commit `36b8fe6`): two places in
