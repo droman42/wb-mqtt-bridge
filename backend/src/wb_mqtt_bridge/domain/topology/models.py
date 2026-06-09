@@ -1,6 +1,6 @@
 """Pydantic schema for the signal topology (``config/topology.json``).
 
-See ``docs/scenarios/scenario_system_redesign.md`` §4. The data is hot-fixable JSON;
+See ``docs/design/scenarios/scenario_system_redesign.md`` §4. The data is hot-fixable JSON;
 this is only the validator. A link's destination port is the input value to select
 on the sink device; ordering edges are unambiguous ``first -> then``.
 """

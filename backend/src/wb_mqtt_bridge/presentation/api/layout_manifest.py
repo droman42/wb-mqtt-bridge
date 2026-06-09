@@ -6,7 +6,7 @@ so the existing ``RemoteControlLayout`` renderer consumes it **unchanged**, plus
 ``GET /devices/{id}/layout`` and ``GET /scenario/{id}/layout`` and published in ``openapi.json``.
 
 The build-time codegen fields (``stateInterface``, ``actionHandlers``) are kept **optional** — they
-appear in the frozen oracle (``docs/scenarios/layer3_oracle/``) but the runtime engine may omit them
+appear in the frozen oracle (``docs/design/scenarios/layer3_oracle/``) but the runtime engine may omit them
 (live-state types come from ``openapi.json`` via ``stateSchema``; action dispatch is generic).
 Removed entirely at the Step-4 cutover.
 """

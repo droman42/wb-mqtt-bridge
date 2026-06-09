@@ -49,7 +49,7 @@ class ScenarioDefinition(BaseModel):
       ``devices`` and the sequences are left empty.
     - **legacy / escape hatch**: explicit ``devices`` + ``startup_sequence``/``shutdown_sequence``.
 
-    See docs/scenarios/scenario_system_redesign.md §6.
+    See docs/design/scenarios/scenario_system_redesign.md §6.
     """
     scenario_id: str = Field(..., min_length=1, description="Unique identifier for the scenario")
     name: str = Field(..., description="Human-readable name")

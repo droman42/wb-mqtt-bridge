@@ -1,5 +1,5 @@
 {
-  "_comment": "Signal topology for the living-room A/V system. Declared once; scenarios reference it. A link's destination port is the input value to select on the sink device. See docs/scenarios/scenario_system_redesign.md (Layer 0) and docs/ui_backend_contract.md.",
+  "_comment": "Signal topology for the living-room A/V system. Declared once; scenarios reference it. A link's destination port is the input value to select on the sink device. See docs/design/scenarios/scenario_system_redesign.md (Layer 0) and docs/ui_backend_contract.md.",
 
   "nodes": {
     "dodocus": {

@@ -103,7 +103,7 @@ standalone control. (Distinct from `refresh_*` = internal → `exposed:false`.)
 - ✅ **streamer** capability map (input/volume/playback). **streamer power deferred → Step-1**
   (Auralic power is the bool `connected`; capability `on_value` is string-only → widen to
   `str|bool|int`).
-- ✅ **Fidelity oracle captured** — `docs/scenarios/layer3_oracle/*.json` (per-device
+- ✅ **Fidelity oracle captured** — `docs/design/scenarios/layer3_oracle/*.json` (per-device
   `RemoteDeviceStructure`, frozen 2026-05-23).
 - ✅ **Step-1 model batch DONE (2026-05-23):** `on_value` widened (`str|bool|int`) · `reconcile`
   flag · `exposed` flag · reconciler `reconcile`-skip · load-time validation + drift guard ·

@@ -315,7 +315,7 @@ class WirenboardIRState(BaseDeviceState):
     alias: str
     # Optimistic last-selected input. IR devices have no feedback, so the driver records
     # the input it last sent and the scenario reconciler diffs against it. See the scenario
-    # redesign (decision 3) in docs/scenarios/scenario_system_redesign.md.
+    # redesign (decision 3) in docs/design/scenarios/scenario_system_redesign.md.
     input: Optional[str] = None
 
 class RevoxA77ReelToReelState(BaseDeviceState):

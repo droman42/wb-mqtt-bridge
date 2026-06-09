@@ -5,7 +5,7 @@
   hardware still pending.
 - **Branch:** `feat/scenario-redesign` (not merged to `main`). Full test suite: **274 pass**.
 - **Last updated:** 2026-05-22.
-- **Design contracts:** `docs/scenarios/scenario_system_redesign.md` (Layers 0/1/2/R),
+- **Design contracts:** `docs/design/scenarios/scenario_system_redesign.md` (Layers 0/1/2/R),
   `docs/ui_backend_contract.md` → "Layout Manifest & Runtime Rendering" (Layer 3),
   `docs/monorepo_migration_plan.md` (Phase 2).
 

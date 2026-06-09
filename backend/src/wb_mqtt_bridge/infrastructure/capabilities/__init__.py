@@ -3,5 +3,5 @@
 Capability *data* lives in JSON under ``config/capabilities/`` and is loaded at
 runtime by ``loader`` here; the pure Pydantic schema now lives in the domain at
 ``wb_mqtt_bridge.domain.capabilities.models``. See
-``docs/scenarios/scenario_system_redesign.md`` §5 and §16.
+``docs/design/scenarios/scenario_system_redesign.md`` §5 and §16.
 """

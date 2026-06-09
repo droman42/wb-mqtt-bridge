@@ -2733,7 +2733,7 @@
         "type": "object"
       },
       "ScenarioDefinition": {
-        "description": "Declarative definition of a scenario.\n\nTwo formats are supported during the redesign migration:\n\n- **thin** (preferred): a ``source``/``display``/``audio`` selection. Device membership,\n  input values, and ordering are derived from ``config/topology.json`` by the reconciler;\n  ``devices`` and the sequences are left empty.\n- **legacy / escape hatch**: explicit ``devices`` + ``startup_sequence``/``shutdown_sequence``.\n\nSee docs/scenarios/scenario_system_redesign.md §6.",
+        "description": "Declarative definition of a scenario.\n\nTwo formats are supported during the redesign migration:\n\n- **thin** (preferred): a ``source``/``display``/``audio`` selection. Device membership,\n  input values, and ordering are derived from ``config/topology.json`` by the reconciler;\n  ``devices`` and the sequences are left empty.\n- **legacy / escape hatch**: explicit ``devices`` + ``startup_sequence``/``shutdown_sequence``.\n\nSee docs/design/scenarios/scenario_system_redesign.md §6.",
         "properties": {
           "audio": {
             "anyOf": [

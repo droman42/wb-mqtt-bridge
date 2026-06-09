@@ -1,6 +1,6 @@
 """LayoutManifest must stay a faithful mirror of the UI's RemoteDeviceStructure.
 
-Every frozen oracle (`docs/scenarios/layer3_oracle/*.json`, extracted from the now-deleted
+Every frozen oracle (`docs/design/scenarios/layer3_oracle/*.json`, extracted from the now-deleted
 `.gen.tsx`) must parse into `LayoutManifest` with `extra="forbid"` — so any drift between this
 model and the renderer's structure fails loudly. This is the Step-1 fidelity guard.
 

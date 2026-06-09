@@ -2,7 +2,7 @@
 
 Reconstructs, server-side and keyed off capability **domains** (not config-group name-matching),
 the zone/control structure the UI used to generate at build time. The frozen oracle
-(`docs/scenarios/layer3_oracle/`) is the fidelity target.
+(`docs/design/scenarios/layer3_oracle/`) is the fidelity target.
 
 STATUS (Step 1, complete): all 9 domains build (power [single- and multi-zone], playback, volume,
 input, tracks, menu, screen, apps, pointer). The 12 standard devices reproduce their oracle, plus

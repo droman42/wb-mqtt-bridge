@@ -201,7 +201,7 @@ build-time **page** codegen (`gen:device-pages` → `.gen.tsx`/`.state.ts`/`.hoo
 every runtime call (`/layout`, `/state`, `/action`, scenario lifecycle) is typed from them. See
 "Build-time contract" above and "Step 4 — cutover" below.
 
-This section is **Layer 3** of `docs/scenarios/scenario_system_redesign.md`; it subsumes action_plan
+This section is **Layer 3** of `docs/design/scenarios/scenario_system_redesign.md`; it subsumes action_plan
 P2.5 #10 (placement contract) and Codegen Option 2.
 
 ### Why
@@ -266,7 +266,7 @@ The backend assigns each action a zone + position, two-tier:
 > capability **domains** (zoning derives from domains; `group` becomes a transitional fallback,
 > retired once capability coverage is complete). Dormant driver commands are marked `exposed: false`
 > on the config command (invisible to manifest, WB, *and* HTTP). Full design + sequencing:
-> `docs/scenarios/scenario_system_redesign.md` **§17**.
+> `docs/design/scenarios/scenario_system_redesign.md` **§17**.
 
 ### Endpoints
 - `GET /devices/{id}/layout` → `LayoutManifest` — **DONE (Step 1)**, in `openapi.json` + `api.gen.ts`.
@@ -400,7 +400,7 @@ The current `.gen.tsx` set is the regression reference: the backend engine must 
 device's structure before the runtime renderer replaces the static page.
 
 > **Use render-level diff, not the frozen structural oracle.** The frozen
-> `docs/scenarios/layer3_oracle/*.json` snapshots compare *distilled structure* (zones, control sets,
+> `docs/design/scenarios/layer3_oracle/*.json` snapshots compare *distilled structure* (zones, control sets,
 > dropdown population-method + count) and gave a **false "MATCH"** for mf_amplifier while the actual
 > rendered page diverged (see "Step 2 hardening" below). They miss runtime *behavior* (static-vs-fetch,
 > null-vs-undefined) and can drift from the current codegen. **Retire them** in favor of a
@@ -526,7 +526,7 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
     refreshed the stale comment + retired the done `TODO(Step 3)` B5 note in `useRemoteControlData.ts`.
     The `api.gen.ts` `DeviceSpecialCase` type is generated — it goes when backend **B2** drops
     `special_cases` and openapi/api.gen are regenerated.
-  - **Oracle (deferred, NOT done in A3):** the frozen `docs/scenarios/layer3_oracle/*` + the backend
+  - **Oracle (deferred, NOT done in A3):** the frozen `docs/design/scenarios/layer3_oracle/*` + the backend
     `test_engine_reproduces_oracle` are **kept** for now as the engine's structural regression
     snapshot — retiring them removes backend coverage for no immediate gain. Retire deliberately later.
   - ✅ **A1 DONE (`f5a64cf`):** dropped the per-id runtime flag (removed the flag block from
@@ -615,7 +615,7 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
   - **NOT remaining:** the `execute_action` **exposure gate is already implemented + active**
     (`infrastructure/devices/base.py` — rejects `exposed:false` from external sources, allows
     scenario/system/cli) and coverage is MET (redesign §17.3). Nothing to "flip."
-- **Shared:** retire the frozen oracle (`docs/scenarios/layer3_oracle/*.json` + the oracle test);
+- **Shared:** retire the frozen oracle (`docs/design/scenarios/layer3_oracle/*.json` + the oracle test);
   **regenerate `openapi.json` + `api.gen.ts` — but only because the backend deletions change the API
   surface** (`/groups`, `/scenario/virtual_config`, the `LayoutManifest` schema losing
   `special_cases`). A UI-only step needs no regen.
@@ -624,7 +624,7 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
   MQTT control of the house. ✅ All done + hardware-verified (no degradation).
 
 ## Related
-- `docs/scenarios/scenario_system_redesign.md` — the scenario redesign; this manifest is its Layer 3.
+- `docs/design/scenarios/scenario_system_redesign.md` — the scenario redesign; this manifest is its Layer 3.
 - `ui/README.md` and `ui/docs/page_instructions.md` — running the codegen.
 - `ui/docs/deployment-network-config.md` — runtime URL configuration.
 - `action_plan.md` §7 (Codegen Alternatives) and P2.5 #10 (placement contract).

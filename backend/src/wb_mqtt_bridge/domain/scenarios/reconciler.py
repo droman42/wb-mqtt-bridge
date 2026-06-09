@@ -1,7 +1,7 @@
 """Scenario reconciler (Layer R): derive the ordered action plan to reach an activity's
 desired state.
 
-Pipeline (see docs/scenarios/scenario_system_redesign.md §7):
+Pipeline (see docs/design/scenarios/scenario_system_redesign.md §7):
 
 1. **resolve** desired state from the thin scenario selection (``source``/``display``/``audio``)
    + the signal topology: which devices are involved, each sink's target input (the link's

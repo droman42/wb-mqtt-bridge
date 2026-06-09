@@ -2282,7 +2282,7 @@ export interface components {
          *       ``devices`` and the sequences are left empty.
          *     - **legacy / escape hatch**: explicit ``devices`` + ``startup_sequence``/``shutdown_sequence``.
          *
-         *     See docs/scenarios/scenario_system_redesign.md §6.
+         *     See docs/design/scenarios/scenario_system_redesign.md §6.
          */
         ScenarioDefinition: {
             /**

@@ -5,7 +5,7 @@ native commands/params, and declares how each stateful capability is reconciled
 (state field, feedback, timing). The *data* lives in JSON (``config/capabilities/``)
 so it can be hot-fixed without a rebuild; these models only validate it.
 
-See ``docs/scenarios/scenario_system_redesign.md`` §5 (shape) and §16 (worked maps).
+See ``docs/design/scenarios/scenario_system_redesign.md`` §5 (shape) and §16 (worked maps).
 """
 
 from typing import Any, Dict, List, Literal, Optional
