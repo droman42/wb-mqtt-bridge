@@ -28,7 +28,12 @@ _EPHEMERAL_STATE_FIELDS = frozenset({"last_command"})
 
 class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
     """Base class for all device implementations."""
-    
+
+    # Class-level annotation: subclasses parameterize StateT with their concrete
+    # state class. Base.__init__ seeds with a BaseDeviceState placeholder
+    # (cast below) -- subclasses replace it before any handler runs.
+    state: StateT
+
     def __init__(self, config: BaseDeviceConfig, mqtt_client: Optional["MQTTClient"] = None, wb_service: Optional[WBVirtualDeviceService] = None):
         self.config = config
         # Use typed config directly - no fallbacks to dictionary access
@@ -45,11 +50,14 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
         # hexagonal boundary intact.
         self.room: Optional[str] = config.room
 
-        # Initialize state with basic device identification
-        self.state = BaseDeviceState(
+        # Initialize state with basic device identification.
+        # Cast acknowledges: BaseDeviceState is a placeholder satisfying StateT
+        # at the structural level (every StateT extends BaseDeviceState);
+        # subclasses overwrite self.state with their concrete state class.
+        self.state = cast(StateT, BaseDeviceState(
             device_id=self.device_id,
             device_name=self.device_name
-        )
+        ))
         self._action_handlers: Dict[str, ActionHandler] = {}  # Cache for action handlers
         self.mqtt_client = mqtt_client
         self.wb_service = wb_service  # Injected WB virtual device service
@@ -539,11 +547,11 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
                 logger.debug(f"[{self.device_name}] Auto-registered handler for action '{action}'")
     
     async def _execute_single_action(
-        self, 
-        action_name: str, 
-        cmd_config: BaseCommandConfig, 
-        params: Dict[str, Any] = None,
-        source: str = "unknown"
+        self,
+        action_name: str,
+        cmd_config: BaseCommandConfig,
+        params: Optional[Dict[str, Any]] = None,
+        source: str = "unknown",
     ) -> Optional[CommandResult]:
         """Execute a single action with the provided configuration and parameters.
         
@@ -586,7 +594,7 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
             logger.debug(f"[BASE_DEVICE_DEBUG] Calling handler for {action_name} on {self.device_id}: handler={handler.__name__ if hasattr(handler, '__name__') else str(handler)}")
             
             # Call the handler with the new parameter-based approach
-            result = await handler(cmd_config=cmd_config, params=params)
+            result = await handler(cmd_config, params or {})
             
             # DEBUG: Log result for all devices
             logger.debug(f"[BASE_DEVICE_DEBUG] Handler result for {action_name} on {self.device_id}: {result}")

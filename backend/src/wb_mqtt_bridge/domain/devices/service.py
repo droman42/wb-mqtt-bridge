@@ -2,7 +2,7 @@ import logging
 import inspect
 import asyncio
 import json
-from typing import Dict, Any, Callable, List, Optional, Type
+from typing import Dict, Any, Callable, List, Optional, Type, cast
 try:
     from importlib.metadata import entry_points
 except ImportError:
@@ -44,25 +44,25 @@ class DeviceManager:
         logger.info("Loading device classes from entry points")
         
         try:
-            # Load device classes from wb_mqtt_bridge.devices entry points
+            # Load device classes from wb_mqtt_bridge.devices entry points.
+            # Python 3.10+: entry_points() returns EntryPoints (select-based API);
+            # older returned a Dict-shaped object. We've pinned py3.11 in CI, so
+            # select() is always available -- the legacy branch is dead.
             eps = entry_points()
-            logger.debug(f"Available entry point groups: {list(eps.keys()) if hasattr(eps, 'keys') else 'unknown'}")
-            
-            if hasattr(eps, 'select'):  # Python 3.10+
-                device_entries = eps.select(group='wb_mqtt_bridge.devices')
-            else:  # Python 3.8-3.9
-                device_entries = eps.get('wb_mqtt_bridge.devices', [])
+            device_entries = eps.select(group='wb_mqtt_bridge.devices')
             
             logger.debug(f"Found {len(device_entries)} device entry points")
             
             for entry_point in device_entries:
                 try:
-                    device_class = entry_point.load()
-                    
-                    # Verify it's a DevicePort subclass
-                    if not (isinstance(device_class, type) and issubclass(device_class, DevicePort) and device_class != DevicePort):
+                    loaded = entry_point.load()
+
+                    # Verify it's a DevicePort subclass; narrows pyright's view
+                    # from Any to Type[DevicePort] for the construction call below.
+                    if not (isinstance(loaded, type) and issubclass(loaded, DevicePort) and loaded is not DevicePort):
                         logger.error(f"Entry point '{entry_point.name}' does not point to a valid DevicePort subclass")
                         continue
+                    device_class: Type[DevicePort] = loaded
                     
                     # Register the device class
                     self.device_classes[device_class.__name__] = device_class
@@ -135,7 +135,14 @@ class DeviceManager:
                 # doesn't need wb_service at construction (its `enable_wb_emulation=False`
                 # skips the BaseDevice path that uses it).
                 try:
-                    device = device_class(config, mqtt_client=self._mqtt_client)
+                    # DevicePort's abstract __init__ is (self); concrete subclasses
+                    # have (config, mqtt_client=..., wb_service=...). The entry-point
+                    # contract is "DevicePort subclass constructable from a typed
+                    # config" -- we trust the subclass __init__ shape here. Cast
+                    # the class to a Callable returning DevicePort to suppress the
+                    # abstract-arity check without losing the return type.
+                    factory = cast(Callable[..., DevicePort], device_class)
+                    device = factory(config, mqtt_client=self._mqtt_client)
                 except Exception as e:
                     logger.error(f"Failed to instantiate device {device_id} of type {device_class_name}: {str(e)}")
                     continue
@@ -264,6 +271,8 @@ class DeviceManager:
             logger.warning(f"Cannot persist state for unknown device: {device_id}")
             return
             
+        state_obj = None
+        state_obj = None
         try:
             state_obj = device.get_current_state()
             
@@ -392,7 +401,7 @@ class DeviceManager:
         logger.info("Preparing device manager for shutdown")
         self._shutting_down = True
             
-    async def perform_action(self, device_id: str, action: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def perform_action(self, device_id: str, action: str, params: Optional[Dict[str, Any]] = None) -> Any:
         """Perform an action on a device and persist its state."""
         # DEBUG: Log all device action executions
         logger.debug(f"[DEVICE_MGR_DEBUG] perform_action called: device_id={device_id}, action={action}, params={params}")
