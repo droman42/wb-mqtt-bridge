@@ -11,7 +11,7 @@ eMotiva multi-zone power (zone 1 off/on + zone 2 native toggle). **Icons are res
 engine emits placeholder icons that the renderer overrides via its `IconResolver`; the manifest
 `icon` field is only an optional override.
 """
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple, cast
 
 from wb_mqtt_bridge.domain.capabilities.models import Capability, CapabilityMap
 from wb_mqtt_bridge.presentation.api.layout_manifest import (
@@ -28,6 +28,7 @@ from wb_mqtt_bridge.presentation.api.layout_manifest import (
     ProcessedParameter,
     RemoteZone,
     TracksConfig,
+    ZoneType,
     UIHints,
     VolumeButtonConfig,
     VolumeSliderConfig,
@@ -58,9 +59,12 @@ def _parameters(cmd: Any) -> List[ProcessedParameter]:
     out: List[ProcessedParameter] = []
     for p in (getattr(cmd, "params", None) or []):
         ptype = getattr(p, "type", "string")
+        normalized_type = ptype if ptype in _PARAM_TYPES else "string"
         out.append(ProcessedParameter(
             name=p.name,
-            type=ptype if ptype in _PARAM_TYPES else "string",
+            # _PARAM_TYPES is the Literal-aligned set; pyright doesn't narrow
+            # `ptype if ptype in <set> else <literal>` to the Literal union.
+            type=cast(Literal["range", "string", "integer", "boolean"], normalized_type),
             required=bool(getattr(p, "required", False)),
             default=getattr(p, "default", None),
             min=getattr(p, "min", None),
@@ -103,7 +107,11 @@ def _power_content(device: Any, cap: Capability) -> ZoneContent:
         if action is None:
             return
         bt, pos = by_key.get(key, ("power-toggle", "left"))
-        buttons.append(PowerButtonConfig(position=position or pos, action=action, button_type=button_type or bt))
+        buttons.append(PowerButtonConfig(
+            position=cast(Literal["left", "middle", "right"], position or pos),
+            action=action,
+            button_type=cast(Literal["power-off", "power-on", "power-toggle", "zone2-power"], button_type or bt),
+        ))
 
     for key, cap_action in cap.actions.items():
         if cap_action.command:
@@ -137,8 +145,11 @@ def _volume_content(device: Any, cap: Capability) -> ZoneContent:
     acts = cap.actions
     mute = _action(device, acts["mute_toggle"].command, acts["mute_toggle"].params) if "mute_toggle" in acts and acts["mute_toggle"].command else None
     if "set" in acts and acts["set"].command:
+        set_action = _action(device, acts["set"].command, acts["set"].params)
+        if set_action is None:
+            return ZoneContent()
         return ZoneContent(volume_slider=VolumeSliderConfig(
-            action=_action(device, acts["set"].command, acts["set"].params), mute_action=mute,
+            action=set_action, mute_action=mute,
             orientation="vertical", show_value=True,
             value_field=cap.state_field,  # serialized state field for the current level (UI value binding)
             value_param=(acts["set"].param_map or {}).get("level") or "level",  # native param the level is sent under
@@ -280,7 +291,9 @@ def build_device_manifest(device: Any) -> LayoutManifest:
     for zone_id, (zone_name, show_hide, layout) in _ZONE_META.items():
         c = content[zone_id]
         zones.append(RemoteZone(
-            zone_id=zone_id, zone_name=zone_name, zone_type=zone_id,
+            zone_id=cast("ZoneType", zone_id),
+            zone_name=zone_name,
+            zone_type=cast("ZoneType", zone_id),
             show_hide=show_hide, is_empty=_is_empty(c),
             content=c, layout=ZoneLayoutConfig(**layout),
         ))
@@ -347,7 +360,8 @@ def _scenario_power_zone() -> ZoneContent:
     the UI routes these to /scenario/shutdown + /scenario/start (not a device action)."""
     def _btn(position: str, button_type: str, action_name: str, label: str) -> PowerButtonConfig:
         return PowerButtonConfig(
-            position=position, button_type=button_type,
+            position=cast(Literal["left", "middle", "right"], position),
+            button_type=cast(Literal["power-off", "power-on", "power-toggle", "zone2-power"], button_type),
             action=ProcessedAction(
                 action_name=action_name, display_name=label, description=label,
                 icon=ActionIcon(icon_library="fallback", icon_name="power", fallback_icon="power", confidence=0.0),
@@ -378,30 +392,40 @@ def build_scenario_manifest(scenario_def: Any, device_manager: Any) -> LayoutMan
         cap = (dict(cap_map.root) if cap_map is not None else {}).get(_SCENARIO_ROLE_DOMAIN[role])
         return dev_id, device, cap
 
+    # _role's contract: if cap is non-None, dev_id is non-None too (the early
+    # `if not dev_id: return None, None, None` short-circuits before lookup).
+    # asserts encode that invariant for pyright.
     dev_id, device, cap = _role("volume")
     if cap:
+        assert dev_id is not None
         content["volume"] = _volume_content(device, cap); _tag_source(content["volume"], dev_id)
     dev_id, device, cap = _role("playback")
     if cap:
+        assert dev_id is not None
         media.playback_section = _playback_content(device, cap)
         for a in media.playback_section.actions:
             _tag_action(a, dev_id)
     dev_id, device, cap = _role("tracks")
     if cap:
+        assert dev_id is not None
         media.tracks_section = _tracks_content(device, cap)
         for a in media.tracks_section.actions:
             _tag_action(a, dev_id)
     dev_id, device, cap = _role("screen")
     if cap:
+        assert dev_id is not None
         content["screen"] = _screen_content(device, cap); _tag_source(content["screen"], dev_id)
     dev_id, device, cap = _role("menu")
     if cap:
+        assert dev_id is not None
         content["menu"] = _menu_content(device, cap); _tag_source(content["menu"], dev_id)
     dev_id, device, cap = _role("pointer")
     if cap:
+        assert dev_id is not None
         content["pointer"] = _pointer_content(device, cap); _tag_source(content["pointer"], dev_id)
     dev_id, device, cap = _role("apps")
     if cap:
+        assert dev_id is not None
         content["apps"] = ZoneContent(apps_dropdown=_apps_dropdown(device, cap)); _tag_source(content["apps"], dev_id)
 
     def _is_empty(c: ZoneContent) -> bool:
@@ -411,7 +435,9 @@ def build_scenario_manifest(scenario_def: Any, device_manager: Any) -> LayoutMan
     for zone_id, (zone_name, show_hide, layout) in _ZONE_META.items():
         c = content[zone_id]
         zones.append(RemoteZone(
-            zone_id=zone_id, zone_name=zone_name, zone_type=zone_id,
+            zone_id=cast("ZoneType", zone_id),
+            zone_name=zone_name,
+            zone_type=cast("ZoneType", zone_id),
             show_hide=show_hide, is_empty=_is_empty(c),
             content=c, layout=ZoneLayoutConfig(**layout),
         ))
