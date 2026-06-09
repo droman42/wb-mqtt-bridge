@@ -336,6 +336,102 @@ def test_catalog_keeps_all_profile_fields_when_device_has_no_state_topics():
     assert field_names == {"temperature", "humidity", "co2", "illuminance", "sound_level"}
 
 
+def test_catalog_emits_value_labels_with_wire_canonical_labels():
+    """§P3.7 #26: enum-typed fields project their `values` as the full ValueLabel triplet —
+    `wire` (informational for clients, authoritative on bus), `canonical` (what voice/UI
+    sends back via /devices/{id}/canonical), `labels` (per-locale strings for UI dropdowns
+    + voice intent matching). Mirrors the HVAC mode shape."""
+    climate = _fake_device(
+        device_id="livingroom_hvac",
+        names={"ru": "Кондиционер", "en": "AC"},
+        device_class="WbPassthroughDevice",
+        room="livingroom",
+        cap_map_dict={
+            "climate": {
+                "kind": "stateful", "feedback": True,
+                "actions": {"set_mode": {"command": "set_mode", "param_map": {"mode": "mode"}}},
+                "fields": [{
+                    "name": "mode", "type": "enum",
+                    "values": [
+                        {"wire": "1", "canonical": "heat", "labels": {"ru": "Обогрев", "en": "Heat", "de": "Heizen"}},
+                        {"wire": "2", "canonical": "cool", "labels": {"ru": "Охлаждение", "en": "Cool", "de": "Kühlen"}},
+                    ],
+                }],
+            }
+        },
+    )
+    dm = SimpleNamespace(devices={"livingroom_hvac": climate})
+    rm = MagicMock(); rm.list.return_value = []
+    cat = build_catalog(dm, rm)
+    cap = cat.devices[0].capabilities[0]
+    mode = cap.fields[0]
+    assert mode.type == "enum"
+    assert mode.values is not None and len(mode.values) == 2
+    assert mode.values[0].wire == "1" and mode.values[0].canonical == "heat"
+    assert mode.values[0].labels == {"ru": "Обогрев", "en": "Heat", "de": "Heizen"}
+    assert mode.values[1].wire == "2" and mode.values[1].canonical == "cool"
+
+
+def test_catalog_emits_bare_string_values_with_canonical_equal_to_wire():
+    """Back-compat regression: a profile authored with `values: ["a", "b"]` still projects
+    into the catalog, with each entry's `wire == canonical` and `labels == None`. Lets
+    profiles defer adding labels without losing catalog presence."""
+    enum_field = _fake_device(
+        device_id="x",
+        names={"ru": "X", "en": "X"},
+        device_class="WbPassthroughDevice",
+        room=None,
+        cap_map_dict={
+            "climate": {
+                "kind": "stateful", "feedback": True,
+                "actions": {"set_mode": {"command": "set_mode", "param_map": {"mode": "mode"}}},
+                "fields": [{"name": "mode", "type": "enum", "values": ["heat", "cool"]}],
+            }
+        },
+    )
+    dm = SimpleNamespace(devices={"x": enum_field})
+    rm = MagicMock(); rm.list.return_value = []
+    cat = build_catalog(dm, rm)
+    vs = cat.devices[0].capabilities[0].fields[0].values
+    assert vs is not None and len(vs) == 2
+    assert vs[0].wire == "heat" and vs[0].canonical == "heat" and vs[0].labels is None
+    assert vs[1].wire == "cool" and vs[1].canonical == "cool"
+
+
+def test_version_changes_when_value_labels_change(slice_managers):
+    """§P3.7 #26: any change to a field's value-label table MUST bump the catalog version
+    so voice (Irene) re-fetches. Adding a label, adding an entry, renaming canonical — all
+    surface."""
+    dm, rm = slice_managers
+    cap_map_v1 = {
+        "climate": {
+            "kind": "stateful", "feedback": True,
+            "actions": {"set_mode": {"command": "set_mode", "param_map": {"mode": "mode"}}},
+            "fields": [{
+                "name": "mode", "type": "enum",
+                "values": [{"wire": "1", "canonical": "heat", "labels": {"ru": "Обогрев", "en": "Heat"}}],
+            }],
+        }
+    }
+    dm.devices["cabinet_spots"].capabilities = CapabilityMap.model_validate(cap_map_v1)
+    before = build_catalog(dm, rm).version
+    cap_map_v2 = {
+        "climate": {
+            "kind": "stateful", "feedback": True,
+            "actions": {"set_mode": {"command": "set_mode", "param_map": {"mode": "mode"}}},
+            "fields": [{
+                "name": "mode", "type": "enum",
+                "values": [
+                    {"wire": "1", "canonical": "heat", "labels": {"ru": "Обогрев", "en": "Heat", "de": "Heizen"}},
+                ],
+            }],
+        }
+    }
+    dm.devices["cabinet_spots"].capabilities = CapabilityMap.model_validate(cap_map_v2)
+    after = build_catalog(dm, rm).version
+    assert before != after, "Adding a locale to a value label must bump catalog version"
+
+
 def test_version_changes_when_a_capability_field_is_added(slice_managers):
     """Adding a `fields[]` entry to any capability MUST bump the catalog version, so Irene
     re-fetches when the typed surface widens (a new sensor field exposed, RGB encoding

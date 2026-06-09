@@ -34,6 +34,7 @@ from wb_mqtt_bridge.presentation.api.schemas import (
     CatalogField,
     CatalogResponse,
     CatalogRoom,
+    CatalogValueLabel,
 )
 
 
@@ -63,11 +64,21 @@ def _project_capability_actions(
         for f in cap.fields:
             if mirrored_field_names is not None and f.name not in mirrored_field_names:
                 continue
+            projected_values: Optional[list[CatalogValueLabel]] = None
+            if f.values is not None:
+                projected_values = [
+                    CatalogValueLabel(
+                        wire=v.wire,
+                        canonical=v.canonical,
+                        labels=v.labels.model_dump() if v.labels is not None else None,
+                    )
+                    for v in f.values
+                ]
             fields.append(CatalogField(
                 name=f.name,
                 type=f.type,
                 encoding=f.encoding,
-                values=f.values,
+                values=projected_values,
                 unit=f.unit,
                 labels=f.labels.model_dump() if f.labels is not None else None,
             ))

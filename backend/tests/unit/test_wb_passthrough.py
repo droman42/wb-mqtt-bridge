@@ -416,6 +416,36 @@ def test_state_topic_spec_normalises_bare_string_form():
     assert spec.type == "str"
 
 
+def test_state_topic_spec_values_accept_bare_string_list_back_compat():
+    """§P3.7 #26 back-compat: enum `values: ["a", "b"]` keeps parsing — each entry
+    widens to `ValueLabel(wire="a", canonical="a", labels=None)`."""
+    spec = StateTopicSpec.model_validate({
+        "topic": "/devices/x/controls/Mode",
+        "type": "enum",
+        "values": ["heat", "cool", "auto"],
+    })
+    assert spec.values is not None and len(spec.values) == 3
+    assert spec.values[0].wire == "heat" and spec.values[0].canonical == "heat"
+    assert spec.values[0].labels is None
+
+
+def test_state_topic_spec_values_accept_full_value_label_with_labels():
+    """§P3.7 #26 full form on StateTopicSpec: same triplet as CapabilityField."""
+    spec = StateTopicSpec.model_validate({
+        "topic": "/devices/x/controls/Mode",
+        "type": "enum",
+        "values": [
+            {"wire": "1", "canonical": "heat", "labels": {"ru": "Обогрев", "en": "Heat", "de": "Heizen"}},
+            {"wire": "2", "canonical": "cool", "labels": {"ru": "Охлаждение", "en": "Cool", "de": "Kühlen"}},
+        ],
+    })
+    assert spec.values is not None
+    assert spec.values[0].wire == "1" and spec.values[0].canonical == "heat"
+    assert spec.values[0].labels is not None
+    assert spec.values[0].labels.ru == "Обогрев"
+    assert getattr(spec.values[0].labels, "de") == "Heizen"
+
+
 # --- invert flag (cabinet rollers / inverted-percentage devices) -------------
 
 

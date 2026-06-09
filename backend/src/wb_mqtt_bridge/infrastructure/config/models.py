@@ -11,6 +11,8 @@ from wb_mqtt_bridge.domain.devices.config import (  # noqa: F401
     DeviceCategory,
     LocalizedName,
     StandardCommandConfig,
+    ValueLabel,
+    _normalise_value_labels,
 )
 
 class MQTTBrokerConfig(BaseModel):
@@ -155,9 +157,13 @@ class StateTopicSpec(BaseModel):
         description="Template-with-placeholders for composite payloads, e.g. `\"{r};{g};{b}\"` "
                     "for `type=\"rgb\"`. Used to parse incoming echoes back into typed dicts.",
     )
-    values: Optional[List[str]] = Field(
+    values: Optional[List[ValueLabel]] = Field(
         None,
-        description="Allowed values for `type=\"enum\"` (incoming payloads are validated against this list).",
+        description="Value table for `type=\"enum\"` (§P3.7 #26): each entry carries `wire` "
+                    "(the payload validated on inbound mirror), `canonical` (the identifier "
+                    "stored in `state.mirrored` after translation and accepted in outbound "
+                    "actions), and optional localized `labels`. Bare `[\"a\", \"b\"]` form is "
+                    "back-compat — normalised to `[{wire: \"a\", canonical: \"a\"}, ...]`.",
     )
     unit: Optional[str] = Field(None, description="Display unit (`°C`, `%`, `ppm`, `lux`, `dB`).")
     invert: bool = Field(
@@ -172,6 +178,11 @@ class StateTopicSpec(BaseModel):
             "quirk. Only meaningful for `type` in {int, float}; ignored for str/rgb/enum."
         ),
     )
+
+    @field_validator("values", mode="before")
+    @classmethod
+    def _normalise_values(cls, v: Any) -> Any:
+        return _normalise_value_labels(v)
 
 
 class WbPassthroughCommandConfig(BaseCommandConfig):

@@ -241,6 +241,61 @@ def test_cover_profile_has_open_close_set_position_actions():
     assert actions["set_position"].param_map == {"pct": "pct"}
 
 
+def test_capability_field_values_accept_bare_string_list_back_compat():
+    """§P3.7 #26 back-compat: a `values: ["a", "b"]` entry on an enum field must keep
+    parsing — normalised into `[ValueLabel(wire="a", canonical="a", labels=None), ...]`
+    so existing profiles never had to be migrated."""
+    cap = Capability.model_validate({
+        "kind": "stateful", "reconcile": False,
+        "fields": [{"name": "mode", "type": "enum", "values": ["heat", "cool", "auto"]}],
+    })
+    vs = cap.fields[0].values
+    assert vs is not None and len(vs) == 3
+    assert vs[0].wire == "heat" and vs[0].canonical == "heat" and vs[0].labels is None
+    assert [v.canonical for v in vs] == ["heat", "cool", "auto"]
+
+
+def test_capability_field_values_accept_full_value_label_with_labels():
+    """§P3.7 #26 full form: every entry can declare `wire` (MQTT payload), `canonical`
+    (action identifier), and localized `labels`. Matches the HVAC mode shape — wire
+    integers, canonical English names, ru/en/de labels for UI + voice."""
+    cap = Capability.model_validate({
+        "kind": "stateful", "reconcile": False,
+        "fields": [{
+            "name": "mode", "type": "enum",
+            "values": [
+                {"wire": "1", "canonical": "heat", "labels": {"ru": "Обогрев", "en": "Heat", "de": "Heizen"}},
+                {"wire": "2", "canonical": "cool", "labels": {"ru": "Охлаждение", "en": "Cool", "de": "Kühlen"}},
+            ],
+        }],
+    })
+    vs = cap.fields[0].values
+    assert vs is not None and len(vs) == 2
+    assert vs[0].wire == "1" and vs[0].canonical == "heat"
+    assert vs[0].labels is not None and vs[0].labels.ru == "Обогрев" and vs[0].labels.en == "Heat"
+    # Extra locales accepted via LocalizedName(extra="allow"):
+    assert getattr(vs[0].labels, "de") == "Heizen"
+
+
+def test_capability_field_values_mixed_back_compat_and_full_form_normalise():
+    """Mixing forms inside one list is supported (transition aid). Bare strings widen
+    to wire==canonical; dicts pass through with their declared shape."""
+    cap = Capability.model_validate({
+        "kind": "stateful", "reconcile": False,
+        "fields": [{
+            "name": "mode", "type": "enum",
+            "values": [
+                "auto",
+                {"wire": "1", "canonical": "heat", "labels": {"ru": "Обогрев", "en": "Heat"}},
+            ],
+        }],
+    })
+    vs = cap.fields[0].values
+    assert vs is not None
+    assert vs[0].wire == "auto" and vs[0].canonical == "auto" and vs[0].labels is None
+    assert vs[1].wire == "1" and vs[1].canonical == "heat" and vs[1].labels is not None
+
+
 def test_stateful_capability_with_fields_only_is_valid_shape():
     """Sensor-shape: stateful, no actions, no select, no zones, but `fields` populated.
     The `_shape` validator must accept this (per §P3.7 #19 widening)."""

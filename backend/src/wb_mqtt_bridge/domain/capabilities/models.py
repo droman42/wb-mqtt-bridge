@@ -10,9 +10,9 @@ See ``docs/design/scenarios/scenario_system_redesign.md`` §5 (shape) and §16 (
 
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
+from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator, model_validator
 
-from wb_mqtt_bridge.domain.devices.config import LocalizedName
+from wb_mqtt_bridge.domain.devices.config import LocalizedName, ValueLabel, _normalise_value_labels
 
 CapabilityFieldType = Literal["str", "int", "float", "bool", "rgb", "enum"]
 
@@ -93,13 +93,22 @@ class CapabilityField(BaseModel):
         description="Template-with-placeholders for composite values, e.g. `\"{r};{g};{b}\"` "
                     "for `type=\"rgb\"`. The driver parses incoming echoes back into typed dicts.",
     )
-    values: Optional[List[str]] = Field(
-        None, description="Allowed values for `type=\"enum\"`."
+    values: Optional[List[ValueLabel]] = Field(
+        None,
+        description="Value table for `type=\"enum\"` (§P3.7 #26): each entry carries `wire` "
+                    "(MQTT payload), `canonical` (action/state identifier), and optional "
+                    "localized `labels`. Bare `[\"a\", \"b\"]` form is back-compat — normalised "
+                    "to `[{wire: \"a\", canonical: \"a\"}, ...]` with `labels=None`.",
     )
     unit: Optional[str] = Field(None, description="Display unit (`°C`, `%`, `ppm`, `lux`, `dB`).")
     labels: Optional[LocalizedName] = Field(
         None, description="Localised display label (catalog surface; UI labels)."
     )
+
+    @field_validator("values", mode="before")
+    @classmethod
+    def _normalise_values(cls, v: Any) -> Any:
+        return _normalise_value_labels(v)
 
 
 class Capability(BaseModel):

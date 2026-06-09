@@ -144,14 +144,25 @@ class CatalogAction(BaseModel):
     params: Optional[List[Dict[str, Any]]] = None
 
 
+class CatalogValueLabel(BaseModel):
+    """One entry of an enum value table projected into the catalog (§P3.7 #26). Voice
+    (Irene) matches user utterances against `labels` in the active locale and posts
+    canonical actions back; UI renders dropdowns labelled per locale, sending `canonical`
+    on selection. `wire` is informational for clients but authoritative on the bus."""
+    wire: str
+    canonical: str
+    labels: Optional[Dict[str, str]] = None
+
+
 class CatalogField(BaseModel):
     """A read-only field on a capability (e.g. `sensor.temperature`, `brightness.level`).
     Mirrors the domain `CapabilityField` shape so voice/UI consumers can render and parse
-    values without out-of-band knowledge. Added §P3.7 #19."""
+    values without out-of-band knowledge. Added §P3.7 #19; `values` widened to
+    `List[CatalogValueLabel]` in §P3.7 #26."""
     name: str
     type: str
     encoding: Optional[str] = None
-    values: Optional[List[str]] = None
+    values: Optional[List[CatalogValueLabel]] = None
     unit: Optional[str] = None
     labels: Optional[Dict[str, str]] = None
 

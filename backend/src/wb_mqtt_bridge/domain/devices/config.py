@@ -30,6 +30,49 @@ class LocalizedName(BaseModel):
     en: str
 
 
+class ValueLabel(BaseModel):
+    """One entry of an enum value table — three layers per value (§P3.7 #26).
+
+    * `wire` — what MQTT publishes / subscribes (e.g. `"2"` for HVAC mode "cool").
+    * `canonical` — short identifier-safe English name used in canonical actions and
+      stored in `state.mirrored` after inbound translation (e.g. `"cool"`).
+    * `labels` — optional localized human strings (`{ru, en, de, ...}`) for UI dropdowns
+      and voice intent matching. Absent on entries built from the bare-string back-compat
+      form (`values: ["a", "b"]`) — they parse to `ValueLabel(wire="a", canonical="a")`
+      with `labels=None`.
+
+    Same symmetric-translation shape as the `invert` flag on `StateTopicSpec`: the driver
+    translates canonical→wire on outbound publishes and wire→canonical on inbound mirror
+    echoes. Catalog projects the full list so voice/UI can autodiscover.
+    """
+    model_config = ConfigDict(extra="forbid")
+
+    wire: str = Field(..., description="MQTT wire payload for this enum value.")
+    canonical: str = Field(..., description="Canonical identifier (action params + state.mirrored).")
+    labels: Optional[LocalizedName] = Field(
+        None,
+        description="Localized human strings for UI / voice. Optional — bare-string back-compat "
+                    "entries have `labels=None`.",
+    )
+
+
+def _normalise_value_labels(v: Any) -> Any:
+    """Back-compat normaliser: accept bare `["a", "b"]` and widen each to
+    `{wire: "a", canonical: "a"}`. Untouched when entries are already dicts/ValueLabels.
+
+    Used by both `CapabilityField.values` and `StateTopicSpec.values` `mode="before"`
+    validators (§P3.7 #26 back-compat: bare strings keep parsing)."""
+    if v is None or not isinstance(v, list):
+        return v
+    out: List[Any] = []
+    for item in v:
+        if isinstance(item, str):
+            out.append({"wire": item, "canonical": item})
+        else:
+            out.append(item)
+    return out
+
+
 class CommandParameterDefinition(BaseModel):
     """Schema for command parameter definition."""
     name: str = Field(..., description="Parameter name")

@@ -539,7 +539,7 @@
                 "type": "null"
               }
             ],
-            "description": "Room id (matches an entry in `rooms.json`). A device belongs to **exactly one** room. Devices that don't fit any physical room (whole-house controls) live in the special `global` room. Cross-room actions (\"выключи свет везде\") are resolved by Irene from the catalog -- by iterating rooms -- not via shared membership. `None` for AV gear that doesn't yet have a room (populated during bulk onboarding, §P3.7 #21).",
+            "description": "Room id (matches an entry in `rooms.json`). A device belongs to **exactly one** room. Aggregate whole-house controls (e.g. `all_lights`) live in the special `global` room. Whole-house actions (\"выключи свет везде\") resolve to a SINGLE canonical call against the matching aggregate device in `global` -- Irene does NOT iterate rooms; the bridge ships the aggregates the v1 voice command set needs (§P3.7 #22). `None` for AV gear that doesn't yet have a room (populated during bulk onboarding, §P3.7 #21+#23).",
             "title": "Room"
           },
           "wb_controls": {
@@ -809,7 +809,7 @@
         "type": "string"
       },
       "CatalogAction": {
-        "description": "A canonical action a device supports under a capability. `params` is `None` for\nparameterless actions (`power.on`, `cover.open`) and a list of param descriptors\notherwise. Full param introspection (type, min/max, choices, labels) lands with the\nvocab extension (#19); slice 1 only exposes parameterless actions.",
+        "description": "A canonical action a device supports under a capability. `params` is `None` for\nparameterless actions (`power.on`, `cover.open`) and a list of param descriptors\notherwise. Full param introspection (type, min/max, choices, labels) is owed work — the\ncatalog still surfaces action names only as of #19; deferred until voice needs it.",
         "properties": {
           "name": {
             "title": "Name",
@@ -838,7 +838,7 @@
         "type": "object"
       },
       "CatalogCapability": {
-        "description": "One capability on a device, projected canonical-side. Sensor capabilities use\n`fields` instead of `actions` (read-only; landed in #19+ for sensor devices).",
+        "description": "One capability on a device, projected canonical-side. Sensor-shaped capabilities\nhave `fields` and no `actions`; momentary capabilities (`power`) have `actions` and\nno `fields`; stateful action capabilities (brightness, color, climate, cover) may\nhave both.",
         "properties": {
           "actions": {
             "anyOf": [
@@ -858,8 +858,7 @@
             "anyOf": [
               {
                 "items": {
-                  "additionalProperties": true,
-                  "type": "object"
+                  "$ref": "#/components/schemas/CatalogField"
                 },
                 "type": "array"
               },
@@ -925,6 +924,75 @@
         "title": "CatalogDevice",
         "type": "object"
       },
+      "CatalogField": {
+        "description": "A read-only field on a capability (e.g. `sensor.temperature`, `brightness.level`).\nMirrors the domain `CapabilityField` shape so voice/UI consumers can render and parse\nvalues without out-of-band knowledge. Added §P3.7 #19; `values` widened to\n`List[CatalogValueLabel]` in §P3.7 #26.",
+        "properties": {
+          "encoding": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Encoding"
+          },
+          "labels": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Labels"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CatalogValueLabel"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values"
+          }
+        },
+        "required": [
+          "name",
+          "type"
+        ],
+        "title": "CatalogField",
+        "type": "object"
+      },
       "CatalogResponse": {
         "description": "Response for `GET /system/catalog`. `version` is a deterministic short hash of\nthe {rooms, devices} content -- the same payload always hashes to the same value,\nso Irene can subscribe to the retained `bridge/catalog/version` MQTT topic (bumped\non `/reload` + config change) and only re-fetch when it differs from the last\nseen one.",
         "properties": {
@@ -982,6 +1050,39 @@
           "names"
         ],
         "title": "CatalogRoom",
+        "type": "object"
+      },
+      "CatalogValueLabel": {
+        "description": "One entry of an enum value table projected into the catalog (§P3.7 #26). Voice\n(Irene) matches user utterances against `labels` in the active locale and posts\ncanonical actions back; UI renders dropdowns labelled per locale, sending `canonical`\non selection. `wire` is informational for clients but authoritative on the bus.",
+        "properties": {
+          "canonical": {
+            "title": "Canonical",
+            "type": "string"
+          },
+          "labels": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Labels"
+          },
+          "wire": {
+            "title": "Wire",
+            "type": "string"
+          }
+        },
+        "required": [
+          "wire",
+          "canonical"
+        ],
+        "title": "CatalogValueLabel",
         "type": "object"
       },
       "CommandParameterDefinition": {
@@ -3207,9 +3308,7 @@
           }
         },
         "required": [
-          "message",
-          "timestamp",
-          "data"
+          "message"
         ],
         "title": "TestEventData",
         "type": "object"
