@@ -10,19 +10,19 @@
     "power_off":    {"topic": "/devices/hvac_children/controls/power/on", "value": "0"},
     "set_mode": {
       "topic": "/devices/hvac_children/controls/mode/on",
-      "params": [{"name": "mode", "type": "range", "min": 0, "max": 4, "required": true}]
+      "params": [{"name": "mode", "type": "string", "required": true}]
     },
     "set_fan": {
       "topic": "/devices/hvac_children/controls/fan/on",
-      "params": [{"name": "speed", "type": "range", "min": 0, "max": 5, "required": true}]
+      "params": [{"name": "speed", "type": "string", "required": true}]
     },
     "set_vane": {
       "topic": "/devices/hvac_children/controls/vane/on",
-      "params": [{"name": "angle", "type": "range", "min": 0, "max": 6, "required": true}]
+      "params": [{"name": "angle", "type": "string", "required": true}]
     },
     "set_widevane": {
       "topic": "/devices/hvac_children/controls/widevane/on",
-      "params": [{"name": "direction", "type": "range", "min": 0, "max": 6, "required": true}]
+      "params": [{"name": "direction", "type": "string", "required": true}]
     },
     "set_setpoint": {
       "topic": "/devices/hvac_children/controls/temperature/on",
@@ -31,11 +31,52 @@
   },
   "state_topics": {
     "power":            "/devices/hvac_children/controls/power",
-    "mode":             "/devices/hvac_children/controls/mode",
-    "fan":              "/devices/hvac_children/controls/fan",
-    "vane":             "/devices/hvac_children/controls/vane",
-    "widevane":         "/devices/hvac_children/controls/widevane",
-    "temperature":      {"topic": "/devices/hvac_children/controls/temperature", "type": "float", "unit": "°C"},
+    "mode": {
+      "topic": "/devices/hvac_children/controls/mode", "type": "enum",
+      "values": [
+        {"wire": "AUTO", "canonical": "auto"},
+        {"wire": "DRY",  "canonical": "dry"},
+        {"wire": "COOL", "canonical": "cool"},
+        {"wire": "HEAT", "canonical": "heat"},
+        {"wire": "FAN",  "canonical": "fan_only"}
+      ]
+    },
+    "fan": {
+      "topic": "/devices/hvac_children/controls/fan", "type": "enum",
+      "values": [
+        {"wire": "AUTO",  "canonical": "auto"},
+        {"wire": "QUIET", "canonical": "quiet"},
+        {"wire": "1",     "canonical": "speed_1"},
+        {"wire": "2",     "canonical": "speed_2"},
+        {"wire": "3",     "canonical": "speed_3"},
+        {"wire": "4",     "canonical": "speed_4"}
+      ]
+    },
+    "vane": {
+      "topic": "/devices/hvac_children/controls/vane", "type": "enum",
+      "values": [
+        {"wire": "AUTO",  "canonical": "auto"},
+        {"wire": "SWING", "canonical": "swing"},
+        {"wire": "1",     "canonical": "pos_1"},
+        {"wire": "2",     "canonical": "pos_2"},
+        {"wire": "3",     "canonical": "pos_3"},
+        {"wire": "4",     "canonical": "pos_4"},
+        {"wire": "5",     "canonical": "pos_5"}
+      ]
+    },
+    "widevane": {
+      "topic": "/devices/hvac_children/controls/widevane", "type": "enum",
+      "values": [
+        {"wire": "SWING", "canonical": "swing"},
+        {"wire": "<<",    "canonical": "far_left"},
+        {"wire": "<",     "canonical": "left"},
+        {"wire": "|",     "canonical": "center"},
+        {"wire": ">",     "canonical": "right"},
+        {"wire": ">>",    "canonical": "far_right"},
+        {"wire": "<>",    "canonical": "split"}
+      ]
+    },
+    "temperature":      {"topic": "/devices/hvac_children/controls/temperature",      "type": "float", "unit": "°C"},
     "room_temperature": {"topic": "/devices/hvac_children/controls/room_temperature", "type": "float", "unit": "°C"}
   }
 }

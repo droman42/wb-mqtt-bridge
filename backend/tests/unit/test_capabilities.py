@@ -174,28 +174,98 @@ def test_rgb_light_profile_carries_color_field_with_rgb_encoding():
 
 def test_hvac_climate_actions_cover_mode_fan_vane_widevane_setpoint():
     """`hvac` profile gives voice/UI 7 actions on the `climate` capability: on/off plus
-    set_mode / set_fan / set_vane / set_widevane / set_setpoint. The set_* params accept
-    integer codes whose meanings are documented in the mitsubishi2wb firmware README
-    (mode 0-4, fan 0-5, vane 0-6, widevane 0-6 — see sister repo for the mapping table).
-    Catalog deliberately does NOT expose mode/fan/vane/widevane as typed fields (mirrors
-    the heating_loop pattern §2.3 / 2.9): the WB controls publish raw int codes whose
-    meanings need an out-of-band table, so promising a typed `enum` field would lie.
-    Decision recorded 2026-06-08 alongside living_room HVAC authoring."""
+    set_mode / set_fan / set_vane / set_widevane / set_setpoint. Each enum-encoded
+    field is a typed `fields[]` entry with a full ValueLabel table — wire values from
+    the mitsubishi2wb firmware (sister repo, `html_pages.h` ~line 137), canonical
+    names short identifier-safe, labels trilingual (ru/en/de). §P3.7 #26 reversed the
+    earlier `2026-06-08` decision to leave these fields off the catalog: with the
+    value-label layer in place, a typed `enum` claim is now truthful and voice can
+    autodiscover the table."""
     m = load_capability_map("WbPassthroughDevice", "any_hvac",
                              capabilities_dir=CAPS, capability_profile="hvac")
     climate = m.get("climate")
     assert set(climate.actions) == {
         "on", "off", "set_mode", "set_fan", "set_vane", "set_widevane", "set_setpoint",
     }
-    # No mode/fan/vane/widevane in fields[] (raw int wire format would diverge from any
-    # enum claim). Only the two REAL typed surfaces survive.
-    assert {f.name for f in climate.fields} == {"temperature", "room_temperature"}
+    field_names = {f.name for f in climate.fields}
+    assert field_names == {
+        "temperature", "room_temperature", "mode", "fan", "vane", "widevane",
+    }
     # `temperature` field is the SETPOINT (writable; mapped to WB control of the same
     # name in the firmware — see set_setpoint action's device-config topic).
     temperature = next(f for f in climate.fields if f.name == "temperature")
     assert temperature.type == "float" and temperature.unit == "°C"
     # Param-map renames are identity (canonical → native) for all set_* actions.
     assert climate.actions["set_widevane"].param_map == {"direction": "direction"}
+
+
+def test_hvac_profile_mode_carries_firmware_wire_values_and_canonical_labels():
+    """Mode field's value table mirrors the firmware dropdown order (AUTO/DRY/COOL/HEAT/FAN
+    per mitsubishi2wb html_pages.h line ~137-141) and uses canonical `fan_only` for the
+    "FAN" wire mode to avoid colliding with the `fan` field name."""
+    m = load_capability_map("WbPassthroughDevice", "any_hvac",
+                             capabilities_dir=CAPS, capability_profile="hvac")
+    mode = next(f for f in m.get("climate").fields if f.name == "mode")
+    assert mode.type == "enum"
+    assert [v.wire for v in mode.values] == ["AUTO", "DRY", "COOL", "HEAT", "FAN"]
+    assert [v.canonical for v in mode.values] == ["auto", "dry", "cool", "heat", "fan_only"]
+    # Every entry carries trilingual labels (the catalog surface for voice/UI).
+    for v in mode.values:
+        assert v.labels is not None
+        assert v.labels.ru and v.labels.en
+        assert getattr(v.labels, "de", None)
+
+
+def test_hvac_profile_widevane_carries_directional_canonical_for_firmware_symbols():
+    """Widevane wire values are firmware-internal symbols (`<<`, `<`, `|`, `>`, `>>`, `<>`,
+    `SWING`); canonical names are directional (`far_left`, `left`, `center`, `right`,
+    `far_right`, `split`, `swing`) for voice + UI ergonomics."""
+    m = load_capability_map("WbPassthroughDevice", "any_hvac",
+                             capabilities_dir=CAPS, capability_profile="hvac")
+    widevane = next(f for f in m.get("climate").fields if f.name == "widevane")
+    assert {v.wire for v in widevane.values} == {"SWING", "<<", "<", "|", ">", ">>", "<>"}
+    assert {v.canonical for v in widevane.values} == {
+        "swing", "far_left", "left", "center", "right", "far_right", "split",
+    }
+
+
+def test_hvac_device_configs_state_topics_match_profile_value_tables():
+    """Drift-guard: each of the 3 HVAC device configs must mirror the profile's wire ↔
+    canonical pairs in its state_topics. Labels live only in the profile (catalog
+    source-of-truth); the configs duplicate only what the driver needs to translate.
+    Catches the silent failure where a wire value drifts between the profile and the
+    config (voice would publish canonical, the unconfigured wire would not echo back)."""
+    from wb_mqtt_bridge.infrastructure.config.models import WbPassthroughDeviceConfig
+
+    DEVICES_ROOT = CAPS.parent / "devices" / "wb-devices"
+    hvac_configs = [
+        DEVICES_ROOT / "bedroom" / "bedroom_hvac.json",
+        DEVICES_ROOT / "living_room" / "living_room_hvac.json",
+        DEVICES_ROOT / "children_room" / "children_room_hvac.json",
+    ]
+
+    m = load_capability_map("WbPassthroughDevice", "any_hvac",
+                             capabilities_dir=CAPS, capability_profile="hvac")
+    profile_tables = {
+        f.name: [(v.wire, v.canonical) for v in f.values]
+        for f in m.get("climate").fields
+        if f.values is not None
+    }
+    assert set(profile_tables) == {"mode", "fan", "vane", "widevane"}, (
+        f"profile fields with value tables drifted: {sorted(profile_tables)}"
+    )
+
+    for path in hvac_configs:
+        data = json.loads(path.read_text())
+        cfg = WbPassthroughDeviceConfig.create_from_dict(data)
+        for field in ("mode", "fan", "vane", "widevane"):
+            spec = cfg.state_topics[field]
+            assert spec.type == "enum", f"{path.name}.{field}.type must be enum"
+            cfg_pairs = [(v.wire, v.canonical) for v in (spec.values or [])]
+            assert cfg_pairs == profile_tables[field], (
+                f"{path.name}.{field} state_topic value table drifted from profile: "
+                f"config has {cfg_pairs}, profile has {profile_tables[field]}"
+            )
 
 
 def test_heating_loop_profile_has_climate_with_typed_measurement_fields():
