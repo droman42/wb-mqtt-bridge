@@ -5,11 +5,23 @@ import os
 import ssl
 from typing import Dict, Any, List, Optional, Tuple, Union, cast
 
-# Import WebOSTV classes for higher-level API access
-from asyncwebostv import app_id_to_input_id
-# WebOSTV / SecureWebOSTV aren't in asyncwebostv.__all__; import from the
-# submodule directly to satisfy pyright (runtime import works either way).
-from asyncwebostv.client import WebOSTV, SecureWebOSTV
+# asyncwebostv 0.4.0+: facades + all control classes are in __all__; the
+# shipped controls.pyi stub gives pyright real signatures for the
+# subscribe_*/unsubscribe_* + *_with_monitoring + concrete methods
+# (select_source / set_input / launch / …). Regular command methods
+# (system.info() / etc.) remain typed *args/**kwargs Any -- the dispatch
+# genuinely accepts that -- but their existence is now checked.
+from asyncwebostv import (
+    ApplicationControl,
+    InputControl,
+    MediaControl,
+    SecureWebOSTV,
+    SourceControl,
+    SystemControl,
+    TvControl,
+    WebOSTV,
+    app_id_to_input_id,
+)
 
 # Keep original imports for backward compatibility
 
@@ -69,15 +81,14 @@ class LgTv(BaseDevice[LgTvState]):
             mac_address=None
         )
         
-        # asyncwebostv's control classes (SystemControl / MediaControl / etc.)
-        # dispatch most methods at RUNTIME via metaclass + COMMANDS dict, so
-        # static type checkers can't see `subscribe_get_volume()` / `info()` /
-        # `unsubscribe_power_state()` etc. Typing as Any deliberately bypasses
-        # pyright on these accesses -- the lib is the contract, not the stub.
-        self.client: Any = None
-        self.system: Any = None
-        self.media: Any = None
-        self.app: Any = None
+        # asyncwebostv 0.4.0+: real types (controls.pyi ships precise sigs for
+        # subscribe_*/unsubscribe_*/concrete methods; regular commands stay
+        # *args/**kwargs Any per the lib's runtime dispatch). No more `: Any`
+        # narrowing on the consumer side.
+        self.client: Optional[Union[WebOSTV, SecureWebOSTV]] = None
+        self.system: Optional[SystemControl] = None
+        self.media: Optional[MediaControl] = None
+        self.app: Optional[ApplicationControl] = None
         # Subscription bookkeeping. asyncwebostv 0.3.0 contract: per-control `subscriptions`
         # dicts are NOT cleared by client.close(), so we must (a) unsubscribe explicitly
         # before close and (b) treat each (re)connect as a fresh slate — new WebOSTV → new
@@ -85,9 +96,9 @@ class LgTv(BaseDevice[LgTvState]):
         # whether subscribe_* has been called on the current generation of control objects;
         # _teardown_subscriptions is a no-op when False (e.g. shutdown without ever connecting).
         self._subscriptions_active = False
-        self.tv_control: Any = None
-        self.input_control: Any = None
-        self.source_control: Any = None
+        self.tv_control: Optional[TvControl] = None
+        self.input_control: Optional[InputControl] = None
+        self.source_control: Optional[SourceControl] = None
 
         # Health-loop bookkeeping. The WebSocket can die silently (remote-close path in
         # asyncwebostv): the library callback we register in connect() flips connected=False
@@ -500,12 +511,8 @@ class LgTv(BaseDevice[LgTvState]):
             if not self.app or not self.client or not self.state.connected:
                 logger.debug("Cannot refresh app cache: Not connected to TV or app control not available")
                 return False
-                
-            from typing import cast, Any
-            
-            # Cast to Any to avoid type checking issues
-            app_control = cast(Any, self.app)
-            apps = await app_control.list_apps()
+
+            apps = await self.app.list_apps()
             
             if apps is not None:
                 self._cached_apps = apps
@@ -581,27 +588,22 @@ class LgTv(BaseDevice[LgTvState]):
             
             # First try using input_control.list_inputs() if available
             if self.input_control:
-                # Cast to Any to avoid type checking issues
-                input_control = cast(Any, self.input_control)
-                logger.debug(f"Calling list_inputs() on input control of type: {type(input_control)}")
-                
+                logger.debug(f"Calling list_inputs() on input control of type: {type(self.input_control)}")
+
                 try:
-                    raw_sources = await input_control.list_inputs()
+                    raw_sources = await self.input_control.list_inputs()
                     logger.debug(f"list_inputs() returned: {type(raw_sources)} {raw_sources}")
                 except Exception as input_error:
                     logger.error(f"Exception in list_inputs(): {str(input_error)}")
                     raw_sources = None
-            
+
             # If input_control failed or isn't available, try source_control
             if raw_sources is None and self.source_control:
                 logger.debug("Trying source_control to get input sources")
                 try:
-                    # Cast to Any to avoid type checking issues
-                    source_control = cast(Any, self.source_control)
-                    
                     # Try list_sources method if it exists
-                    if hasattr(source_control, "list_sources") and callable(getattr(source_control, "list_sources")):
-                        raw_sources = await source_control.list_sources()
+                    if hasattr(self.source_control, "list_sources") and callable(getattr(self.source_control, "list_sources")):
+                        raw_sources = await self.source_control.list_sources()
                         logger.debug(f"source_control.list_sources() returned: {type(raw_sources)} {raw_sources}")
                 except Exception as source_error:
                     logger.error(f"Exception in source_control.list_sources(): {str(source_error)}")
@@ -790,6 +792,9 @@ class LgTv(BaseDevice[LgTvState]):
                 # within ms instead of leaving the bridge's state lying until the next
                 # command attempt. Library fires `_close_callbacks` from BOTH the
                 # explicit close() path and `_handle_messages`'s ConnectionClosed branch.
+                # _connect_to_tv() populated self.client on the success path; assert
+                # encodes that invariant for pyright (connection_result == True ⇒ client).
+                assert self.client is not None, "_connect_to_tv returned True without setting self.client"
                 try:
                     self.client.client.register_close_callback(self._on_websocket_close)
                 except Exception as e:
@@ -1054,15 +1059,11 @@ class LgTv(BaseDevice[LgTvState]):
         Returns:
             True if update was successful, False otherwise
         """
-        from typing import Any
-        
         if not self.media:
             return False
-            
+
         try:
-            # Cast to Any to avoid type checking issues
-            media_control = cast(Any, self.media)
-            volume_info = await media_control.get_volume()
+            volume_info = await self.media.get_volume()
             if volume_info:
                 # Use a default value of 0 only if nothing is returned from the TV. Coalesce
                 # volume + mute into a single update_state call so the callback chain fires
@@ -1129,30 +1130,29 @@ class LgTv(BaseDevice[LgTvState]):
     # and the v0.3.2 changelog for the spec-research rationale.
 
 
-    async def _execute_with_monitoring(self, control, method_name: str, *args, **kwargs) -> Dict[str, Any]:
+    async def _execute_with_monitoring(self, control: Any, method_name: str, *args, **kwargs) -> Dict[str, Any]:
         """Execute a control method with monitoring and handle common result patterns.
-        
+
         Args:
-            control: The control interface (e.g., SystemControl, MediaControl)
-            method_name: The name of the method to call
-            *args, **kwargs: Arguments to pass to the method
-            
+            control: The control interface (e.g., SystemControl, MediaControl).
+                Typed Any because this is a dispatch helper -- the caller
+                passes one of the concrete control classes and we resolve the
+                method by name; the union-of-controls would just be re-Any'd
+                at getattr() anyway.
+            method_name: The name of the method to call.
+            *args, **kwargs: Arguments to pass to the method.
+
         Returns:
-            Dict containing the result from the control method
+            Dict containing the result from the control method.
         """
         try:
-            from typing import cast, Any
-            
             # Ensure we have a control object
             if not control:
                 logger.error(f"Cannot execute {method_name}: Control not initialized")
                 return {"success": False, "error": "Control not initialized"}
-            
-            # Cast to Any to avoid type checking issues with the asyncwebostv library
-            cast_control = cast(Any, control)
-            
+
             # Check if the method exists
-            method = getattr(cast_control, method_name, None)
+            method = getattr(control, method_name, None)
             if not method:
                 logger.error(f"Method {method_name} not found on control {type(control).__name__}")
                 return {"success": False, "error": f"Method {method_name} not found"}
@@ -2183,9 +2183,14 @@ class LgTv(BaseDevice[LgTvState]):
             else:  # String type
                 input_id = input_to_set
                 input_name = input_to_set
-            
+
+            if not input_id:
+                error_msg = f"Input source '{input_source}' has no usable id"
+                logger.error(error_msg)
+                return self.create_command_result(success=False, error=error_msg)
+
             logger.info(f"Setting input source to '{input_name}' (ID: {input_id})")
-            
+
             # Switch to the input source. In asyncwebostv the switch verb lives on
             # InputControl — InputControl.set_input(id) wraps ssap://tv/switchInput with
             # {"inputId": id} and returns the response payload (incl. returnValue).
