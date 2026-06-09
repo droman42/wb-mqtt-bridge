@@ -1,0 +1,62 @@
+// wb-mqtt-bridge — scenario activation through the reconciler. Render:
+//   dot -Tpng docs/images/scenario-reconciler.dot -o docs/images/scenario-reconciler.png
+// Palette: see hexagon.dot header.
+digraph reconciler {
+  rankdir=LR;
+  bgcolor="white";
+  splines=spline;
+  nodesep=0.4; ranksep=0.6;
+  fontname="Helvetica"; labelloc=t; fontsize=16;
+  label="wb-mqtt-bridge — a scenario activation flows through the reconciler (build_plan + execute_plan)";
+
+  node [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.4];
+  edge [fontname="Helvetica", fontsize=9, color="#9e9e9e", arrowsize=0.7];
+
+  // --- the trigger (driving side) ---
+  trigger [label="POST /scenario/{id}/activate\n(or voice / wb-rule / UI)",
+           fillcolor="#e3f2fd", color="#1976d2"];
+
+  // --- the pipeline (domain) ---
+  resolve   [label="resolve_targets\n(topology DFS)\nsource → display via HDMI / SPDIF /\nRCA-hub paths",
+             fillcolor="#fff3e0", color="#ef6c00"];
+  diff      [label="diff vs assumed state\nper-device get_current_state()\nemit only the deltas",
+             fillcolor="#fff3e0", color="#ef6c00"];
+  translate [label="translate\ncapability maps:\nrole → device action\nvalue maps for inputs",
+             fillcolor="#fff3e0", color="#ef6c00"];
+  order     [label="order\npower-before-input\n+ topology edges (delay_ms)",
+             fillcolor="#fff3e0", color="#ef6c00"];
+  execute   [label="execute_plan\nfor each action:\ndevice.execute_action(...)\nsuccess-checked + gated",
+             fillcolor="#fff3e0", color="#ef6c00"];
+
+  result [label="ExecutionResult\nexecuted · failures · manual_steps\nScenarioState updated + persisted",
+          fillcolor="#e3f2fd", color="#1976d2"];
+
+  // --- declarative inputs (data nodes) ---
+  topology  [label="config/topology.json\nlinks · ordering edges · manual nodes",
+             shape=note, fillcolor="#fff8e1", color="#f57f17"];
+  capmaps   [label="config/capabilities/\nper-device maps (Capability + actions)",
+             shape=note, fillcolor="#fff8e1", color="#f57f17"];
+  states    [label="device assumed state\n(optimistic for IR; mirrored for WB;\nfeedback-driven for native)",
+             shape=note, fillcolor="#fff8e1", color="#f57f17"];
+  scenariof [label="config/scenarios/*.json\nthin: source · display · audio",
+             shape=note, fillcolor="#fff8e1", color="#f57f17"];
+
+  // --- adapters reached during execute (driven side) ---
+  devport   [label="DevicePort.execute_action\n(driver flavor: native / IR / WB-passthrough)",
+             fillcolor="#f3e5f5", color="#7b1fa2"];
+
+  // pipeline
+  trigger -> resolve -> diff -> translate -> order -> execute -> result;
+
+  // data inputs
+  scenariof -> resolve   [style=dashed, color="#f57f17"];
+  topology  -> resolve   [style=dashed, color="#f57f17"];
+  topology  -> order     [style=dashed, color="#f57f17"];
+  states    -> diff      [style=dashed, color="#f57f17"];
+  capmaps   -> translate [style=dashed, color="#f57f17"];
+
+  // execution reaches the driver flavor through the port
+  execute -> devport [style=dashed, label="per\naction", color="#7b1fa2", fontcolor="#7b1fa2"];
+
+  {rank=same; scenariof; topology; capmaps; states}
+}
