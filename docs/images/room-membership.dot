@@ -1,0 +1,47 @@
+// wb-mqtt-bridge — single source of truth for room ↔ device membership. Render:
+//   dot -Tpng docs/images/room-membership.dot -o docs/images/room-membership.png
+// Palette: see hexagon.dot header.
+digraph room_membership {
+  rankdir=LR;
+  bgcolor="white";
+  splines=spline;
+  nodesep=0.45; ranksep=0.9;
+  fontname="Helvetica"; labelloc=t; fontsize=16;
+  label="wb-mqtt-bridge — room ↔ device membership is DERIVED, not authored twice";
+
+  node [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.4];
+  edge [fontname="Helvetica", fontsize=9, color="#9e9e9e", arrowsize=0.7];
+
+  // --- authored declarations (sources of truth) ---
+  rooms_json [shape=note, fillcolor="#fff8e1", color="#f57f17",
+              label="config/rooms.json\nROOM METADATA ONLY\n──────────────────\nroom_id, names (localized),\ndescription, default_scenario\n\n(any legacy `devices` array is\nstripped at load — IGNORED)"];
+
+  device_configs [shape=note, fillcolor="#fff8e1", color="#f57f17",
+                  label="config/devices/*.json (and wb-devices/*/*.json)\nDEVICE METADATA — one declaration site\n──────────────────────────────────────\ndevice_id, device_class, config_class,\nROOM (single source of truth),\ncommands, state_topics, …"];
+
+  // --- bootstrap ordering ---
+  bootstrap [label="bootstrap.py — strict order\n1. ConfigManager.load(devices)\n2. DeviceManager.load + build (typed)\n3. RoomManager(cfg_dir, device_manager)\n     → RoomManager.reload()\n4. ScenarioManager(...)\n     → _validate_room_membership()",
+             fillcolor="#e8f5e8", color="#388e3c", width=4.6];
+
+  // --- runtime objects ---
+  dev_mgr [label="DeviceManager.devices\n{id → device}\neach device: DevicePort.get_room()",
+           fillcolor="#fff3e0", color="#ef6c00"];
+  room_mgr [label="RoomManager.rooms\n{room_id → RoomDefinition}\n.devices populated\nby grouping DeviceManager\nby get_room()",
+            fillcolor="#fff3e0", color="#ef6c00"];
+
+  // --- the invariant guard ---
+  invariant [label="ScenarioManager._validate_room_membership()\nfor every scenario with room_id:\n  for every named device:\n    device.get_room() must equal scenario.room_id\n  → HARD FAIL on mismatch (load time)",
+             fillcolor="#fff3e0", color="#ef6c00", penwidth=2, shape=hexagon];
+
+  // edges
+  rooms_json     -> bootstrap [style=dashed, color="#f57f17"];
+  device_configs -> bootstrap [style=dashed, color="#f57f17"];
+  bootstrap      -> dev_mgr   [color="#388e3c"];
+  bootstrap      -> room_mgr  [color="#388e3c"];
+  dev_mgr        -> room_mgr  [label="reload()\nwalks DevicePort.get_room()\n→ groups devices by room", color="#ef6c00", fontcolor="#ef6c00"];
+  room_mgr       -> invariant [label="used by", style=dashed];
+  dev_mgr        -> invariant [label="used by", style=dashed];
+
+  {rank=same; rooms_json; device_configs}
+  {rank=same; dev_mgr; room_mgr}
+}

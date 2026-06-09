@@ -1,0 +1,54 @@
+// wb-mqtt-bridge — how scenarios and the voice assistant consume rooms. Render:
+//   dot -Tpng docs/images/rooms-in-use.dot -o docs/images/rooms-in-use.png
+// Palette: see hexagon.dot header.
+digraph rooms_in_use {
+  rankdir=TB;
+  bgcolor="white";
+  splines=spline;
+  nodesep=0.55; ranksep=0.8;
+  fontname="Helvetica"; labelloc=t; fontsize=16;
+  label="wb-mqtt-bridge — rooms as a scope for scenarios + the voice assistant";
+
+  node [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.4];
+  edge [fontname="Helvetica", fontsize=9, color="#9e9e9e", arrowsize=0.7];
+
+  // --- consumers ---
+  scenario [label="Scenario consumer\nScenarioDefinition.room_id\nconstrains membership",
+            fillcolor="#fff3e0", color="#ef6c00"];
+
+  voice [label="Voice consumer (Irene)\n\"включи свет\"  → scope = current room\n\"включи свет в кабинете\" → scope = cabinet\n\"включи свет везде\" → scope = global",
+         fillcolor="#fff3e0", color="#ef6c00"];
+
+  // --- the shared API ---
+  room_api [label="RoomManager\n.list() · .get(room_id)\nGET /room/list · GET /room/{id}",
+            fillcolor="#e3f2fd", color="#1976d2", penwidth=2];
+
+  // --- room buckets ---
+  subgraph cluster_buckets {
+    label="11 rooms — one declaration per device"; fontsize=12; color="#cfcfcf"; style=rounded; margin=10;
+    physical [shape=note, fillcolor="#fff8e1", color="#f57f17",
+              label="10 physical rooms\nliving_room · children_room · kitchen ·\ncabinet · entrance · hall ·\nshower · bathroom · bedroom · wardrobe\n──────────────────────────\ndevices: every device that declared\n  `room: \"<id>\"` in its config"];
+    global_room [shape=note, fillcolor="#fff8e1", color="#f57f17",
+                 label="`global` (planned aggregate slot)\n\"Whole House\" / \"Весь дом\"\n──────────────────────────\nhouses aggregate devices like\n  all_lights, all_covers, …\neach an explicit WbPassthroughDevice\npointed at a wb-rules scene topic\n(populated by P3.7 #22 — not yet built)"];
+  }
+
+  // --- the invariants (one per consumer) ---
+  inv_scenario [label="invariant:\nevery device named by the scenario\nmust have device.get_room() == scenario.room_id\n(hard-fail at load)",
+                fillcolor="#f3e5f5", color="#7b1fa2"];
+
+  inv_voice [label="invariant:\nan utterance with a room phrase resolves\nONLY against devices in that room\n(disambiguates \"свет\" by room)",
+             fillcolor="#f3e5f5", color="#7b1fa2"];
+
+  // edges
+  scenario -> room_api [label="reads", color="#1976d2"];
+  voice    -> room_api [label="reads", color="#1976d2"];
+  room_api -> physical [color="#1976d2"];
+  room_api -> global_room [color="#1976d2", style=dashed, label="planned"];
+
+  scenario -> inv_scenario [style=dashed, color="#7b1fa2"];
+  voice    -> inv_voice    [style=dashed, color="#7b1fa2"];
+
+  {rank=same; scenario; voice}
+  {rank=same; physical; global_room}
+  {rank=same; inv_scenario; inv_voice}
+}
