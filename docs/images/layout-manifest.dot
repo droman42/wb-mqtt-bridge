@@ -1,0 +1,66 @@
+// wb-mqtt-bridge — anatomy of a LayoutManifest. Render:
+//   dot -Tpng docs/images/layout-manifest.dot -o docs/images/layout-manifest.png
+// Palette: see hexagon.dot header.
+digraph layout_manifest {
+  rankdir=TB;
+  bgcolor="white";
+  splines=spline;
+  nodesep=0.4; ranksep=0.6;
+  fontname="Helvetica"; labelloc=t; fontsize=16;
+  label="wb-mqtt-bridge — LayoutManifest: seven remote zones + a scenario-only bottom panel";
+
+  node [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.4];
+  edge [fontname="Helvetica", fontsize=9, color="#9e9e9e", arrowsize=0.7];
+
+  // header / source
+  source [label="layout_engine.py\ncomposes from:\n• device.capabilities (capability map)\n• device.config.commands (per-action params)\n• per-action `placement` hints",
+          fillcolor="#fff3e0", color="#ef6c00", width=4.4];
+
+  manifest [label="LayoutManifest\n──────────────\nentityKind, deviceCategory,\ndeviceClass, stateSchema,\nremoteZones[…], manualInstructions?",
+            fillcolor="#fff8e1", color="#f57f17", shape=hexagon, penwidth=2];
+
+  // the seven zone notes
+  zone_power [shape=note, fillcolor="#e3f2fd", color="#1976d2",
+              label="① power\nPowerButtonConfig[]\n(left / middle / right)\nbutton_type: off / on / toggle / zone2"];
+  zone_media [shape=note, fillcolor="#e3f2fd", color="#1976d2",
+              label="② media-stack\ninputs (Dropdown: by-api or by-commands)\nplayback (actions row)\ntracks (actions row)"];
+  zone_screen [shape=note, fillcolor="#e3f2fd", color="#1976d2",
+               label="③ screen\nvertical button stack\n(menu / home / back / etc.)"];
+  zone_menu [shape=note, fillcolor="#e3f2fd", color="#1976d2",
+            label="④ menu\nnav cluster (D-pad + OK)\nalways visible — center of remote"];
+  zone_volume [shape=note, fillcolor="#e3f2fd", color="#1976d2",
+              label="⑤ volume\nVolumeSliderConfig\n+ optional mute_action\n(reads device state for level)"];
+  zone_apps [shape=note, fillcolor="#e3f2fd", color="#1976d2",
+            label="⑥ apps\nDropdown: launch app / scene\n(Apple TV / LG TV)"];
+  zone_pointer [shape=note, fillcolor="#e3f2fd", color="#1976d2",
+                label="⑦ pointer\n2D pointer pad\n(LG TV Magic Remote)"];
+
+  // sibling of remoteZones: scenario-only bottom panel for authored manual notes
+  manual_panel [shape=note, fillcolor="#e3f2fd", color="#1976d2",
+                label="bottom panel\nmanualInstructions  (scenario-only)\n──────────────────────\nstartup: [\"set Dodocus to LD\", …]\nshutdown: [\"power the Sugden phono off\", …]\nauthored statically on the scenario config\n(distinct from the runtime manual_steps the\nreconciler emits in the activation response)"];
+
+  // the action atom (referenced by every zone)
+  action [shape=note, fillcolor="#fff8e1", color="#f57f17",
+          label="ProcessedAction (the atom)\n• actionName + displayName\n• parameters (typed; slider min/max/step)\n• icon (material / custom / fallback)\n• ui_hints (size / style / has_parameters)\n• sourceDeviceId  ← set on scenario manifests\n  to route through the role device"];
+
+  source -> manifest [color="#ef6c00"];
+  manifest -> zone_power;
+  manifest -> zone_media;
+  manifest -> zone_screen;
+  manifest -> zone_menu;
+  manifest -> zone_volume;
+  manifest -> zone_apps;
+  manifest -> zone_pointer;
+  manifest -> manual_panel [style=dashed, label="scenario-only", color="#1976d2", fontcolor="#1976d2"];
+
+  zone_power  -> action [style=dashed, color="#bdbdbd"];
+  zone_media  -> action [style=dashed, color="#bdbdbd"];
+  zone_screen -> action [style=dashed, color="#bdbdbd"];
+  zone_menu   -> action [style=dashed, color="#bdbdbd"];
+  zone_volume -> action [style=dashed, color="#bdbdbd"];
+  zone_apps   -> action [style=dashed, color="#bdbdbd"];
+  zone_pointer -> action [style=invis];
+
+  {rank=same; zone_power; zone_media; zone_screen; zone_menu}
+  {rank=same; zone_volume; zone_apps; zone_pointer; manual_panel}
+}

@@ -1,0 +1,71 @@
+// wb-mqtt-bridge — UI architecture: build-time codegen + runtime layout manifest. Render:
+//   dot -Tpng docs/images/ui-architecture.dot -o docs/images/ui-architecture.png
+// Palette: see hexagon.dot header.
+digraph ui_architecture {
+  rankdir=TB;
+  bgcolor="white";
+  splines=spline;
+  nodesep=0.45; ranksep=0.8;
+  fontname="Helvetica"; labelloc=t; fontsize=16;
+  label="wb-mqtt-bridge — UI architecture: one build-time codegen (types), one runtime fetch (layout)";
+
+  node [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.4];
+  edge [fontname="Helvetica", fontsize=9, color="#9e9e9e", arrowsize=0.7];
+
+  // ============================================================
+  // Build time
+  // ============================================================
+  subgraph cluster_build {
+    label="Build time — type contract only";
+    fontsize=12; color="#a5d6a7"; style=rounded; margin=12;
+
+    openapi [shape=note, fillcolor="#fff8e1", color="#f57f17",
+             label="backend/openapi.json\n(committed; FastAPI export\n+ injected state-model union)"];
+    gen     [label="npm run gen:api-types\nopenapi-typescript", fillcolor="#e8f5e8", color="#388e3c"];
+    types   [shape=note, fillcolor="#e3f2fd", color="#1976d2",
+             label="ui/src/types/api.gen.ts\n(all routes + DTOs typed)"];
+
+    openapi -> gen [color="#388e3c"];
+    gen -> types  [color="#388e3c"];
+  }
+
+  // ============================================================
+  // Runtime
+  // ============================================================
+  subgraph cluster_runtime {
+    label="Runtime — layout manifest fetched per device / scenario";
+    fontsize=12; color="#90caf9"; style=rounded; margin=12;
+
+    backend_engine [label="presentation/api/layout_engine.py\n+ /catalog · /room/list",
+                    fillcolor="#fff3e0", color="#ef6c00"];
+    manifest_api [label="GET /devices/{id}/layout\nGET /scenario/{id}/layout",
+                  fillcolor="#e3f2fd", color="#1976d2"];
+    adapter [label="ui/src/lib/layoutManifestAdapter.ts\nLayoutManifest → RemoteDeviceStructure",
+             fillcolor="#e3f2fd", color="#1976d2"];
+    runtime_page [label="RuntimeDevicePage.tsx\nRuntimeScenarioPage.tsx",
+                  fillcolor="#e3f2fd", color="#1976d2"];
+    remote_layout [label="RemoteControlLayout.tsx\n(generic renderer — same for any device)",
+                   fillcolor="#e3f2fd", color="#1976d2"];
+    sse [label="GET /events/{devices,scenarios}\nlive state-change events",
+         fillcolor="#e3f2fd", color="#1976d2"];
+
+    backend_engine -> manifest_api [color="#ef6c00"];
+    manifest_api -> runtime_page [label="fetch", color="#1976d2"];
+    runtime_page -> adapter [color="#1976d2"];
+    adapter -> remote_layout [color="#1976d2"];
+    sse -> runtime_page [style=dashed, label="live state", color="#1976d2"];
+  }
+
+  // ============================================================
+  // Appliance bypass
+  // ============================================================
+  appliance [label="ui/src/pages/appliances/*\nhand-written bespoke pages\n(planned: kitchen hood, Roborock, …)",
+             fillcolor="#fff3e0", color="#ef6c00", style="filled,rounded,dashed"];
+
+  // build-time types are consumed by both UIs
+  types -> runtime_page [style=dotted, label="DTO types", color="#1976d2", fontcolor="#1976d2"];
+  types -> appliance    [style=dotted, label="DTO types", color="#1976d2", fontcolor="#1976d2"];
+
+  // appliances do not consume the layout manifest
+  manifest_api -> appliance [style=dashed, color="#bdbdbd", label="not used\n(device_category=\"appliance\")"];
+}
