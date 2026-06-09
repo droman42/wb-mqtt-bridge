@@ -1,0 +1,59 @@
+// wb-mqtt-bridge — scenario lifecycle: activate, switch, deactivate. Render:
+//   dot -Tpng docs/images/scenario-lifecycle.dot -o docs/images/scenario-lifecycle.png
+// Palette: see hexagon.dot header.
+digraph lifecycle {
+  rankdir=LR;
+  bgcolor="white";
+  splines=spline;
+  nodesep=0.55; ranksep=1.0;
+  fontname="Helvetica"; labelloc=t; fontsize=16;
+  label="wb-mqtt-bridge — scenario lifecycle (Harmony model: optimistic state, transparent shutdown)";
+
+  node [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.4];
+  edge [fontname="Helvetica", fontsize=9, color="#1976d2", arrowsize=0.7];
+
+  // --- runtime states (presentation-visible) ---
+  inactive [label="inactive\nno scenario active\nScenarioState.active = None",
+            fillcolor="#e3f2fd", color="#1976d2"];
+  active_A [label="active: scenario A\nScenarioState.active = A\ndevice states: assumed",
+            fillcolor="#fff3e0", color="#ef6c00", penwidth=2];
+  active_B [label="active: scenario B\nScenarioState.active = B",
+            fillcolor="#fff3e0", color="#ef6c00", penwidth=2];
+
+  // --- the three lifecycle calls ---
+  activate    [label="POST /scenario/A/activate\nbuild_plan(A) vs all-devices-off\nexecute_plan",
+               fillcolor="#e8f5e8", color="#388e3c"];
+  switch      [label="POST /scenario/B/activate (while A is active)\nbuild_plan(B) vs current devices' assumed state\nemit only the deltas",
+               fillcolor="#e8f5e8", color="#388e3c"];
+  deactivate  [label="POST /scenario/A/deactivate\nbuild_power_off_plan(A.involved_devices)\nexecute_plan",
+               fillcolor="#e8f5e8", color="#388e3c"];
+
+  // --- side effects: persistence + SSE ---
+  persist [shape=note, fillcolor="#f3e5f5", color="#7b1fa2",
+           label="StateRepositoryPort\nentity_id = `scenario:active`\nentity_id = `device:<id>` (per device)\nflushed on shutdown"];
+  sse [shape=note, fillcolor="#e3f2fd", color="#1976d2",
+       label="EventPublisherPort (SSE)\nscenario events + device state-change events"];
+
+  // --- the transparent-shutdown invariant ---
+  pshut [label="process shutdown\n(SIGTERM / lifespan close)\n*does NOT* power off devices\nassumed state preserved",
+         fillcolor="#fff3e0", color="#ef6c00", style="filled,rounded,dashed", penwidth=2];
+
+  // transitions
+  inactive -> activate -> active_A [color="#388e3c"];
+  active_A -> switch  -> active_B [color="#388e3c"];
+  active_A -> deactivate -> inactive [color="#388e3c"];
+  active_B -> deactivate [color="#388e3c", label="(symmetric)"];
+  active_A -> pshut [style=dashed];
+  active_B -> pshut [style=dashed];
+  pshut -> active_A [label="restart\nstate restored\nfrom DB", style=dashed, color="#9e9e9e"];
+
+  // side effects
+  active_A -> persist [style=dashed, color="#7b1fa2"];
+  active_B -> persist [style=dashed, color="#7b1fa2"];
+  activate -> sse [style=dotted, color="#1976d2"];
+  switch -> sse [style=dotted, color="#1976d2"];
+  deactivate -> sse [style=dotted, color="#1976d2"];
+
+  {rank=same; activate; switch; deactivate}
+  {rank=same; persist; sse}
+}
