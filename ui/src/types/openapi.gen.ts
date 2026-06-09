@@ -1273,7 +1273,7 @@ export interface components {
             names: components["schemas"]["LocalizedName"];
             /**
              * Room
-             * @description Room id (matches an entry in `rooms.json`). A device belongs to **exactly one** room. Devices that don't fit any physical room (whole-house controls) live in the special `global` room. Cross-room actions ("выключи свет везде") are resolved by Irene from the catalog -- by iterating rooms -- not via shared membership. `None` for AV gear that doesn't yet have a room (populated during bulk onboarding, §P3.7 #21).
+             * @description Room id (matches an entry in `rooms.json`). A device belongs to **exactly one** room. Aggregate whole-house controls (e.g. `all_lights`) live in the special `global` room. Whole-house actions ("выключи свет везде") resolve to a SINGLE canonical call against the matching aggregate device in `global` -- Irene does NOT iterate rooms; the bridge ships the aggregates the v1 voice command set needs (§P3.7 #22). `None` for AV gear that doesn't yet have a room (populated during bulk onboarding, §P3.7 #21+#23).
              */
             room?: string | null;
             /**
@@ -1407,8 +1407,8 @@ export interface components {
          * CatalogAction
          * @description A canonical action a device supports under a capability. `params` is `None` for
          *     parameterless actions (`power.on`, `cover.open`) and a list of param descriptors
-         *     otherwise. Full param introspection (type, min/max, choices, labels) lands with the
-         *     vocab extension (#19); slice 1 only exposes parameterless actions.
+         *     otherwise. Full param introspection (type, min/max, choices, labels) is owed work — the
+         *     catalog still surfaces action names only as of #19; deferred until voice needs it.
          */
         CatalogAction: {
             /** Name */
@@ -1420,16 +1420,16 @@ export interface components {
         };
         /**
          * CatalogCapability
-         * @description One capability on a device, projected canonical-side. Sensor capabilities use
-         *     `fields` instead of `actions` (read-only; landed in #19+ for sensor devices).
+         * @description One capability on a device, projected canonical-side. Sensor-shaped capabilities
+         *     have `fields` and no `actions`; momentary capabilities (`power`) have `actions` and
+         *     no `fields`; stateful action capabilities (brightness, color, climate, cover) may
+         *     have both.
          */
         CatalogCapability: {
             /** Actions */
             actions?: components["schemas"]["CatalogAction"][] | null;
             /** Fields */
-            fields?: {
-                [key: string]: unknown;
-            }[] | null;
+            fields?: components["schemas"]["CatalogField"][] | null;
             /** Name */
             name: string;
         };
@@ -1452,6 +1452,29 @@ export interface components {
             };
             /** Room */
             room?: string | null;
+        };
+        /**
+         * CatalogField
+         * @description A read-only field on a capability (e.g. `sensor.temperature`, `brightness.level`).
+         *     Mirrors the domain `CapabilityField` shape so voice/UI consumers can render and parse
+         *     values without out-of-band knowledge. Added §P3.7 #19; `values` widened to
+         *     `List[CatalogValueLabel]` in §P3.7 #26.
+         */
+        CatalogField: {
+            /** Encoding */
+            encoding?: string | null;
+            /** Labels */
+            labels?: {
+                [key: string]: string;
+            } | null;
+            /** Name */
+            name: string;
+            /** Type */
+            type: string;
+            /** Unit */
+            unit?: string | null;
+            /** Values */
+            values?: components["schemas"]["CatalogValueLabel"][] | null;
         };
         /**
          * CatalogResponse
@@ -1483,6 +1506,23 @@ export interface components {
             names: {
                 [key: string]: string;
             };
+        };
+        /**
+         * CatalogValueLabel
+         * @description One entry of an enum value table projected into the catalog (§P3.7 #26). Voice
+         *     (Irene) matches user utterances against `labels` in the active locale and posts
+         *     canonical actions back; UI renders dropdowns labelled per locale, sending `canonical`
+         *     on selection. `wire` is informational for clients but authoritative on the bus.
+         */
+        CatalogValueLabel: {
+            /** Canonical */
+            canonical: string;
+            /** Labels */
+            labels?: {
+                [key: string]: string;
+            } | null;
+            /** Wire */
+            wire: string;
         };
         /**
          * CommandParameterDefinition
@@ -2535,7 +2575,7 @@ export interface components {
              *       "number": 42
              *     }
              */
-            data: {
+            data?: {
                 [key: string]: unknown;
             } | null;
             /**
@@ -2549,7 +2589,7 @@ export interface components {
              * @description Optional timestamp for the event
              * @example 2024-01-01T12:00:00Z
              */
-            timestamp: string | null;
+            timestamp?: string | null;
         };
         /** TracksConfig */
         TracksConfig: {
@@ -2577,10 +2617,6 @@ export interface components {
         };
         /** ValidationError */
         ValidationError: {
-            /** Context */
-            ctx?: Record<string, never>;
-            /** Input */
-            input?: unknown;
             /** Location */
             loc: (string | number)[];
             /** Message */

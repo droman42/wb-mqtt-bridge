@@ -163,6 +163,39 @@ export const usePollDeviceState = () => {
   });
 };
 
+// §P3.7 #17 — catalog: flat capability projection of the whole house (rooms + devices +
+// per-capability fields incl. value tables). The HvacPanel reads value labels from here.
+export type CatalogResponse = components['schemas']['CatalogResponse'];
+export const useSystemCatalog = () => {
+  return useQuery({
+    queryKey: ['system', 'catalog'],
+    queryFn: () => api.get<CatalogResponse>('/system/catalog').then(res => res.data),
+    staleTime: Infinity,  // version-hashed; we refetch on /reload notification, not on a timer.
+  });
+};
+
+// §P3.7 #15 — canonical action endpoint. Voice + UI both POST canonical
+// (capability, action, params) tuples; bridge resolves to native via the capability
+// map and translates value-table entries (§P3.7 #26) before publishing on the bus.
+export type CanonicalActionRequest = components['schemas']['CanonicalActionRequest'];
+export type CanonicalActionResponse = components['schemas']['CanonicalActionResponse'];
+export const useExecuteCanonicalAction = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ deviceId, request }: { deviceId: string; request: CanonicalActionRequest }) =>
+      api.post<CanonicalActionResponse>(`/devices/${deviceId}/canonical`, request).then(res => res.data),
+    onSuccess: (response, { deviceId }) => {
+      // The bridge waits for the value-topic echo (up to ~500ms) and returns post-state.
+      // Merge into cache so live state reflects immediately; otherwise invalidate.
+      if (response.state) {
+        queryClient.setQueryData(['devices', deviceId, 'state'], response.state);
+      } else {
+        void queryClient.invalidateQueries({ queryKey: ['devices', deviceId, 'state'] });
+      }
+    },
+  });
+};
+
 // Room hooks
 export const useRooms = () => {
   return useQuery({
