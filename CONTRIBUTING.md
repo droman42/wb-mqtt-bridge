@@ -38,11 +38,38 @@ Dependencies point inward. When adding code, place it by layer:
 
 A presentation→infrastructure back-edge currently exists in
 `presentation/api/routers/system.py` (`POST /reload` constructs an
-`MQTTClient` directly for live reconnect). It is consciously accepted and
-documented; do not add new ones.
+`MQTTClient` directly for live reconnect). It is consciously accepted,
+documented, and **codified as an `ignore_imports` exception** in the
+import-linter config (see below); do not add new ones.
 
 See **[Architecture overview](docs/architecture/overview.md)** for the full
 picture.
+
+### Layering is CI-enforced — `import-linter`
+
+The inward rule is not a convention you have to remember. **`import-linter`
+hard-fails the build** on any layering violation. Three contracts live in
+`backend/pyproject.toml` `[tool.importlinter]`:
+
+1. Domain depends on nothing outward (no `infrastructure`, `presentation`,
+   `app`, `cli`).
+2. Infrastructure does not import presentation.
+3. Presentation does not reach into infrastructure adapters — one
+   exception, the `POST /reload` MQTTClient construction, is codified by
+   path in `ignore_imports`.
+
+Run locally before pushing:
+
+```bash
+cd backend
+lint-imports
+```
+
+CI runs the same command in `backend-test`, BEFORE the test suite, so a
+layering regression fails fast. If you genuinely need a new
+infrastructure→presentation or presentation→infrastructure edge, add it
+to `ignore_imports` in the contract AND document the why in the commit
+body — the suppression list is the project's audit trail.
 
 ## Backend — typed configs + typed state (a hard rule)
 

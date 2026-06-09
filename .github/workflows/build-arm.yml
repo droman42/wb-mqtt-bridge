@@ -38,6 +38,13 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -e ".[dev]"
+      - name: Hexagonal layering (import-linter)
+        # Hard-fail on any inward-rule violation. Three contracts pinned in
+        # pyproject.toml [tool.importlinter] (domain → nothing outward;
+        # infrastructure → no presentation; presentation → no infrastructure
+        # adapters, with one documented exception). Runs BEFORE tests so a
+        # layering regression fails fast.
+        run: lint-imports
       - name: Run tests
         run: pytest -v -m "not requires_device" --tb=short
 

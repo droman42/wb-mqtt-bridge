@@ -68,13 +68,14 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
-    "pytest-asyncio>=0.18.0", 
+    "pytest-asyncio>=0.18.0",
     "pytest-mock>=3.7.0",
     "pytest-cov>=2.0",
     "black>=21.0",
     "mypy>=0.9",
     "flake8>=3.9",
     "pysqlite3-binary>=0.5.0",
+    "import-linter>=2.0",
 ]
 
 [project.urls]
@@ -134,6 +135,46 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
+
+# --------------------------------------------------------------------
+# import-linter — hexagonal layering enforced. The "every change preserves
+# hexagonal layering" LAW (docs/action_plan_journal.md 2026-05-25 / 2026-05-27)
+# now has a CI gate. Run locally with: lint-imports (from backend/).
+# --------------------------------------------------------------------
+[tool.importlinter]
+root_packages = ["wb_mqtt_bridge"]
+
+[[tool.importlinter.contracts]]
+name = "Domain depends on nothing outward"
+type = "forbidden"
+source_modules = ["wb_mqtt_bridge.domain"]
+forbidden_modules = [
+    "wb_mqtt_bridge.infrastructure",
+    "wb_mqtt_bridge.presentation",
+    "wb_mqtt_bridge.app",
+    "wb_mqtt_bridge.cli",
+]
+
+[[tool.importlinter.contracts]]
+name = "Infrastructure does not import presentation"
+type = "forbidden"
+source_modules = ["wb_mqtt_bridge.infrastructure"]
+forbidden_modules = ["wb_mqtt_bridge.presentation"]
+
+[[tool.importlinter.contracts]]
+name = "Presentation does not reach into infrastructure adapters (one documented exception)"
+type = "forbidden"
+source_modules = ["wb_mqtt_bridge.presentation"]
+forbidden_modules = ["wb_mqtt_bridge.infrastructure"]
+# Documented exception: POST /reload constructs an MQTTClient directly and drives
+# its client-specific reconnect methods (stop / connect_and_subscribe /
+# wait_for_connection). The clean fix (extract an application-layer reload service)
+# is deferred -- the reload path touches live MQTT reconnect and can't be safely
+# HW-verified without the user at the rack. Tracked in docs/action_plan.md §5.1.
+# See docs/architecture/overview.md "The boundary, in practice".
+ignore_imports = [
+    "wb_mqtt_bridge.presentation.api.routers.system -> wb_mqtt_bridge.infrastructure.mqtt.client",
+]
 
 [[tool.mypy.overrides]]
 module = ["tests.*"]
