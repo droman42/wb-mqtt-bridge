@@ -7,9 +7,18 @@ from pydantic import BaseModel
 
 from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition
 from wb_mqtt_bridge.domain.scenarios.scenario import ScenarioError, ScenarioExecutionError
+from wb_mqtt_bridge.domain.scenarios.service import ScenarioManager
+from wb_mqtt_bridge.domain.rooms.service import RoomManager
 from wb_mqtt_bridge.presentation.api.sse_manager import sse_manager, SSEChannel
 from wb_mqtt_bridge.presentation.api.layout_engine import build_scenario_manifest
 from wb_mqtt_bridge.presentation.api.layout_manifest import LayoutManifest
+
+# Note: the module-level mqtt_client global is typed Any deliberately --
+# importing the concrete MQTTClient class from infrastructure here would
+# add a presentation→infrastructure edge (only the system.py /reload one
+# is currently allowed; see CONTRIBUTING + the import-linter contracts).
+# The mqtt_client global is unused by any handler in this router; it's
+# kept on initialize() for symmetry with other routers.
 
 # Create logger for this module
 logger = logging.getLogger(__name__)
@@ -20,16 +29,26 @@ router = APIRouter(
 )
 
 # Global references that will be set during initialization
-scenario_manager = None
-room_manager = None
-mqtt_client = None
+scenario_manager: Optional[ScenarioManager] = None
+room_manager: Optional[RoomManager] = None
+mqtt_client: Any = None  # see header note re: presentation→infrastructure edge
 
-def initialize(scenario_mgr, room_mgr, mqt_client):
+
+def initialize(scenario_mgr: ScenarioManager, room_mgr: RoomManager, mqt_client: Any) -> None:
     """Initialize global references needed by router endpoints."""
     global scenario_manager, room_manager, mqtt_client
     scenario_manager = scenario_mgr
     room_manager = room_mgr
     mqtt_client = mqt_client
+
+
+def _require_scenario_manager() -> ScenarioManager:
+    """Pyright-narrowing accessor: every handler dereferences scenario_manager.
+    Globally typed Optional; this raises a 503 if the bootstrap forgot to wire
+    the manager (shouldn't happen at runtime; safety + narrowing both)."""
+    if scenario_manager is None:
+        raise HTTPException(status_code=503, detail="Scenario manager not initialized")
+    return scenario_manager
 
 # Request and response models
 class SwitchScenarioRequest(BaseModel):
@@ -82,6 +101,7 @@ async def get_scenario_definition(id: str):
         HTTPException: If scenario not found or service not initialized
     """
     check_initialized()
+    assert scenario_manager is not None  # narrowed by check_initialized() above
     
     if id not in scenario_manager.scenario_definitions:
         raise HTTPException(status_code=404, detail=f"Scenario '{id}' not found")
@@ -96,6 +116,7 @@ async def get_scenario_layout(id: str):
     scenario definition + the role devices' capability maps by the placement engine. The `inputs`
     role is intentionally not rendered (reconciler-derived). Spec: scenario_system_redesign.md §6."""
     check_initialized()
+    assert scenario_manager is not None  # narrowed by check_initialized() above
     sdef = scenario_manager.scenario_definitions.get(id)
     if sdef is None:
         raise HTTPException(status_code=404, detail=f"Scenario '{id}' not found")
@@ -122,6 +143,7 @@ async def switch_scenario(data: SwitchScenarioRequest):
         HTTPException: If scenario not found or an error occurs
     """
     check_initialized()
+    assert scenario_manager is not None  # narrowed by check_initialized() above
     
     try:
         await scenario_manager.switch_scenario(data.id, graceful=data.graceful)
@@ -171,6 +193,7 @@ async def start_scenario(data: StartScenarioRequest):
         HTTPException: If scenario not found, another scenario is active, or an error occurs
     """
     check_initialized()
+    assert scenario_manager is not None  # narrowed by check_initialized() above
     
     # Check if scenario exists
     if data.id not in scenario_manager.scenario_definitions:
@@ -230,6 +253,7 @@ async def shutdown_scenario(data: ShutdownScenarioRequest):
         HTTPException: If no active scenario, scenario mismatch, or an error occurs
     """
     check_initialized()
+    assert scenario_manager is not None  # narrowed by check_initialized() above
     
     # Check if any scenario is currently active
     if not scenario_manager.current_scenario:
@@ -284,6 +308,7 @@ async def execute_role_action(data: ActionRequest):
         HTTPException: If no active scenario or an error occurs
     """
     check_initialized()
+    assert scenario_manager is not None  # narrowed by check_initialized() above
     
     try:
         result = await scenario_manager.execute_role_action(data.role, data.command, data.params)
@@ -345,6 +370,7 @@ async def get_scenarios_for_room(room: Optional[str] = Query(None, description="
         HTTPException: If service not initialized
     """
     check_initialized()
+    assert scenario_manager is not None  # narrowed by check_initialized() above
     
     try:
         if room:
