@@ -454,6 +454,8 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             return self.create_command_result(
                 success=True, message="Input already set to arc (ARC engaged)", input="arc"
             )
+        if self.client is None:
+            return self.create_command_result(success=False, error="Not connected to processor")
         logger.info(f"set_input(arc): power-cycling {self.get_name()} to engage HDMI ARC")
         try:
             if self.state.power == PowerState.ON:
@@ -517,7 +519,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         # Call the parent update_state method
         super().update_state(**kwargs)
 
-    def _update_last_command(self, action: str, params: Dict[str, Any] = None):
+    def _update_last_command(self, action: str, params: Optional[Dict[str, Any]] = None):
         """Update last command in the device state.
         
         Args:
@@ -732,7 +734,13 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                     success=False,
                     error=f"Failed to connect to device: {str(e)}"
                 )
-        
+
+        # Guard again -- setup() may have completed without creating self.client
+        # (config-error path, repeated network failure). All downstream code
+        # dereferences self.client, so a single narrow here covers them.
+        if self.client is None:
+            return self.create_command_result(success=False, error="No client after reconnect attempt")
+
         # Get zone parameter if specified
         zone_id = 1  # Default to main zone
         
@@ -901,7 +909,11 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                     success=False,
                     error=f"Failed to connect to device: {str(e)}"
                 )
-        
+
+        # Guard again after the optional reconnect (see handle_power_on).
+        if self.client is None:
+            return self.create_command_result(success=False, error="No client after reconnect attempt")
+
         # Get zone parameter if specified
         zone_id = 1  # Default to main zone
         
@@ -1012,7 +1024,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 error=error_message
             )
             
-    async def _handle_command_error(self, action: str, error: Exception, context: Dict[str, Any] = None) -> CommandResult:
+    async def _handle_command_error(self, action: str, error: Exception, context: Optional[Dict[str, Any]] = None) -> CommandResult:
         """Handle command errors in a consistent way.
         
         This centralizes error handling logic for commands to ensure consistent behavior.
@@ -1061,6 +1073,8 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 await self.setup()
             except Exception as e:
                 return self.create_command_result(success=False, error=f"Failed to connect to device: {str(e)}")
+        if self.client is None:
+            return self.create_command_result(success=False, error="No client after reconnect attempt")
         try:
             await self.client.power_toggle(zone=Zone.ZONE2)
             self.clear_error()
@@ -1125,7 +1139,10 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 await self.emit_progress(error_message, "action_error")
                 return self.create_command_result(
                     success=False, error=error_message, input=token,
-                    power=self.state.power.value if self.state.power else "off",
+                    # PowerState is a str-Enum -- the stored value IS already the
+                    # string form ("on" / "off"). No .value needed; BaseDeviceState
+                    # types this field as `str`.
+                    power=self.state.power if self.state.power else "off",
                 )
 
         # Already on this source?
@@ -1133,6 +1150,8 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             await self.emit_progress(f"Input already set to {token}", "action_progress")
             return self.create_command_result(success=True, message=f"Input already set to {token}", input=token)
 
+        if self.client is None:
+            return self.create_command_result(success=False, error="Not connected to processor")
         try:
             await self.client.select_source(index)
             self.update_state(input_source=token)  # optimistic; the SOURCE notification confirms
@@ -1245,6 +1264,8 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 zone=zone_id
             )
         
+        if self.client is None:
+            return self.create_command_result(success=False, error="Not connected to processor")
         try:
             # Set volume for the specified zone. Both main and zone-2 volume notifications
             # are rack-verified to fire ~180ms after ack (see action_plan §6 2026-05-30).
@@ -1332,7 +1353,10 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         
         # Get zone as enum
         zone = self._get_zone(zone_id)
-        
+
+        if self.client is None:
+            return self.create_command_result(success=False, error="Not connected to processor")
+
         try:
             # Toggle mute for the specified zone
             if zone == Zone.MAIN:
