@@ -1,0 +1,61 @@
+// wb-mqtt-bridge — planned appliance pages + room pages. Render:
+//   dot -Tpng docs/images/appliance-pages.dot -o docs/images/appliance-pages.png
+// Palette: see hexagon.dot header.
+digraph appliance_pages {
+  rankdir=TB;
+  bgcolor="white";
+  splines=spline;
+  nodesep=0.5; ranksep=0.8;
+  fontname="Helvetica"; labelloc=t; fontsize=16;
+  label="wb-mqtt-bridge — planned appliance pages + room pages (one kitchen hood shipped today)";
+
+  node [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.4];
+  edge [fontname="Helvetica", fontsize=9, color="#9e9e9e", arrowsize=0.7];
+
+  // --- routes ---
+  subgraph cluster_routes {
+    label="Routes (UI shell)"; fontsize=12; color="#cfcfcf"; style=rounded; margin=12;
+    r_device   [label="/device/:id\n(remote layout — already built)", fillcolor="#e8f5e8", color="#388e3c"];
+    r_scenario [label="/scenario/:id\n(remote layout — already built)", fillcolor="#e8f5e8", color="#388e3c"];
+    r_appliance [label="/appliance/:id\n(planned — registry-dispatched)", fillcolor="#e3f2fd", color="#1976d2", style="filled,rounded,dashed"];
+    r_room     [label="/room/:id\n(planned — per-room dashboard)", fillcolor="#e3f2fd", color="#1976d2", style="filled,rounded,dashed"];
+  }
+
+  // --- appliance components ---
+  subgraph cluster_appliance {
+    label="Appliance components"; fontsize=12; color="#cfcfcf"; style=rounded; margin=10;
+    container [label="AppliancePage  (planned)\nresolves device_class → component\nvia ui/src/pages/appliances/index.ts registry",
+               fillcolor="#e3f2fd", color="#1976d2", style="filled,rounded,dashed"];
+
+    p_kh   [label="KitchenHoodPage.tsx\nshipped — light toggle + speed slider", fillcolor="#e3f2fd", color="#1976d2"];
+    p_hvac [label="HvacPanel  (planned, P3.7 #26)\nmode / fan / vane / widevane dropdowns\n+ setpoint input + read-only room temp", fillcolor="#e3f2fd", color="#1976d2", style="filled,rounded,dashed"];
+    p_robo [label="RoborockPage  (planned)\ninteractive map + room selection + modes", fillcolor="#e3f2fd", color="#1976d2", style="filled,rounded,dashed"];
+    p_etc  [label="future: WashingMachine,\nOven, …", fillcolor="#e3f2fd", color="#1976d2", style="filled,rounded,dashed"];
+  }
+
+  // --- room dashboard ---
+  room_page [label="RoomPage  (planned)\n• device cards grouped by category\n  (devices · appliances · scenarios)\n• active-scenario banner\n• per-card quick actions (toggle, slider)\n• 'enter room' iPad-portrait landing",
+             fillcolor="#e3f2fd", color="#1976d2", style="filled,rounded,dashed"];
+
+  // --- backend contract (unchanged) ---
+  backend [label="backend  (no new endpoints)\nGET /config/device/{id}  ·  POST /devices/{id}/action\nGET /devices/{id}/state  ·  GET /events/devices\nGET /room/{id}  ·  GET /system/catalog",
+           fillcolor="#fff3e0", color="#ef6c00"];
+
+  // edges
+  r_appliance -> container [color="#1976d2"];
+  container -> p_kh;
+  container -> p_hvac;
+  container -> p_robo;
+  container -> p_etc;
+
+  r_room -> room_page [color="#1976d2"];
+
+  // all components hit the same backend surface
+  p_kh   -> backend [style=dashed, color="#ef6c00"];
+  p_hvac -> backend [style=dashed, color="#ef6c00"];
+  p_robo -> backend [style=dashed, color="#ef6c00"];
+  room_page -> backend [style=dashed, color="#ef6c00"];
+
+  {rank=same; r_device; r_scenario; r_appliance; r_room}
+  {rank=same; p_kh; p_hvac; p_robo; p_etc}
+}
