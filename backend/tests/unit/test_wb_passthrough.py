@@ -716,3 +716,161 @@ async def test_invert_bool_does_not_apply_to_non_inverted_str_field(mqtt):
     dev = WbPassthroughDevice(_slice_config(), mqtt_client=mqtt)
     await dev._on_value_message("power", "/devices/wb-mr6c_51/controls/K4", "1")
     assert dev.state.mirrored["power"] == "1"  # still raw string, not toggled
+
+
+# --- §P3.7 #26: value-label translation (canonical ↔ wire for enum fields) -----
+
+
+def _hvac_mode_config() -> WbPassthroughDeviceConfig:
+    """HVAC-style device with a value-table enum: wire integers, canonical English
+    names, ru/en/de labels. Mirrors the Mitsubishi HVAC mode shape we'll roll out in
+    Phase 2."""
+    return WbPassthroughDeviceConfig(
+        device_id="livingroom_hvac_test",
+        names={"ru": "Кондиционер", "en": "AC", "de": "Klimaanlage"},
+        device_class="WbPassthroughDevice",
+        config_class="WbPassthroughDeviceConfig",
+        capability_profile="hvac",
+        room="living_room",
+        commands={
+            "set_mode": WbPassthroughCommandConfig(
+                action="set_mode",
+                topic="/devices/wb-mr3lv12_x/controls/Mode/on",
+                params=[CommandParameterDefinition(name="mode", type="string", required=True)],
+            ),
+        },
+        state_topics={
+            "mode": {
+                "topic": "/devices/wb-mr3lv12_x/controls/Mode",
+                "type": "enum",
+                "values": [
+                    {"wire": "0", "canonical": "auto", "labels": {"ru": "Авто", "en": "Auto", "de": "Auto"}},
+                    {"wire": "1", "canonical": "heat", "labels": {"ru": "Обогрев", "en": "Heat", "de": "Heizen"}},
+                    {"wire": "2", "canonical": "cool", "labels": {"ru": "Охлаждение", "en": "Cool", "de": "Kühlen"}},
+                    {"wire": "3", "canonical": "dry", "labels": {"ru": "Осушение", "en": "Dry", "de": "Trocken"}},
+                ],
+            },
+        },
+    )
+
+
+@pytest.mark.asyncio
+async def test_value_label_outbound_canonical_set_mode_publishes_wire(mqtt):
+    """Voice/UI calls `set_mode(mode="cool")` (canonical). The driver looks up the
+    matching ValueLabel and publishes wire `"2"` to the MQTT topic. This is the core
+    voice-ergonomics fix: catalog declares canonical, bus speaks wire."""
+    dev = WbPassthroughDevice(_hvac_mode_config(), mqtt_client=mqtt)
+    result = await dev.execute_action("set_mode", {"mode": "cool"}, source="api")
+    assert result["success"] is True
+    mqtt.publish.assert_awaited_once_with("/devices/wb-mr3lv12_x/controls/Mode/on", "2")
+    assert result["data"]["payload"] == "2"
+
+
+@pytest.mark.asyncio
+async def test_value_label_inbound_wire_echo_stores_canonical_in_state(mqtt):
+    """A wire echo `"2"` arrives on the mode value topic. The driver translates to
+    canonical `"cool"` before storing in state.mirrored — so state always speaks the
+    same identifier the catalog declared + that voice sends back."""
+    dev = WbPassthroughDevice(_hvac_mode_config(), mqtt_client=mqtt)
+    await dev._on_value_message("mode", "/devices/wb-mr3lv12_x/controls/Mode", "2")
+    assert dev.state.mirrored == {"mode": "cool"}
+
+
+@pytest.mark.asyncio
+async def test_value_label_roundtrip_canonical_set_then_wire_echo_then_no_op(mqtt):
+    """End-to-end: set_mode("cool") publishes wire `"2"`; device echoes `"2"`; mirror
+    translates back to canonical `"cool"`; next set_mode("cool") short-circuits as
+    no_op (idempotency comparison is canonical-vs-canonical)."""
+    dev = WbPassthroughDevice(_hvac_mode_config(), mqtt_client=mqtt)
+    # 1) publish canonical -> wire "2"
+    await dev.execute_action("set_mode", {"mode": "cool"}, source="api")
+    # 2) device echoes wire "2"
+    await dev._on_value_message("mode", "/devices/wb-mr3lv12_x/controls/Mode", "2")
+    assert dev.state.mirrored["mode"] == "cool"
+    # 3) repeat -> no_op
+    mqtt.publish.reset_mock()
+    result = await dev.execute_action("set_mode", {"mode": "cool"}, source="api")
+    assert result["success"] is True
+    assert result["data"]["no_op"] is True
+    mqtt.publish.assert_awaited_once()  # cheap re-publish, but no_op flag set
+
+
+@pytest.mark.asyncio
+async def test_value_label_outbound_unknown_canonical_passes_through_with_warning(mqtt, caplog):
+    """An unknown canonical (typo, stale voice grammar, malicious payload) passes
+    through unchanged rather than 500-ing the canonical endpoint. The bus will reject
+    it via WB's own error semantics; we log the bridge-side observation for ops."""
+    dev = WbPassthroughDevice(_hvac_mode_config(), mqtt_client=mqtt)
+    with caplog.at_level("WARNING"):
+        await dev.execute_action("set_mode", {"mode": "nonsense"}, source="api")
+    # Pass-through: the bogus canonical lands on the bus as-is for WB to reject.
+    mqtt.publish.assert_awaited_once_with(
+        "/devices/wb-mr3lv12_x/controls/Mode/on", "nonsense"
+    )
+    assert any("not in canonical or wire list" in r.message for r in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_value_label_outbound_accepts_wire_pass_through(mqtt):
+    """An internal caller posting `set_mode(mode="2")` (wire form) is accepted: a
+    wire-match short-circuits the canonical lookup and publishes the same wire byte
+    unchanged. Lets bridge-internal callers stay flexible without going through
+    canonical translation twice."""
+    dev = WbPassthroughDevice(_hvac_mode_config(), mqtt_client=mqtt)
+    await dev.execute_action("set_mode", {"mode": "2"}, source="api")
+    mqtt.publish.assert_awaited_once_with("/devices/wb-mr3lv12_x/controls/Mode/on", "2")
+
+
+@pytest.mark.asyncio
+async def test_value_label_inbound_unknown_wire_falls_back_to_raw(mqtt, caplog):
+    """An unknown wire value (e.g. firmware revision adds a new mode mid-runtime)
+    fails parse_value's allowed-set check, logs the parse warning, and lands as the
+    raw payload in state.mirrored — the catalog hash will bump when the profile is
+    extended, prompting a re-fetch."""
+    dev = WbPassthroughDevice(_hvac_mode_config(), mqtt_client=mqtt)
+    with caplog.at_level("WARNING"):
+        await dev._on_value_message("mode", "/devices/wb-mr3lv12_x/controls/Mode", "9")
+    assert dev.state.mirrored["mode"] == "9"
+    assert any("failed to parse 'mode'" in r.message for r in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_value_label_bare_string_back_compat_acts_as_identity(mqtt):
+    """A `values: ["a", "b"]` config widens each entry to wire==canonical; the
+    translation pass becomes a no-op (wire and canonical strings are equal). State
+    stores the same raw string regardless of which direction the data flows."""
+    cfg = WbPassthroughDeviceConfig(
+        device_id="x",
+        names={"ru": "X", "en": "X"},
+        device_class="WbPassthroughDevice",
+        config_class="WbPassthroughDeviceConfig",
+        room="cabinet",
+        commands={
+            "set_mode": WbPassthroughCommandConfig(
+                action="set_mode",
+                topic="/devices/wb-x/controls/Mode/on",
+                params=[CommandParameterDefinition(name="mode", type="string", required=True)],
+            ),
+        },
+        state_topics={
+            "mode": {
+                "topic": "/devices/wb-x/controls/Mode",
+                "type": "enum",
+                "values": ["heat", "cool"],
+            },
+        },
+    )
+    dev = WbPassthroughDevice(cfg, mqtt_client=mqtt)
+    await dev.execute_action("set_mode", {"mode": "cool"}, source="api")
+    mqtt.publish.assert_awaited_once_with("/devices/wb-x/controls/Mode/on", "cool")
+    await dev._on_value_message("mode", "/devices/wb-x/controls/Mode", "heat")
+    assert dev.state.mirrored["mode"] == "heat"
+
+
+@pytest.mark.asyncio
+async def test_value_label_no_table_acts_as_identity_for_str_field(mqtt):
+    """The slice's bare-string `power` field has no value table; the translation
+    helpers must be a pure identity so existing devices keep mirroring raw strings."""
+    dev = WbPassthroughDevice(_slice_config(), mqtt_client=mqtt)
+    await dev._on_value_message("power", "/devices/wb-mr6c_51/controls/K4", "1")
+    assert dev.state.mirrored["power"] == "1"

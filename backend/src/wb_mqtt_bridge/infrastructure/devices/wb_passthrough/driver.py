@@ -225,18 +225,25 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
         elif target_spec is not None:
             try:
                 target_typed = self._parse_value(natural_payload, target_spec)
-                no_op = current == target_typed
+                # state.mirrored holds CANONICAL for enum fields with a value table
+                # (translated in _coerce_mirror). Normalise target into the same space
+                # so a request with wire payload `"2"` still matches state `"cool"`.
+                target_canonical = self._translate_inbound(target_typed, target_spec)
+                no_op = current == target_canonical
             except (ValueError, TypeError):
                 no_op = str(current) == natural_payload
         else:
             no_op = str(current) == natural_payload
 
-        # Final outbound transform: wire-format inversion if the target field has it.
-        wire_payload = (
-            self._invert_wire_payload(natural_payload, target_spec)
-            if target_spec is not None and target_spec.invert
-            else natural_payload
-        )
+        # Final outbound transforms, in order: value-label translation (canonical → wire)
+        # first, then wire-format inversion if the field is inverted. Order is conceptual
+        # only — `_translate_outbound` no-ops for non-enum and `_invert_wire_payload` no-ops
+        # for enum, so they never compose on a single field.
+        wire_payload = natural_payload
+        if target_spec is not None:
+            wire_payload = self._translate_outbound(wire_payload, target_spec)
+            if target_spec.invert:
+                wire_payload = self._invert_wire_payload(wire_payload, target_spec)
 
         try:
             await self.mqtt_client.publish(cmd_config.topic, wire_payload)
@@ -318,7 +325,11 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
     def _parse_value(raw: str, spec: StateTopicSpec) -> Any:
         """Coerce a raw wire payload into its declared type. Raises ValueError on a
         malformed payload — caller is `_coerce_mirror`, which records a `parse` error
-        flag instead of dropping the value silently."""
+        flag instead of dropping the value silently. For `enum`, the payload is
+        accepted if it matches EITHER `wire` OR `canonical` of any ValueLabel entry:
+        inbound echoes arrive in wire space (`"2"`), outbound idempotency callers
+        come through in canonical space (`"cool"`). Translation to canonical happens
+        in `_translate_inbound`; this method only validates + returns `raw`."""
         t = spec.type
         if t == "str":
             return raw
@@ -329,8 +340,12 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
         if t == "bool":
             return raw.strip().lower() in ("1", "true", "on")
         if t == "enum":
-            if spec.values is not None and raw not in spec.values:
-                raise ValueError(f"{raw!r} not in allowed values {spec.values}")
+            if spec.values is not None:
+                allowed = {v.wire for v in spec.values} | {v.canonical for v in spec.values}
+                if raw not in allowed:
+                    raise ValueError(
+                        f"{raw!r} not in enum values (wire/canonical: {sorted(allowed)})"
+                    )
             return raw
         if t == "rgb":
             return _parse_template(spec.encoding or "{r};{g};{b}", raw, coerce=int)
@@ -359,6 +374,51 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
                 return type(value)(100 - value)
             except (TypeError, ValueError):
                 return value
+        return value
+
+    @staticmethod
+    def _translate_outbound(payload: str, spec: StateTopicSpec) -> str:
+        """OUTBOUND value-label translation (canonical → wire) for enum fields with a
+        value table (§P3.7 #26). Symmetric counterpart of `_translate_inbound`.
+
+        * Non-enum / no value table: identity (returns payload unchanged).
+        * Match on `canonical` → return that entry's `wire`.
+        * Match on `wire` already → identity (lets internal callers pass wire through
+          unchanged; harmless for back-compat bare-string form where wire==canonical).
+        * No match: warn and pass through. Lets a bad voice utterance surface on the
+          bus rather than 500-ing the canonical endpoint — the WB layer will reject
+          the bogus payload itself, with its own error semantics."""
+        if spec.type != "enum" or not spec.values:
+            return payload
+        for v in spec.values:
+            if v.canonical == payload:
+                return v.wire
+        for v in spec.values:
+            if v.wire == payload:
+                return payload
+        logger.warning(
+            f"value {payload!r} not in canonical or wire list for enum spec; "
+            f"passing through unchanged"
+        )
+        return payload
+
+    @staticmethod
+    def _translate_inbound(value: Any, spec: StateTopicSpec) -> Any:
+        """INBOUND value-label translation (wire → canonical) for enum fields with a
+        value table (§P3.7 #26). Called after `_parse_value` + `_apply_inversion` so
+        `state.mirrored` always holds the canonical identifier — what voice / UI
+        send back via /devices/{id}/canonical and what the catalog declared.
+
+        * Non-enum / no value table / non-string value: identity.
+        * Match on `wire` → return that entry's `canonical`.
+        * No match: identity (parse-time validation already caught the truly invalid
+          payloads; if we got here with no wire match, value was a canonical and
+          state is already in canonical space — leave it)."""
+        if spec.type != "enum" or not spec.values or not isinstance(value, str):
+            return value
+        for v in spec.values:
+            if v.wire == value:
+                return v.canonical
         return value
 
     @staticmethod
@@ -404,7 +464,11 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
             return raw
         try:
             typed = self._parse_value(raw, spec)
-            return self._apply_inversion(typed, spec)
+            inverted = self._apply_inversion(typed, spec)
+            # Final transform: wire → canonical for enum fields with a value table
+            # (§P3.7 #26). state.mirrored always holds canonical so voice/UI compares
+            # against catalog-declared identifiers rather than wire payloads.
+            return self._translate_inbound(inverted, spec)
         except (ValueError, TypeError) as e:
             logger.warning(
                 f"[{self.device_name}] failed to parse {field!r} payload {raw!r} as {spec.type}: {e}"
