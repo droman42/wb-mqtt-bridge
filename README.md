@@ -50,8 +50,15 @@ as the home's single device catalog and actuation backend.
     scenarios and the voice assistant.
   - **[UI](docs/architecture/ui.md)** — the Harmony-style remote, runtime layout
     manifests, build-time codegen.
-- **[Planned features](docs/planned/)** — device-setup pages, topology setup, appliance
-  + room pages, voice-assistant pairing.
+- **Planned features** — designed-but-not-built admin surfaces:
+  - **[Device setup](docs/planned/device-setup.md)** — WB-cell importer + IR-learning
+    sub-page (with public IR-code database support).
+  - **[Topology setup](docs/planned/topology-setup.md)** — graph editor for the signal
+    topology, with path-preview + interactive validator.
+  - **[Appliance + room pages](docs/planned/appliance-pages.md)** — per-class
+    appliance UIs (HVAC, Roborock, …) + per-room iPad-portrait dashboards.
+  - **[Voice setup](docs/planned/voice-setup.md)** — bridge-side readiness surface
+    for the Irene pairing.
 - **[Contributing](CONTRIBUTING.md)** — developer setup, conventions, the gates each
   commit must clear. How-tos: [add a device with an existing
   driver](docs/guides/howto-new-device.md), [add a new device driver with a native
