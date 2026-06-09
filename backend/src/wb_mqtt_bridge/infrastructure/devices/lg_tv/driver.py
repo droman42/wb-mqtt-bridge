@@ -6,7 +6,10 @@ import ssl
 from typing import Dict, Any, List, Optional, Tuple, Union, cast
 
 # Import WebOSTV classes for higher-level API access
-from asyncwebostv import WebOSTV, SecureWebOSTV, app_id_to_input_id
+from asyncwebostv import app_id_to_input_id
+# WebOSTV / SecureWebOSTV aren't in asyncwebostv.__all__; import from the
+# submodule directly to satisfy pyright (runtime import works either way).
+from asyncwebostv.client import WebOSTV, SecureWebOSTV
 
 # Keep original imports for backward compatibility
 
@@ -66,10 +69,15 @@ class LgTv(BaseDevice[LgTvState]):
             mac_address=None
         )
         
-        self.client = None
-        self.system = None
-        self.media = None
-        self.app = None
+        # asyncwebostv's control classes (SystemControl / MediaControl / etc.)
+        # dispatch most methods at RUNTIME via metaclass + COMMANDS dict, so
+        # static type checkers can't see `subscribe_get_volume()` / `info()` /
+        # `unsubscribe_power_state()` etc. Typing as Any deliberately bypasses
+        # pyright on these accesses -- the lib is the contract, not the stub.
+        self.client: Any = None
+        self.system: Any = None
+        self.media: Any = None
+        self.app: Any = None
         # Subscription bookkeeping. asyncwebostv 0.3.0 contract: per-control `subscriptions`
         # dicts are NOT cleared by client.close(), so we must (a) unsubscribe explicitly
         # before close and (b) treat each (re)connect as a fresh slate — new WebOSTV → new
@@ -77,9 +85,9 @@ class LgTv(BaseDevice[LgTvState]):
         # whether subscribe_* has been called on the current generation of control objects;
         # _teardown_subscriptions is a no-op when False (e.g. shutdown without ever connecting).
         self._subscriptions_active = False
-        self.tv_control = None
-        self.input_control = None
-        self.source_control = None
+        self.tv_control: Any = None
+        self.input_control: Any = None
+        self.source_control: Any = None
 
         # Health-loop bookkeeping. The WebSocket can die silently (remote-close path in
         # asyncwebostv): the library callback we register in connect() flips connected=False
@@ -1412,19 +1420,21 @@ class LgTv(BaseDevice[LgTvState]):
         Returns:
             Tuple of (app_id, app_title) - app_id may be None if not found
         """
-        app_id = None
-        app_title = fallback_name
-        
+        app_id: Optional[str] = None
+        app_title: str = fallback_name
+
         try:
-            # First, check if the app object has a data attribute (asyncwebostv.model.Application)
-            if hasattr(app_obj, "data") and isinstance(app_obj.data, dict):
-                # Application objects store properties in the data dictionary
-                app_id = app_obj.data.get("id")
-                app_title = app_obj.data.get("title", fallback_name)
+            # First, check if the app object has a data attribute (asyncwebostv.model.Application).
+            # getattr() bypasses pyright's narrow on `app_obj` (typed Any) so the
+            # subsequent `app_data.get(...)` type-checks cleanly.
+            app_data = getattr(app_obj, "data", None)
+            if isinstance(app_data, dict):
+                app_id = app_data.get("id")
+                app_title = app_data.get("title", fallback_name) or fallback_name
                 
                 # If title is not found, try other common keys
                 if not app_title or app_title == fallback_name:
-                    app_title = app_obj.data.get("name", app_obj.data.get("label", fallback_name))
+                    app_title = app_data.get("name", app_data.get("label", fallback_name)) or fallback_name
             
             # Dictionary-style access for direct dictionaries
             elif isinstance(app_obj, dict):
@@ -1449,11 +1459,11 @@ class LgTv(BaseDevice[LgTvState]):
             # Convert None to empty string for title to ensure we always have a string
             if app_title is None:
                 app_title = fallback_name
-                
+
         except Exception as e:
             logger.debug(f"Error extracting app info: {str(e)}")
-            
-        return app_id, app_title
+
+        return app_id, app_title or fallback_name
 
     async def handle_launch_app(
         self, 
@@ -1511,8 +1521,9 @@ class LgTv(BaseDevice[LgTvState]):
                 return self.create_command_result(success=False, error=error_msg)
             
             logger.info(f"Launching app '{app_title}' (ID: {actual_app_id})")
-            
+
             # Launch the app
+            result: Any = None
             if self.app:
                 result = await self.app.launch(actual_app_id)
                 
@@ -2762,13 +2773,17 @@ class LgTv(BaseDevice[LgTvState]):
                     # Check if the app is a system app
                     is_system_app = False
                     
-                    # Check the systemApp property in different possible locations
-                    if hasattr(app, "data") and isinstance(app.data, dict):
-                        is_system_app = app.data.get("systemApp", False)
+                    # Check the systemApp property in different possible locations.
+                    # `app` may be an asyncwebostv Application object (with .data) or
+                    # a raw dict; pyright narrowing via hasattr+isinstance is shaky
+                    # because Application's stub isn't shipped. getattr() bypasses it.
+                    app_data = getattr(app, "data", None)
+                    if isinstance(app_data, dict):
+                        is_system_app = app_data.get("systemApp", False)
                     elif isinstance(app, dict):
                         is_system_app = app.get("systemApp", False)
-                    elif hasattr(app, "systemApp"):
-                        is_system_app = app.systemApp
+                    else:
+                        is_system_app = getattr(app, "systemApp", False)
                     
                     # Skip system apps
                     if is_system_app:
