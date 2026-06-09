@@ -5,7 +5,7 @@ with external systems. These are implemented by adapters in the infrastructure l
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Generic, List, Optional
+from typing import Any, Callable, Dict, Generic, List, Optional, Union
 
 from wb_mqtt_bridge.domain.devices.config import BaseCommandConfig
 from wb_mqtt_bridge.utils.types import CommandResponse, StateT
@@ -20,17 +20,19 @@ class MessageBusPort(ABC):
     
     @abstractmethod
     async def publish(
-        self, 
-        topic: str, 
-        payload: str, 
-        qos: int = 0, 
-        retain: bool = False
+        self,
+        topic: str,
+        payload: Optional[Union[str, int, float, bytes]],
+        qos: int = 0,
+        retain: bool = False,
     ) -> None:
         """Publish a message to the message bus.
-        
+
         Args:
             topic: The topic to publish to
-            payload: The message payload
+            payload: The message payload (str / int / float / bytes / None;
+                None is treated as "1" by the MQTT impl -- WB convention for
+                pushbutton-style writes)
             qos: Quality of service level (0, 1, or 2)
             retain: Whether the message should be retained
         """

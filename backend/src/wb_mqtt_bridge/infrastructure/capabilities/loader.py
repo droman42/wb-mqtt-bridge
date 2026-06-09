@@ -104,7 +104,8 @@ def referenced_commands(cap_map: CapabilityMap) -> Set[str]:
                 cmds.add(cap.select.command)
             for action in (cap.select.by_value or {}).values():
                 _walk(action)
-        _walk(cap.list)
+        if cap.list is not None:
+            _walk(cap.list)
         for zone in (cap.zones or {}).values():
             for action in zone.actions.values():
                 _walk(action)

@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Optional, Union, Set
+from typing import Dict, Any, List, Literal, Optional, Union, Set
 from pydantic import BaseModel, Field
 from datetime import datetime
 from enum import Enum
@@ -11,48 +11,33 @@ class LastCommand(BaseModel):
     timestamp: datetime
     params: Optional[Dict[str, Any]] = None
     
-    def model_dump(
-        self,
-        *,
-        mode: str = "python",
-        include: Optional[Union[Set[str], Dict[str, Any]]] = None,
-        exclude: Optional[Union[Set[str], Dict[str, Any]]] = None,
-        by_alias: bool = False,
-        exclude_unset: bool = False,
-        exclude_defaults: bool = False,
-        exclude_none: bool = False,
-        round_trip: bool = False,
-        warnings: bool = True,
-    ) -> Dict[str, Any]:
+    def model_dump(self, **kwargs: Any) -> Dict[str, Any]:  # type: ignore[override]
+        """Custom JSON-ready serialization for LastCommand.
+
+        Bespoke override (not delegating to BaseModel.model_dump) because the
+        timestamp is always isoformat-stringified for JSON-compat surfaces
+        (HTTPException details, SSE payloads). Only `exclude` / `exclude_none`
+        from the standard kwargs are honoured; the rest are accepted to satisfy
+        the BaseModel signature but ignored. The `# type: ignore[override]`
+        is the audit-trail marker for this deliberate divergence.
         """
-        Generate a dictionary representation of the model, optionally specifying which fields to include or exclude.
-        Compatible with Pydantic v2's model_dump method with fallback to dict() for v1.
-        
-        Returns:
-            Dict[str, Any]: Dictionary with the model's data.
-        """
-        # Get the basic dict representation
-        data = {
+        data: Dict[str, Any] = {
             "action": self.action,
             "source": self.source,
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
-            "params": self.params
+            "params": self.params,
         }
-        
-        # Handle exclusions if needed
+        exclude = kwargs.get("exclude")
         if exclude:
             for field in exclude:
                 if isinstance(field, str) and field in data:
                     data.pop(field)
-        
-        # Handle exclusion of None values
-        if exclude_none:
+        if kwargs.get("exclude_none"):
             data = {k: v for k, v in data.items() if v is not None}
-            
         return data
-        
-    def dict(self, **kwargs) -> Dict[str, Any]:
-        """Backwards compatibility method for Pydantic v1."""
+
+    def dict(self, **kwargs: Any) -> Dict[str, Any]:  # type: ignore[override]
+        """Backwards compatibility shim for Pydantic v1 callers."""
         return self.model_dump(**kwargs)
 
 class BaseDeviceState(BaseModel):
@@ -63,29 +48,22 @@ class BaseDeviceState(BaseModel):
     error: Optional[str] = None
     power: str = "off"  # Standardized power state: "on" or "off" (default)
     
-    def model_dump(
-        self,
-        *,
-        mode: str = "python",
-        include: Optional[Union[Set[str], Dict[str, Any]]] = None,
-        exclude: Optional[Union[Set[str], Dict[str, Any]]] = None,
-        by_alias: bool = False,
-        exclude_unset: bool = False,
-        exclude_defaults: bool = False,
-        exclude_none: bool = False,
-        round_trip: bool = False,
-        warnings: bool = True,
-    ) -> Dict[str, Any]:
+    def model_dump(self, **kwargs: Any) -> Dict[str, Any]:  # type: ignore[override]
+        """Custom JSON-ready serialization for device state.
+
+        Bespoke override (not delegating to BaseModel.model_dump) because nested
+        objects (notably LastCommand) need their own custom serialization and
+        datetime / Enum fields are always isoformatted / .value-ed for the JSON
+        surfaces this feeds (HTTPException details, persistence, SSE). The
+        `# type: ignore[override]` is the audit-trail marker for this deliberate
+        divergence from BaseModel's signature.
         """
-        Generate a dictionary representation of the model, optionally specifying which fields to include or exclude.
-        Compatible with Pydantic v2's model_dump method.
-        
-        This method ensures proper serialization of all device state objects, including nested objects like LastCommand.
-        All derived device state classes inherit this method, ensuring consistent serialization behavior.
-        
-        Returns:
-            Dict[str, Any]: Dictionary with the model's data.
-        """
+        include = kwargs.get("include")
+        exclude = kwargs.get("exclude")
+        by_alias = kwargs.get("by_alias", False)
+        exclude_unset = kwargs.get("exclude_unset", False)
+        exclude_defaults = kwargs.get("exclude_defaults", False)
+        exclude_none = kwargs.get("exclude_none", False)
         # Create base dictionary with class attributes
         data = {}
         
@@ -123,10 +101,10 @@ class BaseDeviceState(BaseModel):
         
         return data
     
-    def dict(self, **kwargs) -> Dict[str, Any]:
-        """Backwards compatibility method for Pydantic v1."""
+    def dict(self, **kwargs: Any) -> Dict[str, Any]:  # type: ignore[override]
+        """Backwards compatibility shim for Pydantic v1 callers."""
         return self.model_dump(**kwargs)
-        
+
     @classmethod
     def ensure_json_serializable(cls, state: 'BaseDeviceState') -> Dict[str, Any]:
         """

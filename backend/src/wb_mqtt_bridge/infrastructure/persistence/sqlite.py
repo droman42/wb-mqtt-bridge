@@ -154,38 +154,36 @@ class SQLiteStateStore(StateRepositoryPort):
         except aiosqlite.Error as e:
             logger.error(f"SQLite error during set operation for key '{key}': {e}")
             return False
-        except json.JSONEncodeError as e:
-            logger.error(f"JSON encode error for key '{key}': {e}")
-            return False
         except Exception as e:
+            # Catches json encode TypeErrors + anything else. The bogus
+            # `json.JSONEncodeError` middle clause (json has no such name) was
+            # dead -- this clause already covered it.
             logger.error(f"Unexpected error during set operation for key '{key}': {e}")
             return False
 
-    async def delete(self, key: str) -> bool:
-        """
-        Remove the persisted entry for `key`, if any.
-        
-        Returns:
-            bool: True if successful, False otherwise
+    async def delete(self, entity_id: str) -> None:
+        """Remove the persisted entry for `entity_id`, if any.
+
+        Returns None to match StateRepositoryPort. Failures are logged; callers
+        cannot distinguish "missing key" from "delete failed" -- both are no-ops
+        from the caller's perspective. This mirrors `save` which discards `set`'s
+        boolean to satisfy the same port contract.
         """
         if not self.connection:
             logger.error("Database connection not initialized during delete operation")
-            return False
-            
+            return
+
         if self._closing:
-            logger.warning(f"Attempted to delete key '{key}' while database is closing")
-            return False
-            
+            logger.warning(f"Attempted to delete key '{entity_id}' while database is closing")
+            return
+
         try:
-            await self.connection.execute('DELETE FROM state_store WHERE key = ?', (key,))
+            await self.connection.execute('DELETE FROM state_store WHERE key = ?', (entity_id,))
             await self.connection.commit()
-            return True
         except aiosqlite.Error as e:
-            logger.error(f"SQLite error during delete operation for key '{key}': {e}")
-            return False
+            logger.error(f"SQLite error during delete operation for key '{entity_id}': {e}")
         except Exception as e:
-            logger.error(f"Unexpected error during delete operation for key '{key}': {e}")
-            return False
+            logger.error(f"Unexpected error during delete operation for key '{entity_id}': {e}")
     
     # StateRepositoryPort interface implementation
     async def load(self, entity_id: str) -> Optional[Dict[str, Any]]:

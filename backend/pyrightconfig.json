@@ -1,0 +1,8 @@
+{
+  "include": ["src/wb_mqtt_bridge"],
+  "venvPath": ".",
+  "venv": ".venv",
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "standard",
+  "reportMissingImports": "error"
+}

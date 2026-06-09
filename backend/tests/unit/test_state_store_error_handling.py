@@ -25,8 +25,11 @@ pytestmark = pytest.mark.integration
 
 # Production behavior (sqlite.py):
 #   - initialize() on driver error -> raises RuntimeError
-#   - get/set/delete on driver error -> log and return None / False (never raise / never SystemExit)
-#   - get/set/delete on uninitialized connection -> log and return None / False
+#   - get on driver error -> log and return None (never raise)
+#   - set on driver error -> log and return False (never raise)
+#   - delete on driver error -> log and return None (never raise; matches
+#     StateRepositoryPort.delete -> None contract; callers ignore the value)
+#   - same shape on uninitialized connection
 # These tests verify those error contracts hold so callers can rely on them.
 
 
@@ -71,11 +74,12 @@ async def test_set_returns_false_on_driver_error():
 
 
 @pytest.mark.asyncio
-async def test_delete_returns_false_on_driver_error():
-    """delete() returns False (does not raise) when the driver reports an error."""
+async def test_delete_swallows_driver_error():
+    """delete() logs + returns None (does not raise) when the driver errors.
+    Matches StateRepositoryPort.delete -> None; callers ignore the return."""
     store = _store_with_failing_connection("Simulated delete error")
     result = await store.delete("test_key")
-    assert result is False
+    assert result is None
 
 
 @pytest.mark.asyncio
@@ -86,4 +90,5 @@ async def test_uninitialized_connection_safe_defaults():
 
     assert await store.get("test_key") is None
     assert await store.set("test_key", {"value": "test"}) is False
-    assert await store.delete("test_key") is False
+    # delete() returns None (port contract); just verify it doesn't raise.
+    assert await store.delete("test_key") is None

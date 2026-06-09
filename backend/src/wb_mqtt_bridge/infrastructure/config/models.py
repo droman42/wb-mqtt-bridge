@@ -394,6 +394,6 @@ class SystemConfig(BaseModel):
     # Remove devices dictionary from required fields and make it optional
     devices: Optional[Dict[str, Dict[str, Any]]] = None
     persistence: PersistenceConfig = Field(default_factory=PersistenceConfig)
-    maintenance: Optional[MaintenanceConfig] = Field(None, description="Maintenance configuration settings")
+    maintenance: Optional[MaintenanceConfig] = Field(default=None, description="Maintenance configuration settings")
     # Add explicit device directory configuration
     device_directory: str = Field(default="devices", description="Directory containing device configuration files") 

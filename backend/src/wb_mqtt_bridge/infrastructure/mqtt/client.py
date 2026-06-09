@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any, Callable, Dict, List, Optional, Set, Union
 import json
 
 from aiomqtt import Client, MqttError, Will
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class MQTTClient(MessageBusPort):
     """Asynchronous MQTT client for the web service."""
     
-    def __init__(self, broker_config: Dict[str, Any], maintenance_guard: SystemMaintenanceGuard = None):
+    def __init__(self, broker_config: Dict[str, Any], maintenance_guard: Optional[SystemMaintenanceGuard] = None):
         logger.info(f"Initializing MQTT client with broker config: {broker_config}")
         
         # Check if broker_config is a Pydantic model and convert it to dict if needed
@@ -357,31 +357,30 @@ class MQTTClient(MessageBusPort):
         self.message_handlers[device_name] = handler
         logger.info(f"Registered message handler for device: {device_name}")
     
-    async def publish(self, topic: str, payload: Any, qos: int = 0, retain: bool = False):
-        """Publish a message to a topic."""
+    async def publish(
+        self,
+        topic: str,
+        payload: Optional[Union[str, int, float, bytes]],
+        qos: int = 0,
+        retain: bool = False,
+    ) -> None:
+        """Publish a message to a topic. See MessageBusPort.publish."""
         if not self.connected or not self.client:
             logger.error("Cannot publish: Not connected to MQTT broker")
-            return False
-        
+            return
+
         try:
-            # Handle None payload by defaulting to 1
-            if payload is None:
-                payload = 1
-            
-            # Handle different payload types
-            if isinstance(payload, dict):
-                payload = json.dumps(payload)
-            elif isinstance(payload, bool):
-                payload = "true" if payload else "false"
-            elif isinstance(payload, (int, float)):
-                payload = str(payload)
-                
-            logger.debug(f"Publishing to {topic}: {payload} (type: {type(payload).__name__})")
-            await self.client.publish(topic, payload, qos=qos, retain=retain)
-            return True
+            # WB convention: a None payload on a pushbutton-style write becomes "1".
+            actual_payload: Union[str, int, float, bytes] = 1 if payload is None else payload
+            # Coerce numerics to strings (aiomqtt accepts these natively, but
+            # historic WB consumers parse strings).
+            if isinstance(actual_payload, (int, float)) and not isinstance(actual_payload, bool):
+                actual_payload = str(actual_payload)
+
+            logger.debug(f"Publishing to {topic}: {actual_payload} (type: {type(actual_payload).__name__})")
+            await self.client.publish(topic, actual_payload, qos=qos, retain=retain)
         except MqttError as e:
             logger.error(f"Failed to publish to {topic}: {str(e)}")
-            return False
 
     async def subscribe(
         self,
