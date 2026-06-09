@@ -208,7 +208,7 @@ class WbPassthroughDeviceConfig(BaseDeviceConfig):
     the real device).
     """
     enable_wb_emulation: bool = Field(False, description="Passthrough mirrors, never owns. Override only with care.")
-    commands: Dict[str, WbPassthroughCommandConfig] = Field(default_factory=dict)
+    commands: Dict[str, WbPassthroughCommandConfig] = Field(default_factory=dict)  # type: ignore[assignment]  # Pydantic narrowing of base.commands
     state_topics: Dict[str, StateTopicSpec] = Field(
         default_factory=dict,
         description="Map of state-field name → typed StateTopicSpec. Bare-string form "
@@ -234,7 +234,7 @@ class WbPassthroughDeviceConfig(BaseDeviceConfig):
         return out
 
     @classmethod
-    def process_commands(cls, commands_data: Dict[str, Dict[str, Any]]) -> Dict[str, WbPassthroughCommandConfig]:
+    def process_commands(cls, commands_data: Dict[str, Dict[str, Any]]) -> Dict[str, WbPassthroughCommandConfig]:  # type: ignore[override]  # narrowed dict return is intentional
         processed: Dict[str, WbPassthroughCommandConfig] = {}
         for cmd_name, cmd_config in commands_data.items():
             if not isinstance(cmd_config, dict):
@@ -252,10 +252,10 @@ class RevoxA77ReelToReelParams(BaseModel):
 # Device-specific configuration models
 class WirenboardIRDeviceConfig(BaseDeviceConfig):
     """Configuration for Wirenboard IR devices."""
-    commands: Dict[str, IRCommandConfig] = Field(default_factory=dict)
+    commands: Dict[str, IRCommandConfig] = Field(default_factory=dict)  # type: ignore[assignment]  # Pydantic narrowing of base.commands
     
     @classmethod
-    def process_commands(cls, commands_data: Dict[str, Dict[str, Any]]) -> Dict[str, IRCommandConfig]:
+    def process_commands(cls, commands_data: Dict[str, Dict[str, Any]]) -> Dict[str, IRCommandConfig]:  # type: ignore[override]  # narrowed dict return is intentional
         """
         Process commands specifically for Wirenboard IR devices.
         
@@ -284,11 +284,11 @@ class WirenboardIRDeviceConfig(BaseDeviceConfig):
 
 class RevoxA77ReelToReelConfig(BaseDeviceConfig):
     """Configuration for Revox A77 Reel-to-Reel device."""
-    commands: Dict[str, IRCommandConfig] = Field(default_factory=dict)
+    commands: Dict[str, IRCommandConfig] = Field(default_factory=dict)  # type: ignore[assignment]  # Pydantic narrowing of base.commands
     reel_to_reel: RevoxA77ReelToReelParams
     
     @classmethod
-    def process_commands(cls, commands_data: Dict[str, Dict[str, Any]]) -> Dict[str, IRCommandConfig]:
+    def process_commands(cls, commands_data: Dict[str, Dict[str, Any]]) -> Dict[str, IRCommandConfig]:  # type: ignore[override]  # narrowed dict return is intentional
         """
         Process commands specifically for Revox A77 Reel-to-Reel devices.
         Uses the same IR command processing as Wirenboard.
@@ -303,7 +303,7 @@ class RevoxA77ReelToReelConfig(BaseDeviceConfig):
 
 class BroadlinkKitchenHoodConfig(BaseDeviceConfig):
     """Configuration for Broadlink kitchen hood device."""
-    commands: Dict[str, BaseCommandConfig] = Field(default_factory=dict)
+    commands: Dict[str, BaseCommandConfig] = Field(default_factory=dict)  # type: ignore[assignment]  # Pydantic narrowing of base.commands
     broadlink: BroadlinkConfig
     rf_codes: Dict[str, Dict[str, str]] = Field(
         ...,
@@ -311,7 +311,7 @@ class BroadlinkKitchenHoodConfig(BaseDeviceConfig):
     )
     
     @classmethod
-    def process_commands(cls, commands_data: Dict[str, Dict[str, Any]]) -> Dict[str, BaseCommandConfig]:
+    def process_commands(cls, commands_data: Dict[str, Dict[str, Any]]) -> Dict[str, BaseCommandConfig]:  # type: ignore[override]  # narrowed dict return is intentional
         """
         Process commands specifically for Broadlink kitchen hood devices.
         
@@ -334,26 +334,26 @@ class BroadlinkKitchenHoodConfig(BaseDeviceConfig):
 
 class LgTvDeviceConfig(BaseDeviceConfig):
     """Configuration for LG TV device."""
-    commands: Dict[str, StandardCommandConfig] = Field(default_factory=dict)
+    commands: Dict[str, StandardCommandConfig] = Field(default_factory=dict)  # type: ignore[assignment]  # Pydantic narrowing of base.commands
     tv: LgTvConfig
 
 class AppleTVDeviceConfig(BaseDeviceConfig):
     """Configuration for Apple TV device."""
-    commands: Dict[str, StandardCommandConfig] = Field(default_factory=dict)
+    commands: Dict[str, StandardCommandConfig] = Field(default_factory=dict)  # type: ignore[assignment]  # Pydantic narrowing of base.commands
     apple_tv: AppleTVConfig
 
 class EmotivaXMC2DeviceConfig(BaseDeviceConfig):
     """Configuration for Emotiva XMC2 device."""
-    commands: Dict[str, StandardCommandConfig] = Field(default_factory=dict)
+    commands: Dict[str, StandardCommandConfig] = Field(default_factory=dict)  # type: ignore[assignment]  # Pydantic narrowing of base.commands
     emotiva: EmotivaConfig
 
 class AuralicDeviceConfig(BaseDeviceConfig):
     """Configuration for Auralic device."""
-    commands: Dict[str, StandardCommandConfig] = Field(default_factory=dict)
+    commands: Dict[str, StandardCommandConfig] = Field(default_factory=dict)  # type: ignore[assignment]  # Pydantic narrowing of base.commands
     auralic: AuralicConfig
     
     @classmethod
-    def process_commands(cls, commands_data: Dict[str, Dict[str, Any]]) -> Dict[str, StandardCommandConfig]:
+    def process_commands(cls, commands_data: Dict[str, Dict[str, Any]]) -> Dict[str, StandardCommandConfig]:  # type: ignore[override]  # narrowed dict return is intentional
         """
         Process commands specifically for Auralic devices.
         

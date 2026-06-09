@@ -12,43 +12,51 @@ logger = logging.getLogger(__name__)
 class SSEStats(BaseModel):
     """SSE connection statistics response model"""
     active_connections: Dict[str, int] = Field(
+        ...,
         description="Number of active connections per channel",
-        example={"devices": 3, "scenarios": 1, "system": 2}
+        json_schema_extra={"example": {"devices": 3, "scenarios": 1, "system": 2}},
     )
     total_connections: int = Field(
+        ...,
         description="Total number of active connections across all channels",
-        example=6
+        json_schema_extra={"example": 6},
     )
     channels: List[str] = Field(
+        ...,
         description="List of available SSE channels",
-        example=["devices", "scenarios", "system"]
+        json_schema_extra={"example": ["devices", "scenarios", "system"]},
     )
 
 class TestEventData(BaseModel):
     """Test event data model for broadcasting"""
     message: str = Field(
+        ...,
         description="Test message content",
-        example="This is a test event"
+        json_schema_extra={"example": "This is a test event"},
     )
     timestamp: Optional[str] = Field(
+        default=None,
         description="Optional timestamp for the event",
-        example="2024-01-01T12:00:00Z"
+        json_schema_extra={"example": "2024-01-01T12:00:00Z"},
     )
     data: Optional[Dict[str, Any]] = Field(
+        default=None,
         description="Optional additional data",
-        example={"key": "value", "number": 42}
+        json_schema_extra={"example": {"key": "value", "number": 42}},
     )
 
 class BroadcastResponse(BaseModel):
     """Response model for test broadcast operations"""
-    status: str = Field(description="Operation status", example="success")
+    status: str = Field(..., description="Operation status", json_schema_extra={"example": "success"})
     message: str = Field(
+        ...,
         description="Descriptive message about the operation",
-        example="Test event broadcasted to devices channel"
+        json_schema_extra={"example": "Test event broadcasted to devices channel"},
     )
     active_connections: int = Field(
+        ...,
         description="Number of active connections that received the event",
-        example=3
+        json_schema_extra={"example": 3},
     )
 
 router = APIRouter(

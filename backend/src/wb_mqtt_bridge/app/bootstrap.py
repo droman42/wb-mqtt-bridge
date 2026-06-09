@@ -4,6 +4,7 @@ import asyncio
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 from contextlib import asynccontextmanager
+from typing import Any, Callable, cast
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -158,6 +159,7 @@ def create_app() -> FastAPI:
         maintenance_guard = None
         if config_manager.is_maintenance_enabled():
             maintenance_config = config_manager.get_maintenance_config()
+            assert maintenance_config is not None, "is_maintenance_enabled() implies non-None config"
             logger.info(f"Maintenance is enabled - creating WirenboardMaintenanceGuard with duration={maintenance_config.duration}s, topic={maintenance_config.topic}")
             maintenance_guard = WirenboardMaintenanceGuard(
                 duration=maintenance_config.duration,
@@ -197,7 +199,13 @@ def create_app() -> FastAPI:
 
         # Wire the SSE event-publisher port + safety-net `mqtt_client` / `wb_service`
         # assignments (already set in the constructor; idempotent here).
-        for device_id, device in device_manager.devices.items():
+        # device_manager.devices values are DevicePort by contract -- at runtime
+        # every shipped impl is BaseDevice (which has these attributes). app/
+        # is the composition root, allowed to know infrastructure types; cast
+        # to BaseDevice so pyright sees the BaseDevice attribute surface.
+        from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice as _BaseDevice  # local: keep domain/ import-pure
+        for device_id, port_device in device_manager.devices.items():
+            device = cast(_BaseDevice, port_device)
             device.mqtt_client = mqtt_client
             device.wb_service = wb_service
             device.event_publisher = sse_manager  # SSE fan-out via EventPublisherPort
@@ -228,19 +236,23 @@ def create_app() -> FastAPI:
         logger.info("Device states initialized from persistence layer")
         
         # Get topics for all devices
-        device_topics = {}
+        device_topics: dict[str, list[str]] = {}
         for device_id, device in device_manager.devices.items():
             topics = device.subscribe_topics()
             device_topics[device_id] = topics
             logger.info(f"Device {device_id} subscribed to topics: {topics}")
-        
-        # Connect MQTT client
-        await mqtt_client.connect_and_subscribe({
-            # Add message handlers for all device topics
-            **{topic: device_manager.get_message_handler(device_id) 
-               for device_id, topics in device_topics.items()
-               for topic in topics}
-        })
+
+        # Connect MQTT client. Filter out any None handlers
+        # (get_message_handler returns Optional; skip the missing ones rather
+        # than passing them down).
+        handler_map: dict[str, Callable[..., Any]] = {}
+        for device_id, topics in device_topics.items():
+            handler = device_manager.get_message_handler(device_id)
+            if handler is None:
+                continue
+            for topic in topics:
+                handler_map[topic] = handler
+        await mqtt_client.connect_and_subscribe(handler_map)
         
         # Wait for MQTT connection to be fully established
         logger.info("Waiting for MQTT connection to be established...")
@@ -252,7 +264,8 @@ def create_app() -> FastAPI:
             
             # Now that MQTT is connected, set up Wirenboard virtual device emulation for all devices
             logger.info("Setting up Wirenboard virtual device emulation...")
-            for device_id, device in device_manager.devices.items():
+            for device_id, port_device in device_manager.devices.items():
+                device = cast(_BaseDevice, port_device)
                 try:
                     await device.setup_wb_emulation_if_enabled()
                     logger.debug(f"WB emulation setup completed for device {device_id}")

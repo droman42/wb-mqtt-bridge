@@ -3,7 +3,7 @@
 import argparse
 import asyncio
 import logging
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, Callable, Optional, List, Tuple, cast
 
 from wb_mqtt_bridge.domain.devices.service import DeviceManager
 from wb_mqtt_bridge.infrastructure.config.manager import ConfigManager
@@ -22,11 +22,13 @@ class DeviceTestCLI:
     """Command-line tool for testing devices."""
     
     def __init__(self):
-        self.config_manager = None
-        self.device_manager = None
-        self.current_device = None
-        self.device_id = None
-        self.mqtt_client = None
+        # Typed Optionals so pyright knows these need None-checks at use sites
+        # (CLI lifecycle: created None, populated by initialize(), torn down).
+        self.config_manager: Optional[ConfigManager] = None
+        self.device_manager: Optional[DeviceManager] = None
+        self.current_device: Optional[Any] = None
+        self.device_id: Optional[str] = None
+        self.mqtt_client: Optional[MQTTClient] = None
     
     async def initialize(self, device_id: str) -> bool:
         """
@@ -61,30 +63,34 @@ class DeviceTestCLI:
             # Improved MQTT connection handling
             connection_success = await self._connect_mqtt()
             
-            # Initialize device manager with the configuration manager and MQTT client
+            # Initialize device manager. The constructor was refactored to take
+            # only state_repository; mqtt_client + config_manager are wired by
+            # the app bootstrap, so the CLI sets them per-device after.
             logger.info("Initializing device manager...")
-            self.device_manager = DeviceManager(
-                mqtt_client=self.mqtt_client,
-                config_manager=self.config_manager
-            )
-            
+            self.device_manager = DeviceManager()
+            self.device_manager._mqtt_client = self.mqtt_client  # mirrors bootstrap
+
             # Load device modules
             await self.device_manager.load_device_modules()
-            
+
             # Get all device configurations
             device_configs = self.config_manager.get_all_device_configs()
-            
+
             # Check if the device_id exists
             if device_id not in device_configs:
                 logger.error(f"Device ID '{device_id}' not found in configuration")
                 return False
-            
+
             # Initialize only the specified device
             filtered_configs = {device_id: device_configs[device_id]}
             await self.device_manager.initialize_devices(filtered_configs)
-            
-            # Set MQTT client for the device
-            for d_id, device in self.device_manager.devices.items():
+
+            # Set MQTT client for the device (cast away the DevicePort narrow
+            # so pyright sees the BaseDevice attribute surface; CLI is wiring,
+            # same role as app/bootstrap.py).
+            from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice as _BaseDevice
+            for d_id, port_device in self.device_manager.devices.items():
+                device = cast(_BaseDevice, port_device)
                 device.mqtt_client = self.mqtt_client
                 logger.info(f"Device {d_id} initialized with MQTT client")
             
@@ -126,12 +132,13 @@ class DeviceTestCLI:
     async def _connect_mqtt(self) -> bool:
         """
         Establish MQTT connection with proper validation.
-        
+
         Returns:
             bool: True if connection was successful
         """
         logger.info("Establishing MQTT connection...")
-        
+        assert self.mqtt_client is not None, "mqtt_client must be set before _connect_mqtt"
+
         # First start the connection process
         connect_success = await self.mqtt_client.connect()
         if not connect_success:
@@ -161,28 +168,32 @@ class DeviceTestCLI:
         Returns:
             bool: True if subscriptions were set up successfully
         """
+        assert self.mqtt_client is not None and self.device_manager is not None, \
+            "mqtt_client + device_manager must be set before _setup_mqtt_subscriptions"
         if not self.mqtt_client.connected:
             logger.error("Cannot set up subscriptions: MQTT client not connected")
             return False
-            
+
         try:
-            # Create topic handlers mapping
-            topic_handlers = {
-                topic: self.device_manager.get_message_handler(d_id) 
-                for d_id, topics in device_topics.items()
-                for topic in topics
-            }
-            
+            # Create topic handlers mapping, skipping any None handler return.
+            topic_handlers: Dict[str, Callable[..., Any]] = {}
+            for d_id, topics in device_topics.items():
+                handler = self.device_manager.get_message_handler(d_id)
+                if handler is None:
+                    continue
+                for topic in topics:
+                    topic_handlers[topic] = handler
+
             if not topic_handlers:
                 logger.info("No topics to subscribe to")
                 return True
-                
+
             logger.info(f"Setting up {len(topic_handlers)} topic subscriptions...")
-            
+
             # Disconnect and reconnect with subscriptions
             await self.mqtt_client.disconnect()
             await asyncio.sleep(0.5)  # Brief pause before reconnecting
-            
+
             sub_success = await self.mqtt_client.connect_and_subscribe(topic_handlers)
             if not sub_success:
                 logger.error("Failed to set up MQTT subscriptions")
@@ -506,8 +517,9 @@ async def async_main():
                             break
                 
                 if selected_command:
-                    # Prompt for parameters if needed
-                    params = await cli.prompt_for_params(selected_command, selected_params)
+                    # Prompt for parameters if needed; default to [] for commands
+                    # whose config carries no params block.
+                    params = await cli.prompt_for_params(selected_command, selected_params or [])
                     
                     # Execute the command
                     await cli.execute_command(selected_command, params)

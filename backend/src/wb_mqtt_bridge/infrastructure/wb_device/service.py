@@ -90,6 +90,11 @@ class WBVirtualDeviceService:
             entity_id: Virtual entity ID override (for scenarios, uses scenario_id instead of device_id)
             entity_name: Virtual entity name override (for scenarios, uses scenario name instead of device_name)
         """
+        # Init defaults so the except clause + later code see them defined even
+        # if the very first extraction line raises.
+        config_device_id = "<unknown>"
+        config_device_name = "<unknown>"
+        enable_wb = True
         try:
             # Extract device identity from config. Bilingual names live under config.names
             # (LocalizedName); WB virtual device meta uses the Russian rendering since the
@@ -131,7 +136,7 @@ class WBVirtualDeviceService:
             self._active_devices[tracking_device_id] = {
                 "config": config,
                 "driver_name": driver_name,
-                "device_type": device_type or (config.device_class if hasattr(config, 'device_class') else 'device'),
+                "device_type": device_type or (getattr(config, 'device_class', None) or 'device'),
                 "device_name": wb_device_name,  # Store the virtual device name
                 "wb_device_id": wb_device_id,   # Store virtual WB device ID for MQTT operations
                 "config_device_id": config_device_id,  # Store original config device ID for reference
@@ -408,7 +413,10 @@ class WBVirtualDeviceService:
                 if not exposed or (domain in _WB_EXCLUDED_DOMAINS):
                     logger.debug(f"Skipping WB control: {cmd_name} (exposed={exposed}, domain={domain})")
                     continue
-                classification = _DOMAIN_GROUP_ALIAS.get(domain, domain)
+                # domain may be None for commands not in cmd_domain; alias-lookup
+                # with None as key is a no-op (returns None default), then we fall
+                # through to the "no domain to classify" path naturally.
+                classification = _DOMAIN_GROUP_ALIAS.get(domain, domain) if domain is not None else None
             else:
                 # Fallback path: a capability-less device that still enables WB (e.g. the kitchen_hood
                 # appliance). No domain to classify by, so exclusion is `exposed` only and the control
@@ -420,10 +428,10 @@ class WBVirtualDeviceService:
                 classification = None
 
             action = None
-            if hasattr(cmd_config, 'action'):
-                action = cmd_config.action
-            elif isinstance(cmd_config, dict):
+            if isinstance(cmd_config, dict):
                 action = cmd_config.get('action')
+            else:
+                action = getattr(cmd_config, 'action', None)
 
             if not action:
                 continue
@@ -601,20 +609,14 @@ class WBVirtualDeviceService:
         param_max = None
         param_units = None
         
-        if hasattr(first_param, 'min'):
-            param_min = first_param.min
-        elif isinstance(first_param, dict):
+        if isinstance(first_param, dict):
             param_min = first_param.get('min')
-        
-        if hasattr(first_param, 'max'):
-            param_max = first_param.max
-        elif isinstance(first_param, dict):
             param_max = first_param.get('max')
-        
-        if hasattr(first_param, 'units'):
-            param_units = first_param.units
-        elif isinstance(first_param, dict):
             param_units = first_param.get('units')
+        else:
+            param_min = getattr(first_param, 'min', None)
+            param_max = getattr(first_param, 'max', None)
+            param_units = getattr(first_param, 'units', None)
         
         # Add to metadata
         if param_min is not None:
@@ -930,12 +932,14 @@ class WBVirtualDeviceService:
     
     def _validate_wb_configuration_from_config(self, config: Union[BaseDeviceConfig, Dict[str, Any]]) -> Tuple[bool, Dict[str, Any]]:
         """Validate WB configuration from config object."""
-        validation_results = {
+        validation_results: Dict[str, Any] = {
             'wb_controls_errors': {},
             'wb_state_mappings_errors': [],
             'warnings': []
         }
-        
+        # Pre-bind so the except-clause logger.error never reads an unbound name.
+        device_id = "<unknown>"
+
         try:
             # Extract configuration properties
             if isinstance(config, dict):
@@ -958,12 +962,11 @@ class WBVirtualDeviceService:
             # Check for commands without actions
             missing_actions = []
             for cmd_name, cmd_config in commands.items():
-                action = None
-                if hasattr(cmd_config, 'action'):
-                    action = cmd_config.action
-                elif isinstance(cmd_config, dict):
+                if isinstance(cmd_config, dict):
                     action = cmd_config.get('action')
-                
+                else:
+                    action = getattr(cmd_config, 'action', None)
+
                 if not action:
                     missing_actions.append(cmd_name)
             
