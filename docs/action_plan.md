@@ -279,7 +279,7 @@ possible round-3.
 
 ### P3.7 — Voice integration & native WB onboarding (HIGH PRIORITY — agreed 2026-06-06)
 
-**Driving doc:** `docs/voice_integration_contract_draft.md` (AGREED bridge ↔ Irene contract).
+**Driving doc:** `docs/design/voice_integration_contract_draft.md` (AGREED bridge ↔ Irene contract).
 Sister-project counterpart: `wb-mqtt-voice/docs/design/mqtt_integration.md` §10 (Irene's ARCH-8,
 **blocked on this**).
 

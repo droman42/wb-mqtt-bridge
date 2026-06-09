@@ -7,7 +7,7 @@ this work can be packaged for other Wirenboard owners.
 
 This file is **living** — extended room-by-room as #23 progresses. It is not the action
 plan (that's `docs/action_plan.md`) and not the contract (that's
-`docs/voice_integration_contract_draft.md`). It is the **workflow log**.
+`docs/design/voice_integration_contract_draft.md`). It is the **workflow log**.
 
 ---
 
