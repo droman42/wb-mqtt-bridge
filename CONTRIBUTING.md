@@ -45,31 +45,40 @@ import-linter config (see below); do not add new ones.
 See **[Architecture overview](docs/architecture/overview.md)** for the full
 picture.
 
-### Layering is CI-enforced — `import-linter`
+### Three health gates — CI-enforced via `droman42/py-dev-gates`
 
-The inward rule is not a convention you have to remember. **`import-linter`
-hard-fails the build** on any layering violation. Three contracts live in
-`backend/pyproject.toml` `[tool.importlinter]`:
+The inward rule, no-TYPE_CHECKING discipline, and 0-error type-check are
+not conventions you have to remember. **CI hard-fails on all three** via
+the shared composite action `droman42/py-dev-gates/.github/actions/python-health`.
 
-1. Domain depends on nothing outward (no `infrastructure`, `presentation`,
-   `app`, `cli`).
-2. Infrastructure does not import presentation.
-3. Presentation does not reach into infrastructure adapters — one
-   exception, the `POST /reload` MQTTClient construction, is codified by
-   path in `ignore_imports`.
+1. **`import-linter`** — three contracts in
+   `backend/pyproject.toml [tool.importlinter]`:
+   1. Domain depends on nothing outward (no `infrastructure`,
+      `presentation`, `app`, `cli`).
+   2. Infrastructure does not import presentation.
+   3. Presentation does not reach into infrastructure adapters — one
+      exception, the `POST /reload` MQTTClient construction, is codified
+      by path in `ignore_imports`.
+2. **`check-no-type-checking`** — AST-based gate forbidding
+   `from typing import TYPE_CHECKING` and `if TYPE_CHECKING:` guards.
+   Such guards are band-aids for import cycles; the right fix is to
+   break the cycle (move the shared type inward / use a port), not hide
+   the import from the runtime.
+3. **`pyright`** — pinned `1.1.410`, **0 errors, empty suppression list**.
 
-Run locally before pushing:
+Run all three locally before pushing:
 
 ```bash
 cd backend
 lint-imports
+check-no-type-checking src/wb_mqtt_bridge
+pyright
 ```
 
-CI runs the same command in `backend-test`, BEFORE the test suite, so a
-layering regression fails fast. If you genuinely need a new
-infrastructure→presentation or presentation→infrastructure edge, add it
-to `ignore_imports` in the contract AND document the why in the commit
-body — the suppression list is the project's audit trail.
+If you genuinely need a new infrastructure→presentation or
+presentation→infrastructure edge, add it to `ignore_imports` in the
+contract AND document the why in the commit body — the suppression list
+is the project's audit trail.
 
 ## Backend — typed configs + typed state (a hard rule)
 
@@ -85,10 +94,10 @@ body — the suppression list is the project's audit trail.
 ## Backend — formatting + typing
 
 - **black** + **isort** (black profile), line length 88, target py311.
-- **pyright** (pinned `1.1.410`, config `backend/pyrightconfig.json`,
-  scope `src/wb_mqtt_bridge/`). **0 errors, empty suppression list.**
-  Type hints expected on new code. Run locally with `cd backend &&
-  pyright`; CI hard-fails the build on any new error.
+- **pyright** is the type-check gate (see "Three health gates" below).
+  Pinned `1.1.410`, config `backend/pyrightconfig.json`, scope
+  `src/wb_mqtt_bridge/`. **0 errors, empty suppression list.** Type
+  hints expected on new code.
 - *(Legacy: `mypy` is still installed via `[dev]` but is no longer the
   type-check gate. Removing it is tracked.)*
 

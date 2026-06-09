@@ -24,33 +24,14 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      # All three Python health gates (import-linter / check-no-type-checking
+      # / pyright) run via the shared composite action in droman42/py-dev-gates.
+      # The action handles its own python setup + install of the project's
+      # [dev] extras; tests run separately below.
+      - uses: droman42/py-dev-gates/.github/actions/python-health@v0.1.0
         with:
-          # Pin via backend/.python-version (single source of truth — uv also reads it).
-          # The earlier '3.11' floating tag drifted to 3.11.15 (current runner), which
-          # broke 13 tests via Python's stricter asyncio.Future() / get_event_loop()
-          # behaviour in sync fixture contexts. The 3 offending fixtures were rewritten
-          # to AsyncMock in the same commit, but the pin keeps us deterministic regardless.
-          python-version-file: backend/.python-version
-          cache: 'pip'
-          cache-dependency-path: backend/pyproject.toml
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install -e ".[dev]"
-      - name: Hexagonal layering (import-linter)
-        # Hard-fail on any inward-rule violation. Three contracts pinned in
-        # pyproject.toml [tool.importlinter] (domain → nothing outward;
-        # infrastructure → no presentation; presentation → no infrastructure
-        # adapters, with one documented exception). Runs BEFORE tests so a
-        # layering regression fails fast.
-        run: lint-imports
-      - name: Type-check (pyright, pinned 1.1.410)
-        # Hard-fail at 0 errors / empty suppression list. pyrightconfig.json
-        # at backend/ points pyright at the .venv (but here in CI it picks
-        # up the pip-installed site-packages naturally). Pinned in [dev]
-        # extras so diagnostics don't drift across pyright releases.
-        run: pyright
+          src: src/wb_mqtt_bridge
+          working-directory: backend
       - name: Run tests
         run: pytest -v -m "not requires_device" --tb=short
 
