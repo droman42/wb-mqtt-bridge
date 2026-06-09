@@ -141,8 +141,13 @@ UI build consumes.
 - **Generated artifacts are gitignored** (`*.gen.tsx`, `*.hooks.ts`,
   `src/types/generated/*.state.ts`, `index.gen.ts`) — built fresh in CI.
   `src/types/api.gen.ts` is committed.
-- Before committing UI changes, from `ui/`:
-  `npm run typecheck:all && npm run lint && npm run validate:all`.
+- Before committing UI changes, from `ui/`: `npm run check && npm run build`.
+  `check` runs typecheck + lint (`--max-warnings 0`) + the orphan-module
+  guard (`scripts/find-orphans.mjs`); `build` (= `tsc && vite build`)
+  catches bundle-level regressions the noEmit typecheck misses.
+- **Tests deferred**: the jest preset is misconfigured + zero test files
+  exist today. CI does not run `npm test` to avoid honest-red noise;
+  re-wire once the framework is on its feet (likely a vitest migration).
 - **No hardcoded backend IPs or baked URLs.** Backend proxy target is
   runtime (`BACKEND_HOST` / `BACKEND_PORT` via `docker-entrypoint.sh`);
   MQTT URL via `window.RUNTIME_CONFIG` (`/runtime-config.js`). `VITE_*`

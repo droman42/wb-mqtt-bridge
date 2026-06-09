@@ -36,8 +36,11 @@ jobs:
         run: pytest -v -m "not requires_device" --tb=short
 
   ui-validate:
-    name: UI validate (typecheck + lint)
+    name: UI validate (typecheck + lint + orphans + build)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -46,13 +49,29 @@ jobs:
           cache: 'npm'
           cache-dependency-path: ui/package-lock.json
       - name: Install Node dependencies
-        working-directory: ui
         run: npm ci
       - name: Verify backend contract present
+        working-directory: .
         run: ls -la backend/openapi.json
-      - name: Check (typecheck + lint)
-        working-directory: ui
+      - name: Generate API types from backend contract
+        # Build needs api.gen.ts; openapi.json is committed so this is
+        # deterministic. Same step runs locally on `npm run gen:api-types`.
+        run: npm run gen:api-types
+      - name: Check (typecheck + lint + orphans)
+        # `check` now includes check:orphans (node scripts/find-orphans.mjs),
+        # the static-import-graph walker that fails on any module unreachable
+        # from src/app/main.tsx + src/app/App.tsx + any test file.
         run: npm run check
+      - name: Build
+        # Hard-fail at build time. `tsc && vite build` catches type/import
+        # regressions that `tsc --noEmit` (in `check`) doesn't see at the
+        # bundle level (e.g. circular imports that defer resolution).
+        run: npm run build
+      # NOTE: `npm test` (jest) intentionally NOT wired -- the project ships
+      # zero test files today + the jest preset is misconfigured. Adding the
+      # step would either silently pass (no tests collected) or block CI on
+      # honest-red noise. Re-enable once the test framework is on its feet
+      # (likely a vitest migration; see CONTRIBUTING for the deferral note).
 
   # ----------------------- gated ARM image builds (slow; manual workflow_dispatch) ---
   # Builds linux/arm/v7 images for backend + UI and PUSHES them to GHCR.

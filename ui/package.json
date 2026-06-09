@@ -13,7 +13,8 @@
     "lint:fix": "eslint . --ext ts,tsx --fix",
     "typecheck": "tsc --noEmit",
     "typecheck:all": "npm run typecheck",
-    "check": "npm run typecheck:all && npm run lint",
+    "check:orphans": "node scripts/find-orphans.mjs",
+    "check": "npm run typecheck:all && npm run lint && npm run check:orphans",
     "gen:favicon": "node scripts/generate-favicon.js"
   },
   "dependencies": {
