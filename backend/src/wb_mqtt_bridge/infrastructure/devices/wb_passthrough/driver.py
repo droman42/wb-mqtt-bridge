@@ -25,7 +25,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from functools import partial
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import re
 
@@ -42,7 +42,7 @@ from wb_mqtt_bridge.domain.devices.models import (
 from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
 from wb_mqtt_bridge.infrastructure.wb_device.service import WBVirtualDeviceService
-from wb_mqtt_bridge.utils.types import CommandResult
+from wb_mqtt_bridge.utils.types import ActionHandler, CommandResult
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +124,12 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
         """Auto-register one publishing handler per command in the config. All handlers
         route through `_publish_command`; per-command shape lives in the config, not code."""
         for cmd_name in self.config.commands:
-            self._action_handlers[cmd_name] = partial(self._publish_command, cmd_name)
+            # partial signature loss + Coroutine vs Awaitable variance: the partial
+            # IS a valid ActionHandler at runtime (takes cmd_config + params, awaits
+            # to a CommandResult), the cast records the parametric narrowing.
+            self._action_handlers[cmd_name] = cast(
+                ActionHandler, partial(self._publish_command, cmd_name)
+            )
             logger.debug(f"[{self.device_name}] registered passthrough handler: {cmd_name}")
 
     # -- setup / shutdown ----------------------------------------------------

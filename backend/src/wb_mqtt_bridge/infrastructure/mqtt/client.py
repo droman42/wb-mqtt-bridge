@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Any, Callable, Dict, List, Optional, Set, Union
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Set, Union
 import json
 
 from aiomqtt import Client, MqttError, Will
@@ -385,7 +385,7 @@ class MQTTClient(MessageBusPort):
     async def subscribe(
         self,
         topic: str,
-        callback: Callable[[str, str], None],
+        callback: Callable[[str, str], Union[None, Awaitable[None]]],
         process_retained: bool = False,
     ) -> None:
         """Subscribe to a topic on the message bus.

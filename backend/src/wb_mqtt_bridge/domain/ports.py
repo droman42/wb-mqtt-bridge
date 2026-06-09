@@ -5,7 +5,7 @@ with external systems. These are implemented by adapters in the infrastructure l
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Generic, List, Mapping, Optional, Union
+from typing import Any, Awaitable, Callable, Dict, Generic, List, Mapping, Optional, Union
 
 from wb_mqtt_bridge.domain.devices.config import BaseCommandConfig
 from wb_mqtt_bridge.utils.types import CommandResponse, StateT
@@ -40,15 +40,17 @@ class MessageBusPort(ABC):
     
     @abstractmethod
     async def subscribe(
-        self, 
-        topic: str, 
-        callback: Callable[[str, str], None]
+        self,
+        topic: str,
+        callback: Callable[[str, str], Union[None, Awaitable[None]]],
     ) -> None:
         """Subscribe to a topic on the message bus.
-        
+
         Args:
             topic: The topic pattern to subscribe to
-            callback: Function to call when messages arrive (topic, payload)
+            callback: Function to call when messages arrive (topic, payload).
+                Sync (returns None) or async (returns an awaitable) -- the
+                impl awaits awaitable returns.
         """
         pass
     
