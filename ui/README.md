@@ -29,7 +29,7 @@ remote-control-style page per device, generated at build time from the
 
 The UI consumes the backend purely as a **contract** — there is no Python in the
 build. The full cross-repo contract (artifacts, invariants, change playbook) is
-documented in the backend repo at `wb-mqtt-bridge/docs/ui_backend_contract.md`. At
+documented in the backend repo at `wb-mqtt-bridge/docs/design/ui_backend_contract.md`. At
 build time the UI reads, from a sibling `wb-mqtt-bridge` checkout:
 
 - `wb-mqtt-bridge/openapi.json` — the committed OpenAPI snapshot (device-state model
@@ -46,7 +46,7 @@ One generator:
 > **Layer 3 (no more page codegen).** Device/scenario pages are no longer generated at build
 > time — they render at **runtime** from the backend layout manifest (`GET /devices/{id}/layout`,
 > `GET /scenario/{id}/layout`) via the generic `RemoteControlLayout`. Appliances use hand-written
-> bespoke pages (`src/pages/appliances/`). See `docs/ui_backend_contract.md` → "Layout Manifest &
+> bespoke pages (`src/pages/appliances/`). See `docs/design/ui_backend_contract.md` → "Layout Manifest &
 > Runtime Rendering".
 
 ## Quick Start

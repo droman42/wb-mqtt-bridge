@@ -21,13 +21,13 @@ onboarding — HIGH PRIORITY, agreed 2026-06-06; runs in parallel with the §5.1
 (final acceptance + the mandatory scenario↔WB design), and the **§5.1** backlog.
 
 Roles of the other docs **now** (they were "driving" during the redesign; they've since settled):
-- `docs/ui_backend_contract.md` — **LIVING reference**: the UI↔backend contract + Layer-3 runtime
+- `docs/design/ui_backend_contract.md` — **LIVING reference**: the UI↔backend contract + Layer-3 runtime
   rendering; its "Step 4 — cutover (canonical scope)" is the authoritative cutover record. Consult it
   for how the UI consumes the backend.
 - `docs/design/scenarios/scenario_system_redesign.md` — **IMPLEMENTED → as-built spec** for the scenario
   architecture (Layers 0/1/2/R + §17 groups→capabilities). Describes what was built; not driving.
 - `docs/design/scenarios/scenario_redesign_progress.md` — historical session / as-built record.
-- `docs/monorepo_migration_plan.md` — DONE → historical.
+- `docs/archive/monorepo_migration_plan.md` — DONE → historical.
 - `project.md` / `architecture.md` / `conventions.md` / `docs/adr/*` — foundational project docs; the
   eventual master *set* once the plan is exhausted.
 

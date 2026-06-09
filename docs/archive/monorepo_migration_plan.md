@@ -8,7 +8,7 @@
   **manual-only** (`workflow_dispatch`) for the heavy-iteration period — fast checks run on every
   push; build images with `gh workflow run "Build ARM Docker Images (backend + ui)"`. Revert by
   deleting the two `if:` lines in `.github/workflows/build-arm.yml`.
-- **Remaining follow-ups:** fuller `ui/docs/page_instructions.md` Python-residue cleanup; root
+- **Remaining follow-ups:** fuller `docs/archive/ui-docs/page_instructions.md` Python-residue cleanup; root
   README authoring (§3b); GHCR (#7) + wb-rules GitHub→WB deploy (§3b); **UI image build is slow
   purely from arm/v7 emulation of the Node build (863s)** → optimize by building JS on amd64 +
   assembling only the arm nginx layer (or arm runners). Deploy host: set the WB's
@@ -16,7 +16,7 @@
 - **When:** **Phase 2** of the scenario redesign — *after* the backend scenario fix
   (Layers 0/1/2/R, done in the current two-repo structure) and *before* Layer 3
   (runtime rendering). See `docs/scenarios/scenario_system_redesign.md` and
-  `docs/ui_backend_contract.md` → "Layout Manifest & Runtime Rendering".
+  `docs/design/ui_backend_contract.md` → "Layout Manifest & Runtime Rendering".
 - **Why now (and not earlier):** the consolidation is the **vehicle for Layer 3**, the only
   genuinely cross-repo phase (manifest schema ↔ renderer co-evolution, fidelity diffing against
   `.gen.tsx` at matched commits, deleting UI code as backend code lands). Atomic cross-repo commits
@@ -151,10 +151,10 @@ and UI-specific docs stay under `backend/docs` / `ui/docs`; everything stale liv
 - `docs/spec_v1.ipynb` — genesis notebook (its markdown twin is already archived)
 
 **Fix in place (not archive) during the move:**
-- `docs/architecture.md` — refresh the "Scenario system" + "WB virtual-device emulation" sections
+- `docs/archive/architecture.md` — refresh the "Scenario system" + "WB virtual-device emulation" sections
   (now stale on `main`: the reconciler replaced startup/shutdown sequences; scenario-as-WB-device
   publishing is disabled).
-- `ui/docs/page_instructions.md` — strip the leftover "Python state generation" troubleshooting /
+- `docs/archive/ui-docs/page_instructions.md` — strip the leftover "Python state generation" troubleshooting /
   best-practices (contradicts the Python-free build).
 - Flip the pre-implementation status headers on `docs/scenarios/scenario_system_redesign.md` and
   this plan (both are built / in progress, not "DRAFT not implemented").

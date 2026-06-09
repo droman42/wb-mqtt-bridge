@@ -6,8 +6,8 @@
 - **Branch:** `feat/scenario-redesign` (not merged to `main`). Full test suite: **274 pass**.
 - **Last updated:** 2026-05-22.
 - **Design contracts:** `docs/design/scenarios/scenario_system_redesign.md` (Layers 0/1/2/R),
-  `docs/ui_backend_contract.md` → "Layout Manifest & Runtime Rendering" (Layer 3),
-  `docs/monorepo_migration_plan.md` (Phase 2).
+  `docs/design/ui_backend_contract.md` → "Layout Manifest & Runtime Rendering" (Layer 3),
+  `docs/archive/monorepo_migration_plan.md` (Phase 2).
 
 This is the as-built record of the redesign work. It complements the design docs (what we
 *intend*) with what is *actually built*, what's open, and what to watch.
@@ -138,7 +138,7 @@ earlier buggy run left it stale) — resync before/at that test.
 - The UI scenario-page codegen was **not re-run** against the thin configs (it reads the retained
   `roles`, so it should still generate — unverified).
 
-**Then (per the plan):** merge to `main` → monorepo (Phase 2, `docs/monorepo_migration_plan.md`)
+**Then (per the plan):** merge to `main` → monorepo (Phase 2, `docs/archive/monorepo_migration_plan.md`)
 → Layer 3 runtime rendering.
 
 **Deferred design items:** transition-aware manual notes (13.2); Apple TV "Who's watching?" tvOS

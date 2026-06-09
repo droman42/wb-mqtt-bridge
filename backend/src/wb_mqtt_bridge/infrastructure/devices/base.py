@@ -61,7 +61,7 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
         # State-change callbacks (list — append via register_state_change_callback).
         # Each is invoked as cb(device_id, changed_fields: List[str]) on every state change.
         # Multiple registrations supported so persistence + WB-publish + future hooks can all
-        # ride the same chokepoint (see docs/architecture.md "state-change callback chain").
+        # ride the same chokepoint (see docs/archive/architecture.md "state-change callback chain").
         self._state_change_callbacks: List[Callable[[str, List[str]], Any]] = []
 
         # Register action handlers

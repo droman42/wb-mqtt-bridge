@@ -68,7 +68,7 @@ Layer R  Reconciler      runtime engine            — diff assumed→target, or
 Layer 3  Layout manifest backend endpoint          — runtime device+scenario page construction
 ```
 
-**Layer 3 (runtime UI rendering)** is specified in `docs/ui_backend_contract.md` →
+**Layer 3 (runtime UI rendering)** is specified in `docs/design/ui_backend_contract.md` →
 "Layout Manifest & Runtime Rendering". It replaces build-time `.gen.tsx` codegen: the backend
 serves a layout manifest (fed by the capability map + reconciler-resolved roles + topology) and the
 UI renders it with one generic `RemoteControlLayout`. This subsumes the placement contract
@@ -466,7 +466,7 @@ e.g. `navigation` vs `menu` and invented actions — a latent drift source.)
 UI consumes (Path 1) until Path 2 lands. Device pages need no change.
 
 **Update — Path 2 chosen.** The project is moving page construction to **runtime** (Layer 3, see
-§3 and `docs/ui_backend_contract.md`). With the backend serving a resolved layout manifest, the UI
+§3 and `docs/design/ui_backend_contract.md`). With the backend serving a resolved layout manifest, the UI
 no longer re-derives scenarios from raw JSON, so the duplicate `ScenarioVirtualDeviceHandler` /
 `ScenarioVirtualDeviceResolver` are deleted and roles can be fully auto-derived (no longer
 materialized for the UI). The Path-1 constraint applies only to the interim build-time period.

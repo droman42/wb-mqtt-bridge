@@ -25,6 +25,6 @@ the REST type contract — see the UI `README.md`.
 
 ## Authoritative references
 
-- `docs/ui_backend_contract.md` → "Layout Manifest & Runtime Rendering" — the design + the backend
+- `docs/design/ui_backend_contract.md` → "Layout Manifest & Runtime Rendering" — the design + the backend
   placement engine (`backend/.../presentation/api/layout_engine.py`).
 - `docs/scenarios/scenario_system_redesign.md` — Layer 3 within the scenario redesign.

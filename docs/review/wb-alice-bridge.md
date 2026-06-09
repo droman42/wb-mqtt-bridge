@@ -219,7 +219,7 @@ Mapping each class to the closest Alisa media type and noting gaps (Alisa-side r
 ## (e) Scenarios as voice triggers — recommendation
 
 **Context (VERIFIED):** publishing scenarios as WB virtual devices is **currently disabled**
-(`docs/action_plan.md:276-293` P4 #7; `docs/architecture.md:122-128`; bootstrap no longer calls
+(`docs/action_plan.md:276-293` P4 #7; `docs/archive/architecture.md:122-128`; bootstrap no longer calls
 `setup_wb_emulation_for_all_scenarios`). The disabled approach was *one WB device per scenario*
 (`type=scenario`), which "clutters the WB device list" and "conflates a scenario with a device." The
 infra still exists: `ScenarioWBAdapter` and `WBVirtualDeviceService.setup_wb_device_from_config(...)`

@@ -114,7 +114,7 @@ is committed.
 
 All three transports below are reached as the deployment dictates: REST/SSE go through
 the UI's nginx proxy (`/api`, `/events`) to `BACKEND_HOST:BACKEND_PORT`; MQTT is a
-direct browser→broker WebSocket at `MQTT_URL`. (See `ui/docs/deployment-network-config.md`.)
+direct browser→broker WebSocket at `MQTT_URL`. (See `docs/design/ui/deployment-network-config.md`.)
 
 ### REST
 - **Execute an action:** `POST /devices/{device_id}/action`
@@ -566,7 +566,7 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
     `state` object** (keys + inferred type), so deleting the generated state types is safe. (This also
     fixed an already-silent regression: the section was empty for the runtime-enabled devices.)
     `StateTypeGenerator` itself goes with the page generator above.
-  - Docs: `ui/README.md`, `ui/docs/page_instructions.md`.
+  - Docs: `ui/README.md`, `docs/archive/ui-docs/page_instructions.md`.
 - **Backend (small; the WB re-key touched live MQTT/WB control → ✅ hardware-verified, no degradation):**
   - ✅ **B2 DONE (`14db293`)** — dropped `special_cases`/`DeviceSpecialCase` from
     `presentation/api/layout_manifest.py`; the oracle-parse test strips the retired key; regen.
@@ -625,6 +625,6 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
 
 ## Related
 - `docs/design/scenarios/scenario_system_redesign.md` — the scenario redesign; this manifest is its Layer 3.
-- `ui/README.md` and `ui/docs/page_instructions.md` — running the codegen.
-- `ui/docs/deployment-network-config.md` — runtime URL configuration.
+- `ui/README.md` and `docs/archive/ui-docs/page_instructions.md` — running the codegen.
+- `docs/design/ui/deployment-network-config.md` — runtime URL configuration.
 - `action_plan.md` §7 (Codegen Alternatives) and P2.5 #10 (placement contract).
