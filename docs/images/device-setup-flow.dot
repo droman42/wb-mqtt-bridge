@@ -1,0 +1,67 @@
+// wb-mqtt-bridge — planned device-setup flow. Render:
+//   dot -Tpng docs/images/device-setup-flow.dot -o docs/images/device-setup-flow.png
+// Palette: see hexagon.dot header.
+digraph device_setup {
+  rankdir=LR;
+  bgcolor="white";
+  splines=spline;
+  nodesep=0.45; ranksep=0.9;
+  fontname="Helvetica"; labelloc=t; fontsize=16;
+  label="wb-mqtt-bridge — planned device-setup flow (Claude-interactive today, page-driven tomorrow)";
+
+  node [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.4];
+  edge [fontname="Helvetica", fontsize=9, color="#9e9e9e", arrowsize=0.7];
+
+  // --- the source of truth on the controller ---
+  wbconf [shape=note, fillcolor="#fff8e1", color="#f57f17",
+          label="/etc/wb-webui.conf  (Wirenboard controller)\nauthoritative dashboards JSON\nwidgets[] → cells: {id, name, type, …}\n──────────────────────────────────\nliterally what the WB native UI renders"];
+
+  // --- the importer (planned) ---
+  importer [label="WB-cell importer (planned)\n1. enumerate dashboards\n2. classify each cell (switch / range / rgb / position / temp)\n3. detect pairs (relay K2 + Channel 2 Brightness → dimmable_light)\n4. suggest profile + device_id + initial state_topic",
+            fillcolor="#e8f5e8", color="#388e3c", width=4.6, style="filled,rounded,dashed"];
+
+  // --- the setup page (planned) ---
+  page [label="Device-setup page (planned)\n• grouped by dashboard → bridge room\n• per-fixture-kind preview\n• name editor (ru from cell.name; en/de pre-filled, editable)\n• profile picker + override\n• schema-aware authoring linter\n• preview the JSON that will be written",
+        fillcolor="#e3f2fd", color="#1976d2", width=4.6, style="filled,rounded,dashed"];
+
+  // --- IR-learning sub-page (planned) ---
+  ir_page [label="IR-learning sub-page (planned)\nfor Broadlink + Wirenboard IR\n• discover Broadlink RM on LAN\n• EITHER capture from real remote\n• OR import from a public IR-code database\n   (LIRC · Flipper · Global Caché)\n• name + save under a device action",
+           fillcolor="#e3f2fd", color="#1976d2", width=4.4, style="filled,rounded,dashed"];
+
+  // --- public IR-code databases as input source ---
+  ir_db [shape=note, fillcolor="#fff8e1", color="#f57f17",
+         label="public IR-code databases\nLIRC · Flipper · Global Caché\n──────────────────────────\nsearch by manufacturer + model,\nimport pre-captured codes,\nmap → device config commands"];
+
+  // --- user review ---
+  user [label="user reviews\n+ commits",
+        fillcolor="#fff3e0", color="#ef6c00"];
+
+  // --- the artefacts produced ---
+  cfg [shape=note, fillcolor="#fff8e1", color="#f57f17",
+       label="backend/config/devices/wb-devices/<room>/<id>.json\nor backend/config/devices/<id>.json (AV)\n──────────────────────────────────\nthe typed config the bridge already consumes"];
+
+  // --- claude-interactive flow today (parallel lane) ---
+  claude [label="TODAY: Claude-interactive\nuser pastes widget JSON →\nassistant proposes config →\nuser confirms / corrects →\nassistant writes the file",
+          fillcolor="#f5f5f5", color="#757575", style="filled,rounded,dashed"];
+
+  log [shape=note, fillcolor="#fff8e1", color="#f57f17",
+       label="docs/wb_device_authoring_log.md\nlive workflow log\n• 14 cross-room rules\n• 7 friction observations\n• 9 automation opportunities  ← source of the plan above"];
+
+  // edges
+  wbconf -> importer [label="read", color="#388e3c"];
+  importer -> page [color="#388e3c"];
+  page -> user;
+  ir_db -> ir_page [label="search /\nimport", color="#f57f17", style=dashed];
+  ir_page -> user [style=dashed];
+  user -> cfg;
+
+  // claude flow today
+  wbconf -> claude [label="user pastes\nfragments", style=dashed, color="#bdbdbd"];
+  claude -> cfg [style=dashed, color="#bdbdbd", label="hand-written"];
+  claude -> log [style=dotted, color="#bdbdbd", label="captured in"];
+  log -> importer [style=dotted, color="#f57f17", label="design input"];
+  log -> page    [style=dotted, color="#f57f17"];
+
+  {rank=same; importer; claude}
+  {rank=same; page; ir_page}
+}
