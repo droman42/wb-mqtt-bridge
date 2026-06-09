@@ -28,7 +28,7 @@ jobs:
       # / pyright) run via the shared composite action in droman42/py-dev-gates.
       # The action handles its own python setup + install of the project's
       # [dev] extras; tests run separately below.
-      - uses: droman42/py-dev-gates/.github/actions/python-health@v0.1.0
+      - uses: droman42/py-dev-gates/.github/actions/python-health@v0.1.1
         with:
           src: src/wb_mqtt_bridge
           working-directory: backend
