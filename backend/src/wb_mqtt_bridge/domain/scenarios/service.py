@@ -2,7 +2,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Dict, Optional, Any
+from typing import Dict, List, Optional, Any
 
 from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition, ScenarioState, DeviceState, ManualStep
 from wb_mqtt_bridge.domain.scenarios.scenario import Scenario, ScenarioError
@@ -354,7 +354,7 @@ class ScenarioManager:
             "failures": failures,
         }
 
-    async def execute_role_action(self, role: str, command: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute_role_action(self, role: str, command: str, params: Dict[str, Any]) -> Any:
         """
         Execute an action on a device bound to a role in the current scenario.
         
@@ -394,7 +394,10 @@ class ScenarioManager:
         Persist the current scenario state.
         """
         if self.current_scenario:
-            await self.state_repository.save("active_scenario", self.current_scenario.scenario_id)
+            await self.state_repository.save(
+                "active_scenario",
+                {"scenario_id": self.current_scenario.scenario_id},
+            )
     
     async def _restore_state(self) -> None:
         """
@@ -404,11 +407,21 @@ class ScenarioManager:
         logger.debug("[SCENARIO_DEBUG] _restore_state() called")
         
         try:
-            scenario_id = await self.state_repository.load("active_scenario")
-            
+            stored = await self.state_repository.load("active_scenario")
+            # Persisted shape: {"scenario_id": "..."} since the StateRepositoryPort
+            # contract is Dict[str, Any]; tolerate the legacy bare-string form for
+            # one upgrade so persisted state from older bridges still restores.
+            scenario_id: Optional[str]
+            if isinstance(stored, dict):
+                scenario_id = stored.get("scenario_id")
+            elif isinstance(stored, str):
+                scenario_id = stored
+            else:
+                scenario_id = None
+
             # DEBUG: Log what was loaded from store
             logger.debug(f"[SCENARIO_DEBUG] Loaded scenario_id from store: {scenario_id}")
-            
+
             if scenario_id and scenario_id in self.scenario_map:
                 logger.info(f"Restoring previously active scenario: {scenario_id}")
                 # DEBUG: Log restoration attempt

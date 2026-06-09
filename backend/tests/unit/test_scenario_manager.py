@@ -443,16 +443,17 @@ class TestScenarioManager:
         """Switching scenarios persists the active scenario_id to the store.
 
         Original test expected a full state dict under key 'scenario:last'.
-        Production now persists only the active scenario_id under key 'active_scenario'
-        (the full ScenarioState is rebuilt from current device state on restore).
-        The semantic intent — "the manager remembers which scenario was last active
-        so it can be restored after a restart" — is preserved.
+        Production now persists {"scenario_id": <id>} under key 'active_scenario'
+        (the dict envelope satisfies StateRepositoryPort.save's Dict[str, Any]
+        contract; the full ScenarioState is rebuilt from current device state on
+        restore). The semantic intent — "the manager remembers which scenario was
+        last active so it can be restored after a restart" — is preserved.
         """
         await scenario_manager.initialize()
         await scenario_manager.switch_scenario("movie_mode")
 
-        persisted_id = await mock_store.load("active_scenario")
-        assert persisted_id == "movie_mode"
+        persisted = await mock_store.load("active_scenario")
+        assert persisted == {"scenario_id": "movie_mode"}
 
     @pytest.mark.asyncio
     async def test_restore_state(self, mock_device_manager, mock_room_manager, mock_store, scenario_dir):

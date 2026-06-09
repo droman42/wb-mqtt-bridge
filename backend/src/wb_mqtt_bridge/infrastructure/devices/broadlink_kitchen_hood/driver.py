@@ -1,11 +1,12 @@
 import logging
 import base64
 import asyncio
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Mapping, Optional
 import broadlink
 from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 from wb_mqtt_bridge.domain.devices.models import KitchenHoodState
 from wb_mqtt_bridge.infrastructure.config.models import BroadlinkKitchenHoodConfig, StandardCommandConfig
+from wb_mqtt_bridge.domain.devices.config import BaseCommandConfig
 from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
 from wb_mqtt_bridge.utils.types import CommandResult
 
@@ -107,21 +108,15 @@ class BroadlinkKitchenHood(BaseDevice[KitchenHoodState]):
             self.set_error(error_msg)
             return False
     
-    async def handle_message(self, topic: str, payload: str) -> Optional[CommandResult]:
-        """
-        Handle incoming MQTT messages for this device.
-        
-        Args:
-            topic: The MQTT topic
-            payload: The message payload
-            
-        Returns:
-            Optional[CommandResult]: Result of handling the message or None
+    async def handle_message(self, topic: str, payload: str) -> None:
+        """Handle incoming MQTT messages for this device.
+
+        Delegates to the base; return type narrowed to None to match the port
+        (DevicePort.handle_message). Base returns None; no caller checked the
+        Optional[CommandResult] that used to leak out of this override.
         """
         logger.debug(f"Kitchen hood received message on {topic}: {payload}")
-        
-        # Delegate to parent class's handler
-        return await super().handle_message(topic, payload)
+        await super().handle_message(topic, payload)
     
     # ============= Updated parameter-based handlers =============
     
@@ -344,16 +339,13 @@ class BroadlinkKitchenHood(BaseDevice[KitchenHoodState]):
             
             return False
     
-    def get_available_commands(self) -> Dict[str, StandardCommandConfig]:
+    def get_available_commands(self) -> Mapping[str, BaseCommandConfig]:
+        """Return available commands for this device.
+
+        Returns the base Mapping[str, BaseCommandConfig] -- the broadlink kitchen
+        hood's commands ARE all StandardCommandConfig instances at runtime, but
+        we conform to the port shape for type-check parity (covariant Mapping).
         """
-        Return available commands for this device.
-        
-        Returns:
-            Dict[str, StandardCommandConfig]: Dictionary of command name to command config objects
-        """
-        # Call parent method which now returns StandardCommandConfig objects
         commands = super().get_available_commands()
-        
-        # Log commands to help with debugging
         logger.debug(f"[{self.device_name}] get_available_commands returning: {list(commands.keys())}")
-        return commands 
+        return commands

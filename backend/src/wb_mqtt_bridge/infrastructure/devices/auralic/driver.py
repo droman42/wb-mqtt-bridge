@@ -663,46 +663,45 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                 )
             except Exception as e:
                 logger.error(f"Error using OpenHome API to wake device: {str(e)}")
-                # Continue to fallback IR control path below
+                # Continue to fallback IR control path below.
                 logger.warning("OpenHome control failed, falling back to IR control")
-            
-        # CASE 3: Fallback to IR control for any other case
-        # - Device not connected 
-        # - OpenHome API failed
-        # - Inconsistent state
-        else:
-            logger.warning("Using IR control as fallback power on method")
-            
-            if not mqtt_topic:
-                return self.create_command_result(
-                    success=False,
-                    error="IR control not configured and cannot use OpenHome API"
-                )
-            
-            # Send IR command via MQTT
-            success = await self._send_ir_command(mqtt_topic)
-            if not success:
-                return self.create_command_result(
-                    success=False,
-                    error="Failed to send IR power on command"
-                )
-            
-            # Update state to indicate device is powering on
-            self.update_state(
-                connected=False,
-                power="off",
-                message="Device is powering on via IR command",
-                deep_sleep=False  # No longer in deep sleep, now powering on
-            )
-            
-            # Start delayed discovery
-            self._start_delayed_discovery()
-            
+
+        # CASE 3: Fallback to IR control. Reached when:
+        # - CASE 1 didn't apply (not deep sleep),
+        # - and either CASE 2 didn't apply (no openhome_device) OR CASE 2's
+        #   OpenHome API call raised. CASE 2's success paths already returned.
+        logger.warning("Using IR control as fallback power on method")
+
+        if not mqtt_topic:
             return self.create_command_result(
-                success=True,
-                message="IR power on command sent",
-                info=f"Device discovery will be attempted in {self.device_boot_time} seconds"
+                success=False,
+                error="IR control not configured and cannot use OpenHome API"
             )
+
+        # Send IR command via MQTT
+        success = await self._send_ir_command(mqtt_topic)
+        if not success:
+            return self.create_command_result(
+                success=False,
+                error="Failed to send IR power on command"
+            )
+
+        # Update state to indicate device is powering on
+        self.update_state(
+            connected=False,
+            power="off",
+            message="Device is powering on via IR command",
+            deep_sleep=False  # No longer in deep sleep, now powering on
+        )
+
+        # Start delayed discovery
+        self._start_delayed_discovery()
+
+        return self.create_command_result(
+            success=True,
+            message="IR power on command sent",
+            info=f"Device discovery will be attempted in {self.device_boot_time} seconds"
+        )
 
     async def handle_power_off(self, cmd_config: BaseCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
@@ -1310,16 +1309,21 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             logger.error(f"Failed to send IR command: {str(e)}")
             return False
             
-    async def _delayed_discovery(self, delay: float = None) -> None:
+    async def _delayed_discovery(self, delay: Optional[float] = None) -> None:
         """
         Perform device discovery after a delay to allow device to boot.
         
         Args:
             delay: Delay in seconds before attempting discovery. If None, use device_boot_time.
         """
+        # Resolve delay to a concrete float; device_boot_time may be Optional in
+        # the config schema, fall back to 15 (the Auralic default boot window).
         if delay is None:
-            delay = self.device_boot_time
-            
+            boot_time = self.device_boot_time
+            delay = float(boot_time) if boot_time is not None else 15.0
+        else:
+            delay = float(delay)
+
         try:
             logger.info(f"Waiting {delay} seconds for device to boot before discovery")
             await asyncio.sleep(delay)
@@ -1346,7 +1350,7 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
         except Exception as e:
             logger.error(f"Error during delayed discovery: {str(e)}")
             
-    def _start_delayed_discovery(self, delay: float = None) -> None:
+    def _start_delayed_discovery(self, delay: Optional[float] = None) -> None:
         """
         Start a background task for delayed discovery.
         Cancels any existing discovery task first.

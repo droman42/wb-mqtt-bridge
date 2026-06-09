@@ -11,6 +11,10 @@ logger = logging.getLogger(__name__)
 
 class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
     """Implementation of an IR device controlled through Wirenboard."""
+
+    # Narrow self.config to the IR-specific config so pyright knows
+    # commands are IRCommandConfig instances (BaseDevice declares BaseDeviceConfig).
+    config: WirenboardIRDeviceConfig
     
     def __init__(self, config: WirenboardIRDeviceConfig, mqtt_client: Optional[MQTTClient] = None) -> None:
         super().__init__(config, mqtt_client)

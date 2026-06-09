@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional, cast, Union, Generic, Tuple, Callable
+from typing import Dict, Any, List, Mapping, Optional, cast, Union, Generic, Tuple, Callable
 import logging
 import json
 import re
@@ -992,7 +992,7 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
             logger.error(f"Failed to send WOL packet: {str(e)}")
             return False
     
-    def get_available_commands(self) -> Dict[str, BaseCommandConfig]:
+    def get_available_commands(self) -> Mapping[str, BaseCommandConfig]:
         """Return the list of available commands for this device."""
         return self.config.commands
     

@@ -53,16 +53,16 @@ class ScenarioDefinition(BaseModel):
     """
     scenario_id: str = Field(..., min_length=1, description="Unique identifier for the scenario")
     name: str = Field(..., description="Human-readable name")
-    description: str = Field("", description="Description of the scenario's purpose")
+    description: str = Field(default="", description="Description of the scenario's purpose")
     room_id: Optional[str] = Field(
-        None,
-        description="If set, declares the primary room this scenario runs in. All devices must be in this room."
+        default=None,
+        description="If set, declares the primary room this scenario runs in. All devices must be in this room.",
     )
     roles: Dict[str, str] = Field(default_factory=dict, description="Mapping of role name to device ID")
     # Thin selection (preferred). The reconciler derives membership/inputs/ordering from topology.
-    source: Optional[str] = Field(None, description="Primary content source device id")
-    display: Optional[str] = Field(None, description="Primary video sink device id")
-    audio: Optional[str] = Field(None, description="Active audio device id; binds the volume/mute roles")
+    source: Optional[str] = Field(default=None, description="Primary content source device id")
+    display: Optional[str] = Field(default=None, description="Primary video sink device id")
+    audio: Optional[str] = Field(default=None, description="Active audio device id; binds the volume/mute roles")
     # Legacy / escape hatch.
     devices: List[str] = Field(default_factory=list, description="Explicit device list (legacy format)")
     startup_sequence: List[CommandStep] = Field(
@@ -72,8 +72,8 @@ class ScenarioDefinition(BaseModel):
         default_factory=list, description="Explicit shutdown steps (legacy / escape hatch)"
     )
     manual_instructions: Optional[ManualInstructions] = Field(
-        None,
-        description="Instructions requiring human intervention"
+        default=None,
+        description="Instructions requiring human intervention",
     )
 
     @model_validator(mode="after")

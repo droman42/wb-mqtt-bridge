@@ -59,20 +59,26 @@ def main() -> None:
     parser.add_argument("data", nargs='*', help="Data to send or convert")
     args = parser.parse_args()
 
-    # Define dev as None initially
+    # Define dev as None initially; devtype/host/mac get bound only when one of
+    # --device or --mac is passed, AND the second `if` below uses them only if
+    # one of those branches ran. Pre-bind to None to make the data-flow visible
+    # to pyright (was: possibly-unbound in the gendevice call site).
     dev: Optional[Any] = None
+    devtype: Optional[int] = None
+    host: Optional[str] = None
+    mac: Optional[bytes] = None
 
     if args.device:
         values = args.device.split()
         devtype = int(values[0], 0)
         host = values[1]
-        mac = bytearray.fromhex(values[2])
+        mac = bytes(bytearray.fromhex(values[2]))
     elif args.mac:
         devtype = args.type
         host = args.host
-        mac = bytearray.fromhex(args.mac)
+        mac = bytes(bytearray.fromhex(args.mac))
 
-    if args.host or args.device:
+    if (args.host or args.device) and devtype is not None and host is not None and mac is not None:
         dev = broadlink.gendevice(devtype, (host, DEFAULT_PORT), mac)
         dev.auth()
 
@@ -80,7 +86,7 @@ def main() -> None:
         broadlink.setup(args.joinwifi[0], args.joinwifi[1], 4)
 
     if args.convert:
-        data = bytearray.fromhex(''.join(args.data))
+        data = bytes(bytearray.fromhex(''.join(args.data)))
         pulses = data_to_pulses(data)
         print(format_pulses(pulses))
 

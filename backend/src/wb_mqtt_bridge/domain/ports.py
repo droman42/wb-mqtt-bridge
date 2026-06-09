@@ -5,7 +5,7 @@ with external systems. These are implemented by adapters in the infrastructure l
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Generic, List, Optional, Union
+from typing import Any, Callable, Dict, Generic, List, Mapping, Optional, Union
 
 from wb_mqtt_bridge.domain.devices.config import BaseCommandConfig
 from wb_mqtt_bridge.utils.types import CommandResponse, StateT
@@ -141,7 +141,7 @@ class DevicePort(ABC, Generic[StateT]):
         pass
 
     @abstractmethod
-    def get_available_commands(self) -> Dict[str, BaseCommandConfig]:
+    def get_available_commands(self) -> Mapping[str, BaseCommandConfig]:
         """Return the device's available commands keyed by name."""
         pass
 

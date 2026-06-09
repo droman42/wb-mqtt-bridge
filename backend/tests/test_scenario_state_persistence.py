@@ -144,8 +144,9 @@ async def test_save_and_restore_state_across_manager_instances(device_manager, r
     await manager_a.initialize()
     await manager_a.switch_scenario("movie_night")
 
-    # Persistence happened — the new persistence shape is just the scenario_id.
-    assert await state_store.load("active_scenario") == "movie_night"
+    # Persistence happened — the new persistence shape is {"scenario_id": <id>}
+    # to satisfy StateRepositoryPort.save's Dict[str, Any] contract.
+    assert await state_store.load("active_scenario") == {"scenario_id": "movie_night"}
 
     # A brand-new manager reading from the same store reactivates movie_night.
     manager_b = ScenarioManager(
