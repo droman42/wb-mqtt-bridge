@@ -1,15 +1,19 @@
 """Layer-3 placement engine — build a LayoutManifest from a device's capabilities.
 
 Reconstructs, server-side and keyed off capability **domains** (not config-group name-matching),
-the zone/control structure the UI used to generate at build time. The frozen oracle
-(`docs/design/scenarios/layer3_oracle/`) is the fidelity target.
+the zone/control structure the UI used to generate at build time. Validation surface since the
+2026-05-24 Layer-3 cutover is the live ``/devices/{id}/layout`` endpoint consumed by the UI's
+``RuntimeDevicePage`` — the frozen structural oracle that bootstrapped the engine was retired
+2026-06-09 (archived at ``docs/archive/layer3_oracle/``).
 
-STATUS (Step 1, complete): all 9 domains build (power [single- and multi-zone], playback, volume,
-input, tracks, menu, screen, apps, pointer). The 12 standard devices reproduce their oracle, plus
-eMotiva multi-zone power (zone 1 off/on + zone 2 native toggle). **Icons are resolved UI-side**
-(decided 2026-05-23 — keeps the manifest skin-agnostic; see `ui_backend_contract.md` "Icons"): this
-engine emits placeholder icons that the renderer overrides via its `IconResolver`; the manifest
-`icon` field is only an optional override.
+Domain coverage: all 9 domains (power [single- and multi-zone], playback, volume, input, tracks,
+menu, screen, apps, pointer). The 12 standard devices have shipped on the runtime renderer since
+the cutover, plus eMotiva multi-zone power (zone 1 off/on + zone 2 native toggle — pinned by
+`test_engine_emotiva_multizone_power` since the capability-driven shape intentionally diverges
+from the old codegen). **Icons are resolved UI-side** (decided 2026-05-23 — keeps the manifest
+skin-agnostic; see `ui_backend_contract.md` "Icons"): this engine emits placeholder icons that
+the renderer overrides via its `IconResolver`; the manifest `icon` field is only an optional
+override.
 """
 from typing import Any, Dict, List, Literal, Optional, Tuple, cast
 

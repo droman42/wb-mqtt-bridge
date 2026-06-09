@@ -5,10 +5,11 @@ so the existing ``RemoteControlLayout`` renderer consumes it **unchanged**, plus
 (``entityKind``, ``deviceCategory``, ``stateSchema``). Served at runtime by
 ``GET /devices/{id}/layout`` and ``GET /scenario/{id}/layout`` and published in ``openapi.json``.
 
-The build-time codegen fields (``stateInterface``, ``actionHandlers``) are kept **optional** — they
-appear in the frozen oracle (``docs/design/scenarios/layer3_oracle/``) but the runtime engine may omit them
-(live-state types come from ``openapi.json`` via ``stateSchema``; action dispatch is generic).
-Removed entirely at the Step-4 cutover.
+The build-time codegen fields (``stateInterface``, ``actionHandlers``) are kept **optional** —
+the runtime engine omits them (live-state types come from ``openapi.json`` via ``stateSchema``;
+action dispatch is generic). Were retained for parity with the now-retired frozen oracle
+(archived 2026-06-09 at ``docs/archive/layer3_oracle/``); validation is render-level diff via
+the live ``/devices/{id}/layout`` endpoint + the UI's ``RuntimeDevicePage`` consumer.
 """
 from typing import Any, Dict, List, Literal, Optional
 

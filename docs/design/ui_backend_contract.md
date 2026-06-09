@@ -190,8 +190,11 @@ liveness), and the sole appliance (`kitchen_hood`) has a **hand-written bespoke 
 (`src/pages/appliances/`). The Step-4 cutover (delete codegen, retire `/groups` + `/scenario/virtual_config`
 + the dormant scenario↔WB path, WB re-key off capability `domain`+`kind`+`exposed`, full `group`
 removal) is done and **hardware-verified** (WB output unchanged, no degradation). See "Step 4 — cutover"
-below for the per-step record. Remaining (NOT cutover): the scenario↔WB rebuild (P4 design), A8 phase 2
-(optional api.ts dedup), oracle retirement (deferred).
+below for the per-step record. Oracle retirement DONE 2026-06-09 — frozen JSONs archived at
+`docs/archive/layer3_oracle/`; `test_layout_manifest.py` deleted; the parametrized
+`test_engine_reproduces_oracle` sweep removed from `test_layout_engine.py`; validation surface is
+render-level diff via the live `/devices/{id}/layout` endpoint + `RuntimeDevicePage`. Remaining
+(NOT cutover): the scenario↔WB rebuild (P4 design), A8 phase 2 (optional api.ts dedup).
 
 **Scope note — what Layer 3 replaces (read this if "codegen" feels ambiguous).** It supersedes the
 build-time **page** codegen (`gen:device-pages` → `.gen.tsx`/`.state.ts`/`.hooks.ts`), **NOT** the
@@ -399,13 +402,15 @@ whatever else is active (reconciler switch path). Globally-exclusive ⇒ no per-
 The current `.gen.tsx` set is the regression reference: the backend engine must reproduce each
 device's structure before the runtime renderer replaces the static page.
 
-> **Use render-level diff, not the frozen structural oracle.** The frozen
-> `docs/design/scenarios/layer3_oracle/*.json` snapshots compare *distilled structure* (zones, control sets,
-> dropdown population-method + count) and gave a **false "MATCH"** for mf_amplifier while the actual
-> rendered page diverged (see "Step 2 hardening" below). They miss runtime *behavior* (static-vs-fetch,
-> null-vs-undefined) and can drift from the current codegen. **Retire them** in favor of a
-> render-level diff: screenshot the runtime page vs the build-time page per device class and compare.
-> This is [[mock-tests-miss-driver-bugs]] one level up — structural fidelity ≠ behavioral fidelity.
+> **Render-level diff is the validation surface; the structural oracle is retired.** The
+> frozen `docs/design/scenarios/layer3_oracle/*.json` snapshots compared *distilled structure*
+> (zones, control sets, dropdown population-method + count) and gave a **false "MATCH"** for
+> mf_amplifier while the actual rendered page diverged (see "Step 2 hardening" below); they
+> missed runtime *behavior* (static-vs-fetch, null-vs-undefined). Retired 2026-06-09 — JSONs
+> archived at `docs/archive/layer3_oracle/`; tests removed. Validation now = render-level diff
+> via the live `/devices/{id}/layout` + the UI's `RuntimeDevicePage`, hardware-verified per
+> device class on each rollout step. This is [[mock-tests-miss-driver-bugs]] one level up —
+> structural fidelity ≠ behavioral fidelity.
 
 ### Migration (incremental, app stays runnable)
 1. Manifest Pydantic + `/layout` endpoints; placement engine reproducing one device's `.gen.tsx`.
@@ -456,8 +461,8 @@ global; only the *runtime-render flag* stays per-device during rollout):
   (delete `deviceClass === 'EMotivaXMC2'`); U3 remove `specialCases` from the type + adapter + strip
   the dead emission from the 8 handlers.
 - **Validation:** render-level diff (Playwright) runtime vs build-time for mf_amplifier + a slider
-  device (eMotiva) + an api device (Apple TV); `typecheck`/`lint`/`npm run check` green. Retire the
-  frozen oracle.
+  device (eMotiva) + an api device (Apple TV); `typecheck`/`lint`/`npm run check` green. Frozen
+  oracle retired 2026-06-09 (`docs/archive/layer3_oracle/`).
 
 Status (2026-05-23) — **re-scoped to the mf_amplifier pilot** (per the user: other devices +
 scenarios are **Step 3**, so the LG/AppleTV api-select + eMotiva slider cleanups go there, done as
@@ -526,9 +531,13 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
     refreshed the stale comment + retired the done `TODO(Step 3)` B5 note in `useRemoteControlData.ts`.
     The `api.gen.ts` `DeviceSpecialCase` type is generated — it goes when backend **B2** drops
     `special_cases` and openapi/api.gen are regenerated.
-  - **Oracle (deferred, NOT done in A3):** the frozen `docs/design/scenarios/layer3_oracle/*` + the backend
-    `test_engine_reproduces_oracle` are **kept** for now as the engine's structural regression
-    snapshot — retiring them removes backend coverage for no immediate gain. Retire deliberately later.
+  - ✅ **Oracle retired 2026-06-09** (after A3): the frozen `docs/design/scenarios/layer3_oracle/*`
+    JSONs archived to `docs/archive/layer3_oracle/`; `test_layout_manifest.py` deleted and
+    `test_engine_reproduces_oracle` removed from `test_layout_engine.py` (the eMotiva multi-zone
+    property test remains — it was never oracle-based). The fidelity-target role the oracle
+    played at the engine's birth was superseded by hardware-verified render-level diff once each
+    device class rolled onto the runtime renderer; both oracle-dependent test surfaces had
+    been silently skipping or collection-erroring on a stale path for some time before retirement.
   - ✅ **A1 DONE (`f5a64cf`):** dropped the per-id runtime flag (removed the flag block from
     `config/runtime.ts`; the file stays for `runtimeConfig`/`getSSEUrl`) and the `App.tsx` gate —
     runtime is now the only path for A/V devices + scenarios. (The `.gen` fallback still lives inside
@@ -615,10 +624,11 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
   - **NOT remaining:** the `execute_action` **exposure gate is already implemented + active**
     (`infrastructure/devices/base.py` — rejects `exposed:false` from external sources, allows
     scenario/system/cli) and coverage is MET (redesign §17.3). Nothing to "flip."
-- **Shared:** retire the frozen oracle (`docs/design/scenarios/layer3_oracle/*.json` + the oracle test);
-  **regenerate `openapi.json` + `api.gen.ts` — but only because the backend deletions change the API
-  surface** (`/groups`, `/scenario/virtual_config`, the `LayoutManifest` schema losing
-  `special_cases`). A UI-only step needs no regen.
+- **Shared:** the frozen-oracle retirement that this section originally planned was completed
+  2026-06-09 (`docs/archive/layer3_oracle/` + oracle tests removed); **regenerate `openapi.json`
+  + `api.gen.ts` — but only because the backend deletions change the API surface** (`/groups`,
+  `/scenario/virtual_config`, the `LayoutManifest` schema losing `special_cases`). A UI-only
+  step needs no regen.
 - **Sequencing (as executed):** UI-first (render path proven, zero live-system risk), then the backend
   WB re-key as its own commits with a hardware pass — it was the only change that could disrupt real
   MQTT control of the house. ✅ All done + hardware-verified (no degradation).

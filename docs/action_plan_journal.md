@@ -11,6 +11,49 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-09 (Layer-3 frozen oracle retired)** — Last open item from the Step 4 cutover.
+  The structural fidelity oracle (`docs/design/scenarios/layer3_oracle/*.json`, 14 frozen
+  snapshots extracted from the now-deleted `.gen.tsx`) had been kept as a deferred
+  structural-regression snapshot since the Layer-3 cutover (2026-05-24 cont. 22:
+  "kept as the engine's structural regression snapshot — retire deliberately later"). The
+  question of "when" was answered today after discovering BOTH oracle-dependent test files
+  had been silently non-operational on a stale path: `_oracle_dir()` walks for
+  `docs/scenarios/layer3_oracle/` but the dir actually lives at
+  `docs/design/scenarios/layer3_oracle/`. `test_layout_manifest.py` was producing a hard
+  collection error on every pytest run; `test_layout_engine.py::test_engine_reproduces_oracle`
+  was silently skipping its 12-device parametrize via `skipif(not ORACLE.is_dir())`. The
+  pre-#26 commit `5212809` reproduced the same error, confirming this drift predates the
+  recent ValueLabel work.
+
+  Per the 2026-05-23 cont. 10 decision (`ui_backend_contract.md` "Fidelity strategy"):
+  validation surface is render-level diff via the live `/devices/{id}/layout` consumed by
+  `RuntimeDevicePage`, hardware-verified per device on each rollout — the structural oracle
+  gave false MATCH for mf_amplifier while the actual page diverged. Two weeks of post-
+  cutover stability + the silently-broken state confirm nothing actually depended on the
+  oracle.
+
+  **Surgery:** (1) `test_layout_manifest.py` deleted entirely (file was 100% oracle-bound
+  + collection-erroring). (2) In `test_layout_engine.py`, removed the `ORACLE` constant,
+  the `_name`/`_structure` helpers used only by the oracle diff, and the parametrized
+  `test_engine_reproduces_oracle` (12 parametrize entries silently skipping); kept
+  `_backend_root`/`_make_device` + `test_engine_emotiva_multizone_power` — the eMotiva
+  multi-zone test was authored as a property assertion (multi-zone power intentionally
+  diverged from the old codegen) and stays real. (3) The 14 oracle JSONs moved to
+  `docs/archive/layer3_oracle/` via `git mv` per the project convention
+  ("Superseded docs move to `docs/archive/`, never deleted"). (4) Docstrings in
+  `layout_manifest.py` + `layout_engine.py` updated to drop oracle references; the
+  build-time codegen fields (`stateInterface`/`actionHandlers`) stay optional for back-
+  compat with cached UI builds. (5) `ui_backend_contract.md` updated: the "Fidelity
+  strategy" blockquote now reads "retired" instead of "retire them", the Step 4 "Deferred"
+  oracle entry marked DONE, the §A3 "Oracle (deferred)" sub-bullet flipped to "Oracle
+  retired 2026-06-09".
+
+  Suite **495 pass, ZERO skipped** (was 495 pass + 12 false skips — the parametrize
+  entries that had been silently skipping). pyright + import-linter + AST gate clean.
+  No source-level behavior changed; openapi.json unchanged.
+
+  This closes the last loose end from the 2026-05-24 Step 4 cutover punch list.
+
 - **2026-06-09 (§P3.7 #26 DONE — value-label translation layer, end-to-end)** —
   Three-layer enum mapping shipped across schema, driver, catalog, configs, and UI.
   Bus speaks wire (firmware-specific bytes); voice, UI, `state.mirrored`, and the catalog
@@ -95,12 +138,10 @@ journal entries in §6). This file is the long tail.
      orphan guard) + `npm run build` clean.
 
   **Backend gates at every commit:** import-linter 3 contracts kept, pyright 0
-  errors, AST gate clean. **Suite 495 pass** in the subset excluding the pre-existing
-  `test_layout_manifest.py` collection error — that file's `_oracle_dir()` walks
-  parents looking for `docs/scenarios/layer3_oracle`, but the actual location is
-  `docs/design/scenarios/layer3_oracle`; verified the same error reproduces on the
-  pre-#26 commit `5212809`, so the bug is unrelated to this work. (Worth a separate
-  one-line fix in a future cleanup pass — out of scope for #26.)
+  errors, AST gate clean. **Suite 495 pass** during #26 work; the
+  `test_layout_manifest.py` collection error that ran alongside was traced to a
+  pre-#26 stale-oracle-path bug and retired separately in the same day's session
+  (entry above).
 
   **Hardware verification deferred** to the next rack session. The end-to-end voice
   path is now wired: `POST /devices/bedroom_hvac/canonical {capability: "climate",
