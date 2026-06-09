@@ -11,6 +11,108 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-09 (§P3.7 #26 DONE — value-label translation layer, end-to-end)** —
+  Three-layer enum mapping shipped across schema, driver, catalog, configs, and UI.
+  Bus speaks wire (firmware-specific bytes); voice, UI, `state.mirrored`, and the catalog
+  all speak canonical (short identifier-safe English names). The driver does the
+  lookup-table flip at the boundaries — same shape as the existing `invert` flag, but
+  for string-valued enums instead of numeric inversion.
+
+  **5 commits, in order:**
+  1. `bb8cca4` — schema (Phase 1a) + catalog DTOs (Phase 1c). New `ValueLabel(wire,
+     canonical, labels?)` model in `domain/devices/config.py` next to `LocalizedName`,
+     plus a shared `_normalise_value_labels` helper. `CapabilityField.values` and
+     `StateTopicSpec.values` widened from `Optional[List[str]]` to
+     `Optional[List[ValueLabel]]`, each with a `mode="before"` field validator that
+     normalises bare `["a", "b"]` into `[{wire: "a", canonical: "a"}, ...]` — every
+     existing profile / config / test parsed through unchanged. New `CatalogValueLabel`
+     DTO in `presentation/api/schemas.py`; `CatalogField.values` widened similarly.
+     `_project_capability_actions` emits the triplet per entry (labels projected via
+     `model_dump`), so any label-table edit (new entry, new locale, renamed canonical)
+     bumps the deterministic catalog `version` hash and Irene re-fetches. 8 new tests
+     across `test_capabilities`, `test_wb_passthrough`, and `test_system_catalog`.
+     `openapi.json` regenerated.
+  2. `c6c8f67` — `backend/uv.lock` synced with the manifest (orphaned bumps:
+     asyncwebostv 0.4.0, pymotivaxmc2 0.7.0, py-dev-gates v0.1.1 + pyright /
+     import-linter / grimp / nodeenv dev-tree). Lock had drifted across three earlier
+     commits; landed as a separate focused commit so the source diff stayed clean.
+  3. `1c55007` — driver (Phase 1b). Two new helpers in `wb_passthrough/driver.py`:
+     `_translate_outbound(payload, spec)` (canonical → wire for enum fields with a
+     value table; identity otherwise; warn + pass-through on unknown canonical) and
+     `_translate_inbound(value, spec)` (wire → canonical, identity otherwise).
+     `_publish_command` now normalises the idempotency target into canonical space via
+     `_translate_inbound` so wire-shaped requests still match `state.mirrored`, and the
+     final publish pipeline runs translation → inversion → publish. `_coerce_mirror`
+     ends with `_translate_inbound` so `state.mirrored` always holds canonical for
+     enum-with-table fields. **Pre-existing bug fixed in passing**: `_parse_value`'s
+     enum branch tested `raw in spec.values` — silently broken when `values` shape
+     widened from `List[str]` to `List[ValueLabel]` in `bb8cca4`; now accepts either
+     wire OR canonical against `spec.values`'s wires + canonicals. 8 new tests
+     covering both directions, idempotency on canonical state, unknown canonical
+     fallback (warn + bus-rejects-it), wire-pass-through accepted, bare-string back-
+     compat as identity, no-table field unaffected.
+  4. `ebc5a07` — HVAC profile + 3 Mitsubishi configs (Phase 2). Reverses the 2026-06-08
+     decision to leave mode/fan/vane/widevane off the catalog ("raw int wire format
+     would diverge from any enum claim") — with the value-label layer in place, the
+     typed `enum` claim is now truthful. `hvac.json` `climate.fields[]` widened from
+     2 to 6 entries; wire values from sister-firmware `mitsubishi2wb`'s
+     `html_pages.h` L137-179 in dropdown order (AUTO/DRY/COOL/HEAT/FAN;
+     AUTO/QUIET/1-4; AUTO/SWING/1-5; SWING/`<<`/`<`/`|`/`>`/`>>`/`<>`); canonical
+     names short identifier-safe (`fan_only` for the mode-FAN entry to avoid
+     colliding with the `fan` field name; directional `far_left`/`center`/`split` for
+     widevane — clearer than the firmware's opaque "Position N" UI). Trilingual
+     ru/en/de labels per entry. Each of the 3 device configs (`bedroom_hvac`,
+     `living_room_hvac`, `children_room_hvac`) mirrored the same wire ↔ canonical
+     pairs in its state_topics (labels live only in the profile to keep configs
+     scannable). Command params for set_mode/set_fan/set_vane/set_widevane changed
+     from `type: "range"` (0-N int placeholder) to `type: "string"` since canonical
+     values are identifiers. **Drift-guard test** walks the 3 configs against the
+     profile and asserts each config's state_topics wire ↔ canonical pairs match the
+     profile's exactly — catches the silent failure where a wire drifts (voice would
+     publish a canonical the firmware doesn't echo back). 3 new tests.
+     **Heating_loop.mode left as-is** — the action-plan "optionally restore"
+     qualifier; type=bool/invert=true already works and a 2-value bool doesn't
+     benefit enough from per-value labels to justify the busywork.
+  5. `05371c2` — native React HvacPanel (Phase 3). Two new hooks in
+     `ui/src/hooks/useApi.ts`: `useSystemCatalog()` (infinite staleTime since the
+     bridge bumps the retained version-hash topic on /reload) and
+     `useExecuteCanonicalAction()` (merges post-state into the device-state cache on
+     success — same pattern as `useExecuteDeviceAction`). New `HvacPanel.tsx` (~190
+     LOC) at `ui/src/pages/appliances/`: sections for power on/off, setpoint number
+     input (16-31°C, `defaultValue` keyed on the mirror echo so the input re-renders
+     when the device confirms), and mode/fan/vane/widevane button grids. Each grid
+     renders one button per `ValueLabel` entry with the firmware's exact Unicode
+     entities inline (♻ AUTO, 💧 DRY, ❄️ COOL, ☀️ HEAT, ❃ FAN for mode; ⚟ SWING +
+     ➟ POS-N for vane; literal `<<`/`<`/`|`/`>`/`>>`/`<>` for widevane — same bytes
+     the firmware's `html_pages.h` ships) plus the locale-appropriate label.
+     Settings store carries en/ru today; the panel falls back en→canonical when a
+     locale label is absent so de strings (in the catalog) survive a future
+     language-picker extension. Same generic component services all 3 HVAC
+     instances; React-router device_id selects the catalog entry. Registered in
+     `appliances/index.ts` next to `KitchenHoodPage` (the registry is keyed on
+     device_id — comment updated to drop the implied device_category=appliance
+     constraint). `openapi.gen.ts` regenerated; `npm run check` (typecheck + lint +
+     orphan guard) + `npm run build` clean.
+
+  **Backend gates at every commit:** import-linter 3 contracts kept, pyright 0
+  errors, AST gate clean. **Suite 495 pass** in the subset excluding the pre-existing
+  `test_layout_manifest.py` collection error — that file's `_oracle_dir()` walks
+  parents looking for `docs/scenarios/layer3_oracle`, but the actual location is
+  `docs/design/scenarios/layer3_oracle`; verified the same error reproduces on the
+  pre-#26 commit `5212809`, so the bug is unrelated to this work. (Worth a separate
+  one-line fix in a future cleanup pass — out of scope for #26.)
+
+  **Hardware verification deferred** to the next rack session. The end-to-end voice
+  path is now wired: `POST /devices/bedroom_hvac/canonical {capability: "climate",
+  action: "set_mode", params: {mode: "cool"}}` → driver publishes wire `"COOL"` to
+  `/devices/hvac_bedroom/controls/mode/on` → echo lands canonical `"cool"` in
+  `state.mirrored.mode` → the panel highlights the COOL button. Confirming the
+  wire-level publishes match the firmware's expectations is the obvious next step.
+
+  Total: ~1.5 day backend + ~½ day UI (action-plan estimate matched).
+
+---
+
 - **2026-06-08 (Invert flag extended to bool — heating switch inversions cleaned up)** —
   Architectural symmetry follow-up: the cover invert fix (just landed) made covers
   architecturally clean, but heating switches with inverted actuators (3 configs:
