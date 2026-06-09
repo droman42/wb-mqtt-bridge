@@ -45,6 +45,12 @@ jobs:
         # adapters, with one documented exception). Runs BEFORE tests so a
         # layering regression fails fast.
         run: lint-imports
+      - name: Type-check (pyright, pinned 1.1.410)
+        # Hard-fail at 0 errors / empty suppression list. pyrightconfig.json
+        # at backend/ points pyright at the .venv (but here in CI it picks
+        # up the pip-installed site-packages naturally). Pinned in [dev]
+        # extras so diagnostics don't drift across pyright releases.
+        run: pyright
       - name: Run tests
         run: pytest -v -m "not requires_device" --tb=short
 

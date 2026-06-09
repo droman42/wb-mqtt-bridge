@@ -47,9 +47,14 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
         self.ir_volume_up_topic = getattr(self.apple_tv_config, 'ir_volume_up_topic', None)
         self.ir_volume_down_topic = getattr(self.apple_tv_config, 'ir_volume_down_topic', None)
 
-        self.loop = None
-        self.atv = None  # pyatv device instance (renamed from self.device)
-        self.atv_config = None # pyatv config object (renamed from self.config)
+        self.loop: Any = None
+        # pyatv's AppleTV / BaseConfig classes have heterogeneous interfaces
+        # (power / remote_control / apps / push_updater / audio attributes
+        # populated lazily depending on capabilities). Typing as Any
+        # acknowledges pyatv as the runtime contract; pyright can't see the
+        # lazily-populated attrs from the stubs.
+        self.atv: Any = None  # pyatv device instance (renamed from self.device)
+        self.atv_config: Any = None  # pyatv config object (renamed from self.config)
         self._app_list: Dict[str, str] = {} # Maps lowercase app name to app identifier
         # pyatv stores listeners as WEAK references (pyatv.support.state_producer:
         # `self.__listener = weakref.ref(target)`). We MUST hold a strong reference
@@ -79,9 +84,13 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
     async def setup(self) -> bool:
         """Set up the Apple TV device connection."""
         self.loop = asyncio.get_running_loop()
-        
+
+        # Pre-bind ip_address so the except-clause loggers below (which reference
+        # it for diagnostics) never read an unbound name. Set BEFORE the try so
+        # config-read failures still produce a coherent log line.
+        ip_address = getattr(self.apple_tv_config, "ip_address", "<unknown>")
+
         try:
-            ip_address = self.apple_tv_config.ip_address
             logger.info(f"[{self.device_id}] Scanning for Apple TV at {ip_address}")
             
             # Scan for the device to get its configuration details
@@ -208,7 +217,9 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             
             # Perform initial status refresh and app list update
             await self.handle_refresh_status(
-                StandardCommandConfig(id="refresh_status", action="refresh_status"),
+                # StandardCommandConfig no longer has an `id` field; action= is
+                # the only identifier the BaseCommandConfig schema carries.
+                StandardCommandConfig(action="refresh_status"),
                 {"publish": False}
             ) # Don't publish yet, wait for app list
             await self._update_app_list()
@@ -393,17 +404,17 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
                         params={"status": "disconnected"}
                     )
                 )
-                
+
                 if publish:
                     return self.create_command_result(
                         success=False,
                         error=error_msg
                     )
-                
-            return self.create_command_result(
-                success=False,
-                error=error_msg
-            )
+
+                return self.create_command_result(
+                    success=False,
+                    error=error_msg
+                )
         
         logger.info(f"[{self.device_id}] Refreshing status...")
         try:
@@ -812,7 +823,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("play")
-        if remote_cmd_result["success"]:
+        if remote_cmd_result.get("success", False):
             asyncio.create_task(self._delayed_refresh()) # Refresh after action
             return self.create_command_result(
                 success=True,
@@ -836,7 +847,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("pause")
-        if remote_cmd_result["success"]:
+        if remote_cmd_result.get("success", False):
             asyncio.create_task(self._delayed_refresh()) # Refresh after action
             return self.create_command_result(
                 success=True,
@@ -860,7 +871,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("stop")
-        if remote_cmd_result["success"]:
+        if remote_cmd_result.get("success", False):
             asyncio.create_task(self._delayed_refresh()) # Refresh after action
             return self.create_command_result(
                 success=True,
@@ -884,7 +895,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("next")
-        if remote_cmd_result["success"]:
+        if remote_cmd_result.get("success", False):
             asyncio.create_task(self._delayed_refresh()) # Refresh after action
             return self.create_command_result(
                 success=True,
@@ -908,7 +919,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("previous")
-        if remote_cmd_result["success"]:
+        if remote_cmd_result.get("success", False):
             asyncio.create_task(self._delayed_refresh()) # Refresh after action
             return self.create_command_result(
                 success=True,
@@ -932,7 +943,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("menu")
-        if remote_cmd_result["success"]:
+        if remote_cmd_result.get("success", False):
             return self.create_command_result(
                 success=True,
                 message="Menu command executed successfully"
@@ -955,7 +966,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("home")
-        if remote_cmd_result["success"]:
+        if remote_cmd_result.get("success", False):
             return self.create_command_result(
                 success=True,
                 message="Home command executed successfully"
@@ -978,7 +989,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("select")
-        if remote_cmd_result["success"]:
+        if remote_cmd_result.get("success", False):
             return self.create_command_result(
                 success=True,
                 message="Select command executed successfully"
@@ -1001,7 +1012,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("up")
-        if remote_cmd_result["success"]:
+        if remote_cmd_result.get("success", False):
             return self.create_command_result(
                 success=True,
                 message="Up command executed successfully"
@@ -1024,7 +1035,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("down")
-        if remote_cmd_result["success"]:
+        if remote_cmd_result.get("success", False):
             return self.create_command_result(
                 success=True,
                 message="Down command executed successfully"
@@ -1047,7 +1058,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("left")
-        if remote_cmd_result["success"]:
+        if remote_cmd_result.get("success", False):
             return self.create_command_result(
                 success=True,
                 message="Left command executed successfully"
@@ -1070,7 +1081,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             CommandResult: Result of the command execution
         """
         remote_cmd_result = await self._execute_remote_command("right")
-        if remote_cmd_result["success"]:
+        if remote_cmd_result.get("success", False):
             return self.create_command_result(
                 success=True,
                 message="Right command executed successfully"
@@ -1106,7 +1117,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             )
             
         remote_cmd_result = await self._execute_remote_command("screensaver")
-        if remote_cmd_result["success"]:
+        if remote_cmd_result.get("success", False):
             return self.create_command_result(
                 success=True,
                 message="Screensaver activated successfully"
@@ -1231,7 +1242,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
                     result = await self.handle_up(cmd_config, {})
 
             # Update last_command to reflect the gesture interpretation (CommandResult is a dict)
-            if result["success"]:
+            if result.get("success", False):
                 self.update_state(
                     last_command=LastCommand(
                         action="pointer_gesture",
@@ -1317,14 +1328,20 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             app_name = params["app"]
             logger.info(f"[{self.device_id}] Using app name from params: '{app_name}'")
         else:
-            # Access from StandardCommandConfig
-            if hasattr(cmd_config, "appid") and cmd_config.appid:
-                app_id_to_launch = cmd_config.appid
+            # Legacy config shape: an appid/appname attribute on the command
+            # config. StandardCommandConfig doesn't declare these; use
+            # getattr() so pyright bypasses the attribute check (the actual
+            # configs in `config/devices/appletv_*.json` may add either or
+            # neither dynamically via Pydantic extra="allow").
+            cfg_appid = getattr(cmd_config, "appid", None)
+            cfg_appname = getattr(cmd_config, "appname", None)
+            if cfg_appid:
+                app_id_to_launch = cfg_appid
                 logger.info(f"[{self.device_id}] Using app ID from config: {app_id_to_launch}")
             else:
                 # Fallback to appname attribute from config
-                if hasattr(cmd_config, "appname") and cmd_config.appname:
-                    app_name = cmd_config.appname
+                if cfg_appname:
+                    app_name = cfg_appname
                 else:
                     error_msg = "Cannot launch app: No app specified in params or config"
                     logger.error(f"[{self.device_id}] {error_msg}")
@@ -1410,11 +1427,9 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
         """
         await asyncio.sleep(delay)
         
-        # Create a minimal config for the handler
-        config = StandardCommandConfig(
-            id="refresh_status",
-            action="refresh_status"
-        )
+        # Create a minimal config for the handler. StandardCommandConfig
+        # carries action only (no id field in the current schema).
+        config = StandardCommandConfig(action="refresh_status")
         
         # Call the handler directly
         await self.handle_refresh_status(config, {})
@@ -1560,14 +1575,18 @@ class PyATVDeviceListener(DeviceListener, PushListener, PowerListener, AudioList
             self.loop.call_soon_threadsafe(asyncio.create_task,
                 self.device.emit_progress("Connection closed", "action_progress"))
 
-    def playstatus_update(self, updater, playing: Playing):
-        """
-        PushListener callback: pyatv pushes a new playback state.
+    def playstatus_update(self, updater: Any, playstatus: Playing) -> None:
+        """PushListener callback: pyatv pushes a new playback state.
+
+        Param name `playstatus` matches the PushListener protocol's signature
+        (pyatv internals: PushListener.playstatus_update(updater, playstatus)).
+        Local variable `playing` retained for readability.
 
         Args:
             updater: The PushUpdater that produced this update (unused).
-            playing: Object containing the current playback information.
+            playstatus: Object containing the current playback information.
         """
+        playing = playstatus
         logger.debug(f"[{self.device.device_id}] Received playstatus update: {playing}")
 
         # Update state using helper

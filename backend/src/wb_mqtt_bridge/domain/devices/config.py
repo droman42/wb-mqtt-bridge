@@ -43,16 +43,16 @@ class CommandParameterDefinition(BaseModel):
 
 class BaseCommandConfig(BaseModel):
     """Base schema for command configuration."""
-    action: Optional[str] = Field(None, description="Action identifier for this command")
-    description: Optional[str] = Field(None, description="Human-readable description of the command")
+    action: Optional[str] = Field(default=None, description="Action identifier for this command")
+    description: Optional[str] = Field(default=None, description="Human-readable description of the command")
     exposed: bool = Field(
-        True,
+        default=True,
         description="Whether this command is surfaced (UI/manifest, WB/MQTT, HTTP). False = a "
                     "driver-supported but dormant action, hidden on every surface.",
     )
     params: Optional[List[CommandParameterDefinition]] = Field(
-        None,
-        description="Parameter definitions for this command"
+        default=None,
+        description="Parameter definitions for this command",
     )
 
 

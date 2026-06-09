@@ -85,8 +85,12 @@ body — the suppression list is the project's audit trail.
 ## Backend — formatting + typing
 
 - **black** + **isort** (black profile), line length 88, target py311.
-- **mypy** via `./run_mypy.sh` (config `mypy.ini`, scope
-  `backend/src/wb_mqtt_bridge/`). Type hints expected on new code.
+- **pyright** (pinned `1.1.410`, config `backend/pyrightconfig.json`,
+  scope `src/wb_mqtt_bridge/`). **0 errors, empty suppression list.**
+  Type hints expected on new code. Run locally with `cd backend &&
+  pyright`; CI hard-fails the build on any new error.
+- *(Legacy: `mypy` is still installed via `[dev]` but is no longer the
+  type-check gate. Removing it is tracked.)*
 
 ## Backend — tests (the recipe)
 
