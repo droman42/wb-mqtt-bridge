@@ -38,6 +38,9 @@ def _lg_tv_is_on(state: Optional[str]) -> bool:
 
 class LgTv(BaseDevice[LgTvState]):
     """Implementation of an LG TV controlled over the network using AsyncWebOSTV library."""
+
+    # Narrow self.config so pyright sees LgTvDeviceConfig-shaped fields.
+    config: LgTvDeviceConfig
     
     def __init__(self, config: LgTvDeviceConfig, mqtt_client: Optional[MQTTClient] = None):
         # Initialize base device with config and state class

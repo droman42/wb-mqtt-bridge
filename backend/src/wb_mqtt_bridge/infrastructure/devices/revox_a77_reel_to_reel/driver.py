@@ -12,6 +12,9 @@ logger = logging.getLogger(__name__)
 
 class RevoxA77ReelToReel(BaseDevice[RevoxA77ReelToReelState]):
     """Implementation of a Revox A77 reel-to-reel controlled through Wirenboard IR."""
+
+    # Narrow self.config so pyright sees RevoxA77ReelToReelConfig-shaped fields.
+    config: RevoxA77ReelToReelConfig
     
     def __init__(self, config: RevoxA77ReelToReelConfig, mqtt_client: Optional[MQTTClient] = None):
         super().__init__(config, mqtt_client)

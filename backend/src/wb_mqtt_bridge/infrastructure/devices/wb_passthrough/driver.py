@@ -95,6 +95,9 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
     """Data-driven device whose actions publish to WB control topics + whose state mirrors
     those same controls' value-topic echoes."""
 
+    # Narrow self.config so pyright sees WbPassthroughDeviceConfig-shaped fields.
+    config: WbPassthroughDeviceConfig
+
     def __init__(
         self,
         config: WbPassthroughDeviceConfig,

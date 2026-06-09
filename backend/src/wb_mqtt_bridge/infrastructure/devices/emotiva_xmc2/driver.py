@@ -23,6 +23,9 @@ class PowerState(str, Enum):
     UNKNOWN = "unknown"
 
 class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
+    # Narrow self.config so pyright sees EmotivaXMC2DeviceConfig-shaped fields.
+    config: EmotivaXMC2DeviceConfig
+
     """eMotiva XMC2 processor device implementation.
     
     This class implements control for the Emotiva XMC-2 processor using the pymotivaxmc2 library.

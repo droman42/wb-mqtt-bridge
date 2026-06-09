@@ -37,6 +37,8 @@ logger = logging.getLogger(__name__)
 # Without these settings, the device can only be put into standby mode, not true power off.
 
 class AuralicDevice(BaseDevice[AuralicDeviceState]):
+    # Narrow self.config so pyright sees AuralicDeviceConfig-shaped fields.
+    config: AuralicDeviceConfig
     """
     Implementation of an Auralic device controlled through OpenHome UPnP with IR control for power.
     

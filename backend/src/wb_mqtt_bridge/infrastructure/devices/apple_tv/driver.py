@@ -24,6 +24,9 @@ from wb_mqtt_bridge.utils.types import CommandResult
 logger = logging.getLogger(__name__) # Define logger for the module
 
 class AppleTVDevice(BaseDevice[AppleTVState]):
+    # Narrow self.config so pyright sees AppleTVDeviceConfig-shaped fields.
+    config: AppleTVDeviceConfig
+
     """
     Apple TV device integration for wb-mqtt-bridge.
     

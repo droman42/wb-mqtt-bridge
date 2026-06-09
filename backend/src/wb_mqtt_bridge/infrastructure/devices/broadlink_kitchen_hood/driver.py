@@ -13,6 +13,8 @@ from wb_mqtt_bridge.utils.types import CommandResult
 logger = logging.getLogger(__name__)
 
 class BroadlinkKitchenHood(BaseDevice[KitchenHoodState]):
+    # Narrow self.config so pyright sees BroadlinkKitchenHoodConfig-shaped fields.
+    config: BroadlinkKitchenHoodConfig
     """Implementation of a kitchen hood controlled through Broadlink RF."""
     
     def __init__(self, config: BroadlinkKitchenHoodConfig, mqtt_client: Optional[MQTTClient] = None):
