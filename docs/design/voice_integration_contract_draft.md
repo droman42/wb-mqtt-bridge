@@ -1,9 +1,10 @@
 # Voice integration — agreed contract (bridge ↔ Irene)
 
-**Status:** AGREED 2026-06-06 — reconciled in the bridge session with the user. Originated as a
-draft from the **Irene voice-assistant** design session (sister repo `wb-mqtt-voice`, task
-ARCH-7); see prior revision in git history for the open-question form. This is the contract
-Irene's ARCH-8 implementation builds against
+**Status:** AGREED 2026-06-06; **amended 2026-06-15** to fold in the value-label translation layer
+(§P3.7 #26, implemented 2026-06-09 — see "Value-labels for controllable enum fields" in §B). Reconciled
+in the bridge session with the user. Originated as a draft from the **Irene voice-assistant** design
+session (sister repo `wb-mqtt-voice`, task ARCH-7); see prior revision in git history for the
+open-question form. This is the contract Irene's ARCH-8 implementation builds against
 (`wb-mqtt-voice/docs/design/mqtt_integration.md` §10 — blocked on it).
 
 > Same author, two projects. The strategic decision is:
@@ -135,6 +136,29 @@ work; no backwards-compat shim accepting both forms.
 **Sensor capability shape: one `sensor` capability with read-only `fields`.** No actions.
 Voice resolves "какая температура в гостиной" → room → device with `sensor` capability →
 field `temperature` → read from the bridge's state cache.
+
+**Value-labels for controllable enum fields** *(§P3.7 #26, added 2026-06-09 — postdates the original
+2026-06-06 agreement; folded into the contract 2026-06-15).* A controllable enum/choice field projects
+its `values` as a list of **`{wire, canonical, labels}`** triplets instead of bare strings, e.g. an
+HVAC `mode` field:
+
+```json
+{"name": "mode",
+ "values": [
+   {"wire": "0", "canonical": "off",  "labels": {"ru": "выключено",  "en": "off"}},
+   {"wire": "2", "canonical": "cool", "labels": {"ru": "охлаждение", "en": "cool"}},
+   {"wire": "3", "canonical": "heat", "labels": {"ru": "обогрев",    "en": "heat"}}]}
+```
+
+- **`wire`** — the raw MQTT payload on the bus (authoritative there; informational to API consumers).
+- **`canonical`** — the language-neutral action identifier + `state.mirrored` key. **Irene/UI post this**
+  in the canonical command; the bridge driver translates `canonical`↔`wire` symmetrically.
+- **`labels`** — localized surface strings. **Irene matches the utterance against `labels` in the active
+  locale**; the UI renders them as dropdown options. The match → `canonical` → posted back.
+
+Keeps Irene convention-blind (it never sees `wire`) and gives one autodiscoverable enum vocabulary for
+both voice and UI. Implemented as `ValueLabel` (`domain/devices/config.py`); `CapabilityField.values`
+widened `List[str]`→`List[ValueLabel]`, projected by `GET /system/catalog` as `CatalogValueLabel`.
 
 **One device, one room** (`room: Optional[str]`). Whole-house / group controls are modeled as
 **aggregate devices in the `global` room** (e.g. an `all_lights` device whose `power.off`
