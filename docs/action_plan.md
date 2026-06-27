@@ -36,6 +36,11 @@ it shifts to **architecture-driven** (`project.md` / `architecture.md` / `ui_bac
 the master set), the redesign specs fully retire to history, and a project-wide doc reconciliation
 (tracked separately) formalizes the handover. **Until then: this file is master.**
 
+**Development-process invariants live in [`CLAUDE.md`](../CLAUDE.md) → "Development process — invariants",
+not here** (single source of truth — always in context = always enforced). This plan is the ledger those
+invariants reference (`single-task-ledger`, `read-at-start-record-at-completion`, `one-active-journal`,
+`task-start-reconciliation`); see CLAUDE.md for the rules, by stable slug name.
+
 ---
 
 ## 1. Current State Snapshot
@@ -689,6 +694,7 @@ code/models/config behind — budget real time for this; do not skip it.
 
 These were the only **unfinished** items in `docs/TODO.md` when it was archived to `docs/history/phase1-2.md` (2026-05-20). Kept here so live work is tracked in one place; Roborock is already covered by the planned-drivers question above.
 
+- [ ] **Scope-drift guard (deferred) — machine-checkable plan/journal consistency check.** Filed 2026-06-27 from the development-process invariants port (`single-task-ledger` references it). Write a small `scripts/check_scope.py` adapted to this plan's freeform numbered-markdown-table format: flag orphan findings (a design/review-doc finding with no plan ID), dead evidence links (a plan entry pointing at a `docs/design`/`docs/review` file that no longer exists), and contradictory status markers (same ID both open and `DONE`). Wire it into the gate alongside `lint-imports`/pytest. Deferred — the invariant text + manual discipline cover the gap until the plan is large enough to warrant automation. (Cf. `../wb-mqtt-voice/scripts/check_scope.py` for shape, not contents — voice's slug+ID+evidence format differs from ours.)
 - [x] **DONE 2026-05-26 — Transition-aware manual notes (load-bearing).** Backend `79c3588`: `ScenarioState.manual_steps` (single source of truth) populated by `ScenarioManager` on activation, cleared on deactivate/shutdown; dropped the redundant copies from `ScenarioResponse` + SSE event payloads + the `_switch_via_reconciler` return. UI `bd80cc5`: `RemoteControlLayout` new `manualSteps` prop renders a "For this activation" subsection (amber) above the static startup/shutdown notes; the `<details>` auto-opens when transition steps exist; `RuntimeScenarioPage` threads `ScenarioState.manual_steps`, guarded on `lifecycleActive`. New transition-case test (start appletv → switch to ld → Dodocus note appears; deactivate clears; next start is fresh). Phase-2 refinement (only emit notes for newly-activated links — diff-based, not every-activation) intentionally NOT done: over-prompting on every activation is correct for load-bearing notes. **Hardware verification still gated on the user.**
 - [ ] **#7 — Per-driver HW verification pass, pre-P3.6 scenarios (IN PROGRESS — `LgTv` + `AppleTVDevice` DONE; `EMotivaXMC2` input redesign DONE + input HW-verified 2026-05-29 [power/volume/zones/scenario pending]; `BroadlinkKitchenHood` DONE 2026-05-29; `WirenboardIRDevice`/mf_amplifier BROKEN 2026-05-29).** Methodology gate added 2026-05-27 after the user's instinct (matches [[mock-tests-miss-driver-bugs]]): scenarios are composites; verifying scenarios first masks driver bugs inside composite flows and makes diagnosis confusing. So verify each of the seven driver classes on hardware **before** the P3.6 scenario pass. **Subsumes §5.1 #3 (A77 re-verify) — A77 is just one row of the pass.** Same shape per driver (and per config instance for the multi-instance ones):
   - **Setup.** Bridge starts cleanly; driver registers with no errors; the WB virtual device appears with `meta/available=1`; the device card shows in the WB UI.
