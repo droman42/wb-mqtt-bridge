@@ -77,3 +77,7 @@ backup/
 docker_manager_config.json
 
 .state/
+
+# eval/ — generated results and local env
+eval/results-*.json
+eval/.env

@@ -1,0 +1,58 @@
+# CLI contract tests: wb-mqtt-bridge's argparse console scripts.
+# No running service, no broker, no hardware — the fastest green and the everyday CI gate.
+#
+#   make cli
+#
+# The prompt IS the command line; cli_provider shlex-splits it (config.argv absent).
+# cwd=../backend runs the console scripts from the code root; the Makefile puts the
+# backend venv's bin on PATH so wb-openapi / broadlink-cli resolve.
+# return_mode: full → output is JSON {stdout, stderr, exit_code, duration_ms}.
+
+description: wb-mqtt-bridge — CLI contract tests (argparse console scripts; no service/hardware)
+
+prompts:
+  - '{{cmd}}'
+
+providers:
+  - id: file://../../eval-commons/eval_commons/providers/cli_provider.py
+    label: cli
+    config:
+      cwd: ../backend         # code root (pyproject + venv + config live here)
+      return_mode: full        # JSON {stdout, stderr, exit_code, duration_ms}
+      timeout_s: 60
+
+tests:
+  # ── wb-openapi: dumps the OpenAPI schema to stdout (exit 0, valid JSON). ────────
+  - description: wb-openapi --stdout emits a valid OpenAPI document
+    vars: { cmd: "wb-openapi --stdout" }
+    assert:
+      - { type: javascript, value: "JSON.parse(output).exit_code === 0" }
+      # stdout must itself be a valid OpenAPI JSON doc with the core fields.
+      - type: javascript
+        value: |
+          const doc = JSON.parse(JSON.parse(output).stdout);
+          return typeof doc.openapi === 'string' && !!doc.paths && !!doc.components;
+
+  # ── broadlink-cli --convert: pure function over a REAL kitchen_hood RF code. ────
+  #   Hex loaded from a fixture (decoded from config/devices/kitchen_hood.json).
+  - description: broadlink-cli --convert decodes a real kitchen_hood code to durations
+    vars:
+      hex: file://fixtures/kitchen_hood_light_on.hex
+      cmd: "broadlink-cli --convert {{hex}} --durations"
+    assert:
+      - { type: javascript, value: "JSON.parse(output).exit_code === 0" }
+      # durations output is a run of signed microsecond values (+1234 -567 ...).
+      - { type: javascript, value: "/^[+-]\\d+/.test(JSON.parse(output).stdout.trim())" }
+
+  # ── broadlink-cli --help: smoke test (exit 0, prints usage). ───────────────────
+  - description: broadlink-cli --help exits 0
+    vars: { cmd: "broadlink-cli --help" }
+    assert:
+      - { type: javascript, value: "JSON.parse(output).exit_code === 0" }
+      - { type: javascript, value: "/usage/i.test(JSON.parse(output).stdout)" }
+
+  # ── Failure contract: invalid hex to --convert exits non-zero. ─────────────────
+  - description: failure contract — broadlink-cli --convert rejects non-hex input
+    vars: { cmd: "broadlink-cli --convert ZZZZ --durations" }
+    assert:
+      - { type: javascript, value: "JSON.parse(output).exit_code !== 0" }

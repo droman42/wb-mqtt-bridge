@@ -1,0 +1,31 @@
+# System tests: MQTT surface. Asserts on retained broker state the bridge maintains.
+# Needs a running broker + the bridge service (locally or on WB7) — see README "Surfaces".
+#
+#   make mqtt TARGET=local     # against a local broker
+#   make mqtt TARGET=wb7       # against the controller's broker
+#
+# The broker host is injected from the target profile via {{env.MQTT_HOST}} — never hard-coded.
+
+description: wb-mqtt-bridge — MQTT system tests (retained catalog/state)
+
+# mqtt_provider drives the I/O from its config; the prompt is a label only.
+prompts:
+  - '{{topic}}'
+
+providers:
+  - id: file://../../eval-commons/eval_commons/providers/mqtt_provider.py
+    label: mqtt
+    config:
+      host: "{{ env.MQTT_HOST | default('localhost') }}"
+      port: 1883
+      subscribe_topic: bridge/catalog/version
+      timeout_s: 5
+      return_mode: payload         # output = the retained payload string
+
+tests:
+  # The UI subscribes to this retained topic to detect config changes — it must carry a value.
+  - description: retained bridge/catalog/version is published
+    metadata: { kind: system }
+    vars: { topic: bridge/catalog/version }
+    assert:
+      - { type: javascript, value: "output.length > 0" }
