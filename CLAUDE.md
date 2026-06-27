@@ -58,6 +58,11 @@ plan/journal/review docs never break. (Mirrors `../wb-mqtt-voice/CLAUDE.md` — 
   first action on any new piece of work is to file it: give it an ID *before* starting. External sources
   merely *surface* work; it is not scope until it lives in the plan (the intake door `single-task-ledger`
   guards).
+  - **Carve-out — routine dependency housekeeping:** a lockfile-only dependency bump that does **not**
+    change `package.json` / `pyproject.toml` intent (e.g. `npm audit fix`, a Dependabot lock refresh)
+    does **not** need its own plan ID. It still gets a `one-active-journal` line on completion, and any
+    bump that *is* a deliberate version decision (a new dep, a major upgrade, a pin change) is a normal
+    task and **does** need an ID.
 - **`design-then-implement`** — A task that **adds a feature or redesigns** an existing one is a **design
   task**: its deliverable is a **design document** — a new file under `docs/design/`, or an edit to the
   existing design for a redesign — referenced from the plan entry. Completing it means *the design is done

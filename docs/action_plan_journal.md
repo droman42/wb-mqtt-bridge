@@ -11,6 +11,26 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-27 (development-process invariants + UI dependency housekeeping)** — Two
+  changes. (1) **Invariants port** (`7f8fbe1`): ported the 13 named development-process
+  invariants from the sister repo `../wb-mqtt-voice` into `CLAUDE.md` → "Development process
+  — invariants" (single source of truth, always in context; referenced by stable slug name,
+  no number legend since the invariants are new here). Adapted to bridge's dialect:
+  `backend/config/` JSON tree as `config-master-canonical`, import-linter-enforced
+  `hexagonal-architecture`, `ui/` contract gate for `config-ui-stays-functional`,
+  `docs/action_plan.md` + `docs/action_plan_journal.md` as the ledger. `action_plan.md` §0
+  now points to CLAUDE.md for the invariants; filed the deferred scope-drift-guard task in
+  §5.1. Slimmed two duplicate memories to pointers. (2) **UI deps fix** (`bc5aa84`):
+  lockfile-only `npm audit fix` clearing the non-breaking ("Group A") Dependabot alerts —
+  fast-uri/flatted/lodash/rollup/picomatch/yaml/@tootallnate-once/glob + the patchable
+  minimatch/js-yaml copies. All are ui/ build/test toolchain (none ship to the browser, none
+  touch the Python backend). Deferred ("Group B", breaking): vite 5→6 (#113) + esbuild (#81,
+  dev-server-only, staying on v5 per `df2c09f`) and the minimatch/js-yaml copies pinned deep
+  in `@typescript-eslint@6` / `jest`. Verified `cd ui && npm run check && npm run build` pass.
+  _Process note: these two commits were authored before this journal entry — the bookkeeping
+  (`read-at-start-record-at-completion`) was applied retroactively; the deps fix also drove a
+  carve-out in `every-task-in-the-ledger` for routine no-`package.json` dependency bumps._
+
 - **2026-06-09 (Layer-3 frozen oracle retired)** — Last open item from the Step 4 cutover.
   The structural fidelity oracle (`docs/design/scenarios/layer3_oracle/*.json`, 14 frozen
   snapshots extracted from the now-deleted `.gen.tsx`) had been kept as a deferred
