@@ -11,6 +11,12 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-27 (filed: UI vite 5→6 migration task)** — Scoped the deferred vite major
+  upgrade as a §5.1 ledger task (a deliberate version decision needs an ID, per the
+  `every-task-in-the-ledger` carve-out). Closes the 4 vite/esbuild Dependabot alerts the
+  lockfile-only fix couldn't reach; the 2 residual eslint/jest-pinned alerts (minimatch
+  #101, js-yaml #152) are noted as separate toolchain-major tasks, not yet filed.
+
 - **2026-06-27 (development-process invariants + UI dependency housekeeping)** — Two
   changes. (1) **Invariants port** (`7f8fbe1`): ported the 13 named development-process
   invariants from the sister repo `../wb-mqtt-voice` into `CLAUDE.md` → "Development process
