@@ -44,9 +44,12 @@ plan/journal/review docs never break. (Mirrors `../wb-mqtt-voice/CLAUDE.md` — 
     doc's status (frozen evidence with a one-time `→ tracked as <ID>` pointer); the only reason to edit a
     review doc is if a *finding itself* is wrong/obsolete (annotate, don't flip status).
 - **`single-task-ledger`** — `docs/action_plan.md` is the only source of scope + status (the master
-  driving doc per its §0 document-map convention). Every task has **exactly one ID** (the existing
-  §/number scheme — `#3.5`, `§P3.7`, §5.1 rows); design/review docs may *surface findings* but **a finding
-  is not scope until it has a plan ID**.
+  driving doc per its §0 document-map convention). Every task has **exactly one ID** in the stable
+  **`PREFIX-N` workstream-serial** scheme (e.g. `DRV-3`, `VWB-10`, `DOC-9` — prefix = workstream, serial
+  assigned once / never renumbered; priority is a separate `[P0]/[P1]/[P2]` tag, milestone a
+  `[house]/[later]/[parked]` tag, plus a `HW-GATED` status marker; see the plan's "How to use this
+  file"). Old positional IDs (`#3.5`, `§P3.7 #13`, `§5.1 #7`) resolve via `docs/action_plan_aliases.md`.
+  Design/review docs may *surface findings* but **a finding is not scope until it has a plan ID**.
   - **Two-file split (initial split applied 2026-06-30 — §5.2 #2):** when `docs/action_plan.md` grows
     large, completed tasks move to a frozen `docs/action_plan_DONE.md` (by section) — one ledger, every ID
     in exactly one file, a task **moves** active → done on completion (same change as the journal entry).

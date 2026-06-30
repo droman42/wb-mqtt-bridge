@@ -11,6 +11,24 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+**Note on IDs (2026-06-30):** the ledger was re-IDed to the `PREFIX-N` workstream scheme (DOC-9). This
+journal's **earlier dated entries keep their original positional refs** (`§P3.7 #19`, `§5.1 #7`, `P4 #7`,
+etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
+entries use the new IDs.
+
+- **2026-06-30 (DOC-9 DONE — full ledger re-ID to `PREFIX-N`)** — Re-keyed the whole live ledger off the
+  positional `P0…P4 / #n / §5.1` scheme onto stable workstream-serial IDs, per `ledger_format_convergence.md`
+  (the former §5.2 #5). `action_plan.md` restructured from priority bands into **workstream sections**
+  (DRV/SCN/VWB/UI/OPS/CORE/DOC) with a "How to use this file" legend (the folded DOC-7 conventions: status
+  legend, `[P0/1/2]` priority tag, `[house]/[later]/[parked]` milestone tag, `HW-GATED` marker) + an
+  **Acceptance gate** section (ex-P4 #1–#5). `action_plan_DONE.md` reorganized by workstream + re-IDed. New
+  **`action_plan_aliases.md`** maps every old ID → new (~50 tasks) so historical refs resolve. The big
+  P3.7 design narrative is preserved verbatim as VWB context; the four live `#7`/`#8` cross-section
+  collisions are gone. Executed by a span-relocation builder (bodies sliced, never retyped) with a
+  distinctive-substring check confirming every task survives byte-exact. CLAUDE.md `single-task-ledger`
+  ID example updated; §0 document-map updated. Completes the §5.2 reconciliation series bar DOC-4
+  (scope-drift guard) + DOC-10 (retire scenario ledgers, blocked on SCN-5). No code touched.
+
 - **2026-06-30 (§5.2 #4 DONE — narrative sections archived, plan is a spine)** — Reconciliation
   before starting #4 found §1–§3 + §7 of `action_plan.md` were all **superseded 2026-05
   starting-survey analysis**, not live reference (paused-state snapshot, a long-committed WIP diff,
