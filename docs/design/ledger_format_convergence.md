@@ -195,7 +195,8 @@ Ordered, each step its own commit; **gated on review of this doc** (taxonomy + `
 1. **Restructure `action_plan.md`** from P-bands to workstream sections (`## DRV`, `## SCN`, … `##
    DOC`) holding **open + partial** tasks, each line `**PREFIX-N** [Pn] [house|later|parked] —
    <title>. <body>` with a D5 status marker. Add a **`## Acceptance gate`** section (ex-P4 #1–#5).
-   Keep `## Open questions`, the journal index, and §7 Codegen (until DOC-8 extracts it).
+   Keep `## Open questions` and the journal index. *(The §1–3 narrative + §7 Codegen are already
+   gone — DOC-8/#4 archived them 2026-06-30; the plan is a spine of §0, §4, §5, §6 when #5 runs.)*
 2. **Reorganize `action_plan_DONE.md`** by workstream (it is currently by P-phase), applying the new
    IDs to completed tasks.
 3. **Add a one-time alias map** — `docs/action_plan_aliases.md` (or a table atop the DONE file):

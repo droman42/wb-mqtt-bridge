@@ -11,6 +11,19 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-30 (§5.2 #4 DONE — narrative sections archived, plan is a spine)** — Reconciliation
+  before starting #4 found §1–§3 + §7 of `action_plan.md` were all **superseded 2026-05
+  starting-survey analysis**, not live reference (paused-state snapshot, a long-committed WIP diff,
+  the pre-P3 Docker/CI pipeline, and a codegen decision whose pipeline was deleted at the Layer-3
+  cutover). Promoting them to architecture/design docs would have published stale content as current
+  truth — the live equivalents already exist (`docs/architecture/*`, `ui_backend_contract.md`,
+  `ops/`). Per `task-start-reconciliation` I stopped and consulted; user chose **archive all four**.
+  So #4 re-scoped promote → archive: §1–3 → `docs/archive/initial_survey_2026-05.md`, §7 →
+  `docs/archive/codegen_alternatives.md`, both verbatim (verified byte-identical) with FROZEN/superseded
+  headers. Repointed §7's 3 inbound refs (DONE #3.5, DONE #10, `ui_backend_contract.md`) + the §1.2 ref.
+  `action_plan.md` is now a true spine — §0 map, §4 tasks, §5 questions, §6 journal index — **900 → 681
+  lines**. Next: #5 (full re-ID) operates on this clean spine. No code.
+
 - **2026-06-30 (§5.2 #1 DONE — ledger-format convergence design)** — Wrote
   `docs/design/ledger_format_convergence.md` (the design gate; `design-then-implement` — design
   recorded, no re-ID executed). User picked **subsystem-shaped buckets** (DRV/SCN/VWB/UI/OPS/DOC,

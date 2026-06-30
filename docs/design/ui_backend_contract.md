@@ -637,4 +637,4 @@ contract (`openapi.json`/`api.gen.ts`) stays** (see the "Scope note" and "Two ge
 - `docs/design/scenarios/scenario_system_redesign.md` — the scenario redesign; this manifest is its Layer 3.
 - `ui/README.md` and `docs/archive/ui-docs/page_instructions.md` — running the codegen.
 - `docs/design/ui/deployment-network-config.md` — runtime URL configuration.
-- `action_plan.md` §7 (Codegen Alternatives) and P2.5 #10 (placement contract).
+- `docs/archive/codegen_alternatives.md` (Codegen Alternatives) and P2.5 #10 / UI-7 (placement contract).

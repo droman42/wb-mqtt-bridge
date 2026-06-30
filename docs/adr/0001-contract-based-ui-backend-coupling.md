@@ -46,5 +46,7 @@ See [`../ui_backend_contract.md`](../ui_backend_contract.md) for the full contra
 
 - *Keep importing Python, just stabilize it* — rejected: keeps Python in the UI build and
   the silent-break failure mode.
-- *Runtime-driven UI manifest (Codegen Option 2)* — deferred (see `action_plan.md` §7);
-  larger refactor, can build on this contract later.
+- *Runtime-driven UI manifest (Codegen Option 2)* — deferred at the time (see
+  `docs/archive/codegen_alternatives.md`); larger refactor, built on this contract later — it
+  **was subsequently implemented as Layer 3** (`docs/design/ui_backend_contract.md` → "Layout
+  Manifest & Runtime Rendering").
