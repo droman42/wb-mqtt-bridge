@@ -1,13 +1,14 @@
 # Roborock S7 vacuum cleaner — design doc
 
 > **Status: DRAFT, WORK IN PROGRESS (started 2026-06-09).** Captures the
-> discussion state with the user; open questions flagged inline. Not yet a
-> committed plan — implementation gated on the user signing off on the open
-> questions + adding §P3.7-style numbered tasks to `docs/action_plan.md`.
+> discussion state with the user; open questions flagged inline. **Tracked as
+> `DRV-8` in `docs/action_plan.md`** (the *design* task — filed 2026-06-30).
+> Finishing it = reviewing this draft, resolving the inline open questions, and
+> **locking the design**; only then does `DRV-8` complete and file the
+> implementation follow-ups (the `RoborockDevice` driver + the interactive-map
+> UI page). No driver/page work starts before this design locks.
 >
-> See also: [[plan_status]] for where this fits in the broader roadmap
-> (currently NOT yet listed as a numbered task; will be added when the design
-> is locked).
+> See also: [[plan_status]] for where this fits in the broader roadmap.
 
 ## 1. Scope
 

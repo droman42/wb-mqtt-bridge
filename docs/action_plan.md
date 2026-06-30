@@ -119,6 +119,17 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
 
 - [ ] **DRV-7** `[P2]` `[parked]` `PARKED` — **PARKED: ESP32 firmware scaffold for the 4 transport-source bridges** (Revox A77 + Revox B215 + Pioneer CLD-D925 + Panasonic NV-FS90). Lives at `ESP32/` (PIO layout: `include/` + `src/` + `docs/`) — single image, identity selected at runtime via NVS + MQTT `/provision`. ~95% shared core (Wi-Fi auto-light-sleep + Wirenboard MQTT + MQTT-triggered `esp_https_ota` + record-arming + reel-motion interlock); 3 drivers cover 4 decks (Pioneer + Panasonic share `driver_ir.cpp` as baseband IR). **2026-05-26: rewritten from the original Arduino scaffold to pure ESP-IDF (C++17, framework=espidf, no Arduino libs); custom dual-OTA partition table (1.5 MB app slots); builds clean end-to-end from `pio run -t fullclean`** (RAM 11.2%, Flash 59.6% of 1.5 MB). Authoritative spec: `ESP32/REQUIREMENTS.md`. Subproject conventions + setup gotchas: `ESP32/CLAUDE.md`. Per-device hardware handoffs: `ESP32/docs/`. Deferred: bench fill-ins (IR codes, B215 frame values, GPIO/timing tuning) and first-light hardware verification, until **"everything works in my home"**. **Not in the active workstream** — do not pull into pre-P4 unless the user reactivates it.
 
+- [ ] **DRV-8** `[P2]` `[later]` — **Roborock S7 vacuum — review & finish the design (DESIGN task).** The
+  bridge's first **interactive-map appliance** (live state *plus* an interactive map — unlike the AV gear's
+  remote layout or the WB-passthrough lights). A substantial **draft** design already exists —
+  [`docs/design/roborock_vacuum.md`](../design/roborock_vacuum.md) (started 2026-06-09) — but it is
+  **WIP with open questions flagged inline** and had **no plan ID** until now (filed 2026-06-30 to close
+  the `every-task-in-the-ledger` gap — the design work happened untracked). **Deliverable
+  (`design-then-implement`):** review the draft with the user, resolve the inline open questions, and
+  **lock the design** — completion means the design is *done and recorded*, **not** that code shipped.
+  **On completion, file the implementation follow-ups** as their own DRV tasks (the `RoborockDevice`
+  driver + the interactive-map UI page). No driver/page work starts before the design locks.
+
 ---
 
 

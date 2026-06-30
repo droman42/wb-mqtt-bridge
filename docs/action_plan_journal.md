@@ -16,6 +16,17 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-06-30 (filed: DRV-8 — Roborock vacuum design, doc wired)** — Closed an
+  `every-task-in-the-ledger` gap: the substantial Roborock S7 draft design (`docs/design/roborock_vacuum.md`,
+  started 2026-06-09 — the bridge's first interactive-map appliance) had been written **untracked**, with no
+  plan ID and referenced by nothing. Filed it as **DRV-8**, a **design task** (`design-then-implement`):
+  deliverable = review the draft with the user, resolve the inline open questions, **lock** the design; on
+  completion it files the implementation follow-ups (the `RoborockDevice` driver + interactive-map UI page).
+  No driver/page work before the design locks. **Wired both ways** — DRV-8 → the doc, and the doc's header →
+  DRV-8 (replacing its "NOT yet listed as a numbered task" note). Scope-drift guard stays green. Note: the
+  guard didn't *catch* this (the orphan doc referenced no `PREFIX-N` id) — an "unwired design doc" check is
+  a possible future addition to `check_scope.py`.
+
 - **2026-06-30 (DOC-4 DONE — scope-drift guard built + wired into CI)** — `scripts/check_scope.py`, the
   machine-checkable `single-task-ledger` enforcement the invariant had only described until now.
   **Reconciled before building:** the filed spec said "adapted to this plan's freeform numbered-markdown-table
