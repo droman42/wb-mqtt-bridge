@@ -552,12 +552,10 @@ against the sister repo's workstream-serial ledger (`../wb-mqtt-voice/docs/RELEA
 `RELEASE_PLAN_DONE.md`), and (2) a read of the four scenario/Layer-3 design docs that doubled as
 ledgers. Both surfaced the same thing: design/planning docs accreted a *done* ledger half that
 diluted their reference half. The series executes the **handover §0 promises** ("the redesign specs
-fully retire to history… a project-wide doc reconciliation formalizes the handover"). DOC-5 (design
-gate), DOC-6 (two-file split), DOC-8 (archive the survey) and DOC-9 (this re-ID) are done; DOC-4 +
-DOC-10 remain.
-
-- [ ] **DOC-4** `[P2]` `[later]` — **Scope-drift guard (deferred) — machine-checkable plan/journal consistency check.** Filed 2026-06-27 from the development-process invariants port (`single-task-ledger` references it). Write a small `scripts/check_scope.py` adapted to this plan's freeform numbered-markdown-table format: flag orphan findings (a design/review-doc finding with no plan ID), dead evidence links (a plan entry pointing at a `docs/design`/`docs/review` file that no longer exists), and contradictory status markers (same ID both open and `DONE`). Wire it into the gate alongside `lint-imports`/pytest. Deferred — the invariant text + manual discipline cover the gap until the plan is large enough to warrant automation. (Cf. `../wb-mqtt-voice/scripts/check_scope.py` for shape, not contents — voice's slug+ID+evidence format differs from ours.)
-
+fully retire to history… a project-wide doc reconciliation formalizes the handover"). **The series is
+complete:** DOC-5 (design gate) · DOC-6 (two-file split) · DOC-8 (archive the survey) · DOC-9 (re-ID) ·
+DOC-10 (retire the scenario/Layer-3 ledgers) · DOC-4 (the `scripts/check_scope.py` scope-drift guard) —
+all done; DOC-7 folded into DOC-9.
 
 - ~~**DOC-7**~~ — *adopt additive conventions; folded into DOC-9 (the legend/tags/priority-split land in the re-ID pass).*
 

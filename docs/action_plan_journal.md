@@ -16,6 +16,19 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-06-30 (DOC-4 DONE — scope-drift guard built + wired into CI)** — `scripts/check_scope.py`, the
+  machine-checkable `single-task-ledger` enforcement the invariant had only described until now.
+  **Reconciled before building:** the filed spec said "adapted to this plan's freeform numbered-markdown-table
+  format" — but DOC-9 had just replaced that with the `PREFIX-N` two-file model, which (as the convergence
+  design predicted) makes the guard a near-port of `../wb-mqtt-voice/scripts/check_scope.py`. Five
+  build-failing checks — duplicate id · misplaced status (`[x]` in active / non-`[x]` in DONE) · orphan
+  finding (`PREFIX-N` id in a design/review doc not in the ledger) · dead `docs/design`|`docs/review` link
+  (with a negative lookbehind so sibling-repo paths don't false-positive — caught one on first run) ·
+  phantom alias — plus a per-workstream status summary. Wired as the first step of the `backend-test` CI
+  gate. Verified clean on the live ledger (52 tasks: 34 done · 18 not-done) + positive tests for orphan +
+  dead-link. CLAUDE.md `single-task-ledger` note updated "deferred follow-up" → implemented. **This closes
+  the entire §5.2 ledger & documentation reconciliation series** (DOC-4/5/6/8/9/10 done, DOC-7 folded).
+
 - **2026-06-30 (SCN-5 re-scope + DOC-10 DONE — scenario/Layer-3 ledgers retired)** — Two things. (1)
   Tidied a re-ID wrinkle: the former §5.2 #6 had collapsed into SCN-5 self-referentially ("file the
   task"); re-scoped SCN-5 to be the actual implementation task (activation-time transition-aware manual

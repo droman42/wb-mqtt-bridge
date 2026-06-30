@@ -127,3 +127,14 @@ First real phase to tackle via GSD: **ROADMAP Phase 1 = Fix the Scenario Layer**
   refs repointed (§0 doc-map, SCN-1 body, the as-built spec, and the contract's internal "see Step 4 below"
   pointers). SCN-5 (transition-aware notes) is the standing home that unblocked this. Completes the §5.2
   reconciliation series.
+- [x] **DOC-4** — **Scope-drift guard. DONE 2026-06-30.** `scripts/check_scope.py` (pure stdlib) enforces
+  `single-task-ledger`. Re-scoped from the filed spec ("freeform numbered-markdown-table format") to the
+  new `PREFIX-N` two-file model the DOC-9 re-ID created (which made it a near-port of the sister repo's
+  guard). Five checks, fail the build: **duplicate** id (declared >1×), **misplaced** status (`[x]` left in
+  the active file / non-`[x]` in DONE), **orphan** finding (a `PREFIX-N` id in `docs/design`|`docs/review`
+  not in the ledger), **dead** evidence link (a `docs/design`|`docs/review` path in the ledger missing on
+  disk — with a negative lookbehind so sibling-repo `wb-mqtt-voice/docs/...` paths don't false-positive),
+  **phantom** alias (an `action_plan_aliases.md` target not declared). Plus a per-workstream status summary.
+  Wired into CI as the first step of the `backend-test` gate (`.github/workflows/build-arm.yml`); runs
+  standalone too. Verified: clean pass on the live ledger (52 tasks) + positive tests for the orphan and
+  dead-link checks. CLAUDE.md `single-task-ledger` note updated from "deferred follow-up" → implemented.

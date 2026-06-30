@@ -24,6 +24,11 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v6
+      - name: Ledger scope-drift guard
+        # docs/action_plan.md{,_DONE} single-source-of-scope check (single-task-ledger
+        # invariant; DOC-4). Pure stdlib, repo-root paths — runs before the backend gates.
+        working-directory: .
+        run: python3 scripts/check_scope.py
       # All three Python health gates (import-linter / check-no-type-checking
       # / pyright) run via the shared composite action in droman42/py-dev-gates.
       # The action handles its own python setup + install of the project's
