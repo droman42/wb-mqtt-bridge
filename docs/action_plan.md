@@ -164,12 +164,13 @@ possible round-3.
    itself does not depend on any WB scenario representation (scenarios activate via the API), so
    this can be decided independently of the reconciler work.
 
-- [ ] **SCN-5** `[P0]` `[house]` — **#6 — File transition-aware manual notes (§13.2) as a real task (BLOCKS #7).** The redesign's
-  transition-aware manual notes (topology manual-nodes surfaced only when a link activates — e.g. the
-  Dodocus RCA-hub "set to LD/VHS" prompt) are **load-bearing**: without them the LD/VHS scenarios have
-  *no audio*. Baseline static notes shipped 2026-05-26; the transition-aware half is deferred and
-  currently has **no clean plan ID** — its only written home is the design docs #7 archives. Give it an
-  ID here (or a stable-ID per #1) so it isn't orphaned when those docs retire (`every-task-in-the-ledger`).
+- [ ] **SCN-5** `[P0]` `[house]` — **Transition-aware manual notes (the activation-time half).** Surface a
+  topology manual-node's instruction **only when its link activates** in a transition — e.g. the Dodocus
+  RCA-hub "set to LD/VHS" prompt appears only when switching onto the analog path. **Load-bearing:**
+  without it the LD/VHS scenarios have *no audio*. Activation-time work — the reconciler diffs which
+  topology links activate and emits the bound note; rides the reconciler/activation path, not the scenario
+  page. Baseline static notes already shipped (SCN-2, 2026-05-26); this is the deferred transition-aware
+  half (redesign §13.2 — the design-doc record that DOC-10 archives, so this is its standing home now).
 
 
 ### VWB — Voice-integration + native WB onboarding
@@ -555,8 +556,9 @@ DOC-10 remain.
 - [ ] **DOC-4** `[P2]` `[later]` — **Scope-drift guard (deferred) — machine-checkable plan/journal consistency check.** Filed 2026-06-27 from the development-process invariants port (`single-task-ledger` references it). Write a small `scripts/check_scope.py` adapted to this plan's freeform numbered-markdown-table format: flag orphan findings (a design/review-doc finding with no plan ID), dead evidence links (a plan entry pointing at a `docs/design`/`docs/review` file that no longer exists), and contradictory status markers (same ID both open and `DONE`). Wire it into the gate alongside `lint-imports`/pytest. Deferred — the invariant text + manual discipline cover the gap until the plan is large enough to warrant automation. (Cf. `../wb-mqtt-voice/scripts/check_scope.py` for shape, not contents — voice's slug+ID+evidence format differs from ours.)
 
 
-- [ ] **DOC-10** `[P1]` `[house]` `BLOCKED needs SCN-5 filed` — **#7 — Retire the frozen scenario/Layer-3 ledgers (after #6).** Four dispositions from the
-  2026-06-30 doc read:
+- [ ] **DOC-10** `[P1]` `[house]` — **Retire the frozen scenario/Layer-3 ledgers.** Unblocked — the
+  load-bearing transition-aware manual notes now have a standing home (SCN-5), so archiving their source
+  docs no longer orphans them. Four dispositions from the 2026-06-30 doc read:
   - `docs/design/scenarios/scenario_redesign_progress.md` → **archive** to `docs/archive/scenarios/`
     (pure progress ledger; its header still says "branch `feat/scenario-redesign`, not merged, 274
     tests" — false; merged long ago, 495+ tests; its one durable lesson lives in
