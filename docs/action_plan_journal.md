@@ -11,6 +11,51 @@ journal entries in §6). This file is the long tail.
 
 ---
 
+- **2026-06-30 (§5.2 #1 DONE — ledger-format convergence design)** — Wrote
+  `docs/design/ledger_format_convergence.md` (the design gate; `design-then-implement` — design
+  recorded, no re-ID executed). User picked **subsystem-shaped buckets** (DRV/SCN/VWB/UI/OPS/DOC,
+  +proposed CORE) and **full re-ID now** (over lazy). Design: stable `PREFIX-N` identity assigned
+  once / never renumbered (kills the `#22→#23` churn + the four live `#7`/`#8` cross-section
+  collisions); priority a separate `P0/P1/P2` tag (P-bands dissolved); milestone tags
+  `[house]/[later]/[parked]` mapping the bridge's "house works" gate to voice's `[release]/[deferred]`;
+  status legend + a bridge-specific `HW-GATED` marker; two-file split reorganized by workstream; P4
+  becomes an Acceptance-gate section, not workstream IDs. The doc carries the **complete old→new
+  mapping** for ~50 tasks + the migration mechanics (journal stays frozen with an alias map — no
+  back-ref rewrite). **§5.2 #5 re-scoped** deferred-lazy → **full re-ID execution**; #5 may absorb
+  #3. **Confirmations resolved same day:** CORE accepted (kept thin — corrected a doc error that
+  cited nonexistent "hexagonal follow-ups"; the hexagon is enforced, not a task source), tags
+  `[house]/[later]/[parked]`, and **#3 folded into #5** (conventions applied within the re-ID pass,
+  not separately). #5 is now unblocked. No code.
+
+- **2026-06-30 (§5.2 #2 DONE — two-file split applied)** — Created the frozen
+  `docs/action_plan_DONE.md` and moved the seven fully-complete early phase bands
+  (P0, P0.5, P1, P2, P2.5, P2.6, P3) out of `action_plan.md` into it, organized by section.
+  String-anchored move (start `### P0`, end `### Explicitly out of scope`) — verified the moved
+  block is **byte-identical** to the original and every moved task ID is now in exactly one file;
+  §4 carries a one-paragraph pointer in their place. **In-flight phases (P3.6, P3.7, P4) left
+  whole** on purpose — how to represent a partially-done phase across the two files is §5.2 #1's
+  design call, so their done rows move when the phase closes. Active plan 980 → 900 lines; DONE
+  file 91 lines. Updated CLAUDE.md `single-task-ledger` ("rule defined, not yet applied" →
+  "initial split applied 2026-06-30") and the §0 document-map (DONE file now indexed). No re-ID;
+  no code touched.
+
+- **2026-06-30 (filed: §5.2 ledger & documentation reconciliation)** — Filed a coherent
+  7-task series (§5.2 #1–#7) from two chat-requested analyses: (1) comparing this plan's
+  positional `P0…P4/#n/§5.1` numbering to the sister repo's workstream-serial ledger
+  (`../wb-mqtt-voice` `RELEASE_PLAN.md` + frozen `RELEASE_PLAN_DONE.md`), and (2) reading the
+  four scenario/Layer-3 design docs that doubled as ledgers. Finding: design/planning docs
+  accreted a *done* ledger half that dilutes their reference half — the same disease one layer
+  down from the plan itself. The series executes the doc-reconciliation handover §0 already
+  promises. #1 = design gate (workstream taxonomy + stable-ID scheme + status legend + two-file
+  split mechanics → `docs/design/ledger_format_convergence.md`); #2 apply the two-file split
+  (`action_plan_DONE.md`); #3 adopt additive conventions; #4 extract the §1–3/§7 narrative to
+  reference docs (plan → spine); #5 (deferred) lazy re-ID to stable serials; #6 file the
+  load-bearing transition-aware manual notes (§13.2) as a real task (blocks #7); #7 retire the
+  frozen scenario/Layer-3 ledgers (archive `scenario_redesign_progress.md` +
+  `layer3_step0_layout_analysis.md`; freeze-edit `scenario_system_redesign.md`; split
+  `ui_backend_contract.md` — keep the living seam reference, archive the rollout-ledger tail).
+  `design-then-implement` + `every-task-in-the-ledger`. No docs moved yet — filing only.
+
 - **2026-06-27 (filed: UI vite 5→6 migration task)** — Scoped the deferred vite major
   upgrade as a §5.1 ledger task (a deliberate version decision needs an ID, per the
   `every-task-in-the-ledger` carve-out). Closes the 4 vite/esbuild Dependabot alerts the

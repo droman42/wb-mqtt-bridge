@@ -13,12 +13,16 @@ This document captures the project state and a prioritized action plan, revised 
 **`docs/action_plan.md` (this file) is the master driving document** — the overarching plan plus an
 index of the **revision-log journal**. The dated history itself lives in
 [`docs/action_plan_journal.md`](action_plan_journal.md) (extracted 2026-06-06 to keep this plan
-focused on forward work). **Read the journal first** in any session for context on recent work;
-everything else hangs off this file. As of 2026-05-25 the major redesign is delivered and hardware-verified
+focused on forward work); completed phases are frozen in
+[`docs/action_plan_DONE.md`](action_plan_DONE.md) (two-file split begun 2026-06-30, §5.2 #2 — one
+ledger, every ID in exactly one file, references resolve across both). **Read the journal first** in
+any session for context on recent work; everything else hangs off this file. As of 2026-05-25 the major redesign is delivered and hardware-verified
 (scenario reconciler · monorepo · Layer-3 runtime rendering + the build-time-codegen cutover). What
 remains is **§P3.6** (topology + round-2 scenarios), **§P3.7** (voice integration + native WB
 onboarding — HIGH PRIORITY, agreed 2026-06-06; runs in parallel with the §5.1 rack pass), **§P4**
-(final acceptance + the mandatory scenario↔WB design), and the **§5.1** backlog.
+(final acceptance + the mandatory scenario↔WB design), the **§5.1** backlog, and **§5.2**
+(ledger & documentation reconciliation — converging this plan toward the sister-repo discipline +
+retiring the frozen scenario/Layer-3 design-doc ledgers).
 
 Roles of the other docs **now** (they were "driving" during the redesign; they've since settled):
 - `docs/design/ui_backend_contract.md` — **LIVING reference**: the UI↔backend contract + Layer-3 runtime
@@ -174,87 +178,7 @@ User's machine (Wirenboard ARMv7)
 
 Ordered by **value / effort**. Each item sized for one focused PR.
 
-### P0 — Unblock and stabilize
-
-| # | Task | Effort |
-|---|------|--------|
-| 0a | **DONE** 2026-05-19 — backend `ab5402d`, UI `8ab2cfa`. On survey, the 8 modified UI files turned out to be one coherent appliance-category feature (not an unrelated layout refresh as initially thought) plus two unrelated SSE console-log cleanups; `docs/appliances.md` was the matching design doc. Shipped as a single paired commit per repo. `config/system.json` (UI) left untracked pending later check; `data/` added to UI `.gitignore`. | 30 min |
-| 0b | **DONE** 2026-05-19. Deleted local + origin: backend `code_structure`, backend `feature/wb-virtual-device-emulation`, UI `code_structure`. Both repos now have only `main`. | 5 min |
-| 1 | **DONE** 2026-05-19 — `ab5402d`. Shipped together with #0a as the backend half of the paired change. | 30 min |
-| 2 | **DONE** 2026-05-19 — backend `36b54d8`, UI `5be5bd2`. Wired tests into CI on amd64, gated ARM build. Final state: 107 pass / 109 skip / 0 fail. **109 tests skipped with explicit `reason=`** are pre-existing API drift / collection hangs from the scenario+state-store refactors — deferred to a future cleanup PR, not deleted. UI side wires `npm run lint + typecheck:all + validate:generated-code + validate:components`; did **not** wire `npm test` (jest preset misconfigured, no test files exist). See commit body for the full skip inventory. | 1 hour planned → ~2 hrs |
-
-### P0.5 — Functional correctness (top functional priority)
-
-| # | Task | Effort |
-|---|------|--------|
-| 12 | **DONE** — scenario layer rebuilt (Harmony/reconciler model) + **hardware-verified** 2026-05-22, re-verified at the Layer-3 cutover 2026-05-24 ("no degradation"). Tail: one deferred full-reconciler HW re-test (resync the amp's drifted optimistic state). See §6 (2026-05-21/22/24) + `scenario_redesign_progress.md`. _Original task:_ **Investigate and fix the scenario layer — currently broken.** Per the project vision, the #1 success criterion is "it actually works": every device action + every scenario, end-to-end on real hardware. Device actions mostly work; **scenarios do not** (confirmed by the user 2026-05-20). This is the headline gap between today and "done = my house works", and is distinct from the architecture/docs/GSD track. Scope: reproduce the failure(s), determine whether it's startup/shutdown sequencing, condition evaluation, role-action dispatch, WB-adapter, or state — then fix and verify on hardware. | TBD (investigation first) |
-
-### P1 — Reduce coupling without changing architecture
-
-| # | Task | Effort |
-|---|------|--------|
-| 3 | **DONE** 2026-05-20 — backend `6bc30fc`, UI `312fa56`. Generate OpenAPI types for the UI. Hit FastAPI's `/openapi.json` and run `openapi-typescript` to produce `src/types/api.gen.ts`. Replace `src/types/api.ts` gradually, starting with the simplest endpoints. Removes the API-surface coupling (hand-maintained types). Does **not** remove the Python AST coupling in device-page codegen — see #3.5. | ~½ day |
-| 3.5 | **DONE** 2026-05-20 — backend `6bc30fc`, UI `5a71929`. Eliminate the Python AST dependency in UI codegen. Type the backend's `/devices/{id}/persisted_state` endpoint with a discriminated union of state models (`LgTvState`, `EmotivaXMC2State`, …) so they land in `/openapi.json` automatically. Rewrite `wb-mqtt-ui/src/lib/StateTypeGenerator.ts` (the actual Python-spawning logic lives there — `spawn(python3, ['-c', importlib + ast.parse(...)])` — invoked by `src/scripts/generate-device-pages.ts`) to consume the OpenAPI schema instead of spawning a Python subprocess and AST-parsing imported Pydantic classes. Remove `pip install -e ./wb-mqtt-bridge` and Python from the UI Dockerfile. Closes the "silent break on backend rename" failure mode. See §7 (Codegen Alternatives — Option 1). | ~1 day |
-| 4 | **DONE** 2026-05-20 — UI `395e538`. Parameterize nginx + MQTT URLs. `envsubst` on `nginx.conf.template` at start; runtime `runtime-config.js` shim for the MQTT URL instead of build-time bake. Defaults preserve `192.168.110.250` so existing deploys are unchanged. | 2 hours |
-| 4.5 | **DONE** 2026-05-20 — backend `2e5674c`, UI `7c3f3a8`. Moved `device-state-mapping.json` from the UI repo to the backend repo. Paths inside are now relative to the mapping file's own directory; the UI resolves them, so one file serves both CI and local layouts (the `.local.json` was retired). | 30 min |
-
-### P2 — Documentation reconciliation
-
-| # | Task | Effort |
-|---|------|--------|
-| 5 | **DONE** 2026-05-20 — archived `docs/TODO.md` → `docs/history/phase1-2.md` (open items migrated to §5.1); Roborock bullet kept (planned feature, not a false claim). P2 fully done. | 15 min |
-| 6 | **DONE** 2026-05-19 — committed as-is in UI `8ab2cfa` as part of the appliance-category feature. The doc accurately describes the current code direction. | 15 min |
-
-### P2.5 — UI architecture (design discussion, then implement)
-
-| # | Task | Effort |
-|---|------|--------|
-| 10 | **DONE** — subsumed by the **Layer-3 backend layout manifest** (option 2: backend owns placement; served at `/devices/{id}/layout` + `/scenario/{id}/layout`, consumed by `RemoteControlLayout`). The implicit config-order convention is retired — ordered zones follow capability-declaration order. See `ui_backend_contract.md` "Layout Manifest & Runtime Rendering" + §6 cutover (2026-05-24). _Original task:_ **Design a contract-based button/action placement.** Today, *where* a control renders inside its remote zone is governed by an **implicit, undocumented convention**, not a contract — and we want to replace it. Two mechanisms, both verified in code (2026-05-20): (a) **slot zones** (power / volume / nav-cluster / pointer) fill fixed slots by **action-name substring matching** (`ZoneDetection.createPowerButtonsConfig`, `createMenuZone`, `createVolumeZone`, `createPointerZone` — e.g. name contains `off`→left, `on`→right; `up/down/left/right/ok`→D-pad); (b) **array-order zones** (screen vertical stack, playback row, tracks row) render in the order actions appear, which traces back through `deriveGroupsFromConfig` → `processAllGroupActions` to the **key order of `config/devices/*.json` commands**. This is fragile (reordering a config silently moves buttons; renaming/retyping an action can drop it from a slot or land it in the wrong one) and surprising. **Action: discuss options and design an explicit placement contract.** Candidate directions to weigh — (1) explicit per-action `slot`/`position`/`order` fields in the device config; (2) a dedicated **layout manifest** owned by the backend and served/consumed as a contract (aligns with §7 Codegen Option 2, runtime-driven UI); (3) command-level UI annotations (`x-ui-*`-style). Trade-off: authoring effort vs. determinism + reviewability. Touches both repos. **Design first — not yet scoped for implementation.** | TBD (design) |
-
-### P2.6 — Adopt get-shit-done (GSD) workflow
-
-| # | Task | Effort |
-|---|------|--------|
-| 11 | **ADOPTED THEN DROPPED** 2026-05-20 (too slow for a solo project — see §6 revision log; the dependency-hardening work it produced was kept). ~~**Adopt GSD** ([gsd-build/get-shit-done](https://github.com/gsd-build/get-shit-done)) as the dev workflow.~~ *(Reverses the earlier "out of scope" verdict — re-study 2026-05-20 found GSD is built for solo devs, has a brownfield path (`/gsd-map-codebase` + `/gsd-ingest-docs`), and handles multi-repo via `/gsd-workspace --repos`.)* Sequencing: **(A) archive stale docs — DONE**; **(B) fix living docs to match code — DONE**; **(C) author the GSD-seed artifacts** (PROJECT vision, ARCHITECTURE, the UI↔backend CONTRACT, CONVENTIONS) + ADRs 0001–0005 — DONE; **(D) install GSD + map-codebase + ingest-docs — DONE.** Outcome: backend-primary, `.planning/` **tracked** in git (no `/gsd-workspace`). 6-phase ROADMAP generated; **Phase 1 = Fix the Scenario Layer** (= P0.5 #12). See the Step D runbook below for the as-run sequence. | DONE |
-
-#### Step D runbook — GSD bootstrap (DONE 2026-05-20; as-run record)
-
-Bootstrapped **backend-primary** (`.planning/` lives here and is **tracked** in git; UI
-referenced via the contract doc; no `/gsd-workspace` — revisit only if two-repo
-coordination gets painful). As-run sequence:
-
-1. `/gsd-config` → committed `b931430`. model profile **balanced**, **branching off**
-   (push to `main`), `commit_docs=true` (`.planning/` tracked), `auto_advance=false`.
-   ⚠️ **Ordering gotcha:** in the installed SDK version `/gsd-config` **cannot create
-   `.planning/` on its own** — `config-ensure-section` / `config-set` both require the
-   file to pre-exist. The config workflow must bootstrap via
-   `gsd-sdk query config-new-project '{"commit_docs": true}'` (creates `.planning/` +
-   canonical `config.json`). So config is only "step 1" *after* something creates
-   `.planning/`; either run it via `config-new-project` (as done) or run step 2/3 first.
-2. `/gsd-map-codebase` → committed `4223f39`. 4 parallel mapper agents wrote 7 docs:
-   `.planning/codebase/{STACK,INTEGRATIONS,ARCHITECTURE,STRUCTURE,CONVENTIONS,TESTING,CONCERNS}.md`.
-3. `/gsd-ingest-docs` (mode=new) → committed `98664f3`. Used a **curated 10-doc manifest**
-   (5 ADRs + `ui_backend_contract` SPEC + `project`/`action_plan` PRDs +
-   `architecture`/`conventions` DOCs) to stay on-intent and under the 50-doc cap — the raw
-   `docs/` tree (53 `.md`) would have swept in the 29 archived "don't ingest" docs.
-   Pipeline: 10 classifier agents → synthesizer → roadmapper. 0 conflicts. Produced
-   `.planning/{PROJECT,REQUIREMENTS,ROADMAP,STATE}.md` + `intel/`. **Subsystem specs
-   (`docs/design/scenarios/*`, `docs/devices/*`, etc.) were intentionally excluded** — read them
-   at plan-time, or merge-ingest later with a narrow manifest.
-4. `/gsd-progress` — **next** (routes onward). ROADMAP already finalized by ingest, so a
-   separate `/gsd-new-project` is not needed.
-
-First real phase to tackle via GSD: **ROADMAP Phase 1 = Fix the Scenario Layer**
-(= P0.5 #12), the top functional priority
-(`/gsd-discuss-phase 1` → `/gsd-plan-phase 1` → `/gsd-execute-phase 1`).
-
-### P3 — Real ops improvements (later, optional)
-
-| # | Task | Effort |
-|---|------|--------|
-| 7 | **DONE 2026-05-26** — CI pushes images to GHCR (`ghcr.io/droman42/wb-mqtt-bridge` + `wb-mqtt-ui`) with tags `:latest`/`:sha-<short>`/`:vYYYYMMDD-<short>`; auth via the workflow's GITHUB_TOKEN (no PAT). One-time manual flip in repo settings to make packages public. See §6 entry + commit `6a61766`. | ~½ day |
-| 8 | **DONE 2026-05-26** — `ops/docker-compose.yml` (host network, mem/cpu limits) + `ops/wb-mqtt-bridge.service` (systemd) + `ops/update.sh` (~10 lines) + `ops/INSTALL.md` (WB-side cutover, recovery, rollback). Retires `ops/manage_docker.sh` (1081 lines) + the docker_manager_config.json PAT. See `fd61c93`. **WB-side cutover gated on the user** at the rack (INSTALL.md walks it). | 2 hours |
-| 9 | **DONE** 2026-05-22 — chose **monorepo** (Phase 2 migration: `backend/`+`ui/`+`wb-rules/`+`ops/`+`docs/`; old UI repo archived read-only). See §6 (2026-05-22). | — |
+**Completed phases P0–P3 have moved** to [`action_plan_DONE.md`](action_plan_DONE.md) (split out 2026-06-30, §5.2 #2) — the seven fully-done early bands (P0, P0.5, P1, P2, P2.5, P2.6, P3). The in-flight phases below (P3.6, P3.7, P4) stay here until they complete; their done rows move when the phase closes (or once §5.2 #1 settles how to represent a partially-done phase). IDs resolve across both files.
 
 ### Explicitly out of scope (for now)
 - **Multi-arch builds** — *time-limited* out-of-scope. Deployment is Wirenboard-only, but the planned move to **Wirenboard 8+ (arm64/64-bit)** will require an **arm64** image alongside (or replacing) the current ARMv7 one. Revisit when the WB8+ migration is scheduled. (amd64 stays CI/dev-only — not a deploy target.)
@@ -749,6 +673,86 @@ These were the only **unfinished** items in `docs/TODO.md` when it was archived 
 
   **Gate:** do this on a quiet day, NOT before a hardware verification session (dep bumps add a confounder to whatever you're actually trying to debug at the rack). Re-pull the Dependabot count after the PR to confirm the drop.
 - [ ] **PARKED: ESP32 firmware scaffold for the 4 transport-source bridges** (Revox A77 + Revox B215 + Pioneer CLD-D925 + Panasonic NV-FS90). Lives at `ESP32/` (PIO layout: `include/` + `src/` + `docs/`) — single image, identity selected at runtime via NVS + MQTT `/provision`. ~95% shared core (Wi-Fi auto-light-sleep + Wirenboard MQTT + MQTT-triggered `esp_https_ota` + record-arming + reel-motion interlock); 3 drivers cover 4 decks (Pioneer + Panasonic share `driver_ir.cpp` as baseband IR). **2026-05-26: rewritten from the original Arduino scaffold to pure ESP-IDF (C++17, framework=espidf, no Arduino libs); custom dual-OTA partition table (1.5 MB app slots); builds clean end-to-end from `pio run -t fullclean`** (RAM 11.2%, Flash 59.6% of 1.5 MB). Authoritative spec: `ESP32/REQUIREMENTS.md`. Subproject conventions + setup gotchas: `ESP32/CLAUDE.md`. Per-device hardware handoffs: `ESP32/docs/`. Deferred: bench fill-ins (IR codes, B215 frame values, GPIO/timing tuning) and first-light hardware verification, until **"everything works in my home"**. **Not in the active workstream** — do not pull into pre-P4 unless the user reactivates it.
+
+---
+
+### 5.2 Ledger & documentation reconciliation
+
+Filed 2026-06-30 from two chat-requested analyses: (1) a comparison of this plan's positional
+`P0…P4 / #n / §5.1` numbering against the sister repo's workstream-serial ledger
+(`../wb-mqtt-voice/docs/RELEASE_PLAN.md` + frozen `RELEASE_PLAN_DONE.md`), and (2) a read of the
+four scenario/Layer-3 design docs that doubled as ledgers. Both surface the same thing:
+design/planning docs accreted a *done* ledger half that now dilutes their reference half. This
+subsection executes the **handover §0 already promises** ("the redesign specs fully retire to
+history… a project-wide doc reconciliation formalizes the handover"). One coherent series;
+`design-then-implement` (#1 is the design gate, the rest implement). Cross-ref: the scope-drift
+guard (§5.1, first bullet) is **downstream of #1** — its machine-check assumes whatever ledger
+format #1 settles.
+
+- [x] **#1 — Ledger-format convergence design (DESIGN GATE). DONE 2026-06-30.** Design recorded in
+  **[`docs/design/ledger_format_convergence.md`](../design/ledger_format_convergence.md)**
+  (`design-then-implement` — design done, no re-ID executed). Decisions: (D1) identity = stable
+  **`PREFIX-N`** workstream-serial, assigned once / never renumbered — fixes the `#22→#23` renumber
+  and the four live `#7`/`#8` cross-section collisions; (D2) **subsystem-shaped buckets**
+  `DRV/SCN/VWB/UI/OPS/DOC` + a proposed 7th **`CORE`** (cross-cutting backend); (D3) priority a
+  separate `P0/P1/P2` tag, P-bands dissolved; (D4) milestone tags `[house]/[later]/[parked]`
+  (bridge's "house works" = voice's release gate); (D5) status legend + a bridge-specific `HW-GATED`
+  marker; (D6) two-file split by workstream. The doc carries the **complete old→new ID mapping** (the
+  reviewable artifact for #5) + the migration mechanics. **Open confirmations before #5 runs:** the
+  `CORE` bucket, the tag names, and whether to merge #3 into #5. _Mapping note: §5.2 #1–#7 themselves
+  re-ID to `DOC-5/6/7/8/9` + `SCN-5` + `DOC-10` per the doc._
+
+- [x] **#2 — Apply the two-file split. DONE 2026-06-30.** Created frozen `docs/action_plan_DONE.md`
+  and moved the **seven fully-complete early phase bands** (P0, P0.5, P1, P2, P2.5, P2.6, P3) there,
+  by section — verified byte-identical, no content loss, every moved ID now in exactly one file; §4
+  carries a pointer in their place. **In-flight phases (P3.6, P3.7, P4) deliberately left whole** —
+  splitting a partially-done phase is §5.2 #1's call, so their done rows move when the phase closes.
+  No re-ID. CLAUDE.md `single-task-ledger` two-file-split note updated to "applied."
+
+- [ ] **~~#3 — Adopt the additive conventions~~ — FOLDED into #5 (2026-06-30).** The status legend,
+  priority-split, and `[house]/[later]/[parked]` tags get applied *in* #5's structural rewrite — one
+  pass, not two (per `ledger_format_convergence.md` §5). Tombstone; no separate work.
+
+- [ ] **#4 — Extract the narrative sections into reference docs.** Move §1 (Current State Snapshot),
+  §2 (WIP Diff Analysis), §3 (Docker/CI Analysis), and §7 (Codegen Alternatives) out of
+  `action_plan.md` into `docs/architecture/` / `docs/design/` so the plan becomes a **spine**
+  (scope+status), not a mixed analysis+ledger document. Aligns with the §0 architecture-driven
+  handover.
+
+- [ ] **#5 — Full re-ID execution (RE-SCOPED 2026-06-30: full, not lazy).** Per the #1 decision,
+  re-key the **whole live ledger** onto the `PREFIX-N` scheme per the mapping + mechanics in
+  [`ledger_format_convergence.md`](../design/ledger_format_convergence.md) §3–§4: restructure
+  `action_plan.md` into workstream sections + an Acceptance-gate section; reorganize
+  `action_plan_DONE.md` by workstream; add a one-time `action_plan_aliases.md` (old→new); leave the
+  journal frozen with an alias pointer (no back-ref rewrite); update CLAUDE.md's ID examples + the new
+  tag/marker vocabulary. **Gated on the §6 open confirmations** in the design doc. **May absorb #3**
+  (applying conventions + re-IDing in one structural pass is cheaper than two — decide at start).
+
+- [ ] **#6 — File transition-aware manual notes (§13.2) as a real task (BLOCKS #7).** The redesign's
+  transition-aware manual notes (topology manual-nodes surfaced only when a link activates — e.g. the
+  Dodocus RCA-hub "set to LD/VHS" prompt) are **load-bearing**: without them the LD/VHS scenarios have
+  *no audio*. Baseline static notes shipped 2026-05-26; the transition-aware half is deferred and
+  currently has **no clean plan ID** — its only written home is the design docs #7 archives. Give it an
+  ID here (or a stable-ID per #1) so it isn't orphaned when those docs retire (`every-task-in-the-ledger`).
+
+- [ ] **#7 — Retire the frozen scenario/Layer-3 ledgers (after #6).** Four dispositions from the
+  2026-06-30 doc read:
+  - `docs/design/scenarios/scenario_redesign_progress.md` → **archive** to `docs/archive/scenarios/`
+    (pure progress ledger; its header still says "branch `feat/scenario-redesign`, not merged, 274
+    tests" — false; merged long ago, 495+ tests; its one durable lesson lives in
+    `[[mock-tests-miss-driver-bugs]]` + journal).
+  - `docs/design/scenarios/layer3_step0_layout_analysis.md` → **archive** (Step-0 working artifact,
+    all ✅; analysis now in redesign §17 + the placement engine; points at the oracle that was
+    archived 2026-06-09).
+  - `docs/design/scenarios/scenario_system_redesign.md` → **keep as the as-built spec**, light
+    freeze-edit (fix the §13-"decision 5 still open" vs §14-"13.5 resolved" contradiction; mark
+    §11/§12/§14/§17.4 as as-built/historical).
+  - `docs/design/ui_backend_contract.md` → **split**: keep the top (~lines 1–180: TL;DR, contract
+    artifacts, build/runtime contract, Invariants, change playbook) as the *living* seam reference;
+    distill "Layout Manifest & Runtime Rendering" to its steady-state contract; **move the per-commit
+    rollout ledger** (Step-2 hardening, Step-3 rollout, the Step-4 cutover ✅-bullet log, ~lines
+    415–634) to a frozen `docs/archive/` Layer-3 rollout record.
+  Net: nothing lost — every open descendant is already tracked (P4 #1–7) or filed in #6.
 
 ---
 

@@ -47,10 +47,11 @@ plan/journal/review docs never break. (Mirrors `../wb-mqtt-voice/CLAUDE.md` — 
   driving doc per its §0 document-map convention). Every task has **exactly one ID** (the existing
   §/number scheme — `#3.5`, `§P3.7`, §5.1 rows); design/review docs may *surface findings* but **a finding
   is not scope until it has a plan ID**.
-  - **Two-file split (rule defined, not yet applied):** when `docs/action_plan.md` grows large, completed
-    tasks move to a frozen `docs/action_plan_DONE.md` (by section) — one ledger, every ID in exactly one
-    file, a task **moves** active → done on completion (same change as the journal entry). Until the split,
-    completed tasks stay marked `DONE` in place.
+  - **Two-file split (initial split applied 2026-06-30 — §5.2 #2):** when `docs/action_plan.md` grows
+    large, completed tasks move to a frozen `docs/action_plan_DONE.md` (by section) — one ledger, every ID
+    in exactly one file, a task **moves** active → done on completion (same change as the journal entry).
+    The seven fully-complete early phase bands (P0–P3) have moved; an **in-flight** phase's done rows stay
+    marked `DONE` in place until the whole phase closes (or §5.2 #1 settles partial-phase representation).
   - A machine-checkable scope-drift guard (orphan findings, dead evidence links, contradictory status) is
     a deferred follow-up — see §5.1 in the plan.
 - **`every-task-in-the-ledger`** — No work happens without an action-plan entry, **regardless of where the
