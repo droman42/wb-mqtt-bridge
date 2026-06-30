@@ -16,6 +16,20 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-06-30 (SCN-5 re-scope + DOC-10 DONE — scenario/Layer-3 ledgers retired)** — Two things. (1)
+  Tidied a re-ID wrinkle: the former §5.2 #6 had collapsed into SCN-5 self-referentially ("file the
+  task"); re-scoped SCN-5 to be the actual implementation task (activation-time transition-aware manual
+  notes, load-bearing for LD/VHS audio) and cleared DOC-10's now-stale "blocked on SCN-5 filed" marker.
+  (2) **DOC-10 done** — the four scenario/Layer-3 docs that doubled as ledgers reconciled:
+  `scenario_redesign_progress.md` + `layer3_step0_layout_analysis.md` **archived** (git mv → `docs/archive/scenarios/`,
+  FROZEN headers; the first's "branch not merged / 274 tests" status was years-stale); `scenario_system_redesign.md`
+  **kept as the as-built spec** with a freeze-edit (planning sections §11/§12/§14/§17.4 marked historical;
+  fixed the §13-vs-§14 "ordering rule" contradiction); `ui_backend_contract.md` **split** — the living
+  seam contract stays, the per-commit Layer-3 rollout ledger (641→429 lines) moved verbatim to
+  `docs/archive/layer3_rollout_record.md`. All inbound refs repointed. **This completes the §5.2 ledger &
+  documentation reconciliation series** (DOC-5/6/8/9/10 done, DOC-7 folded; only the optional DOC-4
+  scope-drift guard remains `[later]`). No code touched.
+
 - **2026-06-30 (DOC-9 DONE — full ledger re-ID to `PREFIX-N`)** — Re-keyed the whole live ledger off the
   positional `P0…P4 / #n / §5.1` scheme onto stable workstream-serial IDs, per `ledger_format_convergence.md`
   (the former §5.2 #5). `action_plan.md` restructured from priority bands into **workstream sections**

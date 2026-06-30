@@ -1,5 +1,10 @@
 # Layer 3 — Step 0: Layout analysis (zone ↔ domain taxonomy + per-device inventory)
 
+> **ARCHIVED 2026-06-30 (DOC-10) — FROZEN working artifact; do not read as current.** A Step-0
+> empirical analysis that fed the placement engine. All of it is now embodied in
+> `scenario_system_redesign.md` §17 + the shipped placement engine, and the fidelity oracle it
+> references was itself archived 2026-06-09. Kept for provenance only.
+
 **Status:** Step-0 working artifact, 2026-05-23. Feeds the placement engine (Step 1). Design +
 sequencing live in `scenario_system_redesign.md` §17; this is the empirical per-device analysis.
 

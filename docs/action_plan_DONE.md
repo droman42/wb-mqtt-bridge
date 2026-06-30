@@ -9,7 +9,7 @@ positional IDs resolve via [`action_plan_aliases.md`](action_plan_aliases.md). T
 
 ## SCN — Scenarios / topology / reconciler
 
-- [x] **SCN-1** — **DONE** — scenario layer rebuilt (Harmony/reconciler model) + **hardware-verified** 2026-05-22, re-verified at the Layer-3 cutover 2026-05-24 ("no degradation"). Tail: one deferred full-reconciler HW re-test (resync the amp's drifted optimistic state). See §6 (2026-05-21/22/24) + `scenario_redesign_progress.md`. _Original task:_ **Investigate and fix the scenario layer — currently broken.** Per the project vision, the #1 success criterion is "it actually works": every device action + every scenario, end-to-end on real hardware. Device actions mostly work; **scenarios do not** (confirmed by the user 2026-05-20). This is the headline gap between today and "done = my house works", and is distinct from the architecture/docs/GSD track. Scope: reproduce the failure(s), determine whether it's startup/shutdown sequencing, condition evaluation, role-action dispatch, WB-adapter, or state — then fix and verify on hardware.
+- [x] **SCN-1** — **DONE** — scenario layer rebuilt (Harmony/reconciler model) + **hardware-verified** 2026-05-22, re-verified at the Layer-3 cutover 2026-05-24 ("no degradation"). Tail: one deferred full-reconciler HW re-test (resync the amp's drifted optimistic state). See §6 (2026-05-21/22/24) + `docs/archive/scenarios/scenario_redesign_progress.md`. _Original task:_ **Investigate and fix the scenario layer — currently broken.** Per the project vision, the #1 success criterion is "it actually works": every device action + every scenario, end-to-end on real hardware. Device actions mostly work; **scenarios do not** (confirmed by the user 2026-05-20). This is the headline gap between today and "done = my house works", and is distinct from the architecture/docs/GSD track. Scope: reproduce the failure(s), determine whether it's startup/shutdown sequencing, condition evaluation, role-action dispatch, WB-adapter, or state — then fix and verify on hardware.
 - [x] **SCN-2** — **DONE 2026-05-26 — Transition-aware manual notes (load-bearing).** Backend `79c3588`: `ScenarioState.manual_steps` (single source of truth) populated by `ScenarioManager` on activation, cleared on deactivate/shutdown; dropped the redundant copies from `ScenarioResponse` + SSE event payloads + the `_switch_via_reconciler` return. UI `bd80cc5`: `RemoteControlLayout` new `manualSteps` prop renders a "For this activation" subsection (amber) above the static startup/shutdown notes; the `<details>` auto-opens when transition steps exist; `RuntimeScenarioPage` threads `ScenarioState.manual_steps`, guarded on `lifecycleActive`. New transition-case test (start appletv → switch to ld → Dodocus note appears; deactivate clears; next start is fresh). Phase-2 refinement (only emit notes for newly-activated links — diff-based, not every-activation) intentionally NOT done: over-prompting on every activation is correct for load-bearing notes. **Hardware verification still gated on the user.**
 
 ## VWB — Voice-integration + native WB onboarding
@@ -115,3 +115,15 @@ First real phase to tackle via GSD: **ROADMAP Phase 1 = Fix the Scenario Layer**
   `action_plan_aliases.md` added (old→new, ~50 tasks); the journal kept frozen with the alias map resolving
   back-refs; CLAUDE.md `single-task-ledger` ID example updated. Folded the former DOC-7 (conventions applied
   in this pass). Builder verified every task body survives byte-exact (distinctive-substring check, ALL OK).
+- [x] **DOC-10** — **Retire the frozen scenario/Layer-3 ledgers. DONE 2026-06-30.** Four dispositions:
+  (1) `scenario_redesign_progress.md` → **archived** to `docs/archive/scenarios/` (git mv, history kept) +
+  FROZEN header (its "branch not merged / 274 tests" status was years-stale). (2) `layer3_step0_layout_analysis.md`
+  → **archived** likewise (Step-0 working artifact, fully embodied in the as-built spec §17 + the placement
+  engine). (3) `scenario_system_redesign.md` → **kept as the as-built spec**, freeze-edited: status note
+  marking §11/§12/§14/§17.4 historical, and the §13-"decision 5 still open" vs §14-"resolved" contradiction
+  fixed (explicit ordering edges only). (4) `ui_backend_contract.md` → **split**: the living seam contract
+  stays; the per-commit Layer-3 *rollout* ledger (Migration → Step-2 hardening → Step-3 rollout → Step-4
+  cutover, 641→429 lines) moved verbatim to `docs/archive/layer3_rollout_record.md` + a pointer. All inbound
+  refs repointed (§0 doc-map, SCN-1 body, the as-built spec, and the contract's internal "see Step 4 below"
+  pointers). SCN-5 (transition-aware notes) is the standing home that unblocked this. Completes the §5.2
+  reconciliation series.

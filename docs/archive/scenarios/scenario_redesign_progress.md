@@ -1,8 +1,15 @@
 # Scenario Redesign — Implementation Progress & Session Notes
 
-- **Status:** Phase 1 (backend) implemented; **partial hardware verification done** (clean boot
-  on the live system + amp control on both entry points). Full scenario reconciler run on
-  hardware still pending.
+> **ARCHIVED 2026-06-30 (DOC-10) — FROZEN historical record; do not read as current.** The
+> as-it-happened session log of the scenario-redesign Phase-1 work, **fully overtaken by events**:
+> the branch merged long ago, the monorepo + Layer-3 runtime rendering landed, and the suite is now
+> 495+ (not 274). The as-built spec is `scenario_system_redesign.md`; current scenario status lives in
+> `docs/action_plan.md` (workstream **SCN**). Its one durable lesson — mock tests miss real driver
+> bugs — is in memory `[[mock-tests-miss-driver-bugs]]` + the journal. Kept for provenance only.
+
+- **Status (as written 2026-05-22):** Phase 1 (backend) implemented; **partial hardware verification
+  done** (clean boot on the live system + amp control on both entry points). Full scenario reconciler
+  run on hardware still pending.
 - **Branch:** `feat/scenario-redesign` (not merged to `main`). Full test suite: **274 pass**.
 - **Last updated:** 2026-05-22.
 - **Design contracts:** `docs/design/scenarios/scenario_system_redesign.md` (Layers 0/1/2/R),

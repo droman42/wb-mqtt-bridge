@@ -26,12 +26,15 @@ remains, by workstream: **VWB** (voice integration + native WB onboarding — HI
 and the **DOC** ledger/doc-reconciliation series.
 
 Roles of the other docs **now** (they were "driving" during the redesign; they've since settled):
-- `docs/design/ui_backend_contract.md` — **LIVING reference**: the UI↔backend contract + Layer-3 runtime
-  rendering; its "Step 4 — cutover (canonical scope)" is the authoritative cutover record. Consult it
-  for how the UI consumes the backend.
+- `docs/design/ui_backend_contract.md` — **LIVING reference**: the UI↔backend contract + the
+  steady-state Layer-3 runtime-rendering contract. Consult it for how the UI consumes the backend. (The
+  frozen per-step Layer-3 *rollout* record moved to `docs/archive/layer3_rollout_record.md`, DOC-10.)
 - `docs/design/scenarios/scenario_system_redesign.md` — **IMPLEMENTED → as-built spec** for the scenario
   architecture (Layers 0/1/2/R + §17 groups→capabilities). Describes what was built; not driving.
-- `docs/design/scenarios/scenario_redesign_progress.md` — historical session / as-built record.
+- `docs/archive/scenarios/scenario_redesign_progress.md` — **archived 2026-06-30 (DOC-10)**; frozen
+  session log, superseded by the as-built spec above.
+- `docs/archive/scenarios/layer3_step0_layout_analysis.md` — **archived 2026-06-30 (DOC-10)**; frozen
+  Step-0 working artifact, now embodied in the as-built spec §17 + the placement engine.
 - `docs/archive/monorepo_migration_plan.md` — DONE → historical.
 - `project.md` / `architecture.md` / `conventions.md` / `docs/adr/*` — foundational project docs; the
   eventual master *set* once the plan is exhausted.
@@ -555,28 +558,6 @@ DOC-10 remain.
 
 - [ ] **DOC-4** `[P2]` `[later]` — **Scope-drift guard (deferred) — machine-checkable plan/journal consistency check.** Filed 2026-06-27 from the development-process invariants port (`single-task-ledger` references it). Write a small `scripts/check_scope.py` adapted to this plan's freeform numbered-markdown-table format: flag orphan findings (a design/review-doc finding with no plan ID), dead evidence links (a plan entry pointing at a `docs/design`/`docs/review` file that no longer exists), and contradictory status markers (same ID both open and `DONE`). Wire it into the gate alongside `lint-imports`/pytest. Deferred — the invariant text + manual discipline cover the gap until the plan is large enough to warrant automation. (Cf. `../wb-mqtt-voice/scripts/check_scope.py` for shape, not contents — voice's slug+ID+evidence format differs from ours.)
 
-
-- [ ] **DOC-10** `[P1]` `[house]` — **Retire the frozen scenario/Layer-3 ledgers.** Unblocked — the
-  load-bearing transition-aware manual notes now have a standing home (SCN-5), so archiving their source
-  docs no longer orphans them. Four dispositions from the 2026-06-30 doc read:
-  - `docs/design/scenarios/scenario_redesign_progress.md` → **archive** to `docs/archive/scenarios/`
-    (pure progress ledger; its header still says "branch `feat/scenario-redesign`, not merged, 274
-    tests" — false; merged long ago, 495+ tests; its one durable lesson lives in
-    `[[mock-tests-miss-driver-bugs]]` + journal).
-  - `docs/design/scenarios/layer3_step0_layout_analysis.md` → **archive** (Step-0 working artifact,
-    all ✅; analysis now in redesign §17 + the placement engine; points at the oracle that was
-    archived 2026-06-09).
-  - `docs/design/scenarios/scenario_system_redesign.md` → **keep as the as-built spec**, light
-    freeze-edit (fix the §13-"decision 5 still open" vs §14-"13.5 resolved" contradiction; mark
-    §11/§12/§14/§17.4 as as-built/historical).
-  - `docs/design/ui_backend_contract.md` → **split**: keep the top (~lines 1–180: TL;DR, contract
-    artifacts, build/runtime contract, Invariants, change playbook) as the *living* seam reference;
-    distill "Layout Manifest & Runtime Rendering" to its steady-state contract; **move the per-commit
-    rollout ledger** (Step-2 hardening, Step-3 rollout, the Step-4 cutover ✅-bullet log, ~lines
-    415–634) to a frozen `docs/archive/` Layer-3 rollout record.
-  Net: nothing lost — every open descendant is already tracked (P4 #1–7) or filed in #6.
-
----
 
 - ~~**DOC-7**~~ — *adopt additive conventions; folded into DOC-9 (the legend/tags/priority-split land in the re-ID pass).*
 

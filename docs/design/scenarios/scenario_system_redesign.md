@@ -1,14 +1,19 @@
 # Scenario System Redesign — Capability, Topology & Reconciliation Contract
 
-- **Status:** IMPLEMENTED — Phase 1 landed on `main` (2026-05-22). Authored 2026-05-20. See
-  `scenario_redesign_progress.md` for the as-built record.
-- **Supersedes:** the old scenario specs, now archived under `docs/archive/scenarios/`.
+- **Status:** **IMPLEMENTED → as-built spec** (Phase 1 landed 2026-05-22; the redesign shipped in
+  full — reconciler, topology, capability maps, Layer-3 rendering — and is hardware-verified). This is
+  now the **standing reference** for *what the scenario system is*. Authored 2026-05-20.
+- **Reading note (freeze-edit 2026-06-30, DOC-10):** the **contract** sections (§1–§10, §16 capability
+  maps, §17 groups→capabilities) describe the live system — read them as current. The **planning-flavored**
+  sections — §11 (impact on code), §12 (migration plan), §13 (decisions), §14 (status of inputs), §17.4
+  (sequencing) — are **historical / as-built**: they record how it was decided and built, not open work.
+- **Supersedes:** the old scenario specs, now archived under `docs/archive/scenarios/` (including the
+  session log `scenario_redesign_progress.md` (archived) for the as-it-happened record).
 - **Scope:** Backend (`wb-mqtt-bridge`). UI consumes the resulting contract; no UI design here beyond exposure notes.
 
 This document is the agreed design from the redesign discussion. It defines **what** the
 scenario system is and the **contracts** (file schemas + runtime behavior). It is implemented —
-the reconciler, topology, and capability maps all exist in `src/`; full hardware verification of
-the reconciler is the one remaining item (see the progress doc).
+the reconciler, topology, and capability maps all exist in `src/`, hardware-verified.
 
 ---
 
@@ -567,11 +572,11 @@ Resolved 2026-05-20:
    v1 the scenario config the UI reads must still **materialize `roles`** (authored or
    backend-emitted); full omission waits for the UI Path-2 refactor. Device pages unaffected.
 
-Still open:
+Resolved later:
 
-5. **Topology ordering rule** — explicit `ordering` edges only, or *also* a global default rule
-   (e.g. "sink input settles before upstream source")? Pending your decision + the real dependency
-   list. (Discussion notes provided separately.)
+5. **Topology ordering rule** — **RESOLVED (see §14):** **explicit `ordering` edges only**, no global
+   default rule. The 6 captured edges reproduce the observed manual startup sequence; written to
+   `config/topology.json`. (This is §14's "resolves 13.5".)
 
 ---
 
@@ -754,4 +759,4 @@ So **coverage no longer gates** groups-retirement; the remaining gates are purel
    which now keys off the capability `input` by_value mapping). `gestures` was already moot (no command
    used it). The WB output was confirmed unchanged on the live system (no degradation) via a golden
    snapshot (`backend/tests/unit/test_wb_rekey.py`, 13 devices) + a hardware pass. Per-step record:
-   `ui_backend_contract.md` → "Step 4 — cutover (canonical scope)".
+   `docs/archive/layer3_rollout_record.md` (the former `ui_backend_contract.md` "Step 4 — cutover").
