@@ -35,6 +35,15 @@ plan/journal/review docs never break. (Mirrors `../wb-mqtt-voice/CLAUDE.md` — 
     sections + `src/types/*`.
   - Definition-of-done addendum: `cd ui && npm run check && npm run build` passes (`check` = typecheck +
     strict ESLint + orphan check). _Pairs with `user-facing-docs-are-done` — `ui/` is the user-facing **app**._
+- **`cross-repo-source-of-truth`** — for any artifact **shared with a sibling repo** (the Irene↔bridge
+  catalog contract, eval fixtures, a schema pin), **this** repo is the *generator / source of truth*: it
+  commits the reference copy **here** (e.g. `contracts/`) and **never writes into a sibling** (`eval-commons`,
+  `wb-mqtt-voice`). Sync is **one-way, outward, version-stamped** — the sibling *pins its own copy* (the
+  bridge does not push one). Mirror of the Testing-section rule from the other direction (test *execution
+  logic* lives in `../eval-commons`, changed there not here). When a sibling-repo design **files work into
+  this ledger**, it arrives uncommitted for review: **verify its technical claims against live code before
+  accepting** (`task-start-reconciliation`), then it's a normal task needing an ID (`every-task-in-the-ledger`).
+  Detail: `wb-mqtt-voice/docs/design/mqtt_integration.md` §14 + the `voice-bridge-catalog-contract` memory.
 - **`read-at-start-record-at-completion`** — AFFIRMATIVE & NON-NEGOTIABLE.
   - **At task START:** read **not only the action-plan item but also its related design/review doc(s)**
     (per the plan's document map) — the plan entry is a spine entry; the design/review doc holds the
