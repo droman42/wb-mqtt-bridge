@@ -16,6 +16,22 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-01 (analysed + tightened: VWB-15/16 cross-project catalog-contract tasks; filed VWB-17)** —
+  The voice side (`wb-mqtt-voice`) filed two bridge-side tasks off its ARCH-26 design session (uncommitted
+  here for review): **VWB-15** (emit the Irene↔voice catalog contract artifact) and **VWB-16** (consumer
+  contract test — crafted canonical `DeviceCommand` → native/echo). Analysed both against
+  `wb-mqtt-voice/docs/design/mqtt_integration.md` §14 **and** the live bridge code; every technical claim
+  verified (openapi carries `CatalogResponse` + `CanonicalActionRequest`; `GET /system/catalog` and
+  `POST /devices/{id}/canonical` exist; `{wire,canonical,labels}` triplets + a content-hash version already
+  emitted). Folded three findings into the task text: **(1)** VWB-15 — reuse the existing `wb-openapi`
+  CLI (`cli/dump_openapi.py`) which already emits+commits `openapi.json`, don't rebuild it; the new work
+  is the golden-sample `catalog dump`, WB7 dump, `contracts/` home + drift check. **(2)** VWB-15 —
+  disambiguated the two "versions": keep the existing catalog content-hash (lazy re-pull) **and** add a
+  build/commit stamp (which bridge build the voice side coded against). **(3)** VWB-16 — recorded the
+  sequence-form endpoint caveat and pointed it at the new follow-up. Filed **VWB-17** `[P2]` `[later]` —
+  route `sequence`-form actions through `POST /devices/{id}/canonical` (today it 500s on non-single-command
+  bindings); unblocks full crossover-fixture coverage in VWB-16, not house-gating. Scope guard clean.
+
 - **2026-06-30 (filed: DRV-8 — Roborock vacuum design, doc wired)** — Closed an
   `every-task-in-the-ledger` gap: the substantial Roborock S7 draft design (`docs/design/roborock_vacuum.md`,
   started 2026-06-09 — the bridge's first interactive-map appliance) had been written **untracked**, with no
