@@ -16,6 +16,28 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-02 (accepted + executed: VWB-18 — restart-durability triad)** — The voice side filed
+  VWB-18 off its QUAL-56 durability review (`wb-mqtt-voice/docs/review/faf_durable_execution_review.md`
+  Part 2/F7, uncommitted for review). Intake verification confirmed all three claims against live code
+  (line refs exact) and surfaced an **aggravation**: `initialize_devices()` persisted each set-up device's
+  boot-default state *before* the old restore stub ran, so the last-good snapshot was clobbered at every
+  boot — any restore at the stub's call site could never have worked. Accepted with finalizations
+  (`[house]` tag; deactivate-vs-shutdown nuance pinned; decision recorded: implement restore, per
+  `shutdown()`'s own assumed-state-continuity promise + the QUAL-56 "persist + restore + restart test
+  together" rule) in `80424ba`, then executed: **(1)** `5d60999` — `deactivate()` deletes the persisted
+  `active_scenario` atomically with the in-memory clear (first-ever `StateRepositoryPort.delete` caller);
+  `shutdown()` untouched (still-active scenario deliberately survives a restart — test locks the
+  asymmetry). **(2)+(3)** `6b1e9d8` — new `DevicePort.restore_state` seam + `BaseDevice` impl
+  (declared-fields-only, identity/ephemeral/stale-error never restored, rides the `update_state`
+  chokepoint); `DeviceManager` re-hydrates per device inside `initialize_devices()` **before** `setup()`
+  (live sources win; post-setup persist now writes restored state back, not defaults); `initialize()`
+  stub + bootstrap call removed; toggle-power inversion closed by restored assumed state (mf_amplifier
+  real-capability regression test). Suite **502 passing** (was 495); import contracts 3/3 kept; docs
+  (architecture overview, devices-and-scenarios, scenario redesign §7.1) updated with restore-at-startup
+  + deactivate-clears-intent. VWB-18 moved to `action_plan_DONE.md`. Residual (inherent, accepted): a
+  blind device flipped *while* the bridge is down still drifts — same exposure as pre-restart operation;
+  the device-page manual resync remains the recovery path.
+
 - **2026-07-01 (analysed + tightened: VWB-15/16 cross-project catalog-contract tasks; filed VWB-17)** —
   The voice side (`wb-mqtt-voice`) filed two bridge-side tasks off its ARCH-26 design session (uncommitted
   here for review): **VWB-15** (emit the Irene↔voice catalog contract artifact) and **VWB-16** (consumer
