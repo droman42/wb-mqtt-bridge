@@ -469,6 +469,14 @@ class ScenarioManager:
         finally:
             self.current_scenario = None
             self._activation_manual_steps = []
+            # Clear the persisted intent atomically with the in-memory clear — otherwise a
+            # bridge restart resurrects the deactivated scenario via _restore_state and powers
+            # the gear back on. deactivate() ONLY: process shutdown() deliberately leaves the
+            # key so a still-active scenario survives a restart.
+            try:
+                await self.state_repository.delete("active_scenario")
+            except Exception as e:
+                logger.error(f"Failed to clear persisted active scenario: {str(e)}")
         return result
 
     async def shutdown(self) -> None:

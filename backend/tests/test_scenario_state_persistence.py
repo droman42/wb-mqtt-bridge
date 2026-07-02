@@ -76,7 +76,7 @@ class _MockRoomManager:
 
 
 class _MockStateStore:
-    """In-memory implementation of StateRepositoryPort (load/save)."""
+    """In-memory implementation of StateRepositoryPort (load/save/delete)."""
 
     def __init__(self):
         self.data = {}
@@ -86,6 +86,9 @@ class _MockStateStore:
 
     async def save(self, key, value):
         self.data[key] = value
+
+    async def delete(self, key):
+        self.data.pop(key, None)
 
 
 @pytest.fixture
@@ -159,6 +162,36 @@ async def test_save_and_restore_state_across_manager_instances(device_manager, r
 
     assert manager_b.current_scenario is not None
     assert manager_b.current_scenario.scenario_id == "movie_night"
+
+
+@pytest.mark.asyncio
+async def test_deactivate_does_not_resurrect_across_restart(device_manager, room_manager, state_store, scenario_dir):
+    """VWB-18 part 1 (restart round trip): deactivate() clears the persisted intent, so a
+    freshly-constructed manager (a bridge restart) does NOT re-activate the scenario — the
+    pre-fix behavior powered the whole AV stack back on after an explicit 'turn it all off'."""
+    manager_a = ScenarioManager(
+        device_manager=device_manager,
+        room_manager=room_manager,
+        state_repository=state_store,
+        scenario_dir=scenario_dir,
+    )
+    await manager_a.initialize()
+    await manager_a.switch_scenario("movie_night")
+    assert await state_store.load("active_scenario") == {"scenario_id": "movie_night"}
+
+    await manager_a.deactivate()
+    assert manager_a.current_scenario is None
+    assert await state_store.load("active_scenario") is None
+
+    # "Restart": a brand-new manager on the same store must come up with no active scenario.
+    manager_b = ScenarioManager(
+        device_manager=device_manager,
+        room_manager=room_manager,
+        state_repository=state_store,
+        scenario_dir=scenario_dir,
+    )
+    await manager_b.initialize()
+    assert manager_b.current_scenario is None
 
 
 # Note: the live recompute in get_scenario_state() does NOT degrade gracefully when one

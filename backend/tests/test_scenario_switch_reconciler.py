@@ -47,14 +47,29 @@ def _devices(calls):
     }
 
 
-def _manager(devices, scenario_name="movie_appletv"):
-    async def _save(*a, **k):
-        return None
+class _RecordingStore:
+    """In-memory StateRepositoryPort double that records deletions (VWB-18 part 1)."""
 
+    def __init__(self):
+        self.data = {}
+        self.deleted = []
+
+    async def load(self, key):
+        return self.data.get(key)
+
+    async def save(self, key, value):
+        self.data[key] = value
+
+    async def delete(self, key):
+        self.deleted.append(key)
+        self.data.pop(key, None)
+
+
+def _manager(devices, scenario_name="movie_appletv"):
     sm = ScenarioManager(
         device_manager=SimpleNamespace(devices=devices),
         room_manager=SimpleNamespace(),
-        state_repository=SimpleNamespace(save=_save),
+        state_repository=_RecordingStore(),
         scenario_dir=ROOT / "config" / "scenarios",
     )
     sm.topology = TOPOLOGY
@@ -113,6 +128,10 @@ async def test_deactivate_powers_off_involved_devices():
     assert ("living_room_tv", "power_off") in calls
     assert ("mf_amplifier", "power") in calls  # toggle off
     assert sm.current_scenario is None
+    # VWB-18 part 1: the persisted intent is cleared atomically with the in-memory clear —
+    # otherwise a bridge restart resurrects the scenario and powers the gear back on.
+    assert "active_scenario" in sm.state_repository.deleted
+    assert sm.state_repository.data.get("active_scenario") is None
 
 
 @pytest.mark.asyncio
@@ -130,6 +149,9 @@ async def test_process_shutdown_is_transparent_to_hardware():
 
     assert calls == []  # no device commands sent on process shutdown
     assert sm.current_scenario is None
+    # Process shutdown must NOT clear the persisted intent — a still-active scenario
+    # deliberately survives a bridge restart (only explicit deactivate() clears it).
+    assert sm.state_repository.deleted == []
 
 
 @pytest.mark.asyncio
@@ -158,11 +180,10 @@ async def test_transition_to_ld_surfaces_dodocus_note_on_switch_and_clears_on_de
     calls: list = []
     devices = _devices(calls)
 
-    async def _save(*a, **k): return None
     sm = ScenarioManager(
         device_manager=SimpleNamespace(devices=devices),
         room_manager=SimpleNamespace(),
-        state_repository=SimpleNamespace(save=_save),
+        state_repository=_RecordingStore(),
         scenario_dir=ROOT / "config" / "scenarios",
     )
     sm.topology = TOPOLOGY
