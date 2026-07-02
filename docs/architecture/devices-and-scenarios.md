@@ -133,10 +133,13 @@ own state (active / inactive, last switch time, last failure reason) is persiste
 through `StateRepositoryPort` like any device's.
 
 `switch_scenario` is the same pipeline run as a diff between two scenarios' target
-states. `deactivate` runs the dedicated power-off plan. **Process shutdown is
-deliberately transparent to the hardware** — closing the bridge does *not* power
-devices off; doing so would corrupt the optimistic assumed state the reconciler
-relies on when the bridge comes back up.
+states. `deactivate` runs the dedicated power-off plan and clears the persisted
+active-scenario record, so a later bridge restart cannot resurrect a scenario the
+user explicitly turned off. **Process shutdown is deliberately transparent to the
+hardware** — closing the bridge does *not* power devices off (and *keeps* the
+active-scenario record: a still-active scenario picks up where it left off); doing
+so would corrupt the optimistic assumed state the reconciler relies on when the
+bridge comes back up.
 
 A legacy sequence-based scenario path (hardcoded startup/shutdown lists) remains as
 an escape hatch behind the `WB_SCENARIO_RECONCILER` flag (default on). Every shipped

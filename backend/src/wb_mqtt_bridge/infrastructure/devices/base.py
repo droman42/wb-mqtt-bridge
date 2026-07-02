@@ -26,6 +26,13 @@ logger = logging.getLogger(__name__)
 # in-memory state + SSE event still carry last_command, so the UI sees the latest action.
 _EPHEMERAL_STATE_FIELDS = frozenset({"last_command"})
 
+# State fields that must never be re-hydrated from a persisted snapshot: identity comes from
+# the live config (device_id/device_name), last_command is ephemeral bookkeeping (see above),
+# and a persisted error describes a long-gone condition — restoring it would show a stale
+# error until the next state change. Everything else in the snapshot is assumed state the
+# reconciler relies on surviving a restart (power, input, volume, ...).
+_NON_RESTORABLE_STATE_FIELDS = frozenset({"device_id", "device_name", "last_command", "error"})
+
 class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
     """Base class for all device implementations."""
 
@@ -772,6 +779,28 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
         """Append a state-change callback. Multiple callbacks may be registered; all are
         invoked on every state change with ``(device_id, changed_fields)``."""
         self._state_change_callbacks.append(callback)
+
+    def restore_state(self, snapshot: Dict[str, Any]) -> List[str]:
+        """Re-hydrate assumed state from a persisted snapshot (DevicePort contract).
+
+        Runs at boot BEFORE setup(), so anything setup() learns from the live device
+        (a hardware status query, retained MQTT payloads arriving after subscribe)
+        overwrites the snapshot values. Only fields the concrete state class declares
+        are applied — a snapshot written by an older schema degrades to the still-known
+        fields instead of failing — and identity/ephemeral fields are never restored
+        (_NON_RESTORABLE_STATE_FIELDS). Goes through update_state() so the persistence
+        and WB-publish callbacks ride the normal chokepoint. Raises on a snapshot whose
+        values no longer validate against the state class; the caller treats that as
+        "start from defaults".
+        """
+        state_fields = set(type(self.state).model_fields)
+        applicable = {
+            key: value for key, value in snapshot.items()
+            if key in state_fields and key not in _NON_RESTORABLE_STATE_FIELDS
+        }
+        if applicable:
+            self.update_state(**applicable)
+        return sorted(applicable)
     
     async def execute_action(
         self, 

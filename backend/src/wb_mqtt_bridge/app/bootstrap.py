@@ -230,11 +230,12 @@ def create_app() -> FastAPI:
 
         # Configuration Migration Phase B: Log migration guidance for deprecated topic usage
         config_manager.log_migration_guidance()
-        
-        # Initialize state from persistence layer
-        await device_manager.initialize()
-        logger.info("Device states initialized from persistence layer")
-        
+
+        # Persisted device state is restored inside initialize_devices(), per device BEFORE
+        # its setup() — it must precede the post-setup initial persist, which would otherwise
+        # clobber the last-good snapshot with boot defaults. (Replaces the old
+        # device_manager.initialize() restore stub that ran here, too late.)
+
         # Get topics for all devices
         device_topics: dict[str, list[str]] = {}
         for device_id, device in device_manager.devices.items():

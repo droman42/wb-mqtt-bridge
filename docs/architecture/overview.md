@@ -79,10 +79,13 @@ A small set of conventions keeps the hexagon working — none of them are aspira
   `[project.entry-points."wb_mqtt_bridge.devices"]`. `DeviceManager.load_device_modules()`
   discovers them at startup; `config_class` and `device_class` resolve via
   `utils/class_loader.py`.
-- **State is persisted through the port.** `DeviceManager` keys device state under
-  `device:{device_id}` via `SQLiteStateStore`. Read back via
+- **State is persisted through the port — and restored at startup.** `DeviceManager`
+  keys device state under `device:{device_id}` via `SQLiteStateStore`, and each device
+  re-hydrates its snapshot at boot *before* `setup()` runs (so anything the device
+  learns live wins over the snapshot). Read back via
   `GET /devices/{id}/persisted_state`; flushed on shutdown. Scenarios persist their
-  active state the same way.
+  active state the same way: it survives a restart while the scenario is active, and
+  is cleared by an explicit `deactivate`.
 - **WB virtual-device emulation is a driven concern.** `WBVirtualDeviceService`
   publishes each device as a Wirenboard virtual device on MQTT (retained device meta +
   per-control meta + value topics) so the bridge's devices appear natively in the

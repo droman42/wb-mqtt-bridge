@@ -381,8 +381,13 @@ Replaces the imperative `execute_startup_sequence` / `execute_shutdown_sequence`
 ### 7.1 Assumed state
 
 - **Assumed state = `device.state`** (already updated by every device action, including manual
-  actions from the device's UI page) and is **persisted**. There is no separate state store to
-  keep in sync; resync happens for free when the user fixes a device via its page.
+  actions from the device's UI page) and is **persisted and restored**: at startup each device
+  re-hydrates its persisted snapshot *before* `setup()`, so anything learned live (a hardware
+  status query, retained MQTT payloads) overwrites the snapshot, and a blind device's assumed
+  state survives a bridge restart — without this, toggle-style power capabilities would invert
+  (the diff would emit a "power on" toggle against a device that is actually still on). There
+  is no separate state store to keep in sync; resync happens for free when the user fixes a
+  device via its page.
 
 ### 7.2 Resolve target
 

@@ -158,6 +158,13 @@ class DeviceManager:
                 # later — instead of an off-at-boot device vanishing until a full restart.
                 self.devices[device_id] = device
 
+                # Re-hydrate the last-good assumed state BEFORE setup(): setup may query the
+                # live device (fresher than the snapshot, must win), and the post-setup persist
+                # below would otherwise overwrite the snapshot with boot defaults — losing the
+                # assumed state the reconciler diffs against (a restart would then emit e.g. a
+                # power toggle that turns an actually-ON blind device OFF).
+                await self._restore_persisted_state(device_id, device)
+
                 try:
                     success = await device.setup()
                 except Exception as e:
@@ -432,24 +439,34 @@ class DeviceManager:
             logger.error(f"Error performing action '{action}' on device {device_id}: {str(e)}")
             return {"success": False, "error": str(e)}
             
-    async def initialize(self) -> None:
-        """
-        Initialize each device by loading persisted state.
-        This should be called after devices are loaded but before application startup completes.
+    async def _restore_persisted_state(self, device_id: str, device: DevicePort) -> None:
+        """Re-hydrate a device's assumed state from its persisted snapshot.
+
+        Called from initialize_devices() per device, BEFORE setup() — restore must precede
+        the post-setup initial persist (which would clobber the snapshot with boot defaults)
+        and lets anything setup() learns live overwrite the snapshot. Failures degrade to
+        boot-default state; they never block device initialization.
         """
         if not self.state_repository:
-            logger.info("State repository not available, skipping state recovery")
             return
-            
-        logger.info("Initializing device states from persistence layer")
-        for device_id in self.devices:
-            try:
-                stored_state = await self.state_repository.load(f"device:{device_id}")
-                if stored_state:
-                    logger.info(f"Recovered state for device: {device_id}")
-                    # Note: Full implementation of state recovery will be provided in a later phase
-                    # This placeholder just logs that we found state
-                else:
-                    logger.info(f"No persisted state found for device: {device_id}")
-            except Exception as e:
-                logger.error(f"Error recovering state for device {device_id}: {str(e)}") 
+        try:
+            snapshot = await self.state_repository.load(f"device:{device_id}")
+        except Exception as e:
+            logger.error(f"Error loading persisted state for device {device_id}: {str(e)}")
+            return
+        if not snapshot:
+            logger.info(f"No persisted state found for device: {device_id}")
+            return
+        # hasattr guard mirrors the register_state_change_callback one above: unit-test
+        # doubles may not implement the full DevicePort surface.
+        if not hasattr(device, "restore_state"):
+            return
+        try:
+            applied = device.restore_state(snapshot)
+            if applied:
+                logger.info(f"Restored persisted state for device {device_id}: {', '.join(applied)}")
+        except Exception as e:
+            logger.error(
+                f"Persisted state for device {device_id} could not be applied "
+                f"(starting from defaults): {str(e)}"
+            )

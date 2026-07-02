@@ -133,6 +133,17 @@ class DevicePort(ABC, Generic[StateT]):
         pass
 
     @abstractmethod
+    def restore_state(self, snapshot: Dict[str, Any]) -> List[str]:
+        """Re-hydrate assumed state from a persisted snapshot (a prior
+        ``get_current_state()`` serialization). Called by DeviceManager at boot,
+        BEFORE ``setup()``, so live sources layered on top (a setup() hardware
+        query, retained MQTT payloads) win over the snapshot. Identity and
+        ephemeral/bookkeeping fields are the implementation's to skip. Returns
+        the names of the fields applied.
+        """
+        pass
+
+    @abstractmethod
     async def execute_action(
         self,
         action: str,
