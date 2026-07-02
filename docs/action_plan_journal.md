@@ -16,6 +16,16 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-02 (filed: OPS-11 — multi-arch images for the next-gen Wirenboard, deferred)** — Analysed
+  what aarch64 support takes, prompted by `wb-mqtt-voice`'s three-target build matrix. Key finding: the
+  bridge doesn't need the voice repo's per-target Dockerfiles/image names (theirs are forced by
+  per-platform ML profiles) — identical images on both arches mean buildx **multi-platform manifests**
+  under the *existing* tags (WB7 pulls armv7, WB8 arm64; `ops/` untouched). ~6-line diff: `platforms`
+  list + drop the now-harmful `ARCH=arm32v7` build-arg + `--platform=$BUILDPLATFORM` on the UI's node
+  build stage (arch-independent `dist/` → node build runs natively once; existing armv7 UI build should
+  drop from ~14 min to ~2-3 min as a bonus). Implementation deferred at the user's direction — no WB8
+  hardware to verify against yet.
+
 - **2026-07-02 (filed + executed: OPS-10 — path-filtered CI)** — Borrowed the `changes`-job pattern from
   `../stockvision/deploy.yaml` at the user's request: `build-arm.yml` now opens with a
   `dorny/paths-filter@v3` job whose `backend`/`ui`/`ledger` outputs gate the fast checks.
