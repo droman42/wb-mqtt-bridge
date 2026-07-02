@@ -16,6 +16,20 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-02 (filed + executed: OPS-9 — docker_manager leftovers retired)** — Answering deployment
+  questions in chat surfaced three tails of the 2026-05-26 GHCR/compose migration (OPS-3/OPS-4): the
+  untracked local `ops/docker_manager_config.json` still carried the live GitHub PAT (never committed —
+  gitignored; deleting it produces no git diff), `backend/README.md` still walked the retired
+  manage_docker/artifact flow at length (~460 lines, ~30 references), and `ui/README.md` described the
+  artifact `gunzip`/`docker load` flow with two dead `ui/docs/deployment*.md` links plus stale
+  pre-monorepo "sibling checkout" instructions. Filed OPS-9 and executed in the same session: local
+  config file deleted, both READMEs rewritten to the current strategy (CI → GHCR tags
+  `latest`/`sha-<short>`/`vYYYYMMDD-<short>`; WB deploy = `ops/docker-compose.yml` + systemd +
+  `ops/update.sh`; runbook = `ops/INSTALL.md`), lean-image subsection kept, UI local-build instructions
+  corrected to the monorepo-root context. `ops/INSTALL.md` untouched (its docker_manager mentions are the
+  intentional cutover content). **Outstanding user action: revoke the orphaned GitHub PAT** (Settings →
+  Developer settings → Personal access tokens) — nothing uses it anymore. Docs-only; scope guard clean.
+
 - **2026-07-02 (accepted + executed: VWB-18 — restart-durability triad)** — The voice side filed
   VWB-18 off its QUAL-56 durability review (`wb-mqtt-voice/docs/review/faf_durable_execution_review.md`
   Part 2/F7, uncommitted for review). Intake verification confirmed all three claims against live code

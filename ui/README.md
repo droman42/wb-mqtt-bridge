@@ -29,14 +29,14 @@ remote-control-style page per device, generated at build time from the
 
 The UI consumes the backend purely as a **contract** — there is no Python in the
 build. The full cross-repo contract (artifacts, invariants, change playbook) is
-documented in the backend repo at `wb-mqtt-bridge/docs/design/ui_backend_contract.md`. At
-build time the UI reads, from a sibling `wb-mqtt-bridge` checkout:
+documented in `docs/design/ui_backend_contract.md`. At build time the UI reads,
+from the monorepo's `backend/` directory (`../backend` from here):
 
-- `wb-mqtt-bridge/openapi.json` — the committed OpenAPI snapshot (device-state model
+- `backend/openapi.json` — the committed OpenAPI snapshot (device-state model
   shapes live in `components.schemas`).
-- `wb-mqtt-bridge/config/device-state-mapping.json` — maps each device class to its
-  state model + device config files (owned by the backend repo).
-- `wb-mqtt-bridge/config/devices/*.json` — device configurations.
+- `backend/config/device-state-mapping.json` — maps each device class to its
+  state model + device config files (owned by the backend).
+- `backend/config/devices/*.json` — device configurations.
 
 One generator:
 
@@ -53,18 +53,14 @@ One generator:
 
 ### Prerequisites
 
-- Node.js 20+
-- A sibling `wb-mqtt-bridge` checkout (for device configs + `openapi.json`) — **no
-  Python required**
+- Node.js 20+ — **no Python required** (the backend contract is the committed
+  `../backend/openapi.json` in this monorepo)
 
 ### Installation
 
 ```bash
-# Clone both repos side by side
-git clone <frontend-repository-url> wb-mqtt-ui
 git clone https://github.com/droman42/wb-mqtt-bridge.git
-
-cd wb-mqtt-ui
+cd wb-mqtt-bridge/ui
 npm install
 
 # Generate API types from the backend's openapi.json (pages render at runtime — no page codegen)
@@ -83,10 +79,10 @@ The application will be available at `http://localhost:3000`.
 
 ### Device-state mapping (owned by the backend)
 
-The mapping lives in the **backend** repo at
-`wb-mqtt-bridge/config/device-state-mapping.json`. Paths inside it are resolved
-relative to the mapping file's own directory, so the same file works for both the
-local sibling layout and the CI/Docker subdir layout. Format:
+The mapping lives on the **backend** side at
+`backend/config/device-state-mapping.json`. Paths inside it are resolved
+relative to the mapping file's own directory, so the same file works for both
+the local monorepo layout and the CI/Docker build context. Format:
 
 ```json
 {
@@ -151,23 +147,29 @@ src/
 ## Docker Deployment
 
 ARM v7 images are built via GitHub Actions for Wirenboard 7 (Node-only build, no
-Python). See [docs/deployment.md](docs/deployment.md) and
-[docs/deployment-network-config.md](docs/deployment-network-config.md).
+Python) and pushed to `ghcr.io/droman42/wb-mqtt-ui` with `latest` / `sha-<short>`
+/ `vYYYYMMDD-<short>` tags. On the Wirenboard the UI runs from
+`ops/docker-compose.yml` alongside the backend — host network, nginx on port
+3000, proxying to the backend over loopback. See
+[`ops/INSTALL.md`](../ops/INSTALL.md) for the deployment runbook (first install,
+updates via `ops/update.sh`, rollback to a pinned tag).
+
+To run the image standalone (outside compose):
 
 ```bash
-# Download the latest build artifact and load it
-gunzip wb-mqtt-ui.tar.gz && docker load < wb-mqtt-ui.tar
-
-# Run, pointing at your backend + MQTT broker (defaults shown)
 docker run -d --name wb-ui --restart unless-stopped -p 3000:3000 \
   -e BACKEND_HOST=192.168.110.250 -e BACKEND_PORT=8000 \
   -e MQTT_URL=ws://192.168.110.250:9001 \
-  wb-mqtt-ui:latest
-# Access at http://WIRENBOARD_IP:3000
+  ghcr.io/droman42/wb-mqtt-ui:latest
+# Access at http://localhost:3000
 ```
 
-For a local build, ensure a sibling `wb-mqtt-bridge` checkout is present (the
-Dockerfile copies it into the build context), then `docker build -t wb-mqtt-ui:local .`.
+For a local build, run from the **monorepo root** — the Dockerfile copies
+`backend/config` and `backend/openapi.json` out of the repo-root build context:
+
+```bash
+docker build -t wb-mqtt-ui:local -f ui/Dockerfile .
+```
 
 ## Component Library
 

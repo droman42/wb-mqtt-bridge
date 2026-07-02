@@ -109,69 +109,53 @@ After installation, the following console scripts will be available:
 
 ## Docker Deployment
 
-The application can be deployed using Docker on various platforms including Wirenboard 7 (ARMv7 architecture).
+The backend ships as a Docker image for the Wirenboard 7 (ARMv7 architecture).
 
-### Docker Container Management
+### Images come from GHCR
 
-The application uses `manage_docker.sh` for comprehensive Docker container management on the target platform (Wirenboard).
+GitHub Actions builds the ARM images and pushes them to the GitHub Container
+Registry (see `.github/workflows/build-arm.yml`; the slow ARM jobs run on manual
+workflow dispatch):
 
-#### Deployment Workflow
+- `ghcr.io/droman42/wb-mqtt-bridge` — this backend
+- `ghcr.io/droman42/wb-mqtt-ui` — the UI
 
-1. **Deploy from GitHub artifacts**:
+Every build is tagged `latest`, `sha-<short>`, and `vYYYYMMDD-<short>` — the
+dated tags are what you pin for rollback. The packages are public, so the
+Wirenboard pulls them anonymously; no credentials are involved anywhere in the
+deployment path.
+
+### Deploying on the Wirenboard
+
+Deployment is standard Docker tooling: `ops/docker-compose.yml` (both services
+on the host network, with memory/CPU limits), a systemd unit that brings the
+stack up on boot, and `ops/update.sh` — pull the latest images, restart, prune
+the replaced ones:
+
 ```bash
-# Deploy the wb-mqtt-bridge container
-./manage_docker.sh deploy wb-mqtt-bridge
-
-# Deploy all containers
-./manage_docker.sh deploy all
-
-# Deploy only UI containers
-./manage_docker.sh deploy ui
-
-# Deploy only backend containers  
-./manage_docker.sh deploy backend
+cd /mnt/data/mqtt-bridge-config
+sudo git pull                  # config changes travel with the repo
+sudo ./ops/update.sh           # pull images + restart + clean up dangling
 ```
 
-2. **Full redeploy** (stop, clean, download, install, start):
-```bash
-# Full redeploy of specific container
-./manage_docker.sh redeploy wb-mqtt-bridge
+The full runbook — first install, preserving the state DB across the cutover,
+firmware-upgrade recovery, and rolling back to a pinned image — is
+[`ops/INSTALL.md`](../ops/INSTALL.md).
 
-# Full redeploy of all containers
-./manage_docker.sh redeploy all
-```
+The web service is available at http://wirenboard-ip:8000 (host networking),
+the UI at port 3000.
 
-3. **Container management**:
-```bash
-# Start containers
-./manage_docker.sh start wb-mqtt-bridge
-./manage_docker.sh start all
+#### Volume Mounts and Data Persistence
 
-# Stop containers
-./manage_docker.sh stop wb-mqtt-bridge
-./manage_docker.sh stop all
+The compose file mounts (paths relative to `ops/`):
 
-# Restart containers
-./manage_docker.sh restart wb-mqtt-bridge
+- **Configuration**: `../backend/config` → `/app/config` (read-only — config is
+  the cloned repo itself; `git pull` updates it)
+- **Database**: `../.state/data` → `/app/data` (SQLite state store)
+- **Logs**: `../.state/logs` → `/app/logs`
 
-# Show status and resource usage
-./manage_docker.sh status
-./manage_docker.sh status wb-mqtt-bridge
-
-# View container logs
-./manage_docker.sh logs wb-mqtt-bridge 100
-```
-
-4. **System maintenance**:
-```bash
-# Docker system cleanup
-./manage_docker.sh cleanup
-
-# Create/edit configuration file
-./manage_docker.sh config
-```
-
-The web service will be available at http://localhost:8000 (using host networking).
+`.state/` is gitignored, so device states and logs survive both image updates
+and `git pull`.
 
 #### Dependency Optimization for Lean Images
 
@@ -221,356 +205,6 @@ docker images | grep wb-mqtt-bridge
 
 # Inspect what was removed
 docker run --rm wb-mqtt-bridge:lean find /opt/venv -name "test*" -o -name "doc*" | wc -l
-```
-
-#### Volume Mounts and Data Persistence
-
-The Docker deployment creates persistent volume mounts for:
-- **Configuration**: `./config` → `/app/config` (read-only)
-- **Logs**: `./logs` → `/app/logs` 
-- **Database**: `./data` → `/app/data` (SQLite database persistence)
-
-This ensures that device states, logs, and configurations survive container updates and restarts.
-
-### Wirenboard 7 Deployment
-
-The application is optimized for deployment on Wirenboard 7 controllers, which use ARMv7 architecture and Debian Bullseye. The Docker images are built with lean optimizations by default to minimize resource usage on these constrained devices.
-
-#### Prerequisites
-
-- **Wirenboard 7** with Docker support
-- **SSH access** to your Wirenboard device
-- **Docker with Buildx support** (for cross-platform builds)
-
-#### Quick Start - Choose Your Deployment Method
-
-| Method | Speed | Use Case | Prerequisites |
-|--------|-------|----------|--------------|
-| **GitHub Actions** ⚡ | ~15-20 min | Recommended for most users | GitHub account, git |
-| **Local Cross-Build** 🐌 | ~60+ min | Development/customization | Docker Buildx, powerful machine |
-| **Direct on WB7** 🏠 | ~45 min | Building directly on device | SSH access to Wirenboard |
-
-**👍 Recommended: Use GitHub Actions** for fastest builds and easier management.
-
-#### Option 1: Direct Deployment on Wirenboard 7
-
-If you're running the deployment directly on your Wirenboard 7:
-
-```bash
-# Download and setup the management script
-wget https://raw.githubusercontent.com/droman42/wb-mqtt-bridge/main/manage_docker.sh
-chmod +x manage_docker.sh
-
-# Deploy the container from GitHub artifacts
-./manage_docker.sh deploy wb-mqtt-bridge
-
-# Or deploy all containers in the stack
-./manage_docker.sh deploy all
-```
-
-The script will:
-- Download Docker images from GitHub artifacts
-- Extract configuration files to `/opt/wb-bridge/`
-- Start containers with proper resource limits
-
-#### Option 2: GitHub Actions Build (Recommended for Speed)
-
-For fast ARM builds using GitHub's infrastructure instead of local cross-compilation:
-
-1. **Setup and trigger build**:
-```bash
-git clone https://github.com/droman42/wb-mqtt-bridge.git
-cd wb-mqtt-bridge
-
-# Configure for your Wirenboard
-cp .env.example .env
-nano .env
-
-# Add device configurations
-mkdir -p config/devices
-# Copy your device configuration files to config/devices/
-
-# Push to GitHub to trigger ARM build (or use GitHub web interface)
-git add .
-git commit -m "Configure for Wirenboard deployment"
-git push
-```
-
-2. **Download build artifacts**:
-   - Go to your repository on GitHub
-   - Click **"Actions"** tab
-   - Click on the latest **"Build ARM Docker Image"** workflow run
-   - Scroll down to **"Artifacts"** section
-   - Download both files:
-     - **`wb-mqtt-bridge-image`** (contains `wb-mqtt-bridge.tar.gz`)
-     - **`wb-mqtt-bridge-config`** (contains `wb-mqtt-bridge-config.tar.gz`)
-
-3. **Extract artifacts**:
-```bash
-# Create a directory for deployment files
-mkdir -p ./deploy
-
-# Extract the Docker image archive
-unzip wb-mqtt-bridge-image.zip -d ./deploy
-# This creates: ./deploy/wb-mqtt-bridge.tar.gz
-
-# Extract the configuration archive  
-unzip wb-mqtt-bridge-config.zip -d ./deploy
-# This creates: ./deploy/wb-mqtt-bridge-config.tar.gz
-```
-
-4. **Transfer to Wirenboard**:
-```bash
-# Replace 192.168.1.100 with your Wirenboard's IP address
-scp ./deploy/wb-mqtt-bridge.tar.gz root@192.168.1.100:/tmp/
-scp ./deploy/wb-mqtt-bridge-config.tar.gz root@192.168.1.100:/tmp/
-
-# SSH into Wirenboard and deploy
-ssh root@192.168.1.100 '
-  cd /tmp
-  tar -xzf wb-mqtt-bridge-config.tar.gz
-  docker load -i wb-mqtt-bridge.tar.gz
-  docker stop wb-mqtt-bridge 2>/dev/null || true
-  docker rm wb-mqtt-bridge 2>/dev/null || true
-  docker run -d --name wb-mqtt-bridge --restart unless-stopped -p 8000:8000 \
-    -v $(pwd)/config:/app/config:ro \
-    -v $(pwd)/logs:/app/logs \
-    -v $(pwd)/data:/app/data \
-    --memory=256M --cpus=0.5 \
-    wb-mqtt-bridge:latest
-'
-```
-
-**Benefits of GitHub Actions approach:**
-- ⚡ **Much faster**: ~15-20 minutes vs 1+ hour for local ARM cross-compilation
-- 🔄 **Consistent builds**: Same environment every time
-- 💻 **Saves local resources**: No impact on your development machine
-- 🔒 **Cached builds**: Subsequent builds are even faster due to GitHub's cache
-
-#### Configuration Management
-
-The `manage_docker.sh` script provides comprehensive configuration management:
-
-1. **Configuration file setup**:
-```bash
-# Create/edit configuration file  
-./manage_docker.sh config
-```
-
-2. **GitHub credentials setup** (for artifact download):
-```bash
-# Set via environment variables
-export GITHUB_USERNAME="your_username"
-export GITHUB_PAT="your_personal_access_token"
-
-# Or store in configuration file (managed by the script)
-./manage_docker.sh config
-```
-
-3. **Container resource customization**:
-The script supports custom resource limits, memory allocation, and CPU constraints defined in the configuration file.
-
-4. **Multi-container orchestration**:
-```bash
-# Deploy specific container types
-./manage_docker.sh deploy backend  # All backend services
-./manage_docker.sh deploy ui       # All UI services
-
-# Dependency-aware deployment
-./manage_docker.sh deploy all      # Deploys in correct dependency order
-```
-
-#### What Gets Deployed
-
-The deployment script transfers and sets up:
-
-1. **Docker Image** (`wb-mqtt-bridge.tar.gz`)
-   - Optimized ARM image with lean build optimizations
-   - Python application with all dependencies
-   - Multi-stage build for minimal image size
-
-2. **Configuration Archive** (`wb-mqtt-bridge-config.tar.gz`)
-   - Configuration files (`config/`)
-   - Log directory structure (`logs/`)
-   - Data directory for SQLite database (`data/`)
-   - Environment variables (`.env`)
-
-3. **Persistent Volume Mounts**:
-   - `config/` → `/app/config` (read-only)
-   - `logs/` → `/app/logs` (log files)
-   - `data/` → `/app/data` (SQLite database persistence)
-
-#### Resource Configuration
-
-The container is configured for Wirenboard's limited resources:
-- **Memory limit**: 256MB
-- **CPU limit**: 0.5 cores
-- **Optimized builds**: Lean images remove unnecessary files
-- **Health checks**: Monitor container status
-
-#### Post-Deployment
-
-After successful deployment:
-
-1. **Check container status**:
-```bash
-ssh root@192.168.1.100 'docker ps --filter name=wb-mqtt-bridge'
-```
-
-2. **View logs**:
-```bash
-ssh root@192.168.1.100 'docker logs wb-mqtt-bridge'
-```
-
-3. **Access the web interface**:
-   - http://your-wirenboard-ip:8000
-
-4. **Monitor resource usage**:
-```bash
-ssh root@192.168.1.100 'docker stats wb-mqtt-bridge'
-```
-
-#### Troubleshooting
-
-**Connection issues**:
-```bash
-# Verify SSH access
-ssh root@192.168.1.100 'echo "Connection successful"'
-
-# Check Docker service
-ssh root@192.168.1.100 'systemctl status docker'
-```
-
-**Container issues**:
-```bash
-# Restart container
-ssh root@192.168.1.100 'docker restart wb-mqtt-bridge'
-
-# Check container logs
-ssh root@192.168.1.100 'docker logs wb-mqtt-bridge --tail 50'
-```
-
-**Storage issues**:
-```bash
-# Check disk space on Wirenboard
-ssh root@192.168.1.100 'df -h'
-
-# Clean up old Docker images
-ssh root@192.168.1.100 'docker system prune -f'
-```
-
-The web service will be available at http://wirenboard-ip:8000 after successful deployment.
-
-#### Custom Volume Locations on Target Device
-
-The deployment script uses relative paths (`$(pwd)/config`, `$(pwd)/logs`, `$(pwd)/data`) which work from the transfer directory. For custom volume locations on your Wirenboard:
-
-**1. Create custom directories on Wirenboard:**
-```bash
-# SSH into your Wirenboard
-ssh root@192.168.1.100
-
-# Create persistent storage directories (recommended locations)
-mkdir -p /mnt/data/wb-mqtt-bridge/config
-mkdir -p /mnt/data/wb-mqtt-bridge/logs  
-mkdir -p /mnt/data/wb-mqtt-bridge/data
-mkdir -p /var/log/wb-mqtt-bridge  # Alternative for logs
-
-# Or create in any custom location
-mkdir -p /opt/mqtt-bridge/config
-mkdir -p /opt/mqtt-bridge/logs
-mkdir -p /opt/mqtt-bridge/data
-```
-
-**2. Customize resource directories in configuration:**
-
-The `manage_docker.sh` script uses configurable resource directories:
-
-```bash
-# Create/edit configuration file  
-./manage_docker.sh config
-
-# Edit the JSON configuration to specify custom paths:
-{
-  "containers": {
-    "wb-mqtt-bridge": {
-      "type": "backend",
-      "repo": "droman42/wb-mqtt-bridge", 
-      "resource_dir": "/mnt/data/wb-mqtt-bridge"  // Custom path
-    }
-  }
-}
-```
-
-**3. Deploy with custom configuration:**
-
-```bash
-# Deploy using the custom configuration
-./manage_docker.sh deploy wb-mqtt-bridge
-
-# The script will:
-# - Extract configs to /mnt/data/wb-mqtt-bridge/config/
-# - Create logs directory at /mnt/data/wb-mqtt-bridge/logs/
-# - Create data directory at /mnt/data/wb-mqtt-bridge/data/
-# - Start container with proper volume mounts
-```
-
-**4. Verify deployment:**
-
-```bash
-# Check container status and resource usage
-./manage_docker.sh status wb-mqtt-bridge
-
-# View container logs
-./manage_docker.sh logs wb-mqtt-bridge
-```
-
-**5. Recommended Wirenboard storage locations:**
-
-- **Persistent data**: `/mnt/data/` (survives firmware updates)
-- **Logs**: `/var/log/` or `/mnt/data/logs/`
-- **Temporary files**: `/tmp/` (cleared on reboot)
-- **Application files**: `/opt/` or `/usr/local/`
-
-**6. Verify volume mounts:**
-```bash
-ssh root@192.168.1.100 'docker inspect wb-mqtt-bridge | grep -A 10 "Mounts"'
-```
-
-#### Container Management Script Reference
-
-The `manage_docker.sh` script provides comprehensive Docker container management:
-
-```bash
-Usage: ./manage_docker.sh <command> [arguments]
-
-Commands:
-  deploy <container|all|ui|backend>     Deploy container(s) from GitHub artifacts
-  redeploy <container|all|ui|backend>   Full redeploy: stop, clean, download, install, start
-  start <container|all>                 Start container(s)
-  stop <container|all>                  Stop container(s)
-  restart <container|all>               Restart container(s)
-  status [container]                    Show container status and stats
-  logs <container> [lines]              Show container logs
-  cleanup                               Docker system cleanup
-  config                                Create/edit configuration file
-
-Available Containers:
-  wb-mqtt-bridge                        Backend service (port 8000)
-  wb-mqtt-ui                           UI service (port 3000)
-
-Container Groups:
-  all                                   All defined containers
-  ui                                    All UI containers
-  backend                               All backend containers
-
-Examples:
-  ./manage_docker.sh deploy all                    # Deploy entire stack
-  ./manage_docker.sh deploy wb-mqtt-bridge         # Deploy specific container
-  ./manage_docker.sh redeploy wb-mqtt-bridge       # Full redeploy with cleanup
-  ./manage_docker.sh status                        # Show all container status
-  ./manage_docker.sh logs wb-mqtt-bridge 50        # Show last 50 log lines
-  ./manage_docker.sh cleanup                       # Clean Docker system
 ```
 
 ## Running the Application
@@ -829,10 +463,10 @@ LOG_LEVEL=INFO
 
 ## Deployment
 
-The project is deployed using Docker on the target platform:
-
-- Download and use `manage_docker.sh` for container management
-- Deploy containers directly from GitHub artifacts (see Docker Container Management section)
+The project is deployed with Docker on the Wirenboard: CI-built images pulled
+from GHCR, orchestrated by `ops/docker-compose.yml` + systemd, updated with
+`ops/update.sh` (see the Docker Deployment section above and
+[`ops/INSTALL.md`](../ops/INSTALL.md) for the full runbook).
 
 ## Development Tools
 
