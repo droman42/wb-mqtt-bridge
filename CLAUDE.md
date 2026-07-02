@@ -66,8 +66,8 @@ plan/journal/review docs never break. (Mirrors `../wb-mqtt-voice/CLAUDE.md` — 
     marked `DONE` in place until the whole phase closes (or §5.2 #1 settles partial-phase representation).
   - A machine-checkable scope-drift guard enforces this: **`scripts/check_scope.py`** (DOC-4) flags
     duplicate/misplaced IDs, orphan findings (a `PREFIX-N` id in a design/review doc not in the ledger),
-    dead `docs/design`|`docs/review` links, and phantom aliases. It runs in CI (the `backend-test` gate)
-    and standalone (`python3 scripts/check_scope.py`).
+    dead `docs/design`|`docs/review` links, and phantom aliases. It runs in CI (the standalone
+    `ledger-guard` job, path-gated on `docs/**` — OPS-10) and standalone (`python3 scripts/check_scope.py`).
 - **`every-task-in-the-ledger`** — No work happens without an action-plan entry, **regardless of where the
   task came from** — a chat request, a GitHub issue, a code-review finding, a TODO spotted mid-task. The
   first action on any new piece of work is to file it: give it an ID *before* starting. External sources

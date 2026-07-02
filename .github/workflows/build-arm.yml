@@ -6,29 +6,87 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      build_backend:
+        description: Build + push the backend ARM image
+        type: boolean
+        default: true
+      build_ui:
+        description: Build + push the UI ARM image
+        type: boolean
+        default: true
 
-# INTERIM (2026-05-22): the slow QEMU arm/v7 image builds (~14 min for the UI) are gated to MANUAL
-# ONLY — they run on workflow_dispatch (`gh workflow run "Build ARM Docker Images (backend + ui)"`
-# or the Actions "Run workflow" button), never on push. Fast checks (backend tests, UI
-# codegen/typecheck/lint) run on every push. (A commit-message marker was dropped — it matched any
-# message that merely mentioned the token.) To build on every push again, delete the `if:` lines on
-# the backend-build-arm and ui-image jobs.
+# Job graph (OPS-10): a `changes` job detects which areas a push touched and gates the
+# fast checks — backend-test runs only when backend/** changed, ui-validate when ui/**
+# OR the backend contract files the UI consumes changed, ledger-guard when docs/** or
+# the guard script changed. Docs-only ledger commits (the most frequent kind) skip the
+# test suites entirely. The slow QEMU arm/v7 image builds (~14 min for the UI) remain
+# MANUAL ONLY (`gh workflow run "Build ARM Docker Images (backend + ui)"` or the Actions
+# "Run workflow" button), now with per-image toggles; a dispatch also forces the matching
+# fast checks, since each image build `needs` its green gate.
+
+# A newer push cancels the previous run's still-in-flight fast checks. The event name is
+# part of the group so a push never cancels a manually dispatched image build.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  # --------------------------------------------------- fast checks (every push) ---
+  # --------------------------------------------------------- what changed? ---
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      ui: ${{ steps.filter.outputs.ui }}
+      ledger: ${{ steps.filter.outputs.ledger }}
+    steps:
+      # Full history: a multi-commit push must diff against the push base, not HEAD~1.
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/build-arm.yml'
+            ui:
+              # ui/ plus the backend contract it consumes (openapi.json for codegen,
+              # config/ for device-state mapping + device configs) — a backend-side
+              # contract change must re-validate the UI (config-ui-stays-functional).
+              - 'ui/**'
+              - 'backend/openapi.json'
+              - 'backend/config/**'
+              - '.github/workflows/build-arm.yml'
+            ledger:
+              - 'docs/**'
+              - 'scripts/check_scope.py'
+
+  # --------------------------------------------------- fast checks (gated) ---
+  ledger-guard:
+    # docs/action_plan.md{,_DONE} single-source-of-scope check (single-task-ledger
+    # invariant; DOC-4). Standalone job: scope drift lives in docs/, and docs-only
+    # commits skip backend-test — the guard must not ride a job that gets skipped.
+    name: Ledger scope-drift guard
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.ledger == 'true' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v6
+      - run: python3 scripts/check_scope.py
+
   backend-test:
     name: Backend tests (amd64)
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || (github.event_name == 'workflow_dispatch' && inputs.build_backend)
     defaults:
       run:
         working-directory: backend
     steps:
       - uses: actions/checkout@v6
-      - name: Ledger scope-drift guard
-        # docs/action_plan.md{,_DONE} single-source-of-scope check (single-task-ledger
-        # invariant; DOC-4). Pure stdlib, repo-root paths — runs before the backend gates.
-        working-directory: .
-        run: python3 scripts/check_scope.py
       # All three Python health gates (import-linter / check-no-type-checking
       # / pyright) run via the shared composite action in droman42/py-dev-gates.
       # The action handles its own python setup + install of the project's
@@ -43,6 +101,8 @@ jobs:
   ui-validate:
     name: UI validate (typecheck + lint + orphans + build)
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.ui == 'true' || (github.event_name == 'workflow_dispatch' && inputs.build_ui)
     defaults:
       run:
         working-directory: ui
@@ -90,7 +150,7 @@ jobs:
     name: Backend ARM image (GHCR push)
     runs-on: ubuntu-latest
     needs: backend-test
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.build_backend
     permissions:
       contents: read
       packages: write
@@ -134,7 +194,7 @@ jobs:
     name: UI ARM image (GHCR push)
     runs-on: ubuntu-latest
     needs: ui-validate
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.build_ui
     permissions:
       contents: read
       packages: write

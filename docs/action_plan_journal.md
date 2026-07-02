@@ -16,6 +16,19 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-02 (filed + executed: OPS-10 — path-filtered CI)** — Borrowed the `changes`-job pattern from
+  `../stockvision/deploy.yaml` at the user's request: `build-arm.yml` now opens with a
+  `dorny/paths-filter@v3` job whose `backend`/`ui`/`ledger` outputs gate the fast checks.
+  `backend-test` ← `backend/**`; `ui-validate` ← `ui/**` + the consumed backend contract
+  (`backend/openapi.json`, `backend/config/**`); the scope guard became a standalone `ledger-guard` job
+  gated on `docs/**` + `scripts/check_scope.py` (it previously rode `backend-test`, which docs-only
+  commits — exactly where drift lives — would now skip). Docs-only ledger commits drop from full
+  pytest + UI build to the ~10 s guard. `workflow_dispatch` gained `build_backend`/`build_ui` toggles
+  (defaults preserve the old both-images behavior) and forces the matching fast checks so the image
+  builds' `needs` gates stay satisfiable; per-event concurrency cancellation added (pushes can't cancel
+  a dispatched image build). CONTRIBUTING §CI + the CLAUDE.md scope-guard pointer updated. Verified on
+  the landing push: workflow+docs changes → all three filters true → all fast jobs ran green.
+
 - **2026-07-02 (filed + executed: OPS-9 — docker_manager leftovers retired)** — Answering deployment
   questions in chat surfaced three tails of the 2026-05-26 GHCR/compose migration (OPS-3/OPS-4): the
   untracked local `ops/docker_manager_config.json` still carried the live GitHub PAT (never committed —

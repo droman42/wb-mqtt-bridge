@@ -158,18 +158,28 @@ UI build consumes.
 
 ## CI gates each commit must clear
 
-Two CI workflows fan out of the same push:
+One workflow, path-filtered: a `changes` job detects which areas the push
+touched and gates everything downstream, so a commit only pays for the checks
+its files can break.
 
-- **Fast (every push)** — `backend-test` (pytest -m "not requires_device" on
-  amd64) and the UI fast checks (`gen:api-types` + `typecheck:all` +
-  `validate:all`).
+- **`ledger-guard`** (docs/** or the guard script changed) —
+  `scripts/check_scope.py`, the single-task-ledger drift check.
+- **`backend-test`** (backend/** changed) — the three Python health gates
+  (import-linter / no-TYPE_CHECKING / pyright) + `pytest -m "not
+  requires_device"` on amd64.
+- **`ui-validate`** (ui/** changed, **or** the backend contract the UI
+  consumes: `backend/openapi.json`, `backend/config/**`) — `gen:api-types` +
+  `check` (typecheck, strict lint, orphans) + `build`.
 - **Slow (manual)** — QEMU `arm/v7` Docker image builds for backend + UI.
   Triggered via `gh workflow run "Build ARM Docker Images (backend + ui)"`
-  or the Actions UI; they don't run on every push because they're ~14 min
-  for the UI.
+  or the Actions UI, with per-image toggles (`build_backend` / `build_ui`);
+  they don't run on every push because they're ~14 min for the UI. A
+  dispatch also runs the matching fast checks — each image build needs its
+  gate green.
 
-If you change a Dockerfile or anything in `ops/`, run the slow workflow
-before merging.
+A docs-only commit runs just the ledger guard; a backend contract change
+re-validates the UI too. If you change a Dockerfile or anything in `ops/`,
+dispatch the slow workflow before relying on `:latest`.
 
 ## How-to references
 
