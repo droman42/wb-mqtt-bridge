@@ -16,6 +16,28 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-04 (executed + closed: SCN-6 — canonical-first phase 1, the per-room scenario proxy seam)** —
+  Same-day implementation of the morning's SCN-4 design; three commits. **`17f2ded` per-room domain
+  state:** the `current_scenario` singleton became `active: Dict[room, Scenario]` — two rooms now run
+  scenarios concurrently; per-room persistence keys (`active_scenario:<room>`) with a one-shot legacy
+  migration; room-scoped switch diffs and `deactivate(room)`; `room_id` now load-mandatory;
+  `/scenario/state?room=`; SSE payloads carry `room_id`. **`168f820` the proxy seam:** pure-domain
+  `ScenarioProxy` — `scenario_manager_<room>` entities with fire-time role→device resolution
+  (409 `no_active_scenario`/`role_unbound`), `scenario.set/off` activation, config-static union
+  advertisement; the canonical endpoint recognizes entities before device lookup and inherited
+  domains fall through the existing echo-waiting dispatch with `executed_on` naming the real target;
+  the catalog gains one entity per room (byte-stable across switches — locked by test); one WB
+  «Сценарии» card per room (retained `scenario` value topic driven by the new `on_active_changed`
+  observer + curated transport pushbuttons); bootstrap wires it all (the WB-re-key placeholder
+  comment finally replaced by its clean successor). **UI cutover (this commit):** the scenario
+  manifest carries `canonicalEntityId` + per-control canonical annotations; `RuntimeScenarioPage`
+  dispatches everything through the entity (power zone → `scenario.set/off`; bridge resolves at
+  fire time — the stale-manifest targeting quirk is gone); un-annotated controls (list queries)
+  keep the per-device fallback until SCN-7. Contract regenerated; UI check + build green; suite
+  502; contracts 3/3. Docs: key-concepts, devices-and-scenarios, interfaces, ui_backend_contract.
+  **HW verification owed** (WB cards + two-room drill at the next rack session). Next link of the
+  pre-catalog chain: **VWB-17**.
+
 - **2026-07-04 (sequencing: the pre-catalog chain — SCN-6 → VWB-17 → SCN-7 → VWB-15)** — User
   directive: the scenario tasks designed today **finish before the first catalog dump**. SCN-7
   `[later]` → `[house]`, VWB-17 `[later]` → `[house]`; VWB-15's "additive, doesn't wait" sequencing

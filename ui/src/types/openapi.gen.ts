@@ -844,8 +844,10 @@ export interface paths {
          * Get Scenario State
          * @description Get the current scenario state.
          *
-         *     Returns information about the active scenario and the state of all
-         *     devices that are part of it.
+         *     Rooms are the concurrency unit (one active scenario per room). With `room` given,
+         *     returns that room's active scenario state. Without it: returns the single active
+         *     scenario if exactly one room is active; 404 if none; 409 if several rooms are
+         *     active (pass `room` to disambiguate).
          *
          *     Returns:
          *         ScenarioState: Current scenario state
@@ -1375,6 +1377,8 @@ export interface components {
             /** Device Id */
             device_id: string;
             error?: components["schemas"]["CanonicalError"] | null;
+            /** Executed On */
+            executed_on?: string | null;
             /** State */
             state?: {
                 [key: string]: unknown;
@@ -1402,7 +1406,7 @@ export interface components {
          *     400 for param_invalid, 503 for device_unreachable, 500 for internal_error.
          * @enum {string}
          */
-        CanonicalErrorCode: "device_not_found" | "capability_not_supported" | "action_not_supported" | "param_invalid" | "device_unreachable" | "internal_error";
+        CanonicalErrorCode: "device_not_found" | "capability_not_supported" | "action_not_supported" | "param_invalid" | "device_unreachable" | "internal_error" | "no_active_scenario" | "role_unbound";
         /**
          * CatalogAction
          * @description A canonical action a device supports under a capability. `params` is `None` for
@@ -1855,6 +1859,8 @@ export interface components {
         LayoutManifest: {
             /** Actionhandlers */
             actionHandlers?: components["schemas"]["ActionHandler"][];
+            /** Canonicalentityid */
+            canonicalEntityId?: string | null;
             /**
              * Devicecategory
              * @default device
@@ -2112,6 +2118,10 @@ export interface components {
         ProcessedAction: {
             /** Actionname */
             actionName: string;
+            /** Canonicalaction */
+            canonicalAction?: string | null;
+            /** Canonicalcapability */
+            canonicalCapability?: string | null;
             /**
              * Description
              * @default
@@ -3531,7 +3541,10 @@ export interface operations {
     };
     get_scenario_state_scenario_state_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Room to read the active scenario of */
+                room?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -3545,6 +3558,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ScenarioState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

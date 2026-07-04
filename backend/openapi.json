@@ -729,6 +729,17 @@
               }
             ]
           },
+          "executed_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Executed On"
+          },
           "state": {
             "anyOf": [
               {
@@ -803,7 +814,9 @@
           "action_not_supported",
           "param_invalid",
           "device_unreachable",
-          "internal_error"
+          "internal_error",
+          "no_active_scenario",
+          "role_unbound"
         ],
         "title": "CanonicalErrorCode",
         "type": "string"
@@ -1775,6 +1788,17 @@
             "title": "Actionhandlers",
             "type": "array"
           },
+          "canonicalEntityId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Canonicalentityid"
+          },
           "deviceCategory": {
             "default": "device",
             "enum": [
@@ -2414,6 +2438,28 @@
           "actionName": {
             "title": "Actionname",
             "type": "string"
+          },
+          "canonicalAction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Canonicalaction"
+          },
+          "canonicalCapability": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Canonicalcapability"
           },
           "description": {
             "default": "",
@@ -4805,8 +4851,28 @@
     },
     "/scenario/state": {
       "get": {
-        "description": "Get the current scenario state.\n\nReturns information about the active scenario and the state of all\ndevices that are part of it.\n\nReturns:\n    ScenarioState: Current scenario state\n    \nRaises:\n    HTTPException: If no active scenario or service not initialized",
+        "description": "Get the current scenario state.\n\nRooms are the concurrency unit (one active scenario per room). With `room` given,\nreturns that room's active scenario state. Without it: returns the single active\nscenario if exactly one room is active; 404 if none; 409 if several rooms are\nactive (pass `room` to disambiguate).\n\nReturns:\n    ScenarioState: Current scenario state\n\nRaises:\n    HTTPException: If no active scenario or service not initialized",
         "operationId": "get_scenario_state_scenario_state_get",
+        "parameters": [
+          {
+            "description": "Room to read the active scenario of",
+            "in": "query",
+            "name": "room",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Room to read the active scenario of",
+              "title": "Room"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -4817,6 +4883,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Get Scenario State",

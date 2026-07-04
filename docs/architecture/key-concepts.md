@@ -161,10 +161,26 @@ Three calls cover the lifecycle. All three run the *same* `build_plan` +
 - **Deactivate** (`POST /scenario/{id}/deactivate`) — power-off plan for the
   scenario's involved devices; topology ordering still applies in reverse.
 
-The active scenario id is persisted under `StateRepositoryPort` (entity key
-`scenario:active`). Each involved device's state is persisted under its own
-`device:<id>` key — that's the assumed state the next reconciler run will diff
-against.
+**Rooms are the concurrency unit**: each scenario belongs to a room, and every
+scenario-bearing room can have its own active scenario at the same time — starting
+cartoons in the children's room leaves the living-room movie untouched. Each room's
+active scenario id is persisted under its own `active_scenario:<room>` key. Each
+involved device's state is persisted under its own `device:<id>` key — that's the
+assumed state the next reconciler run will diff against.
+
+### The Scenario Manager
+
+Every scenario-bearing room is represented by one **Scenario Manager** entity
+(`scenario_manager_<room>`), reachable exactly like a device through the canonical
+command endpoint and listed in the catalog. Its `scenario` capability activates
+(`set` with a scenario id) or deactivates (`off`) the room; any *other* capability
+fired at it — volume, playback, menu — is resolved **at fire time** against the
+room's active scenario: the bridge looks up which device holds that role right now
+and executes there (the response's `executed_on` names it). The scenario page in
+the web UI, voice, and the per-room «Сценарии» card in the Wirenboard UI all drive
+this same entity — one resolution path for every client. When the room has no
+active scenario, or the active one doesn't bind the role, the command fails with a
+clear conflict error instead of guessing.
 
 ### Process shutdown is transparent
 

@@ -133,9 +133,15 @@ own state (active / inactive, last switch time, last failure reason) is persiste
 through `StateRepositoryPort` like any device's.
 
 `switch_scenario` is the same pipeline run as a diff between two scenarios' target
-states. `deactivate` runs the dedicated power-off plan and clears the persisted
-active-scenario record, so a later bridge restart cannot resurrect a scenario the
-user explicitly turned off. **Process shutdown is deliberately transparent to the
+states, **scoped to the scenario's room** — rooms activate independently, so two
+rooms can each run their own scenario concurrently. `deactivate` runs the dedicated
+power-off plan for its room and clears that room's persisted active-scenario
+record, so a later bridge restart cannot resurrect a scenario the user explicitly
+turned off. Each scenario-bearing room also appears on the Wirenboard side as one
+«Сценарии» virtual device: an enum control showing the room's active scenario
+(write a scenario id to activate, `none` to deactivate) plus a few transport
+buttons (play/pause/stop, volume) that the bridge routes to whichever device holds
+that role in the room's active scenario. **Process shutdown is deliberately transparent to the
 hardware** — closing the bridge does *not* power devices off (and *keeps* the
 active-scenario record: a still-active scenario picks up where it left off); doing
 so would corrupt the optimistic assumed state the reconciler relies on when the

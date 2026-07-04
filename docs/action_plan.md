@@ -161,26 +161,6 @@ manual notes show; Auralic/A77 playback; passive ones show the right manual step
 room** (children_room_tv + appletv_children) was **deferred by the user** (skipped this round) — a
 possible round-3.
 
-- [ ] **SCN-6** `[P1]` `[house]` — **Canonical-first phase 1: the scenario proxy seam (per-room).**
-   Implementation of `docs/design/canonical_first.md` §3–§5 (the SCN-4 design decision, 2026-07-04;
-   **amended same day: managers are per-room** — living room + future children room run scenarios
-   **concurrently**). Deliverables: (1) **per-room `ScenarioManager` state** — active-scenario map
-   keyed by room_id, per-room persistence keys (`active_scenario:<room_id>` + one-shot legacy-key
-   migration), per-room `deactivate()`, transition diffs computed **within a room only**; (2) the
-   fire-time role-resolution service (application/domain layer — composes the room's active scenario
-   + capability maps; 409s: `no_active_scenario` (per room) / unbound role; response carries
-   `executed_on`); (3) the **`scenario_manager_<room_id>`** catalog entities (room set — Irene's
-   room disambiguation rides existing mechanics) — `scenario` select capability (enum
-   `{wire,canonical,labels}` over that room's scenario ids; `set`/`off` = today's switch/deactivate
-   semantics) + the **static union** of inheritable domains (volume/playback/menu/tracks/screen —
-   catalog stays byte-stable across switches); (4) canonical dispatch for the manager entities
-   (proxy path); (5) one WB «Сценарии» card **per room** — retained `scenario` enum value topic (the
-   entity's ONLY state) + curated pushbuttons (play/pause/stop, volume up/down — final list at
-   implementation); (6) scenario-page cutover: manifest revision (inherited buttons carry canonical
-   tuples + informational device id; power zone → `scenario.set`/`scenario.off`) +
-   `RemoteControlLayout` dispatch switch (`config-ui-stays-functional`: UI check + build in the same
-   change). Write-proxy / read-direct rule per design §3 — reads keep binding to real devices.
-
 - [ ] **SCN-7** `[P2]` `[house]` — **Canonical-first phase 2: device pages onto the canonical grammar.** **PULLED INTO THE PRE-CATALOG CHAIN 2026-07-04 (user):** must finish **before the first VWB-15 golden dump** — the v1 contract gets pinned against the final actuation grammar, no post-pin churn (chain: SCN-6 → VWB-17 → SCN-7 → VWB-15).
    Implementation of `docs/design/canonical_first.md` §5–§6 after SCN-6. **Gated on VWB-17**
    (sequence-form actions through the canonical dispatcher — zero shipped maps use sequences today,

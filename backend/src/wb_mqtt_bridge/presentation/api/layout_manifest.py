@@ -63,6 +63,11 @@ class ProcessedAction(_Camel):
     icon: ActionIcon
     ui_hints: UIHints = Field(default_factory=UIHints)
     source_device_id: Optional[str] = None  # scenario-inherited: which device to actually call
+    # SCN-6 canonical dispatch (scenario manifests): the canonical (capability, action)
+    # tuple this control maps to. When set (and the manifest carries canonicalEntityId),
+    # the UI dispatches POST /devices/<entity>/canonical instead of the native /action.
+    canonical_capability: Optional[str] = None
+    canonical_action: Optional[str] = None
     # fixed native params the UI must always send with this action (from the capability action's
     # `params`, e.g. eMotiva power_off -> {zone: 1}, set_volume -> {zone: 2}). `parameters` above is
     # the *spec* (for the slider range etc.); `params` is the *values* to send.
@@ -218,6 +223,10 @@ class LayoutManifest(_Camel):
 
     # manifest metadata (new; not in the legacy build-time structure)
     entity_kind: Literal["device", "scenario"] = "device"
+    # SCN-6: scenario manifests carry the room's Scenario Manager entity id
+    # (`scenario_manager_<room_id>`) — the UI dispatches canonical commands there
+    # (power zone -> scenario.set/off; inherited controls -> their canonical tuple).
+    canonical_entity_id: Optional[str] = None
     device_category: Literal["device", "appliance"] = "device"
     state_schema: Optional[str] = None  # openapi components.schemas name for live-state binding
 

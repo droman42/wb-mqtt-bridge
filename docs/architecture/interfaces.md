@@ -126,6 +126,12 @@ Setup happens once per device, *after* the MQTT client has connected and subscri
    the UI renders controls in a stable, author-chosen sequence.
 3. **Subscribe to each control's `/on`** so a command from `wb-rules` reaches the
    driver via `DevicePort.execute_action`.
+Besides the device fleet, each **scenario-bearing room** gets one «Сценарии»
+virtual device (`scenario_manager_<room>`): a text control holding the room's
+active scenario id (write an id to activate, `none` to deactivate) plus a curated
+row of transport pushbuttons (play/pause/stop, volume up/down) that the bridge
+resolves against the room's active scenario at press time.
+
 4. **Republish value topics** on every state change. The driver's
    `update_state(...)` chokepoint fires a callback chain: the WB service reads the
    capability-keyed slice of the state and publishes only the values that match

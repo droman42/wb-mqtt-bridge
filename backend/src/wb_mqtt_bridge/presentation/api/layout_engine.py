@@ -327,37 +327,58 @@ def build_device_manifest(device: Any) -> LayoutManifest:
 _SCENARIO_ROLE_DOMAIN: Dict[str, str] = SCENARIO_ROLE_DOMAIN
 
 
-def _tag_action(a: Optional[ProcessedAction], dev_id: str) -> None:
-    if a is not None:
-        a.source_device_id = dev_id
+def _canonical_reverse_map(cap: Optional[Capability]) -> Dict[str, str]:
+    """native command name -> canonical action name for a capability (SCN-6 dispatch
+    annotation). Only single-command actions map (sequence-form is skipped by the zone
+    builders anyway)."""
+    if cap is None:
+        return {}
+    return {ca.command: name for name, ca in cap.actions.items() if ca.command}
 
 
-def _tag_source(content: ZoneContent, dev_id: str) -> None:
-    """Tag every control in a zone's content with its role device (scenario sourceDeviceId routing)."""
+def _tag_action(a: Optional[ProcessedAction], dev_id: str,
+                domain: Optional[str] = None,
+                cmd_to_action: Optional[Dict[str, str]] = None) -> None:
+    if a is None:
+        return
+    a.source_device_id = dev_id
+    if domain and cmd_to_action:
+        canonical = cmd_to_action.get(a.action_name)
+        if canonical is not None:
+            a.canonical_capability = domain
+            a.canonical_action = canonical
+
+
+def _tag_source(content: ZoneContent, dev_id: str,
+                domain: Optional[str] = None,
+                cmd_to_action: Optional[Dict[str, str]] = None) -> None:
+    """Tag every control in a zone's content with its role device (scenario sourceDeviceId
+    routing) and, when the capability is known, its canonical (capability, action) tuple
+    (SCN-6 proxy dispatch)."""
     for b in (content.power_buttons or []):
-        _tag_action(b.action, dev_id)
+        _tag_action(b.action, dev_id, domain, cmd_to_action)
     for dd in (content.inputs_dropdown, content.apps_dropdown):
         if dd is not None:
             dd.source_device_id = dev_id
     for sec in (content.playback_section, content.tracks_section):
         if sec is not None:
             for a in sec.actions:
-                _tag_action(a, dev_id)
+                _tag_action(a, dev_id, domain, cmd_to_action)
     for a in (content.screen_actions or []):
-        _tag_action(a, dev_id)
+        _tag_action(a, dev_id, domain, cmd_to_action)
     if content.volume_slider is not None:
-        _tag_action(content.volume_slider.action, dev_id)
-        _tag_action(content.volume_slider.mute_action, dev_id)
+        _tag_action(content.volume_slider.action, dev_id, domain, cmd_to_action)
+        _tag_action(content.volume_slider.mute_action, dev_id, domain, cmd_to_action)
     for b in (content.volume_buttons or []):
-        _tag_action(b.up_action, dev_id)
-        _tag_action(b.down_action, dev_id)
-        _tag_action(b.mute_action, dev_id)
+        _tag_action(b.up_action, dev_id, domain, cmd_to_action)
+        _tag_action(b.down_action, dev_id, domain, cmd_to_action)
+        _tag_action(b.mute_action, dev_id, domain, cmd_to_action)
     for grp in (content.navigation_cluster, content.pointer_pad):
         if grp is not None:
             for name in type(grp).model_fields:
                 v = getattr(grp, name)
                 if isinstance(v, ProcessedAction):
-                    _tag_action(v, dev_id)
+                    _tag_action(v, dev_id, domain, cmd_to_action)
 
 
 def _scenario_power_zone() -> ZoneContent:
@@ -403,35 +424,40 @@ def build_scenario_manifest(scenario_def: Any, device_manager: Any) -> LayoutMan
     dev_id, device, cap = _role("volume")
     if cap:
         assert dev_id is not None
-        content["volume"] = _volume_content(device, cap); _tag_source(content["volume"], dev_id)
+        content["volume"] = _volume_content(device, cap)
+        _tag_source(content["volume"], dev_id, "volume", _canonical_reverse_map(cap))
     dev_id, device, cap = _role("playback")
     if cap:
         assert dev_id is not None
         media.playback_section = _playback_content(device, cap)
         for a in media.playback_section.actions:
-            _tag_action(a, dev_id)
+            _tag_action(a, dev_id, "playback", _canonical_reverse_map(cap))
     dev_id, device, cap = _role("tracks")
     if cap:
         assert dev_id is not None
         media.tracks_section = _tracks_content(device, cap)
         for a in media.tracks_section.actions:
-            _tag_action(a, dev_id)
+            _tag_action(a, dev_id, "tracks", _canonical_reverse_map(cap))
     dev_id, device, cap = _role("screen")
     if cap:
         assert dev_id is not None
-        content["screen"] = _screen_content(device, cap); _tag_source(content["screen"], dev_id)
+        content["screen"] = _screen_content(device, cap)
+        _tag_source(content["screen"], dev_id, "screen", _canonical_reverse_map(cap))
     dev_id, device, cap = _role("menu")
     if cap:
         assert dev_id is not None
-        content["menu"] = _menu_content(device, cap); _tag_source(content["menu"], dev_id)
+        content["menu"] = _menu_content(device, cap)
+        _tag_source(content["menu"], dev_id, "menu", _canonical_reverse_map(cap))
     dev_id, device, cap = _role("pointer")
     if cap:
         assert dev_id is not None
-        content["pointer"] = _pointer_content(device, cap); _tag_source(content["pointer"], dev_id)
+        content["pointer"] = _pointer_content(device, cap)
+        _tag_source(content["pointer"], dev_id, "pointer", _canonical_reverse_map(cap))
     dev_id, device, cap = _role("apps")
     if cap:
         assert dev_id is not None
-        content["apps"] = ZoneContent(apps_dropdown=_apps_dropdown(device, cap)); _tag_source(content["apps"], dev_id)
+        content["apps"] = ZoneContent(apps_dropdown=_apps_dropdown(device, cap))
+        _tag_source(content["apps"], dev_id, "apps", _canonical_reverse_map(cap))
 
     def _is_empty(c: ZoneContent) -> bool:
         return not any(c.model_dump(exclude_none=True, by_alias=True).values())
@@ -453,6 +479,7 @@ def build_scenario_manifest(scenario_def: Any, device_manager: Any) -> LayoutMan
         shutdown=list(getattr(mi, "shutdown", []) or []),
     ) if mi is not None else None
 
+    room_id = getattr(scenario_def, "room_id", None)
     return LayoutManifest(
         device_id=scenario_def.scenario_id,
         device_name=getattr(scenario_def, "name", None) or scenario_def.scenario_id,
@@ -460,4 +487,7 @@ def build_scenario_manifest(scenario_def: Any, device_manager: Any) -> LayoutMan
         remote_zones=zones,
         entity_kind="scenario",
         manual_instructions=manual,
+        # SCN-6: the room's Scenario Manager entity — the UI's canonical dispatch target
+        # (power zone -> scenario.set/off; annotated controls -> their canonical tuple).
+        canonical_entity_id=f"scenario_manager_{room_id}" if room_id else None,
     )

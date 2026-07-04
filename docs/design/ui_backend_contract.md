@@ -355,16 +355,29 @@ device's own live state.
   state → corrected; `/scenario/{id}/state` recomputes → corrected. IR optimism remains inherent
   (no feedback), but the manual re-send is the single correction point and it propagates everywhere.
 
-### Scenario lifecycle (power zone) active-state — DECIDED (2026-05-24)
+### Scenario lifecycle (power zone) active-state — DECIDED (2026-05-24; per-room + canonical since SCN-6, 2026-07-04)
 The scenario page's lifecycle power zone (`power_on`→start, `power_off`→shutdown) **reflects
-running/stopped**. There is **one global active scenario** (`ScenarioManager.current_scenario`), so a
-scenario is "running" **iff it is the active one**. The UI reads `/scenario/state` (existing
-`useScenarioState`) → running iff `activeScenarioId === this scenario_id`; **live** via `/events/scenarios`
-+ the SSE→cache fix. **No new backend** (no endpoint/field). Indication = state-aware coloring of the
-lifecycle buttons (running → "on" active; stopped → neutral), like device power / the eMotiva zone-2
-coloring. **Both buttons stay functional** — on a running scenario, "start" = **re-reconcile** (re-apply
-targets after manual device drift), "shutdown" = stop; on a stopped scenario, "start" switches from
-whatever else is active (reconciler switch path). Globally-exclusive ⇒ no per-room state to track.
+running/stopped**. Since SCN-6, activity is **per room** (`ScenarioManager.active`: room → scenario);
+a scenario is "running" iff it is its room's active one. The UI reads `/scenario/state` (optionally
+`?room=`) → running iff `activeScenarioId === this scenario_id`; **live** via `/events/scenarios`
++ the SSE→cache fix. Indication = state-aware coloring of the lifecycle buttons (running → "on"
+active; stopped → neutral). **Both buttons stay functional** — on a running scenario, "start" =
+**re-reconcile**, "shutdown" = stop; on a stopped scenario, "start" switches within its room.
+
+### Scenario-page canonical dispatch (SCN-6, canonical-first phase 1) — DECIDED (2026-07-04)
+The scenario manifest carries **`canonicalEntityId`** (`scenario_manager_<room>` — the room's
+Scenario Manager entity) and every role-derived control carries a **canonical annotation**
+(`canonicalCapability` + `canonicalAction`, alongside the informational `sourceDeviceId`). The
+page dispatches EVERYTHING through `POST /devices/<canonicalEntityId>/canonical`:
+- power zone → `scenario.set {value: <id>}` / `scenario.off` (the legacy `/scenario/switch` +
+  `/scenario/shutdown` calls remain only as fallback for manifests without the entity id);
+- annotated controls → their canonical tuple — the **bridge resolves role → device at fire time**
+  (no stale-manifest targeting; the response's `executed_on` names the real target);
+- un-annotated controls (e.g. list queries) fall back to the legacy per-device `/action` via
+  `sourceDeviceId` until SCN-7 moves reads off the action path.
+Params pass through by name: the canonical endpoint renames only names present in the capability's
+`param_map`, so the manifest's native param names arrive unchanged at handlers. Device pages are
+UNCHANGED in phase 1 (they migrate in SCN-7, gated on VWB-17); see `docs/design/canonical_first.md`.
 
 ### Manual instructions — DECIDED (2026-05-24)
 - **Baseline — Option B (rides the manifest; in the remote, scenarios-only):** add a **top-level
