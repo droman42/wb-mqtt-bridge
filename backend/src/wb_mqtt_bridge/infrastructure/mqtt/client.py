@@ -227,8 +227,10 @@ class MQTTClient(MessageBusPort):
                     async for message in client.messages:
                         topic = message.topic.value
                         try:
-                            # Check if the message is in the maintenance window
-                            if self.guard is not None and self.guard.maintenance_started(topic):
+                            # Check if the message is in the maintenance window. The retain
+                            # flag lets the guard tell a live controller restart from the
+                            # broker replaying the retained trigger at our own subscribe time.
+                            if self.guard is not None and self.guard.maintenance_started(topic, bool(message.retain)):
                                 logger.info(f"Skipping message on topic {topic} because it's in the maintenance window")
                                 continue
 

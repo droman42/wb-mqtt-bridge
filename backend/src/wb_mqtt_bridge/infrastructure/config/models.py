@@ -390,9 +390,9 @@ class PersistenceConfig(BaseModel):
     db_path: str = Field(default="data/state_store.db", description="Path to the SQLite database file")
 
 class MaintenanceConfig(BaseModel):
-    """Configuration for system maintenance settings."""
-    duration: int = Field(..., description="Maintenance duration in minutes")
-    topic: str = Field(..., description="MQTT topic to monitor for maintenance status")
+    """Configuration for system maintenance settings (the wb-rules restart guard)."""
+    duration: int = Field(..., description="Quiet-time of the maintenance window in seconds: the window opens on a live publish of the trigger topic and closes after this many seconds without traffic (each in-window message extends it; hard-capped at 60s)")
+    topic: str = Field(..., description="MQTT topic whose live (non-retained) publish signals a controller maintenance/restart burst")
 
 class SystemConfig(BaseModel):
     """Schema for system configuration."""

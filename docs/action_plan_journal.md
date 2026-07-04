@@ -16,6 +16,25 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-05 (filed + executed + closed: CORE-3 — maintenance guard rebuilt against the real
+  midnight burst)** — Started as a "not ledger-worthy yet" diagnosis request ("skips MQTT events
+  around midnight... find out what is wrong"), promoted to CORE-3 once the user said fix it. The
+  investigation went to the controller itself (SSH, user-granted): the midnight event is the
+  user's **own root crontab** — `0 0 * * * systemctl restart wb-rules` (the classic hang
+  workaround) — not logrotate; the journal-measured burst runs ~00:00:05 (driver ready,
+  `meta/driver` republished) → 00:00:10+ (rule files loading one by one, every virtual device +
+  value republished, side-effect writes trailing), so the old fixed 5s window closed mid-burst.
+  Second defect, log-proven from 2026-06-06: the trigger topic is retained, so the broker's
+  subscribe-time replay opened a bogus window at every bridge connect and ate startup topics.
+  Third: the retained-skip can't cover any of this — live republishes arrive retain=0 per
+  [MQTT-3.3.1-9]. Fix: retain flag plumbed into `maintenance_started`; live-only trigger;
+  sliding quiet-time window (config `duration: 5` unchanged, new quiet-time semantics) with a
+  60s hard cap so periodic publishers can't wedge it open. 9 new fake-clock tests; no
+  OpenAPI/contract impact (DTO untouched). Controller cleanups left with the user by their own
+  call: delete the broken `@reboot` rule (`enable_online_meta_for_wbrules` — wb-rules cron
+  rejects `@reboot`, error spam on every load); telegram2wb curl-35 + IR_Trainer datatype warts
+  flagged. Suite 531; pyright 0; contracts 3/3.
+
 - **2026-07-04 (executed + closed: VWB-21 — the alias vocabulary, 3 rooms + 34 devices)** — The
   interactive session ran in 5 rounds with a new shape: inventory presented room-by-room WITH
   candidate synonyms to react to (lower recall burden than blank-slate); terse positional answers.
