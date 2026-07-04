@@ -327,6 +327,16 @@ The hood's `light` capability matches implicitly — «включи свет» i
 the hood light with zero authoring. Membership for `(room, group)` = devices with
 `room_id == room` owning a capability whose group matches.
 
+**Prerequisite profile split (user-confirmed 2026-07-05):** two non-lights currently wear
+`light_switch` — `global/oven_power` and `global/all_plugs`. Tagging the profile
+`group: "light"` would drag them into «включи свет», so VWB-23 first splits out a
+**`power_switch`** profile (identical capability shape, no group override → defaults to
+group `power`) and re-points those two configs. This is the overlay's premise made
+honest — profile = semantic class, and a plug is not a light switch. `global/all_lights`
+**stays** on `light_switch`: it is a genuine light master, and «включи свет» in
+`global` resolving to it (the wb-rule then fans out physically) is the intended
+behavior, not a leak.
+
 Execution per member re-enters the ordinary per-device canonical dispatch **against the
 member's own capability** (a light switch executes its `power.on`, the hood its
 `light.on`) — the group verb names the intent, each member keeps its native grammar, the
