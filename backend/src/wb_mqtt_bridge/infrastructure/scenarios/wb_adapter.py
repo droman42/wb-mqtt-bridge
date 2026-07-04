@@ -110,6 +110,16 @@ class ScenarioWBAdapter:
 
         return _execute
 
+    def _make_wb_handler(self, entity_id: str):
+        """Message-bus callback for one card's `/on` topics. Wraps handle_wb_message so
+        the callback satisfies the port's `(str, str) -> Awaitable[None] | None` shape
+        (handle_wb_message returns a bool we deliberately discard)."""
+
+        async def _handler(topic: str, payload: str) -> None:
+            await self.wb_service.handle_wb_message(topic, payload, entity_id)
+
+        return _handler
+
     async def setup(self) -> None:
         """Publish one card per scenario-bearing room, subscribe its command topics, seed
         the value topic, and hook active-scenario changes to the value-topic publisher."""
@@ -123,10 +133,7 @@ class ScenarioWBAdapter:
                 logger.error(f"Failed to set up scenario WB card for room '{room_id}'")
                 continue
             for topic in self.wb_service.get_subscription_topics_from_config(config):
-                await self.message_bus.subscribe(
-                    topic,
-                    lambda t, p, _eid=entity_id: self.wb_service.handle_wb_message(t, p, _eid),
-                )
+                await self.message_bus.subscribe(topic, self._make_wb_handler(entity_id))
             await self.publish_active(room_id)
             logger.info(f"Scenario WB card ready for room '{room_id}' ({entity_id})")
 
