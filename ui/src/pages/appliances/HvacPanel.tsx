@@ -125,7 +125,8 @@ export function HvacPanel() {
     if (!deviceId) return;
     execute.mutate({
       deviceId,
-      request: { capability: 'climate', action, params: params ?? null },
+      // wait:true — the panel merges the echoed post-action state into the cache.
+      request: { capability: 'climate', action, params: params ?? null, wait: true },
     });
     addLog({ level: 'info', message: `climate.${action} -> ${deviceId}`, details: params });
   };

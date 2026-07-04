@@ -376,8 +376,26 @@ page dispatches EVERYTHING through `POST /devices/<canonicalEntityId>/canonical`
 - un-annotated controls (e.g. list queries) fall back to the legacy per-device `/action` via
   `sourceDeviceId` until SCN-7 moves reads off the action path.
 Params pass through by name: the canonical endpoint renames only names present in the capability's
-`param_map`, so the manifest's native param names arrive unchanged at handlers. Device pages are
-UNCHANGED in phase 1 (they migrate in SCN-7, gated on VWB-17); see `docs/design/canonical_first.md`.
+`param_map`, so the manifest's native param names arrive unchanged at handlers.
+
+### Device-page canonical dispatch (SCN-7, canonical-first phase 2) — SHIPPED (2026-07-04)
+Device pages ride the same grammar. **Device manifests** annotate every action-backed control
+with its canonical tuple (`canonicalCapability` + `canonicalAction`; no `sourceDeviceId` — the
+target is the device itself); `RuntimeDevicePage` dispatches annotated controls via
+`POST /devices/{id}/canonical` with **`wait: false`** (fire-and-return-current-state — rapid
+button presses must not serialize on ~500 ms echo waits; live state keeps arriving via SSE).
+Voice keeps the default `wait: true` (a speakable post-action result). Other rules:
+- **Option enumeration is a READ:** dropdown population moved off the action path to
+  `GET /devices/{id}/options/{inputs|apps}`, resolved through the capability's declared
+  `list` query and executed internally (`source="system"`). Selection (set_input /
+  launch_app) stays on the native `/action` path — **select-form actions are not yet
+  canonically routable** (tracked as VWB-19).
+- **Param metadata has one source:** `ProcessedParameter` derives through the shared §6
+  projection (`param_projection.py`) — the same code path that fills the catalog's canonical
+  view (VWB-15). Params fixed by the capability action (e.g. `{zone: 2}`) are excluded from
+  the spec (they are values the UI *sends* via `ProcessedAction.params`, not user knobs).
+- Un-annotated controls keep the native `/action` fallback (the internal/dev door;
+  its demotion decision is acceptance-gate material).
 
 ### Manual instructions — DECIDED (2026-05-24)
 - **Baseline — Option B (rides the manifest; in the remote, scenarios-only):** add a **top-level

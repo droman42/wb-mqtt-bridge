@@ -16,6 +16,27 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-04 (executed + closed: SCN-7 — canonical-first phase 2, device pages on the canonical grammar; filed VWB-19)** —
+  Third link of the pre-catalog chain, closing the coding road to VWB-15. Device manifests now
+  annotate every action-backed control with its canonical tuple (no `sourceDeviceId` — the target
+  is the device itself); `RuntimeDevicePage` dispatches annotated controls canonically with the new
+  **`wait: false`** mode (fire-and-return-current-state — preserves the pre-canonical `/action` UX
+  exactly; voice keeps the default echo-wait; HvacPanel keeps `wait:true` for its cache merge; the
+  scenario page's inherited controls also switched to `wait:false`). Option enumeration became a
+  READ: `GET /devices/{id}/options/{inputs|apps}` resolves the capability's `list` query internally
+  (`source="system"`); the UI dropdowns fetch it instead of POSTing `get_available_*`. The §6
+  param projection landed as the shared `param_projection.py` — native view feeds the manifest's
+  `ProcessedParameter` (capability-fixed params excluded from specs), canonical view (reversed
+  `param_map`, sequence union) awaits the catalog in VWB-15: one code path, two views. **Finding →
+  VWB-19 filed:** `select`-form capabilities (parametric + `by_value` input selection, app launch)
+  are not canonically routable — the dispatcher walks `cap.actions` only; dropdown *selection*
+  stays native and voice can't switch inputs canonically; `[P2] [later]` (v1 voice set needs no
+  input switching; catalog advertises no select actions today, so the crossover fixtures are
+  unaffected). Gates: suite 515, pyright 0, contracts 3/3, contract + UI types regenerated, UI
+  check + build green. Docs: `ui_backend_contract.md` phase-2 section; `interfaces.md` canonical
+  row (+`wait`) and the options-endpoint row. **The chain's coding legs are DONE — VWB-15 (the
+  first golden dump) is next and unblocked.**
+
 - **2026-07-04 (VWB-17 addendum: sequence actions in the user-facing docs)** — User ask right after
   the close: teach sequence-form actions in prose. `key-concepts.md` gained a "Sequence actions
   (macros)" subsection under the capability-map chapter — two theoretical worked examples (LD-player

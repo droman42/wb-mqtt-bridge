@@ -161,17 +161,6 @@ manual notes show; Auralic/A77 playback; passive ones show the right manual step
 room** (children_room_tv + appletv_children) was **deferred by the user** (skipped this round) — a
 possible round-3.
 
-- [ ] **SCN-7** `[P2]` `[house]` — **Canonical-first phase 2: device pages onto the canonical grammar.** **PULLED INTO THE PRE-CATALOG CHAIN 2026-07-04 (user):** must finish **before the first VWB-15 golden dump** — the v1 contract gets pinned against the final actuation grammar, no post-pin churn (chain: SCN-6 → VWB-17 → SCN-7 → VWB-15).
-   Implementation of `docs/design/canonical_first.md` §5–§6 after SCN-6. ~~Gated on VWB-17~~
-   **GATE SATISFIED 2026-07-04 — VWB-17 DONE** (sequence-form actions route through the canonical
-   dispatcher via the shared `CapabilityAction.expand()`; a page button backed by an authored
-   sequence now just works). **SCN-7 is UNBLOCKED — the next link of the pre-catalog chain.**
-   Deliverables: device-page manifest + renderer dispatch to `POST /devices/{id}/canonical`; the
-   canonical endpoint's `wait: false` echo mode (UI mash-clicks must not serialize on echo waits);
-   list-queries (`get_available_inputs`/`apps`) move off the action path to the read surface; the
-   manifest consumes the §6 param-descriptor projection (same function as the catalog). Phase 3
-   (`/action` demotion, `/scenario/switch`+`shutdown` internalization) is acceptance-gate material,
-   not scope here.
 
 - [ ] **SCN-5** `[P0]` `[house]` — **Transition-aware manual notes (the activation-time half).** Surface a
   topology manual-node's instruction **only when its link activates** in a transition — e.g. the Dodocus
@@ -475,6 +464,7 @@ endpoint).
   - **Sequence-form caveat — RESOLVED 2026-07-04 (VWB-17 DONE):** the canonical endpoint now routes `sequence`-form actions (shared `CapabilityAction.expand()` — per-step param translation, inter-step `delay_after_ms`, mid-sequence failure naming the step). Crossover fixtures may cover sequence-form actions freely.
   - Spec: `wb-mqtt-voice/docs/design/mqtt_integration.md` §14.
 
+- [ ] **VWB-19** `[P2]` `[later]` — **Route `select`-form capabilities through the canonical endpoint.** Surfaced during SCN-7 (filed 2026-07-04): the canonical dispatcher walks `cap.actions` only, so a capability whose invocation lives in **`select`** (parametric `command`+`param_map` like LG's `set_input_source`, or `by_value` like the IR amp's `input_cd`/`input_aux2`) is **not reachable canonically** — voice cannot switch inputs («переключи на CD»), and the UI's input/app dropdown *selection* stays on the native `/action` path (the enumeration half already moved to `GET /devices/{id}/options/*` in SCN-7). Design sketch: canonical `input.set {value}` resolves via `select` (parametric → rename+dispatch; `by_value` → value-table lookup, honoring canonical/wire translation); catalog then advertises `set` on select-capabilities (today it advertises none of them — that's why this never bit the crossover fixtures). Not house-gating: the v1 voice command set has no input switching, and the UI path works natively. Natural trigger: the first voice input-switching feature, or the `/action` demotion decision at the acceptance gate.
 
 ### UI — config-ui
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useExecuteDeviceAction, useDeviceState as useDeviceStateQuery } from './useApi';
+import { fetchDeviceOptions, useExecuteDeviceAction, useDeviceState as useDeviceStateQuery } from './useApi';
 import type { DropdownOption, RemoteDeviceStructure } from '../types/RemoteControlLayout';
 
 // NOTE: This file uses optimized dependency arrays to prevent infinite re-renders.
@@ -9,7 +9,8 @@ import type { DropdownOption, RemoteDeviceStructure } from '../types/RemoteContr
 // Layer-3 static-vs-fetch is decided by the manifest's `populationMethod` (the renderer is
 // class-agnostic — no deviceClass branching):
 //   "commands" -> options are inline in the manifest; selecting executes `option.id` directly.
-//   "api"      -> fetch the list at runtime via the dropdown's `apiAction`; select via the manifest's
+//   "api"      -> fetch the list at runtime via GET /devices/{id}/options/{inputs|apps} (SCN-7:
+//                 option enumeration is a READ, not an action); select via the manifest's
 //                 `setAction`, sending the value under the manifest's `setParam`.
 
 interface UseInputsDataResult {
@@ -34,17 +35,15 @@ export function useInputsData(deviceStructure: RemoteDeviceStructure): UseInputs
   const [inputs, setInputs] = useState<DropdownOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const executeActionQuery = useExecuteDeviceAction();
 
   // Decide static-vs-fetch from the manifest's populationMethod (class-agnostic). For scenarios the
   // dropdown's sourceDeviceId is the role device to fetch/gate against (else this device).
-  const { hasInputsCapability, isCommands, commandOptions, apiAction, targetDeviceId } = useMemo(() => {
+  const { hasInputsCapability, isCommands, commandOptions, targetDeviceId } = useMemo(() => {
     const dd = deviceStructure.remoteZones.find(zone => zone.zoneId === 'media-stack')?.content?.inputsDropdown;
     return {
       hasInputsCapability: dd != null,
       isCommands: dd?.populationMethod === 'commands',
       commandOptions: dd?.options ?? [],
-      apiAction: dd?.apiAction ?? null,
       // No dropdown → no device to gate against (empty id disables the query). Without a dropdown a
       // scenario would otherwise fall back to its own id and fetch /devices/{scenario}/state → 404.
       targetDeviceId: dd ? (dd.sourceDeviceId ?? deviceStructure.deviceId) : '',
@@ -62,13 +61,6 @@ export function useInputsData(deviceStructure: RemoteDeviceStructure): UseInputs
       hasDeviceState: !!deviceState,
     };
   }, [(deviceState as any)?.power, (deviceState as any)?.connected, !!deviceState]);
-
-  // Stabilize executeAction with useCallback to prevent dependency changes
-  const executeAction = useCallback(
-    (params: { deviceId: string; action: { action: string; params: Record<string, unknown> } }) =>
-      executeActionQuery.mutateAsync(params),
-    [executeActionQuery.mutateAsync]
-  );
 
   const fetchInputs = useCallback(async () => {
     setLoading(true);
@@ -107,10 +99,8 @@ export function useInputsData(deviceStructure: RemoteDeviceStructure): UseInputs
         return;
       }
 
-      const response = await executeAction({
-        deviceId: targetDeviceId,
-        action: { action: apiAction ?? 'get_available_inputs', params: {} },
-      });
+      // SCN-7: option enumeration rides the read surface (GET), not the action path.
+      const response = await fetchDeviceOptions(targetDeviceId, 'inputs');
 
       if (response.success && Array.isArray(response.data)) {
         const inputOptions: DropdownOption[] = response.data.map((input: any) => ({
@@ -135,8 +125,6 @@ export function useInputsData(deviceStructure: RemoteDeviceStructure): UseInputs
     hasInputsCapability,
     isCommands,
     JSON.stringify(commandOptions),
-    apiAction,
-    executeAction,
     devicePower,
     deviceConnected,
     hasDeviceState,
@@ -161,16 +149,14 @@ export function useAppsData(deviceStructure: RemoteDeviceStructure): UseAppsData
   const [apps, setApps] = useState<DropdownOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const executeActionQuery = useExecuteDeviceAction();
 
   // For scenarios, the apps dropdown's sourceDeviceId is the role device to fetch/gate against.
-  const { hasAppsCapability, isCommands, commandOptions, apiAction, targetDeviceId } = useMemo(() => {
+  const { hasAppsCapability, isCommands, commandOptions, targetDeviceId } = useMemo(() => {
     const dd = deviceStructure.remoteZones.find(zone => zone.zoneId === 'apps')?.content?.appsDropdown;
     return {
       hasAppsCapability: dd != null,
       isCommands: dd?.populationMethod === 'commands',
       commandOptions: dd?.options ?? [],
-      apiAction: dd?.apiAction ?? null,
       // No dropdown → no device to gate against (empty id disables the query). Without a dropdown a
       // scenario would otherwise fall back to its own id and fetch /devices/{scenario}/state → 404.
       targetDeviceId: dd ? (dd.sourceDeviceId ?? deviceStructure.deviceId) : '',
@@ -186,12 +172,6 @@ export function useAppsData(deviceStructure: RemoteDeviceStructure): UseAppsData
       hasDeviceState: !!deviceState,
     };
   }, [(deviceState as any)?.power, (deviceState as any)?.connected, !!deviceState]);
-
-  const executeAction = useCallback(
-    (params: { deviceId: string; action: { action: string; params: Record<string, unknown> } }) =>
-      executeActionQuery.mutateAsync(params),
-    [executeActionQuery.mutateAsync]
-  );
 
   const fetchApps = useCallback(async () => {
     setLoading(true);
@@ -228,10 +208,8 @@ export function useAppsData(deviceStructure: RemoteDeviceStructure): UseAppsData
         return;
       }
 
-      const response = await executeAction({
-        deviceId: targetDeviceId,
-        action: { action: apiAction ?? 'get_available_apps', params: {} },
-      });
+      // SCN-7: option enumeration rides the read surface (GET), not the action path.
+      const response = await fetchDeviceOptions(targetDeviceId, 'apps');
 
       if (response.success && Array.isArray(response.data)) {
         const appOptions: DropdownOption[] = response.data.map((app: any) => ({
@@ -256,8 +234,6 @@ export function useAppsData(deviceStructure: RemoteDeviceStructure): UseAppsData
     hasAppsCapability,
     isCommands,
     JSON.stringify(commandOptions),
-    apiAction,
-    executeAction,
     appDevicePower,
     appDeviceConnected,
     appHasDeviceState,

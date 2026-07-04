@@ -15,10 +15,12 @@ skin-agnostic; see `ui_backend_contract.md` "Icons"): this engine emits placehol
 the renderer overrides via its `IconResolver`; the manifest `icon` field is only an optional
 override.
 """
+from types import SimpleNamespace
 from typing import Any, Dict, List, Literal, Optional, Tuple, cast
 
 from wb_mqtt_bridge.domain.scenarios.proxy import SCENARIO_ROLE_DOMAIN
 from wb_mqtt_bridge.domain.capabilities.models import Capability, CapabilityMap
+from wb_mqtt_bridge.presentation.api.param_projection import project_params
 from wb_mqtt_bridge.presentation.api.layout_manifest import (
     ActionIcon,
     DropdownConfig,
@@ -60,21 +62,25 @@ def _humanize(name: str) -> str:
     return name.replace("_", " ").title()
 
 
-def _parameters(cmd: Any) -> List[ProcessedParameter]:
+def _parameters(cmd: Any, fixed_params: Optional[Dict[str, Any]] = None) -> List[ProcessedParameter]:
+    """Native-name view of the shared §6 param projection (`param_projection.py`) — the
+    SAME code path that feeds the catalog's canonical view (VWB-15), so UI and voice
+    metadata cannot drift. Params fixed by the capability action are excluded: they are
+    values the UI *sends* (`ProcessedAction.params`), not knobs the user sets."""
+    fixed_holder = SimpleNamespace(params=fixed_params or {}, param_map={})
     out: List[ProcessedParameter] = []
-    for p in (getattr(cmd, "params", None) or []):
-        ptype = getattr(p, "type", "string")
-        normalized_type = ptype if ptype in _PARAM_TYPES else "string"
+    for d in project_params(cmd, fixed_holder, canonical_names=False):
+        normalized_type = d["type"] if d["type"] in _PARAM_TYPES else "string"
         out.append(ProcessedParameter(
-            name=p.name,
+            name=d["name"],
             # _PARAM_TYPES is the Literal-aligned set; pyright doesn't narrow
             # `ptype if ptype in <set> else <literal>` to the Literal union.
             type=cast(Literal["range", "string", "integer", "boolean"], normalized_type),
-            required=bool(getattr(p, "required", False)),
-            default=getattr(p, "default", None),
-            min=getattr(p, "min", None),
-            max=getattr(p, "max", None),
-            description=getattr(p, "description", "") or "",
+            required=d["required"],
+            default=d["default"],
+            min=d["min"],
+            max=d["max"],
+            description=d["description"],
         ))
     return out
 
@@ -89,7 +95,7 @@ def _action(device: Any, command: str, fixed_params: Optional[Dict[str, Any]] = 
         action_name=command,
         display_name=_humanize(getattr(cmd, "action", None) or command),
         description=getattr(cmd, "description", "") or "",
-        parameters=_parameters(cmd),
+        parameters=_parameters(cmd, fixed_params),
         group="default",
         # placeholder icon/uiHints — oracle-exact material icons are a follow-on
         icon=ActionIcon(icon_library="fallback", icon_name=command, fallback_icon=command, confidence=0.0),
@@ -267,25 +273,37 @@ def build_device_manifest(device: Any) -> LayoutManifest:
     # collect content per zoneId (media-stack aggregates input/playback/tracks)
     content: Dict[str, ZoneContent] = {zid: ZoneContent() for zid in _ZONE_META}
 
+    # SCN-7: every action-backed control carries its canonical (capability, action)
+    # tuple so the UI dispatches POST /devices/{id}/canonical (the select-form
+    # dropdowns stay on the native path — select is not canonically routable yet).
     if "power" in caps:
         content["power"] = _power_content(device, caps["power"])
+        _tag_source(content["power"], None, "power", _canonical_reverse_map(caps["power"]))
     media = content["media-stack"]
     if "input" in caps:
         media.inputs_dropdown = _inputs_dropdown(device, caps["input"])
     if "playback" in caps:
         media.playback_section = _playback_content(device, caps["playback"])
+        for a in media.playback_section.actions:
+            _tag_action(a, None, "playback", _canonical_reverse_map(caps["playback"]))
     if "tracks" in caps:
         media.tracks_section = _tracks_content(device, caps["tracks"])
+        for a in media.tracks_section.actions:
+            _tag_action(a, None, "tracks", _canonical_reverse_map(caps["tracks"]))
     if "volume" in caps:
         content["volume"] = _volume_content(device, caps["volume"])
+        _tag_source(content["volume"], None, "volume", _canonical_reverse_map(caps["volume"]))
     if "menu" in caps:
         content["menu"] = _menu_content(device, caps["menu"])
+        _tag_source(content["menu"], None, "menu", _canonical_reverse_map(caps["menu"]))
     if "screen" in caps:
         content["screen"] = _screen_content(device, caps["screen"])
+        _tag_source(content["screen"], None, "screen", _canonical_reverse_map(caps["screen"]))
     if "apps" in caps:
         content["apps"] = ZoneContent(apps_dropdown=_apps_dropdown(device, caps["apps"]))
     if "pointer" in caps:
         content["pointer"] = _pointer_content(device, caps["pointer"])
+        _tag_source(content["pointer"], None, "pointer", _canonical_reverse_map(caps["pointer"]))
     # TODO: multi-zone power (emotiva — cap.zones, not cap.actions)
 
     def _is_empty(c: ZoneContent) -> bool:
@@ -336,12 +354,13 @@ def _canonical_reverse_map(cap: Optional[Capability]) -> Dict[str, str]:
     return {ca.command: name for name, ca in cap.actions.items() if ca.command}
 
 
-def _tag_action(a: Optional[ProcessedAction], dev_id: str,
+def _tag_action(a: Optional[ProcessedAction], dev_id: Optional[str],
                 domain: Optional[str] = None,
                 cmd_to_action: Optional[Dict[str, str]] = None) -> None:
     if a is None:
         return
-    a.source_device_id = dev_id
+    if dev_id is not None:
+        a.source_device_id = dev_id
     if domain and cmd_to_action:
         canonical = cmd_to_action.get(a.action_name)
         if canonical is not None:
@@ -349,16 +368,17 @@ def _tag_action(a: Optional[ProcessedAction], dev_id: str,
             a.canonical_action = canonical
 
 
-def _tag_source(content: ZoneContent, dev_id: str,
+def _tag_source(content: ZoneContent, dev_id: Optional[str],
                 domain: Optional[str] = None,
                 cmd_to_action: Optional[Dict[str, str]] = None) -> None:
     """Tag every control in a zone's content with its role device (scenario sourceDeviceId
-    routing) and, when the capability is known, its canonical (capability, action) tuple
-    (SCN-6 proxy dispatch)."""
+    routing; None on device manifests, where the target is the device itself) and, when
+    the capability is known, its canonical (capability, action) tuple (SCN-6/SCN-7
+    canonical dispatch)."""
     for b in (content.power_buttons or []):
         _tag_action(b.action, dev_id, domain, cmd_to_action)
     for dd in (content.inputs_dropdown, content.apps_dropdown):
-        if dd is not None:
+        if dd is not None and dev_id is not None:
             dd.source_device_id = dev_id
     for sec in (content.playback_section, content.tracks_section):
         if sec is not None:

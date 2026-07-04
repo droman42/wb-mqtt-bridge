@@ -33,7 +33,8 @@ client is regenerated without a Python dependency.
 | `GET` | `/config/device/{id}` | The typed device config (the discriminated-union shape the UI codegen consumes). |
 | `GET` | `/config/devices` | All device configs, keyed by id. |
 | `POST` | `/devices/{id}/action` | The workhorse — dispatch an action through `DevicePort.execute_action`. Body: `{action, params, source}`. Returns `CommandResponse` (typed per device). |
-| `POST` | `/devices/{id}/canonical` | The capability-language dispatch — body `{capability, action, params}`, resolved through the device's capability map to the native command (or the ordered steps of a sequence-form macro, inter-step delays included). Waits briefly for the state echo and returns the post-action state. Also the seam the per-room Scenario Manager entities answer on. |
+| `POST` | `/devices/{id}/canonical` | The capability-language dispatch — body `{capability, action, params, wait}`, resolved through the device's capability map to the native command (or the ordered steps of a sequence-form macro, inter-step delays included). With `wait` (the default) it holds briefly for the state echo and returns the post-action state — what a voice assistant speaks back; the web UI sends `wait: false` so rapid button presses fire-and-return. Also the seam the per-room Scenario Manager entities answer on. |
+| `GET` | `/devices/{id}/options/{inputs\|apps}` | Option enumeration as a read: the available-inputs / installed-apps list, resolved through the capability's declared `list` query. Populates the UI dropdowns; keeps the action path purely imperative. |
 | `GET` | `/devices/{id}/layout` | The backend-served runtime **layout manifest** — what UI controls go where, in which zones, in what order. The UI renders it; nothing about placement is baked into the UI bundle. |
 
 ### Scenarios

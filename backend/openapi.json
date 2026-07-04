@@ -671,7 +671,7 @@
         "type": "object"
       },
       "CanonicalActionRequest": {
-        "description": "Voice-side request to invoke a canonical (capability, action, params) tuple.",
+        "description": "Request to invoke a canonical (capability, action, params) tuple — the one\nactuation grammar for voice AND the UI (canonical-first, SCN-7).",
         "properties": {
           "action": {
             "description": "Action within the capability (e.g. 'on', 'set', 'up').",
@@ -695,6 +695,12 @@
             ],
             "description": "Canonical parameter names (renamed to native via the capability's param_map).",
             "title": "Params"
+          },
+          "wait": {
+            "default": true,
+            "description": "Wait for the value-topic echo and return post-action state (voice wants a speakable result). False = fire-and-return-current-state (the UI's mash-click mode — button presses must not serialize on echo waits).",
+            "title": "Wait",
+            "type": "boolean"
           }
         },
         "required": [
@@ -4167,6 +4173,60 @@
           }
         },
         "summary": "Get Device Layout",
+        "tags": [
+          "Devices"
+        ]
+      }
+    },
+    "/devices/{device_id}/options/{kind}": {
+      "get": {
+        "description": "Option enumeration as a READ (SCN-7): the dropdown population that used to ride\n`POST /devices/{id}/action` (`get_available_inputs`/`get_available_apps`) moves to\nthe read surface, keeping the canonical action path purely imperative. Resolves the\ncapability's declared `list` query and executes it internally (`source=\"system\"`,\nso a dormant/`exposed:false` list command still answers). Returns the driver's\nresult envelope unchanged (`{success, data: [...]}`).",
+        "operationId": "get_device_options_devices__device_id__options__kind__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "title": "Device Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Device Options Devices  Device Id  Options  Kind  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Device Options",
         "tags": [
           "Devices"
         ]

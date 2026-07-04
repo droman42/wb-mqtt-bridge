@@ -319,6 +319,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/devices/{device_id}/options/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Device Options
+         * @description Option enumeration as a READ (SCN-7): the dropdown population that used to ride
+         *     `POST /devices/{id}/action` (`get_available_inputs`/`get_available_apps`) moves to
+         *     the read surface, keeping the canonical action path purely imperative. Resolves the
+         *     capability's declared `list` query and executes it internally (`source="system"`,
+         *     so a dormant/`exposed:false` list command still answers). Returns the driver's
+         *     result envelope unchanged (`{success, data: [...]}`).
+         */
+        get: operations["get_device_options_devices__device_id__options__kind__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/devices/{device_id}/persisted_state": {
         parameters: {
             query?: never;
@@ -1343,7 +1368,8 @@ export interface components {
         };
         /**
          * CanonicalActionRequest
-         * @description Voice-side request to invoke a canonical (capability, action, params) tuple.
+         * @description Request to invoke a canonical (capability, action, params) tuple — the one
+         *     actuation grammar for voice AND the UI (canonical-first, SCN-7).
          */
         CanonicalActionRequest: {
             /**
@@ -1363,6 +1389,12 @@ export interface components {
             params?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Wait
+             * @description Wait for the value-topic echo and return post-action state (voice wants a speakable result). False = fire-and-return-current-state (the UI's mash-click mode — button presses must not serialize on echo waits).
+             * @default true
+             */
+            wait: boolean;
         };
         /**
          * CanonicalActionResponse
@@ -2947,6 +2979,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LayoutManifest"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_device_options_devices__device_id__options__kind__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: string;
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

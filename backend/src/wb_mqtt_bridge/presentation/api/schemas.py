@@ -88,12 +88,19 @@ class DeviceActionsResponse(BaseModel):
 
 
 class CanonicalActionRequest(BaseModel):
-    """Voice-side request to invoke a canonical (capability, action, params) tuple."""
+    """Request to invoke a canonical (capability, action, params) tuple — the one
+    actuation grammar for voice AND the UI (canonical-first, SCN-7)."""
     capability: str = Field(..., description="Canonical capability name (e.g. 'power', 'volume', 'cover').")
     action: str = Field(..., description="Action within the capability (e.g. 'on', 'set', 'up').")
     params: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Canonical parameter names (renamed to native via the capability's param_map).",
+    )
+    wait: bool = Field(
+        default=True,
+        description="Wait for the value-topic echo and return post-action state (voice wants "
+                    "a speakable result). False = fire-and-return-current-state (the UI's "
+                    "mash-click mode — button presses must not serialize on echo waits).",
     )
 
 

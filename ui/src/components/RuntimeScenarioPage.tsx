@@ -75,7 +75,7 @@ export function RuntimeScenarioPage({ scenarioId }: { scenarioId: string }) {
     // without a canonical entity (older bridge).
     if (action === 'power_on') {
       if (canonicalEntityId) {
-        executeCanonical.mutate({ deviceId: canonicalEntityId, request: { capability: 'scenario', action: 'set', params: { value: scenarioId } } });
+        executeCanonical.mutate({ deviceId: canonicalEntityId, request: { capability: 'scenario', action: 'set', params: { value: scenarioId }, wait: true } });
       } else {
         switchScenario.mutate({ id: scenarioId, graceful: true });
       }
@@ -84,7 +84,7 @@ export function RuntimeScenarioPage({ scenarioId }: { scenarioId: string }) {
     }
     if (action === 'power_off') {
       if (canonicalEntityId) {
-        executeCanonical.mutate({ deviceId: canonicalEntityId, request: { capability: 'scenario', action: 'off' } });
+        executeCanonical.mutate({ deviceId: canonicalEntityId, request: { capability: 'scenario', action: 'off', wait: true } });
       } else {
         shutdownScenario.mutate({ scenarioId, graceful: true });
       }
@@ -99,7 +99,8 @@ export function RuntimeScenarioPage({ scenarioId }: { scenarioId: string }) {
     // manifest's native param names arrive unchanged at the handler.
     const canonical = targetDeviceId ? canonicalByAction.get(`${targetDeviceId}:${action}`) : undefined;
     if (canonical && canonicalEntityId) {
-      executeCanonical.mutate({ deviceId: canonicalEntityId, request: { capability: canonical.capability, action: canonical.action, params } });
+      // wait:false (SCN-7): fire-and-return — button presses must not serialize on echo waits.
+      executeCanonical.mutate({ deviceId: canonicalEntityId, request: { capability: canonical.capability, action: canonical.action, params, wait: false } });
       addLog({ level: 'info', message: `Canonical: ${canonical.capability}.${canonical.action} -> ${canonicalEntityId}`, details: params });
       return;
     }

@@ -475,6 +475,17 @@ async def execute_canonical_action(device_id: str, payload: CanonicalActionReque
             if step.delay_after_ms and i < total - 1:
                 await asyncio.sleep(step.delay_after_ms / 1000)
 
+        # wait:false (SCN-7 — the UI's mash-click mode): fire-and-return-current-state.
+        # No echo wait, no reachability verdict — the UI reads live state via SSE anyway,
+        # and serializing rapid button presses on ~500ms echo waits would wreck the UX.
+        if not payload.wait:
+            state = device.state.model_dump() if hasattr(device.state, "model_dump") else dict(device.state)
+            return CanonicalActionResponse(
+                success=True, device_id=response_device_id,
+                capability=payload.capability, action=payload.action,
+                state=state, error=None, executed_on=executed_on,
+            )
+
         # No-op short-circuit (single-step actions only — the WB-passthrough semantics).
         # The driver flags `data.no_op = True` when the device is already at the requested
         # value -- the publish goes out but no echo lands, so waiting would 503
@@ -521,6 +532,40 @@ async def execute_canonical_action(device_id: str, payload: CanonicalActionReque
         callbacks = getattr(device, "_state_change_callbacks", None)
         if callbacks is not None and _waiter in callbacks:
             callbacks.remove(_waiter)
+
+
+_OPTIONS_KIND_TO_CAPABILITY = {"inputs": "input", "apps": "apps"}
+
+
+@router.get("/devices/{device_id}/options/{kind}", response_model=Dict[str, Any])
+async def get_device_options(device_id: str, kind: str):
+    """Option enumeration as a READ (SCN-7): the dropdown population that used to ride
+    `POST /devices/{id}/action` (`get_available_inputs`/`get_available_apps`) moves to
+    the read surface, keeping the canonical action path purely imperative. Resolves the
+    capability's declared `list` query and executes it internally (`source="system"`,
+    so a dormant/`exposed:false` list command still answers). Returns the driver's
+    result envelope unchanged (`{success, data: [...]}`)."""
+    if not device_manager:
+        raise HTTPException(status_code=503, detail="Service not fully initialized")
+    capability = _OPTIONS_KIND_TO_CAPABILITY.get(kind)
+    if capability is None:
+        raise HTTPException(status_code=404, detail=f"Unknown options kind {kind!r} (inputs | apps)")
+    device = device_manager.get_device(device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail=f"Device {device_id!r} not found")
+    cap_map = getattr(device, "capabilities", None)
+    cap = cap_map.get(capability) if cap_map else None
+    list_action = getattr(cap, "list", None) if cap else None
+    if list_action is None or not list_action.command:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Device {device_id!r} declares no '{capability}.list' query",
+        )
+    try:
+        result = await device.execute_action(list_action.command, {}, source="system")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Option query failed: {e}")
+    return result if isinstance(result, dict) else {"success": True, "data": result}
 
 
 @router.get("/devices/{device_id}/layout", response_model=LayoutManifest, response_model_exclude_none=True)

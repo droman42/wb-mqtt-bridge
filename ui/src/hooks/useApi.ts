@@ -196,6 +196,14 @@ export const useExecuteCanonicalAction = () => {
   });
 };
 
+// SCN-7 — option enumeration is a READ. Dropdown population (available inputs / apps)
+// fetches GET /devices/{id}/options/{kind} instead of POSTing a get_available_* action;
+// the response keeps the driver's result envelope ({success, data: [...]}).
+export const fetchDeviceOptions = (deviceId: string, kind: 'inputs' | 'apps') =>
+  api
+    .get<{ success?: boolean; data?: unknown; error?: string }>(`/devices/${deviceId}/options/${kind}`)
+    .then(res => res.data);
+
 // Room hooks
 export const useRooms = () => {
   return useQuery({
