@@ -99,7 +99,7 @@ def scenario_dir(tmp_path):
 
     movie_scenario = {
         "scenario_id": "movie_night",
-        "name": "Movie Night",
+        "names": {"ru": "Кино", "en": "Movie Night"},
         "description": "Optimal settings for watching movies",
         "room_id": "living_room",
         "roles": {"screen": "tv", "audio": "soundbar"},

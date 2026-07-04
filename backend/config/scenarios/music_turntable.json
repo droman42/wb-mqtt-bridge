@@ -1,6 +1,5 @@
 {
   "scenario_id": "music_turntable",
-  "name": "Music — Kuzma turntable",
   "description": "Play the Kuzma Stabi S turntable through the amplifier (manual source)",
   "room_id": "living_room",
   "source": "kuzma",

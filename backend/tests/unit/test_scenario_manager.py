@@ -16,7 +16,7 @@ pytestmark = pytest.mark.unit
 SAMPLE_SCENARIOS = {
     "movie_mode": {
         "scenario_id": "movie_mode",
-        "name": "Movie Mode",
+        "names": {"ru": "Кино", "en": "Movie Mode"},
         "description": "Optimized for movie watching",
         "room_id": "living_room",
         "roles": {"screen": "tv", "audio": "soundbar"},
@@ -27,7 +27,7 @@ SAMPLE_SCENARIOS = {
     },
     "reading_mode": {
         "scenario_id": "reading_mode",
-        "name": "Reading Mode",
+        "names": {"ru": "Чтение", "en": "Reading Mode"},
         "description": "Comfortable lighting for reading",
         "room_id": "living_room",
         "roles": {"lighting": "lights"},
@@ -222,13 +222,13 @@ class TestScenarioManager:
 
         # Check that ScenarioDefinition objects were created correctly
         movie_def = scenario_manager.scenario_definitions["movie_mode"]
-        assert movie_def.name == "Movie Mode"
+        assert movie_def.names.en == "Movie Mode"
         assert movie_def.room_id == "living_room"
         assert movie_def.source == "tv"
         assert len(movie_def.roles) == 2
 
         reading_def = scenario_manager.scenario_definitions["reading_mode"]
-        assert reading_def.name == "Reading Mode"
+        assert reading_def.names.en == "Reading Mode"
         assert reading_def.room_id == "living_room"
         assert reading_def.source == "lights"
         assert len(reading_def.roles) == 1
@@ -244,7 +244,7 @@ class TestScenarioManager:
         scenario_dir.mkdir(exist_ok=True)
         (scenario_dir / "sourceless.json").write_text(json.dumps({
             "scenario_id": "sourceless",
-            "name": "No Source",
+            "names": {"ru": "Без источника", "en": "No Source"},
             "roles": {},
             "devices": ["tv"],
         }))

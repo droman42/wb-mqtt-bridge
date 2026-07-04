@@ -2414,13 +2414,8 @@ export interface components {
             display?: string | null;
             /** @description Instructions requiring human intervention */
             manual_instructions?: components["schemas"]["wb_mqtt_bridge__domain__scenarios__models__ManualInstructions"] | null;
-            /**
-             * Name
-             * @description Human-readable name (legacy flat string; kept as the en fallback)
-             */
-            name: string;
-            /** @description Localized display names (ru/en required when present, extra locales allowed) — the voice surface for scenario activation (VWB-20/G3: «включи кино» needs a Russian label on the scenario enum). Falls back to `name` when absent. */
-            names?: components["schemas"]["LocalizedName"] | null;
+            /** @description Localized display names (ru/en required, extra locales allowed) — the display surface everywhere (UI navbar, manifest title) and the voice surface for scenario activation (VWB-20/G3: «включи кино» needs a Russian label). Replaces the legacy flat `name` (dropped in SCN-8, mirroring the device `device_name` → `names` migration). */
+            names: components["schemas"]["LocalizedName"];
             /**
              * Roles
              * @description Mapping of role name to device ID

@@ -65,7 +65,7 @@ def _device(device_id, cap_dict, room="living_room"):
 def _scenario(scenario_id, room, roles, source="amp"):
     return {
         "scenario_id": scenario_id,
-        "name": scenario_id.replace("_", " ").title(),
+        "names": {"ru": scenario_id, "en": scenario_id.replace("_", " ").title()},
         "room_id": room,
         "roles": roles,
         "source": source,

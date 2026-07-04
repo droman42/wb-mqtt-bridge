@@ -21,7 +21,7 @@ except ImportError:
     # Default sample scenario if not available (thin format: source/display/audio)
     SAMPLE_SCENARIO = {
         "scenario_id": "test_scenario",
-        "name": "Test Scenario",
+        "names": {"ru": "Тестовый сценарий", "en": "Test Scenario"},
         "description": "A test scenario",
         "roles": {"main_display": "tv", "audio": "soundbar"},
         "devices": ["tv", "soundbar"],

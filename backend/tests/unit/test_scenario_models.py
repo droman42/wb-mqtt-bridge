@@ -32,7 +32,7 @@ class TestScenarioDefinition:
     def test_valid_scenario(self):
         scenario = ScenarioDefinition(
             scenario_id="test_scenario",
-            name="Test Scenario",
+            names={"ru": "Тест", "en": "Test Scenario"},
             description="A test scenario",
             room_id="living_room",
             roles={"screen": "device1"},
@@ -42,7 +42,7 @@ class TestScenarioDefinition:
         )
 
         assert scenario.scenario_id == "test_scenario"
-        assert scenario.name == "Test Scenario"
+        assert scenario.names.en == "Test Scenario"
         assert scenario.description == "A test scenario"
         assert scenario.room_id == "living_room"
         assert scenario.roles == {"screen": "device1"}
@@ -57,7 +57,7 @@ class TestScenarioDefinition:
         with pytest.raises(ValueError, match="Role 'screen' references device 'device2' which is not in devices"):
             ScenarioDefinition(
                 scenario_id="test_scenario",
-                name="Test Scenario",
+                names={"ru": "Тест", "en": "Test Scenario"},
                 roles={"screen": "device2"},  # device2 not in devices
                 devices=["device1"],
             )
@@ -65,7 +65,7 @@ class TestScenarioDefinition:
         # Test with valid references
         valid = ScenarioDefinition(
             scenario_id="test_scenario",
-            name="Test Scenario",
+            names={"ru": "Тест", "en": "Test Scenario"},
             roles={"screen": "device1"},
             devices=["device1"],
         )
@@ -76,7 +76,7 @@ class TestScenarioDefinition:
         # resolved against the DeviceManager at load time, not the model.
         thin = ScenarioDefinition(
             scenario_id="thin_scenario",
-            name="Thin Scenario",
+            names={"ru": "Тонкий", "en": "Thin Scenario"},
             roles={"screen": "device1"},
             source="device2",
         )

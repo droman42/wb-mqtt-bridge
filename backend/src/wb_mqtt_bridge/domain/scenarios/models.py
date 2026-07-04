@@ -43,12 +43,13 @@ class ScenarioDefinition(BaseModel):
     See docs/design/scenarios/scenario_system_redesign.md §6.
     """
     scenario_id: str = Field(..., min_length=1, description="Unique identifier for the scenario")
-    name: str = Field(..., description="Human-readable name (legacy flat string; kept as the en fallback)")
-    names: Optional[LocalizedName] = Field(
-        default=None,
-        description="Localized display names (ru/en required when present, extra locales allowed) — "
-                    "the voice surface for scenario activation (VWB-20/G3: «включи кино» needs a "
-                    "Russian label on the scenario enum). Falls back to `name` when absent.",
+    names: LocalizedName = Field(
+        ...,
+        description="Localized display names (ru/en required, extra locales allowed) — the display "
+                    "surface everywhere (UI navbar, manifest title) and the voice surface for "
+                    "scenario activation (VWB-20/G3: «включи кино» needs a Russian label). "
+                    "Replaces the legacy flat `name` (dropped in SCN-8, mirroring the device "
+                    "`device_name` → `names` migration).",
     )
     description: str = Field(default="", description="Description of the scenario's purpose")
     room_id: Optional[str] = Field(

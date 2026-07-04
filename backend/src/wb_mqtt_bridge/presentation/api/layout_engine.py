@@ -502,7 +502,8 @@ def build_scenario_manifest(scenario_def: Any, device_manager: Any) -> LayoutMan
     room_id = getattr(scenario_def, "room_id", None)
     return LayoutManifest(
         device_id=scenario_def.scenario_id,
-        device_name=getattr(scenario_def, "name", None) or scenario_def.scenario_id,
+        # Russian rendering, matching device manifests (cfg.names.ru) — SCN-8.
+        device_name=scenario_def.names.ru,
         device_class="ScenarioDevice",
         remote_zones=zones,
         entity_kind="scenario",

@@ -36,7 +36,7 @@ pytestmark = pytest.mark.integration
 SAMPLE_SCENARIOS = {
     "movie_night": {
         "scenario_id": "movie_night",
-        "name": "Movie Night",
+        "names": {"ru": "Кино", "en": "Movie Night"},
         "description": "Optimal settings for watching movies",
         "room_id": "living_room",
         "roles": {"screen": "tv", "audio": "soundbar"},
@@ -47,7 +47,7 @@ SAMPLE_SCENARIOS = {
     },
     "reading_mode": {
         "scenario_id": "reading_mode",
-        "name": "Reading Mode",
+        "names": {"ru": "Чтение", "en": "Reading Mode"},
         "description": "Comfortable lighting for reading",
         "room_id": "living_room",
         "roles": {"lighting": "lights"},
@@ -162,7 +162,7 @@ def test_get_scenario_definition_success(client):
     assert response.status_code == 200
     data = response.json()
     assert data["scenario_id"] == "movie_night"
-    assert data["name"] == "Movie Night"
+    assert data["names"]["en"] == "Movie Night"
     assert data["room_id"] == "living_room"
     assert "roles" in data
     assert "devices" in data

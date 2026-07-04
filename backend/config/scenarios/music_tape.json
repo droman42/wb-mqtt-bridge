@@ -1,6 +1,5 @@
 {
   "scenario_id": "music_tape",
-  "name": "Music — Revox B215 tape deck",
   "description": "Play the Revox B215 cassette deck through the amplifier (manual source)",
   "room_id": "living_room",
   "source": "b215",

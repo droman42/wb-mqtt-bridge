@@ -10,7 +10,7 @@ pytestmark = pytest.mark.unit
 # the imperative startup/shutdown-sequence format was removed by the dead-code sweep).
 SAMPLE_SCENARIO = {
     "scenario_id": "test_scenario",
-    "name": "Test Scenario",
+    "names": {"ru": "Тестовый сценарий", "en": "Test Scenario"},
     "description": "A test scenario",
     "room_id": "living_room",
     "roles": {"main_display": "tv", "audio": "soundbar"},

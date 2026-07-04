@@ -1,6 +1,5 @@
 {
   "scenario_id": "movie_vhs",
-  "name": "Watch movies on VHS",
   "description": "Setup for watching movies with optimal audio and video settings",
   "room_id": "living_room",
   "source": "vhs_player",

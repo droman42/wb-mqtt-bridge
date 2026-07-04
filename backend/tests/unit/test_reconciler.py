@@ -136,7 +136,7 @@ def test_diff_skips_already_satisfied():
 
 def test_resolve_ld_path_emits_manual_step_and_cd_input():
     ld = ScenarioDefinition(
-        scenario_id="movie_ld", name="LD",
+        scenario_id="movie_ld", names={"ru": "LD", "en": "LD"},
         source="ld_player", display="living_room_tv", audio="mf_amplifier",
     )
     input_targets, _source_targets, involved, manual_steps, warnings = resolve_targets(ld, TOPOLOGY)
@@ -165,7 +165,7 @@ def test_manual_source_node_anchors_path_without_being_controlled():
             ],
         }
     )
-    scn = ScenarioDefinition(scenario_id="m", name="m", source="turntable", audio="amp")
+    scn = ScenarioDefinition(scenario_id="m", names={"ru": "m", "en": "m"}, source="turntable", audio="amp")
     input_targets, _source_targets, involved, manual_steps, warnings = resolve_targets(scn, topo)
 
     assert input_targets == {"amp": "cd"}        # sink input resolved through the manual source
@@ -199,7 +199,7 @@ def test_ordering_edge_delay_becomes_pre_delay():
         "sink": SimpleNamespace(capabilities=cap_sink,
                                 get_current_state=lambda: SimpleNamespace(power="off", input=None)),
     }
-    scenario = ScenarioDefinition(scenario_id="s", name="s", source="src", display="sink")
+    scenario = ScenarioDefinition(scenario_id="s", names={"ru": "s", "en": "s"}, source="src", display="sink")
     plan = build_plan(scenario, topo, devices)
 
     sink_input = _find(plan, "sink", "input")

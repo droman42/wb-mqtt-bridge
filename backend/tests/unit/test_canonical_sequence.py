@@ -172,7 +172,7 @@ async def test_proxy_executes_sequence_actions(tmp_path):
     scenario_dir = tmp_path / "scenarios"
     scenario_dir.mkdir()
     (scenario_dir / "movie.json").write_text(_json.dumps({
-        "scenario_id": "movie", "name": "Movie", "room_id": "living_room",
+        "scenario_id": "movie", "names": {"ru": "Кино", "en": "Movie"}, "room_id": "living_room",
         "roles": {"playback": "ld"}, "source": "ld",
     }))
 

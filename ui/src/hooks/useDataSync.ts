@@ -82,9 +82,10 @@ export const useDataSync = () => {
     if (scenariosSuccess && scenariosData) {
       const scenarios = scenariosData.map((scenario) => ({
         id: scenario.scenario_id,
+        // Localized names are real since SCN-8 (ScenarioDefinition.names, ru/en required).
         name: {
-          en: scenario.name,
-          ru: scenario.name, // API doesn't seem to have translations yet
+          en: scenario.names.en,
+          ru: scenario.names.ru,
         },
         description: scenario.description ? {
           en: scenario.description,

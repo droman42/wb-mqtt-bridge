@@ -199,13 +199,12 @@ def _project_scenario_managers(scenario_proxy: Any) -> list[CatalogDevice]:
         return out
     for room_id in scenario_proxy.rooms():
         defs = scenario_proxy.room_scenarios(room_id)
-        # Localized labels (VWB-20/G3): scenario `names` (ru/en + extras) is the voice
-        # surface — «включи кино» needs a Russian label; the legacy flat `name` remains
-        # the en fallback for scenarios not yet migrated.
+        # Localized labels (VWB-20/G3): scenario `names` (ru/en + extras, required since
+        # SCN-8) is the voice surface — «включи кино» needs a Russian label.
         value_table = [
             CatalogValueLabel(
                 wire=d.scenario_id, canonical=d.scenario_id,
-                labels=(d.names.model_dump() if d.names is not None else {"en": d.name}),
+                labels=d.names.model_dump(),
             )
             for d in defs
         ]

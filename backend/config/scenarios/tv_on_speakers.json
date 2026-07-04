@@ -1,6 +1,5 @@
 {
   "scenario_id": "tv_on_speakers",
-  "name": "TV on speakers",
   "description": "Watch the TV's own apps (IVI, browser, live TV, etc.) with audio routed through the eMotiva and the Musical Fidelity amp via HDMI ARC. The TV is the source; the processor's HDMI ARC return carries the TV's audio back into the AV chain. ARC engagement is automatic on processor power-up when the TV is on its internal mode (Home / any non-HDMI app).",
   "room_id": "living_room",
   "source": "living_room_tv",

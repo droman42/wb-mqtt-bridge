@@ -16,6 +16,18 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-04 (filed + executed + closed: SCN-8 — the flat scenario `name` dropped, `names` is the one surface)** —
+  User asked "why do we need `name` at all?" right after VWB-20 gave scenarios localized `names` —
+  and the answer was: we don't. Only two consumers existed, both better served: the scenario
+  manifest title (now `names.ru`, matching device manifests) and the UI's `useDataSync`, which had
+  been FAKING localization from the flat string with the comment "API doesn't seem to have
+  translations yet" — now consuming real ru/en, so the navbar finally shows «Кино с Apple TV» to
+  the Russian-speaking household. Done the same day `names` was born, so no third naming dialect
+  ever shipped (the device `device_name` → `names` migration precedent, followed to the letter).
+  9 configs dropped `name`; ~12 test fixture sites swept; golden catalog content UNCHANGED (labels
+  already flowed from `names`); openapi + pin + UI types regenerated. Suite 522; pyright 0;
+  contracts 3/3; UI green.
+
 - **2026-07-04 (executed + closed: VWB-20 — contract patch v1.1, PRE-PIN; voice may pin)** — Landed
   hours after filing, inside the shape-change window. **G1:** typed `CatalogParam`
   (…/`unit`/`values`/`options_from`) replaces the schema-free dicts; both producers unified (the §6

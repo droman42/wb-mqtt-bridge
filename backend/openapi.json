@@ -3040,21 +3040,9 @@
             ],
             "description": "Instructions requiring human intervention"
           },
-          "name": {
-            "description": "Human-readable name (legacy flat string; kept as the en fallback)",
-            "title": "Name",
-            "type": "string"
-          },
           "names": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/LocalizedName"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Localized display names (ru/en required when present, extra locales allowed) — the voice surface for scenario activation (VWB-20/G3: «включи кино» needs a Russian label on the scenario enum). Falls back to `name` when absent."
+            "$ref": "#/components/schemas/LocalizedName",
+            "description": "Localized display names (ru/en required, extra locales allowed) — the display surface everywhere (UI navbar, manifest title) and the voice surface for scenario activation (VWB-20/G3: «включи кино» needs a Russian label). Replaces the legacy flat `name` (dropped in SCN-8, mirroring the device `device_name` → `names` migration)."
           },
           "roles": {
             "additionalProperties": {
@@ -3097,7 +3085,7 @@
         },
         "required": [
           "scenario_id",
-          "name"
+          "names"
         ],
         "title": "ScenarioDefinition",
         "type": "object"

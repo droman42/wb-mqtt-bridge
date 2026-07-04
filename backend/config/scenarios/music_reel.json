@@ -1,6 +1,5 @@
 {
   "scenario_id": "music_reel",
-  "name": "Music — Revox A77 reel-to-reel",
   "description": "Play the Revox A77 reel-to-reel through the amplifier",
   "room_id": "living_room",
   "source": "reel_to_reel",
