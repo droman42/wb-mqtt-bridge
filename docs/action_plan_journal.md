@@ -16,6 +16,22 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-04 (filed + executed + closed: DRV-9 — kitchen_hood capability map)** — Interactive
+  session at the user's direction ("right now, don't want to wait for the entire DRV-1"); closes the
+  coverage gap CORE-2 surfaced this afternoon. Three design decisions put to the user, all resolved
+  to the recommended option: **(1)** domains `light` + `fan` (not `power`+fan — the appliance's power
+  is neither function, so a generic power-off can never half-kill it); **(2)** fan as parametric
+  `set(level 0–4)` + `off` shortcut (the `brightness.set` precedent, not enum-select); **(3)**
+  `reconcile: false` on both (upscaler precedent — appliance-only, no topology path, reconciler
+  hands off). Authored `config/capabilities/classes/BroadlinkKitchenHood.json` with the enum triplet
+  (`on`/`off` + ru/en labels) on the mirrored `light` field and an int `speed` field for the catalog.
+  WB output stays byte-identical (explicit `wb_controls` keep meta precedence — locked by the
+  existing `test_wb_rekey` oracle row). New shape test; suite 488 passing, contracts 3/3.
+  **Milestone:** every shipped device instance now resolves a capability map (5 AV classes + 5 IR
+  device maps + 57 profiled passthroughs + hood) — acceptance-gate item 1 annotated satisfied for
+  the current fleet. Stale "capability-less kitchen_hood" comments corrected in `wb_device/service.py`
+  and `devices/base.py`.
+
 - **2026-07-04 (executed + closed: CORE-2 — dead-code sweep)** — Same-day execution of the sweep
   filed this morning. **Removed:** the entire legacy imperative scenario path (`scenario.py` shrank
   ~330 lines: startup/shutdown executors, string-condition evaluator, `_validate_parameters` and its

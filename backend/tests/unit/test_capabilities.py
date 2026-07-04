@@ -56,6 +56,47 @@ def test_mf_amp_device_map_toggle_power_and_value_mapped_input():
     assert m.get("input").gate.delay_ms == 500
 
 
+def test_kitchen_hood_class_map_light_and_fan():
+    """The hood is appliance-only: two exposed-but-never-reconciled domains (DRV-9).
+
+    `light` rides set_light with fixed state params; `fan` is parametric set_speed
+    (level 0-4) with an `off` shortcut. Both reconcile:false — the hood lives in no
+    topology path, the reconciler must never drive it. Every referenced command
+    must exist in the device config (the bootstrap exposure check's invariant).
+    """
+    m = load_capability_map("BroadlinkKitchenHood", "kitchen_hood", CAPS)
+    assert set(m.domains()) == {"light", "fan"}
+
+    light = m.get("light")
+    assert light.reconcile is False and light.feedback is False
+    assert light.state_field == "light" and light.on_value == "on"
+    assert light.actions["on"].command == "set_light"
+    assert light.actions["on"].params == {"state": "on"}
+    assert light.actions["off"].params == {"state": "off"}
+    # enum triplet on the mirrored field (catalog surface)
+    (field,) = light.fields
+    assert field.type == "enum"
+    assert {v.canonical for v in field.values} == {"on", "off"}
+
+    fan = m.get("fan")
+    assert fan.reconcile is False
+    assert fan.state_field == "speed"
+    assert fan.actions["set"].command == "set_speed"
+    assert fan.actions["set"].param_map == {"level": "level"}
+    assert fan.actions["off"].params == {"level": 0}
+
+    # No `power` domain by design: the appliance's power is neither the light nor
+    # the fan, so a generic power_off can never half-kill it by accident.
+    assert "power" not in m.domains()
+
+    # Referenced native commands all exist in the device config.
+    cfg = json.loads(
+        (CAPS.parent / "devices" / "kitchen_hood.json").read_text(encoding="utf-8")
+    )
+    referenced = {a.command for cap in (light, fan) for a in cap.actions.values()}
+    assert referenced <= set(cfg["commands"])
+
+
 def test_device_file_deep_merges_over_class_default(tmp_path):
     (tmp_path / "classes").mkdir()
     (tmp_path / "devices").mkdir()

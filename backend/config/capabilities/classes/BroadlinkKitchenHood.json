@@ -1,0 +1,43 @@
+{
+  "light": {
+    "kind": "stateful",
+    "feedback": false,
+    "reconcile": false,
+    "state_field": "light",
+    "on_value": "on",
+    "actions": {
+      "on":  { "command": "set_light", "params": { "state": "on" } },
+      "off": { "command": "set_light", "params": { "state": "off" } }
+    },
+    "gate": { "delay_ms": 500 },
+    "fields": [
+      {
+        "name": "light",
+        "type": "enum",
+        "values": [
+          { "wire": "on",  "canonical": "on",  "labels": { "ru": "вкл",  "en": "on" } },
+          { "wire": "off", "canonical": "off", "labels": { "ru": "выкл", "en": "off" } }
+        ],
+        "labels": { "ru": "подсветка", "en": "light" }
+      }
+    ]
+  },
+  "fan": {
+    "kind": "stateful",
+    "feedback": false,
+    "reconcile": false,
+    "state_field": "speed",
+    "actions": {
+      "set": { "command": "set_speed", "param_map": { "level": "level" } },
+      "off": { "command": "set_speed", "params": { "level": 0 } }
+    },
+    "gate": { "delay_ms": 500 },
+    "fields": [
+      {
+        "name": "speed",
+        "type": "int",
+        "labels": { "ru": "скорость вентилятора", "en": "fan speed" }
+      }
+    ]
+  }
+}

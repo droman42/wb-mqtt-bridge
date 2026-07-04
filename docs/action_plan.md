@@ -594,9 +594,12 @@ code/models/config behind — budget real time for this; do not skip it.
 1. **All devices migrated.** Capability maps exist for **every** driver class and device instance,
    not just the `movie_appletv` set + IR fleet built first — check `streamer` (Auralic),
    `reel_to_reel` (Revox), `kitchen_hood` (appliance), `children_room_tv`/`appletv_children`, etc.
-2. **All scenarios migrated.** Every scenario is thin (`source/display/audio`) and reconciler-driven;
-   no legacy `startup_sequence`/`shutdown_sequence` escape-hatch left unless deliberately kept (and
-   documented why).
+   *Satisfied for the current fleet as of 2026-07-04 (DRV-9 mapped the last gap, `kitchen_hood`;
+   verified: 5 AV classes + 5 IR device maps + all 57 WB-passthroughs carry profiles). Re-confirm
+   at the gate pass in case the fleet grew.*
+2. **All scenarios migrated.** Every scenario is thin (`source/display/audio`) and reconciler-driven —
+   the legacy `startup_sequence`/`shutdown_sequence` format was **removed** (CORE-2, 2026-07-04);
+   a scenario without a thin `source` is now rejected at load.
 3. **UI works for everything.** Every device page **and** every scenario page renders and functions
    under the runtime model (Layer 3); `manual_steps` are displayed; nothing depends on the retired
    build-time codegen.

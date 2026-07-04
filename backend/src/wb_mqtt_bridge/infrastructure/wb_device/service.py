@@ -394,10 +394,10 @@ class WBVirtualDeviceService:
           command's ``exposed`` flag. A command is excluded iff it's ``exposed: false`` (dormant) or
           its domain is UI-only (``pointer``). The domain (aliased) feeds the type/order heuristics.
         - **without** (capability-less path): exclusion is ``exposed`` only and there is no
-          classification — control type/order come from explicit ``wb_controls`` or params. Used by
-          capability-less devices that still enable WB emulation (e.g. the ``kitchen_hood``
-          appliance) and by the state-field→control mapping, which enumerates controls without
-          capability context.
+          classification — control type/order come from explicit ``wb_controls`` or params. Every
+          shipped device now has a capability map (kitchen_hood was the last, DRV-9); this path
+          remains for the state-field→control mapping, which enumerates controls without
+          capability context, and as the safety net for a not-yet-mapped config.
         """
         if isinstance(config, dict):
             commands = config.get("commands", {})
@@ -420,10 +420,11 @@ class WBVirtualDeviceService:
                 # through to the "no domain to classify" path naturally.
                 classification = _DOMAIN_GROUP_ALIAS.get(domain, domain) if domain is not None else None
             else:
-                # Capability-less path: a device without a capability map that still enables WB
-                # (e.g. the kitchen_hood appliance). No domain to classify by, so exclusion is
-                # `exposed` only and the control type/order come from explicit `wb_controls`
-                # (or params); there is no `classification`.
+                # Capability-less path: no domain to classify by, so exclusion is `exposed`
+                # only and the control type/order come from explicit `wb_controls` (or params);
+                # there is no `classification`. Reached by the state-field→control mapping
+                # (which enumerates controls without capability context) and by any
+                # not-yet-mapped config.
                 exposed = getattr(cmd_config, 'exposed', True) if not isinstance(cmd_config, dict) else cmd_config.get('exposed', True)
                 if not exposed:
                     logger.debug(f"Skipping WB control: {cmd_name} (exposed=False)")
