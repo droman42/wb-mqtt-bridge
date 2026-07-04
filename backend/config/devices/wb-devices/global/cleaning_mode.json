@@ -1,0 +1,32 @@
+{
+  "device_id": "cleaning_mode",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {
+    "ru": "Режим уборки",
+    "en": "Cleaning Mode",
+    "de": "Reinigungsmodus"
+  },
+  "capability_profile": "cleaning_mode",
+  "room": "global",
+  "commands": {
+    "start_cleaning": {
+      "topic": "/devices/leakage_settings/controls/cleaning/on",
+      "value": "1"
+    },
+    "set_arm_delay": {
+      "topic": "/devices/leakage_settings/controls/arm_delay/on",
+      "params": [
+        {
+          "name": "minutes",
+          "type": "integer",
+          "required": true,
+          "description": "Disarm duration in minutes"
+        }
+      ]
+    }
+  },
+  "state_topics": {
+    "arm_delay": "/devices/leakage_settings/controls/arm_delay"
+  }
+}

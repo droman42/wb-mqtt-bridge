@@ -1,0 +1,30 @@
+{
+  "heating_season": {
+    "kind": "stateful",
+    "feedback": true,
+    "reconcile": false,
+    "state_field": "heating",
+    "actions": {
+      "on":  { "command": "heating_on" },
+      "off": { "command": "heating_off" }
+    },
+    "fields": [
+      { "name": "heating", "type": "bool",
+        "labels": { "ru": "отопление", "en": "heating season" } }
+    ]
+  },
+  "cooling_season": {
+    "kind": "stateful",
+    "feedback": true,
+    "reconcile": false,
+    "state_field": "cooling",
+    "actions": {
+      "on":  { "command": "cooling_on" },
+      "off": { "command": "cooling_off" }
+    },
+    "fields": [
+      { "name": "cooling", "type": "bool",
+        "labels": { "ru": "кондиционеры", "en": "cooling season" } }
+    ]
+  }
+}

@@ -1084,6 +1084,30 @@ These require user disclosure regardless. A staged UI could surface them as
 
 ## 6. Sessions log (timestamped checkpoints)
 
+- **2026-07-04** — **Global-room session (VWB-10): 8 devices, 5 new profiles.** Scope redefined
+  by the user at session start: not just the planned aggregates — the **existing global fleet**
+  (alarms, water blocks, seasonal/presence masters) too. **Process hybrid, new pattern:** existing
+  controller devices used the classic paste flow (WB-UI widget JSONs → terse Q&A → config); the
+  `all_lights` aggregate **inverted the flow** — nothing exists controller-side yet, so the bridge
+  config *defines the contract* (`/devices/all_lights/controls/power`) and a **drafted wb-rule**
+  (`wb-rules/all_lights.js`: virtual device + 36-light fan-out across the light_switch +
+  dimmable_light configs of all rooms) implements the listening side — deployment/verification =
+  user tech debt, but no longer unwritten. **Devices:** `all_lights` + `all_plugs` + `oven_power`
+  (light_switch profile reused — it's a generic power-switch shape), `cleaning_mode`
+  (leakage_settings: momentary УБОРКА + arm_delay minutes), `heating_control` (wb-mwac_46:
+  2 collector-branch valves + writable alarm + 5 read-only circuit indicators), `water_supply`
+  (wb-mwac_54: cold/hot valves + alarm + 3 leak zones), `seasonal_mode`
+  (heating_season/cooling_season), `home_mode` (presence home/away — flagged as the
+  highest-consequence future voice command; wants confirm-before-execute on the Irene side).
+  **Rules learned/confirmed:** (1) **passthrough capabilities are ALWAYS profiles** — even a family
+  of one (`cleaning_mode` was briefly mis-filed as a `devices/` override; user corrected);
+  (2) semantic domain names for master switches (`heating_season`, `presence`) beat generic `power`
+  — keeps future voice vocabulary unambiguous vs the per-room `heating_loop`s; (3) fields-only
+  domains (sensor_room pattern) work for indicator clusters (`circuits`, `leaks`). **Known gaps:**
+  `arm_delay` min/max unread (control meta not pasted); `leak_*`/`radiator_*` F-input naming is
+  semantic inference (user-confirmed pattern, not meta-verified); `oven_power` sits in `global` —
+  may re-home to `kitchen` if voice context favors it. Suite green after every device (488
+  throughout).
 - **2026-06-08** — Sessions 4–7 (rapid pace): bedroom (11) + kitchen (4) + entrance (3)
   + hall (3) + shower (6 incl. sauna sensors) + bathroom (5) + wardrobe (2) =
   **34 devices added** across 7 rooms in one continuous run. Profile changes: cover

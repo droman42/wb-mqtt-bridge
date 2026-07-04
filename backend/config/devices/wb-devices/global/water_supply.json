@@ -1,0 +1,46 @@
+{
+  "device_id": "water_supply",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {
+    "ru": "Водоснабжение",
+    "en": "Water Supply",
+    "de": "Wasserversorgung"
+  },
+  "capability_profile": "water_supply",
+  "room": "global",
+  "commands": {
+    "cold_open": {
+      "topic": "/devices/wb-mwac_54/controls/K1/on",
+      "value": "1"
+    },
+    "cold_close": {
+      "topic": "/devices/wb-mwac_54/controls/K1/on",
+      "value": "0"
+    },
+    "hot_open": {
+      "topic": "/devices/wb-mwac_54/controls/K2/on",
+      "value": "1"
+    },
+    "hot_close": {
+      "topic": "/devices/wb-mwac_54/controls/K2/on",
+      "value": "0"
+    },
+    "alarm_on": {
+      "topic": "/devices/wb-mwac_54/controls/Alarm/on",
+      "value": "1"
+    },
+    "alarm_off": {
+      "topic": "/devices/wb-mwac_54/controls/Alarm/on",
+      "value": "0"
+    }
+  },
+  "state_topics": {
+    "alarm": "/devices/wb-mwac_54/controls/Alarm",
+    "k_cold": "/devices/wb-mwac_54/controls/K1",
+    "k_hot": "/devices/wb-mwac_54/controls/K2",
+    "leak_kitchen": "/devices/wb-mwac_54/controls/F1",
+    "leak_wc": "/devices/wb-mwac_54/controls/F2",
+    "leak_bathroom": "/devices/wb-mwac_54/controls/F3"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "cleaning": {
+    "kind": "stateful",
+    "feedback": true,
+    "reconcile": false,
+    "state_field": "arm_delay",
+    "actions": {
+      "start": { "command": "start_cleaning" },
+      "set_delay": { "command": "set_arm_delay", "param_map": { "minutes": "minutes" } }
+    },
+    "fields": [
+      {
+        "name": "arm_delay",
+        "type": "int",
+        "unit": "min",
+        "labels": { "ru": "длительность", "en": "duration" }
+      }
+    ]
+  }
+}

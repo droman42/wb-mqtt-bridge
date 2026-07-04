@@ -1,0 +1,25 @@
+{
+  "device_id": "home_mode",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {
+    "ru": "Дома",
+    "en": "At Home",
+    "de": "Zuhause"
+  },
+  "capability_profile": "home_mode",
+  "room": "global",
+  "commands": {
+    "set_home": {
+      "topic": "/devices/power_lvl_switch/controls/at_home/on",
+      "value": "1"
+    },
+    "set_away": {
+      "topic": "/devices/power_lvl_switch/controls/at_home/on",
+      "value": "0"
+    }
+  },
+  "state_topics": {
+    "at_home": "/devices/power_lvl_switch/controls/at_home"
+  }
+}

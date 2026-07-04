@@ -16,6 +16,23 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-04 (executed + closed: VWB-10 — the global room: 8 devices, 5 profiles, all_lights rule drafted)** —
+  Interactive session; the user redefined scope at start (not just aggregates — the existing global
+  fleet too). **Hybrid process, both halves now recorded in `docs/wb_device_authoring_log.md` §6:**
+  existing controller devices rode the classic paste flow (WB-UI widget JSON → terse Q&A → config +
+  profile); the `all_lights` aggregate inverted it — the bridge config *defines* the contract
+  (`/devices/all_lights/controls/power`, wb-rules virtual device to be deployed) and
+  **`wb-rules/all_lights.js` was drafted** (virtual device + fan-out over all 36 true lights
+  harvested from the light_switch/dimmable_light configs; deployment = user tech debt, now written
+  down instead of owed). Onboarded: `all_lights`, `all_plugs`, `oven_power` (light_switch reuse),
+  `cleaning_mode`, `heating_control`, `water_supply`, `seasonal_mode`, `home_mode` (new profiles for
+  the last five; `presence.away` flagged as the highest-consequence future voice command).
+  `all_blinds` not shipped — absent from the voice command set. Convention correction mid-session
+  (now a memory + log rule): **passthrough capabilities are ALWAYS profiles**, even singletons;
+  `capabilities/devices/` stays IR/AV-only. Suite 488 green after every device; ledger: VWB-10 →
+  DONE. The `global` room is no longer conceptually empty — the VWB-13 catalog sweep and the VWB-15
+  golden both get a real whole-house section now.
+
 - **2026-07-04 (amendment: per-room Scenario Managers — `canonical_first.md` §3/§4, SCN-6 rescoped)** —
   User's note right after SCN-4 closed: there will be **two scenario sets** (living room now, children
   room in a future round) with **concurrently** active scenarios. The design's mechanisms generalize —

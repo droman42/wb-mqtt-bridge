@@ -1,0 +1,16 @@
+{
+  "presence": {
+    "kind": "stateful",
+    "feedback": true,
+    "reconcile": false,
+    "state_field": "at_home",
+    "actions": {
+      "home": { "command": "set_home" },
+      "away": { "command": "set_away" }
+    },
+    "fields": [
+      { "name": "at_home", "type": "bool",
+        "labels": { "ru": "дома", "en": "at home" } }
+    ]
+  }
+}

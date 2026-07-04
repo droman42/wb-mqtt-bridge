@@ -1,0 +1,61 @@
+{
+  "alarm": {
+    "kind": "stateful",
+    "feedback": true,
+    "reconcile": false,
+    "state_field": "alarm",
+    "actions": {
+      "on":  { "command": "alarm_on" },
+      "off": { "command": "alarm_off" }
+    },
+    "fields": [
+      { "name": "alarm", "type": "bool",
+        "labels": { "ru": "авария", "en": "alarm" } }
+    ]
+  },
+  "valve_1": {
+    "kind": "stateful",
+    "feedback": true,
+    "reconcile": false,
+    "state_field": "k1",
+    "actions": {
+      "on":  { "command": "valve1_open" },
+      "off": { "command": "valve1_close" }
+    },
+    "fields": [
+      { "name": "k1", "type": "bool",
+        "labels": { "ru": "кран 1", "en": "collector branch 1" } }
+    ]
+  },
+  "valve_2": {
+    "kind": "stateful",
+    "feedback": true,
+    "reconcile": false,
+    "state_field": "k2",
+    "actions": {
+      "on":  { "command": "valve2_open" },
+      "off": { "command": "valve2_close" }
+    },
+    "fields": [
+      { "name": "k2", "type": "bool",
+        "labels": { "ru": "кран 2", "en": "collector branch 2" } }
+    ]
+  },
+  "circuits": {
+    "kind": "stateful",
+    "feedback": true,
+    "reconcile": false,
+    "fields": [
+      { "name": "collector", "type": "bool",
+        "labels": { "ru": "коллектор", "en": "collector" } },
+      { "name": "radiator_living_l", "type": "bool",
+        "labels": { "ru": "радиатор гостиная (левый)", "en": "living room radiator L" } },
+      { "name": "radiator_living_r", "type": "bool",
+        "labels": { "ru": "радиатор гостиная (правый)", "en": "living room radiator R" } },
+      { "name": "radiator_children", "type": "bool",
+        "labels": { "ru": "радиатор детская", "en": "children room radiator" } },
+      { "name": "radiator_bedroom", "type": "bool",
+        "labels": { "ru": "радиатор спальня", "en": "bedroom radiator" } }
+    ]
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "device_id": "heating_control",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {
+    "ru": "Отопление",
+    "en": "Heating",
+    "de": "Heizung"
+  },
+  "capability_profile": "heating_control",
+  "room": "global",
+  "commands": {
+    "valve1_open": {
+      "topic": "/devices/wb-mwac_46/controls/K1/on",
+      "value": "1"
+    },
+    "valve1_close": {
+      "topic": "/devices/wb-mwac_46/controls/K1/on",
+      "value": "0"
+    },
+    "valve2_open": {
+      "topic": "/devices/wb-mwac_46/controls/K2/on",
+      "value": "1"
+    },
+    "valve2_close": {
+      "topic": "/devices/wb-mwac_46/controls/K2/on",
+      "value": "0"
+    },
+    "alarm_on": {
+      "topic": "/devices/wb-mwac_46/controls/Alarm/on",
+      "value": "1"
+    },
+    "alarm_off": {
+      "topic": "/devices/wb-mwac_46/controls/Alarm/on",
+      "value": "0"
+    }
+  },
+  "state_topics": {
+    "alarm": "/devices/wb-mwac_46/controls/Alarm",
+    "k1": "/devices/wb-mwac_46/controls/K1",
+    "k2": "/devices/wb-mwac_46/controls/K2",
+    "collector": "/devices/wb-mwac_46/controls/F1",
+    "radiator_living_l": "/devices/wb-mwac_46/controls/F2",
+    "radiator_living_r": "/devices/wb-mwac_46/controls/F3",
+    "radiator_children": "/devices/wb-mwac_46/controls/S1",
+    "radiator_bedroom": "/devices/wb-mwac_46/controls/S2"
+  }
+}

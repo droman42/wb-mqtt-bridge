@@ -1,0 +1,57 @@
+{
+  "alarm": {
+    "kind": "stateful",
+    "feedback": true,
+    "reconcile": false,
+    "state_field": "alarm",
+    "actions": {
+      "on":  { "command": "alarm_on" },
+      "off": { "command": "alarm_off" }
+    },
+    "fields": [
+      { "name": "alarm", "type": "bool",
+        "labels": { "ru": "авария", "en": "alarm" } }
+    ]
+  },
+  "valve_cold": {
+    "kind": "stateful",
+    "feedback": true,
+    "reconcile": false,
+    "state_field": "k_cold",
+    "actions": {
+      "on":  { "command": "cold_open" },
+      "off": { "command": "cold_close" }
+    },
+    "fields": [
+      { "name": "k_cold", "type": "bool",
+        "labels": { "ru": "кран ХВС", "en": "cold water valve" } }
+    ]
+  },
+  "valve_hot": {
+    "kind": "stateful",
+    "feedback": true,
+    "reconcile": false,
+    "state_field": "k_hot",
+    "actions": {
+      "on":  { "command": "hot_open" },
+      "off": { "command": "hot_close" }
+    },
+    "fields": [
+      { "name": "k_hot", "type": "bool",
+        "labels": { "ru": "кран ГВС", "en": "hot water valve" } }
+    ]
+  },
+  "leaks": {
+    "kind": "stateful",
+    "feedback": true,
+    "reconcile": false,
+    "fields": [
+      { "name": "leak_kitchen", "type": "bool",
+        "labels": { "ru": "протечка кухня", "en": "kitchen leak" } },
+      { "name": "leak_wc", "type": "bool",
+        "labels": { "ru": "протечка санузел", "en": "WC leak" } },
+      { "name": "leak_bathroom", "type": "bool",
+        "labels": { "ru": "протечка ванная", "en": "bathroom leak" } }
+    ]
+  }
+}

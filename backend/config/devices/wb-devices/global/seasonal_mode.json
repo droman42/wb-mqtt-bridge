@@ -1,0 +1,34 @@
+{
+  "device_id": "seasonal_mode",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {
+    "ru": "Сезонный режим",
+    "en": "Seasonal Mode",
+    "de": "Saisonmodus"
+  },
+  "capability_profile": "seasonal_mode",
+  "room": "global",
+  "commands": {
+    "heating_on": {
+      "topic": "/devices/seasonal_switch/controls/heating/on",
+      "value": "1"
+    },
+    "heating_off": {
+      "topic": "/devices/seasonal_switch/controls/heating/on",
+      "value": "0"
+    },
+    "cooling_on": {
+      "topic": "/devices/seasonal_switch/controls/cooling/on",
+      "value": "1"
+    },
+    "cooling_off": {
+      "topic": "/devices/seasonal_switch/controls/cooling/on",
+      "value": "0"
+    }
+  },
+  "state_topics": {
+    "heating": "/devices/seasonal_switch/controls/heating",
+    "cooling": "/devices/seasonal_switch/controls/cooling"
+  }
+}

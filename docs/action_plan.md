@@ -481,8 +481,6 @@ endpoint).
 
 - **Voice control (Yandex Alisa) — out of scope here.** SprutHub was a stopgap and is **dropped** (2026-05-20). The plan is to rely on **Wirenboard's future native Alisa bridge**; because this system already exposes every foreign device as a WB virtual device, those devices become voice-controllable for free once that bridge ships. (The two former SprutHub backlog items are retired.)
 
-- [ ] **VWB-10** `[P0]` `[house]` — **Aggregate devices in `global`** — author the v1 aggregate device configs the supported voice command set needs (`all_lights` first; cross-reference `wb-mqtt-voice` to decide whether `all_blinds` also ships in v1). Each is a normal `WbPassthroughDevice` config with `room: "global"`, `capability_profile: "light_switch"` (or matching profile), and a `commands.power_*` topic that points at a WB virtual control the wb-rules scene listens on. **Controller-side wb-rules fan-out scenes are user tech debt** — out of scope for this bridge work; the bridge only registers the aggregate device.
-
 - [ ] **VWB-12** `[P1]` `[house]` — `wb-msw-v3_*` sensor side — decide unified config (IR + `sensor`) vs split entry; implement.
 
 - [ ] **VWB-13** `[P1]` `[house]` — Catalog completeness sweep + bulk end-to-end verification across rooms (including each `global` aggregate device's canonical call landing on the broker, even if its wb-rules backing is still owed).

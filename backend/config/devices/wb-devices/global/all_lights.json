@@ -1,0 +1,25 @@
+{
+  "device_id": "all_lights",
+  "device_class": "WbPassthroughDevice",
+  "config_class": "WbPassthroughDeviceConfig",
+  "names": {
+    "ru": "Весь свет",
+    "en": "All Lights",
+    "de": "Alle Lichter"
+  },
+  "capability_profile": "light_switch",
+  "room": "global",
+  "commands": {
+    "power_on": {
+      "topic": "/devices/all_lights/controls/power/on",
+      "value": "1"
+    },
+    "power_off": {
+      "topic": "/devices/all_lights/controls/power/on",
+      "value": "0"
+    }
+  },
+  "state_topics": {
+    "power": "/devices/all_lights/controls/power"
+  }
+}
