@@ -27,6 +27,8 @@ from wb_mqtt_bridge.infrastructure.persistence.sqlite import SQLiteStateStore
 from wb_mqtt_bridge.infrastructure.wb_device.service import WBVirtualDeviceService
 from wb_mqtt_bridge.domain.rooms.service import RoomManager
 from wb_mqtt_bridge.domain.scenarios.service import ScenarioManager
+from wb_mqtt_bridge.domain.scenarios.proxy import ScenarioProxy
+from wb_mqtt_bridge.infrastructure.scenarios.wb_adapter import ScenarioWBAdapter
 from wb_mqtt_bridge.infrastructure.capabilities.loader import attach_capability_maps, validate_command_exposure
 from wb_mqtt_bridge.infrastructure.maintenance.wirenboard_guard import WirenboardMaintenanceGuard
 
@@ -283,14 +285,23 @@ def create_app() -> FastAPI:
         await scenario_manager.initialize()
         logger.info("Scenario manager initialized")
 
-        # Scenario <-> Wirenboard integration is NOT implemented. The previous adapter (publish each
-        # scenario as a WB virtual device) was dormant + orphaned and was DELETED at the Layer-3
-        # cutover (WB re-key step 3). A clean replacement requires a design decision first — see
-        # action_plan.md P4 "Scenario <-> Wirenboard integration" (now MANDATORY before any rebuild).
+        # Scenario <-> Wirenboard integration (SCN-6, canonical_first.md §3-§4): one
+        # Scenario Manager entity per scenario-bearing room. The domain proxy resolves
+        # role -> device at fire time for REST/UI/WB alike; the WB adapter renders each
+        # entity as a «Сценарии» card and keeps its value topic tracking the room slot.
+        scenario_proxy = ScenarioProxy(scenario_manager, device_manager)
+        scenario_wb_adapter = ScenarioWBAdapter(scenario_proxy, wb_service, mqtt_client)
+        if connection_success:
+            try:
+                await scenario_wb_adapter.setup()
+            except Exception as e:
+                logger.error(f"Failed to set up scenario WB cards: {str(e)}")
+        else:
+            logger.warning("MQTT not connected - scenario WB cards skipped")
 
         # Initialize routers with dependencies
-        system.initialize(config_manager, device_manager, mqtt_client, state_store, scenario_manager, room_manager)
-        devices.initialize(config_manager, device_manager, mqtt_client)
+        system.initialize(config_manager, device_manager, mqtt_client, state_store, scenario_manager, room_manager, scenario_proxy)
+        devices.initialize(config_manager, device_manager, mqtt_client, scenario_proxy)
         mqtt.initialize(mqtt_client)
         scenarios.initialize(scenario_manager, room_manager, mqtt_client)
         rooms.initialize(room_manager)

@@ -154,14 +154,72 @@ def _content_hash(rooms: list[CatalogRoom], devices: list[CatalogDevice]) -> str
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
 
-def build_catalog(device_manager: Any, room_manager: Any) -> CatalogResponse:
+def _project_scenario_managers(scenario_proxy: Any) -> list[CatalogDevice]:
+    """SCN-6: one Scenario Manager entity per scenario-bearing room
+    (`scenario_manager_<room_id>`, canonical_first.md §3). Carries:
+
+    - the `scenario` capability — `set(value)` over the room's scenario-id enum
+      (labels from the scenario names) + `off`, plus a `scenario` enum field whose
+      value table is the ids + `none` (the WB card's value topic mirrors this);
+    - the STATIC UNION of inheritable domains (volume/playback/…): action-name union
+      over the room's scenarios' role-bound devices. Static per config — the catalog
+      stays byte-stable across scenario switches; an unbound domain 409s at fire time.
+    """
+    out: list[CatalogDevice] = []
+    if scenario_proxy is None:
+        return out
+    for room_id in scenario_proxy.rooms():
+        defs = scenario_proxy.room_scenarios(room_id)
+        value_table = [
+            CatalogValueLabel(wire=d.scenario_id, canonical=d.scenario_id,
+                              labels={"en": d.name})
+            for d in defs
+        ]
+        scenario_cap = CatalogCapability(
+            name="scenario",
+            actions=[
+                CatalogAction(name="set", params=[{
+                    "name": "value", "type": "enum",
+                    "values": [v.model_dump() for v in value_table],
+                }]),
+                CatalogAction(name="off", params=None),
+            ],
+            fields=[CatalogField(
+                name="scenario", type="enum",
+                values=value_table + [CatalogValueLabel(
+                    wire="none", canonical="none",
+                    labels={"ru": "выключено", "en": "off"},
+                )],
+                labels={"ru": "сценарий", "en": "scenario"},
+            )],
+        )
+        inherited = [
+            CatalogCapability(
+                name=domain,
+                actions=[CatalogAction(name=a, params=None) for a in actions],
+            )
+            for domain, actions in scenario_proxy.union_actions(room_id).items()
+        ]
+        out.append(CatalogDevice(
+            id=f"scenario_manager_{room_id}",
+            names={"ru": "Сценарии", "en": "Scenarios", "de": "Szenarien"},
+            device_class="ScenarioManager",
+            room=room_id,
+            capabilities=[scenario_cap] + inherited,
+        ))
+    return out
+
+
+def build_catalog(device_manager: Any, room_manager: Any, scenario_proxy: Any = None) -> CatalogResponse:
     """Build the full catalog response from live managers. `device_manager.devices` is a
     `{device_id: device}` dict (per DeviceManager); `room_manager.list()` returns
-    RoomDefinitions (per RoomManager)."""
+    RoomDefinitions (per RoomManager); `scenario_proxy` (SCN-6) contributes the per-room
+    Scenario Manager entities."""
     rooms = _project_rooms(room_manager.list() if room_manager is not None else [])
     devices = _project_devices(
         (device_manager.devices.values() if device_manager is not None else [])
     )
+    devices = devices + _project_scenario_managers(scenario_proxy)
     return CatalogResponse(
         version=_content_hash(rooms, devices),
         rooms=rooms,

@@ -1,10 +1,15 @@
 import asyncio
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 
 from wb_mqtt_bridge.domain.devices.config import BaseDeviceConfig
+from wb_mqtt_bridge.domain.scenarios.proxy import (
+    NO_SCENARIO,
+    SCENARIO_CAPABILITY,
+    ScenarioProxyError,
+)
 from wb_mqtt_bridge.presentation.api.schemas import (
     CanonicalActionRequest,
     CanonicalActionResponse,
@@ -35,6 +40,71 @@ def _err_response(
         error=CanonicalError(code=code, message=message, field=field, reason=reason),
     )
 
+# SCN-6 proxy failure mapping: ScenarioProxyError.code -> canonical error code / HTTP status.
+_PROXY_ERROR_CODE = {
+    "no_active_scenario": CanonicalErrorCode.NO_ACTIVE_SCENARIO,
+    "role_unbound": CanonicalErrorCode.ROLE_UNBOUND,
+    "unknown_scenario": CanonicalErrorCode.DEVICE_NOT_FOUND,
+    "scenario_room_mismatch": CanonicalErrorCode.PARAM_INVALID,
+    "device_missing": CanonicalErrorCode.DEVICE_NOT_FOUND,
+}
+_PROXY_ERROR_STATUS = {
+    "no_active_scenario": 409,
+    "role_unbound": 409,
+    "unknown_scenario": 404,
+    "scenario_room_mismatch": 400,
+    "device_missing": 404,
+}
+
+
+async def _execute_scenario_capability(
+    room_id: str, entity_id: str, payload: CanonicalActionRequest
+) -> CanonicalActionResponse:
+    """The manager entity's own `scenario` capability: `set(<id>)` activates/switches
+    (reconciler diff), `off` deactivates (powers the room down). State in the response
+    is the room's active scenario id (or `none`)."""
+    assert scenario_proxy is not None
+    try:
+        if payload.action == "set":
+            value = (payload.params or {}).get("value")
+            if not isinstance(value, str) or not value:
+                resp = _err_response(
+                    entity_id, payload.capability, payload.action,
+                    CanonicalErrorCode.PARAM_INVALID,
+                    "scenario.set requires params.value = <scenario_id>",
+                    field="value", reason="missing",
+                )
+                raise HTTPException(status_code=400, detail=resp.model_dump())
+            if value == NO_SCENARIO:
+                result = await scenario_proxy.deactivate(room_id)
+            else:
+                result = await scenario_proxy.activate(room_id, value)
+        elif payload.action == "off":
+            result = await scenario_proxy.deactivate(room_id)
+        else:
+            resp = _err_response(
+                entity_id, payload.capability, payload.action,
+                CanonicalErrorCode.ACTION_NOT_SUPPORTED,
+                f"Capability 'scenario' has no action {payload.action!r} (set | off)",
+            )
+            raise HTTPException(status_code=404, detail=resp.model_dump())
+    except ScenarioProxyError as e:
+        resp = _err_response(
+            entity_id, payload.capability, payload.action,
+            _PROXY_ERROR_CODE.get(e.code, CanonicalErrorCode.INTERNAL_ERROR), str(e),
+        )
+        raise HTTPException(status_code=_PROXY_ERROR_STATUS.get(e.code, 500), detail=resp.model_dump())
+
+    return CanonicalActionResponse(
+        success=bool(result.get("success", True)),
+        device_id=entity_id,
+        capability=payload.capability,
+        action=payload.action,
+        state={"scenario": scenario_proxy.active_id(room_id), **{k: v for k, v in result.items() if k in ("powered_off", "failures")}},
+        error=None,
+    )
+
+
 # Create router with appropriate prefix and tags
 router = APIRouter(
     tags=["Devices"]
@@ -44,13 +114,16 @@ router = APIRouter(
 config_manager = None
 device_manager = None
 mqtt_client = None
+scenario_proxy = None  # ScenarioProxy (SCN-6); set by initialize()
 
-def initialize(cfg_manager, dev_manager, mqt_client):
-    """Initialize global references needed by router endpoints."""
-    global config_manager, device_manager, mqtt_client
+def initialize(cfg_manager, dev_manager, mqt_client, scenario_prx=None):
+    """Initialize global references needed by router endpoints. `scenario_prx` is the
+    per-room Scenario Manager proxy (SCN-6); None in minimal test wiring."""
+    global config_manager, device_manager, mqtt_client, scenario_proxy
     config_manager = cfg_manager
     device_manager = dev_manager
     mqtt_client = mqt_client
+    scenario_proxy = scenario_prx
 
 @router.get("/config/device/{device_id}", response_model=BaseDeviceConfig)
 async def get_device_config(device_id: str):
@@ -294,10 +367,35 @@ async def execute_canonical_action(device_id: str, payload: CanonicalActionReque
     if not device_manager:
         raise HTTPException(status_code=503, detail="Service not fully initialized")
 
+    # SCN-6 proxy seam: canonical commands at a per-room Scenario Manager entity.
+    # `scenario` capability = activation; any other capability resolves role -> device
+    # at FIRE time and falls through to the normal per-device dispatch below, with the
+    # response keeping the entity identity + `executed_on` carrying the real target.
+    response_device_id = device_id
+    executed_on: Optional[str] = None
+    if scenario_proxy is not None:
+        proxy_room = scenario_proxy.entity_room(device_id)
+        if proxy_room is not None:
+            if payload.capability == SCENARIO_CAPABILITY:
+                return await _execute_scenario_capability(proxy_room, device_id, payload)
+            try:
+                target_id, _target = scenario_proxy.resolve(proxy_room, payload.capability)
+            except ScenarioProxyError as e:
+                resp = _err_response(
+                    device_id, payload.capability, payload.action,
+                    _PROXY_ERROR_CODE.get(e.code, CanonicalErrorCode.INTERNAL_ERROR), str(e),
+                )
+                raise HTTPException(
+                    status_code=_PROXY_ERROR_STATUS.get(e.code, 500),
+                    detail=resp.model_dump(),
+                )
+            executed_on = target_id
+            device_id = target_id  # dispatch below targets the role-bound device
+
     device = device_manager.get_device(device_id)
     if not device:
         resp = _err_response(
-            device_id, payload.capability, payload.action,
+            response_device_id, payload.capability, payload.action,
             CanonicalErrorCode.DEVICE_NOT_FOUND, f"Device {device_id!r} not found",
         )
         raise HTTPException(status_code=404, detail=resp.model_dump())
@@ -306,7 +404,7 @@ async def execute_canonical_action(device_id: str, payload: CanonicalActionReque
     cap_map = getattr(device, "capabilities", None)
     if cap_map is None or payload.capability not in cap_map.root:
         resp = _err_response(
-            device_id, payload.capability, payload.action,
+            response_device_id, payload.capability, payload.action,
             CanonicalErrorCode.CAPABILITY_NOT_SUPPORTED,
             f"Device {device_id!r} does not expose capability {payload.capability!r}",
         )
@@ -315,7 +413,7 @@ async def execute_canonical_action(device_id: str, payload: CanonicalActionReque
     cap = cap_map.root[payload.capability]
     if payload.action not in cap.actions:
         resp = _err_response(
-            device_id, payload.capability, payload.action,
+            response_device_id, payload.capability, payload.action,
             CanonicalErrorCode.ACTION_NOT_SUPPORTED,
             f"Capability {payload.capability!r} has no action {payload.action!r}",
         )
@@ -326,7 +424,7 @@ async def execute_canonical_action(device_id: str, payload: CanonicalActionReque
         # `sequence` form not yet supported on the canonical endpoint; the reconciler
         # path handles those. For slice 1 every profile uses single commands.
         resp = _err_response(
-            device_id, payload.capability, payload.action,
+            response_device_id, payload.capability, payload.action,
             CanonicalErrorCode.INTERNAL_ERROR,
             f"Action {payload.action!r} on {payload.capability!r} has no native command "
             f"(sequence-form actions not yet routable via canonical endpoint)",
@@ -370,7 +468,7 @@ async def execute_canonical_action(device_id: str, payload: CanonicalActionReque
                 code = CanonicalErrorCode.INTERNAL_ERROR
                 status = 500
             resp = _err_response(
-                device_id, payload.capability, payload.action,
+                response_device_id, payload.capability, payload.action,
                 code, err_text,
             )
             raise HTTPException(status_code=status, detail=resp.model_dump())
@@ -383,16 +481,16 @@ async def execute_canonical_action(device_id: str, payload: CanonicalActionReque
         if (result.get("data") or {}).get("no_op"):
             state = device.state.model_dump() if hasattr(device.state, "model_dump") else dict(device.state)
             return CanonicalActionResponse(
-                success=True, device_id=device_id,
+                success=True, device_id=response_device_id,
                 capability=payload.capability, action=payload.action,
-                state=state, error=None,
+                state=state, error=None, executed_on=executed_on,
             )
 
         try:
             await asyncio.wait_for(state_changed.wait(), timeout=CANONICAL_ECHO_TIMEOUT_S)
         except asyncio.TimeoutError:
             resp = _err_response(
-                device_id, payload.capability, payload.action,
+                response_device_id, payload.capability, payload.action,
                 CanonicalErrorCode.DEVICE_UNREACHABLE,
                 f"No state echo within {int(CANONICAL_ECHO_TIMEOUT_S * 1000)} ms",
             )
@@ -403,7 +501,7 @@ async def execute_canonical_action(device_id: str, payload: CanonicalActionReque
         if not getattr(device.state, "reachable", True):
             err_flags = getattr(device.state, "error_flags", {})
             resp = _err_response(
-                device_id, payload.capability, payload.action,
+                response_device_id, payload.capability, payload.action,
                 CanonicalErrorCode.DEVICE_UNREACHABLE,
                 f"Device reported per-control error during the wait: {err_flags!r}",
             )
@@ -413,9 +511,9 @@ async def execute_canonical_action(device_id: str, payload: CanonicalActionReque
         # echoed value (perform_action's result snapshot was taken before the echo).
         state = device.state.model_dump() if hasattr(device.state, "model_dump") else dict(device.state)
         return CanonicalActionResponse(
-            success=True, device_id=device_id,
+            success=True, device_id=response_device_id,
             capability=payload.capability, action=payload.action,
-            state=state, error=None,
+            state=state, error=None, executed_on=executed_on,
         )
     finally:
         callbacks = getattr(device, "_state_change_callbacks", None)

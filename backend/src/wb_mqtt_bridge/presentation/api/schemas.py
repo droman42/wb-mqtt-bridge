@@ -107,6 +107,10 @@ class CanonicalErrorCode(str, Enum):
     PARAM_INVALID = "param_invalid"
     DEVICE_UNREACHABLE = "device_unreachable"
     INTERNAL_ERROR = "internal_error"
+    # SCN-6 Scenario Manager proxy codes (409): the room has no active scenario, or the
+    # active scenario binds no role for the requested capability domain.
+    NO_ACTIVE_SCENARIO = "no_active_scenario"
+    ROLE_UNBOUND = "role_unbound"
 
 
 class CanonicalError(BaseModel):
@@ -126,6 +130,7 @@ class CanonicalActionResponse(BaseModel):
     action: str
     state: Optional[Dict[str, Any]] = None
     error: Optional[CanonicalError] = None
+    executed_on: Optional[str] = None  # SCN-6: the role-bound device a Scenario Manager proxy command landed on
 
 
 # ---- GET /system/catalog DTOs ---------------------------------------------

@@ -29,16 +29,18 @@ mqtt_client = None
 state_store = None  # Keep reference to state_store
 scenario_manager = None
 room_manager = None
+scenario_proxy = None  # ScenarioProxy (SCN-6)
 
-def initialize(cfg_manager, dev_manager, mqt_client, state_st=None, scenario_mgr=None, room_mgr=None):
+def initialize(cfg_manager, dev_manager, mqt_client, state_st=None, scenario_mgr=None, room_mgr=None, scenario_prx=None):
     """Initialize global references needed by router endpoints."""
-    global config_manager, device_manager, mqtt_client, state_store, scenario_manager, room_manager
+    global config_manager, device_manager, mqtt_client, state_store, scenario_manager, room_manager, scenario_proxy
     config_manager = cfg_manager
     device_manager = dev_manager
     mqtt_client = mqt_client
     state_store = state_st  # Set the state_store reference
     scenario_manager = scenario_mgr
     room_manager = room_mgr
+    scenario_proxy = scenario_prx
 
 @router.get("/", response_model=ServiceInfo)
 async def root():
@@ -106,7 +108,7 @@ async def get_system_catalog():
     """
     if not device_manager or not room_manager:
         raise HTTPException(status_code=503, detail="Service not fully initialized")
-    return build_catalog(device_manager, room_manager)
+    return build_catalog(device_manager, room_manager, scenario_proxy)
 
 
 @router.post("/reload", response_model=ReloadResponse)
@@ -214,7 +216,7 @@ async def reload_system_task():
             # the broker carries it retained so late-joining subscribers still see it.
             if mqtt_client and device_manager and room_manager:
                 try:
-                    catalog = build_catalog(device_manager, room_manager)
+                    catalog = build_catalog(device_manager, room_manager, scenario_proxy)
                     await mqtt_client.publish(
                         CATALOG_VERSION_TOPIC, catalog.version, retain=True
                     )

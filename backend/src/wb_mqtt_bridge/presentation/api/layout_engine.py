@@ -17,6 +17,7 @@ override.
 """
 from typing import Any, Dict, List, Literal, Optional, Tuple, cast
 
+from wb_mqtt_bridge.domain.scenarios.proxy import SCENARIO_ROLE_DOMAIN
 from wb_mqtt_bridge.domain.capabilities.models import Capability, CapabilityMap
 from wb_mqtt_bridge.presentation.api.layout_manifest import (
     ActionIcon,
@@ -320,10 +321,10 @@ def build_device_manifest(device: Any) -> LayoutManifest:
 # === scenario manifest ========================================================================
 # Role -> capability domain (rendered). "inputs" is intentionally omitted: target inputs are
 # reconciler-derived from topology at activation, not a UI control (scenario_system_redesign.md §6).
-_SCENARIO_ROLE_DOMAIN: Dict[str, str] = {
-    "volume": "volume", "playback": "playback", "tracks": "tracks",
-    "menu": "menu", "screen": "screen", "apps": "apps", "pointer": "pointer",
-}
+# Role -> capability domain: single source of truth in the domain layer (SCN-6);
+# consumed here for manifest assembly and by the Scenario Manager proxy for fire-time
+# resolution.
+_SCENARIO_ROLE_DOMAIN: Dict[str, str] = SCENARIO_ROLE_DOMAIN
 
 
 def _tag_action(a: Optional[ProcessedAction], dev_id: str) -> None:

@@ -64,6 +64,10 @@ class ScenarioManager:
         self.scenario_load_errors: Dict[str, str] = {}
         # Layer 0 topology (scenario transitions route through the reconciler).
         self.topology: Topology = Topology()
+        # SCN-6: optional observer invoked with (room_id) after a room's active
+        # scenario changes (switch/deactivate). Set by the composition root to the WB
+        # card adapter's value-topic publisher; sync or async callables accepted.
+        self.on_active_changed: Optional[Any] = None
     
     async def initialize(self) -> None:
         """
@@ -294,6 +298,7 @@ class ScenarioManager:
             ManualStep(node=m.node, instruction=m.instruction) for m in activation.manual_steps
         ]
         await self._persist_state(room)
+        await self._notify_active_changed(room)
 
         failures = [
             {"device": a.device_id, "command": a.command, "error": err}
@@ -361,6 +366,17 @@ class ScenarioManager:
             logger.error(f"Error executing role action {role}.{command}: {str(e)}")
             raise
     
+    async def _notify_active_changed(self, room_id: str) -> None:
+        """Best-effort observer call after a room's active scenario changed."""
+        if self.on_active_changed is None:
+            return
+        try:
+            result = self.on_active_changed(room_id)
+            if result is not None and hasattr(result, "__await__"):
+                await result
+        except Exception as e:
+            logger.error(f"on_active_changed observer failed for '{room_id}': {str(e)}")
+
     async def _persist_state(self, room_id: str) -> None:
         """
         Persist the room's active scenario under its per-room key.
@@ -474,6 +490,7 @@ class ScenarioManager:
                     await self.state_repository.delete(self._room_key(room))
                 except Exception as e:
                     logger.error(f"Failed to clear persisted active scenario for '{room}': {str(e)}")
+                await self._notify_active_changed(room)
         return result
 
     async def shutdown(self) -> None:
