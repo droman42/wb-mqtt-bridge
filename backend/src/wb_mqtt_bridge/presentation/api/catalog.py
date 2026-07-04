@@ -27,6 +27,7 @@ import json
 from typing import Any, Iterable, Mapping, Optional
 
 from wb_mqtt_bridge.domain.capabilities.models import CapabilityMap
+from wb_mqtt_bridge.presentation.api.param_projection import project_action_params
 from wb_mqtt_bridge.presentation.api.schemas import (
     CatalogAction,
     CatalogCapability,
@@ -41,10 +42,12 @@ from wb_mqtt_bridge.presentation.api.schemas import (
 def _project_capability_actions(
     cap_map: Optional[CapabilityMap],
     mirrored_field_names: Optional[set[str]] = None,
+    commands: Optional[Mapping[str, Any]] = None,
 ) -> list[CatalogCapability]:
-    """Walk a CapabilityMap and project to the catalog's capability shape — actions and
-    (since §P3.7 #19) read-only fields. Param introspection per-action is still owed work
-    and not yet surfaced.
+    """Walk a CapabilityMap and project to the catalog's capability shape — actions
+    (with param descriptors since VWB-15 — the shared §6 projection, canonical-name
+    view: constraints from the native config specs, names through the reversed
+    ``param_map``, capability-fixed params excluded) and read-only fields.
 
     `mirrored_field_names` (§P3.7 #23 / sauna-sensor case): the set of field names the
     device actually mirrors via `state_topics`. When provided, profile fields[] are
@@ -58,8 +61,12 @@ def _project_capability_actions(
         return out
     for cap_name, cap in cap_map.root.items():
         actions: list[CatalogAction] = []
-        for action_name in cap.actions:
-            actions.append(CatalogAction(name=action_name, params=None))
+        for action_name, cap_action in cap.actions.items():
+            params = (
+                project_action_params(cap_action, dict(commands), canonical_names=True)
+                if commands else None
+            )
+            actions.append(CatalogAction(name=action_name, params=params))
         fields: list[CatalogField] = []
         for f in cap.fields:
             if mirrored_field_names is not None and f.name not in mirrored_field_names:
@@ -120,6 +127,7 @@ def _project_devices(devices_iterable: Iterable) -> list[CatalogDevice]:
             room=getattr(cfg, "room", None),
             capabilities=_project_capability_actions(
                 getattr(device, "capabilities", None), mirrored_field_names,
+                commands=getattr(cfg, "commands", None),
             ),
         ))
     out.sort(key=lambda d: d.id)  # stable order -> stable hash

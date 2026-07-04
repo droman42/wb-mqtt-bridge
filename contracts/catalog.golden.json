@@ -1,0 +1,5873 @@
+{
+  "version": "cf95a8f19725a14e",
+  "rooms": [
+    {
+      "id": "bathroom",
+      "names": {
+        "en": "Bathroom",
+        "ru": "Ванная",
+        "de": "Badezimmer"
+      },
+      "devices": [
+        "bathroom_floor",
+        "bathroom_mirror",
+        "bathroom_shelf_bath",
+        "bathroom_shelf_toilet",
+        "bathroom_spots"
+      ]
+    },
+    {
+      "id": "bedroom",
+      "names": {
+        "en": "Bedroom",
+        "ru": "Спальня",
+        "de": "Schlafzimmer"
+      },
+      "devices": [
+        "bedroom_curtain",
+        "bedroom_heating",
+        "bedroom_hvac",
+        "bedroom_nightstand_left",
+        "bedroom_nightstand_right",
+        "bedroom_sconce_left",
+        "bedroom_sconce_right",
+        "bedroom_shelves_light",
+        "bedroom_spots",
+        "bedroom_tulle",
+        "bedroom_window_light"
+      ]
+    },
+    {
+      "id": "cabinet",
+      "names": {
+        "en": "Study",
+        "ru": "Кабинет",
+        "de": "Arbeitszimmer"
+      },
+      "devices": [
+        "cabinet_backlight",
+        "cabinet_floor",
+        "cabinet_roller_left",
+        "cabinet_roller_right",
+        "cabinet_spots",
+        "cabinet_windowsill"
+      ]
+    },
+    {
+      "id": "children_room",
+      "names": {
+        "en": "Children Room",
+        "ru": "Детская",
+        "de": "Kinderzimmer"
+      },
+      "devices": [
+        "appletv_children",
+        "children_room_behind_column",
+        "children_room_by_wardrobe",
+        "children_room_ceiling_accent",
+        "children_room_heating",
+        "children_room_hvac",
+        "children_room_spots",
+        "children_room_tv"
+      ]
+    },
+    {
+      "id": "entrance",
+      "names": {
+        "en": "Entrance",
+        "ru": "Прихожая",
+        "de": "Eingang"
+      },
+      "devices": [
+        "entrance_cabinet_accent",
+        "entrance_floor",
+        "entrance_spots"
+      ]
+    },
+    {
+      "id": "global",
+      "names": {
+        "en": "Whole House",
+        "ru": "Весь дом",
+        "de": "Ganzes Haus"
+      },
+      "devices": [
+        "all_lights",
+        "all_plugs",
+        "cleaning_mode",
+        "heating_control",
+        "home_mode",
+        "oven_power",
+        "seasonal_mode",
+        "water_supply"
+      ]
+    },
+    {
+      "id": "hall",
+      "names": {
+        "en": "Hallway",
+        "ru": "Коридор",
+        "de": "Flur"
+      },
+      "devices": [
+        "hall_spots",
+        "hall_track_1",
+        "hall_track_2"
+      ]
+    },
+    {
+      "id": "kitchen",
+      "names": {
+        "en": "Kitchen",
+        "ru": "Кухня",
+        "de": "Küche"
+      },
+      "devices": [
+        "kitchen_backlight",
+        "kitchen_chandelier",
+        "kitchen_floor",
+        "kitchen_hood",
+        "kitchen_spots"
+      ]
+    },
+    {
+      "id": "living_room",
+      "names": {
+        "en": "Living Room",
+        "ru": "Гостиная",
+        "de": "Wohnzimmer"
+      },
+      "devices": [
+        "appletv_living",
+        "ld_player",
+        "living_room_curtain_left",
+        "living_room_curtain_right",
+        "living_room_desk_lamp",
+        "living_room_floor_lamp",
+        "living_room_heating",
+        "living_room_hvac",
+        "living_room_spots",
+        "living_room_tulle_left",
+        "living_room_tulle_right",
+        "living_room_tv",
+        "living_room_union_cabinet",
+        "living_room_window_light",
+        "mf_amplifier",
+        "processor",
+        "reel_to_reel",
+        "streamer",
+        "upscaler",
+        "vhs_player",
+        "video"
+      ]
+    },
+    {
+      "id": "shower",
+      "names": {
+        "en": "Shower",
+        "ru": "Душевая",
+        "de": "Dusche"
+      },
+      "devices": [
+        "shower_floor",
+        "shower_mirror",
+        "shower_sauna",
+        "shower_sauna_sensors",
+        "shower_service_closet",
+        "shower_spots"
+      ]
+    },
+    {
+      "id": "wardrobe",
+      "names": {
+        "en": "Wardrobe",
+        "ru": "Гардеробная",
+        "de": "Garderobe"
+      },
+      "devices": [
+        "wardrobe_shelves_light",
+        "wardrobe_spots"
+      ]
+    }
+  ],
+  "devices": [
+    {
+      "id": "all_lights",
+      "names": {
+        "ru": "Весь свет",
+        "en": "All Lights",
+        "de": "Alle Lichter"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "global",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "all_plugs",
+      "names": {
+        "ru": "Розетки",
+        "en": "Power Plugs",
+        "de": "Steckdosen"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "global",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "appletv_children",
+      "names": {
+        "ru": "Apple TV",
+        "en": "Apple TV"
+      },
+      "device_class": "AppleTVDevice",
+      "room": "children_room",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "playback",
+          "actions": [
+            {
+              "name": "play",
+              "params": null
+            },
+            {
+              "name": "pause",
+              "params": null
+            },
+            {
+              "name": "stop",
+              "params": null
+            },
+            {
+              "name": "next",
+              "params": null
+            },
+            {
+              "name": "previous",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "menu",
+          "actions": [
+            {
+              "name": "up",
+              "params": null
+            },
+            {
+              "name": "down",
+              "params": null
+            },
+            {
+              "name": "left",
+              "params": null
+            },
+            {
+              "name": "right",
+              "params": null
+            },
+            {
+              "name": "ok",
+              "params": null
+            },
+            {
+              "name": "menu",
+              "params": null
+            },
+            {
+              "name": "home",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "apps",
+          "actions": [
+            {
+              "name": "launch",
+              "params": [
+                {
+                  "name": "app",
+                  "type": "string",
+                  "required": true,
+                  "default": "YouTube",
+                  "min": null,
+                  "max": null,
+                  "description": "App name to launch"
+                }
+              ]
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "pointer",
+          "actions": [
+            {
+              "name": "move",
+              "params": [
+                {
+                  "name": "dx",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": -1000.0,
+                  "max": 1000.0,
+                  "description": "Horizontal movement delta (-1000 to 1000)"
+                },
+                {
+                  "name": "dy",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": -1000.0,
+                  "max": 1000.0,
+                  "description": "Vertical movement delta (-1000 to 1000)"
+                }
+              ]
+            },
+            {
+              "name": "click",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "volume",
+          "actions": [
+            {
+              "name": "up",
+              "params": null
+            },
+            {
+              "name": "down",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "appletv_living",
+      "names": {
+        "ru": "Apple TV",
+        "en": "Apple TV"
+      },
+      "device_class": "AppleTVDevice",
+      "room": "living_room",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "playback",
+          "actions": [
+            {
+              "name": "play",
+              "params": null
+            },
+            {
+              "name": "pause",
+              "params": null
+            },
+            {
+              "name": "stop",
+              "params": null
+            },
+            {
+              "name": "next",
+              "params": null
+            },
+            {
+              "name": "previous",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "menu",
+          "actions": [
+            {
+              "name": "up",
+              "params": null
+            },
+            {
+              "name": "down",
+              "params": null
+            },
+            {
+              "name": "left",
+              "params": null
+            },
+            {
+              "name": "right",
+              "params": null
+            },
+            {
+              "name": "ok",
+              "params": null
+            },
+            {
+              "name": "menu",
+              "params": null
+            },
+            {
+              "name": "home",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "apps",
+          "actions": [
+            {
+              "name": "launch",
+              "params": [
+                {
+                  "name": "app",
+                  "type": "string",
+                  "required": true,
+                  "default": "YouTube",
+                  "min": null,
+                  "max": null,
+                  "description": "App name to launch"
+                }
+              ]
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "pointer",
+          "actions": [
+            {
+              "name": "move",
+              "params": [
+                {
+                  "name": "dx",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": -1000.0,
+                  "max": 1000.0,
+                  "description": "Horizontal movement delta (-1000 to 1000)"
+                },
+                {
+                  "name": "dy",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": -1000.0,
+                  "max": 1000.0,
+                  "description": "Vertical movement delta (-1000 to 1000)"
+                }
+              ]
+            },
+            {
+              "name": "click",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "volume",
+          "actions": [
+            {
+              "name": "up",
+              "params": null
+            },
+            {
+              "name": "down",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "bathroom_floor",
+      "names": {
+        "ru": "Теплый пол",
+        "en": "Floor Heating",
+        "de": "Fußbodenheizung"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "bathroom",
+      "capabilities": [
+        {
+          "name": "climate",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            },
+            {
+              "name": "set_setpoint",
+              "params": [
+                {
+                  "name": "temp",
+                  "type": "float",
+                  "required": true,
+                  "default": null,
+                  "min": 5.0,
+                  "max": 30.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "setpoint",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "уставка",
+                "en": "setpoint"
+              }
+            },
+            {
+              "name": "room_temperature",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "температура в комнате",
+                "en": "room temperature"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bathroom_mirror",
+      "names": {
+        "ru": "Зеркало",
+        "en": "Mirror",
+        "de": "Spiegel"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "bathroom",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "bathroom_shelf_bath",
+      "names": {
+        "ru": "Полка над ванной",
+        "en": "Shelf (Bath)",
+        "de": "Regal über der Wanne"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "bathroom",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "bathroom_shelf_toilet",
+      "names": {
+        "ru": "Полка над унитазом",
+        "en": "Shelf (Toilet)",
+        "de": "Regal über der Toilette"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "bathroom",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "bathroom_spots",
+      "names": {
+        "ru": "Споты",
+        "en": "Spots",
+        "de": "Spots"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "bathroom",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "brightness",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "level",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "level",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": "%",
+              "labels": {
+                "ru": "яркость",
+                "en": "brightness"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bedroom_curtain",
+      "names": {
+        "ru": "Штора",
+        "en": "Curtain",
+        "de": "Vorhang"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "bedroom",
+      "capabilities": [
+        {
+          "name": "cover",
+          "actions": [
+            {
+              "name": "open",
+              "params": null
+            },
+            {
+              "name": "close",
+              "params": null
+            },
+            {
+              "name": "set_position",
+              "params": [
+                {
+                  "name": "pct",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "position",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": "%",
+              "labels": {
+                "ru": "положение",
+                "en": "position"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bedroom_heating",
+      "names": {
+        "ru": "Обогрев",
+        "en": "Heating",
+        "de": "Heizung"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "bedroom",
+      "capabilities": [
+        {
+          "name": "climate",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            },
+            {
+              "name": "set_setpoint",
+              "params": [
+                {
+                  "name": "temp",
+                  "type": "float",
+                  "required": true,
+                  "default": null,
+                  "min": 5.0,
+                  "max": 30.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "setpoint",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "уставка",
+                "en": "setpoint"
+              }
+            },
+            {
+              "name": "room_temperature",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "температура в комнате",
+                "en": "room temperature"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bedroom_hvac",
+      "names": {
+        "ru": "Кондиционер",
+        "en": "Air Conditioner",
+        "de": "Klimaanlage"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "bedroom",
+      "capabilities": [
+        {
+          "name": "climate",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            },
+            {
+              "name": "set_mode",
+              "params": [
+                {
+                  "name": "mode",
+                  "type": "string",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": ""
+                }
+              ]
+            },
+            {
+              "name": "set_fan",
+              "params": [
+                {
+                  "name": "speed",
+                  "type": "string",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": ""
+                }
+              ]
+            },
+            {
+              "name": "set_vane",
+              "params": [
+                {
+                  "name": "angle",
+                  "type": "string",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": ""
+                }
+              ]
+            },
+            {
+              "name": "set_widevane",
+              "params": [
+                {
+                  "name": "direction",
+                  "type": "string",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": ""
+                }
+              ]
+            },
+            {
+              "name": "set_setpoint",
+              "params": [
+                {
+                  "name": "temp",
+                  "type": "float",
+                  "required": true,
+                  "default": null,
+                  "min": 16.0,
+                  "max": 31.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "temperature",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "уставка",
+                "en": "setpoint",
+                "de": "Sollwert"
+              }
+            },
+            {
+              "name": "room_temperature",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "температура в комнате",
+                "en": "room temperature",
+                "de": "Raumtemperatur"
+              }
+            },
+            {
+              "name": "mode",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "AUTO",
+                  "canonical": "auto",
+                  "labels": {
+                    "ru": "авто",
+                    "en": "auto",
+                    "de": "Automatik"
+                  }
+                },
+                {
+                  "wire": "DRY",
+                  "canonical": "dry",
+                  "labels": {
+                    "ru": "осушение",
+                    "en": "dry",
+                    "de": "Entfeuchten"
+                  }
+                },
+                {
+                  "wire": "COOL",
+                  "canonical": "cool",
+                  "labels": {
+                    "ru": "охлаждение",
+                    "en": "cool",
+                    "de": "Kühlen"
+                  }
+                },
+                {
+                  "wire": "HEAT",
+                  "canonical": "heat",
+                  "labels": {
+                    "ru": "обогрев",
+                    "en": "heat",
+                    "de": "Heizen"
+                  }
+                },
+                {
+                  "wire": "FAN",
+                  "canonical": "fan_only",
+                  "labels": {
+                    "ru": "вентилятор",
+                    "en": "fan",
+                    "de": "Lüften"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "режим",
+                "en": "mode",
+                "de": "Modus"
+              }
+            },
+            {
+              "name": "fan",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "AUTO",
+                  "canonical": "auto",
+                  "labels": {
+                    "ru": "авто",
+                    "en": "auto",
+                    "de": "Automatik"
+                  }
+                },
+                {
+                  "wire": "QUIET",
+                  "canonical": "quiet",
+                  "labels": {
+                    "ru": "тихий",
+                    "en": "quiet",
+                    "de": "Leise"
+                  }
+                },
+                {
+                  "wire": "1",
+                  "canonical": "speed_1",
+                  "labels": {
+                    "ru": "скорость 1",
+                    "en": "speed 1",
+                    "de": "Stufe 1"
+                  }
+                },
+                {
+                  "wire": "2",
+                  "canonical": "speed_2",
+                  "labels": {
+                    "ru": "скорость 2",
+                    "en": "speed 2",
+                    "de": "Stufe 2"
+                  }
+                },
+                {
+                  "wire": "3",
+                  "canonical": "speed_3",
+                  "labels": {
+                    "ru": "скорость 3",
+                    "en": "speed 3",
+                    "de": "Stufe 3"
+                  }
+                },
+                {
+                  "wire": "4",
+                  "canonical": "speed_4",
+                  "labels": {
+                    "ru": "скорость 4",
+                    "en": "speed 4",
+                    "de": "Stufe 4"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "вентилятор",
+                "en": "fan",
+                "de": "Lüfter"
+              }
+            },
+            {
+              "name": "vane",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "AUTO",
+                  "canonical": "auto",
+                  "labels": {
+                    "ru": "авто",
+                    "en": "auto",
+                    "de": "Automatik"
+                  }
+                },
+                {
+                  "wire": "SWING",
+                  "canonical": "swing",
+                  "labels": {
+                    "ru": "качание",
+                    "en": "swing",
+                    "de": "Schwingen"
+                  }
+                },
+                {
+                  "wire": "1",
+                  "canonical": "pos_1",
+                  "labels": {
+                    "ru": "положение 1",
+                    "en": "position 1",
+                    "de": "Position 1"
+                  }
+                },
+                {
+                  "wire": "2",
+                  "canonical": "pos_2",
+                  "labels": {
+                    "ru": "положение 2",
+                    "en": "position 2",
+                    "de": "Position 2"
+                  }
+                },
+                {
+                  "wire": "3",
+                  "canonical": "pos_3",
+                  "labels": {
+                    "ru": "положение 3",
+                    "en": "position 3",
+                    "de": "Position 3"
+                  }
+                },
+                {
+                  "wire": "4",
+                  "canonical": "pos_4",
+                  "labels": {
+                    "ru": "положение 4",
+                    "en": "position 4",
+                    "de": "Position 4"
+                  }
+                },
+                {
+                  "wire": "5",
+                  "canonical": "pos_5",
+                  "labels": {
+                    "ru": "положение 5",
+                    "en": "position 5",
+                    "de": "Position 5"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "жалюзи",
+                "en": "vane",
+                "de": "Lamelle"
+              }
+            },
+            {
+              "name": "widevane",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "SWING",
+                  "canonical": "swing",
+                  "labels": {
+                    "ru": "качание",
+                    "en": "swing",
+                    "de": "Schwingen"
+                  }
+                },
+                {
+                  "wire": "<<",
+                  "canonical": "far_left",
+                  "labels": {
+                    "ru": "крайне влево",
+                    "en": "far left",
+                    "de": "ganz links"
+                  }
+                },
+                {
+                  "wire": "<",
+                  "canonical": "left",
+                  "labels": {
+                    "ru": "влево",
+                    "en": "left",
+                    "de": "links"
+                  }
+                },
+                {
+                  "wire": "|",
+                  "canonical": "center",
+                  "labels": {
+                    "ru": "центр",
+                    "en": "center",
+                    "de": "Mitte"
+                  }
+                },
+                {
+                  "wire": ">",
+                  "canonical": "right",
+                  "labels": {
+                    "ru": "вправо",
+                    "en": "right",
+                    "de": "rechts"
+                  }
+                },
+                {
+                  "wire": ">>",
+                  "canonical": "far_right",
+                  "labels": {
+                    "ru": "крайне вправо",
+                    "en": "far right",
+                    "de": "ganz rechts"
+                  }
+                },
+                {
+                  "wire": "<>",
+                  "canonical": "split",
+                  "labels": {
+                    "ru": "разделено",
+                    "en": "split",
+                    "de": "geteilt"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "горизонтальные жалюзи",
+                "en": "wide vane",
+                "de": "Horizontallamelle"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bedroom_nightstand_left",
+      "names": {
+        "ru": "Тумбочка слева",
+        "en": "Nightstand (Left)",
+        "de": "Nachttisch links"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "bedroom",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "bedroom_nightstand_right",
+      "names": {
+        "ru": "Тумбочка справа",
+        "en": "Nightstand (Right)",
+        "de": "Nachttisch rechts"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "bedroom",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "bedroom_sconce_left",
+      "names": {
+        "ru": "Бра слева",
+        "en": "Sconce (Left)",
+        "de": "Wandleuchte links"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "bedroom",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "bedroom_sconce_right",
+      "names": {
+        "ru": "Бра справа",
+        "en": "Sconce (Right)",
+        "de": "Wandleuchte rechts"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "bedroom",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "bedroom_shelves_light",
+      "names": {
+        "ru": "Подсветка полок",
+        "en": "Shelves Accent",
+        "de": "Regalbeleuchtung"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "bedroom",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "brightness",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "level",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "level",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": "%",
+              "labels": {
+                "ru": "яркость",
+                "en": "brightness"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bedroom_spots",
+      "names": {
+        "ru": "Споты",
+        "en": "Spots",
+        "de": "Spots"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "bedroom",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "brightness",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "level",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "level",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": "%",
+              "labels": {
+                "ru": "яркость",
+                "en": "brightness"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bedroom_tulle",
+      "names": {
+        "ru": "Тюль",
+        "en": "Sheer",
+        "de": "Gardine"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "bedroom",
+      "capabilities": [
+        {
+          "name": "cover",
+          "actions": [
+            {
+              "name": "open",
+              "params": null
+            },
+            {
+              "name": "close",
+              "params": null
+            },
+            {
+              "name": "set_position",
+              "params": [
+                {
+                  "name": "pct",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "position",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": "%",
+              "labels": {
+                "ru": "положение",
+                "en": "position"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bedroom_window_light",
+      "names": {
+        "ru": "Подсветка окна",
+        "en": "Window Accent",
+        "de": "Fensterbeleuchtung"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "bedroom",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "brightness",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "level",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "level",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": "%",
+              "labels": {
+                "ru": "яркость",
+                "en": "brightness"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cabinet_backlight",
+      "names": {
+        "ru": "Подсветка",
+        "en": "Accent Light",
+        "de": "Hintergrundbeleuchtung"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "cabinet",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "brightness",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "level",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "level",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": "%",
+              "labels": {
+                "ru": "яркость",
+                "en": "brightness"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cabinet_floor",
+      "names": {
+        "ru": "Тёплый пол",
+        "en": "Floor Heating",
+        "de": "Fußbodenheizung"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "cabinet",
+      "capabilities": [
+        {
+          "name": "climate",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            },
+            {
+              "name": "set_setpoint",
+              "params": [
+                {
+                  "name": "temp",
+                  "type": "float",
+                  "required": true,
+                  "default": null,
+                  "min": 5.0,
+                  "max": 30.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "setpoint",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "уставка",
+                "en": "setpoint"
+              }
+            },
+            {
+              "name": "room_temperature",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "температура в комнате",
+                "en": "room temperature"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cabinet_roller_left",
+      "names": {
+        "ru": "Левый ролл",
+        "en": "Roller (Left)",
+        "de": "Rollo links"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "cabinet",
+      "capabilities": [
+        {
+          "name": "cover",
+          "actions": [
+            {
+              "name": "open",
+              "params": null
+            },
+            {
+              "name": "close",
+              "params": null
+            },
+            {
+              "name": "set_position",
+              "params": [
+                {
+                  "name": "pct",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "position",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": "%",
+              "labels": {
+                "ru": "положение",
+                "en": "position"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cabinet_roller_right",
+      "names": {
+        "ru": "Правый ролл",
+        "en": "Roller (Right)",
+        "de": "Rollo rechts"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "cabinet",
+      "capabilities": [
+        {
+          "name": "cover",
+          "actions": [
+            {
+              "name": "open",
+              "params": null
+            },
+            {
+              "name": "close",
+              "params": null
+            },
+            {
+              "name": "set_position",
+              "params": [
+                {
+                  "name": "pct",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "position",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": "%",
+              "labels": {
+                "ru": "положение",
+                "en": "position"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cabinet_spots",
+      "names": {
+        "ru": "Споты",
+        "en": "Spots",
+        "de": "Spots"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "cabinet",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "cabinet_windowsill",
+      "names": {
+        "ru": "Подоконник",
+        "en": "Windowsill Heater",
+        "de": "Fensterbankheizung"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "cabinet",
+      "capabilities": [
+        {
+          "name": "climate",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            },
+            {
+              "name": "set_setpoint",
+              "params": [
+                {
+                  "name": "temp",
+                  "type": "float",
+                  "required": true,
+                  "default": null,
+                  "min": 5.0,
+                  "max": 30.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "setpoint",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "уставка",
+                "en": "setpoint"
+              }
+            },
+            {
+              "name": "room_temperature",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "температура в комнате",
+                "en": "room temperature"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "children_room_behind_column",
+      "names": {
+        "ru": "За колонной",
+        "en": "Behind Column",
+        "de": "Hinter der Säule"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "children_room",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "children_room_by_wardrobe",
+      "names": {
+        "ru": "У Гардероба",
+        "en": "By Wardrobe",
+        "de": "Beim Kleiderschrank"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "children_room",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "children_room_ceiling_accent",
+      "names": {
+        "ru": "Подсветка потолка",
+        "en": "Ceiling Accent",
+        "de": "Deckenbeleuchtung"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "children_room",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "children_room_heating",
+      "names": {
+        "ru": "Обогрев",
+        "en": "Heating",
+        "de": "Heizung"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "children_room",
+      "capabilities": [
+        {
+          "name": "climate",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            },
+            {
+              "name": "set_setpoint",
+              "params": [
+                {
+                  "name": "temp",
+                  "type": "float",
+                  "required": true,
+                  "default": null,
+                  "min": 5.0,
+                  "max": 30.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "setpoint",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "уставка",
+                "en": "setpoint"
+              }
+            },
+            {
+              "name": "room_temperature",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "температура в комнате",
+                "en": "room temperature"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "children_room_hvac",
+      "names": {
+        "ru": "Кондиционер",
+        "en": "Air Conditioner",
+        "de": "Klimaanlage"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "children_room",
+      "capabilities": [
+        {
+          "name": "climate",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            },
+            {
+              "name": "set_mode",
+              "params": [
+                {
+                  "name": "mode",
+                  "type": "string",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": ""
+                }
+              ]
+            },
+            {
+              "name": "set_fan",
+              "params": [
+                {
+                  "name": "speed",
+                  "type": "string",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": ""
+                }
+              ]
+            },
+            {
+              "name": "set_vane",
+              "params": [
+                {
+                  "name": "angle",
+                  "type": "string",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": ""
+                }
+              ]
+            },
+            {
+              "name": "set_widevane",
+              "params": [
+                {
+                  "name": "direction",
+                  "type": "string",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": ""
+                }
+              ]
+            },
+            {
+              "name": "set_setpoint",
+              "params": [
+                {
+                  "name": "temp",
+                  "type": "float",
+                  "required": true,
+                  "default": null,
+                  "min": 16.0,
+                  "max": 31.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "temperature",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "уставка",
+                "en": "setpoint",
+                "de": "Sollwert"
+              }
+            },
+            {
+              "name": "room_temperature",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "температура в комнате",
+                "en": "room temperature",
+                "de": "Raumtemperatur"
+              }
+            },
+            {
+              "name": "mode",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "AUTO",
+                  "canonical": "auto",
+                  "labels": {
+                    "ru": "авто",
+                    "en": "auto",
+                    "de": "Automatik"
+                  }
+                },
+                {
+                  "wire": "DRY",
+                  "canonical": "dry",
+                  "labels": {
+                    "ru": "осушение",
+                    "en": "dry",
+                    "de": "Entfeuchten"
+                  }
+                },
+                {
+                  "wire": "COOL",
+                  "canonical": "cool",
+                  "labels": {
+                    "ru": "охлаждение",
+                    "en": "cool",
+                    "de": "Kühlen"
+                  }
+                },
+                {
+                  "wire": "HEAT",
+                  "canonical": "heat",
+                  "labels": {
+                    "ru": "обогрев",
+                    "en": "heat",
+                    "de": "Heizen"
+                  }
+                },
+                {
+                  "wire": "FAN",
+                  "canonical": "fan_only",
+                  "labels": {
+                    "ru": "вентилятор",
+                    "en": "fan",
+                    "de": "Lüften"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "режим",
+                "en": "mode",
+                "de": "Modus"
+              }
+            },
+            {
+              "name": "fan",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "AUTO",
+                  "canonical": "auto",
+                  "labels": {
+                    "ru": "авто",
+                    "en": "auto",
+                    "de": "Automatik"
+                  }
+                },
+                {
+                  "wire": "QUIET",
+                  "canonical": "quiet",
+                  "labels": {
+                    "ru": "тихий",
+                    "en": "quiet",
+                    "de": "Leise"
+                  }
+                },
+                {
+                  "wire": "1",
+                  "canonical": "speed_1",
+                  "labels": {
+                    "ru": "скорость 1",
+                    "en": "speed 1",
+                    "de": "Stufe 1"
+                  }
+                },
+                {
+                  "wire": "2",
+                  "canonical": "speed_2",
+                  "labels": {
+                    "ru": "скорость 2",
+                    "en": "speed 2",
+                    "de": "Stufe 2"
+                  }
+                },
+                {
+                  "wire": "3",
+                  "canonical": "speed_3",
+                  "labels": {
+                    "ru": "скорость 3",
+                    "en": "speed 3",
+                    "de": "Stufe 3"
+                  }
+                },
+                {
+                  "wire": "4",
+                  "canonical": "speed_4",
+                  "labels": {
+                    "ru": "скорость 4",
+                    "en": "speed 4",
+                    "de": "Stufe 4"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "вентилятор",
+                "en": "fan",
+                "de": "Lüfter"
+              }
+            },
+            {
+              "name": "vane",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "AUTO",
+                  "canonical": "auto",
+                  "labels": {
+                    "ru": "авто",
+                    "en": "auto",
+                    "de": "Automatik"
+                  }
+                },
+                {
+                  "wire": "SWING",
+                  "canonical": "swing",
+                  "labels": {
+                    "ru": "качание",
+                    "en": "swing",
+                    "de": "Schwingen"
+                  }
+                },
+                {
+                  "wire": "1",
+                  "canonical": "pos_1",
+                  "labels": {
+                    "ru": "положение 1",
+                    "en": "position 1",
+                    "de": "Position 1"
+                  }
+                },
+                {
+                  "wire": "2",
+                  "canonical": "pos_2",
+                  "labels": {
+                    "ru": "положение 2",
+                    "en": "position 2",
+                    "de": "Position 2"
+                  }
+                },
+                {
+                  "wire": "3",
+                  "canonical": "pos_3",
+                  "labels": {
+                    "ru": "положение 3",
+                    "en": "position 3",
+                    "de": "Position 3"
+                  }
+                },
+                {
+                  "wire": "4",
+                  "canonical": "pos_4",
+                  "labels": {
+                    "ru": "положение 4",
+                    "en": "position 4",
+                    "de": "Position 4"
+                  }
+                },
+                {
+                  "wire": "5",
+                  "canonical": "pos_5",
+                  "labels": {
+                    "ru": "положение 5",
+                    "en": "position 5",
+                    "de": "Position 5"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "жалюзи",
+                "en": "vane",
+                "de": "Lamelle"
+              }
+            },
+            {
+              "name": "widevane",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "SWING",
+                  "canonical": "swing",
+                  "labels": {
+                    "ru": "качание",
+                    "en": "swing",
+                    "de": "Schwingen"
+                  }
+                },
+                {
+                  "wire": "<<",
+                  "canonical": "far_left",
+                  "labels": {
+                    "ru": "крайне влево",
+                    "en": "far left",
+                    "de": "ganz links"
+                  }
+                },
+                {
+                  "wire": "<",
+                  "canonical": "left",
+                  "labels": {
+                    "ru": "влево",
+                    "en": "left",
+                    "de": "links"
+                  }
+                },
+                {
+                  "wire": "|",
+                  "canonical": "center",
+                  "labels": {
+                    "ru": "центр",
+                    "en": "center",
+                    "de": "Mitte"
+                  }
+                },
+                {
+                  "wire": ">",
+                  "canonical": "right",
+                  "labels": {
+                    "ru": "вправо",
+                    "en": "right",
+                    "de": "rechts"
+                  }
+                },
+                {
+                  "wire": ">>",
+                  "canonical": "far_right",
+                  "labels": {
+                    "ru": "крайне вправо",
+                    "en": "far right",
+                    "de": "ganz rechts"
+                  }
+                },
+                {
+                  "wire": "<>",
+                  "canonical": "split",
+                  "labels": {
+                    "ru": "разделено",
+                    "en": "split",
+                    "de": "geteilt"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "горизонтальные жалюзи",
+                "en": "wide vane",
+                "de": "Horizontallamelle"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "children_room_spots",
+      "names": {
+        "ru": "Споты",
+        "en": "Spots",
+        "de": "Spots"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "children_room",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "brightness",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "level",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "level",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": "%",
+              "labels": {
+                "ru": "яркость",
+                "en": "brightness"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "children_room_tv",
+      "names": {
+        "ru": "Телевизор",
+        "en": "TV"
+      },
+      "device_class": "LgTv",
+      "room": "children_room",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "input",
+          "actions": null,
+          "fields": null
+        },
+        {
+          "name": "volume",
+          "actions": [
+            {
+              "name": "up",
+              "params": null
+            },
+            {
+              "name": "down",
+              "params": null
+            },
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "level",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": "Volume level (0-100)"
+                }
+              ]
+            },
+            {
+              "name": "mute_toggle",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "menu",
+          "actions": [
+            {
+              "name": "up",
+              "params": null
+            },
+            {
+              "name": "down",
+              "params": null
+            },
+            {
+              "name": "left",
+              "params": null
+            },
+            {
+              "name": "right",
+              "params": null
+            },
+            {
+              "name": "ok",
+              "params": null
+            },
+            {
+              "name": "back",
+              "params": null
+            },
+            {
+              "name": "home",
+              "params": null
+            },
+            {
+              "name": "menu",
+              "params": null
+            },
+            {
+              "name": "exit",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "playback",
+          "actions": [
+            {
+              "name": "play",
+              "params": null
+            },
+            {
+              "name": "pause",
+              "params": null
+            },
+            {
+              "name": "stop",
+              "params": null
+            },
+            {
+              "name": "ff",
+              "params": null
+            },
+            {
+              "name": "rewind",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "apps",
+          "actions": [
+            {
+              "name": "launch",
+              "params": [
+                {
+                  "name": "app",
+                  "type": "string",
+                  "required": false,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": "App name to launch (preferred, at least one of app_name or app_id must be provided)"
+                },
+                {
+                  "name": "app_id",
+                  "type": "string",
+                  "required": false,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": "App ID to launch (alternative, at least one of app_name or app_id must be provided)"
+                }
+              ]
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "pointer",
+          "actions": [
+            {
+              "name": "move",
+              "params": [
+                {
+                  "name": "dx",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": -50.0,
+                  "max": 50.0,
+                  "description": "X displacement (-50 to 50)"
+                },
+                {
+                  "name": "dy",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": -50.0,
+                  "max": 50.0,
+                  "description": "Y displacement (-50 to 50)"
+                }
+              ]
+            },
+            {
+              "name": "click",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "cleaning_mode",
+      "names": {
+        "ru": "Режим уборки",
+        "en": "Cleaning Mode",
+        "de": "Reinigungsmodus"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "global",
+      "capabilities": [
+        {
+          "name": "cleaning",
+          "actions": [
+            {
+              "name": "start",
+              "params": null
+            },
+            {
+              "name": "set_delay",
+              "params": [
+                {
+                  "name": "minutes",
+                  "type": "integer",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": "Disarm duration in minutes"
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "arm_delay",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": "min",
+              "labels": {
+                "ru": "длительность",
+                "en": "duration"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "entrance_cabinet_accent",
+      "names": {
+        "ru": "Подсветка шкафа",
+        "en": "Cabinet Accent",
+        "de": "Schrankbeleuchtung"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "entrance",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "entrance_floor",
+      "names": {
+        "ru": "Теплый пол",
+        "en": "Floor Heating",
+        "de": "Fußbodenheizung"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "entrance",
+      "capabilities": [
+        {
+          "name": "climate",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            },
+            {
+              "name": "set_setpoint",
+              "params": [
+                {
+                  "name": "temp",
+                  "type": "float",
+                  "required": true,
+                  "default": null,
+                  "min": 5.0,
+                  "max": 30.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "setpoint",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "уставка",
+                "en": "setpoint"
+              }
+            },
+            {
+              "name": "room_temperature",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "температура в комнате",
+                "en": "room temperature"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "entrance_spots",
+      "names": {
+        "ru": "Споты",
+        "en": "Spots",
+        "de": "Spots"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "entrance",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "brightness",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "level",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "level",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": "%",
+              "labels": {
+                "ru": "яркость",
+                "en": "brightness"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hall_spots",
+      "names": {
+        "ru": "Споты",
+        "en": "Spots",
+        "de": "Spots"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "hall",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "brightness",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "level",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "level",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": "%",
+              "labels": {
+                "ru": "яркость",
+                "en": "brightness"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hall_track_1",
+      "names": {
+        "ru": "Трек 1",
+        "en": "Track Light 1",
+        "de": "Schienenleuchte 1"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "hall",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "hall_track_2",
+      "names": {
+        "ru": "Трек 2",
+        "en": "Track Light 2",
+        "de": "Schienenleuchte 2"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "hall",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "heating_control",
+      "names": {
+        "ru": "Отопление",
+        "en": "Heating",
+        "de": "Heizung"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "global",
+      "capabilities": [
+        {
+          "name": "alarm",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": [
+            {
+              "name": "alarm",
+              "type": "bool",
+              "encoding": null,
+              "values": null,
+              "unit": null,
+              "labels": {
+                "ru": "авария",
+                "en": "alarm"
+              }
+            }
+          ]
+        },
+        {
+          "name": "valve_1",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": [
+            {
+              "name": "k1",
+              "type": "bool",
+              "encoding": null,
+              "values": null,
+              "unit": null,
+              "labels": {
+                "ru": "кран 1",
+                "en": "collector branch 1"
+              }
+            }
+          ]
+        },
+        {
+          "name": "valve_2",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": [
+            {
+              "name": "k2",
+              "type": "bool",
+              "encoding": null,
+              "values": null,
+              "unit": null,
+              "labels": {
+                "ru": "кран 2",
+                "en": "collector branch 2"
+              }
+            }
+          ]
+        },
+        {
+          "name": "circuits",
+          "actions": null,
+          "fields": [
+            {
+              "name": "collector",
+              "type": "bool",
+              "encoding": null,
+              "values": null,
+              "unit": null,
+              "labels": {
+                "ru": "коллектор",
+                "en": "collector"
+              }
+            },
+            {
+              "name": "radiator_living_l",
+              "type": "bool",
+              "encoding": null,
+              "values": null,
+              "unit": null,
+              "labels": {
+                "ru": "радиатор гостиная (левый)",
+                "en": "living room radiator L"
+              }
+            },
+            {
+              "name": "radiator_living_r",
+              "type": "bool",
+              "encoding": null,
+              "values": null,
+              "unit": null,
+              "labels": {
+                "ru": "радиатор гостиная (правый)",
+                "en": "living room radiator R"
+              }
+            },
+            {
+              "name": "radiator_children",
+              "type": "bool",
+              "encoding": null,
+              "values": null,
+              "unit": null,
+              "labels": {
+                "ru": "радиатор детская",
+                "en": "children room radiator"
+              }
+            },
+            {
+              "name": "radiator_bedroom",
+              "type": "bool",
+              "encoding": null,
+              "values": null,
+              "unit": null,
+              "labels": {
+                "ru": "радиатор спальня",
+                "en": "bedroom radiator"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "home_mode",
+      "names": {
+        "ru": "Дома",
+        "en": "At Home",
+        "de": "Zuhause"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "global",
+      "capabilities": [
+        {
+          "name": "presence",
+          "actions": [
+            {
+              "name": "home",
+              "params": null
+            },
+            {
+              "name": "away",
+              "params": null
+            }
+          ],
+          "fields": [
+            {
+              "name": "at_home",
+              "type": "bool",
+              "encoding": null,
+              "values": null,
+              "unit": null,
+              "labels": {
+                "ru": "дома",
+                "en": "at home"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "kitchen_backlight",
+      "names": {
+        "ru": "Подсветка",
+        "en": "Accent Light",
+        "de": "Hintergrundbeleuchtung"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "kitchen",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "kitchen_chandelier",
+      "names": {
+        "ru": "Люстра",
+        "en": "Chandelier",
+        "de": "Kronleuchter"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "kitchen",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "kitchen_floor",
+      "names": {
+        "ru": "Теплый пол",
+        "en": "Floor Heating",
+        "de": "Fußbodenheizung"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "kitchen",
+      "capabilities": [
+        {
+          "name": "climate",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            },
+            {
+              "name": "set_setpoint",
+              "params": [
+                {
+                  "name": "temp",
+                  "type": "float",
+                  "required": true,
+                  "default": null,
+                  "min": 5.0,
+                  "max": 30.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "setpoint",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "уставка",
+                "en": "setpoint"
+              }
+            },
+            {
+              "name": "room_temperature",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "температура в комнате",
+                "en": "room temperature"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "kitchen_hood",
+      "names": {
+        "ru": "Вытяжка",
+        "en": "Kitchen Hood"
+      },
+      "device_class": "BroadlinkKitchenHood",
+      "room": "kitchen",
+      "capabilities": [
+        {
+          "name": "light",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": [
+            {
+              "name": "light",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "on",
+                  "canonical": "on",
+                  "labels": {
+                    "ru": "вкл",
+                    "en": "on"
+                  }
+                },
+                {
+                  "wire": "off",
+                  "canonical": "off",
+                  "labels": {
+                    "ru": "выкл",
+                    "en": "off"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "подсветка",
+                "en": "light"
+              }
+            }
+          ]
+        },
+        {
+          "name": "fan",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "level",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 4.0,
+                  "description": "Speed level (0-4, where 0 is off)"
+                }
+              ]
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": [
+            {
+              "name": "speed",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": null,
+              "labels": {
+                "ru": "скорость вентилятора",
+                "en": "fan speed"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "kitchen_spots",
+      "names": {
+        "ru": "Споты",
+        "en": "Spots",
+        "de": "Spots"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "kitchen",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "brightness",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "level",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "level",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": "%",
+              "labels": {
+                "ru": "яркость",
+                "en": "brightness"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ld_player",
+      "names": {
+        "ru": "Лазердиск",
+        "en": "LaserDisc"
+      },
+      "device_class": "WirenboardIRDevice",
+      "room": "living_room",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "toggle",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "playback",
+          "actions": [
+            {
+              "name": "play",
+              "params": null
+            },
+            {
+              "name": "pause",
+              "params": null
+            },
+            {
+              "name": "stop",
+              "params": null
+            },
+            {
+              "name": "next",
+              "params": null
+            },
+            {
+              "name": "previous",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "tracks",
+          "actions": [
+            {
+              "name": "audio",
+              "params": null
+            },
+            {
+              "name": "eject",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "living_room_curtain_left",
+      "names": {
+        "ru": "Штора слева",
+        "en": "Curtain (Left)",
+        "de": "Vorhang links"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "living_room",
+      "capabilities": [
+        {
+          "name": "cover",
+          "actions": [
+            {
+              "name": "open",
+              "params": null
+            },
+            {
+              "name": "close",
+              "params": null
+            },
+            {
+              "name": "set_position",
+              "params": [
+                {
+                  "name": "pct",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "position",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": "%",
+              "labels": {
+                "ru": "положение",
+                "en": "position"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "living_room_curtain_right",
+      "names": {
+        "ru": "Штора справа",
+        "en": "Curtain (Right)",
+        "de": "Vorhang rechts"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "living_room",
+      "capabilities": [
+        {
+          "name": "cover",
+          "actions": [
+            {
+              "name": "open",
+              "params": null
+            },
+            {
+              "name": "close",
+              "params": null
+            },
+            {
+              "name": "set_position",
+              "params": [
+                {
+                  "name": "pct",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "position",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": "%",
+              "labels": {
+                "ru": "положение",
+                "en": "position"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "living_room_desk_lamp",
+      "names": {
+        "ru": "Настольная лампа",
+        "en": "Desk Lamp",
+        "de": "Tischlampe"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "living_room",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "living_room_floor_lamp",
+      "names": {
+        "ru": "Торшер",
+        "en": "Floor Lamp",
+        "de": "Stehlampe"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "living_room",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "living_room_heating",
+      "names": {
+        "ru": "Обогрев",
+        "en": "Heating",
+        "de": "Heizung"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "living_room",
+      "capabilities": [
+        {
+          "name": "climate",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            },
+            {
+              "name": "set_setpoint",
+              "params": [
+                {
+                  "name": "temp",
+                  "type": "float",
+                  "required": true,
+                  "default": null,
+                  "min": 5.0,
+                  "max": 30.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "setpoint",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "уставка",
+                "en": "setpoint"
+              }
+            },
+            {
+              "name": "room_temperature",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "температура в комнате",
+                "en": "room temperature"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "living_room_hvac",
+      "names": {
+        "ru": "Кондиционер",
+        "en": "Air Conditioner",
+        "de": "Klimaanlage"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "living_room",
+      "capabilities": [
+        {
+          "name": "climate",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            },
+            {
+              "name": "set_mode",
+              "params": [
+                {
+                  "name": "mode",
+                  "type": "string",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": ""
+                }
+              ]
+            },
+            {
+              "name": "set_fan",
+              "params": [
+                {
+                  "name": "speed",
+                  "type": "string",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": ""
+                }
+              ]
+            },
+            {
+              "name": "set_vane",
+              "params": [
+                {
+                  "name": "angle",
+                  "type": "string",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": ""
+                }
+              ]
+            },
+            {
+              "name": "set_widevane",
+              "params": [
+                {
+                  "name": "direction",
+                  "type": "string",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": ""
+                }
+              ]
+            },
+            {
+              "name": "set_setpoint",
+              "params": [
+                {
+                  "name": "temp",
+                  "type": "float",
+                  "required": true,
+                  "default": null,
+                  "min": 16.0,
+                  "max": 31.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "temperature",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "уставка",
+                "en": "setpoint",
+                "de": "Sollwert"
+              }
+            },
+            {
+              "name": "room_temperature",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "температура в комнате",
+                "en": "room temperature",
+                "de": "Raumtemperatur"
+              }
+            },
+            {
+              "name": "mode",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "AUTO",
+                  "canonical": "auto",
+                  "labels": {
+                    "ru": "авто",
+                    "en": "auto",
+                    "de": "Automatik"
+                  }
+                },
+                {
+                  "wire": "DRY",
+                  "canonical": "dry",
+                  "labels": {
+                    "ru": "осушение",
+                    "en": "dry",
+                    "de": "Entfeuchten"
+                  }
+                },
+                {
+                  "wire": "COOL",
+                  "canonical": "cool",
+                  "labels": {
+                    "ru": "охлаждение",
+                    "en": "cool",
+                    "de": "Kühlen"
+                  }
+                },
+                {
+                  "wire": "HEAT",
+                  "canonical": "heat",
+                  "labels": {
+                    "ru": "обогрев",
+                    "en": "heat",
+                    "de": "Heizen"
+                  }
+                },
+                {
+                  "wire": "FAN",
+                  "canonical": "fan_only",
+                  "labels": {
+                    "ru": "вентилятор",
+                    "en": "fan",
+                    "de": "Lüften"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "режим",
+                "en": "mode",
+                "de": "Modus"
+              }
+            },
+            {
+              "name": "fan",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "AUTO",
+                  "canonical": "auto",
+                  "labels": {
+                    "ru": "авто",
+                    "en": "auto",
+                    "de": "Automatik"
+                  }
+                },
+                {
+                  "wire": "QUIET",
+                  "canonical": "quiet",
+                  "labels": {
+                    "ru": "тихий",
+                    "en": "quiet",
+                    "de": "Leise"
+                  }
+                },
+                {
+                  "wire": "1",
+                  "canonical": "speed_1",
+                  "labels": {
+                    "ru": "скорость 1",
+                    "en": "speed 1",
+                    "de": "Stufe 1"
+                  }
+                },
+                {
+                  "wire": "2",
+                  "canonical": "speed_2",
+                  "labels": {
+                    "ru": "скорость 2",
+                    "en": "speed 2",
+                    "de": "Stufe 2"
+                  }
+                },
+                {
+                  "wire": "3",
+                  "canonical": "speed_3",
+                  "labels": {
+                    "ru": "скорость 3",
+                    "en": "speed 3",
+                    "de": "Stufe 3"
+                  }
+                },
+                {
+                  "wire": "4",
+                  "canonical": "speed_4",
+                  "labels": {
+                    "ru": "скорость 4",
+                    "en": "speed 4",
+                    "de": "Stufe 4"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "вентилятор",
+                "en": "fan",
+                "de": "Lüfter"
+              }
+            },
+            {
+              "name": "vane",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "AUTO",
+                  "canonical": "auto",
+                  "labels": {
+                    "ru": "авто",
+                    "en": "auto",
+                    "de": "Automatik"
+                  }
+                },
+                {
+                  "wire": "SWING",
+                  "canonical": "swing",
+                  "labels": {
+                    "ru": "качание",
+                    "en": "swing",
+                    "de": "Schwingen"
+                  }
+                },
+                {
+                  "wire": "1",
+                  "canonical": "pos_1",
+                  "labels": {
+                    "ru": "положение 1",
+                    "en": "position 1",
+                    "de": "Position 1"
+                  }
+                },
+                {
+                  "wire": "2",
+                  "canonical": "pos_2",
+                  "labels": {
+                    "ru": "положение 2",
+                    "en": "position 2",
+                    "de": "Position 2"
+                  }
+                },
+                {
+                  "wire": "3",
+                  "canonical": "pos_3",
+                  "labels": {
+                    "ru": "положение 3",
+                    "en": "position 3",
+                    "de": "Position 3"
+                  }
+                },
+                {
+                  "wire": "4",
+                  "canonical": "pos_4",
+                  "labels": {
+                    "ru": "положение 4",
+                    "en": "position 4",
+                    "de": "Position 4"
+                  }
+                },
+                {
+                  "wire": "5",
+                  "canonical": "pos_5",
+                  "labels": {
+                    "ru": "положение 5",
+                    "en": "position 5",
+                    "de": "Position 5"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "жалюзи",
+                "en": "vane",
+                "de": "Lamelle"
+              }
+            },
+            {
+              "name": "widevane",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "SWING",
+                  "canonical": "swing",
+                  "labels": {
+                    "ru": "качание",
+                    "en": "swing",
+                    "de": "Schwingen"
+                  }
+                },
+                {
+                  "wire": "<<",
+                  "canonical": "far_left",
+                  "labels": {
+                    "ru": "крайне влево",
+                    "en": "far left",
+                    "de": "ganz links"
+                  }
+                },
+                {
+                  "wire": "<",
+                  "canonical": "left",
+                  "labels": {
+                    "ru": "влево",
+                    "en": "left",
+                    "de": "links"
+                  }
+                },
+                {
+                  "wire": "|",
+                  "canonical": "center",
+                  "labels": {
+                    "ru": "центр",
+                    "en": "center",
+                    "de": "Mitte"
+                  }
+                },
+                {
+                  "wire": ">",
+                  "canonical": "right",
+                  "labels": {
+                    "ru": "вправо",
+                    "en": "right",
+                    "de": "rechts"
+                  }
+                },
+                {
+                  "wire": ">>",
+                  "canonical": "far_right",
+                  "labels": {
+                    "ru": "крайне вправо",
+                    "en": "far right",
+                    "de": "ganz rechts"
+                  }
+                },
+                {
+                  "wire": "<>",
+                  "canonical": "split",
+                  "labels": {
+                    "ru": "разделено",
+                    "en": "split",
+                    "de": "geteilt"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "горизонтальные жалюзи",
+                "en": "wide vane",
+                "de": "Horizontallamelle"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "living_room_spots",
+      "names": {
+        "ru": "Споты",
+        "en": "Spots",
+        "de": "Spots"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "living_room",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "brightness",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "level",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "level",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": "%",
+              "labels": {
+                "ru": "яркость",
+                "en": "brightness"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "living_room_tulle_left",
+      "names": {
+        "ru": "Тюль слева",
+        "en": "Sheer (Left)",
+        "de": "Gardine links"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "living_room",
+      "capabilities": [
+        {
+          "name": "cover",
+          "actions": [
+            {
+              "name": "open",
+              "params": null
+            },
+            {
+              "name": "close",
+              "params": null
+            },
+            {
+              "name": "set_position",
+              "params": [
+                {
+                  "name": "pct",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "position",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": "%",
+              "labels": {
+                "ru": "положение",
+                "en": "position"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "living_room_tulle_right",
+      "names": {
+        "ru": "Тюль справа",
+        "en": "Sheer (Right)",
+        "de": "Gardine rechts"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "living_room",
+      "capabilities": [
+        {
+          "name": "cover",
+          "actions": [
+            {
+              "name": "open",
+              "params": null
+            },
+            {
+              "name": "close",
+              "params": null
+            },
+            {
+              "name": "set_position",
+              "params": [
+                {
+                  "name": "pct",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "position",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": "%",
+              "labels": {
+                "ru": "положение",
+                "en": "position"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "living_room_tv",
+      "names": {
+        "ru": "Телевизор",
+        "en": "TV"
+      },
+      "device_class": "LgTv",
+      "room": "living_room",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "input",
+          "actions": null,
+          "fields": null
+        },
+        {
+          "name": "volume",
+          "actions": [
+            {
+              "name": "up",
+              "params": null
+            },
+            {
+              "name": "down",
+              "params": null
+            },
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "level",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": "Volume level (0-100)"
+                }
+              ]
+            },
+            {
+              "name": "mute_toggle",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "menu",
+          "actions": [
+            {
+              "name": "up",
+              "params": null
+            },
+            {
+              "name": "down",
+              "params": null
+            },
+            {
+              "name": "left",
+              "params": null
+            },
+            {
+              "name": "right",
+              "params": null
+            },
+            {
+              "name": "ok",
+              "params": null
+            },
+            {
+              "name": "back",
+              "params": null
+            },
+            {
+              "name": "home",
+              "params": null
+            },
+            {
+              "name": "menu",
+              "params": null
+            },
+            {
+              "name": "exit",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "playback",
+          "actions": [
+            {
+              "name": "play",
+              "params": null
+            },
+            {
+              "name": "pause",
+              "params": null
+            },
+            {
+              "name": "stop",
+              "params": null
+            },
+            {
+              "name": "ff",
+              "params": null
+            },
+            {
+              "name": "rewind",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "apps",
+          "actions": [
+            {
+              "name": "launch",
+              "params": [
+                {
+                  "name": "app",
+                  "type": "string",
+                  "required": false,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": "App name to launch (preferred, at least one of app_name or app_id must be provided)"
+                },
+                {
+                  "name": "app_id",
+                  "type": "string",
+                  "required": false,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": "App ID to launch (alternative, at least one of app_name or app_id must be provided)"
+                }
+              ]
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "pointer",
+          "actions": [
+            {
+              "name": "move",
+              "params": [
+                {
+                  "name": "dx",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": -50.0,
+                  "max": 50.0,
+                  "description": "X displacement (-50 to 50)"
+                },
+                {
+                  "name": "dy",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": -50.0,
+                  "max": 50.0,
+                  "description": "Y displacement (-50 to 50)"
+                }
+              ]
+            },
+            {
+              "name": "click",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "living_room_union_cabinet",
+      "names": {
+        "ru": "Тумба Юнион",
+        "en": "Union Cabinet",
+        "de": "Union-Sideboard"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "living_room",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "living_room_window_light",
+      "names": {
+        "ru": "Подсветка окна",
+        "en": "Window Accent",
+        "de": "Fensterbeleuchtung"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "living_room",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "mf_amplifier",
+      "names": {
+        "ru": "Усилитель",
+        "en": "Amplifier"
+      },
+      "device_class": "WirenboardIRDevice",
+      "room": "living_room",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "toggle",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "input",
+          "actions": null,
+          "fields": null
+        },
+        {
+          "name": "volume",
+          "actions": [
+            {
+              "name": "up",
+              "params": null
+            },
+            {
+              "name": "down",
+              "params": null
+            },
+            {
+              "name": "mute_toggle",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "oven_power",
+      "names": {
+        "ru": "Печь",
+        "en": "Oven",
+        "de": "Ofen"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "global",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "processor",
+      "names": {
+        "ru": "Процессор",
+        "en": "AV Processor"
+      },
+      "device_class": "EMotivaXMC2",
+      "room": "living_room",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": null,
+          "fields": null
+        },
+        {
+          "name": "input",
+          "actions": null,
+          "fields": null
+        },
+        {
+          "name": "volume",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "level",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": -96.0,
+                  "max": 0.0,
+                  "description": "Volume level in dB (-96.0 to 0.0)"
+                }
+              ]
+            },
+            {
+              "name": "mute_toggle",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "reel_to_reel",
+      "names": {
+        "ru": "Магнитофон",
+        "en": "Reel-to-Reel"
+      },
+      "device_class": "RevoxA77ReelToReel",
+      "room": "living_room",
+      "capabilities": [
+        {
+          "name": "playback",
+          "actions": [
+            {
+              "name": "play",
+              "params": null
+            },
+            {
+              "name": "stop",
+              "params": null
+            },
+            {
+              "name": "ff",
+              "params": null
+            },
+            {
+              "name": "rewind",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "seasonal_mode",
+      "names": {
+        "ru": "Сезонный режим",
+        "en": "Seasonal Mode",
+        "de": "Saisonmodus"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "global",
+      "capabilities": [
+        {
+          "name": "heating_season",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": [
+            {
+              "name": "heating",
+              "type": "bool",
+              "encoding": null,
+              "values": null,
+              "unit": null,
+              "labels": {
+                "ru": "отопление",
+                "en": "heating season"
+              }
+            }
+          ]
+        },
+        {
+          "name": "cooling_season",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": [
+            {
+              "name": "cooling",
+              "type": "bool",
+              "encoding": null,
+              "values": null,
+              "unit": null,
+              "labels": {
+                "ru": "кондиционеры",
+                "en": "cooling season"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "shower_floor",
+      "names": {
+        "ru": "Теплый пол",
+        "en": "Floor Heating",
+        "de": "Fußbodenheizung"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "shower",
+      "capabilities": [
+        {
+          "name": "climate",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            },
+            {
+              "name": "set_setpoint",
+              "params": [
+                {
+                  "name": "temp",
+                  "type": "float",
+                  "required": true,
+                  "default": null,
+                  "min": 5.0,
+                  "max": 30.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "setpoint",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "уставка",
+                "en": "setpoint"
+              }
+            },
+            {
+              "name": "room_temperature",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "температура в комнате",
+                "en": "room temperature"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "shower_mirror",
+      "names": {
+        "ru": "Зеркало",
+        "en": "Mirror",
+        "de": "Spiegel"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "shower",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "shower_sauna",
+      "names": {
+        "ru": "Сауна",
+        "en": "Sauna",
+        "de": "Sauna"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "shower",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "brightness",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "level",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "level",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": "%",
+              "labels": {
+                "ru": "яркость",
+                "en": "brightness"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "shower_sauna_sensors",
+      "names": {
+        "ru": "Сенсоры сауны",
+        "en": "Sauna Sensors",
+        "de": "Sauna-Sensoren"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "shower",
+      "capabilities": [
+        {
+          "name": "sensor",
+          "actions": null,
+          "fields": [
+            {
+              "name": "temperature",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "температура",
+                "en": "temperature"
+              }
+            },
+            {
+              "name": "humidity",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "%",
+              "labels": {
+                "ru": "влажность",
+                "en": "humidity"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "shower_service_closet",
+      "names": {
+        "ru": "Инженерный шкаф",
+        "en": "Service Closet",
+        "de": "Technikschrank"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "shower",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "shower_spots",
+      "names": {
+        "ru": "Споты",
+        "en": "Spots",
+        "de": "Spots"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "shower",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "brightness",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "level",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "level",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": "%",
+              "labels": {
+                "ru": "яркость",
+                "en": "brightness"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "streamer",
+      "names": {
+        "ru": "Стример",
+        "en": "Streamer"
+      },
+      "device_class": "AuralicDevice",
+      "room": "living_room",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": [
+                {
+                  "name": "standby_only",
+                  "type": "boolean",
+                  "required": false,
+                  "default": false,
+                  "min": null,
+                  "max": null,
+                  "description": "If true, only put the device in standby mode instead of true power off"
+                }
+              ]
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "input",
+          "actions": null,
+          "fields": null
+        },
+        {
+          "name": "volume",
+          "actions": [
+            {
+              "name": "up",
+              "params": null
+            },
+            {
+              "name": "down",
+              "params": null
+            },
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "level",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": "Volume level (0-100)"
+                }
+              ]
+            },
+            {
+              "name": "mute_toggle",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "playback",
+          "actions": [
+            {
+              "name": "play",
+              "params": null
+            },
+            {
+              "name": "pause",
+              "params": null
+            },
+            {
+              "name": "stop",
+              "params": null
+            },
+            {
+              "name": "next",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "upscaler",
+      "names": {
+        "ru": "Апскейлер",
+        "en": "Upscaler"
+      },
+      "device_class": "WirenboardIRDevice",
+      "room": "living_room",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "input",
+          "actions": null,
+          "fields": null
+        },
+        {
+          "name": "screen",
+          "actions": [
+            {
+              "name": "aspect_4_3",
+              "params": null
+            },
+            {
+              "name": "aspect_16_9",
+              "params": null
+            },
+            {
+              "name": "letterbox",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "menu",
+          "actions": [
+            {
+              "name": "menu",
+              "params": null
+            },
+            {
+              "name": "exit",
+              "params": null
+            },
+            {
+              "name": "up",
+              "params": null
+            },
+            {
+              "name": "down",
+              "params": null
+            },
+            {
+              "name": "left",
+              "params": null
+            },
+            {
+              "name": "right",
+              "params": null
+            },
+            {
+              "name": "ok",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "vhs_player",
+      "names": {
+        "ru": "Видеомагнитофон",
+        "en": "VHS"
+      },
+      "device_class": "WirenboardIRDevice",
+      "room": "living_room",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "toggle",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "playback",
+          "actions": [
+            {
+              "name": "play",
+              "params": null
+            },
+            {
+              "name": "pause",
+              "params": null
+            },
+            {
+              "name": "stop",
+              "params": null
+            },
+            {
+              "name": "ff",
+              "params": null
+            },
+            {
+              "name": "rewind",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "video",
+      "names": {
+        "ru": "Медиаплеер",
+        "en": "Media Player"
+      },
+      "device_class": "WirenboardIRDevice",
+      "room": "living_room",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "playback",
+          "actions": [
+            {
+              "name": "play_pause",
+              "params": null
+            },
+            {
+              "name": "stop",
+              "params": null
+            },
+            {
+              "name": "next",
+              "params": null
+            },
+            {
+              "name": "previous",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "menu",
+          "actions": [
+            {
+              "name": "up",
+              "params": null
+            },
+            {
+              "name": "down",
+              "params": null
+            },
+            {
+              "name": "left",
+              "params": null
+            },
+            {
+              "name": "right",
+              "params": null
+            },
+            {
+              "name": "ok",
+              "params": null
+            },
+            {
+              "name": "home",
+              "params": null
+            },
+            {
+              "name": "back",
+              "params": null
+            },
+            {
+              "name": "settings",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "tracks",
+          "actions": [
+            {
+              "name": "audio",
+              "params": null
+            },
+            {
+              "name": "subtitles",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "wardrobe_shelves_light",
+      "names": {
+        "ru": "Подсветка полок",
+        "en": "Shelves Accent",
+        "de": "Regalbeleuchtung"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "wardrobe",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "brightness",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "level",
+                  "type": "range",
+                  "required": true,
+                  "default": null,
+                  "min": 0.0,
+                  "max": 100.0,
+                  "description": ""
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "level",
+              "type": "int",
+              "encoding": null,
+              "values": null,
+              "unit": "%",
+              "labels": {
+                "ru": "яркость",
+                "en": "brightness"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wardrobe_spots",
+      "names": {
+        "ru": "Споты",
+        "en": "Spots",
+        "de": "Spots"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "wardrobe",
+      "capabilities": [
+        {
+          "name": "power",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    },
+    {
+      "id": "water_supply",
+      "names": {
+        "ru": "Водоснабжение",
+        "en": "Water Supply",
+        "de": "Wasserversorgung"
+      },
+      "device_class": "WbPassthroughDevice",
+      "room": "global",
+      "capabilities": [
+        {
+          "name": "alarm",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": [
+            {
+              "name": "alarm",
+              "type": "bool",
+              "encoding": null,
+              "values": null,
+              "unit": null,
+              "labels": {
+                "ru": "авария",
+                "en": "alarm"
+              }
+            }
+          ]
+        },
+        {
+          "name": "valve_cold",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": [
+            {
+              "name": "k_cold",
+              "type": "bool",
+              "encoding": null,
+              "values": null,
+              "unit": null,
+              "labels": {
+                "ru": "кран ХВС",
+                "en": "cold water valve"
+              }
+            }
+          ]
+        },
+        {
+          "name": "valve_hot",
+          "actions": [
+            {
+              "name": "on",
+              "params": null
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": [
+            {
+              "name": "k_hot",
+              "type": "bool",
+              "encoding": null,
+              "values": null,
+              "unit": null,
+              "labels": {
+                "ru": "кран ГВС",
+                "en": "hot water valve"
+              }
+            }
+          ]
+        },
+        {
+          "name": "leaks",
+          "actions": null,
+          "fields": [
+            {
+              "name": "leak_kitchen",
+              "type": "bool",
+              "encoding": null,
+              "values": null,
+              "unit": null,
+              "labels": {
+                "ru": "протечка кухня",
+                "en": "kitchen leak"
+              }
+            },
+            {
+              "name": "leak_wc",
+              "type": "bool",
+              "encoding": null,
+              "values": null,
+              "unit": null,
+              "labels": {
+                "ru": "протечка санузел",
+                "en": "WC leak"
+              }
+            },
+            {
+              "name": "leak_bathroom",
+              "type": "bool",
+              "encoding": null,
+              "values": null,
+              "unit": null,
+              "labels": {
+                "ru": "протечка ванная",
+                "en": "bathroom leak"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scenario_manager_living_room",
+      "names": {
+        "ru": "Сценарии",
+        "en": "Scenarios",
+        "de": "Szenarien"
+      },
+      "device_class": "ScenarioManager",
+      "room": "living_room",
+      "capabilities": [
+        {
+          "name": "scenario",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "value",
+                  "type": "enum",
+                  "values": [
+                    {
+                      "wire": "movie_appletv",
+                      "canonical": "movie_appletv",
+                      "labels": {
+                        "en": "Watch movies on Apple TV"
+                      }
+                    },
+                    {
+                      "wire": "movie_ld",
+                      "canonical": "movie_ld",
+                      "labels": {
+                        "en": "Watch movies on LD"
+                      }
+                    },
+                    {
+                      "wire": "movie_vhs",
+                      "canonical": "movie_vhs",
+                      "labels": {
+                        "en": "Watch movies on VHS"
+                      }
+                    },
+                    {
+                      "wire": "movie_zappiti",
+                      "canonical": "movie_zappiti",
+                      "labels": {
+                        "en": "Watch movies on Zappiti"
+                      }
+                    },
+                    {
+                      "wire": "music_auralic",
+                      "canonical": "music_auralic",
+                      "labels": {
+                        "en": "Music — Auralic streamer"
+                      }
+                    },
+                    {
+                      "wire": "music_reel",
+                      "canonical": "music_reel",
+                      "labels": {
+                        "en": "Music — Revox A77 reel-to-reel"
+                      }
+                    },
+                    {
+                      "wire": "music_tape",
+                      "canonical": "music_tape",
+                      "labels": {
+                        "en": "Music — Revox B215 tape deck"
+                      }
+                    },
+                    {
+                      "wire": "music_turntable",
+                      "canonical": "music_turntable",
+                      "labels": {
+                        "en": "Music — Kuzma turntable"
+                      }
+                    },
+                    {
+                      "wire": "tv_on_speakers",
+                      "canonical": "tv_on_speakers",
+                      "labels": {
+                        "en": "TV on speakers"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "off",
+              "params": null
+            }
+          ],
+          "fields": [
+            {
+              "name": "scenario",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "movie_appletv",
+                  "canonical": "movie_appletv",
+                  "labels": {
+                    "en": "Watch movies on Apple TV"
+                  }
+                },
+                {
+                  "wire": "movie_ld",
+                  "canonical": "movie_ld",
+                  "labels": {
+                    "en": "Watch movies on LD"
+                  }
+                },
+                {
+                  "wire": "movie_vhs",
+                  "canonical": "movie_vhs",
+                  "labels": {
+                    "en": "Watch movies on VHS"
+                  }
+                },
+                {
+                  "wire": "movie_zappiti",
+                  "canonical": "movie_zappiti",
+                  "labels": {
+                    "en": "Watch movies on Zappiti"
+                  }
+                },
+                {
+                  "wire": "music_auralic",
+                  "canonical": "music_auralic",
+                  "labels": {
+                    "en": "Music — Auralic streamer"
+                  }
+                },
+                {
+                  "wire": "music_reel",
+                  "canonical": "music_reel",
+                  "labels": {
+                    "en": "Music — Revox A77 reel-to-reel"
+                  }
+                },
+                {
+                  "wire": "music_tape",
+                  "canonical": "music_tape",
+                  "labels": {
+                    "en": "Music — Revox B215 tape deck"
+                  }
+                },
+                {
+                  "wire": "music_turntable",
+                  "canonical": "music_turntable",
+                  "labels": {
+                    "en": "Music — Kuzma turntable"
+                  }
+                },
+                {
+                  "wire": "tv_on_speakers",
+                  "canonical": "tv_on_speakers",
+                  "labels": {
+                    "en": "TV on speakers"
+                  }
+                },
+                {
+                  "wire": "none",
+                  "canonical": "none",
+                  "labels": {
+                    "ru": "выключено",
+                    "en": "off"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "сценарий",
+                "en": "scenario"
+              }
+            }
+          ]
+        },
+        {
+          "name": "volume",
+          "actions": [
+            {
+              "name": "down",
+              "params": null
+            },
+            {
+              "name": "mute_toggle",
+              "params": null
+            },
+            {
+              "name": "up",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "playback",
+          "actions": [
+            {
+              "name": "ff",
+              "params": null
+            },
+            {
+              "name": "next",
+              "params": null
+            },
+            {
+              "name": "pause",
+              "params": null
+            },
+            {
+              "name": "play",
+              "params": null
+            },
+            {
+              "name": "play_pause",
+              "params": null
+            },
+            {
+              "name": "previous",
+              "params": null
+            },
+            {
+              "name": "rewind",
+              "params": null
+            },
+            {
+              "name": "stop",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "menu",
+          "actions": [
+            {
+              "name": "back",
+              "params": null
+            },
+            {
+              "name": "down",
+              "params": null
+            },
+            {
+              "name": "exit",
+              "params": null
+            },
+            {
+              "name": "home",
+              "params": null
+            },
+            {
+              "name": "left",
+              "params": null
+            },
+            {
+              "name": "menu",
+              "params": null
+            },
+            {
+              "name": "ok",
+              "params": null
+            },
+            {
+              "name": "right",
+              "params": null
+            },
+            {
+              "name": "settings",
+              "params": null
+            },
+            {
+              "name": "up",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "tracks",
+          "actions": [
+            {
+              "name": "audio",
+              "params": null
+            },
+            {
+              "name": "eject",
+              "params": null
+            },
+            {
+              "name": "subtitles",
+              "params": null
+            }
+          ],
+          "fields": null
+        },
+        {
+          "name": "screen",
+          "actions": [
+            {
+              "name": "aspect_16_9",
+              "params": null
+            },
+            {
+              "name": "aspect_4_3",
+              "params": null
+            },
+            {
+              "name": "letterbox",
+              "params": null
+            }
+          ],
+          "fields": null
+        }
+      ]
+    }
+  ]
+}

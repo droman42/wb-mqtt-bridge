@@ -16,6 +16,26 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-04 (executed + closed: VWB-15 — the catalog contract artifacts; the pre-catalog chain is COMPLETE)** —
+  The voice unblock, landed the same day the chain was sequenced. Repo-root **`contracts/`** now
+  carries the contract of record: `catalog.golden.json` (79 devices / 11 rooms — globals + the
+  scenario manager entity with its 9-scenario enum), the pinned `openapi.json` (byte-identical to
+  the UI copy), `STAMP.json` (commit + version + content-hash), and a README with the consumption
+  rules (one-way outward sync — the voice side pins its own copy). New **`wb-catalog`** CLI builds
+  the golden **offline and deterministically** (typed configs + capability maps + rooms + scenario
+  definitions through lightweight stand-ins; no drivers, no network; byte-identical across runs) —
+  the morning smoke run had already proven the controller isn't needed for this. **The §6 param
+  projection went live in the catalog**: `CatalogAction.params` filled (canonical names via reversed
+  `param_map`, native-spec constraints, fixed params excluded) — hood `fan.set level 0–4`, HVAC
+  `set_setpoint temp 16–31 °C`, eMotiva `volume.set level −96…0 dB` — discharging the owed #19
+  stub. **The drift guard is a test** (`test_contracts_golden.py`) inside the normal backend CI
+  job, with `contracts/**` added to the CI backend path filter; CONTRIBUTING documents the regen
+  commands. **Owed tail:** the real-WB7 deployment-drift dump waits on the ops compose cutover
+  (recorded in the DONE row + contracts/README). Suite 518, pyright 0, contracts 3/3. **The ball
+  is now in `wb-mqtt-voice`'s court: TEST-17 pins the artifacts and parses the golden.** Remaining
+  bridge-side voice work: VWB-13 (live sweep, pairs with the WB7 dump session) and VWB-16 (the
+  crossover-fixture consumer test, now unblocked by this artifact).
+
 - **2026-07-04 (executed + closed: SCN-7 — canonical-first phase 2, device pages on the canonical grammar; filed VWB-19)** —
   Third link of the pre-catalog chain, closing the coding road to VWB-15. Device manifests now
   annotate every action-backed control with its canonical tuple (no `sourceDeviceId` — the target

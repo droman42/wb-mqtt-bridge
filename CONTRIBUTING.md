@@ -164,9 +164,14 @@ its files can break.
 
 - **`ledger-guard`** (docs/** or the guard script changed) —
   `scripts/check_scope.py`, the single-task-ledger drift check.
-- **`backend-test`** (backend/** changed) — the three Python health gates
-  (import-linter / no-TYPE_CHECKING / pyright) + `pytest -m "not
-  requires_device"` on amd64.
+- **`backend-test`** (backend/** or contracts/** changed) — the three Python
+  health gates (import-linter / no-TYPE_CHECKING / pyright) + `pytest -m "not
+  requires_device"` on amd64. The suite includes the **contracts drift guard**
+  (`test_contracts_golden.py`): the committed `contracts/` artifacts (golden
+  catalog + pinned openapi) are regenerated in-test and compared — if a config
+  or API change alters the contract, regenerate with
+  `uv run wb-catalog -o ../contracts/catalog.golden.json --stamp ../contracts/STAMP.json`
+  (and `wb-openapi` for the schema; see `contracts/README.md`).
 - **`ui-validate`** (ui/** changed, **or** the backend contract the UI
   consumes: `backend/openapi.json`, `backend/config/**`) — `gen:api-types` +
   `check` (typecheck, strict lint, orphans) + `build`.

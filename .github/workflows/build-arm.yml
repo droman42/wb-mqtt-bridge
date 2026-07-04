@@ -51,6 +51,10 @@ jobs:
           filters: |
             backend:
               - 'backend/**'
+              # committed contract artifacts (VWB-15): the backend suite carries the
+              # drift guard (test_contracts_golden), so a hand-edit of contracts/
+              # must run it.
+              - 'contracts/**'
               - '.github/workflows/build-arm.yml'
             ui:
               # ui/ plus the backend contract it consumes (openapi.json for codegen,
