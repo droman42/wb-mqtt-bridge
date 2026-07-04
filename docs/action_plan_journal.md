@@ -16,6 +16,18 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-04 (deferred: VWB-12 — MSW sensor side → post-release, both repos)** — Pre-work analysis
+  ran in chat, then the user deferred: `[P1] [house]` → `[P2] [later]`. The analysis stands recorded
+  for the pickup: the MSW modules serve two roles — IR blaster (used today purely as transport:
+  47/16/2 topic references to `wb-msw-v3_207/218/220` from AV configs, no bridge device) and
+  multi-sensor (un-onboarded except the sauna's `wb-msw2_100`). Recommendation when resumed:
+  **split entry** — per-room sensor passthrough devices on the `sensor_room` profile (partial
+  mirrors, sauna precedent), IR stays plumbing (module-is-wiring precedent — relay modules host six
+  lights without being devices); a module-level IR entity remains addable alongside if DRV-3's
+  IR-learning page ever wants one. Standing warning kept: verify sensor control names per module
+  firmware before authoring. Voice side defers its sensor state-query feature equally (their
+  ledger, their entry).
+
 - **2026-07-04 (executed + closed: VWB-10 — the global room: 8 devices, 5 profiles, all_lights rule drafted)** —
   Interactive session; the user redefined scope at start (not just aggregates — the existing global
   fleet too). **Hybrid process, both halves now recorded in `docs/wb_device_authoring_log.md` §6:**

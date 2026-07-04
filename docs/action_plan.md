@@ -481,7 +481,7 @@ endpoint).
 
 - **Voice control (Yandex Alisa) — out of scope here.** SprutHub was a stopgap and is **dropped** (2026-05-20). The plan is to rely on **Wirenboard's future native Alisa bridge**; because this system already exposes every foreign device as a WB virtual device, those devices become voice-controllable for free once that bridge ships. (The two former SprutHub backlog items are retired.)
 
-- [ ] **VWB-12** `[P1]` `[house]` — `wb-msw-v3_*` sensor side — decide unified config (IR + `sensor`) vs split entry; implement.
+- [ ] **VWB-12** `[P2]` `[later]` — `wb-msw-v3_*` sensor side — decide unified config (IR + `sensor`) vs split entry; implement. **DEFERRED POST-RELEASE 2026-07-04 (user decision, both sides — the voice repo defers sensor state-queries equally).** Analysis done in chat (see journal 2026-07-04): recommendation = **split entry** — per-room sensor devices (`sensor_room` profile, partial mirrors per the sauna precedent), IR side stays transport plumbing referenced from AV configs (module-is-wiring precedent: `wb-mr6c_47` hosts 6 lights and is no device either); a module-level IR entity can be added *alongside* later if DRV-3 ever needs one, without touching the sensor devices. When picked up: classic paste session per room + **verify control names per module firmware** (the recorded firmware-doc cross-reference warning; MSW inventory today: `wb-msw-v3_207` living room, `218`, `220` children — all currently IR-only references).
 
 - [ ] **VWB-13** `[P1]` `[house]` — Catalog completeness sweep + bulk end-to-end verification across rooms (including each `global` aggregate device's canonical call landing on the broker, even if its wb-rules backing is still owed).
 
