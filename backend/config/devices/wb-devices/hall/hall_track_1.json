@@ -2,12 +2,29 @@
   "device_id": "hall_track_1",
   "device_class": "WbPassthroughDevice",
   "config_class": "WbPassthroughDeviceConfig",
-  "names": {"ru": "Трек 1", "en": "Track Light 1", "de": "Schienenleuchte 1"},
+  "names": {
+    "ru": "Трек 1",
+    "en": "Track Light 1",
+    "de": "Schienenleuchte 1"
+  },
   "capability_profile": "light_switch",
   "room": "hall",
   "commands": {
-    "power_on":  {"topic": "/devices/wb-mr6c_51/controls/K1/on", "value": "1"},
-    "power_off": {"topic": "/devices/wb-mr6c_51/controls/K1/on", "value": "0"}
+    "power_on": {
+      "topic": "/devices/wb-mr6c_51/controls/K1/on",
+      "value": "1"
+    },
+    "power_off": {
+      "topic": "/devices/wb-mr6c_51/controls/K1/on",
+      "value": "0"
+    }
   },
-  "state_topics": {"power": "/devices/wb-mr6c_51/controls/K1"}
+  "state_topics": {
+    "power": "/devices/wb-mr6c_51/controls/K1"
+  },
+  "aliases": {
+    "ru": [
+      "треки"
+    ]
+  }
 }

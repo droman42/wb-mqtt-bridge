@@ -2,12 +2,29 @@
   "device_id": "bedroom_sconce_right",
   "device_class": "WbPassthroughDevice",
   "config_class": "WbPassthroughDeviceConfig",
-  "names": {"ru": "Бра справа", "en": "Sconce (Right)", "de": "Wandleuchte rechts"},
+  "names": {
+    "ru": "Бра справа",
+    "en": "Sconce (Right)",
+    "de": "Wandleuchte rechts"
+  },
   "capability_profile": "light_switch",
   "room": "bedroom",
   "commands": {
-    "power_on":  {"topic": "/devices/wb-mr6c_51/controls/K6/on", "value": "1"},
-    "power_off": {"topic": "/devices/wb-mr6c_51/controls/K6/on", "value": "0"}
+    "power_on": {
+      "topic": "/devices/wb-mr6c_51/controls/K6/on",
+      "value": "1"
+    },
+    "power_off": {
+      "topic": "/devices/wb-mr6c_51/controls/K6/on",
+      "value": "0"
+    }
   },
-  "state_topics": {"power": "/devices/wb-mr6c_51/controls/K6"}
+  "state_topics": {
+    "power": "/devices/wb-mr6c_51/controls/K6"
+  },
+  "aliases": {
+    "ru": [
+      "ночники"
+    ]
+  }
 }

@@ -75,5 +75,10 @@
       "rom_position": "25",
       "description": "Balanced"
     }
+  },
+  "aliases": {
+    "ru": [
+      "усилок"
+    ]
   }
 }

@@ -45,5 +45,10 @@
       "rom_position": "80",
       "description": "Rewind Backward"
     }
+  },
+  "aliases": {
+    "ru": [
+      "видик"
+    ]
   }
 }

@@ -16,6 +16,20 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-04 (executed + closed: VWB-21 — the alias vocabulary, 3 rooms + 34 devices)** — The
+  interactive session ran in 5 rounds with a new shape: inventory presented room-by-room WITH
+  candidate synonyms to react to (lower recall burden than blank-slate); terse positional answers.
+  Rooms: зал, сынарник (the family word for детская — unfindable by any model), квартира. Devices:
+  the cross-room staples (телек/кондей/радиаторы/эппл per room), усилок/катушечник/видик/сервант/
+  фартук/жалюзи/треки/полки/тумбочки/шторы, ночники (the SCONCES — user corrected the guess), «пол»
+  generalized to all 5 heated floors on explicit confirmation. Collectives placed on every member
+  (шторы/жалюзи/треки) — disambiguation is Irene's concern, the catalog records the truth. Open
+  tails in the authoring log §6: bedroom tulle left un-aliased, гардеробная + global masters
+  unconfirmed candidates for a later iteration. Golden `7a1149c7657a2f7f`; suite 522; drift guard
+  green. **The VWB-15 promise "names + aliases" is now fully delivered; the voice side's resolver
+  has real household surfaces.** Remaining voice-side bridge work: VWB-16 (crossover fixtures) +
+  VWB-13 (live sweep).
+
 - **2026-07-04 (filed + executed + closed: SCN-8 — the flat scenario `name` dropped, `names` is the one surface)** —
   User asked "why do we need `name` at all?" right after VWB-20 gave scenarios localized `names` —
   and the answer was: we don't. Only two consumers existed, both better served: the scenario

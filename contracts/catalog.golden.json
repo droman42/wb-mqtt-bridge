@@ -1,5 +1,5 @@
 {
-  "version": "31660f66f000d2ea",
+  "version": "7a1149c7657a2f7f",
   "rooms": [
     {
       "id": "bathroom",
@@ -63,7 +63,11 @@
         "ru": "Детская",
         "de": "Kinderzimmer"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "сынарник"
+        ]
+      },
       "devices": [
         "appletv_children",
         "children_room_behind_column",
@@ -96,7 +100,11 @@
         "ru": "Весь дом",
         "de": "Ganzes Haus"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "квартира"
+        ]
+      },
       "devices": [
         "all_lights",
         "all_plugs",
@@ -145,7 +153,11 @@
         "ru": "Гостиная",
         "de": "Wohnzimmer"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "зал"
+        ]
+      },
       "devices": [
         "appletv_living",
         "ld_player",
@@ -262,7 +274,11 @@
         "ru": "Apple TV",
         "en": "Apple TV"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "эппл"
+        ]
+      },
       "device_class": "AppleTVDevice",
       "room": "children_room",
       "capabilities": [
@@ -424,7 +440,11 @@
         "ru": "Apple TV",
         "en": "Apple TV"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "эппл"
+        ]
+      },
       "device_class": "AppleTVDevice",
       "room": "living_room",
       "capabilities": [
@@ -587,7 +607,11 @@
         "en": "Floor Heating",
         "de": "Fußbodenheizung"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "пол"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "bathroom",
       "capabilities": [
@@ -681,7 +705,11 @@
         "en": "Shelf (Bath)",
         "de": "Regal über der Wanne"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "полки"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "bathroom",
       "capabilities": [
@@ -708,7 +736,11 @@
         "en": "Shelf (Toilet)",
         "de": "Regal über der Toilette"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "полки"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "bathroom",
       "capabilities": [
@@ -797,7 +829,11 @@
         "en": "Curtain",
         "de": "Vorhang"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "шторы"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "bedroom",
       "capabilities": [
@@ -853,7 +889,11 @@
         "en": "Heating",
         "de": "Heizung"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "радиаторы"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "bedroom",
       "capabilities": [
@@ -920,7 +960,11 @@
         "en": "Air Conditioner",
         "de": "Klimaanlage"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "кондей"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "bedroom",
       "capabilities": [
@@ -1334,7 +1378,11 @@
         "en": "Nightstand (Left)",
         "de": "Nachttisch links"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "тумбочки"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "bedroom",
       "capabilities": [
@@ -1361,7 +1409,11 @@
         "en": "Nightstand (Right)",
         "de": "Nachttisch rechts"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "тумбочки"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "bedroom",
       "capabilities": [
@@ -1388,7 +1440,11 @@
         "en": "Sconce (Left)",
         "de": "Wandleuchte links"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "ночники"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "bedroom",
       "capabilities": [
@@ -1415,7 +1471,11 @@
         "en": "Sconce (Right)",
         "de": "Wandleuchte rechts"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "ночники"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "bedroom",
       "capabilities": [
@@ -1746,7 +1806,11 @@
         "en": "Floor Heating",
         "de": "Fußbodenheizung"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "пол"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "cabinet",
       "capabilities": [
@@ -1813,7 +1877,11 @@
         "en": "Roller (Left)",
         "de": "Rollo links"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "жалюзи"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "cabinet",
       "capabilities": [
@@ -1869,7 +1937,11 @@
         "en": "Roller (Right)",
         "de": "Rollo rechts"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "жалюзи"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "cabinet",
       "capabilities": [
@@ -2100,7 +2172,11 @@
         "en": "Heating",
         "de": "Heizung"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "радиаторы"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "children_room",
       "capabilities": [
@@ -2167,7 +2243,11 @@
         "en": "Air Conditioner",
         "de": "Klimaanlage"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "кондей"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "children_room",
       "capabilities": [
@@ -2642,7 +2722,11 @@
         "ru": "Телевизор",
         "en": "TV"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "телек"
+        ]
+      },
       "device_class": "LgTv",
       "room": "children_room",
       "capabilities": [
@@ -2898,7 +2982,11 @@
         "en": "Cabinet Accent",
         "de": "Schrankbeleuchtung"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "шкаф"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "entrance",
       "capabilities": [
@@ -2925,7 +3013,11 @@
         "en": "Floor Heating",
         "de": "Fußbodenheizung"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "пол"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "entrance",
       "capabilities": [
@@ -3116,7 +3208,11 @@
         "en": "Track Light 1",
         "de": "Schienenleuchte 1"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "треки"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "hall",
       "capabilities": [
@@ -3143,7 +3239,11 @@
         "en": "Track Light 2",
         "de": "Schienenleuchte 2"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "треки"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "hall",
       "capabilities": [
@@ -3361,7 +3461,11 @@
         "en": "Accent Light",
         "de": "Hintergrundbeleuchtung"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "фартук"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "kitchen",
       "capabilities": [
@@ -3415,7 +3519,11 @@
         "en": "Floor Heating",
         "de": "Fußbodenheizung"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "пол"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "kitchen",
       "capabilities": [
@@ -3700,7 +3808,11 @@
         "en": "Curtain (Left)",
         "de": "Vorhang links"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "шторы"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "living_room",
       "capabilities": [
@@ -3756,7 +3868,11 @@
         "en": "Curtain (Right)",
         "de": "Vorhang rechts"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "шторы"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "living_room",
       "capabilities": [
@@ -3866,7 +3982,11 @@
         "en": "Heating",
         "de": "Heizung"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "радиаторы"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "living_room",
       "capabilities": [
@@ -3933,7 +4053,11 @@
         "en": "Air Conditioner",
         "de": "Klimaanlage"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "кондей"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "living_room",
       "capabilities": [
@@ -4520,7 +4644,11 @@
         "ru": "Телевизор",
         "en": "TV"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "телек"
+        ]
+      },
       "device_class": "LgTv",
       "room": "living_room",
       "capabilities": [
@@ -4724,7 +4852,11 @@
         "en": "Union Cabinet",
         "de": "Union-Sideboard"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "сервант"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "living_room",
       "capabilities": [
@@ -4777,7 +4909,11 @@
         "ru": "Усилитель",
         "en": "Amplifier"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "усилок"
+        ]
+      },
       "device_class": "WirenboardIRDevice",
       "room": "living_room",
       "capabilities": [
@@ -4883,7 +5019,11 @@
         "ru": "Магнитофон",
         "en": "Reel-to-Reel"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "катушечник"
+        ]
+      },
       "device_class": "RevoxA77ReelToReel",
       "room": "living_room",
       "capabilities": [
@@ -4983,7 +5123,11 @@
         "en": "Floor Heating",
         "de": "Fußbodenheizung"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "пол"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "shower",
       "capabilities": [
@@ -5442,7 +5586,11 @@
         "ru": "Видеомагнитофон",
         "en": "VHS"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "видик"
+        ]
+      },
       "device_class": "WirenboardIRDevice",
       "room": "living_room",
       "capabilities": [

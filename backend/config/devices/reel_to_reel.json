@@ -36,5 +36,10 @@
       "rom_position": "75",
       "description": "Rewind Backward"
     }
+  },
+  "aliases": {
+    "ru": [
+      "катушечник"
+    ]
   }
 }

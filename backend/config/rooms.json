@@ -6,6 +6,9 @@
       "ru": "Гостиная",
       "de": "Wohnzimmer"
     },
+    "aliases": {
+      "ru": ["зал"]
+    },
     "description": "Main lounge with TV, processor and media devices (WB dashboard `livingroom`)",
     "default_scenario": null
   },
@@ -15,6 +18,9 @@
       "en": "Children Room",
       "ru": "Детская",
       "de": "Kinderzimmer"
+    },
+    "aliases": {
+      "ru": ["сынарник"]
     },
     "description": "Children room with TV and Apple TV (WB dashboard `children`)",
     "default_scenario": null
@@ -105,6 +111,9 @@
       "en": "Whole House",
       "ru": "Весь дом",
       "de": "Ganzes Haus"
+    },
+    "aliases": {
+      "ru": ["квартира"]
     },
     "description": "Aggregate whole-house devices (e.g. all_lights). Each aggregate is a regular WbPassthroughDevice config whose `/on` topic the wb-rules scene listens on; populated by §P3.7 #22.",
     "default_scenario": null

@@ -173,5 +173,10 @@
       "action": "get_available_inputs",
       "description": "List available inputs"
     }
+  },
+  "aliases": {
+    "ru": [
+      "телек"
+    ]
   }
 }

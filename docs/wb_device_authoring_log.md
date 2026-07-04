@@ -1084,6 +1084,28 @@ These require user disclosure regardless. A staged UI could surface them as
 
 ## 6. Sessions log (timestamped checkpoints)
 
+- **2026-07-04 (evening)** — **Alias vocabulary session (VWB-21): 3 rooms + 34 device
+  entries, 5 interactive rounds.** New session shape: instead of user-pastes-JSON, the
+  assistant presented the inventory room-by-room WITH candidate synonyms to react to
+  (confirm/correct/extend/strike) — much lower recall burden than blank-slate listing;
+  the user answered in terse comma lists mapped positionally to the tables. **Authored
+  rooms:** зал (гостиная), сынарник (детская — family word, exactly the vocabulary only
+  the household could supply), квартира (весь дом). **Device highlights:** телек/кондей/
+  радиаторы/эппл replicated across rooms (room context disambiguates); усилок,
+  катушечник, видик, сервант, фартук (kitchen backlight), жалюзи (cabinet rollers,
+  collective on both), треки, полки, тумбочки, ночники (user swapped the assistant's
+  guess — ночники are the SCONCES, not the nightstand lamps). **Generalizations
+  confirmed:** «пол» on every тёплый пол (5 devices); collectives deliberately placed on
+  ALL members (шторы on both living-room curtains; жалюзи on both rollers; треки on both
+  tracks) — one alias resolving to multiple devices is Irene's disambiguation/fan-out
+  concern, the catalog just records the truth. **Interpretive calls to re-check with the
+  user later:** «шторы» in the bedroom went on the curtain only, NOT the tulle (mirrors
+  the living-room pattern); «пол» in round 4 was read positionally as entrance_floor
+  before the all-floors generalization confirmed it. Гардеробная and the global masters
+  got no aliases this round (the «свет»/«духовка»/«вода» candidates were not confirmed —
+  extend in a later iteration if the household uses them). Golden re-dumped
+  (`7a1149c7657a2f7f`); 522 passing throughout.
+
 - **2026-07-04** — **Global-room session (VWB-10): 8 devices, 5 new profiles.** Scope redefined
   by the user at session start: not just the planned aggregates — the **existing global fleet**
   (alarms, water blocks, seasonal/presence masters) too. **Process hybrid, new pattern:** existing
