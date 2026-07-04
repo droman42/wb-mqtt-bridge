@@ -16,6 +16,15 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-04 (sequencing: the pre-catalog chain — SCN-6 → VWB-17 → SCN-7 → VWB-15)** — User
+  directive: the scenario tasks designed today **finish before the first catalog dump**. SCN-7
+  `[later]` → `[house]`, VWB-17 `[later]` → `[house]`; VWB-15's "additive, doesn't wait" sequencing
+  note replaced with the deliberate chain (v1 of the pinned contract carries the
+  `scenario_manager_<room>` entities + the final canonical-first grammar; VWB-16 fixtures cover
+  scenario commands from day one; no post-pin churn). `canonical_first.md` §8 contract-timing note
+  revised to match. Cost accepted knowingly: the voice repo's TEST-17 unblock now waits on the full
+  chain. Mechanical additivity + the drift check still govern everything after the v1 pin.
+
 - **2026-07-04 (deferred: VWB-12 — MSW sensor side → post-release, both repos)** — Pre-work analysis
   ran in chat, then the user deferred: `[P1] [house]` → `[P2] [later]`. The analysis stands recorded
   for the pickup: the MSW modules serve two roles — IR blaster (used today purely as transport:

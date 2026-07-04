@@ -230,10 +230,12 @@ observable gain; remains possible later); status-quo split with a CI consistency
 | **3** | `/action` demotion/retirement decision · `/scenario/switch`+`shutdown` internalization | acceptance-gate item 4 (code-review half) |
 | — | §6 param-descriptor projection → `CatalogAction.params` | rides **VWB-15** |
 
-Contract-timing note: everything here is **additive** for VWB-15 — the artifact does not
-wait for SCN-6/7. When SCN-6 lands, the `scenario_manager_<room>` entities appear in the
-catalog as ordinary devices and the golden is re-dumped (the drift check forces exactly
-that).
+Contract-timing note (**revised 2026-07-04, user decision**): mechanically everything
+here is additive — but the **first** VWB-15 golden dump deliberately **waits for the
+scenario chain (SCN-6 → VWB-17 → SCN-7)**, so v1 of the pinned contract already carries
+the `scenario_manager_<room>` entities and the final canonical-first grammar, and the
+VWB-16 crossover fixtures cover scenario commands from day one. After the v1 pin,
+additivity + the drift check govern subsequent changes as originally written.
 
 Hexagonal placement: the resolution service is application/domain-layer (it composes
 `ScenarioManager` + capability maps); REST router, WB message handler, and the manifest
