@@ -1,5 +1,5 @@
 {
-  "version": "cf95a8f19725a14e",
+  "version": "31660f66f000d2ea",
   "rooms": [
     {
       "id": "bathroom",
@@ -8,6 +8,7 @@
         "ru": "Ванная",
         "de": "Badezimmer"
       },
+      "aliases": null,
       "devices": [
         "bathroom_floor",
         "bathroom_mirror",
@@ -23,6 +24,7 @@
         "ru": "Спальня",
         "de": "Schlafzimmer"
       },
+      "aliases": null,
       "devices": [
         "bedroom_curtain",
         "bedroom_heating",
@@ -44,6 +46,7 @@
         "ru": "Кабинет",
         "de": "Arbeitszimmer"
       },
+      "aliases": null,
       "devices": [
         "cabinet_backlight",
         "cabinet_floor",
@@ -60,6 +63,7 @@
         "ru": "Детская",
         "de": "Kinderzimmer"
       },
+      "aliases": null,
       "devices": [
         "appletv_children",
         "children_room_behind_column",
@@ -78,6 +82,7 @@
         "ru": "Прихожая",
         "de": "Eingang"
       },
+      "aliases": null,
       "devices": [
         "entrance_cabinet_accent",
         "entrance_floor",
@@ -91,6 +96,7 @@
         "ru": "Весь дом",
         "de": "Ganzes Haus"
       },
+      "aliases": null,
       "devices": [
         "all_lights",
         "all_plugs",
@@ -109,6 +115,7 @@
         "ru": "Коридор",
         "de": "Flur"
       },
+      "aliases": null,
       "devices": [
         "hall_spots",
         "hall_track_1",
@@ -122,6 +129,7 @@
         "ru": "Кухня",
         "de": "Küche"
       },
+      "aliases": null,
       "devices": [
         "kitchen_backlight",
         "kitchen_chandelier",
@@ -137,6 +145,7 @@
         "ru": "Гостиная",
         "de": "Wohnzimmer"
       },
+      "aliases": null,
       "devices": [
         "appletv_living",
         "ld_player",
@@ -168,6 +177,7 @@
         "ru": "Душевая",
         "de": "Dusche"
       },
+      "aliases": null,
       "devices": [
         "shower_floor",
         "shower_mirror",
@@ -184,6 +194,7 @@
         "ru": "Гардеробная",
         "de": "Garderobe"
       },
+      "aliases": null,
       "devices": [
         "wardrobe_shelves_light",
         "wardrobe_spots"
@@ -198,6 +209,7 @@
         "en": "All Lights",
         "de": "Alle Lichter"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "global",
       "capabilities": [
@@ -224,6 +236,7 @@
         "en": "Power Plugs",
         "de": "Steckdosen"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "global",
       "capabilities": [
@@ -249,6 +262,7 @@
         "ru": "Apple TV",
         "en": "Apple TV"
       },
+      "aliases": null,
       "device_class": "AppleTVDevice",
       "room": "children_room",
       "capabilities": [
@@ -339,7 +353,10 @@
                   "default": "YouTube",
                   "min": null,
                   "max": null,
-                  "description": "App name to launch"
+                  "description": "App name to launch",
+                  "unit": null,
+                  "values": null,
+                  "options_from": "apps"
                 }
               ]
             }
@@ -359,7 +376,10 @@
                   "default": null,
                   "min": -1000.0,
                   "max": 1000.0,
-                  "description": "Horizontal movement delta (-1000 to 1000)"
+                  "description": "Horizontal movement delta (-1000 to 1000)",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 },
                 {
                   "name": "dy",
@@ -368,7 +388,10 @@
                   "default": null,
                   "min": -1000.0,
                   "max": 1000.0,
-                  "description": "Vertical movement delta (-1000 to 1000)"
+                  "description": "Vertical movement delta (-1000 to 1000)",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             },
@@ -401,6 +424,7 @@
         "ru": "Apple TV",
         "en": "Apple TV"
       },
+      "aliases": null,
       "device_class": "AppleTVDevice",
       "room": "living_room",
       "capabilities": [
@@ -491,7 +515,10 @@
                   "default": "YouTube",
                   "min": null,
                   "max": null,
-                  "description": "App name to launch"
+                  "description": "App name to launch",
+                  "unit": null,
+                  "values": null,
+                  "options_from": "apps"
                 }
               ]
             }
@@ -511,7 +538,10 @@
                   "default": null,
                   "min": -1000.0,
                   "max": 1000.0,
-                  "description": "Horizontal movement delta (-1000 to 1000)"
+                  "description": "Horizontal movement delta (-1000 to 1000)",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 },
                 {
                   "name": "dy",
@@ -520,7 +550,10 @@
                   "default": null,
                   "min": -1000.0,
                   "max": 1000.0,
-                  "description": "Vertical movement delta (-1000 to 1000)"
+                  "description": "Vertical movement delta (-1000 to 1000)",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             },
@@ -554,6 +587,7 @@
         "en": "Floor Heating",
         "de": "Fußbodenheizung"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "bathroom",
       "capabilities": [
@@ -578,7 +612,10 @@
                   "default": null,
                   "min": 5.0,
                   "max": 30.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "°C",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -617,6 +654,7 @@
         "en": "Mirror",
         "de": "Spiegel"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "bathroom",
       "capabilities": [
@@ -643,6 +681,7 @@
         "en": "Shelf (Bath)",
         "de": "Regal über der Wanne"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "bathroom",
       "capabilities": [
@@ -669,6 +708,7 @@
         "en": "Shelf (Toilet)",
         "de": "Regal über der Toilette"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "bathroom",
       "capabilities": [
@@ -695,6 +735,7 @@
         "en": "Spots",
         "de": "Spots"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "bathroom",
       "capabilities": [
@@ -725,7 +766,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "%",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -753,6 +797,7 @@
         "en": "Curtain",
         "de": "Vorhang"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "bedroom",
       "capabilities": [
@@ -777,7 +822,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": ""
+                  "description": "",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -805,6 +853,7 @@
         "en": "Heating",
         "de": "Heizung"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "bedroom",
       "capabilities": [
@@ -829,7 +878,10 @@
                   "default": null,
                   "min": 5.0,
                   "max": 30.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "°C",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -868,6 +920,7 @@
         "en": "Air Conditioner",
         "de": "Klimaanlage"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "bedroom",
       "capabilities": [
@@ -892,7 +945,10 @@
                   "default": null,
                   "min": null,
                   "max": null,
-                  "description": ""
+                  "description": "",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             },
@@ -906,7 +962,10 @@
                   "default": null,
                   "min": null,
                   "max": null,
-                  "description": ""
+                  "description": "",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             },
@@ -920,7 +979,10 @@
                   "default": null,
                   "min": null,
                   "max": null,
-                  "description": ""
+                  "description": "",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             },
@@ -934,7 +996,10 @@
                   "default": null,
                   "min": null,
                   "max": null,
-                  "description": ""
+                  "description": "",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             },
@@ -948,7 +1013,10 @@
                   "default": null,
                   "min": 16.0,
                   "max": 31.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "°C",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -1266,6 +1334,7 @@
         "en": "Nightstand (Left)",
         "de": "Nachttisch links"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "bedroom",
       "capabilities": [
@@ -1292,6 +1361,7 @@
         "en": "Nightstand (Right)",
         "de": "Nachttisch rechts"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "bedroom",
       "capabilities": [
@@ -1318,6 +1388,7 @@
         "en": "Sconce (Left)",
         "de": "Wandleuchte links"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "bedroom",
       "capabilities": [
@@ -1344,6 +1415,7 @@
         "en": "Sconce (Right)",
         "de": "Wandleuchte rechts"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "bedroom",
       "capabilities": [
@@ -1370,6 +1442,7 @@
         "en": "Shelves Accent",
         "de": "Regalbeleuchtung"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "bedroom",
       "capabilities": [
@@ -1400,7 +1473,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "%",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -1428,6 +1504,7 @@
         "en": "Spots",
         "de": "Spots"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "bedroom",
       "capabilities": [
@@ -1458,7 +1535,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "%",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -1486,6 +1566,7 @@
         "en": "Sheer",
         "de": "Gardine"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "bedroom",
       "capabilities": [
@@ -1510,7 +1591,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": ""
+                  "description": "",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -1538,6 +1622,7 @@
         "en": "Window Accent",
         "de": "Fensterbeleuchtung"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "bedroom",
       "capabilities": [
@@ -1568,7 +1653,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "%",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -1596,6 +1684,7 @@
         "en": "Accent Light",
         "de": "Hintergrundbeleuchtung"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "cabinet",
       "capabilities": [
@@ -1626,7 +1715,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "%",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -1654,6 +1746,7 @@
         "en": "Floor Heating",
         "de": "Fußbodenheizung"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "cabinet",
       "capabilities": [
@@ -1678,7 +1771,10 @@
                   "default": null,
                   "min": 5.0,
                   "max": 30.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "°C",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -1717,6 +1813,7 @@
         "en": "Roller (Left)",
         "de": "Rollo links"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "cabinet",
       "capabilities": [
@@ -1741,7 +1838,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": ""
+                  "description": "",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -1769,6 +1869,7 @@
         "en": "Roller (Right)",
         "de": "Rollo rechts"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "cabinet",
       "capabilities": [
@@ -1793,7 +1894,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": ""
+                  "description": "",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -1821,6 +1925,7 @@
         "en": "Spots",
         "de": "Spots"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "cabinet",
       "capabilities": [
@@ -1847,6 +1952,7 @@
         "en": "Windowsill Heater",
         "de": "Fensterbankheizung"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "cabinet",
       "capabilities": [
@@ -1871,7 +1977,10 @@
                   "default": null,
                   "min": 5.0,
                   "max": 30.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "°C",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -1910,6 +2019,7 @@
         "en": "Behind Column",
         "de": "Hinter der Säule"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "children_room",
       "capabilities": [
@@ -1936,6 +2046,7 @@
         "en": "By Wardrobe",
         "de": "Beim Kleiderschrank"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "children_room",
       "capabilities": [
@@ -1962,6 +2073,7 @@
         "en": "Ceiling Accent",
         "de": "Deckenbeleuchtung"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "children_room",
       "capabilities": [
@@ -1988,6 +2100,7 @@
         "en": "Heating",
         "de": "Heizung"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "children_room",
       "capabilities": [
@@ -2012,7 +2125,10 @@
                   "default": null,
                   "min": 5.0,
                   "max": 30.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "°C",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -2051,6 +2167,7 @@
         "en": "Air Conditioner",
         "de": "Klimaanlage"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "children_room",
       "capabilities": [
@@ -2075,7 +2192,10 @@
                   "default": null,
                   "min": null,
                   "max": null,
-                  "description": ""
+                  "description": "",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             },
@@ -2089,7 +2209,10 @@
                   "default": null,
                   "min": null,
                   "max": null,
-                  "description": ""
+                  "description": "",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             },
@@ -2103,7 +2226,10 @@
                   "default": null,
                   "min": null,
                   "max": null,
-                  "description": ""
+                  "description": "",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             },
@@ -2117,7 +2243,10 @@
                   "default": null,
                   "min": null,
                   "max": null,
-                  "description": ""
+                  "description": "",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             },
@@ -2131,7 +2260,10 @@
                   "default": null,
                   "min": 16.0,
                   "max": 31.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "°C",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -2449,6 +2581,7 @@
         "en": "Spots",
         "de": "Spots"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "children_room",
       "capabilities": [
@@ -2479,7 +2612,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "%",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -2506,6 +2642,7 @@
         "ru": "Телевизор",
         "en": "TV"
       },
+      "aliases": null,
       "device_class": "LgTv",
       "room": "children_room",
       "capabilities": [
@@ -2521,11 +2658,6 @@
               "params": null
             }
           ],
-          "fields": null
-        },
-        {
-          "name": "input",
-          "actions": null,
           "fields": null
         },
         {
@@ -2549,7 +2681,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": "Volume level (0-100)"
+                  "description": "Volume level (0-100)",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             },
@@ -2641,7 +2776,10 @@
                   "default": null,
                   "min": null,
                   "max": null,
-                  "description": "App name to launch (preferred, at least one of app_name or app_id must be provided)"
+                  "description": "App name to launch (preferred, at least one of app_name or app_id must be provided)",
+                  "unit": null,
+                  "values": null,
+                  "options_from": "apps"
                 },
                 {
                   "name": "app_id",
@@ -2650,7 +2788,10 @@
                   "default": null,
                   "min": null,
                   "max": null,
-                  "description": "App ID to launch (alternative, at least one of app_name or app_id must be provided)"
+                  "description": "App ID to launch (alternative, at least one of app_name or app_id must be provided)",
+                  "unit": null,
+                  "values": null,
+                  "options_from": "apps"
                 }
               ]
             }
@@ -2670,7 +2811,10 @@
                   "default": null,
                   "min": -50.0,
                   "max": 50.0,
-                  "description": "X displacement (-50 to 50)"
+                  "description": "X displacement (-50 to 50)",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 },
                 {
                   "name": "dy",
@@ -2679,7 +2823,10 @@
                   "default": null,
                   "min": -50.0,
                   "max": 50.0,
-                  "description": "Y displacement (-50 to 50)"
+                  "description": "Y displacement (-50 to 50)",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             },
@@ -2699,6 +2846,7 @@
         "en": "Cleaning Mode",
         "de": "Reinigungsmodus"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "global",
       "capabilities": [
@@ -2719,7 +2867,10 @@
                   "default": null,
                   "min": null,
                   "max": null,
-                  "description": "Disarm duration in minutes"
+                  "description": "Disarm duration in minutes",
+                  "unit": "min",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -2747,6 +2898,7 @@
         "en": "Cabinet Accent",
         "de": "Schrankbeleuchtung"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "entrance",
       "capabilities": [
@@ -2773,6 +2925,7 @@
         "en": "Floor Heating",
         "de": "Fußbodenheizung"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "entrance",
       "capabilities": [
@@ -2797,7 +2950,10 @@
                   "default": null,
                   "min": 5.0,
                   "max": 30.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "°C",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -2836,6 +2992,7 @@
         "en": "Spots",
         "de": "Spots"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "entrance",
       "capabilities": [
@@ -2866,7 +3023,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "%",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -2894,6 +3054,7 @@
         "en": "Spots",
         "de": "Spots"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "hall",
       "capabilities": [
@@ -2924,7 +3085,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "%",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -2952,6 +3116,7 @@
         "en": "Track Light 1",
         "de": "Schienenleuchte 1"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "hall",
       "capabilities": [
@@ -2978,6 +3143,7 @@
         "en": "Track Light 2",
         "de": "Schienenleuchte 2"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "hall",
       "capabilities": [
@@ -3004,6 +3170,7 @@
         "en": "Heating",
         "de": "Heizung"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "global",
       "capabilities": [
@@ -3155,6 +3322,7 @@
         "en": "At Home",
         "de": "Zuhause"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "global",
       "capabilities": [
@@ -3193,6 +3361,7 @@
         "en": "Accent Light",
         "de": "Hintergrundbeleuchtung"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "kitchen",
       "capabilities": [
@@ -3219,6 +3388,7 @@
         "en": "Chandelier",
         "de": "Kronleuchter"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "kitchen",
       "capabilities": [
@@ -3245,6 +3415,7 @@
         "en": "Floor Heating",
         "de": "Fußbodenheizung"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "kitchen",
       "capabilities": [
@@ -3269,7 +3440,10 @@
                   "default": null,
                   "min": 5.0,
                   "max": 30.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "°C",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -3307,6 +3481,7 @@
         "ru": "Вытяжка",
         "en": "Kitchen Hood"
       },
+      "aliases": null,
       "device_class": "BroadlinkKitchenHood",
       "room": "kitchen",
       "capabilities": [
@@ -3366,7 +3541,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 4.0,
-                  "description": "Speed level (0-4, where 0 is off)"
+                  "description": "Speed level (0-4, where 0 is off)",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             },
@@ -3398,6 +3576,7 @@
         "en": "Spots",
         "de": "Spots"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "kitchen",
       "capabilities": [
@@ -3428,7 +3607,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "%",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -3455,6 +3637,7 @@
         "ru": "Лазердиск",
         "en": "LaserDisc"
       },
+      "aliases": null,
       "device_class": "WirenboardIRDevice",
       "room": "living_room",
       "capabilities": [
@@ -3517,6 +3700,7 @@
         "en": "Curtain (Left)",
         "de": "Vorhang links"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "living_room",
       "capabilities": [
@@ -3541,7 +3725,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": ""
+                  "description": "",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -3569,6 +3756,7 @@
         "en": "Curtain (Right)",
         "de": "Vorhang rechts"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "living_room",
       "capabilities": [
@@ -3593,7 +3781,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": ""
+                  "description": "",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -3621,6 +3812,7 @@
         "en": "Desk Lamp",
         "de": "Tischlampe"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "living_room",
       "capabilities": [
@@ -3647,6 +3839,7 @@
         "en": "Floor Lamp",
         "de": "Stehlampe"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "living_room",
       "capabilities": [
@@ -3673,6 +3866,7 @@
         "en": "Heating",
         "de": "Heizung"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "living_room",
       "capabilities": [
@@ -3697,7 +3891,10 @@
                   "default": null,
                   "min": 5.0,
                   "max": 30.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "°C",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -3736,6 +3933,7 @@
         "en": "Air Conditioner",
         "de": "Klimaanlage"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "living_room",
       "capabilities": [
@@ -3760,7 +3958,10 @@
                   "default": null,
                   "min": null,
                   "max": null,
-                  "description": ""
+                  "description": "",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             },
@@ -3774,7 +3975,10 @@
                   "default": null,
                   "min": null,
                   "max": null,
-                  "description": ""
+                  "description": "",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             },
@@ -3788,7 +3992,10 @@
                   "default": null,
                   "min": null,
                   "max": null,
-                  "description": ""
+                  "description": "",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             },
@@ -3802,7 +4009,10 @@
                   "default": null,
                   "min": null,
                   "max": null,
-                  "description": ""
+                  "description": "",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             },
@@ -3816,7 +4026,10 @@
                   "default": null,
                   "min": 16.0,
                   "max": 31.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "°C",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -4134,6 +4347,7 @@
         "en": "Spots",
         "de": "Spots"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "living_room",
       "capabilities": [
@@ -4164,7 +4378,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "%",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -4192,6 +4409,7 @@
         "en": "Sheer (Left)",
         "de": "Gardine links"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "living_room",
       "capabilities": [
@@ -4216,7 +4434,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": ""
+                  "description": "",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -4244,6 +4465,7 @@
         "en": "Sheer (Right)",
         "de": "Gardine rechts"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "living_room",
       "capabilities": [
@@ -4268,7 +4490,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": ""
+                  "description": "",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -4295,6 +4520,7 @@
         "ru": "Телевизор",
         "en": "TV"
       },
+      "aliases": null,
       "device_class": "LgTv",
       "room": "living_room",
       "capabilities": [
@@ -4310,11 +4536,6 @@
               "params": null
             }
           ],
-          "fields": null
-        },
-        {
-          "name": "input",
-          "actions": null,
           "fields": null
         },
         {
@@ -4338,7 +4559,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": "Volume level (0-100)"
+                  "description": "Volume level (0-100)",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             },
@@ -4430,7 +4654,10 @@
                   "default": null,
                   "min": null,
                   "max": null,
-                  "description": "App name to launch (preferred, at least one of app_name or app_id must be provided)"
+                  "description": "App name to launch (preferred, at least one of app_name or app_id must be provided)",
+                  "unit": null,
+                  "values": null,
+                  "options_from": "apps"
                 },
                 {
                   "name": "app_id",
@@ -4439,7 +4666,10 @@
                   "default": null,
                   "min": null,
                   "max": null,
-                  "description": "App ID to launch (alternative, at least one of app_name or app_id must be provided)"
+                  "description": "App ID to launch (alternative, at least one of app_name or app_id must be provided)",
+                  "unit": null,
+                  "values": null,
+                  "options_from": "apps"
                 }
               ]
             }
@@ -4459,7 +4689,10 @@
                   "default": null,
                   "min": -50.0,
                   "max": 50.0,
-                  "description": "X displacement (-50 to 50)"
+                  "description": "X displacement (-50 to 50)",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 },
                 {
                   "name": "dy",
@@ -4468,7 +4701,10 @@
                   "default": null,
                   "min": -50.0,
                   "max": 50.0,
-                  "description": "Y displacement (-50 to 50)"
+                  "description": "Y displacement (-50 to 50)",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             },
@@ -4488,6 +4724,7 @@
         "en": "Union Cabinet",
         "de": "Union-Sideboard"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "living_room",
       "capabilities": [
@@ -4514,6 +4751,7 @@
         "en": "Window Accent",
         "de": "Fensterbeleuchtung"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "living_room",
       "capabilities": [
@@ -4539,6 +4777,7 @@
         "ru": "Усилитель",
         "en": "Amplifier"
       },
+      "aliases": null,
       "device_class": "WirenboardIRDevice",
       "room": "living_room",
       "capabilities": [
@@ -4550,11 +4789,6 @@
               "params": null
             }
           ],
-          "fields": null
-        },
-        {
-          "name": "input",
-          "actions": null,
           "fields": null
         },
         {
@@ -4584,6 +4818,7 @@
         "en": "Oven",
         "de": "Ofen"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "global",
       "capabilities": [
@@ -4609,19 +4844,10 @@
         "ru": "Процессор",
         "en": "AV Processor"
       },
+      "aliases": null,
       "device_class": "EMotivaXMC2",
       "room": "living_room",
       "capabilities": [
-        {
-          "name": "power",
-          "actions": null,
-          "fields": null
-        },
-        {
-          "name": "input",
-          "actions": null,
-          "fields": null
-        },
         {
           "name": "volume",
           "actions": [
@@ -4635,7 +4861,10 @@
                   "default": null,
                   "min": -96.0,
                   "max": 0.0,
-                  "description": "Volume level in dB (-96.0 to 0.0)"
+                  "description": "Volume level in dB (-96.0 to 0.0)",
+                  "unit": "dB",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             },
@@ -4654,6 +4883,7 @@
         "ru": "Магнитофон",
         "en": "Reel-to-Reel"
       },
+      "aliases": null,
       "device_class": "RevoxA77ReelToReel",
       "room": "living_room",
       "capabilities": [
@@ -4688,6 +4918,7 @@
         "en": "Seasonal Mode",
         "de": "Saisonmodus"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "global",
       "capabilities": [
@@ -4752,6 +4983,7 @@
         "en": "Floor Heating",
         "de": "Fußbodenheizung"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "shower",
       "capabilities": [
@@ -4776,7 +5008,10 @@
                   "default": null,
                   "min": 5.0,
                   "max": 30.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "°C",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -4815,6 +5050,7 @@
         "en": "Mirror",
         "de": "Spiegel"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "shower",
       "capabilities": [
@@ -4841,6 +5077,7 @@
         "en": "Sauna",
         "de": "Sauna"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "shower",
       "capabilities": [
@@ -4871,7 +5108,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "%",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -4899,6 +5139,7 @@
         "en": "Sauna Sensors",
         "de": "Sauna-Sensoren"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "shower",
       "capabilities": [
@@ -4939,6 +5180,7 @@
         "en": "Service Closet",
         "de": "Technikschrank"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "shower",
       "capabilities": [
@@ -4965,6 +5207,7 @@
         "en": "Spots",
         "de": "Spots"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "shower",
       "capabilities": [
@@ -4995,7 +5238,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "%",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -5022,6 +5268,7 @@
         "ru": "Стример",
         "en": "Streamer"
       },
+      "aliases": null,
       "device_class": "AuralicDevice",
       "room": "living_room",
       "capabilities": [
@@ -5042,16 +5289,14 @@
                   "default": false,
                   "min": null,
                   "max": null,
-                  "description": "If true, only put the device in standby mode instead of true power off"
+                  "description": "If true, only put the device in standby mode instead of true power off",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
           ],
-          "fields": null
-        },
-        {
-          "name": "input",
-          "actions": null,
           "fields": null
         },
         {
@@ -5075,7 +5320,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": "Volume level (0-100)"
+                  "description": "Volume level (0-100)",
+                  "unit": null,
+                  "values": null,
+                  "options_from": null
                 }
               ]
             },
@@ -5116,6 +5364,7 @@
         "ru": "Апскейлер",
         "en": "Upscaler"
       },
+      "aliases": null,
       "device_class": "WirenboardIRDevice",
       "room": "living_room",
       "capabilities": [
@@ -5131,11 +5380,6 @@
               "params": null
             }
           ],
-          "fields": null
-        },
-        {
-          "name": "input",
-          "actions": null,
           "fields": null
         },
         {
@@ -5198,6 +5442,7 @@
         "ru": "Видеомагнитофон",
         "en": "VHS"
       },
+      "aliases": null,
       "device_class": "WirenboardIRDevice",
       "room": "living_room",
       "capabilities": [
@@ -5245,6 +5490,7 @@
         "ru": "Медиаплеер",
         "en": "Media Player"
       },
+      "aliases": null,
       "device_class": "WirenboardIRDevice",
       "room": "living_room",
       "capabilities": [
@@ -5345,6 +5591,7 @@
         "en": "Shelves Accent",
         "de": "Regalbeleuchtung"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "wardrobe",
       "capabilities": [
@@ -5375,7 +5622,10 @@
                   "default": null,
                   "min": 0.0,
                   "max": 100.0,
-                  "description": ""
+                  "description": "",
+                  "unit": "%",
+                  "values": null,
+                  "options_from": null
                 }
               ]
             }
@@ -5403,6 +5653,7 @@
         "en": "Spots",
         "de": "Spots"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "wardrobe",
       "capabilities": [
@@ -5429,6 +5680,7 @@
         "en": "Water Supply",
         "de": "Wasserversorgung"
       },
+      "aliases": null,
       "device_class": "WbPassthroughDevice",
       "room": "global",
       "capabilities": [
@@ -5558,6 +5810,7 @@
         "en": "Scenarios",
         "de": "Szenarien"
       },
+      "aliases": null,
       "device_class": "ScenarioManager",
       "room": "living_room",
       "capabilities": [
@@ -5570,11 +5823,18 @@
                 {
                   "name": "value",
                   "type": "enum",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": "Scenario id to activate ('none' deactivates)",
+                  "unit": null,
                   "values": [
                     {
                       "wire": "movie_appletv",
                       "canonical": "movie_appletv",
                       "labels": {
+                        "ru": "Кино с Apple TV",
                         "en": "Watch movies on Apple TV"
                       }
                     },
@@ -5582,6 +5842,7 @@
                       "wire": "movie_ld",
                       "canonical": "movie_ld",
                       "labels": {
+                        "ru": "Кино с LD-проигрывателя",
                         "en": "Watch movies on LD"
                       }
                     },
@@ -5589,6 +5850,7 @@
                       "wire": "movie_vhs",
                       "canonical": "movie_vhs",
                       "labels": {
+                        "ru": "Кино с видеокассеты",
                         "en": "Watch movies on VHS"
                       }
                     },
@@ -5596,6 +5858,7 @@
                       "wire": "movie_zappiti",
                       "canonical": "movie_zappiti",
                       "labels": {
+                        "ru": "Кино с Zappiti",
                         "en": "Watch movies on Zappiti"
                       }
                     },
@@ -5603,6 +5866,7 @@
                       "wire": "music_auralic",
                       "canonical": "music_auralic",
                       "labels": {
+                        "ru": "Музыка — стример Auralic",
                         "en": "Music — Auralic streamer"
                       }
                     },
@@ -5610,6 +5874,7 @@
                       "wire": "music_reel",
                       "canonical": "music_reel",
                       "labels": {
+                        "ru": "Музыка — катушечник Revox",
                         "en": "Music — Revox A77 reel-to-reel"
                       }
                     },
@@ -5617,6 +5882,7 @@
                       "wire": "music_tape",
                       "canonical": "music_tape",
                       "labels": {
+                        "ru": "Музыка — кассетная дека Revox",
                         "en": "Music — Revox B215 tape deck"
                       }
                     },
@@ -5624,6 +5890,7 @@
                       "wire": "music_turntable",
                       "canonical": "music_turntable",
                       "labels": {
+                        "ru": "Музыка — виниловый проигрыватель",
                         "en": "Music — Kuzma turntable"
                       }
                     },
@@ -5631,10 +5898,12 @@
                       "wire": "tv_on_speakers",
                       "canonical": "tv_on_speakers",
                       "labels": {
+                        "ru": "ТВ через колонки",
                         "en": "TV on speakers"
                       }
                     }
-                  ]
+                  ],
+                  "options_from": null
                 }
               ]
             },
@@ -5653,6 +5922,7 @@
                   "wire": "movie_appletv",
                   "canonical": "movie_appletv",
                   "labels": {
+                    "ru": "Кино с Apple TV",
                     "en": "Watch movies on Apple TV"
                   }
                 },
@@ -5660,6 +5930,7 @@
                   "wire": "movie_ld",
                   "canonical": "movie_ld",
                   "labels": {
+                    "ru": "Кино с LD-проигрывателя",
                     "en": "Watch movies on LD"
                   }
                 },
@@ -5667,6 +5938,7 @@
                   "wire": "movie_vhs",
                   "canonical": "movie_vhs",
                   "labels": {
+                    "ru": "Кино с видеокассеты",
                     "en": "Watch movies on VHS"
                   }
                 },
@@ -5674,6 +5946,7 @@
                   "wire": "movie_zappiti",
                   "canonical": "movie_zappiti",
                   "labels": {
+                    "ru": "Кино с Zappiti",
                     "en": "Watch movies on Zappiti"
                   }
                 },
@@ -5681,6 +5954,7 @@
                   "wire": "music_auralic",
                   "canonical": "music_auralic",
                   "labels": {
+                    "ru": "Музыка — стример Auralic",
                     "en": "Music — Auralic streamer"
                   }
                 },
@@ -5688,6 +5962,7 @@
                   "wire": "music_reel",
                   "canonical": "music_reel",
                   "labels": {
+                    "ru": "Музыка — катушечник Revox",
                     "en": "Music — Revox A77 reel-to-reel"
                   }
                 },
@@ -5695,6 +5970,7 @@
                   "wire": "music_tape",
                   "canonical": "music_tape",
                   "labels": {
+                    "ru": "Музыка — кассетная дека Revox",
                     "en": "Music — Revox B215 tape deck"
                   }
                 },
@@ -5702,6 +5978,7 @@
                   "wire": "music_turntable",
                   "canonical": "music_turntable",
                   "labels": {
+                    "ru": "Музыка — виниловый проигрыватель",
                     "en": "Music — Kuzma turntable"
                   }
                 },
@@ -5709,6 +5986,7 @@
                   "wire": "tv_on_speakers",
                   "canonical": "tv_on_speakers",
                   "labels": {
+                    "ru": "ТВ через колонки",
                     "en": "TV on speakers"
                   }
                 },

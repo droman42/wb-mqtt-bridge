@@ -2,19 +2,42 @@
   "device_id": "hall_spots",
   "device_class": "WbPassthroughDevice",
   "config_class": "WbPassthroughDeviceConfig",
-  "names": {"ru": "Споты", "en": "Spots", "de": "Spots"},
+  "names": {
+    "ru": "Споты",
+    "en": "Spots",
+    "de": "Spots"
+  },
   "capability_profile": "dimmable_light",
   "room": "hall",
   "commands": {
-    "power_on":  {"topic": "/devices/wb-mdm3_87/controls/K2/on", "value": "1"},
-    "power_off": {"topic": "/devices/wb-mdm3_87/controls/K2/on", "value": "0"},
+    "power_on": {
+      "topic": "/devices/wb-mdm3_87/controls/K2/on",
+      "value": "1"
+    },
+    "power_off": {
+      "topic": "/devices/wb-mdm3_87/controls/K2/on",
+      "value": "0"
+    },
     "set_brightness": {
       "topic": "/devices/wb-mdm3_87/controls/Channel 2/on",
-      "params": [{"name": "level", "type": "range", "min": 0, "max": 100, "required": true}]
+      "params": [
+        {
+          "name": "level",
+          "type": "range",
+          "min": 0,
+          "max": 100,
+          "required": true,
+          "units": "%"
+        }
+      ]
     }
   },
   "state_topics": {
     "power": "/devices/wb-mdm3_87/controls/K2",
-    "level": {"topic": "/devices/wb-mdm3_87/controls/Channel 2", "type": "int", "unit": "%"}
+    "level": {
+      "topic": "/devices/wb-mdm3_87/controls/Channel 2",
+      "type": "int",
+      "unit": "%"
+    }
   }
 }

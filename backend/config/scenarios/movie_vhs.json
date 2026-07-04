@@ -20,5 +20,9 @@
     "shutdown": [
       "💡 Don't forget to turn the lights back on"
     ]
+  },
+  "names": {
+    "ru": "Кино с видеокассеты",
+    "en": "Watch movies on VHS"
   }
 }

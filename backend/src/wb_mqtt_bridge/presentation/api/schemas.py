@@ -147,13 +147,33 @@ class CanonicalActionResponse(BaseModel):
 # UI-shaped (panels, slider widgets, positions). Catalog is the stable read contract.
 
 
+class CatalogParam(BaseModel):
+    """One client-facing parameter of a canonical action (VWB-20/G1 — the schema of
+    record the voice side codes its parser against). Constraints come from the native
+    config specs through the §6 projection (canonical names via the reversed
+    `param_map`; capability-fixed params excluded). `values` carries the enum value
+    table where the choice set is bridge-known (e.g. the scenario enum);
+    `options_from` marks an intentionally OPEN set enumerable at runtime via
+    `GET /devices/{id}/options/{options_from}` (e.g. installed apps — VWB-20/G5)."""
+    name: str
+    type: str = "string"
+    required: bool = False
+    default: Optional[Any] = None
+    min: Optional[float] = None
+    max: Optional[float] = None
+    description: str = ""
+    unit: Optional[str] = None
+    values: Optional[List["CatalogValueLabel"]] = None
+    options_from: Optional[str] = None
+
+
 class CatalogAction(BaseModel):
     """A canonical action a device supports under a capability. `params` is `None` for
-    parameterless actions (`power.on`, `cover.open`) and a list of param descriptors
-    otherwise. Full param introspection (type, min/max, choices, labels) is owed work — the
-    catalog still surfaces action names only as of #19; deferred until voice needs it."""
+    parameterless actions (`power.on`, `cover.open`) and a list of typed
+    :class:`CatalogParam` descriptors otherwise (since VWB-20; the #19 introspection
+    stub was filled by VWB-15 and typed here)."""
     name: str
-    params: Optional[List[Dict[str, Any]]] = None
+    params: Optional[List[CatalogParam]] = None
 
 
 class CatalogValueLabel(BaseModel):
@@ -164,6 +184,11 @@ class CatalogValueLabel(BaseModel):
     wire: str
     canonical: str
     labels: Optional[Dict[str, str]] = None
+
+
+# CatalogParam forward-references CatalogValueLabel (defined above it in contract order,
+# below it in file order) — resolve the deferred annotation now that both exist.
+CatalogParam.model_rebuild()
 
 
 class CatalogField(BaseModel):
@@ -195,6 +220,12 @@ class CatalogDevice(BaseModel):
     AV gear until they're voice-onboarded)."""
     id: str
     names: Dict[str, str]
+    aliases: Optional[Dict[str, List[str]]] = Field(
+        default=None,
+        description="Spoken alias surfaces per locale (VWB-20/G2 schema; vocabulary "
+                    "authored in VWB-21) — «люстра»/«подсветка» for the same fixture. "
+                    "None until authored.",
+    )
     device_class: str
     room: Optional[str] = None
     capabilities: List[CatalogCapability] = Field(default_factory=list)
@@ -205,6 +236,11 @@ class CatalogRoom(BaseModel):
     (from `rooms.json`)."""
     id: str
     names: Dict[str, str]
+    aliases: Optional[Dict[str, List[str]]] = Field(
+        default=None,
+        description="Spoken alias surfaces per locale (VWB-20/G2 schema; vocabulary "
+                    "authored in VWB-21) — «зал» for «гостиная». None until authored.",
+    )
     devices: List[str] = Field(default_factory=list)
 
 

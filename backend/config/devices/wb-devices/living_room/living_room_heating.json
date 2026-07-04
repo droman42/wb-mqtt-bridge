@@ -2,19 +2,42 @@
   "device_id": "living_room_heating",
   "device_class": "WbPassthroughDevice",
   "config_class": "WbPassthroughDeviceConfig",
-  "names": {"ru": "Обогрев", "en": "Heating", "de": "Heizung"},
+  "names": {
+    "ru": "Обогрев",
+    "en": "Heating",
+    "de": "Heizung"
+  },
   "capability_profile": "heating_loop",
   "room": "living_room",
   "commands": {
-    "mode_on":  {"topic": "/devices/wb-gpio/controls/EXT3_R3A2/on", "value": "1"},
-    "mode_off": {"topic": "/devices/wb-gpio/controls/EXT3_R3A2/on", "value": "0"},
+    "mode_on": {
+      "topic": "/devices/wb-gpio/controls/EXT3_R3A2/on",
+      "value": "1"
+    },
+    "mode_off": {
+      "topic": "/devices/wb-gpio/controls/EXT3_R3A2/on",
+      "value": "0"
+    },
     "set_setpoint": {
       "topic": "/devices/setpoints_radiator/controls/livingroom_temp/on",
-      "params": [{"name": "temp", "type": "float", "min": 5, "max": 30, "required": true}]
+      "params": [
+        {
+          "name": "temp",
+          "type": "float",
+          "min": 5,
+          "max": 30,
+          "required": true,
+          "units": "°C"
+        }
+      ]
     }
   },
   "state_topics": {
-    "mode": {"topic": "/devices/wb-gpio/controls/EXT3_R3A2", "type": "bool", "invert": true},
+    "mode": {
+      "topic": "/devices/wb-gpio/controls/EXT3_R3A2",
+      "type": "bool",
+      "invert": true
+    },
     "setpoint": {
       "topic": "/devices/setpoints_radiator/controls/livingroom_temp",
       "type": "float",

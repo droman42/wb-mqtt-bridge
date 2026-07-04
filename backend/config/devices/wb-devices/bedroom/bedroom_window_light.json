@@ -2,19 +2,42 @@
   "device_id": "bedroom_window_light",
   "device_class": "WbPassthroughDevice",
   "config_class": "WbPassthroughDeviceConfig",
-  "names": {"ru": "Подсветка окна", "en": "Window Accent", "de": "Fensterbeleuchtung"},
+  "names": {
+    "ru": "Подсветка окна",
+    "en": "Window Accent",
+    "de": "Fensterbeleuchtung"
+  },
   "capability_profile": "dimmable_light",
   "room": "bedroom",
   "commands": {
-    "power_on":  {"topic": "/devices/wb-mrgbw-d-fw3_10/controls/Channel 3 (G)/on", "value": "1"},
-    "power_off": {"topic": "/devices/wb-mrgbw-d-fw3_10/controls/Channel 3 (G)/on", "value": "0"},
+    "power_on": {
+      "topic": "/devices/wb-mrgbw-d-fw3_10/controls/Channel 3 (G)/on",
+      "value": "1"
+    },
+    "power_off": {
+      "topic": "/devices/wb-mrgbw-d-fw3_10/controls/Channel 3 (G)/on",
+      "value": "0"
+    },
     "set_brightness": {
       "topic": "/devices/wb-mrgbw-d-fw3_10/controls/Channel 3 (G) Brightness/on",
-      "params": [{"name": "level", "type": "range", "min": 0, "max": 100, "required": true}]
+      "params": [
+        {
+          "name": "level",
+          "type": "range",
+          "min": 0,
+          "max": 100,
+          "required": true,
+          "units": "%"
+        }
+      ]
     }
   },
   "state_topics": {
     "power": "/devices/wb-mrgbw-d-fw3_10/controls/Channel 3 (G)",
-    "level": {"topic": "/devices/wb-mrgbw-d-fw3_10/controls/Channel 3 (G) Brightness", "type": "int", "unit": "%"}
+    "level": {
+      "topic": "/devices/wb-mrgbw-d-fw3_10/controls/Channel 3 (G) Brightness",
+      "type": "int",
+      "unit": "%"
+    }
   }
 }

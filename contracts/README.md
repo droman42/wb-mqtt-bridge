@@ -10,7 +10,7 @@ into a sibling repository. The voice side pins its own copy (into
 
 | File | What it is |
 |---|---|
-| `catalog.golden.json` | The golden catalog sample — the full house as `GET /system/catalog` serves it: rooms, devices (including the `global` aggregates and the per-room `scenario_manager_*` entities), capabilities with action **param descriptors** (type/min/max/units, canonical names) and `{wire, canonical, labels}` enum value tables. Generated offline and deterministically from `backend/config/` — same projection code path as the live endpoint. |
+| `catalog.golden.json` | The golden catalog sample — the full house as `GET /system/catalog` serves it: rooms, devices (including the `global` aggregates and the per-room `scenario_manager_*` entities), capabilities with action **param descriptors** (typed `CatalogParam`: name/type/required/default/min/max/`unit`/`values`/`options_from` — the schema of record for param parsing) and `{wire, canonical, labels}` enum value tables. Generated offline and deterministically from `backend/config/` — same projection code path as the live endpoint. |
 | `openapi.json` | The pinned API schema of record — carries `CatalogResponse` and the canonical action request/response shapes under `components/schemas`. Byte-identical to `backend/openapi.json` (the UI-consumed copy). |
 | `STAMP.json` | The build stamp: which bridge commit + version last generated these artifacts, and the golden's content-hash. The content-hash tracks *config* drift (Irene re-fetches when the retained `bridge/catalog/version` topic changes); the commit stamp tracks the *code build* the voice side coded against. Neither substitutes for the other. The commit named is the build the artifacts were generated **from** (i.e. the parent of the commit that lands them). |
 
@@ -26,6 +26,22 @@ uv run wb-openapi -o openapi.json && cp openapi.json ../contracts/openapi.json
 `wb-catalog` builds the catalog **offline** — typed configs + capability maps +
 rooms + scenario definitions, no drivers, no network, no broker — so the dump is
 deterministic (devices sorted by id; identical bytes across runs).
+
+## Param semantics (contract v1.1, VWB-20)
+
+- **`unit`** on a param is the semantic unit of the value (`°C`, `%`, `dB`, `min`) —
+  what a voice consumer needs to parse «поставь двадцать два градуса» against a
+  °C-shaped target. Constraints (min/max/type) always come from the same native spec
+  the driver enforces.
+- **`values`** carries the `{wire, canonical, labels}` table when the choice set is
+  **bridge-known and static** (e.g. the scenario enum — labels are localized, ru/en).
+- **`options_from`** marks an **intentionally open set**: the choices are
+  runtime-dynamic (installed apps change with every install) and enumerable via
+  `GET /devices/{id}/options/<options_from>`. A param carries *either* `values` *or*
+  `options_from`, never both — an open set frozen into the golden would drift.
+- **No empty capability husks:** a capability with neither invocable actions nor
+  readable fields is suppressed from the catalog (today: the TVs' select-form
+  `input`, which becomes routable — and reappears here — with the bridge's VWB-19).
 
 ## Drift guard
 

@@ -82,6 +82,12 @@ class CommandParameterDefinition(BaseModel):
     min: Optional[float] = Field(None, description="Minimum allowed value (used with type: 'range')")
     max: Optional[float] = Field(None, description="Maximum allowed value (used with type: 'range')")
     description: Optional[str] = Field(None, description="Human-readable description")
+    units: Optional[str] = Field(
+        None,
+        description="Display/semantic unit of the value (°C, %, dB, min, …). Projected into the "
+                    "catalog's param descriptors (VWB-20/G4) and the WB control meta — voice needs "
+                    "it to parse «поставь двадцать два градуса» against a °C-shaped target.",
+    )
 
 
 class BaseCommandConfig(BaseModel):
@@ -108,6 +114,12 @@ class BaseDeviceConfig(BaseModel):
     """Base schema for device configuration."""
     device_id: str
     names: LocalizedName = Field(..., description="Bilingual display name; see LocalizedName.")
+    aliases: Optional[Dict[str, List[str]]] = Field(
+        None,
+        description="Spoken alias surfaces per locale ({'ru': ['люстра', 'подсветка']}) — "
+                    "projected into the catalog for voice entity resolution (VWB-20/G2 "
+                    "schema; household vocabulary authored in VWB-21).",
+    )
     capability_profile: Optional[str] = Field(
         None,
         description="Name of a shared capability profile from `config/capabilities/profiles/`. "

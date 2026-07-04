@@ -482,6 +482,24 @@
       "BaseDeviceConfig": {
         "description": "Base schema for device configuration.",
         "properties": {
+          "aliases": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Spoken alias surfaces per locale ({'ru': ['люстра', 'подсветка']}) — projected into the catalog for voice entity resolution (VWB-20/G2 schema; household vocabulary authored in VWB-21).",
+            "title": "Aliases"
+          },
           "capability_profile": {
             "anyOf": [
               {
@@ -828,7 +846,7 @@
         "type": "string"
       },
       "CatalogAction": {
-        "description": "A canonical action a device supports under a capability. `params` is `None` for\nparameterless actions (`power.on`, `cover.open`) and a list of param descriptors\notherwise. Full param introspection (type, min/max, choices, labels) is owed work — the\ncatalog still surfaces action names only as of #19; deferred until voice needs it.",
+        "description": "A canonical action a device supports under a capability. `params` is `None` for\nparameterless actions (`power.on`, `cover.open`) and a list of typed\n:class:`CatalogParam` descriptors otherwise (since VWB-20; the #19 introspection\nstub was filled by VWB-15 and typed here).",
         "properties": {
           "name": {
             "title": "Name",
@@ -838,8 +856,7 @@
             "anyOf": [
               {
                 "items": {
-                  "additionalProperties": true,
-                  "type": "object"
+                  "$ref": "#/components/schemas/CatalogParam"
                 },
                 "type": "array"
               },
@@ -901,6 +918,24 @@
       "CatalogDevice": {
         "description": "A device in the catalog. `room` is the device's single room (per the §P3.7\nsingle-room model), `null` for devices whose room isn't set yet (most existing\nAV gear until they're voice-onboarded).",
         "properties": {
+          "aliases": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Spoken alias surfaces per locale (VWB-20/G2 schema; vocabulary authored in VWB-21) — «люстра»/«подсветка» for the same fixture. None until authored.",
+            "title": "Aliases"
+          },
           "capabilities": {
             "items": {
               "$ref": "#/components/schemas/CatalogCapability"
@@ -1012,6 +1047,102 @@
         "title": "CatalogField",
         "type": "object"
       },
+      "CatalogParam": {
+        "description": "One client-facing parameter of a canonical action (VWB-20/G1 — the schema of\nrecord the voice side codes its parser against). Constraints come from the native\nconfig specs through the §6 projection (canonical names via the reversed\n`param_map`; capability-fixed params excluded). `values` carries the enum value\ntable where the choice set is bridge-known (e.g. the scenario enum);\n`options_from` marks an intentionally OPEN set enumerable at runtime via\n`GET /devices/{id}/options/{options_from}` (e.g. installed apps — VWB-20/G5).",
+        "properties": {
+          "default": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "options_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options From"
+          },
+          "required": {
+            "default": false,
+            "title": "Required",
+            "type": "boolean"
+          },
+          "type": {
+            "default": "string",
+            "title": "Type",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CatalogValueLabel"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CatalogParam",
+        "type": "object"
+      },
       "CatalogResponse": {
         "description": "Response for `GET /system/catalog`. `version` is a deterministic short hash of\nthe {rooms, devices} content -- the same payload always hashes to the same value,\nso Irene can subscribe to the retained `bridge/catalog/version` MQTT topic (bumped\non `/reload` + config change) and only re-fetch when it differs from the last\nseen one.",
         "properties": {
@@ -1045,6 +1176,24 @@
       "CatalogRoom": {
         "description": "A room in the catalog. `devices` is the room's authored membership list\n(from `rooms.json`).",
         "properties": {
+          "aliases": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Spoken alias surfaces per locale (VWB-20/G2 schema; vocabulary authored in VWB-21) — «зал» for «гостиная». None until authored.",
+            "title": "Aliases"
+          },
           "devices": {
             "items": {
               "type": "string"
@@ -1167,6 +1316,18 @@
             "description": "Data type (e.g., 'string', 'integer', 'float', 'boolean', 'range')",
             "title": "Type",
             "type": "string"
+          },
+          "units": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Display/semantic unit of the value (°C, %, dB, min, …). Projected into the catalog's param descriptors (VWB-20/G4) and the WB control meta — voice needs it to parse «поставь двадцать два градуса» against a °C-shaped target.",
+            "title": "Units"
           }
         },
         "required": [
@@ -2880,9 +3041,20 @@
             "description": "Instructions requiring human intervention"
           },
           "name": {
-            "description": "Human-readable name",
+            "description": "Human-readable name (legacy flat string; kept as the en fallback)",
             "title": "Name",
             "type": "string"
+          },
+          "names": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocalizedName"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Localized display names (ru/en required when present, extra locales allowed) — the voice surface for scenario activation (VWB-20/G3: «включи кино» needs a Russian label on the scenario enum). Falls back to `name` when absent."
           },
           "roles": {
             "additionalProperties": {

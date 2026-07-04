@@ -15,5 +15,9 @@
     "shutdown": [
       "⏹️ Stop the Revox B215 when you're done"
     ]
+  },
+  "names": {
+    "ru": "Музыка — кассетная дека Revox",
+    "en": "Music — Revox B215 tape deck"
   }
 }

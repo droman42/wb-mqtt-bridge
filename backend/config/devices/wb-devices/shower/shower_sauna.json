@@ -2,19 +2,42 @@
   "device_id": "shower_sauna",
   "device_class": "WbPassthroughDevice",
   "config_class": "WbPassthroughDeviceConfig",
-  "names": {"ru": "Сауна", "en": "Sauna", "de": "Sauna"},
+  "names": {
+    "ru": "Сауна",
+    "en": "Sauna",
+    "de": "Sauna"
+  },
   "capability_profile": "dimmable_light",
   "room": "shower",
   "commands": {
-    "power_on":  {"topic": "/devices/wb-mrgbw-d-fw3_238/controls/Channel 1 (B)/on", "value": "1"},
-    "power_off": {"topic": "/devices/wb-mrgbw-d-fw3_238/controls/Channel 1 (B)/on", "value": "0"},
+    "power_on": {
+      "topic": "/devices/wb-mrgbw-d-fw3_238/controls/Channel 1 (B)/on",
+      "value": "1"
+    },
+    "power_off": {
+      "topic": "/devices/wb-mrgbw-d-fw3_238/controls/Channel 1 (B)/on",
+      "value": "0"
+    },
     "set_brightness": {
       "topic": "/devices/wb-mrgbw-d-fw3_238/controls/Channel 1 (B) Brightness/on",
-      "params": [{"name": "level", "type": "range", "min": 0, "max": 100, "required": true}]
+      "params": [
+        {
+          "name": "level",
+          "type": "range",
+          "min": 0,
+          "max": 100,
+          "required": true,
+          "units": "%"
+        }
+      ]
     }
   },
   "state_topics": {
     "power": "/devices/wb-mrgbw-d-fw3_238/controls/Channel 1 (B)",
-    "level": {"topic": "/devices/wb-mrgbw-d-fw3_238/controls/Channel 1 (B) Brightness", "type": "int", "unit": "%"}
+    "level": {
+      "topic": "/devices/wb-mrgbw-d-fw3_238/controls/Channel 1 (B) Brightness",
+      "type": "int",
+      "unit": "%"
+    }
   }
 }

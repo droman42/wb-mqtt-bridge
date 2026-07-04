@@ -15,5 +15,9 @@
     "shutdown": [
       "⏹️ Lift the arm and stop the platter when you're done"
     ]
+  },
+  "names": {
+    "ru": "Музыка — виниловый проигрыватель",
+    "en": "Music — Kuzma turntable"
   }
 }

@@ -1265,6 +1265,13 @@ export interface components {
          */
         BaseDeviceConfig: {
             /**
+             * Aliases
+             * @description Spoken alias surfaces per locale ({'ru': ['люстра', 'подсветка']}) — projected into the catalog for voice entity resolution (VWB-20/G2 schema; household vocabulary authored in VWB-21).
+             */
+            aliases?: {
+                [key: string]: string[];
+            } | null;
+            /**
              * Capability Profile
              * @description Name of a shared capability profile from `config/capabilities/profiles/`. Lets many similar devices (every relay-light, every cover, every heating loop) share one capability map authored once. The resolver merges the profile on top of the class-level map and then merges any per-instance override on top of that. `None` for devices whose capability shape is fully captured by their device-class file (the AV pattern -- LgTv, AppleTVDevice, etc.).
              */
@@ -1442,17 +1449,15 @@ export interface components {
         /**
          * CatalogAction
          * @description A canonical action a device supports under a capability. `params` is `None` for
-         *     parameterless actions (`power.on`, `cover.open`) and a list of param descriptors
-         *     otherwise. Full param introspection (type, min/max, choices, labels) is owed work — the
-         *     catalog still surfaces action names only as of #19; deferred until voice needs it.
+         *     parameterless actions (`power.on`, `cover.open`) and a list of typed
+         *     :class:`CatalogParam` descriptors otherwise (since VWB-20; the #19 introspection
+         *     stub was filled by VWB-15 and typed here).
          */
         CatalogAction: {
             /** Name */
             name: string;
             /** Params */
-            params?: {
-                [key: string]: unknown;
-            }[] | null;
+            params?: components["schemas"]["CatalogParam"][] | null;
         };
         /**
          * CatalogCapability
@@ -1476,6 +1481,13 @@ export interface components {
          *     AV gear until they're voice-onboarded).
          */
         CatalogDevice: {
+            /**
+             * Aliases
+             * @description Spoken alias surfaces per locale (VWB-20/G2 schema; vocabulary authored in VWB-21) — «люстра»/«подсветка» for the same fixture. None until authored.
+             */
+            aliases?: {
+                [key: string]: string[];
+            } | null;
             /** Capabilities */
             capabilities?: components["schemas"]["CatalogCapability"][];
             /** Device Class */
@@ -1513,6 +1525,47 @@ export interface components {
             values?: components["schemas"]["CatalogValueLabel"][] | null;
         };
         /**
+         * CatalogParam
+         * @description One client-facing parameter of a canonical action (VWB-20/G1 — the schema of
+         *     record the voice side codes its parser against). Constraints come from the native
+         *     config specs through the §6 projection (canonical names via the reversed
+         *     `param_map`; capability-fixed params excluded). `values` carries the enum value
+         *     table where the choice set is bridge-known (e.g. the scenario enum);
+         *     `options_from` marks an intentionally OPEN set enumerable at runtime via
+         *     `GET /devices/{id}/options/{options_from}` (e.g. installed apps — VWB-20/G5).
+         */
+        CatalogParam: {
+            /** Default */
+            default?: unknown | null;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Max */
+            max?: number | null;
+            /** Min */
+            min?: number | null;
+            /** Name */
+            name: string;
+            /** Options From */
+            options_from?: string | null;
+            /**
+             * Required
+             * @default false
+             */
+            required: boolean;
+            /**
+             * Type
+             * @default string
+             */
+            type: string;
+            /** Unit */
+            unit?: string | null;
+            /** Values */
+            values?: components["schemas"]["CatalogValueLabel"][] | null;
+        };
+        /**
          * CatalogResponse
          * @description Response for `GET /system/catalog`. `version` is a deterministic short hash of
          *     the {rooms, devices} content -- the same payload always hashes to the same value,
@@ -1534,6 +1587,13 @@ export interface components {
          *     (from `rooms.json`).
          */
         CatalogRoom: {
+            /**
+             * Aliases
+             * @description Spoken alias surfaces per locale (VWB-20/G2 schema; vocabulary authored in VWB-21) — «зал» for «гостиная». None until authored.
+             */
+            aliases?: {
+                [key: string]: string[];
+            } | null;
             /** Devices */
             devices?: string[];
             /** Id */
@@ -1600,6 +1660,11 @@ export interface components {
              * @description Data type (e.g., 'string', 'integer', 'float', 'boolean', 'range')
              */
             type: string;
+            /**
+             * Units
+             * @description Display/semantic unit of the value (°C, %, dB, min, …). Projected into the catalog's param descriptors (VWB-20/G4) and the WB control meta — voice needs it to parse «поставь двадцать два градуса» against a °C-shaped target.
+             */
+            units?: string | null;
         };
         /**
          * CommandResponse
@@ -2351,9 +2416,11 @@ export interface components {
             manual_instructions?: components["schemas"]["wb_mqtt_bridge__domain__scenarios__models__ManualInstructions"] | null;
             /**
              * Name
-             * @description Human-readable name
+             * @description Human-readable name (legacy flat string; kept as the en fallback)
              */
             name: string;
+            /** @description Localized display names (ru/en required when present, extra locales allowed) — the voice surface for scenario activation (VWB-20/G3: «включи кино» needs a Russian label on the scenario enum). Falls back to `name` when absent. */
+            names?: components["schemas"]["LocalizedName"] | null;
             /**
              * Roles
              * @description Mapping of role name to device ID

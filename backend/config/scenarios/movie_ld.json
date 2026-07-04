@@ -21,5 +21,9 @@
     "shutdown": [
       "💡 Don't forget to turn the lights back on"
     ]
+  },
+  "names": {
+    "ru": "Кино с LD-проигрывателя",
+    "en": "Watch movies on LD"
   }
 }

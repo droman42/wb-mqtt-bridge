@@ -10,12 +10,25 @@
   "capability_profile": "dimmable_light",
   "room": "cabinet",
   "commands": {
-    "power_on":  {"topic": "/devices/wb-mrgbw-d-fw3_238/controls/Channel 2 (R)/on", "value": "1"},
-    "power_off": {"topic": "/devices/wb-mrgbw-d-fw3_238/controls/Channel 2 (R)/on", "value": "0"},
+    "power_on": {
+      "topic": "/devices/wb-mrgbw-d-fw3_238/controls/Channel 2 (R)/on",
+      "value": "1"
+    },
+    "power_off": {
+      "topic": "/devices/wb-mrgbw-d-fw3_238/controls/Channel 2 (R)/on",
+      "value": "0"
+    },
     "set_brightness": {
       "topic": "/devices/wb-mrgbw-d-fw3_238/controls/Channel 2 (R) Brightness/on",
       "params": [
-        {"name": "level", "type": "range", "min": 0, "max": 100, "required": true}
+        {
+          "name": "level",
+          "type": "range",
+          "min": 0,
+          "max": 100,
+          "required": true,
+          "units": "%"
+        }
       ]
     }
   },

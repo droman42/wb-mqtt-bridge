@@ -21,7 +21,8 @@
           "name": "minutes",
           "type": "integer",
           "required": true,
-          "description": "Disarm duration in minutes"
+          "description": "Disarm duration in minutes",
+          "units": "min"
         }
       ]
     }

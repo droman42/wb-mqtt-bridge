@@ -30,6 +30,7 @@ from wb_mqtt_bridge.domain.capabilities.models import CapabilityMap
 from wb_mqtt_bridge.presentation.api.param_projection import project_action_params
 from wb_mqtt_bridge.presentation.api.schemas import (
     CatalogAction,
+    CatalogParam,
     CatalogCapability,
     CatalogDevice,
     CatalogField,
@@ -59,13 +60,25 @@ def _project_capability_actions(
     out: list[CatalogCapability] = []
     if cap_map is None:
         return out
+    # VWB-20/G5: capabilities whose choice set is runtime-dynamic get an `options_from`
+    # hint on their string params — the set is enumerable via GET /devices/{id}/options/*
+    # (a static enum would drift on every app install). Keyed by capability name.
+    options_kind = {"input": "inputs", "apps": "apps"}
     for cap_name, cap in cap_map.root.items():
+        dynamic_kind = options_kind.get(cap_name) if cap.list is not None else None
         actions: list[CatalogAction] = []
         for action_name, cap_action in cap.actions.items():
-            params = (
+            raw = (
                 project_action_params(cap_action, dict(commands), canonical_names=True)
                 if commands else None
             )
+            params: Optional[list[CatalogParam]] = None
+            if raw:
+                params = [CatalogParam(**d) for d in raw]
+                if dynamic_kind:
+                    for p in params:
+                        if p.type == "string" and p.values is None:
+                            p.options_from = dynamic_kind
             actions.append(CatalogAction(name=action_name, params=params))
         fields: list[CatalogField] = []
         for f in cap.fields:
@@ -89,6 +102,12 @@ def _project_capability_actions(
                 unit=f.unit,
                 labels=f.labels.model_dump() if f.labels is not None else None,
             ))
+        # VWB-20 (voice review, minor flag): suppress empty husks — a capability with
+        # neither invocable actions nor readable fields says nothing a consumer can use.
+        # Today that's the select-form `input` on TVs (select isn't canonically routable
+        # yet — VWB-19); it reappears here the moment VWB-19 gives it a real `set`.
+        if not actions and not fields:
+            continue
         out.append(CatalogCapability(
             name=cap_name,
             actions=actions if actions else None,
@@ -123,6 +142,7 @@ def _project_devices(devices_iterable: Iterable) -> list[CatalogDevice]:
         out.append(CatalogDevice(
             id=cfg.device_id,
             names=names_dict,
+            aliases=getattr(cfg, "aliases", None),
             device_class=cfg.device_class,
             room=getattr(cfg, "room", None),
             capabilities=_project_capability_actions(
@@ -144,6 +164,7 @@ def _project_rooms(rooms_iterable: Iterable) -> list[CatalogRoom]:
         out.append(CatalogRoom(
             id=room.room_id,
             names=names_dict,
+            aliases=getattr(room, "aliases", None),
             devices=list(room.devices),
         ))
     out.sort(key=lambda r: r.id)
@@ -178,18 +199,26 @@ def _project_scenario_managers(scenario_proxy: Any) -> list[CatalogDevice]:
         return out
     for room_id in scenario_proxy.rooms():
         defs = scenario_proxy.room_scenarios(room_id)
+        # Localized labels (VWB-20/G3): scenario `names` (ru/en + extras) is the voice
+        # surface — «включи кино» needs a Russian label; the legacy flat `name` remains
+        # the en fallback for scenarios not yet migrated.
         value_table = [
-            CatalogValueLabel(wire=d.scenario_id, canonical=d.scenario_id,
-                              labels={"en": d.name})
+            CatalogValueLabel(
+                wire=d.scenario_id, canonical=d.scenario_id,
+                labels=(d.names.model_dump() if d.names is not None else {"en": d.name}),
+            )
             for d in defs
         ]
         scenario_cap = CatalogCapability(
             name="scenario",
             actions=[
-                CatalogAction(name="set", params=[{
-                    "name": "value", "type": "enum",
-                    "values": [v.model_dump() for v in value_table],
-                }]),
+                # Typed CatalogParam (VWB-20/G1) — the same descriptor model the §6
+                # projection produces, so both params producers share one schema.
+                CatalogAction(name="set", params=[CatalogParam(
+                    name="value", type="enum", required=True,
+                    description="Scenario id to activate ('none' deactivates)",
+                    values=value_table,
+                )]),
                 CatalogAction(name="off", params=None),
             ],
             fields=[CatalogField(

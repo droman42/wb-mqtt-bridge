@@ -277,8 +277,10 @@ async def test_catalog_carries_manager_entities_with_static_union(world):
     caps = {c.name: c for c in entity.capabilities}
 
     # scenario select: value enum over the room's scenarios; field carries `none` too.
-    scenario_values = caps["scenario"].actions[0].params[0]["values"]
-    assert {v["canonical"] for v in scenario_values} == {"movie", "music"}
+    # (params are typed CatalogParam since VWB-20 — attribute access, not dict.)
+    set_param = caps["scenario"].actions[0].params[0]
+    assert set_param.required is True
+    assert {v.canonical for v in set_param.values} == {"movie", "music"}
     field_values = {v.canonical for v in caps["scenario"].fields[0].values}
     assert field_values == {"movie", "music", "none"}
 

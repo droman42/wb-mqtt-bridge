@@ -22,5 +22,9 @@
       "💡 Don't forget to turn the lights back on",
       "🎬 Raise the projector screen if you're done watching"
     ]
+  },
+  "names": {
+    "ru": "Кино с Zappiti",
+    "en": "Watch movies on Zappiti"
   }
 }

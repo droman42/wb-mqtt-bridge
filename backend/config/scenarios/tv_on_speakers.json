@@ -22,5 +22,9 @@
     "shutdown": [
       "💡 Don't forget to turn the lights back on"
     ]
+  },
+  "names": {
+    "ru": "ТВ через колонки",
+    "en": "TV on speakers"
   }
 }

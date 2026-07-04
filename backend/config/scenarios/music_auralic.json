@@ -8,5 +8,9 @@
   "roles": {
     "volume": "mf_amplifier",
     "playback": "streamer"
+  },
+  "names": {
+    "ru": "Музыка — стример Auralic",
+    "en": "Music — Auralic streamer"
   }
 }

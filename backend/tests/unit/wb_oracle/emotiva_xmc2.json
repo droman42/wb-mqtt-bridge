@@ -71,7 +71,8 @@
         "title": {
           "en": "Set the volume level"
         },
-        "type": "range"
+        "type": "range",
+        "units": "dB"
       }
     },
     "zone2_power_toggle": {

@@ -48,6 +48,64 @@ def test_openapi_pin_matches_app():
     assert regenerated == committed_contract, _REGEN_HINT
 
 
+def _golden():
+    return json.loads((CONTRACTS / "catalog.golden.json").read_text(encoding="utf-8"))
+
+
+def _device(golden, device_id):
+    return next(d for d in golden["devices"] if d["id"] == device_id)
+
+
+def test_contract_v11_params_are_typed_with_units():
+    """VWB-20/G1+G4: every action param descriptor is CatalogParam-shaped and
+    semantic units ride the descriptor (voice parses «двадцать два градуса»
+    against a °C-shaped target)."""
+    golden = _golden()
+    hvac = _device(golden, "living_room_hvac")
+    climate = next(c for c in hvac["capabilities"] if c["name"] == "climate")
+    setpoint = next(a for a in climate["actions"] if a["name"] == "set_setpoint")
+    (temp,) = setpoint["params"]
+    assert temp["unit"] == "°C" and temp["min"] == 16.0 and temp["max"] == 31.0
+
+    processor = _device(golden, "processor")
+    volume = next(c for c in processor["capabilities"] if c["name"] == "volume")
+    vol_set = next(a for a in volume["actions"] if a["name"] == "set")
+    level = next(p for p in vol_set["params"] if p["name"] == "level")
+    assert level["unit"] == "dB"
+
+
+def test_contract_v11_scenario_labels_are_localized():
+    """VWB-20/G3: the scenario enum carries ru labels — «включи кино» has a surface."""
+    golden = _golden()
+    sm = _device(golden, "scenario_manager_living_room")
+    scenario = next(c for c in sm["capabilities"] if c["name"] == "scenario")
+    set_action = next(a for a in scenario["actions"] if a["name"] == "set")
+    for v in set_action["params"][0]["values"]:
+        assert v["labels"].get("ru"), f"scenario {v['canonical']} lacks a ru label"
+        assert v["labels"].get("en")
+
+
+def test_contract_v11_dynamic_sets_carry_options_from():
+    """VWB-20/G5 (corrected): app launching is an intentionally OPEN set — the param
+    points at the runtime options endpoint instead of lying with a static enum."""
+    golden = _golden()
+    tv = _device(golden, "living_room_tv")
+    apps = next(c for c in tv["capabilities"] if c["name"] == "apps")
+    launch = next(a for a in apps["actions"] if a["params"])
+    app_param = launch["params"][0]
+    assert app_param["options_from"] == "apps"
+    assert app_param["values"] is None
+
+
+def test_contract_v11_no_empty_capability_husks():
+    """VWB-20 minor flag: a capability with neither actions nor fields is suppressed
+    (the TVs' select-form `input` — reappears when VWB-19 makes select routable)."""
+    golden = _golden()
+    for d in golden["devices"]:
+        for c in d["capabilities"]:
+            assert c["actions"] or c["fields"], f"{d['id']}.{c['name']} is an empty husk"
+
+
 def test_stamp_names_a_bridge_build():
     stamp = json.loads((CONTRACTS / "STAMP.json").read_text(encoding="utf-8"))
     assert set(stamp) == {"bridge_commit", "bridge_version", "catalog_version"}

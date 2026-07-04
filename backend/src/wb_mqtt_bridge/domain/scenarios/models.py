@@ -1,5 +1,7 @@
 from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+from wb_mqtt_bridge.domain.devices.config import LocalizedName
 import logging
 
 logger = logging.getLogger(__name__)
@@ -41,7 +43,13 @@ class ScenarioDefinition(BaseModel):
     See docs/design/scenarios/scenario_system_redesign.md §6.
     """
     scenario_id: str = Field(..., min_length=1, description="Unique identifier for the scenario")
-    name: str = Field(..., description="Human-readable name")
+    name: str = Field(..., description="Human-readable name (legacy flat string; kept as the en fallback)")
+    names: Optional[LocalizedName] = Field(
+        default=None,
+        description="Localized display names (ru/en required when present, extra locales allowed) — "
+                    "the voice surface for scenario activation (VWB-20/G3: «включи кино» needs a "
+                    "Russian label on the scenario enum). Falls back to `name` when absent.",
+    )
     description: str = Field(default="", description="Description of the scenario's purpose")
     room_id: Optional[str] = Field(
         default=None,
@@ -118,6 +126,12 @@ class RoomDefinition(BaseModel):
     """
     room_id: str = Field(..., description="Unique identifier for the room")
     names: Dict[str, str] = Field(..., description="Localized names (locale code -> name)")
+    aliases: Optional[Dict[str, List[str]]] = Field(
+        None,
+        description="Spoken alias surfaces per locale ({'ru': ['зал']}) — projected into "
+                    "the catalog for voice room resolution (VWB-20/G2 schema; vocabulary "
+                    "authored in VWB-21).",
+    )
     description: str = Field("", description="Description of the room")
     devices: List[str] = Field(
         default_factory=list,

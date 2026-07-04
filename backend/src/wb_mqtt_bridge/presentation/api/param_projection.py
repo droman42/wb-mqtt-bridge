@@ -29,6 +29,9 @@ def _spec_dict(p: Any, name: str) -> Dict[str, Any]:
         "min": getattr(p, "min", None),
         "max": getattr(p, "max", None),
         "description": getattr(p, "description", "") or "",
+        # VWB-20/G4: the semantic unit rides the descriptor (°C, %, dB, min, …) —
+        # voice parses «поставь двадцать два градуса» against a °C-shaped target.
+        "unit": getattr(p, "units", None),
     }
 
 

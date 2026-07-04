@@ -16,6 +16,24 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-04 (executed + closed: VWB-20 — contract patch v1.1, PRE-PIN; voice may pin)** — Landed
+  hours after filing, inside the shape-change window. **G1:** typed `CatalogParam`
+  (…/`unit`/`values`/`options_from`) replaces the schema-free dicts; both producers unified (the §6
+  projection emits the full shape; the hand-built `scenario.set` constructs the model explicitly).
+  **G3:** `ScenarioDefinition.names` (LocalizedName; flat `name` = en fallback) + ru names
+  auto-translated for all 9 scenarios («Кино с Apple TV», «ТВ через колонки», …) — user corrects
+  wording at leisure, the drift guard forces re-dumps; the scenario enum labels now ru+en. **G4
+  root-caused deeper than the review:** `CommandParameterDefinition` had NO `units` field — authored
+  units were silently dropped at typed-config parse; field added, **28 params authored** (°C ×9,
+  % ×13, dB, min), `_spec_dict` projects `unit`; bonus: the eMotiva WB `set_volume` control meta now
+  carries `units: dB` (oracle re-captured; single-line diff verified before accepting). **G5
+  corrected:** `options_from: "apps"` hint at SCN-7's options endpoint — the open-set pattern
+  documented in `contracts/README.md` §Param semantics. **G2 schema half:** `aliases` on config +
+  contract models, projected when authored (null until VWB-21). **Minor:** empty capability husks
+  suppressed (locked by test; reappear with VWB-19). 4 new contract-semantics tests; suite **522**;
+  pyright 0; contracts 3/3; golden v `31660f66f000d2ea` + STAMP + openapi + pin + UI types
+  regenerated; UI green. **TEST-17 may pin now.** Next: VWB-21 (alias vocabulary, interactive).
+
 - **2026-07-04 (filed: VWB-20 + VWB-21 — the voice review's contract gaps, pre-pin patch + alias session)** —
   Hours after VWB-15 landed, the wb-mqtt-voice-side Claude reviewed `contracts/` and surfaced five
   gaps; all verified against live code at intake (`cross-repo-source-of-truth`): **G1** confirmed

@@ -14,5 +14,9 @@
       "🎞️ Thread a tape on the Revox A77 if one isn't loaded"
     ],
     "shutdown": []
+  },
+  "names": {
+    "ru": "Музыка — катушечник Revox",
+    "en": "Music — Revox A77 reel-to-reel"
   }
 }

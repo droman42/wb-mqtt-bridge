@@ -72,7 +72,8 @@
           "min": -96.0,
           "max": 0.0,
           "required": true,
-          "description": "Volume level in dB (-96.0 to 0.0)"
+          "description": "Volume level in dB (-96.0 to 0.0)",
+          "units": "dB"
         },
         {
           "name": "zone",

@@ -10,11 +10,26 @@
   "capability_profile": "heating_loop",
   "room": "cabinet",
   "commands": {
-    "mode_on":  {"topic": "/devices/wb-gpio/controls/EXT3_R3A5/on", "value": "1"},
-    "mode_off": {"topic": "/devices/wb-gpio/controls/EXT3_R3A5/on", "value": "0"},
+    "mode_on": {
+      "topic": "/devices/wb-gpio/controls/EXT3_R3A5/on",
+      "value": "1"
+    },
+    "mode_off": {
+      "topic": "/devices/wb-gpio/controls/EXT3_R3A5/on",
+      "value": "0"
+    },
     "set_setpoint": {
       "topic": "/devices/setpoints_floor/controls/cabinet2_temp/on",
-      "params": [{"name": "temp", "type": "float", "min": 5, "max": 30, "required": true}]
+      "params": [
+        {
+          "name": "temp",
+          "type": "float",
+          "min": 5,
+          "max": 30,
+          "required": true,
+          "units": "°C"
+        }
+      ]
     }
   },
   "state_topics": {
