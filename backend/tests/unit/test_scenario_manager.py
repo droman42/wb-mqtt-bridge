@@ -324,9 +324,10 @@ class TestScenarioManager:
         # Switch to the movie mode scenario
         result = await scenario_manager.switch_scenario("movie_mode")
 
-        # Check that the current scenario was set
-        assert scenario_manager.current_scenario is not None
-        assert scenario_manager.current_scenario.scenario_id == "movie_mode"
+        # Check that the room's active scenario was set (rooms are the concurrency unit)
+        active = scenario_manager.active_in_room("living_room")
+        assert active is not None
+        assert active.scenario_id == "movie_mode"
 
         # Verify the result object (reconciler shape)
         assert result["success"] is True
@@ -399,7 +400,7 @@ class TestScenarioManager:
         await scenario_manager.switch_scenario("movie_mode")
 
         # Execute a role action with an invalid role
-        with pytest.raises(ScenarioError, match="Role 'invalid' not defined in scenario"):
+        with pytest.raises(ScenarioError, match="Role 'invalid' not defined in any active scenario"):
             await scenario_manager.execute_role_action("invalid", "set_input", {"input": "hdmi1"})
 
     @pytest.mark.asyncio
@@ -416,18 +417,18 @@ class TestScenarioManager:
         await scenario_manager.initialize()
         await scenario_manager.switch_scenario("movie_mode")
 
-        persisted = await mock_store.load("active_scenario")
+        persisted = await mock_store.load("active_scenario:living_room")
         assert persisted == {"scenario_id": "movie_mode"}
 
     @pytest.mark.asyncio
     async def test_restore_state(self, mock_device_manager, mock_room_manager, mock_store, scenario_dir):
         """On initialize(), the previously-active scenario is reactivated via switch_scenario.
 
-        Rewritten for the new persistence shape: only the scenario_id is stored
-        (under 'active_scenario'); the manager looks it up, finds it in scenario_map,
-        and calls switch_scenario(scenario_id).
+        Rewritten for the per-room persistence shape (SCN-6): the scenario_id is
+        stored under 'active_scenario:<room_id>'. This test seeds the LEGACY global
+        key to also cover the one-shot migration path (pre-SCN-6 bridges).
         """
-        # Seed the store as production would have left it.
+        # Seed the store as a PRE-SCN-6 bridge would have left it (legacy key).
         await mock_store.save("active_scenario", "movie_mode")
 
         manager = ScenarioManager(
@@ -438,8 +439,12 @@ class TestScenarioManager:
         )
         await manager.initialize()
 
-        assert manager.current_scenario is not None
-        assert manager.current_scenario.scenario_id == "movie_mode"
+        active = manager.active_in_room("living_room")
+        assert active is not None
+        assert active.scenario_id == "movie_mode"
+        # One-shot migration: the legacy key is gone, the per-room key took over.
+        assert await mock_store.load("active_scenario") is None
+        assert await mock_store.load("active_scenario:living_room") == {"scenario_id": "movie_mode"}
         # Live state recomputes from current device states (no snapshot is held).
         assert manager.get_scenario_state("movie_mode").scenario_id == "movie_mode"
 
@@ -460,7 +465,7 @@ class TestScenarioManager:
         )
         await manager.initialize()  # must not raise
 
-        assert manager.current_scenario is None
+        assert manager.active == {}
 
     @pytest.mark.asyncio
     async def test_get_scenario_state_covers_all_definition_devices(
@@ -516,10 +521,12 @@ class TestScenarioManager:
         await scenario_manager.initialize()
         await scenario_manager.switch_scenario("movie_mode")
 
-        scenario_manager._activation_manual_steps = [
-            ManualStep(node="dodocus_hub", instruction="Set Dodocus hub to LD"),
-            ManualStep(node="kuzma", instruction="Power on Kuzma, cue the record"),
-        ]
+        scenario_manager._activation_manual_steps = {
+            "living_room": [
+                ManualStep(node="dodocus_hub", instruction="Set Dodocus hub to LD"),
+                ManualStep(node="kuzma", instruction="Power on Kuzma, cue the record"),
+            ]
+        }
 
         live = scenario_manager.get_scenario_state("movie_mode")
 

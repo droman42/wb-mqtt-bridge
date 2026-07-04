@@ -69,7 +69,7 @@ class _MockScenarioManager:
             sid: Scenario(self.scenario_definitions[sid], MagicMock())
             for sid in SAMPLE_SCENARIOS
         }
-        self.current_scenario = None
+        self.active: dict[str, object] = {}  # room_id -> Scenario (per-room since SCN-6)
         self._live_state: ScenarioState | None = None
         self.switch_scenario = AsyncMock()
         self.execute_role_action = AsyncMock(return_value={"status": "success"})
@@ -79,7 +79,8 @@ class _MockScenarioManager:
     def set_active(self, scenario_id: str):
         if scenario_id not in self.scenario_map:
             return
-        self.current_scenario = self.scenario_map[scenario_id]
+        room = self.scenario_definitions[scenario_id].room_id
+        self.active[room] = self.scenario_map[scenario_id]
         self._live_state = ScenarioState(
             scenario_id=scenario_id,
             devices={
@@ -87,6 +88,13 @@ class _MockScenarioManager:
                 "soundbar": DeviceState(power=True),
             },
         )
+
+    def active_in_room(self, room_id):
+        return self.active.get(room_id)
+
+    def find_role_owner(self, role):
+        matches = [sc for sc in self.active.values() if role in sc.definition.roles]
+        return matches[0] if len(matches) == 1 else None
 
     def get_scenario_state(self, scenario_id: str) -> ScenarioState:
         if not self._live_state or self._live_state.scenario_id != scenario_id:
@@ -248,7 +256,7 @@ def test_get_scenario_state_success(client, mock_scenario_manager):
 
 def test_get_scenario_state_no_active(client, mock_scenario_manager):
     """No active scenario -> 404 (or another 4xx)."""
-    mock_scenario_manager.current_scenario = None
+    mock_scenario_manager.active = {}
     mock_scenario_manager._live_state = None
     response = client.get("/scenario/state")
     assert response.status_code in (404, 400)

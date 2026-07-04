@@ -133,10 +133,17 @@ class Scenario:
                 "startup/shutdown-sequence format was removed)"
             )
 
-        # 2. Validate device IDs
+        # 2. A room is mandatory — rooms are the concurrency unit (one active scenario
+        #    per room; per-room persistence keys and Scenario Manager entities key off it).
+        if not self.definition.room_id:
+            errors.append(
+                "Scenario must declare 'room_id' (rooms are the activation/concurrency unit)"
+            )
+
+        # 3. Validate device IDs
         errors.extend(self._validate_device_ids())
 
-        # 3. Validate roles
+        # 4. Validate roles
         errors.extend(self._validate_roles())
 
         # If any errors found, raise exception with all details

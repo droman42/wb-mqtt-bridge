@@ -12,6 +12,7 @@ SAMPLE_SCENARIO = {
     "scenario_id": "test_scenario",
     "name": "Test Scenario",
     "description": "A test scenario",
+    "room_id": "living_room",
     "roles": {"main_display": "tv", "audio": "soundbar"},
     "devices": ["tv", "soundbar"],
     "source": "tv",

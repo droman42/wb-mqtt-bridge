@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, Any, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import RootModel
 
 from wb_mqtt_bridge.domain.devices.models import BaseDeviceState
@@ -136,29 +136,41 @@ async def get_all_persisted_states():
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.get("/scenario/state", response_model=ScenarioState)
-async def get_scenario_state():
+async def get_scenario_state(room: Optional[str] = Query(None, description="Room to read the active scenario of")):
     """
     Get the current scenario state.
-    
-    Returns information about the active scenario and the state of all
-    devices that are part of it.
-    
+
+    Rooms are the concurrency unit (one active scenario per room). With `room` given,
+    returns that room's active scenario state. Without it: returns the single active
+    scenario if exactly one room is active; 404 if none; 409 if several rooms are
+    active (pass `room` to disambiguate).
+
     Returns:
         ScenarioState: Current scenario state
-        
+
     Raises:
         HTTPException: If no active scenario or service not initialized
     """
     if not scenario_manager:
         raise HTTPException(status_code=503, detail="Service not fully initialized")
 
-    if not scenario_manager.current_scenario:
+    if room is not None:
+        active = scenario_manager.active_in_room(room)
+        if not active:
+            raise HTTPException(status_code=404, detail=f"No active scenario in room '{room}'")
+        return scenario_manager.get_scenario_state(active.scenario_id)
+
+    active_all = list(scenario_manager.active.values())
+    if not active_all:
         raise HTTPException(status_code=404, detail="No active scenario")
+    if len(active_all) > 1:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Multiple rooms have active scenarios ({sorted(scenario_manager.active)}); pass ?room=",
+        )
 
     # Always recompute live from device states. The manager holds no scenario-state snapshot.
-    return scenario_manager.get_scenario_state(
-        scenario_manager.current_scenario.scenario_id
-    )
+    return scenario_manager.get_scenario_state(active_all[0].scenario_id)
 
 @router.get("/scenario/{scenario_id}/state", response_model=ScenarioState)
 async def get_specific_scenario_state(scenario_id: str):

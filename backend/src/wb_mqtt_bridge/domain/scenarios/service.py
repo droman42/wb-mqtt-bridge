@@ -52,12 +52,14 @@ class ScenarioManager:
         
         self.scenario_map: Dict[str, Scenario] = {}  # scenario_id -> Scenario
         self.scenario_definitions: Dict[str, ScenarioDefinition] = {}  # scenario_id -> definition
-        self.current_scenario: Optional[Scenario] = None
-        # Manual notes (e.g. "set Dodocus to LD") from the most recent activation/switch;
-        # cleared on shutdown/deactivate. The transition-aware load-bearing fix (§5.1 #1):
-        # surfaced via get_scenario_state() so the UI can display Dodocus prompts that
-        # movie_ld/vhs need for audio.
-        self._activation_manual_steps: List[ManualStep] = []
+        # Rooms are the concurrency unit (SCN-6, canonical_first.md §3): each
+        # scenario-bearing room has at most ONE active scenario, independent of the
+        # others. room_id -> active Scenario.
+        self.active: Dict[str, Scenario] = {}
+        # Manual notes (e.g. "set Dodocus to LD") from the most recent activation/switch,
+        # per room; cleared on shutdown/deactivate. Surfaced via get_scenario_state() so
+        # the UI can display Dodocus prompts that movie_ld/vhs need for audio.
+        self._activation_manual_steps: Dict[str, List[ManualStep]] = {}
         # scenario_id/filename -> reason, for scenarios skipped at load (Bug 2: never fatal).
         self.scenario_load_errors: Dict[str, str] = {}
         # Layer 0 topology (scenario transitions route through the reconciler).
@@ -197,13 +199,39 @@ class ScenarioManager:
             f"{sum(1 for d in self.scenario_definitions.values() if d.room_id)} scenarios."
         )
 
+    def rooms_with_scenarios(self) -> List[str]:
+        """Rooms that carry at least one loaded scenario (the Scenario Manager entity set)."""
+        return sorted({d.room_id for d in self.scenario_definitions.values() if d.room_id})
+
+    def active_in_room(self, room_id: str) -> Optional[Scenario]:
+        """The room's active scenario, or None."""
+        return self.active.get(room_id)
+
+    def find_role_owner(self, role: str) -> Optional[Scenario]:
+        """The single active scenario that binds `role`, or None (0 or >1 matches)."""
+        matches = [sc for sc in self.active.values() if role in sc.definition.roles]
+        return matches[0] if len(matches) == 1 else None
+
+    @staticmethod
+    def _room_key(room_id: str) -> str:
+        return f"active_scenario:{room_id}"
+
+    def _room_of(self, scenario: Scenario) -> str:
+        """The scenario's room (validated non-None at load)."""
+        room = scenario.definition.room_id
+        assert room is not None  # enforced by Scenario.validate_configuration
+        return room
+
     async def switch_scenario(self, target_id: str, *, graceful: bool = True) -> Dict[str, Any]:
         """
-        Perform a diff-based transition between scenarios via the reconciler.
+        Perform a diff-based transition via the reconciler, scoped to the target
+        scenario's ROOM (rooms are the concurrency unit — another room's active
+        scenario is untouched).
 
-        Devices involved in the outgoing but not the incoming scenario are powered
-        off; the incoming activity is then reconciled from topology + capabilities +
-        assumed state (shared devices are left running and only re-targeted).
+        Devices involved in the room's outgoing but not the incoming scenario are
+        powered off; the incoming activity is then reconciled from topology +
+        capabilities + assumed state (shared devices are left running and only
+        re-targeted).
 
         Args:
             target_id: ID of the scenario to switch to
@@ -215,18 +243,19 @@ class ScenarioManager:
         """
         # DEBUG: Log scenario switch initiation
         logger.debug(f"[SCENARIO_DEBUG] switch_scenario called: target_id={target_id}, graceful={graceful}")
-        
+
         # Validate target scenario exists
         if target_id not in self.scenario_map:
             raise ValueError(f"Scenario '{target_id}' not found")
-            
-        outgoing = self.current_scenario
+
         incoming = self.scenario_map[target_id]
-        
+        room = self._room_of(incoming)
+        outgoing = self.active.get(room)
+
         # DEBUG: Log scenario transition details
-        logger.debug(f"[SCENARIO_DEBUG] Transition: outgoing={outgoing.scenario_id if outgoing else 'None'}, incoming={incoming.scenario_id}")
-        
-        # If already active, do nothing
+        logger.debug(f"[SCENARIO_DEBUG] Transition in room '{room}': outgoing={outgoing.scenario_id if outgoing else 'None'}, incoming={incoming.scenario_id}")
+
+        # If already active in its room, do nothing
         if outgoing and outgoing.scenario_id == incoming.scenario_id:
             logger.info(f"Scenario '{target_id}' is already active")
             return {
@@ -234,19 +263,22 @@ class ScenarioManager:
                 "powered_off": [],
                 "failures": []
             }
-        
-        logger.info(f"Switching from '{outgoing.scenario_id if outgoing else 'None'}' to '{incoming.scenario_id}'")
+
+        logger.info(
+            f"Switching room '{room}' from '{outgoing.scenario_id if outgoing else 'None'}' "
+            f"to '{incoming.scenario_id}'"
+        )
 
         # Derive + execute the transition plan from topology + capabilities.
-        return await self._switch_via_reconciler(outgoing, incoming, graceful=graceful)
+        return await self._switch_via_reconciler(room, outgoing, incoming, graceful=graceful)
 
     def _involved_devices(self, scenario: Scenario) -> set:
         """Devices a scenario touches, derived from the topology."""
         return resolve_targets(scenario.definition, self.topology)[2]
 
-    async def _switch_via_reconciler(self, outgoing, incoming, *, graceful: bool) -> Dict[str, Any]:
-        """Diff-based transition: power off outgoing-only devices, then reconcile the incoming
-        activity from topology + capabilities + assumed state."""
+    async def _switch_via_reconciler(self, room: str, outgoing, incoming, *, graceful: bool) -> Dict[str, Any]:
+        """Diff-based transition within one room: power off the room's outgoing-only devices,
+        then reconcile the incoming activity from topology + capabilities + assumed state."""
         devices = self.device_manager.devices
         incoming_involved = resolve_targets(incoming.definition, self.topology)[2]
         outgoing_involved = self._involved_devices(outgoing) if outgoing else set()
@@ -255,13 +287,13 @@ class ScenarioManager:
         teardown = await execute_plan(build_power_off_plan(sorted(to_power_off), devices), devices)
         activation = await execute_plan(build_plan(incoming.definition, self.topology, devices), devices)
 
-        self.current_scenario = incoming
+        self.active[room] = incoming
         # Capture the activation's manual notes; get_scenario_state() threads them into the
         # live recompute so /scenario/state surfaces them (single source of truth).
-        self._activation_manual_steps = [
+        self._activation_manual_steps[room] = [
             ManualStep(node=m.node, instruction=m.instruction) for m in activation.manual_steps
         ]
-        await self._persist_state()
+        await self._persist_state(room)
 
         failures = [
             {"device": a.device_id, "command": a.command, "error": err}
@@ -295,16 +327,31 @@ class ScenarioManager:
             ScenarioError: If no scenario is active or the role is invalid
         """
         # DEBUG: Log role action execution
-        logger.debug(f"[SCENARIO_DEBUG] execute_role_action called: role={role}, command={command}, params={params}, active_scenario={self.current_scenario.scenario_id if self.current_scenario else 'None'}")
+        logger.debug(f"[SCENARIO_DEBUG] execute_role_action called: role={role}, command={command}, params={params}, active={sorted(sc.scenario_id for sc in self.active.values())}")
         
-        if not self.current_scenario:
+        if not self.active:
             raise ScenarioError("No scenario is currently active", "no_active_scenario", True)
-            
+
+        matches = [sc for sc in self.active.values() if role in sc.definition.roles]
+        if not matches:
+            raise ScenarioError(
+                f"Role '{role}' not defined in any active scenario", "invalid_role", True
+            )
+        if len(matches) > 1:
+            raise ScenarioError(
+                f"Role '{role}' is bound in {len(matches)} active scenarios "
+                f"({', '.join(sorted(sc.scenario_id for sc in matches))}); target the room's "
+                f"scenario manager instead",
+                "ambiguous_role",
+                True,
+            )
+        scenario = matches[0]
+
         try:
             # DEBUG: Log before executing role action
-            logger.debug(f"[SCENARIO_DEBUG] Executing role action on scenario {self.current_scenario.scenario_id}: {role}.{command}")
-            
-            result = await self.current_scenario.execute_role_action(role, command, **params)
+            logger.debug(f"[SCENARIO_DEBUG] Executing role action on scenario {scenario.scenario_id}: {role}.{command}")
+
+            result = await scenario.execute_role_action(role, command, **params)
 
             # DEBUG: Log role action result
             logger.debug(f"[SCENARIO_DEBUG] Role action result: {result}")
@@ -314,107 +361,135 @@ class ScenarioManager:
             logger.error(f"Error executing role action {role}.{command}: {str(e)}")
             raise
     
-    async def _persist_state(self) -> None:
+    async def _persist_state(self, room_id: str) -> None:
         """
-        Persist the current scenario state.
+        Persist the room's active scenario under its per-room key.
         """
-        if self.current_scenario:
+        scenario = self.active.get(room_id)
+        if scenario:
             await self.state_repository.save(
-                "active_scenario",
-                {"scenario_id": self.current_scenario.scenario_id},
+                self._room_key(room_id),
+                {"scenario_id": scenario.scenario_id},
             )
-    
+
+    @staticmethod
+    def _stored_scenario_id(stored: Any) -> Optional[str]:
+        """Extract a scenario_id from a persisted value. Dict envelope is the current
+        shape; tolerate the legacy bare-string form for one upgrade."""
+        if isinstance(stored, dict):
+            return stored.get("scenario_id")
+        if isinstance(stored, str):
+            return stored
+        return None
+
     async def _restore_state(self) -> None:
         """
-        Restore the previously active scenario, if any.
+        Restore each room's previously active scenario, if any.
+
+        Reads the per-room keys (`active_scenario:<room_id>`); additionally performs a
+        ONE-SHOT migration of the legacy global `active_scenario` key (pre-SCN-6
+        bridges persisted a single slot): its scenario restores into its room unless
+        that room already has a per-room key, and the legacy key is deleted either way.
         """
         # DEBUG: Log state restoration attempt
         logger.debug("[SCENARIO_DEBUG] _restore_state() called")
-        
+
+        targets: Dict[str, str] = {}  # room_id -> scenario_id
+
+        # Legacy one-shot migration (lowest precedence).
         try:
-            stored = await self.state_repository.load("active_scenario")
-            # Persisted shape: {"scenario_id": "..."} since the StateRepositoryPort
-            # contract is Dict[str, Any]; tolerate the legacy bare-string form for
-            # one upgrade so persisted state from older bridges still restores.
-            scenario_id: Optional[str]
-            if isinstance(stored, dict):
-                scenario_id = stored.get("scenario_id")
-            elif isinstance(stored, str):
-                scenario_id = stored
-            else:
-                scenario_id = None
-
-            # DEBUG: Log what was loaded from store
-            logger.debug(f"[SCENARIO_DEBUG] Loaded scenario_id from store: {scenario_id}")
-
-            if scenario_id and scenario_id in self.scenario_map:
-                logger.info(f"Restoring previously active scenario: {scenario_id}")
-                # DEBUG: Log restoration attempt
-                logger.debug(f"[SCENARIO_DEBUG] Attempting to restore scenario: {scenario_id}")
-                try:
-                    await self.switch_scenario(scenario_id)
-                    # DEBUG: Log successful restoration
-                    logger.debug(f"[SCENARIO_DEBUG] Successfully restored scenario: {scenario_id}")
-                except Exception as e:
-                    logger.error(f"Error restoring scenario {scenario_id}: {str(e)}")
-            else:
-                # DEBUG: Log why restoration was skipped
-                logger.debug(f"[SCENARIO_DEBUG] Restoration skipped: scenario_id={scenario_id}, exists_in_map={scenario_id in self.scenario_map if scenario_id else False}")
-        except Exception as e:
-            logger.error(f"Error loading active scenario from store: {str(e)}")
-    
-    async def deactivate(self) -> Dict[str, Any]:
-        """Deactivate the current scenario by powering off the devices it involves.
-
-        This is the explicit user action ("turn it all off", via POST /scenario/shutdown) and is
-        DISTINCT from process ``shutdown()``: it intentionally drives the hardware off.
-        """
-        if not self.current_scenario:
-            return {"success": True, "powered_off": [], "manual_steps": [], "failures": []}
-
-        sc = self.current_scenario
-        logger.info(f"Deactivating scenario '{sc.scenario_id}' (powering off its devices)")
-        result: Dict[str, Any] = {"success": True, "powered_off": [], "manual_steps": [], "failures": []}
-        try:
-            devices = self.device_manager.devices
-            involved = sorted(resolve_targets(sc.definition, self.topology)[2])
-            exec_result = await execute_plan(build_power_off_plan(involved, devices), devices)
-            result["powered_off"] = involved
-            result["failures"] = [
-                {"device": a.device_id, "command": a.command, "error": err}
-                for a, err in exec_result.failures
-            ]
-            result["success"] = exec_result.success
-        except Exception as e:
-            logger.error(f"Error deactivating scenario '{sc.scenario_id}': {str(e)}")
-            result["success"] = False
-        finally:
-            self.current_scenario = None
-            self._activation_manual_steps = []
-            # Clear the persisted intent atomically with the in-memory clear — otherwise a
-            # bridge restart resurrects the deactivated scenario via _restore_state and powers
-            # the gear back on. deactivate() ONLY: process shutdown() deliberately leaves the
-            # key so a still-active scenario survives a restart.
-            try:
+            legacy = await self.state_repository.load("active_scenario")
+            legacy_id = self._stored_scenario_id(legacy)
+            if legacy_id and legacy_id in self.scenario_map:
+                legacy_room = self._room_of(self.scenario_map[legacy_id])
+                targets[legacy_room] = legacy_id
+                logger.info(
+                    f"Migrating legacy 'active_scenario' key → '{self._room_key(legacy_room)}' "
+                    f"({legacy_id})"
+                )
+            if legacy is not None:
                 await self.state_repository.delete("active_scenario")
+        except Exception as e:
+            logger.error(f"Error migrating legacy active scenario key: {str(e)}")
+
+        # Per-room keys (highest precedence).
+        for room_id in self.rooms_with_scenarios():
+            try:
+                stored = await self.state_repository.load(self._room_key(room_id))
+                scenario_id = self._stored_scenario_id(stored)
+                if scenario_id and scenario_id in self.scenario_map:
+                    targets[room_id] = scenario_id
             except Exception as e:
-                logger.error(f"Failed to clear persisted active scenario: {str(e)}")
+                logger.error(f"Error loading active scenario for room '{room_id}': {str(e)}")
+
+        for room_id, scenario_id in sorted(targets.items()):
+            logger.info(f"Restoring previously active scenario in '{room_id}': {scenario_id}")
+            try:
+                await self.switch_scenario(scenario_id)
+                # DEBUG: Log successful restoration
+                logger.debug(f"[SCENARIO_DEBUG] Successfully restored scenario: {scenario_id}")
+            except Exception as e:
+                logger.error(f"Error restoring scenario {scenario_id}: {str(e)}")
+    
+    async def deactivate(self, room_id: Optional[str] = None) -> Dict[str, Any]:
+        """Deactivate a room's active scenario by powering off the devices it involves.
+
+        This is the explicit user action ("turn it all off", via POST /scenario/shutdown or
+        the room's Scenario Manager `scenario.off`) and is DISTINCT from process
+        ``shutdown()``: it intentionally drives the hardware off.
+
+        Args:
+            room_id: The room to deactivate. None = deactivate EVERY room's active
+                     scenario (whole-house off).
+        """
+        rooms = [room_id] if room_id is not None else sorted(self.active)
+        result: Dict[str, Any] = {"success": True, "powered_off": [], "manual_steps": [], "failures": []}
+
+        for room in rooms:
+            sc = self.active.get(room)
+            if not sc:
+                continue
+            logger.info(f"Deactivating scenario '{sc.scenario_id}' in '{room}' (powering off its devices)")
+            try:
+                devices = self.device_manager.devices
+                involved = sorted(resolve_targets(sc.definition, self.topology)[2])
+                exec_result = await execute_plan(build_power_off_plan(involved, devices), devices)
+                result["powered_off"].extend(involved)
+                result["failures"].extend(
+                    {"device": a.device_id, "command": a.command, "error": err}
+                    for a, err in exec_result.failures
+                )
+                result["success"] = result["success"] and exec_result.success
+            except Exception as e:
+                logger.error(f"Error deactivating scenario '{sc.scenario_id}': {str(e)}")
+                result["success"] = False
+            finally:
+                self.active.pop(room, None)
+                self._activation_manual_steps.pop(room, None)
+                # Clear the persisted intent atomically with the in-memory clear — otherwise a
+                # bridge restart resurrects the deactivated scenario via _restore_state and powers
+                # the gear back on. deactivate() ONLY: process shutdown() deliberately leaves the
+                # keys so still-active scenarios survive a restart.
+                try:
+                    await self.state_repository.delete(self._room_key(room))
+                except Exception as e:
+                    logger.error(f"Failed to clear persisted active scenario for '{room}': {str(e)}")
         return result
 
     async def shutdown(self) -> None:
-        """Process shutdown: stop tracking the active scenario WITHOUT touching the hardware.
+        """Process shutdown: stop tracking active scenarios WITHOUT touching the hardware.
 
-        Restarting/stopping the bridge must NOT power down the user's AV gear — the scenario
-        stays active on the devices and the assumed state is preserved across the restart. Use
+        Restarting/stopping the bridge must NOT power down the user's AV gear — the scenarios
+        stay active on the devices and the assumed state is preserved across the restart. Use
         ``deactivate()`` for the explicit "turn it off" action.
         """
-        if self.current_scenario:
+        for room, sc in self.active.items():
             logger.info(
-                f"Bridge shutdown: leaving scenario '{self.current_scenario.scenario_id}' active "
+                f"Bridge shutdown: leaving scenario '{sc.scenario_id}' active in '{room}' "
                 f"on the hardware (call deactivate() to power off)"
             )
-        self.current_scenario = None
-        self._activation_manual_steps = []
+        self.active.clear()
+        self._activation_manual_steps.clear()
 
     def get_scenario_state(self, scenario_id: str) -> ScenarioState:
         """
@@ -433,21 +508,24 @@ class ScenarioManager:
         if scenario_id not in self.scenario_map:
             raise ValueError(f"Scenario '{scenario_id}' not found")
         
-        # For the active scenario: read each device's LIVE state fresh on every call. The single
+        # For an active scenario: read each device's LIVE state fresh on every call. The single
         # source of truth is device.get_current_state(); we hold no snapshot. manual_steps are
-        # activation-scoped (not derivable from device state) and threaded in from
-        # self._activation_manual_steps so transition notes (Dodocus hub, "press Play", etc.)
-        # survive every query. See ui_backend_contract.md "Scenario state binding".
-        if self.current_scenario and self.current_scenario.scenario_id == scenario_id:
+        # activation-scoped (not derivable from device state) and threaded in from the room's
+        # slot in self._activation_manual_steps so transition notes (Dodocus hub, "press Play",
+        # etc.) survive every query. See ui_backend_contract.md "Scenario state binding".
+        scenario = self.scenario_map[scenario_id]
+        room = self._room_of(scenario)
+        active = self.active.get(room)
+        if active and active.scenario_id == scenario_id:
             device_states: Dict[str, DeviceState] = {}
-            for dev_id in self.current_scenario.definition.devices:
+            for dev_id in active.definition.devices:
                 device = self.device_manager.get_device(dev_id)
                 if device:
                     device_states[dev_id] = self._convert_device_state(device.get_current_state())
             return ScenarioState(
                 scenario_id=scenario_id,
                 devices=device_states,
-                manual_steps=list(self._activation_manual_steps),
+                manual_steps=list(self._activation_manual_steps.get(room, [])),
             )
 
         # For inactive scenarios, return a basic state without device states

@@ -97,7 +97,7 @@ async def test_switch_activates_movie_appletv_via_reconciler():
     result = await sm.switch_scenario("movie_appletv")
 
     assert result["success"]
-    assert sm.current_scenario.scenario_id == "movie_appletv"
+    assert sm.active_in_room("living_room").scenario_id == "movie_appletv"
     # get_scenario_state() owns activation manual notes (single source of truth via /scenario/state).
     # movie_appletv routes via the processor — no Dodocus hop, so no manual steps.
     assert sm.get_scenario_state("movie_appletv").manual_steps == []
@@ -121,16 +121,16 @@ async def test_deactivate_powers_off_involved_devices():
     devices["processor"].get_current_state().zone2_power = "on"
 
     sm = _manager(devices)
-    sm.current_scenario = sm.scenario_map["movie_appletv"]
+    sm.active["living_room"] = sm.scenario_map["movie_appletv"]
     await sm.deactivate()
 
     assert ("living_room_tv", "power_off") in calls
     assert ("mf_amplifier", "power") in calls  # toggle off
-    assert sm.current_scenario is None
+    assert sm.active == {}
     # VWB-18 part 1: the persisted intent is cleared atomically with the in-memory clear —
     # otherwise a bridge restart resurrects the scenario and powers the gear back on.
-    assert "active_scenario" in sm.state_repository.deleted
-    assert sm.state_repository.data.get("active_scenario") is None
+    assert "active_scenario:living_room" in sm.state_repository.deleted
+    assert sm.state_repository.data.get("active_scenario:living_room") is None
 
 
 @pytest.mark.asyncio
@@ -143,11 +143,11 @@ async def test_process_shutdown_is_transparent_to_hardware():
         d.get_current_state().power = "on"
 
     sm = _manager(devices)
-    sm.current_scenario = sm.scenario_map["movie_appletv"]
+    sm.active["living_room"] = sm.scenario_map["movie_appletv"]
     await sm.shutdown()
 
     assert calls == []  # no device commands sent on process shutdown
-    assert sm.current_scenario is None
+    assert sm.active == {}
     # Process shutdown must NOT clear the persisted intent — a still-active scenario
     # deliberately survives a bridge restart (only explicit deactivate() clears it).
     assert sm.state_repository.deleted == []
@@ -209,9 +209,9 @@ async def test_transition_to_ld_surfaces_dodocus_note_on_switch_and_clears_on_de
         for m in live.manual_steps
     )
 
-    # Deactivate clears the current_scenario (and the activation notes); the next start
+    # Deactivate clears the room slot (and the activation notes); the next start
     # gets fresh manual_steps, with no leftover from movie_ld.
     await sm.deactivate()
-    assert sm.current_scenario is None
+    assert sm.active == {}
     await sm.switch_scenario("movie_appletv")
     assert sm.get_scenario_state("movie_appletv").manual_steps == []

@@ -31,6 +31,7 @@ def _write(scenario_dir, scenario_id, role_device):
     (scenario_dir / f"{scenario_id}.json").write_text(json.dumps({
         "scenario_id": scenario_id,
         "name": scenario_id,
+        "room_id": "living_room",
         "source": role_device,
         "display": role_device,
         "audio": role_device,

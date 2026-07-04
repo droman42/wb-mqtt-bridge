@@ -150,18 +150,17 @@ async def switch_scenario(data: SwitchScenarioRequest):
 
         # Broadcast scenario state change via SSE. `state` carries manual_steps now
         # (ScenarioState.manual_steps) — clients refetch /scenario/state on this event.
-        if scenario_manager.current_scenario:
-            await sse_manager.broadcast(
-                channel=SSEChannel.SCENARIOS,
-                event_type="scenario_switched",
-                data={
-                    "scenario_id": data.id,
-                    "state": scenario_manager.get_scenario_state(
-                        scenario_manager.current_scenario.scenario_id
-                    ).model_dump(),
-                    "timestamp": datetime.now().isoformat()
-                }
-            )
+        room_id = scenario_manager.scenario_definitions[data.id].room_id
+        await sse_manager.broadcast(
+            channel=SSEChannel.SCENARIOS,
+            event_type="scenario_switched",
+            data={
+                "scenario_id": data.id,
+                "room_id": room_id,
+                "state": scenario_manager.get_scenario_state(data.id).model_dump(),
+                "timestamp": datetime.now().isoformat()
+            }
+        )
 
         return ScenarioResponse(
             status="success",
@@ -199,11 +198,14 @@ async def start_scenario(data: StartScenarioRequest):
     if data.id not in scenario_manager.scenario_definitions:
         raise HTTPException(status_code=404, detail=f"Scenario '{data.id}' not found")
     
-    # Check if another scenario is already active
-    if scenario_manager.current_scenario:
+    # Check if another scenario is already active IN THE TARGET SCENARIO'S ROOM
+    # (rooms are the concurrency unit — another room's scenario doesn't block).
+    room_id = scenario_manager.scenario_definitions[data.id].room_id
+    active = scenario_manager.active_in_room(room_id) if room_id else None
+    if active:
         raise HTTPException(
-            status_code=409, 
-            detail=f"Cannot start scenario '{data.id}': scenario '{scenario_manager.current_scenario.scenario_id}' is already active"
+            status_code=409,
+            detail=f"Cannot start scenario '{data.id}': scenario '{active.scenario_id}' is already active in room '{room_id}'"
         )
     
     try:
@@ -212,18 +214,16 @@ async def start_scenario(data: StartScenarioRequest):
 
         # Broadcast scenario state change via SSE. `state` carries manual_steps now
         # (ScenarioState.manual_steps) — clients refetch /scenario/state on this event.
-        if scenario_manager.current_scenario:
-            await sse_manager.broadcast(
-                channel=SSEChannel.SCENARIOS,
-                event_type="scenario_started",
-                data={
-                    "scenario_id": data.id,
-                    "state": scenario_manager.get_scenario_state(
-                        scenario_manager.current_scenario.scenario_id
-                    ).model_dump(),
-                    "timestamp": datetime.now().isoformat()
-                }
-            )
+        await sse_manager.broadcast(
+            channel=SSEChannel.SCENARIOS,
+            event_type="scenario_started",
+            data={
+                "scenario_id": data.id,
+                "room_id": room_id,
+                "state": scenario_manager.get_scenario_state(data.id).model_dump(),
+                "timestamp": datetime.now().isoformat()
+            }
+        )
 
         return ScenarioResponse(
             status="success",
@@ -255,23 +255,28 @@ async def shutdown_scenario(data: ShutdownScenarioRequest):
     check_initialized()
     assert scenario_manager is not None  # narrowed by check_initialized() above
     
-    # Check if any scenario is currently active
-    if not scenario_manager.current_scenario:
-        raise HTTPException(status_code=404, detail="No scenario is currently active")
-    
-    # Check if the active scenario matches the requested shutdown ID
-    if scenario_manager.current_scenario.scenario_id != data.id:
-        raise HTTPException(
-            status_code=409, 
-            detail=f"Cannot shutdown scenario '{data.id}': scenario '{scenario_manager.current_scenario.scenario_id}' is currently active"
-        )
-    
-    try:
-        current_scenario_id = scenario_manager.current_scenario.scenario_id
+    # Resolve the scenario's room; activity checks are room-scoped.
+    defn = scenario_manager.scenario_definitions.get(data.id)
+    if defn is None:
+        raise HTTPException(status_code=404, detail=f"Scenario '{data.id}' not found")
+    room_id = defn.room_id
+    active = scenario_manager.active_in_room(room_id) if room_id else None
+    if not active:
+        raise HTTPException(status_code=404, detail=f"No scenario is currently active in room '{room_id}'")
 
-        # Deactivate the current scenario — this is the explicit "turn it all off" action and
+    # Check if the room's active scenario matches the requested shutdown ID
+    if active.scenario_id != data.id:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot shutdown scenario '{data.id}': scenario '{active.scenario_id}' is currently active in room '{room_id}'"
+        )
+
+    try:
+        current_scenario_id = active.scenario_id
+
+        # Deactivate the room's scenario — this is the explicit "turn it all off" action and
         # DOES power off the gear (distinct from process shutdown, which leaves hardware as-is).
-        await scenario_manager.deactivate()
+        await scenario_manager.deactivate(room_id)
 
         # Broadcast scenario state change via SSE. After deactivate(), current_scenario is
         # cleared (and so are the manual notes); clients reading /scenario/state will get 404.
@@ -280,6 +285,7 @@ async def shutdown_scenario(data: ShutdownScenarioRequest):
             event_type="scenario_shutdown",
             data={
                 "scenario_id": current_scenario_id,
+                "room_id": room_id,
                 "timestamp": datetime.now().isoformat()
             }
         )
@@ -312,9 +318,11 @@ async def execute_role_action(data: ActionRequest):
     
     try:
         result = await scenario_manager.execute_role_action(data.role, data.command, data.params)
-        
-        # Broadcast scenario state update via SSE
-        if scenario_manager.current_scenario:
+
+        # Broadcast scenario state update via SSE (the single active scenario that owns
+        # the role — execute_role_action rejects ambiguity before we get here).
+        owner = scenario_manager.find_role_owner(data.role)
+        if owner:
             await sse_manager.broadcast(
                 channel=SSEChannel.SCENARIOS,
                 event_type="role_action_executed",
@@ -322,9 +330,7 @@ async def execute_role_action(data: ActionRequest):
                     "role": data.role,
                     "command": data.command,
                     "params": data.params,
-                    "state": scenario_manager.get_scenario_state(
-                        scenario_manager.current_scenario.scenario_id
-                    ).model_dump(),
+                    "state": scenario_manager.get_scenario_state(owner.scenario_id).model_dump(),
                     "timestamp": datetime.now().isoformat()
                 }
             )
@@ -343,6 +349,7 @@ async def execute_role_action(data: ActionRequest):
             "invalid_role": 400,
             "missing_device": 404,
             "no_active_scenario": 400,
+            "ambiguous_role": 409,
             "execution": 500
         }
         status_code = error_status_map.get(e.error_type, 500)

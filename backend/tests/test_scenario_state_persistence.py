@@ -7,7 +7,7 @@ test_get_scenario_state_*, test_switch_scenario_transition). The case kept here
 is the full round-trip: a persisted scenario_id, written by one ScenarioManager
 instance, is observed by a freshly-constructed second instance.
 
-Persistence shape: only the active scenario_id is stored under 'active_scenario'.
+Persistence shape: only the active scenario_id is stored under 'active_scenario:<room_id>' (per-room keys since SCN-6).
 ScenarioState is recomputed live from current device states on every query (no
 snapshot held).
 """
@@ -144,7 +144,7 @@ async def test_save_and_restore_state_across_manager_instances(device_manager, r
 
     # Persistence happened — the new persistence shape is {"scenario_id": <id>}
     # to satisfy StateRepositoryPort.save's Dict[str, Any] contract.
-    assert await state_store.load("active_scenario") == {"scenario_id": "movie_night"}
+    assert await state_store.load("active_scenario:living_room") == {"scenario_id": "movie_night"}
 
     # A brand-new manager reading from the same store reactivates movie_night.
     manager_b = ScenarioManager(
@@ -155,8 +155,9 @@ async def test_save_and_restore_state_across_manager_instances(device_manager, r
     )
     await manager_b.initialize()
 
-    assert manager_b.current_scenario is not None
-    assert manager_b.current_scenario.scenario_id == "movie_night"
+    active_b = manager_b.active_in_room("living_room")
+    assert active_b is not None
+    assert active_b.scenario_id == "movie_night"
 
 
 @pytest.mark.asyncio
@@ -172,11 +173,11 @@ async def test_deactivate_does_not_resurrect_across_restart(device_manager, room
     )
     await manager_a.initialize()
     await manager_a.switch_scenario("movie_night")
-    assert await state_store.load("active_scenario") == {"scenario_id": "movie_night"}
+    assert await state_store.load("active_scenario:living_room") == {"scenario_id": "movie_night"}
 
     await manager_a.deactivate()
-    assert manager_a.current_scenario is None
-    assert await state_store.load("active_scenario") is None
+    assert manager_a.active == {}
+    assert await state_store.load("active_scenario:living_room") is None
 
     # "Restart": a brand-new manager on the same store must come up with no active scenario.
     manager_b = ScenarioManager(
@@ -186,7 +187,7 @@ async def test_deactivate_does_not_resurrect_across_restart(device_manager, room
         scenario_dir=scenario_dir,
     )
     await manager_b.initialize()
-    assert manager_b.current_scenario is None
+    assert manager_b.active == {}
 
 
 # Note: the live recompute in get_scenario_state() does NOT degrade gracefully when one
