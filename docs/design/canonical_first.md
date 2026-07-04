@@ -21,9 +21,11 @@ contract this revises in phase 1/2) · `../wb-mqtt-voice/docs/design/mqtt_integr
 
 ## 1. Decision summary
 
-1. **Scenarios get exactly one WB representation:** a single **Scenario Manager** virtual
-   device («Сценарии») with an enum select control — SCN-4's option (b). No per-scenario
-   devices, no WB scenes.
+1. **Scenarios get exactly one WB representation per scenario-bearing room:** a
+   **Scenario Manager** virtual device («Сценарии …») with an enum select control —
+   SCN-4's option (b), instantiated **per room** (amended 2026-07-04, same session: the
+   living room and the future children room each carry their own scenario set and can be
+   active **concurrently**). No per-scenario devices, no WB scenes.
 2. **Scenario-inherited device commands** (volume/playback/menu/… of the active scenario's
    role-bound devices) are fired at the same Scenario Manager entity as **canonical
    commands**; the bridge resolves role → device **at fire time**.
@@ -56,22 +58,31 @@ exposes as actuation targets". This design's answer: scenarios arrive as **one m
 device** — zero new contract concepts, zero new endpoints, fully additive to the VWB-15
 artifact.
 
-## 3. The Scenario Manager entity
+## 3. The Scenario Manager entities (one per scenario-bearing room)
 
-One virtual entity, id **`scenario_manager`**, present in **both** external surfaces:
+One virtual entity **per room that has scenarios**, id scheme
+**`scenario_manager_<room_id>`** (`scenario_manager_living_room` today;
+`scenario_manager_children_room` when that round ships). Rooms are the concurrency
+unit: each room's scenario is active/inactive independently; scenarios are already
+room-pure by validation (`room_id` + the room-membership hard-fail), which is exactly
+the invariant that makes this safe. Each entity is present in **both** external
+surfaces:
 
-- **In the catalog:** a `CatalogDevice` (room `null` — global) carrying:
-  - the **`scenario`** capability — stateful select, `by_value` over the scenario ids,
-    each an enum `{wire, canonical, labels}` triplet (ru/en names from the scenario
-    configs — the same value-label mechanism devices already use). Actions:
+- **In the catalog:** a `CatalogDevice` with **`room` set to its room** (this is what
+  lets Irene disambiguate «включи кино в детской» — and «громче» when two rooms are
+  active — through her existing room mechanics, no new concepts) carrying:
+  - the **`scenario`** capability — stateful select, `by_value` over **that room's**
+    scenario ids, each an enum `{wire, canonical, labels}` triplet (ru/en names from the
+    scenario configs — the same value-label mechanism devices already use). Actions:
     `set(<scenario_id>)` (activate/switch — the reconciler's diff transition, exactly
-    today's `switch_scenario` semantics) and `off` (deactivate — powers the involved
-    devices down, today's `deactivate()`).
+    today's `switch_scenario` semantics, **diffed within the room only**) and `off`
+    (deactivate — powers the room's involved devices down, today's `deactivate()`).
   - the **static union of inheritable domains** — `volume`, `playback`, `menu`, `tracks`,
     `screen` (the layout engine's existing role→domain table). Static = the catalog is
     byte-stable across scenario switches; no version churn. A command whose role is
     unbound *right now* fails at fire time (§4).
-- **On Wirenboard:** one WB device card with:
+- **On Wirenboard:** one WB device card **per room** (N cards = N scenario-bearing
+  rooms, not N scenarios — the clutter objection stays answered) with:
   - the `scenario` **enum control** (current scenario id or `none`; retained value topic —
     the *only* state the entity publishes). Writing a scenario id activates; writing
     `none` deactivates.
@@ -87,12 +98,12 @@ state onto the proxy.
 
 ## 4. Fire-time role resolution (the proxy seam)
 
-Any canonical command at `scenario_manager` other than the `scenario` capability is
-resolved by the bridge at dispatch time:
+Any canonical command at a manager entity other than the `scenario` capability is
+resolved by the bridge at dispatch time, **scoped to the entity's room**:
 
 ```
-{capability: volume, action: up}  at scenario_manager
-  → ScenarioManager.current_scenario            (movie_appletv | none)
+{capability: volume, action: up}  at scenario_manager_living_room
+  → active scenario OF THAT ROOM                (movie_appletv | none)
   → role for the domain (role→domain table)     (volume → mf_amplifier)
   → re-enter the normal per-device canonical dispatch
     (mf_amplifier's capability map: volume.up → native volume_up → IR burst
@@ -101,7 +112,7 @@ resolved by the bridge at dispatch time:
 
 Synchronous, speakable failures:
 
-- no active scenario → **409** `no_active_scenario`;
+- no active scenario **in that room** → **409** `no_active_scenario`;
 - active scenario has no binding for the domain's role → **409** naming the missing role;
 - the bound device's capability lacks the action → the existing canonical 4xx unchanged.
 
@@ -115,9 +126,18 @@ All three clients hit this one seam:
 
 ```
 UI scenario page ──┐
-Irene (REST)     ──┼──▶ POST /devices/scenario_manager/canonical ─▶ fire-time resolution
+Irene (REST)     ──┼──▶ POST /devices/scenario_manager_<room>/canonical ─▶ fire-time resolution
 WB card /on topic ─┘         (WB messages route to the same executor)
 ```
+
+**Domain prerequisite (SCN-6 deliverable):** today's `ScenarioManager` holds a single
+global `current_scenario` and one persisted `active_scenario` key — a second room's
+activation would be treated as a cross-room *switch* and power the first room down.
+Per-room concurrency requires: active-scenario tracking **per room** (map keyed by
+room_id), per-room persistence keys (`active_scenario:<room_id>`, with a one-shot
+migration read of the legacy `active_scenario` key), per-room `deactivate()`, and
+transition diffs computed within a room only. Scoped and mechanical; it lands inside
+SCN-6 because the proxy service is built against `ScenarioManager` anyway.
 
 ## 5. The UI under canonical-first
 
@@ -205,14 +225,15 @@ observable gain; remains possible later); status-quo split with a CI consistency
 
 | Phase | Scope | Ledger |
 |---|---|---|
-| **1** | Proxy routing service (domain/app layer) · `scenario_manager` in catalog + canonical dispatch · WB card (enum + curated pushbuttons) · scenario-page manifest revision + dispatch switch · retained active-scenario value topic | **SCN-6** |
+| **1** | Proxy routing service (domain/app layer) · **per-room `ScenarioManager` state** (active map, per-room persistence keys + legacy-key migration, per-room deactivate, in-room diffs) · `scenario_manager_<room>` entities in catalog + canonical dispatch · WB card per room (enum + curated pushbuttons) · scenario-page manifest revision + dispatch switch · retained per-room active-scenario value topics | **SCN-6** |
 | **2** | Device pages → canonical · echo `wait:false` mode · list-queries → read surface · manifest consumes the §6 projection | **SCN-7** (gated on **VWB-17**) |
 | **3** | `/action` demotion/retirement decision · `/scenario/switch`+`shutdown` internalization | acceptance-gate item 4 (code-review half) |
 | — | §6 param-descriptor projection → `CatalogAction.params` | rides **VWB-15** |
 
 Contract-timing note: everything here is **additive** for VWB-15 — the artifact does not
-wait for SCN-6/7. When SCN-6 lands, `scenario_manager` appears in the catalog as one more
-device and the golden is re-dumped (the drift check forces exactly that).
+wait for SCN-6/7. When SCN-6 lands, the `scenario_manager_<room>` entities appear in the
+catalog as ordinary devices and the golden is re-dumped (the drift check forces exactly
+that).
 
 Hexagonal placement: the resolution service is application/domain-layer (it composes
 `ScenarioManager` + capability maps); REST router, WB message handler, and the manifest
@@ -229,8 +250,9 @@ chokepoint fans out (SQLite, WB echo, SSE). The scenario manager is not on the p
 "inheritance" is read-time composition.
 
 **Target (voice and UI alike)** — «громче» / volume-up button:
-`POST /devices/scenario_manager/canonical {capability: volume, action: up}` → fire-time
-resolution (`movie_appletv` → volume role → `mf_amplifier`) → re-enters the per-device
+`POST /devices/scenario_manager_living_room/canonical {capability: volume, action: up}`
+→ fire-time resolution (that room's active `movie_appletv` → volume role →
+`mf_amplifier`) → re-enters the per-device
 canonical path → same IR burst, same chokepoint fan-out → `200 {executed_on:
 mf_amplifier, …}`. The WB card's volume-up pushbutton takes the identical path via its
 `/on` topic. Failure with nothing active: `409 no_active_scenario` (Irene: «сейчас нет

@@ -16,6 +16,19 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-04 (amendment: per-room Scenario Managers — `canonical_first.md` §3/§4, SCN-6 rescoped)** —
+  User's note right after SCN-4 closed: there will be **two scenario sets** (living room now, children
+  room in a future round) with **concurrently** active scenarios. The design's mechanisms generalize —
+  the singleton becomes **one manager entity per scenario-bearing room** (`scenario_manager_<room_id>`,
+  catalog `room` set → Irene's existing room disambiguation covers «включи кино в детской» and makes
+  «громче» unambiguous with two rooms active; one WB card per room). The real gap was the domain layer:
+  today's `ScenarioManager` holds a single global `current_scenario` + one persisted key, so a second
+  room's activation would read as a cross-room switch and power the first room down. Folded into the
+  doc (entities-per-room, room-scoped resolution, the domain prerequisite) and into **SCN-6**'s
+  deliverables (per-room active map, `active_scenario:<room_id>` keys + one-shot legacy migration,
+  per-room deactivate, in-room-only transition diffs). Room-purity was already enforced by the
+  room-membership validator — that invariant is what makes per-room concurrency safe.
+
 - **2026-07-04 (design decided + closed: SCN-4 → `docs/design/canonical_first.md`; filed SCN-6 + SCN-7)** —
   The mandatory scenario↔Wirenboard design discussion ran as an interactive session and **outgrew the
   original question into the target actuation architecture**. Reconciliation first narrowed SCN-4: its
