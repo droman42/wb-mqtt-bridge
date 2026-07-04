@@ -52,6 +52,46 @@ domains being `power`, `input`, `volume`, `brightness`, `climate`, `sensor`, etc
   metadata; drives parsing in the WB-passthrough driver and per-field display in the
   UI / voice catalog.
 
+### Sequence actions (macros)
+
+An action doesn't have to be a single native command. When one canonical intent
+requires several presses on the real device, the action carries a **`sequence`** — an
+ordered list of steps, each a small action of its own with its own `param_map` and
+fixed `params`, plus an optional **`delay_after_ms`** pause before the next step (IR
+gear in particular needs breathing room between presses). The bridge flattens the
+sequence and executes the steps in order; if a step fails, the whole action fails and
+the error names exactly which step broke.
+
+Two theoretical examples make the shape concrete. A laser-disc player that must be
+woken before its tray responds could expose a single canonical `playback.open_tray`:
+
+```json
+"open_tray": {
+  "sequence": [
+    { "command": "wake", "delay_after_ms": 500 },
+    { "command": "tray" }
+  ]
+}
+```
+
+An old amplifier whose "direct" mode takes a mode press followed by a confirm press
+could still present it as one canonical action:
+
+```json
+"direct_mode": {
+  "sequence": [
+    { "command": "mode", "delay_after_ms": 300 },
+    { "command": "enter", "params": { "confirm": true } }
+  ]
+}
+```
+
+Callers never see the choreography: to the UI, the voice assistant, and the
+Wirenboard card, `open_tray` is just another action — the canonical endpoint and the
+scenario proxy expand and run the steps identically. No shipped capability map uses a
+sequence yet; the mechanism exists so that when a device needs a macro, it is a JSON
+edit to its map rather than driver code.
+
 ### Three-layer resolution
 
 When `attach_capability_maps()` builds a device's effective map at bootstrap, it

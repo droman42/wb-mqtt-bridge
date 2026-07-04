@@ -16,6 +16,14 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-04 (VWB-17 addendum: sequence actions in the user-facing docs)** — User ask right after
+  the close: teach sequence-form actions in prose. `key-concepts.md` gained a "Sequence actions
+  (macros)" subsection under the capability-map chapter — two theoretical worked examples (LD-player
+  wake→tray with an inter-press gap; an amp's mode→confirm dance), the failure semantics ("names
+  exactly which step broke"), and the callers-never-see-the-choreography framing. While there:
+  `interfaces.md`'s devices REST table was missing the `/devices/{id}/canonical` row entirely —
+  added (capability-language dispatch, sequence expansion, echo wait, the Scenario Manager seam).
+
 - **2026-07-04 (executed + closed: VWB-17 — sequence-form actions through the canonical seam)** —
   Second link of the pre-catalog chain, same-day follow-through after SCN-6. Reconciliation surprise:
   the router docstring's "the reconciler path handles those" was false — **nothing executed
