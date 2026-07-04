@@ -16,6 +16,25 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-04 (filed: VWB-20 + VWB-21 — the voice review's contract gaps, pre-pin patch + alias session)** —
+  Hours after VWB-15 landed, the wb-mqtt-voice-side Claude reviewed `contracts/` and surfaced five
+  gaps; all verified against live code at intake (`cross-repo-source-of-truth`): **G1** confirmed
+  and worse than stated — `CatalogAction.params` is schema-free AND its two producers emit
+  *different* dict shapes (the §6 projection vs the hand-built `scenario.set`); **G2** confirmed —
+  no aliases anywhere, despite VWB-15's own task text promising them (honest miss); **G3**
+  confirmed at the root — `ScenarioDefinition.name` is a single English string, so the flagship
+  scenario feature has no Russian voice surface; **G4** confirmed both halves — `_spec_dict` drops
+  `units` (data path exists — the WB service reads it) and the HVAC `temp`-param/`setpoint`-field
+  join is broken; **G5** problem confirmed but the proposed static-enum remedy REJECTED — the app
+  set is runtime-dynamic, the fix is documenting it open + an `options_from` hint at SCN-7's
+  options endpoint; the **minor flag** (TVs' empty `input` capability husk) is VWB-19's select-form
+  gap showing through the projection, annotated there. **Filed: VWB-20** `[P1][house]` — the
+  contract patch (typed `CatalogParam` with unit+values, scenario localized names, G5 doc + hint,
+  G2's schema half, the empty-husk decision) — **sequenced PRE-PIN**: land before voice's TEST-17
+  pins its copy, the cheapest shape-change window there will ever be. **VWB-21** `[P1][house]` —
+  the alias-vocabulary authoring session (interactive; the household's actual spoken names are
+  user knowledge — cannot be done solo). Analysis only today; neither started.
+
 - **2026-07-04 (executed + closed: VWB-15 — the catalog contract artifacts; the pre-catalog chain is COMPLETE)** —
   The voice unblock, landed the same day the chain was sequenced. Repo-root **`contracts/`** now
   carries the contract of record: `catalog.golden.json` (79 devices / 11 rooms — globals + the
