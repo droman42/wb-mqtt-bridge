@@ -162,9 +162,10 @@ room** (children_room_tv + appletv_children) was **deferred by the user** (skipp
 possible round-3.
 
 - [ ] **SCN-7** `[P2]` `[house]` — **Canonical-first phase 2: device pages onto the canonical grammar.** **PULLED INTO THE PRE-CATALOG CHAIN 2026-07-04 (user):** must finish **before the first VWB-15 golden dump** — the v1 contract gets pinned against the final actuation grammar, no post-pin churn (chain: SCN-6 → VWB-17 → SCN-7 → VWB-15).
-   Implementation of `docs/design/canonical_first.md` §5–§6 after SCN-6. **Gated on VWB-17**
-   (sequence-form actions through the canonical dispatcher — zero shipped maps use sequences today,
-   but one authored sequence would silently break a page button once the UI rides canonical).
+   Implementation of `docs/design/canonical_first.md` §5–§6 after SCN-6. ~~Gated on VWB-17~~
+   **GATE SATISFIED 2026-07-04 — VWB-17 DONE** (sequence-form actions route through the canonical
+   dispatcher via the shared `CapabilityAction.expand()`; a page button backed by an authored
+   sequence now just works). **SCN-7 is UNBLOCKED — the next link of the pre-catalog chain.**
    Deliverables: device-page manifest + renderer dispatch to `POST /devices/{id}/canonical`; the
    canonical endpoint's `wait: false` echo mode (UI mash-clicks must not serialize on echo waits);
    list-queries (`get_available_inputs`/`apps`) move off the action path to the read surface; the
@@ -471,10 +472,8 @@ endpoint).
   - Spec: `wb-mqtt-voice/docs/design/mqtt_integration.md` §14. Filed 2026-07-01 off the voice-side ARCH-26 design session.
 
 - [ ] **VWB-16** `[P2]` `[house]` — **Consumer contract test — crafted canonical `DeviceCommand` → native/echo** (cross-project; the consumer half of the bidirectional contract, pairs with `wb-mqtt-voice` TEST-18's producer half). Drive the bridge from the shared **`{utterance → expected canonical command}` crossover fixtures** (using the canonical-command half only — the utterance is Irene's concern): feed each crafted canonical command and assert it dispatches the right native action / value-topic echo, resolved against the **same golden catalog** the voice side tests against (so device-ids/capabilities can't drift apart). Depends on VWB-15's committed artifact.
-  - **Sequence-form caveat:** the target endpoint `POST /devices/{id}/canonical` does **not** yet route `sequence`-form actions — only single-command bindings (`devices.py`: *"sequence-form actions not yet routable via canonical endpoint"*). Until **VWB-17** lands, the crossover fixtures must use **single-command** canonical actions (every current slice-1 profile is single-command, so this covers the v1 voice set); full sequence coverage follows VWB-17.
+  - **Sequence-form caveat — RESOLVED 2026-07-04 (VWB-17 DONE):** the canonical endpoint now routes `sequence`-form actions (shared `CapabilityAction.expand()` — per-step param translation, inter-step `delay_after_ms`, mid-sequence failure naming the step). Crossover fixtures may cover sequence-form actions freely.
   - Spec: `wb-mqtt-voice/docs/design/mqtt_integration.md` §14.
-
-- [ ] **VWB-17** `[P2]` `[house]` — **Route `sequence`-form actions through the canonical endpoint.** Today `POST /devices/{id}/canonical` rejects any capability action whose native binding is a multi-step `sequence` rather than a single `command` — it 500s with *"sequence-form actions not yet routable via canonical endpoint"* (`presentation/api/routers/devices.py`); only the reconciler / imperative path executes those. Extend the canonical dispatcher to resolve + execute sequence-form actions so **every** catalog action is reachable via the voice-friendly canonical seam (with the same value-topic echo semantics the single-command path already provides). Unblocks full crossover-fixture coverage in **VWB-16** (which is otherwise restricted to single-command fixtures). Not house-gating — every current slice-1 profile is single-command. Filed 2026-07-01 (surfaced during VWB-15/16 analysis). **RE-SCOPED UP 2026-07-04 (SCN-4 design):** no longer voice-only future-proofing — this **gates SCN-7** (device pages onto the canonical grammar, `docs/design/canonical_first.md` §5): once the UI rides canonical, one authored sequence-form capability action would silently break a page button. **IN THE PRE-CATALOG CHAIN 2026-07-04 (user):** SCN-6 → **VWB-17** → SCN-7 → VWB-15.
 
 
 ### UI — config-ui

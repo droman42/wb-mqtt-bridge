@@ -31,12 +31,50 @@ class CapabilityAction(BaseModel):
     params: Dict[str, Any] = Field(
         default_factory=dict, description="fixed native params, e.g. {'zone': 2}"
     )
+    delay_after_ms: int = Field(
+        default=0, ge=0,
+        description="Pause after this step before the next one runs (sequence steps; IR "
+                    "macros need inter-press gaps). Ignored on the last/only step. VWB-17.",
+    )
 
     @model_validator(mode="after")
     def _exactly_one_invocation(self) -> "CapabilityAction":
         if (self.command is None) == (self.sequence is None):
             raise ValueError("capability action needs exactly one of `command` or `sequence`")
         return self
+
+    def expand(self, incoming_params: Optional[Dict[str, Any]] = None) -> List["NativeStep"]:
+        """Flatten this action into the ordered native steps to execute (VWB-17).
+
+        The single place canonical -> native translation happens, shared by the
+        canonical endpoint, the Scenario Manager proxy, and any future dispatcher:
+
+        - command form -> one step: incoming params renamed via ``param_map``
+          (names absent from the map pass through unchanged), then the fixed
+          ``params`` overlaid;
+        - sequence form -> each step expanded recursively, each applying ITS OWN
+          ``param_map``/``params`` to the same incoming params.
+        """
+        incoming = incoming_params or {}
+        if self.command is not None:
+            native = {self.param_map.get(k, k): v for k, v in incoming.items()}
+            native.update(self.params)
+            return [NativeStep(command=self.command, params=native,
+                               delay_after_ms=self.delay_after_ms)]
+        steps: List["NativeStep"] = []
+        for sub in (self.sequence or []):
+            steps.extend(sub.expand(incoming))
+        return steps
+
+
+class NativeStep(BaseModel):
+    """One executable native step produced by :meth:`CapabilityAction.expand`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    command: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+    delay_after_ms: int = 0
 
 
 class CapabilitySelect(BaseModel):

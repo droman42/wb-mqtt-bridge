@@ -16,6 +16,22 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-04 (executed + closed: VWB-17 — sequence-form actions through the canonical seam)** —
+  Second link of the pre-catalog chain, same-day follow-through after SCN-6. Reconciliation surprise:
+  the router docstring's "the reconciler path handles those" was false — **nothing executed
+  `CapabilityAction.sequence` anywhere** (only the exposure walks read it), so this introduced
+  sequence execution for the first time. Shipped as ONE shared translation point:
+  `CapabilityAction.expand(params) → List[NativeStep]` on the domain model (command form = one step;
+  sequence form = recursive flatten, each step applying its own `param_map`/fixed params to the same
+  incoming params) + a new additive `delay_after_ms` step field (IR macros need inter-press gaps).
+  The canonical endpoint's sequence-500 branch became a unified step loop (single command = one-step
+  sequence; mid-sequence failure names `step i/N (<command>)`; `no_op` short-circuit restricted to
+  single-step; echo-wait semantics unchanged — waiter before step 1, awaited after the last).
+  `ScenarioProxy.execute` rides the same expansion, so WB-card pushbuttons backed by sequences work
+  too. `openapi.json` verified byte-unchanged. 7 new tests (`test_canonical_sequence.py`); suite
+  **509 passing**, contracts 3/3, pyright 0 (run locally per the new gate discipline). Ripples:
+  VWB-16's sequence caveat RESOLVED, SCN-7's gate SATISFIED — **SCN-7 is next in the chain.**
+
 - **2026-07-04 (executed + closed: SCN-6 — canonical-first phase 1, the per-room scenario proxy seam)** —
   Same-day implementation of the morning's SCN-4 design; three commits. **`17f2ded` per-room domain
   state:** the `current_scenario` singleton became `active: Dict[room, Scenario]` — two rooms now run

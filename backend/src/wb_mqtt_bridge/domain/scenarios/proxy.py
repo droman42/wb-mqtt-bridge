@@ -11,6 +11,7 @@ This module is pure domain: it composes :class:`ScenarioManager` and the device
 registry; REST, the WB card adapter, and the catalog builder are thin consumers.
 """
 
+import asyncio
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -171,7 +172,8 @@ class ScenarioProxy:
         """Execute an inherited-domain canonical action end-to-end (resolution +
         capability-map translation + native dispatch). Used by the WB card executor;
         the REST endpoint resolves via :meth:`resolve` and keeps its own echo-waiting
-        dispatch."""
+        dispatch. Sequence-form actions execute step-by-step with their inter-step
+        delays (VWB-17 — same expansion the canonical endpoint uses)."""
         device_id, device = self.resolve(room_id, capability)
         cap_map = getattr(device, "capabilities", None)
         cap = cap_map.get(capability) if cap_map else None
@@ -181,15 +183,14 @@ class ScenarioProxy:
                 f"'{capability}.{action}'",
                 "role_unbound",
             )
-        cap_action = cap.actions[action]
-        if not cap_action.command:
-            raise ScenarioProxyError(
-                f"Action '{capability}.{action}' on '{device_id}' is sequence-form "
-                f"(not yet routable canonically — VWB-17)",
-                "role_unbound",
-            )
-        incoming = params or {}
-        native_params = {cap_action.param_map.get(k, k): v for k, v in incoming.items()}
-        native_params.update(cap_action.params)
-        result = await device.execute_action(cap_action.command, native_params, source="scenario")
-        return {"executed_on": device_id, "command": cap_action.command, "result": result}
+        steps = cap.actions[action].expand(params)
+        result: Any = None
+        for i, step in enumerate(steps):
+            result = await device.execute_action(step.command, step.params, source="scenario")
+            if step.delay_after_ms and i < len(steps) - 1:
+                await asyncio.sleep(step.delay_after_ms / 1000)
+        return {
+            "executed_on": device_id,
+            "command": " → ".join(s.command for s in steps),
+            "result": result,
+        }

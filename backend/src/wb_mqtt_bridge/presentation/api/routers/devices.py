@@ -420,25 +420,18 @@ async def execute_canonical_action(device_id: str, payload: CanonicalActionReque
         raise HTTPException(status_code=404, detail=resp.model_dump())
 
     cap_action = cap.actions[payload.action]
-    if not cap_action.command:
-        # `sequence` form not yet supported on the canonical endpoint; the reconciler
-        # path handles those. For slice 1 every profile uses single commands.
+    # VWB-17: canonical -> native via the shared domain expansion. Command form yields
+    # one step; sequence form yields the ordered native steps (each step applies its
+    # own param_map rename + fixed-params overlay; inter-step delay_after_ms honored
+    # in the execution loop below).
+    steps = cap_action.expand(payload.params)
+    if not steps:
         resp = _err_response(
             response_device_id, payload.capability, payload.action,
             CanonicalErrorCode.INTERNAL_ERROR,
-            f"Action {payload.action!r} on {payload.capability!r} has no native command "
-            f"(sequence-form actions not yet routable via canonical endpoint)",
+            f"Action {payload.action!r} on {payload.capability!r} expanded to no steps",
         )
         raise HTTPException(status_code=500, detail=resp.model_dump())
-
-    native_command = cap_action.command
-    incoming = payload.params or {}
-    # canonical param names -> native param names (rename only); then capability-level
-    # fixed params (e.g. {"zone": 2}) overlay the result.
-    native_params: Dict[str, Any] = {
-        cap_action.param_map.get(k, k): v for k, v in incoming.items()
-    }
-    native_params.update(cap_action.params)
 
     # Register a one-shot state-change waiter. perform_action will trigger callbacks
     # via update_state when state changes -- synchronously for AV (so the event is
@@ -453,32 +446,41 @@ async def execute_canonical_action(device_id: str, payload: CanonicalActionReque
     if register is not None:
         register(_waiter)
     try:
-        result = await device_manager.perform_action(device_id, native_command, native_params)
+        result: Dict[str, Any] = {}
+        total = len(steps)
+        for i, step in enumerate(steps):
+            result = await device_manager.perform_action(device_id, step.command, step.params)
 
-        if not result.get("success"):
-            err_text = str(result.get("error") or "unknown error")
-            # Param-shaped failures rarely come back uniformly today; until handlers
-            # distinguish, surface most failures as internal_error. Keyword sniff for the
-            # obvious "param missing / invalid" cases so voice sees a clean 400.
-            low = err_text.lower()
-            if "param" in low or "missing" in low or "required" in low or "invalid" in low:
-                code = CanonicalErrorCode.PARAM_INVALID
-                status = 400
-            else:
-                code = CanonicalErrorCode.INTERNAL_ERROR
-                status = 500
-            resp = _err_response(
-                response_device_id, payload.capability, payload.action,
-                code, err_text,
-            )
-            raise HTTPException(status_code=status, detail=resp.model_dump())
+            if not result.get("success"):
+                err_text = str(result.get("error") or "unknown error")
+                if total > 1:
+                    err_text = f"step {i + 1}/{total} ({step.command}): {err_text}"
+                # Param-shaped failures rarely come back uniformly today; until handlers
+                # distinguish, surface most failures as internal_error. Keyword sniff for the
+                # obvious "param missing / invalid" cases so voice sees a clean 400.
+                low = err_text.lower()
+                if "param" in low or "missing" in low or "required" in low or "invalid" in low:
+                    code = CanonicalErrorCode.PARAM_INVALID
+                    status = 400
+                else:
+                    code = CanonicalErrorCode.INTERNAL_ERROR
+                    status = 500
+                resp = _err_response(
+                    response_device_id, payload.capability, payload.action,
+                    code, err_text,
+                )
+                raise HTTPException(status_code=status, detail=resp.model_dump())
 
-        # No-op short-circuit. WB-passthrough flags `data.no_op = True` when the device is
-        # already at the requested value -- the publish goes out but no echo lands, so
-        # waiting would 503 ("включи свет" when it's already on). Return success with
-        # the current state immediately. AV devices don't set this flag and keep going
-        # through the echo wait as before.
-        if (result.get("data") or {}).get("no_op"):
+            # Inter-step gap (IR macros need breathing room between presses).
+            if step.delay_after_ms and i < total - 1:
+                await asyncio.sleep(step.delay_after_ms / 1000)
+
+        # No-op short-circuit (single-step actions only — the WB-passthrough semantics).
+        # The driver flags `data.no_op = True` when the device is already at the requested
+        # value -- the publish goes out but no echo lands, so waiting would 503
+        # ("включи свет" when it's already on). Return success with the current state
+        # immediately. AV devices don't set this flag and keep going through the echo wait.
+        if total == 1 and (result.get("data") or {}).get("no_op"):
             state = device.state.model_dump() if hasattr(device.state, "model_dump") else dict(device.state)
             return CanonicalActionResponse(
                 success=True, device_id=response_device_id,
