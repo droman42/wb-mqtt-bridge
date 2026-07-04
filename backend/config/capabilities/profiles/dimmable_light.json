@@ -1,9 +1,14 @@
 {
   "power": {
     "kind": "momentary",
+    "group": "light",
     "actions": {
-      "on":  { "command": "power_on" },
-      "off": { "command": "power_off" }
+      "on": {
+        "command": "power_on"
+      },
+      "off": {
+        "command": "power_off"
+      }
     }
   },
   "brightness": {
@@ -11,11 +16,23 @@
     "feedback": true,
     "state_field": "level",
     "actions": {
-      "set": { "command": "set_brightness", "param_map": { "level": "level" } }
+      "set": {
+        "command": "set_brightness",
+        "param_map": {
+          "level": "level"
+        }
+      }
     },
     "fields": [
-      { "name": "level", "type": "int", "unit": "%",
-        "labels": { "ru": "яркость", "en": "brightness" } }
+      {
+        "name": "level",
+        "type": "int",
+        "unit": "%",
+        "labels": {
+          "ru": "яркость",
+          "en": "brightness"
+        }
+      }
     ]
   }
 }

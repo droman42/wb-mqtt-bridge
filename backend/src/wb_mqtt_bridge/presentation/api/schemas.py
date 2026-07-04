@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Literal, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 from wb_mqtt_bridge.__version__ import __version__
@@ -118,6 +118,12 @@ class CanonicalErrorCode(str, Enum):
     # active scenario binds no role for the requested capability domain.
     NO_ACTIVE_SCENARIO = "no_active_scenario"
     ROLE_UNBOUND = "role_unbound"
+    # VWB-23 room-scoped group addressing (canonical_first.md §10): no member of the
+    # group in the room (404); scope=one without a configured room default (409); a
+    # fan-out was required but the group isn't on the fan-out allow-list (409).
+    NO_GROUP_MEMBERS = "no_group_members"
+    NO_DEFAULT_DEVICE = "no_default_device"
+    FANOUT_NOT_ALLOWED = "fanout_not_allowed"
 
 
 class CanonicalError(BaseModel):
@@ -138,6 +144,62 @@ class CanonicalActionResponse(BaseModel):
     state: Optional[Dict[str, Any]] = None
     error: Optional[CanonicalError] = None
     executed_on: Optional[str] = None  # SCN-6: the role-bound device a Scenario Manager proxy command landed on
+    no_op: bool = Field(
+        default=False,
+        description="True when the device was already at the requested value (the driver's "
+                    "no_op short-circuit) — succeeded without actuating. VWB-23 surfaces this "
+                    "so group fan-out results can report members honestly.",
+    )
+
+
+# ---- POST /rooms/{room_id}/canonical (VWB-23, canonical_first.md §10) -------------
+# The THIRD canonical address form: room + semantic group + action, for utterances that
+# name a capability, not a device («включи свет», «закрой шторы»). The resolver resolves
+# only as deep as the utterance specifies; membership and default-vs-fan-out policy live
+# in the bridge (the `group` overlay on capability maps + rooms.json `group_defaults`).
+
+
+class RoomCanonicalRequest(BaseModel):
+    """Request to invoke a canonical action on a room GROUP (§10.1)."""
+    group: str = Field(..., description="Semantic group name (e.g. 'light', 'cover') — a "
+                                        "capability's group defaults to its domain name; "
+                                        "profiles override (light_switch power → 'light').")
+    action: str = Field(..., description="Action within each member's matching capability "
+                                         "(e.g. 'on', 'off', 'open', 'close').")
+    params: Optional[Dict[str, Any]] = Field(default=None)
+    scope: Literal["auto", "all", "one"] = Field(
+        default="auto",
+        description="auto = the room's configured default device for the group, else fan-out; "
+                    "all = force fan-out (the plural/«весь» signal); one = default device "
+                    "required (409 no_default_device if the room declares none).",
+    )
+    wait: bool = Field(default=True, description="Per-member echo-wait (same semantics as the "
+                                                 "device endpoint's `wait`).")
+
+
+class GroupMemberResult(BaseModel):
+    """Per-member outcome of a room group action (§10.4). `skipped` = the member's
+    matching capability lacks the requested action (reported, never an error);
+    `no_op` = already at target; `failed` carries the member's error in `detail`."""
+    device_id: str
+    capability: str = Field(..., description="The member's OWN capability the action ran "
+                                             "against (a light switch's 'power', the hood's 'light').")
+    status: Literal["executed", "no_op", "skipped", "failed"]
+    detail: Optional[str] = None
+
+
+class RoomCanonicalResponse(BaseModel):
+    """Response envelope for `POST /rooms/{room_id}/canonical`. 200 even with partial
+    member failures (the caller decides how to speak them); `success` = at least one
+    member executed or was already at target. Error envelopes (404/409) carry `error`
+    and an empty `results`."""
+    success: bool
+    room_id: str
+    group: str
+    action: str
+    scope_applied: Optional[Literal["default", "fan_out"]] = None
+    results: List[GroupMemberResult] = Field(default_factory=list)
+    error: Optional[CanonicalError] = None
 
 
 # ---- GET /system/catalog DTOs ---------------------------------------------
@@ -212,6 +274,13 @@ class CatalogCapability(BaseModel):
     name: str
     actions: Optional[List[CatalogAction]] = None
     fields: Optional[List[CatalogField]] = None
+    group: Optional[str] = Field(
+        default=None,
+        description="Effective semantic group for room-scoped addressing (VWB-23, §10) — "
+                    "always explicit so consumers never reimplement the defaulting rule: "
+                    "equals `name` unless the capability map overrides (a light switch's "
+                    "'power' carries group 'light'); `null` = opted out of group addressing.",
+    )
 
 
 class CatalogDevice(BaseModel):
@@ -242,6 +311,12 @@ class CatalogRoom(BaseModel):
                     "authored in VWB-21) — «зал» for «гостиная». None until authored.",
     )
     devices: List[str] = Field(default_factory=list)
+    group_defaults: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Group name -> default device_id for room-scoped addressing "
+                    "(VWB-23, §10.3): what scope=auto targets instead of fanning out — "
+                    "the singular «включи свет». None = no defaults authored.",
+    )
 
 
 class CatalogResponse(BaseModel):

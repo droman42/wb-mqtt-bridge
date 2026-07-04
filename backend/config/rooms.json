@@ -7,10 +7,15 @@
       "de": "Wohnzimmer"
     },
     "aliases": {
-      "ru": ["зал"]
+      "ru": [
+        "зал"
+      ]
     },
     "description": "Main lounge with TV, processor and media devices (WB dashboard `livingroom`)",
-    "default_scenario": null
+    "default_scenario": null,
+    "group_defaults": {
+      "light": "living_room_spots"
+    }
   },
   "children_room": {
     "room_id": "children_room",
@@ -20,10 +25,15 @@
       "de": "Kinderzimmer"
     },
     "aliases": {
-      "ru": ["сынарник"]
+      "ru": [
+        "сынарник"
+      ]
     },
     "description": "Children room with TV and Apple TV (WB dashboard `children`)",
-    "default_scenario": null
+    "default_scenario": null,
+    "group_defaults": {
+      "light": "children_room_spots"
+    }
   },
   "kitchen": {
     "room_id": "kitchen",
@@ -33,7 +43,10 @@
       "de": "Küche"
     },
     "description": "Kitchen area with smart appliances",
-    "default_scenario": null
+    "default_scenario": null,
+    "group_defaults": {
+      "light": "kitchen_spots"
+    }
   },
   "cabinet": {
     "room_id": "cabinet",
@@ -43,7 +56,10 @@
       "de": "Arbeitszimmer"
     },
     "description": "Home office / study (the §P3.7 voice-integration slice's test room)",
-    "default_scenario": null
+    "default_scenario": null,
+    "group_defaults": {
+      "light": "cabinet_spots"
+    }
   },
   "entrance": {
     "room_id": "entrance",
@@ -53,7 +69,10 @@
       "de": "Eingang"
     },
     "description": "Entry hall just inside the front door",
-    "default_scenario": null
+    "default_scenario": null,
+    "group_defaults": {
+      "light": "entrance_spots"
+    }
   },
   "hall": {
     "room_id": "hall",
@@ -63,7 +82,10 @@
       "de": "Flur"
     },
     "description": "Inner corridor connecting the rooms",
-    "default_scenario": null
+    "default_scenario": null,
+    "group_defaults": {
+      "light": "hall_spots"
+    }
   },
   "shower": {
     "room_id": "shower",
@@ -73,7 +95,10 @@
       "de": "Dusche"
     },
     "description": "Shower room (WB dashboard `wc`)",
-    "default_scenario": null
+    "default_scenario": null,
+    "group_defaults": {
+      "light": "shower_spots"
+    }
   },
   "bathroom": {
     "room_id": "bathroom",
@@ -83,7 +108,10 @@
       "de": "Badezimmer"
     },
     "description": "Bathroom with tub and sink",
-    "default_scenario": null
+    "default_scenario": null,
+    "group_defaults": {
+      "light": "bathroom_spots"
+    }
   },
   "bedroom": {
     "room_id": "bedroom",
@@ -93,7 +121,10 @@
       "de": "Schlafzimmer"
     },
     "description": "Master bedroom",
-    "default_scenario": null
+    "default_scenario": null,
+    "group_defaults": {
+      "light": "bedroom_spots"
+    }
   },
   "wardrobe": {
     "room_id": "wardrobe",
@@ -103,7 +134,10 @@
       "de": "Garderobe"
     },
     "description": "Walk-in wardrobe",
-    "default_scenario": null
+    "default_scenario": null,
+    "group_defaults": {
+      "light": "wardrobe_spots"
+    }
   },
   "global": {
     "room_id": "global",
@@ -113,7 +147,9 @@
       "de": "Ganzes Haus"
     },
     "aliases": {
-      "ru": ["квартира"]
+      "ru": [
+        "квартира"
+      ]
     },
     "description": "Aggregate whole-house devices (e.g. all_lights). Each aggregate is a regular WbPassthroughDevice config whose `/on` topic the wb-rules scene listens on; populated by §P3.7 #22.",
     "default_scenario": null

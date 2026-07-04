@@ -16,6 +16,25 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-05 (executed + closed: VWB-23 — room-scoped group addressing shipped, same day as
+  its design)** — §10 end-to-end: `Capability.group` overlay (+ explicit-null opt-out via
+  `model_fields_set`), pure `domain/rooms/groups.py` resolver, `POST /rooms/{room_id}/canonical`
+  with scope `auto|all|one`, concurrent per-member dispatch through the **extracted**
+  `dispatch_device_canonical` core (the device endpoint now delegates to it — one path, no
+  drift), per-member `executed|no_op|skipped|failed` results, speakable
+  `no_group_members`/`no_default_device`/`fanout_not_allowed`, allow-list `{light, cover}`.
+  Config: `power_switch` split (oven_power + all_plugs re-pointed; the other 23 light_switch
+  users audited as genuine lights), 3 illumination profiles tagged `group: "light"`,
+  **`group_defaults` authored per user decision — every room's `light` defaults to its
+  `<room>_spots` (10/10 regular), `global` deliberately none** (its group resolves to the
+  `all_lights` master). RoomManager validates defaults at load (drop + error-log). Catalog:
+  always-explicit `CatalogCapability.group` + `CatalogRoom.group_defaults`; golden
+  `91909b54bfb4b593` (pre-pin, v1 carries it); UI types regen, check+build green. New
+  `test_room_canonical.py` (17 tests); suite 548; pyright 0 (after one duck-typing return-type
+  fix); contracts 3/3. Docs: `interfaces.md` row + `rooms.md` voice-flow rewritten to bridge-side
+  resolution (old text described a never-built client-side `default` lookup). Voice side can now
+  fire «включи свет» as one call and speak an honest confirmation from the results list.
+
 - **2026-07-05 (filed + closed: VWB-22 — group-addressing design; filed open: VWB-23 —
   implementation)** — The voice side's open question ("what should «включи свет» / «закрой шторы»
   do?") ran as a discussion session and settled into `canonical_first.md` **§10**: a third

@@ -362,8 +362,14 @@ per-capability `group: null` override, not a new file.
 `rooms.json` gains an optional per-room **`group_defaults`** map:
 
 ```json
-{ "room_id": "living_room", …, "group_defaults": { "light": "living_room_ceiling" } }
+{ "room_id": "living_room", …, "group_defaults": { "light": "living_room_spots" } }
 ```
+
+**Authored 2026-07-05 (user decision):** every room except `global` defaults `light` to
+its `<room>_spots` device — the fleet's naming is perfectly regular (all 10 rooms have
+exactly one). `global` deliberately has no default: its only light member is the
+`all_lights` master, so `auto` fan-out resolves to exactly that one device and the
+wb-rule does the physical fan-out.
 
 Validated at load: the device must be in the room and a member of the group. This is what
 makes «включи свет» (singular intent, `scope: auto`) mean *the* main light where one is

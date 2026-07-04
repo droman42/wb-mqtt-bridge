@@ -1,9 +1,14 @@
 {
   "power": {
     "kind": "momentary",
+    "group": "light",
     "actions": {
-      "on":  { "command": "power_on" },
-      "off": { "command": "power_off" }
+      "on": {
+        "command": "power_on"
+      },
+      "off": {
+        "command": "power_off"
+      }
     }
   }
 }

@@ -304,7 +304,7 @@ def create_app() -> FastAPI:
         devices.initialize(config_manager, device_manager, mqtt_client, scenario_proxy)
         mqtt.initialize(mqtt_client)
         scenarios.initialize(scenario_manager, room_manager, mqtt_client)
-        rooms.initialize(room_manager)
+        rooms.initialize(room_manager, device_manager)  # device_manager: VWB-23 group dispatch
         state.initialize(config_manager, device_manager, state_store, scenario_manager)
         events.initialize()  # Initialize SSE events router
         

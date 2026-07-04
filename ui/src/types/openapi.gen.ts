@@ -709,6 +709,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{room_id}/canonical": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Execute Room Canonical Action
+         * @description Room-scoped group actuation — the THIRD canonical address form (VWB-23,
+         *     canonical_first.md §10). For utterances that name a capability, not a device
+         *     («включи свет», «закрой шторы»): the caller supplies room + group + action, the
+         *     bridge owns membership (the `group` overlay on capability maps) and the
+         *     default-vs-fan-out policy (`scope` + the room's `group_defaults`).
+         *
+         *     Members execute concurrently through the SAME per-device canonical dispatch the
+         *     device endpoint uses (per-member no_op short-circuit, echo wait, `update_state`
+         *     chokepoint — all unchanged). 200 even with partial member failures; the per-member
+         *     `results` list is what makes the caller's confirmation honest.
+         *
+         *     Speakable errors:
+         *       - `404 no_group_members` — nothing in this room belongs to the group;
+         *       - `409 no_default_device` — scope=one but the room declares no default;
+         *       - `409 fanout_not_allowed` — a fan-out would be required but the group is not on
+         *         the allow-list (`light`, `cover`); consequential groups (`power`, …) need an
+         *         explicit device or scenario.
+         */
+        post: operations["execute_room_canonical_action_rooms__room_id__canonical_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/scenario/definition": {
         parameters: {
             query?: never;
@@ -1418,6 +1454,12 @@ export interface components {
             error?: components["schemas"]["CanonicalError"] | null;
             /** Executed On */
             executed_on?: string | null;
+            /**
+             * No Op
+             * @description True when the device was already at the requested value (the driver's no_op short-circuit) — succeeded without actuating. VWB-23 surfaces this so group fan-out results can report members honestly.
+             * @default false
+             */
+            no_op: boolean;
             /** State */
             state?: {
                 [key: string]: unknown;
@@ -1445,7 +1487,7 @@ export interface components {
          *     400 for param_invalid, 503 for device_unreachable, 500 for internal_error.
          * @enum {string}
          */
-        CanonicalErrorCode: "device_not_found" | "capability_not_supported" | "action_not_supported" | "param_invalid" | "device_unreachable" | "internal_error" | "no_active_scenario" | "role_unbound";
+        CanonicalErrorCode: "device_not_found" | "capability_not_supported" | "action_not_supported" | "param_invalid" | "device_unreachable" | "internal_error" | "no_active_scenario" | "role_unbound" | "no_group_members" | "no_default_device" | "fanout_not_allowed";
         /**
          * CatalogAction
          * @description A canonical action a device supports under a capability. `params` is `None` for
@@ -1471,6 +1513,11 @@ export interface components {
             actions?: components["schemas"]["CatalogAction"][] | null;
             /** Fields */
             fields?: components["schemas"]["CatalogField"][] | null;
+            /**
+             * Group
+             * @description Effective semantic group for room-scoped addressing (VWB-23, §10) — always explicit so consumers never reimplement the defaulting rule: equals `name` unless the capability map overrides (a light switch's 'power' carries group 'light'); `null` = opted out of group addressing.
+             */
+            group?: string | null;
             /** Name */
             name: string;
         };
@@ -1596,6 +1643,13 @@ export interface components {
             } | null;
             /** Devices */
             devices?: string[];
+            /**
+             * Group Defaults
+             * @description Group name -> default device_id for room-scoped addressing (VWB-23, §10.3): what scope=auto targets instead of fanning out — the singular «включи свет». None = no defaults authored.
+             */
+            group_defaults?: {
+                [key: string]: string;
+            } | null;
             /** Id */
             id: string;
             /** Names */
@@ -1895,6 +1949,28 @@ export interface components {
             detail: string;
             /** Error Code */
             error_code?: string | null;
+        };
+        /**
+         * GroupMemberResult
+         * @description Per-member outcome of a room group action (§10.4). `skipped` = the member's
+         *     matching capability lacks the requested action (reported, never an error);
+         *     `no_op` = already at target; `failed` carries the member's error in `detail`.
+         */
+        GroupMemberResult: {
+            /**
+             * Capability
+             * @description The member's OWN capability the action ran against (a light switch's 'power', the hood's 'light').
+             */
+            capability: string;
+            /** Detail */
+            detail?: string | null;
+            /** Device Id */
+            device_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "executed" | "no_op" | "skipped" | "failed";
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -2328,6 +2404,61 @@ export interface components {
             power: string;
         };
         /**
+         * RoomCanonicalRequest
+         * @description Request to invoke a canonical action on a room GROUP (§10.1).
+         */
+        RoomCanonicalRequest: {
+            /**
+             * Action
+             * @description Action within each member's matching capability (e.g. 'on', 'off', 'open', 'close').
+             */
+            action: string;
+            /**
+             * Group
+             * @description Semantic group name (e.g. 'light', 'cover') — a capability's group defaults to its domain name; profiles override (light_switch power → 'light').
+             */
+            group: string;
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Scope
+             * @description auto = the room's configured default device for the group, else fan-out; all = force fan-out (the plural/«весь» signal); one = default device required (409 no_default_device if the room declares none).
+             * @default auto
+             * @enum {string}
+             */
+            scope: "auto" | "all" | "one";
+            /**
+             * Wait
+             * @description Per-member echo-wait (same semantics as the device endpoint's `wait`).
+             * @default true
+             */
+            wait: boolean;
+        };
+        /**
+         * RoomCanonicalResponse
+         * @description Response envelope for `POST /rooms/{room_id}/canonical`. 200 even with partial
+         *     member failures (the caller decides how to speak them); `success` = at least one
+         *     member executed or was already at target. Error envelopes (404/409) carry `error`
+         *     and an empty `results`.
+         */
+        RoomCanonicalResponse: {
+            /** Action */
+            action: string;
+            error?: components["schemas"]["CanonicalError"] | null;
+            /** Group */
+            group: string;
+            /** Results */
+            results?: components["schemas"]["GroupMemberResult"][];
+            /** Room Id */
+            room_id: string;
+            /** Scope Applied */
+            scope_applied?: ("default" | "fan_out") | null;
+            /** Success */
+            success: boolean;
+        };
+        /**
          * RoomDefinitionResponse
          * @description Response model for room definitions.
          */
@@ -2338,6 +2469,10 @@ export interface components {
             description: string;
             /** Devices */
             devices: string[];
+            /** Group Defaults */
+            group_defaults?: {
+                [key: string]: string;
+            } | null;
             /** Names */
             names: {
                 [key: string]: string;
@@ -3490,6 +3625,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RoomDefinitionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    execute_room_canonical_action_rooms__room_id__canonical_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoomCanonicalRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomCanonicalResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomCanonicalResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomCanonicalResponse"];
                 };
             };
             /** @description Validation Error */

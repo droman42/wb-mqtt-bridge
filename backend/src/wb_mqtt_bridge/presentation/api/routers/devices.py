@@ -392,6 +392,25 @@ async def execute_canonical_action(device_id: str, payload: CanonicalActionReque
             executed_on = target_id
             device_id = target_id  # dispatch below targets the role-bound device
 
+    return await dispatch_device_canonical(device_id, payload, response_device_id, executed_on)
+
+
+async def dispatch_device_canonical(
+    device_id: str,
+    payload: CanonicalActionRequest,
+    response_device_id: Optional[str] = None,
+    executed_on: Optional[str] = None,
+) -> CanonicalActionResponse:
+    """Per-device canonical dispatch core — capability-map resolution, VWB-17 step
+    expansion, wait:false / no_op / echo-wait semantics. Split out of the route handler
+    (VWB-23) so the room group endpoint fans out through the IDENTICAL path each member
+    would take individually. Raises HTTPException carrying a CanonicalActionResponse
+    envelope in `detail` on failure."""
+    if response_device_id is None:
+        response_device_id = device_id
+    if not device_manager:
+        raise HTTPException(status_code=503, detail="Service not fully initialized")
+
     device = device_manager.get_device(device_id)
     if not device:
         resp = _err_response(
@@ -497,6 +516,7 @@ async def execute_canonical_action(device_id: str, payload: CanonicalActionReque
                 success=True, device_id=response_device_id,
                 capability=payload.capability, action=payload.action,
                 state=state, error=None, executed_on=executed_on,
+                no_op=True,  # VWB-23: group fan-out reports this member as already-at-target
             )
 
         try:

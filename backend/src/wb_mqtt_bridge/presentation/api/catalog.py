@@ -112,6 +112,9 @@ def _project_capability_actions(
             name=cap_name,
             actions=actions if actions else None,
             fields=fields if fields else None,
+            # VWB-23 (§10): always-explicit effective group so consumers never
+            # reimplement the defaulting rule; null = opted out of group addressing.
+            group=cap.effective_group(cap_name),
         ))
     return out
 
@@ -166,6 +169,7 @@ def _project_rooms(rooms_iterable: Iterable) -> list[CatalogRoom]:
             names=names_dict,
             aliases=getattr(room, "aliases", None),
             devices=list(room.devices),
+            group_defaults=getattr(room, "group_defaults", None),
         ))
     out.sort(key=lambda r: r.id)
     return out
@@ -210,6 +214,7 @@ def _project_scenario_managers(scenario_proxy: Any) -> list[CatalogDevice]:
         ]
         scenario_cap = CatalogCapability(
             name="scenario",
+            group="scenario",  # default rule made explicit (VWB-23)
             actions=[
                 # Typed CatalogParam (VWB-20/G1) — the same descriptor model the §6
                 # projection produces, so both params producers share one schema.
@@ -232,6 +237,7 @@ def _project_scenario_managers(scenario_proxy: Any) -> list[CatalogDevice]:
         inherited = [
             CatalogCapability(
                 name=domain,
+                group=domain,  # default rule made explicit (VWB-23)
                 actions=[CatalogAction(name=a, params=None) for a in actions],
             )
             for domain, actions in scenario_proxy.union_actions(room_id).items()

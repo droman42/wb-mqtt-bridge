@@ -7,7 +7,7 @@
     "en": "Oven",
     "de": "Ofen"
   },
-  "capability_profile": "light_switch",
+  "capability_profile": "power_switch",
   "room": "global",
   "commands": {
     "power_on": {

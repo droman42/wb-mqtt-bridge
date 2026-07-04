@@ -764,6 +764,12 @@
             ],
             "title": "Executed On"
           },
+          "no_op": {
+            "default": false,
+            "description": "True when the device was already at the requested value (the driver's no_op short-circuit) — succeeded without actuating. VWB-23 surfaces this so group fan-out results can report members honestly.",
+            "title": "No Op",
+            "type": "boolean"
+          },
           "state": {
             "anyOf": [
               {
@@ -840,7 +846,10 @@
           "device_unreachable",
           "internal_error",
           "no_active_scenario",
-          "role_unbound"
+          "role_unbound",
+          "no_group_members",
+          "no_default_device",
+          "fanout_not_allowed"
         ],
         "title": "CanonicalErrorCode",
         "type": "string"
@@ -903,6 +912,18 @@
               }
             ],
             "title": "Fields"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Effective semantic group for room-scoped addressing (VWB-23, §10) — always explicit so consumers never reimplement the defaulting rule: equals `name` unless the capability map overrides (a light switch's 'power' carries group 'light'); `null` = opted out of group addressing.",
+            "title": "Group"
           },
           "name": {
             "title": "Name",
@@ -1200,6 +1221,21 @@
             },
             "title": "Devices",
             "type": "array"
+          },
+          "group_defaults": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Group name -> default device_id for room-scoped addressing (VWB-23, §10.3): what scope=auto targets instead of fanning out — the singular «включи свет». None = no defaults authored.",
+            "title": "Group Defaults"
           },
           "id": {
             "title": "Id",
@@ -1830,6 +1866,48 @@
           "detail"
         ],
         "title": "ErrorResponse",
+        "type": "object"
+      },
+      "GroupMemberResult": {
+        "description": "Per-member outcome of a room group action (§10.4). `skipped` = the member's\nmatching capability lacks the requested action (reported, never an error);\n`no_op` = already at target; `failed` carries the member's error in `detail`.",
+        "properties": {
+          "capability": {
+            "description": "The member's OWN capability the action ran against (a light switch's 'power', the hood's 'light').",
+            "title": "Capability",
+            "type": "string"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "device_id": {
+            "title": "Device Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "executed",
+              "no_op",
+              "skipped",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "device_id",
+          "capability",
+          "status"
+        ],
+        "title": "GroupMemberResult",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -2898,6 +2976,117 @@
         "title": "RevoxA77ReelToReelState",
         "type": "object"
       },
+      "RoomCanonicalRequest": {
+        "description": "Request to invoke a canonical action on a room GROUP (§10.1).",
+        "properties": {
+          "action": {
+            "description": "Action within each member's matching capability (e.g. 'on', 'off', 'open', 'close').",
+            "title": "Action",
+            "type": "string"
+          },
+          "group": {
+            "description": "Semantic group name (e.g. 'light', 'cover') — a capability's group defaults to its domain name; profiles override (light_switch power → 'light').",
+            "title": "Group",
+            "type": "string"
+          },
+          "params": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Params"
+          },
+          "scope": {
+            "default": "auto",
+            "description": "auto = the room's configured default device for the group, else fan-out; all = force fan-out (the plural/«весь» signal); one = default device required (409 no_default_device if the room declares none).",
+            "enum": [
+              "auto",
+              "all",
+              "one"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "wait": {
+            "default": true,
+            "description": "Per-member echo-wait (same semantics as the device endpoint's `wait`).",
+            "title": "Wait",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "group",
+          "action"
+        ],
+        "title": "RoomCanonicalRequest",
+        "type": "object"
+      },
+      "RoomCanonicalResponse": {
+        "description": "Response envelope for `POST /rooms/{room_id}/canonical`. 200 even with partial\nmember failures (the caller decides how to speak them); `success` = at least one\nmember executed or was already at target. Error envelopes (404/409) carry `error`\nand an empty `results`.",
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CanonicalError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/GroupMemberResult"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "room_id": {
+            "title": "Room Id",
+            "type": "string"
+          },
+          "scope_applied": {
+            "anyOf": [
+              {
+                "enum": [
+                  "default",
+                  "fan_out"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Applied"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "room_id",
+          "group",
+          "action"
+        ],
+        "title": "RoomCanonicalResponse",
+        "type": "object"
+      },
       "RoomDefinitionResponse": {
         "description": "Response model for room definitions.",
         "properties": {
@@ -2922,6 +3111,20 @@
             },
             "title": "Devices",
             "type": "array"
+          },
+          "group_defaults": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Defaults"
           },
           "names": {
             "additionalProperties": {
@@ -4775,7 +4978,7 @@
     },
     "/room/list": {
       "get": {
-        "description": "Get a list of all room definitions.\n\nReturns:\n    List[RoomDefinitionResponse]: List of room definitions\n    \nRaises:\n    HTTPException: If service not initialized",
+        "description": "Get a list of all room definitions.\n\nReturns:\n    List[RoomDefinitionResponse]: List of room definitions\n\nRaises:\n    HTTPException: If service not initialized",
         "operationId": "list_rooms_room_list_get",
         "responses": {
           "200": {
@@ -4801,7 +5004,7 @@
     },
     "/room/{room_id}": {
       "get": {
-        "description": "Get a specific room definition.\n\nArgs:\n    room_id: The ID of the room to retrieve\n    \nReturns:\n    RoomDefinitionResponse: The room definition\n    \nRaises:\n    HTTPException: If room not found or service not initialized",
+        "description": "Get a specific room definition.\n\nArgs:\n    room_id: The ID of the room to retrieve\n\nReturns:\n    RoomDefinitionResponse: The room definition\n\nRaises:\n    HTTPException: If room not found or service not initialized",
         "operationId": "get_room_room__room_id__get",
         "parameters": [
           {
@@ -4837,6 +5040,79 @@
           }
         },
         "summary": "Get Room",
+        "tags": [
+          "Rooms"
+        ]
+      }
+    },
+    "/rooms/{room_id}/canonical": {
+      "post": {
+        "description": "Room-scoped group actuation — the THIRD canonical address form (VWB-23,\ncanonical_first.md §10). For utterances that name a capability, not a device\n(«включи свет», «закрой шторы»): the caller supplies room + group + action, the\nbridge owns membership (the `group` overlay on capability maps) and the\ndefault-vs-fan-out policy (`scope` + the room's `group_defaults`).\n\nMembers execute concurrently through the SAME per-device canonical dispatch the\ndevice endpoint uses (per-member no_op short-circuit, echo wait, `update_state`\nchokepoint — all unchanged). 200 even with partial member failures; the per-member\n`results` list is what makes the caller's confirmation honest.\n\nSpeakable errors:\n  - `404 no_group_members` — nothing in this room belongs to the group;\n  - `409 no_default_device` — scope=one but the room declares no default;\n  - `409 fanout_not_allowed` — a fan-out would be required but the group is not on\n    the allow-list (`light`, `cover`); consequential groups (`power`, …) need an\n    explicit device or scenario.",
+        "operationId": "execute_room_canonical_action_rooms__room_id__canonical_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "room_id",
+            "required": true,
+            "schema": {
+              "title": "Room Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoomCanonicalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomCanonicalResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomCanonicalResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomCanonicalResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Execute Room Canonical Action",
         "tags": [
           "Rooms"
         ]

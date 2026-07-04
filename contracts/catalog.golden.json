@@ -1,5 +1,5 @@
 {
-  "version": "7a1149c7657a2f7f",
+  "version": "91909b54bfb4b593",
   "rooms": [
     {
       "id": "bathroom",
@@ -15,7 +15,10 @@
         "bathroom_shelf_bath",
         "bathroom_shelf_toilet",
         "bathroom_spots"
-      ]
+      ],
+      "group_defaults": {
+        "light": "bathroom_spots"
+      }
     },
     {
       "id": "bedroom",
@@ -37,7 +40,10 @@
         "bedroom_spots",
         "bedroom_tulle",
         "bedroom_window_light"
-      ]
+      ],
+      "group_defaults": {
+        "light": "bedroom_spots"
+      }
     },
     {
       "id": "cabinet",
@@ -54,7 +60,10 @@
         "cabinet_roller_right",
         "cabinet_spots",
         "cabinet_windowsill"
-      ]
+      ],
+      "group_defaults": {
+        "light": "cabinet_spots"
+      }
     },
     {
       "id": "children_room",
@@ -77,7 +86,10 @@
         "children_room_hvac",
         "children_room_spots",
         "children_room_tv"
-      ]
+      ],
+      "group_defaults": {
+        "light": "children_room_spots"
+      }
     },
     {
       "id": "entrance",
@@ -91,7 +103,10 @@
         "entrance_cabinet_accent",
         "entrance_floor",
         "entrance_spots"
-      ]
+      ],
+      "group_defaults": {
+        "light": "entrance_spots"
+      }
     },
     {
       "id": "global",
@@ -114,7 +129,8 @@
         "oven_power",
         "seasonal_mode",
         "water_supply"
-      ]
+      ],
+      "group_defaults": null
     },
     {
       "id": "hall",
@@ -128,7 +144,10 @@
         "hall_spots",
         "hall_track_1",
         "hall_track_2"
-      ]
+      ],
+      "group_defaults": {
+        "light": "hall_spots"
+      }
     },
     {
       "id": "kitchen",
@@ -144,7 +163,10 @@
         "kitchen_floor",
         "kitchen_hood",
         "kitchen_spots"
-      ]
+      ],
+      "group_defaults": {
+        "light": "kitchen_spots"
+      }
     },
     {
       "id": "living_room",
@@ -180,7 +202,10 @@
         "upscaler",
         "vhs_player",
         "video"
-      ]
+      ],
+      "group_defaults": {
+        "light": "living_room_spots"
+      }
     },
     {
       "id": "shower",
@@ -197,7 +222,10 @@
         "shower_sauna_sensors",
         "shower_service_closet",
         "shower_spots"
-      ]
+      ],
+      "group_defaults": {
+        "light": "shower_spots"
+      }
     },
     {
       "id": "wardrobe",
@@ -210,7 +238,10 @@
       "devices": [
         "wardrobe_shelves_light",
         "wardrobe_spots"
-      ]
+      ],
+      "group_defaults": {
+        "light": "wardrobe_spots"
+      }
     }
   ],
   "devices": [
@@ -237,7 +268,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -264,7 +296,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "power"
         }
       ]
     },
@@ -294,7 +327,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "power"
         },
         {
           "name": "playback",
@@ -320,7 +354,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "playback"
         },
         {
           "name": "menu",
@@ -354,7 +389,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "menu"
         },
         {
           "name": "apps",
@@ -377,7 +413,8 @@
               ]
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "apps"
         },
         {
           "name": "pointer",
@@ -416,7 +453,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "pointer"
         },
         {
           "name": "volume",
@@ -430,7 +468,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "volume"
         }
       ]
     },
@@ -460,7 +499,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "power"
         },
         {
           "name": "playback",
@@ -486,7 +526,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "playback"
         },
         {
           "name": "menu",
@@ -520,7 +561,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "menu"
         },
         {
           "name": "apps",
@@ -543,7 +585,8 @@
               ]
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "apps"
         },
         {
           "name": "pointer",
@@ -582,7 +625,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "pointer"
         },
         {
           "name": "volume",
@@ -596,7 +640,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "volume"
         }
       ]
     },
@@ -667,7 +712,8 @@
                 "en": "room temperature"
               }
             }
-          ]
+          ],
+          "group": "climate"
         }
       ]
     },
@@ -694,7 +740,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -725,7 +772,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -756,7 +804,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -783,7 +832,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         },
         {
           "name": "brightness",
@@ -818,7 +868,8 @@
                 "en": "brightness"
               }
             }
-          ]
+          ],
+          "group": "brightness"
         }
       ]
     },
@@ -878,7 +929,8 @@
                 "en": "position"
               }
             }
-          ]
+          ],
+          "group": "cover"
         }
       ]
     },
@@ -949,7 +1001,8 @@
                 "en": "room temperature"
               }
             }
-          ]
+          ],
+          "group": "climate"
         }
       ]
     },
@@ -1367,7 +1420,8 @@
                 "de": "Horizontallamelle"
               }
             }
-          ]
+          ],
+          "group": "climate"
         }
       ]
     },
@@ -1398,7 +1452,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -1429,7 +1484,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -1460,7 +1516,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -1491,7 +1548,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -1518,7 +1576,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         },
         {
           "name": "brightness",
@@ -1553,7 +1612,8 @@
                 "en": "brightness"
               }
             }
-          ]
+          ],
+          "group": "brightness"
         }
       ]
     },
@@ -1580,7 +1640,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         },
         {
           "name": "brightness",
@@ -1615,7 +1676,8 @@
                 "en": "brightness"
               }
             }
-          ]
+          ],
+          "group": "brightness"
         }
       ]
     },
@@ -1671,7 +1733,8 @@
                 "en": "position"
               }
             }
-          ]
+          ],
+          "group": "cover"
         }
       ]
     },
@@ -1698,7 +1761,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         },
         {
           "name": "brightness",
@@ -1733,7 +1797,8 @@
                 "en": "brightness"
               }
             }
-          ]
+          ],
+          "group": "brightness"
         }
       ]
     },
@@ -1760,7 +1825,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         },
         {
           "name": "brightness",
@@ -1795,7 +1861,8 @@
                 "en": "brightness"
               }
             }
-          ]
+          ],
+          "group": "brightness"
         }
       ]
     },
@@ -1866,7 +1933,8 @@
                 "en": "room temperature"
               }
             }
-          ]
+          ],
+          "group": "climate"
         }
       ]
     },
@@ -1926,7 +1994,8 @@
                 "en": "position"
               }
             }
-          ]
+          ],
+          "group": "cover"
         }
       ]
     },
@@ -1986,7 +2055,8 @@
                 "en": "position"
               }
             }
-          ]
+          ],
+          "group": "cover"
         }
       ]
     },
@@ -2013,7 +2083,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -2080,7 +2151,8 @@
                 "en": "room temperature"
               }
             }
-          ]
+          ],
+          "group": "climate"
         }
       ]
     },
@@ -2107,7 +2179,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -2134,7 +2207,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -2161,7 +2235,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -2232,7 +2307,8 @@
                 "en": "room temperature"
               }
             }
-          ]
+          ],
+          "group": "climate"
         }
       ]
     },
@@ -2650,7 +2726,8 @@
                 "de": "Horizontallamelle"
               }
             }
-          ]
+          ],
+          "group": "climate"
         }
       ]
     },
@@ -2677,7 +2754,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         },
         {
           "name": "brightness",
@@ -2712,7 +2790,8 @@
                 "en": "brightness"
               }
             }
-          ]
+          ],
+          "group": "brightness"
         }
       ]
     },
@@ -2742,7 +2821,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "power"
         },
         {
           "name": "volume",
@@ -2777,7 +2857,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "volume"
         },
         {
           "name": "menu",
@@ -2819,7 +2900,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "menu"
         },
         {
           "name": "playback",
@@ -2845,7 +2927,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "playback"
         },
         {
           "name": "apps",
@@ -2880,7 +2963,8 @@
               ]
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "apps"
         },
         {
           "name": "pointer",
@@ -2919,7 +3003,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "pointer"
         }
       ]
     },
@@ -2971,7 +3056,8 @@
                 "en": "duration"
               }
             }
-          ]
+          ],
+          "group": "cleaning"
         }
       ]
     },
@@ -3002,7 +3088,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -3073,7 +3160,8 @@
                 "en": "room temperature"
               }
             }
-          ]
+          ],
+          "group": "climate"
         }
       ]
     },
@@ -3100,7 +3188,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         },
         {
           "name": "brightness",
@@ -3135,7 +3224,8 @@
                 "en": "brightness"
               }
             }
-          ]
+          ],
+          "group": "brightness"
         }
       ]
     },
@@ -3162,7 +3252,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         },
         {
           "name": "brightness",
@@ -3197,7 +3288,8 @@
                 "en": "brightness"
               }
             }
-          ]
+          ],
+          "group": "brightness"
         }
       ]
     },
@@ -3228,7 +3320,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -3259,7 +3352,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -3298,7 +3392,8 @@
                 "en": "alarm"
               }
             }
-          ]
+          ],
+          "group": "alarm"
         },
         {
           "name": "valve_1",
@@ -3324,7 +3419,8 @@
                 "en": "collector branch 1"
               }
             }
-          ]
+          ],
+          "group": "valve_1"
         },
         {
           "name": "valve_2",
@@ -3350,7 +3446,8 @@
                 "en": "collector branch 2"
               }
             }
-          ]
+          ],
+          "group": "valve_2"
         },
         {
           "name": "circuits",
@@ -3411,7 +3508,8 @@
                 "en": "bedroom radiator"
               }
             }
-          ]
+          ],
+          "group": "circuits"
         }
       ]
     },
@@ -3450,7 +3548,8 @@
                 "en": "at home"
               }
             }
-          ]
+          ],
+          "group": "presence"
         }
       ]
     },
@@ -3481,7 +3580,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -3508,7 +3608,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -3579,7 +3680,8 @@
                 "en": "room temperature"
               }
             }
-          ]
+          ],
+          "group": "climate"
         }
       ]
     },
@@ -3634,7 +3736,8 @@
                 "en": "light"
               }
             }
-          ]
+          ],
+          "group": "light"
         },
         {
           "name": "fan",
@@ -3673,7 +3776,8 @@
                 "en": "fan speed"
               }
             }
-          ]
+          ],
+          "group": "fan"
         }
       ]
     },
@@ -3700,7 +3804,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         },
         {
           "name": "brightness",
@@ -3735,7 +3840,8 @@
                 "en": "brightness"
               }
             }
-          ]
+          ],
+          "group": "brightness"
         }
       ]
     },
@@ -3757,7 +3863,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "power"
         },
         {
           "name": "playback",
@@ -3783,7 +3890,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "playback"
         },
         {
           "name": "tracks",
@@ -3797,7 +3905,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "tracks"
         }
       ]
     },
@@ -3857,7 +3966,8 @@
                 "en": "position"
               }
             }
-          ]
+          ],
+          "group": "cover"
         }
       ]
     },
@@ -3917,7 +4027,8 @@
                 "en": "position"
               }
             }
-          ]
+          ],
+          "group": "cover"
         }
       ]
     },
@@ -3944,7 +4055,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -3971,7 +4083,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -4042,7 +4155,8 @@
                 "en": "room temperature"
               }
             }
-          ]
+          ],
+          "group": "climate"
         }
       ]
     },
@@ -4460,7 +4574,8 @@
                 "de": "Horizontallamelle"
               }
             }
-          ]
+          ],
+          "group": "climate"
         }
       ]
     },
@@ -4487,7 +4602,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         },
         {
           "name": "brightness",
@@ -4522,7 +4638,8 @@
                 "en": "brightness"
               }
             }
-          ]
+          ],
+          "group": "brightness"
         }
       ]
     },
@@ -4578,7 +4695,8 @@
                 "en": "position"
               }
             }
-          ]
+          ],
+          "group": "cover"
         }
       ]
     },
@@ -4634,7 +4752,8 @@
                 "en": "position"
               }
             }
-          ]
+          ],
+          "group": "cover"
         }
       ]
     },
@@ -4664,7 +4783,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "power"
         },
         {
           "name": "volume",
@@ -4699,7 +4819,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "volume"
         },
         {
           "name": "menu",
@@ -4741,7 +4862,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "menu"
         },
         {
           "name": "playback",
@@ -4767,7 +4889,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "playback"
         },
         {
           "name": "apps",
@@ -4802,7 +4925,8 @@
               ]
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "apps"
         },
         {
           "name": "pointer",
@@ -4841,7 +4965,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "pointer"
         }
       ]
     },
@@ -4872,7 +4997,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -4899,7 +5025,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -4925,7 +5052,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "power"
         },
         {
           "name": "volume",
@@ -4943,7 +5071,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "volume"
         }
       ]
     },
@@ -4970,7 +5099,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "power"
         }
       ]
     },
@@ -5009,7 +5139,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "volume"
         }
       ]
     },
@@ -5047,7 +5178,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "playback"
         }
       ]
     },
@@ -5086,7 +5218,8 @@
                 "en": "heating season"
               }
             }
-          ]
+          ],
+          "group": "heating_season"
         },
         {
           "name": "cooling_season",
@@ -5112,7 +5245,8 @@
                 "en": "cooling season"
               }
             }
-          ]
+          ],
+          "group": "cooling_season"
         }
       ]
     },
@@ -5183,7 +5317,8 @@
                 "en": "room temperature"
               }
             }
-          ]
+          ],
+          "group": "climate"
         }
       ]
     },
@@ -5210,7 +5345,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -5237,7 +5373,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         },
         {
           "name": "brightness",
@@ -5272,7 +5409,8 @@
                 "en": "brightness"
               }
             }
-          ]
+          ],
+          "group": "brightness"
         }
       ]
     },
@@ -5313,7 +5451,8 @@
                 "en": "humidity"
               }
             }
-          ]
+          ],
+          "group": "sensor"
         }
       ]
     },
@@ -5340,7 +5479,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -5367,7 +5507,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         },
         {
           "name": "brightness",
@@ -5402,7 +5543,8 @@
                 "en": "brightness"
               }
             }
-          ]
+          ],
+          "group": "brightness"
         }
       ]
     },
@@ -5441,7 +5583,8 @@
               ]
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "power"
         },
         {
           "name": "volume",
@@ -5476,7 +5619,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "volume"
         },
         {
           "name": "playback",
@@ -5498,7 +5642,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "playback"
         }
       ]
     },
@@ -5524,7 +5669,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "power"
         },
         {
           "name": "screen",
@@ -5542,7 +5688,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "screen"
         },
         {
           "name": "menu",
@@ -5576,7 +5723,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "menu"
         }
       ]
     },
@@ -5602,7 +5750,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "power"
         },
         {
           "name": "playback",
@@ -5628,7 +5777,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "playback"
         }
       ]
     },
@@ -5654,7 +5804,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "power"
         },
         {
           "name": "playback",
@@ -5676,7 +5827,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "playback"
         },
         {
           "name": "menu",
@@ -5714,7 +5866,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "menu"
         },
         {
           "name": "tracks",
@@ -5728,7 +5881,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "tracks"
         }
       ]
     },
@@ -5755,7 +5909,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         },
         {
           "name": "brightness",
@@ -5790,7 +5945,8 @@
                 "en": "brightness"
               }
             }
-          ]
+          ],
+          "group": "brightness"
         }
       ]
     },
@@ -5817,7 +5973,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "light"
         }
       ]
     },
@@ -5856,7 +6013,8 @@
                 "en": "alarm"
               }
             }
-          ]
+          ],
+          "group": "alarm"
         },
         {
           "name": "valve_cold",
@@ -5882,7 +6040,8 @@
                 "en": "cold water valve"
               }
             }
-          ]
+          ],
+          "group": "valve_cold"
         },
         {
           "name": "valve_hot",
@@ -5908,7 +6067,8 @@
                 "en": "hot water valve"
               }
             }
-          ]
+          ],
+          "group": "valve_hot"
         },
         {
           "name": "leaks",
@@ -5947,7 +6107,8 @@
                 "en": "bathroom leak"
               }
             }
-          ]
+          ],
+          "group": "leaks"
         }
       ]
     },
@@ -6153,7 +6314,8 @@
                 "en": "scenario"
               }
             }
-          ]
+          ],
+          "group": "scenario"
         },
         {
           "name": "volume",
@@ -6171,7 +6333,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "volume"
         },
         {
           "name": "playback",
@@ -6209,7 +6372,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "playback"
         },
         {
           "name": "menu",
@@ -6255,7 +6419,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "menu"
         },
         {
           "name": "tracks",
@@ -6273,7 +6438,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "tracks"
         },
         {
           "name": "screen",
@@ -6291,7 +6457,8 @@
               "params": null
             }
           ],
-          "fields": null
+          "fields": null,
+          "group": "screen"
         }
       ]
     }

@@ -155,6 +155,17 @@ class Capability(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     kind: Literal["stateful", "momentary"]
+    group: Optional[str] = Field(
+        default=None,
+        description=(
+            "Semantic group for room-scoped addressing (canonical_first.md §10). "
+            "Omitted = the capability's domain name (cover, volume, …). Profiles "
+            "override where domain ≠ semantics: the illumination profiles tag their "
+            "`power` capability `group: \"light\"` so «включи свет» finds lamps, not "
+            "sockets. An EXPLICIT `\"group\": null` opts the capability out of group "
+            "addressing entirely (distinguished from omission via `model_fields_set`)."
+        ),
+    )
     feedback: bool = False
     reconcile: bool = Field(
         default=True,
@@ -201,6 +212,16 @@ class Capability(BaseModel):
                 "stateful capability needs one of `actions`, `select`, `zones`, or `fields`"
             )
         return self
+
+    def effective_group(self, domain: str) -> Optional[str]:
+        """The group this capability belongs to for room-scoped addressing (§10).
+
+        Omitted `group` -> the domain name itself; explicit value -> that value;
+        explicit ``"group": null`` in the JSON -> ``None`` (opted out).
+        """
+        if "group" in self.model_fields_set:
+            return self.group
+        return domain
 
 
 class CapabilityMap(RootModel[Dict[str, Capability]]):

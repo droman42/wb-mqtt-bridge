@@ -140,6 +140,14 @@ class RoomDefinition(BaseModel):
                     "load time, NOT authored in rooms.json (any legacy authored array is ignored).",
     )
     default_scenario: Optional[str] = Field(None, description="Default scenario ID for this room")
+    group_defaults: Optional[Dict[str, str]] = Field(
+        None,
+        description="Room-scoped group addressing (canonical_first.md §10.3): group name -> "
+                    "device_id of the room's DEFAULT device for that group — what the singular "
+                    "«включи свет» (scope=auto) targets instead of fanning out. Validated by "
+                    "RoomManager at load (device in room + member of the group; invalid entries "
+                    "dropped with an error log).",
+    )
 
     @model_validator(mode="after")
     def validate_locales(self):

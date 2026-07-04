@@ -23,16 +23,19 @@ side-effects — just spatial metadata and the membership the bridge derives fro
 | `wardrobe` | Wardrobe | — |
 | `global` | Whole House | **Planned aggregate slot** — see below. |
 
-Every room declares localised names (`en` / `ru` / `de`), a short description, and
-an optional `default_scenario`. Nothing about which devices live in the room — that
-comes from the devices themselves.
+Every room declares localised names (`en` / `ru` / `de`), a short description, an
+optional `default_scenario`, and optional `group_defaults` — which single device
+answers a bare group command like "turn on the light" in that room (every room
+defaults its lights to the ceiling spots; saying "all the lights" still reaches
+every one). Nothing about which devices live in the room — that comes from the
+devices themselves.
 
 The `global` room is the home for **aggregate devices** (e.g. `all_lights`,
-`all_covers`) that don't belong to one room but address several at once. Each
-aggregate is an explicit `WbPassthroughDevice` whose `/on` topic a `wb-rules` scene
-listens on; this lets a single voice utterance ("включи свет везде" — turn on the
-lights everywhere) hit one device. The aggregate housing is in `rooms.json` today;
-the aggregate devices themselves are not yet authored (planned).
+`all_plugs`, the oven guard) that don't belong to one room but address several at
+once. Each aggregate is an explicit `WbPassthroughDevice` whose `/on` topic a
+`wb-rules` rule listens on; this lets a single voice utterance ("включи свет
+везде" — turn on the lights everywhere) hit one device that fans out physically
+on the controller.
 
 ## Membership is derived, not authored twice
 
@@ -116,16 +119,22 @@ canonical catalog (`GET /system/catalog`), which is room-keyed. A typical
 utterance flow:
 
 - **Implicit scope** — "включи свет" (turn on the lights). The voice client knows
-  which room it physically sits in (one Irene satellite per room, planned); the
-  device lookup is scoped to that room. If two `light_switch`-capable devices
-  exist in the room, capability + label disambiguates; if many, the catalog's
-  `default` per capability picks one.
+  which room it physically sits in (one Irene satellite per room, planned) and
+  fires `POST /rooms/{room}/canonical` with the group the noun names (`light`).
+  The *bridge* decides what that means: the room's configured default light
+  (every room declares its ceiling spots as the default) — or, for an explicitly
+  plural "включи весь свет", every light in the room at once. The response lists
+  exactly which devices were driven, so the spoken confirmation matches reality.
 - **Explicit scope** — "включи свет в кабинете" (turn on the lights in the study).
-  The room phrase resolves to `cabinet`; lookup is scoped there regardless of
-  where the utterance came from.
+  The room phrase resolves to `cabinet`; the same room-scoped call goes there
+  regardless of where the utterance came from.
 - **Whole-house scope** — "включи свет везде" (turn on the lights everywhere).
-  Resolves to the `global` room and addresses the aggregate device(s) housed
-  there.
+  Resolves to the `global` room, where the lights group contains the house-wide
+  master switch; one call, and the controller-side rule fans it out physically.
+- **Named device** — "включи торшер" (turn on the floor lamp). No group involved:
+  the alias resolves to one catalog entry and the per-device canonical endpoint
+  drives it directly. The voice client only resolves as deep as the utterance
+  actually specifies; anything vaguer than a device name is the bridge's call.
 
 The room boundary is what disambiguates the "свет" (light) noun in a house with
 many lights. It is also what bounds the *blast radius* of a misrecognition — a

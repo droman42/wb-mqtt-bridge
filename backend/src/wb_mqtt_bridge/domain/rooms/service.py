@@ -86,6 +86,12 @@ class RoomManager:
             # 2) Walk DeviceManager and group devices into their declared rooms.
             self._populate_devices_from_device_manager()
 
+            # 3) Validate authored group_defaults (canonical_first.md §10.3): each entry
+            #    must name a device that is in the room AND a member of the group.
+            #    Invalid entries are dropped (error-logged) so a stale default degrades
+            #    to fan-out / no_default_device instead of misfiring at dispatch time.
+            self._validate_group_defaults()
+
             logger.info(
                 f"Successfully loaded {len(self.rooms)} rooms; populated devices via DeviceManager."
             )
@@ -96,6 +102,29 @@ class RoomManager:
             logger.error(f"Error parsing rooms.json: {str(e)}")
         except Exception as e:
             logger.error(f"Error loading rooms: {str(e)}")
+
+    def _validate_group_defaults(self) -> None:
+        """Drop `group_defaults` entries whose device isn't in the room or isn't a
+        member of the group (membership = the §10 group overlay, resolved against the
+        live capability maps via :func:`resolve_members`)."""
+        from wb_mqtt_bridge.domain.rooms.groups import resolve_members
+
+        devices = getattr(self._device_mgr, "devices", {}) or {}
+        for room in self.rooms.values():
+            if not room.group_defaults:
+                continue
+            valid: Dict[str, str] = {}
+            for group, device_id in room.group_defaults.items():
+                member_ids = {m.device_id for m in resolve_members(devices, room.room_id, group)}
+                if device_id in member_ids:
+                    valid[group] = device_id
+                else:
+                    logger.error(
+                        f"rooms.json: group_defaults[{group!r}] = {device_id!r} in room "
+                        f"'{room.room_id}' is not a member of that group in that room — "
+                        f"entry dropped (will fan out / 409 instead)"
+                    )
+            room.group_defaults = valid or None
 
     def list(self) -> List[RoomDefinition]:
         """

@@ -55,6 +55,7 @@ client is regenerated without a Python dependency.
 |---|---|---|
 | `GET` | `/room/list` | All rooms — `RoomDefinitionResponse` list. |
 | `GET` | `/room/{id}` | One room. |
+| `POST` | `/rooms/{id}/canonical` | Room-scoped group actuation — body `{group, action, params, scope, wait}`. For utterances that name a capability rather than a device ("turn on the lights", "close the curtains"): the bridge resolves which devices the group means in that room and either drives the room's configured default device or fans out to every member, per `scope` (`auto`/`all`/`one`). Returns a per-member results list — which devices executed, were already at the target, were skipped, or failed — so the caller's confirmation can be honest. Fan-out is allowed only for benign groups (lights, covers); consequential groups like raw power refuse it. |
 
 Membership is derived from the device fleet (each device's `room` field), not
 from a `devices` array in `rooms.json`. See **[Rooms](rooms.md)** for the full
