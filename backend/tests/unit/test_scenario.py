@@ -1,43 +1,22 @@
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock
 
 from wb_mqtt_bridge.domain.scenarios.scenario import Scenario, ScenarioError, ScenarioExecutionError
 from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition
 
 pytestmark = pytest.mark.unit
 
-# Sample scenario data for testing
+# Sample scenario data for testing (thin format: source/display/audio selection;
+# the imperative startup/shutdown-sequence format was removed by the dead-code sweep).
 SAMPLE_SCENARIO = {
     "scenario_id": "test_scenario",
     "name": "Test Scenario",
     "description": "A test scenario",
     "roles": {"main_display": "tv", "audio": "soundbar"},
     "devices": ["tv", "soundbar"],
-    "startup_sequence": [
-        {
-            "device": "tv",
-            "command": "power_on",
-            "params": {},
-            "delay_after_ms": 1000
-        },
-        {
-            "device": "soundbar",
-            "command": "power_on",
-            "params": {"volume": 50}
-        }
-    ],
-    "shutdown_sequence": [
-        {
-            "device": "tv",
-            "command": "power_off",
-            "params": {}
-        },
-        {
-            "device": "soundbar",
-            "command": "power_off",
-            "params": {}
-        }
-    ],
+    "source": "tv",
+    "display": "tv",
+    "audio": "soundbar",
     "manual_instructions": {
         "startup": ["Turn on the lights"],
         "shutdown": ["Turn off the lights"]
@@ -66,7 +45,7 @@ class MockDeviceManager:
     """Mock DeviceManager for testing Scenario"""
     def __init__(self, devices=None):
         self.devices = devices or {}
-    
+
     def get_device(self, device_id):
         return self.devices.get(device_id)
 
@@ -89,22 +68,21 @@ def scenario(sample_scenario_definition, mock_device_manager):
 
 class TestScenario:
     """Tests for the Scenario class"""
-    
+
     def test_initialization(self, scenario, sample_scenario_definition):
         """Test that Scenario is initialized correctly"""
         assert scenario.definition == sample_scenario_definition
         assert scenario.scenario_id == "test_scenario"
-        assert scenario.state == {}
 
     @pytest.mark.asyncio
     async def test_execute_role_action_success(self, scenario, mock_device_manager):
         """Test successful execution of a role action"""
         # Arrange
         mock_device_manager.devices["tv"].execute_action.return_value = {"status": "success"}
-        
+
         # Act
         result = await scenario.execute_role_action("main_display", "power_on", volume=50)
-        
+
         # Assert
         mock_device_manager.devices["tv"].execute_action.assert_called_once_with("power_on", {"volume": 50}, source="scenario")
         assert result == {"status": "success"}
@@ -114,7 +92,7 @@ class TestScenario:
         """Test error when invalid role is specified"""
         with pytest.raises(ScenarioError) as excinfo:
             await scenario.execute_role_action("invalid_role", "power_on")
-        
+
         assert "Role 'invalid_role' not defined in scenario" in str(excinfo.value)
         assert excinfo.value.error_type == "invalid_role"
         assert excinfo.value.critical is True
@@ -124,10 +102,10 @@ class TestScenario:
         """Test error when device for role doesn't exist"""
         # Modify device_manager to not have the device
         mock_device_manager.devices.pop("tv")
-        
+
         with pytest.raises(ScenarioError) as excinfo:
             await scenario.execute_role_action("main_display", "power_on")
-        
+
         assert "Device 'tv' not found for role 'main_display'" in str(excinfo.value)
         assert excinfo.value.error_type == "missing_device"
         assert excinfo.value.critical is True
@@ -137,153 +115,15 @@ class TestScenario:
         """Test handling of device execution errors"""
         # Setup device to raise an exception
         mock_device_manager.devices["tv"].execute_action.side_effect = Exception("Device error")
-        
+
         with pytest.raises(ScenarioExecutionError) as excinfo:
             await scenario.execute_role_action("main_display", "power_on")
-        
+
         assert "Failed to execute power_on on tv" in str(excinfo.value)
         assert excinfo.value.error_type == "execution"
         assert excinfo.value.role == "main_display"
         assert excinfo.value.device_id == "tv"
         assert excinfo.value.command == "power_on"
-
-    @pytest.mark.asyncio
-    async def test_initialize(self, scenario):
-        """Test that initialize calls execute_startup_sequence"""
-        with patch.object(scenario, 'execute_startup_sequence', new_callable=AsyncMock) as mock_exec:
-            await scenario.initialize()
-            mock_exec.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_execute_startup_sequence(self, scenario, mock_device_manager):
-        """Test execution of startup sequence"""
-        # Act
-        with patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
-            await scenario.execute_startup_sequence()
-        
-        # Assert
-        # First device should be called with its parameters
-        mock_device_manager.devices["tv"].execute_action.assert_called_once_with("power_on", {}, source="scenario")
-        # Sleep should be called with the delay from the first step
-        mock_sleep.assert_called_once_with(1.0)  # 1000ms = 1.0s
-        # Second device should be called with its parameters
-        mock_device_manager.devices["soundbar"].execute_action.assert_called_once_with("power_on", {"volume": 50}, source="scenario")
-
-    @pytest.mark.asyncio
-    async def test_execute_startup_sequence_missing_device(self, scenario, mock_device_manager):
-        """Test handling of missing devices in startup sequence"""
-        # Remove a device that's in the startup sequence
-        mock_device_manager.devices.pop("soundbar")
-        
-        # Should execute without error, logging the missing device
-        with patch('logging.Logger.error') as mock_error:
-            await scenario.execute_startup_sequence()
-            
-            # Verify logging for missing device
-            assert any("Device 'soundbar' not found" in call.args[0] for call in mock_error.call_args_list)
-            
-            # TV should still be powered on
-            mock_device_manager.devices["tv"].execute_action.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_execute_startup_sequence_with_condition(self, scenario_with_conditions, mock_device_manager):
-        """Test execution of startup sequence with conditions"""
-        # The test will call the scenario_with_conditions fixture which will be created below
-        await scenario_with_conditions.execute_startup_sequence()
-        
-        # Only second command should execute as first has a false condition
-        mock_device_manager.devices["tv"].execute_action.assert_not_called()
-        mock_device_manager.devices["soundbar"].execute_action.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_execute_shutdown_sequence(self, scenario, mock_device_manager):
-        """Test execution of shutdown sequence"""
-        await scenario.execute_shutdown_sequence()
-        
-        # Both devices should be powered off
-        mock_device_manager.devices["tv"].execute_action.assert_called_once_with("power_off", {}, source="scenario")
-        mock_device_manager.devices["soundbar"].execute_action.assert_called_once_with("power_off", {}, source="scenario")
-
-    @pytest.mark.asyncio
-    async def test_execute_shutdown_sequence_error(self, scenario, mock_device_manager):
-        """Test handling of errors during shutdown sequence"""
-        # Setup device to raise an exception
-        mock_device_manager.devices["tv"].execute_action.side_effect = Exception("Device error")
-        
-        # Should not raise the exception, but log it
-        with patch('logging.Logger.error') as mock_error:
-            await scenario.execute_shutdown_sequence()
-            
-            # Verify error was logged
-            assert any("Error executing shutdown step" in call.args[0] for call in mock_error.call_args_list)
-            
-            # Second device should still be shut down
-            mock_device_manager.devices["soundbar"].execute_action.assert_called_once()
-
-    def test_is_power_command(self, scenario):
-        """Test power command detection"""
-        # Standard power commands
-        assert scenario._is_power_command("power_on") is True
-        assert scenario._is_power_command("power_off") is True
-        assert scenario._is_power_command("turn_on") is True
-        assert scenario._is_power_command("turn_off") is True
-        
-        # Case insensitive
-        assert scenario._is_power_command("POWER_ON") is True
-        assert scenario._is_power_command("Power_Off") is True
-        
-        # Joined words
-        assert scenario._is_power_command("poweron") is True
-        assert scenario._is_power_command("poweroff") is True
-        
-        # Other power-related commands
-        assert scenario._is_power_command("standby") is True
-        assert scenario._is_power_command("wake") is True
-        
-        # Power with verbs
-        assert scenario._is_power_command("power_toggle") is True
-        
-        # Non-power commands
-        assert scenario._is_power_command("set_input") is False
-        assert scenario._is_power_command("increase_volume") is False
-        assert scenario._is_power_command("play") is False
-        assert scenario._is_power_command("pause") is False
-    
-    @pytest.mark.asyncio
-    async def test_evaluate_condition_true(self, scenario):
-        """Test condition evaluation with a true condition"""
-        # Simple way to test - mock the _evaluate_condition directly
-        with patch.object(scenario, '_evaluate_condition', return_value=True):
-            result = await scenario._evaluate_condition("device.power == True", MagicMock())
-            assert result is True
-    
-    @pytest.mark.asyncio
-    async def test_evaluate_condition_false(self, scenario):
-        """Test condition evaluation with a false condition"""
-        # Simple way to test - mock the _evaluate_condition directly
-        with patch.object(scenario, '_evaluate_condition', return_value=False):
-            result = await scenario._evaluate_condition("device.power == True", MagicMock())
-            assert result is False
-    
-    @pytest.mark.asyncio
-    async def test_evaluate_condition_none(self, scenario):
-        """Test condition evaluation with no condition (should return True)"""
-        result = await scenario._evaluate_condition(None, MagicMock())
-        assert result is True
-    
-    @pytest.mark.asyncio
-    async def test_evaluate_condition_error(self, scenario):
-        """Test handling of errors during condition evaluation"""
-        # Test that errors are caught and logged
-        device = MagicMock()
-        device.get_current_state.side_effect = Exception("Test exception")
-        
-        with patch('logging.Logger.error') as mock_error:
-            result = await scenario._evaluate_condition("some_condition", device)
-            
-            # Should log the error and return False
-            assert result is False
-            assert mock_error.called
 
     def test_validate_valid_scenario(self, scenario, mock_device_manager):
         """A valid scenario passes validate_configuration() silently.
@@ -317,72 +157,27 @@ class TestScenario:
         assert "'tv'" in flattened
         assert "'soundbar'" in flattened
 
+    def test_validate_requires_thin_source(self, mock_device_manager):
+        """A scenario without a thin `source` selection is rejected at validation time.
+
+        With the imperative startup/shutdown-sequence format removed, a scenario
+        that declares no source could never be activated (the reconciler would have
+        nothing to resolve) — validation must catch it at load time.
+        """
+        from wb_mqtt_bridge.domain.scenarios.models import ScenarioConfigurationError
+
+        data = {k: v for k, v in SAMPLE_SCENARIO.items() if k not in ("source", "display", "audio")}
+        definition = ScenarioDefinition.model_validate(data)
+        sourceless = Scenario(definition, mock_device_manager)
+
+        with pytest.raises(ScenarioConfigurationError) as excinfo:
+            sourceless.validate_configuration()
+
+        assert any("source" in err for err in excinfo.value.errors)
+
     # The old test_validate_with_room_manager checked that a Scenario object
     # validates "this device is in the room declared by room_id". That responsibility
     # moved out of Scenario.validate_configuration() (which now only validates
     # internal definition references; room-vs-device containment is handled by
     # ScenarioManager / RoomManager). No replacement test in this file — the
     # responsibility is exercised at the manager layer.
-
-    @pytest.mark.asyncio
-    async def test_execute_startup_sequence_with_power_skipping(self, scenario, mock_device_manager):
-        """Test execution of startup sequence with power command skipping"""
-        # Call startup sequence with skip_power_for_devices parameter
-        await scenario.execute_startup_sequence(skip_power_for_devices=["tv"])
-        
-        # The TV power_on command should be skipped
-        mock_device_manager.devices["tv"].execute_action.assert_not_called()
-        
-        # The soundbar command should still be executed
-        mock_device_manager.devices["soundbar"].execute_action.assert_called_once_with(
-            "power_on", {"volume": 50}, source="scenario"
-        )
-
-    @pytest.mark.asyncio
-    async def test_initialize_with_power_skipping(self, scenario, mock_device_manager):
-        """Test initialize with power command skipping"""
-        # Call initialize with skip_power_for_devices parameter
-        await scenario.initialize(skip_power_for_devices=["tv"])
-        
-        # The TV power_on command should be skipped
-        mock_device_manager.devices["tv"].execute_action.assert_not_called()
-        
-        # The soundbar command should still be executed
-        mock_device_manager.devices["soundbar"].execute_action.assert_called_once_with(
-            "power_on", {"volume": 50}, source="scenario"
-        )
-
-@pytest.fixture
-def scenario_with_conditions(sample_scenario_definition, mock_device_manager):
-    """Create a scenario with conditions for testing conditional execution"""
-    # Set TV's power state to off
-    mock_device_manager.devices["tv"].state = {"power": False}
-    
-    # Set soundbar's power state to off
-    mock_device_manager.devices["soundbar"].state = {"power": False}
-    
-    # Create a modified scenario with conditions
-    modified_def = sample_scenario_definition.model_copy(deep=True)
-    
-    # Add condition to TV power command: only execute if power is already on
-    modified_def.startup_sequence[0].condition = "device.power == True"
-    
-    # Add condition to soundbar power command: only execute if power is off
-    modified_def.startup_sequence[1].condition = "device.power == False"
-    
-    # Create mock for evaluate_condition to ensure conditions work properly
-    scenario = Scenario(modified_def, mock_device_manager)
-    
-    # Mock the condition evaluation
-    original_evaluate = scenario._evaluate_condition
-    
-    async def mock_evaluate_condition(condition, device):
-        if condition == "device.power == True":
-            return False  # TV condition (should not execute)
-        elif condition == "device.power == False":
-            return True  # Soundbar condition (should execute)
-        return await original_evaluate(condition, device)
-    
-    scenario._evaluate_condition = mock_evaluate_condition
-    
-    return scenario 

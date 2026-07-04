@@ -104,14 +104,9 @@ def scenario_dir(tmp_path):
         "room_id": "living_room",
         "roles": {"screen": "tv", "audio": "soundbar"},
         "devices": ["tv", "soundbar"],
-        "startup_sequence": [
-            {"device": "tv", "command": "power_on", "params": {}},
-            {"device": "soundbar", "command": "power_on", "params": {}},
-        ],
-        "shutdown_sequence": [
-            {"device": "tv", "command": "power_off", "params": {}},
-            {"device": "soundbar", "command": "power_off", "params": {}},
-        ],
+        "source": "tv",
+        "display": "tv",
+        "audio": "soundbar",
     }
 
     with open(scenario_dir / "movie_night.json", "w") as f:

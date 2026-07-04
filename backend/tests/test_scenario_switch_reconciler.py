@@ -73,7 +73,6 @@ def _manager(devices, scenario_name="movie_appletv"):
         scenario_dir=ROOT / "config" / "scenarios",
     )
     sm.topology = TOPOLOGY
-    sm._reconciler_enabled = True
     defn = ScenarioDefinition.model_validate(
         json.loads((ROOT / "config" / "scenarios" / f"{scenario_name}.json").read_text())
     )
@@ -187,7 +186,6 @@ async def test_transition_to_ld_surfaces_dodocus_note_on_switch_and_clears_on_de
         scenario_dir=ROOT / "config" / "scenarios",
     )
     sm.topology = TOPOLOGY
-    sm._reconciler_enabled = True
     sm.scenario_map = {
         name: Scenario(
             ScenarioDefinition.model_validate(

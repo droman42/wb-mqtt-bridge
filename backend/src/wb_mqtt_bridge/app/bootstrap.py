@@ -228,9 +228,6 @@ def create_app() -> FastAPI:
                 "Command-exposure check: OK (every device command is exposed:false or capability-backed)"
             )
 
-        # Configuration Migration Phase B: Log migration guidance for deprecated topic usage
-        config_manager.log_migration_guidance()
-
         # Persisted device state is restored inside initialize_devices(), per device BEFORE
         # its setup() — it must precede the post-setup initial persist, which would otherwise
         # clobber the last-good snapshot with boot defaults. (Replaces the old

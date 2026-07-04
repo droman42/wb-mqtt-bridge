@@ -302,8 +302,4 @@ class ConfigManager:
             logger.info("Using MQTT authentication credentials from environment variables")
         
         # Update the system configuration
-        self.system_config.mqtt_broker = mqtt_config
-
-    def log_migration_guidance(self):
-        """Log successful completion of Configuration Migration Phase C."""
-        logger.info("✅ Configuration Migration Phase C completed: All devices now use auto-generated topics following WB conventions!") 
+        self.system_config.mqtt_broker = mqtt_config 

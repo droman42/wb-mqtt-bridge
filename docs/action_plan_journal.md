@@ -16,6 +16,30 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-04 (executed + closed: CORE-2 — dead-code sweep)** — Same-day execution of the sweep
+  filed this morning. **Removed:** the entire legacy imperative scenario path (`scenario.py` shrank
+  ~330 lines: startup/shutdown executors, string-condition evaluator, `_validate_parameters` and its
+  sequence/condition validator callers, `_is_power_command`), the `WB_SCENARIO_RECONCILER`
+  kill-switch (`switch_scenario`/`deactivate` are reconciler-only; the already-active early return
+  aligned to the reconciler result shape — no consumer read the legacy keys), the `CommandStep`
+  model + the `startup_sequence`/`shutdown_sequence` escape-hatch fields (contract regenerated:
+  `openapi.json` −76 lines; UI types regenerated + dead `CommandStep` alias dropped from
+  `ui/src/types/api.ts`; `npm run check` + build green), the vestigial scenarios `DeviceState.output`
+  field, and the Phase-B `log_migration_guidance()` shim. **New guard:** scenarios must declare a
+  thin `source` — a sourceless scenario is rejected at load (Bug-2 non-fatal skip) since it could
+  never activate. **Two filing-text corrections discovered mid-task:** (1) `DeviceState.output` was
+  alive after all (the filing grepped only the devices models; the field lived in the *scenarios*
+  models — now actually removed); (2) the "`group` transitional fallback" is a misnomer — the config
+  `group` field is already extinct repo-wide; what exists is the capability-less WB classification
+  path, which stays (live for `kitchen_hood`, which has no capability map — the gate-item-1 coverage
+  gap, owned by the DRV-1 kitchen_hood row / VWB-13 — and for the state-field→control mapping that
+  enumerates controls without capability context). Its lying "legacy config group" docstrings were
+  corrected instead. **Tests:** legacy tests removed / rewritten to thin fixtures; manager tests now
+  cover manager-level behavior only (transition content stays with the reconciler suite); suite 487
+  passing (was 502 — delta = deleted legacy tests), import contracts 3/3. Architecture docs' legacy-
+  path passages removed (`key-concepts.md`, `devices-and-scenarios.md`). Acceptance-gate item 4
+  annotated: sweep half DONE, "thorough code review" half remains with the gate.
+
 - **2026-07-04 (filed: CORE-2 — dead-code sweep, scoped against live code)** — Chat analysis of the
   deferred-removal markers scattered across the ledger + design docs, reconciled against the codebase.
   Key finding: the acceptance-gate item-4 list's recorded gates ("all scenarios thin", "Layer 3

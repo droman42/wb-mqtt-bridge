@@ -1218,52 +1218,6 @@
         "title": "CommandResponse",
         "type": "object"
       },
-      "CommandStep": {
-        "description": "A step in a scenario sequence (startup or shutdown).",
-        "properties": {
-          "command": {
-            "description": "Command name to execute",
-            "title": "Command",
-            "type": "string"
-          },
-          "condition": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Expression to evaluate against device state, run only if True",
-            "title": "Condition"
-          },
-          "delay_after_ms": {
-            "default": 0,
-            "description": "Delay in milliseconds after executing this command",
-            "minimum": 0.0,
-            "title": "Delay After Ms",
-            "type": "integer"
-          },
-          "device": {
-            "description": "Device ID to execute the command on",
-            "title": "Device",
-            "type": "string"
-          },
-          "params": {
-            "additionalProperties": true,
-            "description": "Command parameters",
-            "title": "Params",
-            "type": "object"
-          }
-        },
-        "required": [
-          "device",
-          "command"
-        ],
-        "title": "CommandStep",
-        "type": "object"
-      },
       "DeviceAction": {
         "description": "Schema for device action requests.",
         "examples": [
@@ -1332,18 +1286,6 @@
             ],
             "description": "Active input port",
             "title": "Input"
-          },
-          "output": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Active output port",
-            "title": "Output"
           },
           "power": {
             "anyOf": [
@@ -2834,7 +2776,7 @@
         "type": "object"
       },
       "ScenarioDefinition": {
-        "description": "Declarative definition of a scenario.\n\nTwo formats are supported during the redesign migration:\n\n- **thin** (preferred): a ``source``/``display``/``audio`` selection. Device membership,\n  input values, and ordering are derived from ``config/topology.json`` by the reconciler;\n  ``devices`` and the sequences are left empty.\n- **legacy / escape hatch**: explicit ``devices`` + ``startup_sequence``/``shutdown_sequence``.\n\nSee docs/design/scenarios/scenario_system_redesign.md §6.",
+        "description": "Declarative definition of a scenario.\n\nScenarios are **thin**: a ``source``/``display``/``audio`` selection. Device membership,\ninput values, and ordering are derived from ``config/topology.json`` by the reconciler.\nThe pre-redesign imperative format (explicit ``startup_sequence``/``shutdown_sequence``\nsteps) was removed once every shipped scenario had migrated.\n\nSee docs/design/scenarios/scenario_system_redesign.md §6.",
         "properties": {
           "audio": {
             "anyOf": [
@@ -2855,7 +2797,7 @@
             "type": "string"
           },
           "devices": {
-            "description": "Explicit device list (legacy format)",
+            "description": "Explicit device list (optional)",
             "items": {
               "type": "string"
             },
@@ -2916,14 +2858,6 @@
             "title": "Scenario Id",
             "type": "string"
           },
-          "shutdown_sequence": {
-            "description": "Explicit shutdown steps (legacy / escape hatch)",
-            "items": {
-              "$ref": "#/components/schemas/CommandStep"
-            },
-            "title": "Shutdown Sequence",
-            "type": "array"
-          },
           "source": {
             "anyOf": [
               {
@@ -2935,14 +2869,6 @@
             ],
             "description": "Primary content source device id",
             "title": "Source"
-          },
-          "startup_sequence": {
-            "description": "Explicit startup steps (legacy / escape hatch)",
-            "items": {
-              "$ref": "#/components/schemas/CommandStep"
-            },
-            "title": "Startup Sequence",
-            "type": "array"
           }
         },
         "required": [
@@ -3410,6 +3336,13 @@
       },
       "ValidationError": {
         "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
           "loc": {
             "items": {
               "anyOf": [

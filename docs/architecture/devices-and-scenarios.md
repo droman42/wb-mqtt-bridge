@@ -141,10 +141,6 @@ active-scenario record: a still-active scenario picks up where it left off); doi
 so would corrupt the optimistic assumed state the reconciler relies on when the
 bridge comes back up.
 
-A legacy sequence-based scenario path (hardcoded startup/shutdown lists) remains as
-an escape hatch behind the `WB_SCENARIO_RECONCILER` flag (default on). Every shipped
-scenario runs through the reconciler today.
-
 ## Where to go next
 
 - **[Key concepts](key-concepts.md)** — the declarative inputs (topology, capability

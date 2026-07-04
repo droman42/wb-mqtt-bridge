@@ -32,7 +32,7 @@ from wb_mqtt_bridge.domain.scenarios.scenario import Scenario, ScenarioError
 pytestmark = pytest.mark.integration
 
 
-# Scenario JSONs that pass current ScenarioDefinition validation.
+# Scenario JSONs that pass current ScenarioDefinition validation (thin format).
 SAMPLE_SCENARIOS = {
     "movie_night": {
         "scenario_id": "movie_night",
@@ -41,14 +41,9 @@ SAMPLE_SCENARIOS = {
         "room_id": "living_room",
         "roles": {"screen": "tv", "audio": "soundbar"},
         "devices": ["tv", "soundbar"],
-        "startup_sequence": [
-            {"device": "tv", "command": "power_on", "params": {}},
-            {"device": "soundbar", "command": "power_on", "params": {}},
-        ],
-        "shutdown_sequence": [
-            {"device": "tv", "command": "power_off", "params": {}},
-            {"device": "soundbar", "command": "power_off", "params": {}},
-        ],
+        "source": "tv",
+        "display": "tv",
+        "audio": "soundbar",
     },
     "reading_mode": {
         "scenario_id": "reading_mode",
@@ -57,12 +52,7 @@ SAMPLE_SCENARIOS = {
         "room_id": "living_room",
         "roles": {"lighting": "lights"},
         "devices": ["lights"],
-        "startup_sequence": [
-            {"device": "lights", "command": "set_scene", "params": {"scene": "reading"}},
-        ],
-        "shutdown_sequence": [
-            {"device": "lights", "command": "set_scene", "params": {"scene": "bright"}},
-        ],
+        "source": "lights",
     },
 }
 
@@ -168,8 +158,9 @@ def test_get_scenario_definition_success(client):
     assert data["room_id"] == "living_room"
     assert "roles" in data
     assert "devices" in data
-    assert "startup_sequence" in data
-    assert "shutdown_sequence" in data
+    assert data["source"] == "tv"
+    assert data["display"] == "tv"
+    assert data["audio"] == "soundbar"
 
 
 def test_get_scenario_definition_not_found(client):

@@ -23,8 +23,9 @@ CommandExecutor = Callable[[str, str, Dict[str, Any]], Awaitable[Any]]
 # (handled by the `exposed` check), leaving pointer as the only WB-excluded domain.
 _WB_EXCLUDED_DOMAINS = {"pointer"}
 
-# A few capability domain names differ from the legacy `group` strings the WB type/order heuristics
-# key off. Alias the domain to the expected string so the re-key is byte-equivalent to the group path.
+# A few capability domain names differ from the vocabulary the WB type/order heuristics key off
+# (inherited from the pre-capability `group` strings). Alias the domain to the expected string so
+# the heuristics stay byte-equivalent to the historical behavior.
 _DOMAIN_GROUP_ALIAS = {"input": "inputs"}
 
 
@@ -210,7 +211,7 @@ class WBVirtualDeviceService:
         Args:
             config: Device configuration
             entity_id: Virtual entity ID override (for scenarios, uses scenario_id instead of device_id)
-            capabilities: Device capability map (Layer-3 re-key; falls back to config group if None)
+            capabilities: Device capability map (None → the capability-less path)
         """
         topics: List[str] = []
         try:
@@ -392,10 +393,11 @@ class WBVirtualDeviceService:
         - **with ``capabilities``** (the normal device path): the capability **domain** + the
           command's ``exposed`` flag. A command is excluded iff it's ``exposed: false`` (dormant) or
           its domain is UI-only (``pointer``). The domain (aliased) feeds the type/order heuristics.
-        - **without** (fallback): the legacy config ``group`` field — used by capability-less devices
-          that still enable WB emulation (e.g. the ``kitchen_hood`` appliance).
-        Both paths are byte-equivalent on real device configs (verified by ``test_wb_rekey``), since
-        the config ``group`` was authored to equal the capability domain.
+        - **without** (capability-less path): exclusion is ``exposed`` only and there is no
+          classification — control type/order come from explicit ``wb_controls`` or params. Used by
+          capability-less devices that still enable WB emulation (e.g. the ``kitchen_hood``
+          appliance) and by the state-field→control mapping, which enumerates controls without
+          capability context.
         """
         if isinstance(config, dict):
             commands = config.get("commands", {})
@@ -418,9 +420,10 @@ class WBVirtualDeviceService:
                 # through to the "no domain to classify" path naturally.
                 classification = _DOMAIN_GROUP_ALIAS.get(domain, domain) if domain is not None else None
             else:
-                # Fallback path: a capability-less device that still enables WB (e.g. the kitchen_hood
-                # appliance). No domain to classify by, so exclusion is `exposed` only and the control
-                # type/order come from explicit `wb_controls` (or params); there is no `classification`.
+                # Capability-less path: a device without a capability map that still enables WB
+                # (e.g. the kitchen_hood appliance). No domain to classify by, so exclusion is
+                # `exposed` only and the control type/order come from explicit `wb_controls`
+                # (or params); there is no `classification`.
                 exposed = getattr(cmd_config, 'exposed', True) if not isinstance(cmd_config, dict) else cmd_config.get('exposed', True)
                 if not exposed:
                     logger.debug(f"Skipping WB control: {cmd_name} (exposed=False)")
@@ -462,7 +465,7 @@ class WBVirtualDeviceService:
     
     def _generate_wb_control_meta_from_config(self, cmd_name: str, cmd_config, config: Union[BaseDeviceConfig, Dict[str, Any]], classification: Optional[str] = None) -> Dict[str, Any]:
         """Generate WB control metadata from command configuration. ``classification`` is the
-        capability domain (or legacy group) that drives parameterless control-type + ordering."""
+        capability domain (aliased) that drives parameterless control-type + ordering."""
 
         # Check for explicit WB configuration in device config first
         wb_controls = None
@@ -500,7 +503,7 @@ class WBVirtualDeviceService:
         return meta
     
     def _determine_wb_control_type_from_config(self, cmd_config, classification: Optional[str] = None) -> str:
-        """Determine WB control type. ``classification`` = the capability domain (or legacy group)
+        """Determine WB control type. ``classification`` = the capability domain (aliased)
         used for parameterless control-type heuristics."""
 
         params = None
@@ -523,7 +526,7 @@ class WBVirtualDeviceService:
         return "pushbutton"
     
     def _get_control_type_from_group(self, group: str, cmd_config) -> Optional[str]:
-        """Get control type based on command group."""
+        """Get control type from the classification vocabulary (historically the command group)."""
         if not group:
             return None
         
@@ -629,7 +632,7 @@ class WBVirtualDeviceService:
         return metadata
     
     def _get_control_order_from_config(self, cmd_config, classification: Optional[str] = None) -> int:
-        """Get control order. ``classification`` = the capability domain (or legacy group)."""
+        """Get control order. ``classification`` = the capability domain (aliased)."""
         # Extract action for ordering; ``classification`` (domain/group) drives the base order.
         group = classification
         action = None

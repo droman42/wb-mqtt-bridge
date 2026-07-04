@@ -18,41 +18,16 @@ from tests.auto_wrap_devices import import_and_wrap_devices
 try:
     from tests.unit.test_scenario import SAMPLE_SCENARIO
 except ImportError:
-    # Default sample scenario if not available
+    # Default sample scenario if not available (thin format: source/display/audio)
     SAMPLE_SCENARIO = {
         "scenario_id": "test_scenario",
         "name": "Test Scenario",
         "description": "A test scenario",
         "roles": {"main_display": "tv", "audio": "soundbar"},
-        "devices": {
-            "tv": {"groups": ["video"]},
-            "soundbar": {"groups": ["audio"]}
-        },
-        "startup_sequence": [
-            {
-                "device": "tv",
-                "command": "power_on",
-                "params": {},
-                "delay_after_ms": 1000
-            },
-            {
-                "device": "soundbar",
-                "command": "power_on",
-                "params": {"volume": 50}
-            }
-        ],
-        "shutdown_sequence": [
-            {
-                "device": "tv",
-                "command": "power_off",
-                "params": {}
-            },
-            {
-                "device": "soundbar",
-                "command": "power_off",
-                "params": {}
-            }
-        ],
+        "devices": ["tv", "soundbar"],
+        "source": "tv",
+        "display": "tv",
+        "audio": "soundbar",
         "manual_instructions": {
             "startup": ["Turn on the lights"],
             "shutdown": ["Turn off the lights"]
@@ -96,28 +71,4 @@ def scenario(mock_device_manager):
     scenario = Scenario(definition, mock_device_manager)
     return scenario
 
-@pytest.fixture
-def scenario_with_conditions(mock_device_manager):
-    """Create a scenario with conditional steps for testing."""
-    scenario_data = SAMPLE_SCENARIO.copy()
-    # Modify the startup sequence to include conditions
-    scenario_data["startup_sequence"] = [
-        {
-            "device": "tv",
-            "command": "power_on",
-            "params": {},
-            "condition": "device.power == True"  # This should evaluate to False with our mock
-        },
-        {
-            "device": "soundbar",
-            "command": "power_on",
-            "params": {},
-            "condition": "device.power == False"  # This should evaluate to True with our mock
-        }
-    ]
-    
-    definition = ScenarioDefinition.model_validate(scenario_data)
-    scenario = Scenario(definition, mock_device_manager)
-    return scenario
-
-# Add other fixtures as needed 
+# Add other fixtures as needed

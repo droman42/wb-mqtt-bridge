@@ -12,7 +12,6 @@ export type DeviceAction = S['DeviceAction'];
 export type DeviceState = S['DeviceState'];
 export type CommandResponse = S['CommandResponse'];
 export type RoomDefinitionResponse = S['RoomDefinitionResponse'];
-export type CommandStep = S['CommandStep'];
 export type ScenarioDefinition = S['ScenarioDefinition'];
 export type ScenarioState = S['ScenarioState'];
 export type ManualStep = S['ManualStep'];

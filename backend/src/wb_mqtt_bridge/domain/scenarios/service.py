@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
@@ -61,9 +60,8 @@ class ScenarioManager:
         self._activation_manual_steps: List[ManualStep] = []
         # scenario_id/filename -> reason, for scenarios skipped at load (Bug 2: never fatal).
         self.scenario_load_errors: Dict[str, str] = {}
-        # Layer 0 topology + reconciler flag (thin scenarios route through the reconciler).
+        # Layer 0 topology (scenario transitions route through the reconciler).
         self.topology: Topology = Topology()
-        self._reconciler_enabled = os.getenv("WB_SCENARIO_RECONCILER", "1") != "0"
     
     async def initialize(self) -> None:
         """
@@ -201,20 +199,17 @@ class ScenarioManager:
 
     async def switch_scenario(self, target_id: str, *, graceful: bool = True) -> Dict[str, Any]:
         """
-        Perform a smart transition between scenarios with efficient device handling.
-        
-        This method:
-        1. Identifies devices shared between the outgoing and incoming scenarios
-        2. For non-shared devices, runs the shutdown sequence
-        3. For shared devices, skips shutdown commands entirely
-        4. For the incoming scenario, skips power-on commands for shared devices
-        5. Handles all device state transitions with minimal interruption
-        
+        Perform a diff-based transition between scenarios via the reconciler.
+
+        Devices involved in the outgoing but not the incoming scenario are powered
+        off; the incoming activity is then reconciled from topology + capabilities +
+        assumed state (shared devices are left running and only re-targeted).
+
         Args:
             target_id: ID of the scenario to switch to
-            graceful: If True (default), attempt minimal interruption to shared devices
-                      If False, force full shutdown and restart of all devices
-                
+            graceful: If True (default), power off only outgoing-only devices;
+                      if False, power off every outgoing device before activation
+
         Raises:
             ValueError: If the target scenario doesn't exist
         """
@@ -236,88 +231,18 @@ class ScenarioManager:
             logger.info(f"Scenario '{target_id}' is already active")
             return {
                 "success": True,
-                "shared_devices": [],
-                "power_cycled_devices": []
+                "powered_off": [],
+                "failures": []
             }
         
         logger.info(f"Switching from '{outgoing.scenario_id if outgoing else 'None'}' to '{incoming.scenario_id}'")
 
-        # Reconciler path (thin scenarios): derive + execute the plan from topology + capabilities.
-        if self._reconciler_enabled and incoming.definition.source:
-            return await self._switch_via_reconciler(outgoing, incoming, graceful=graceful)
-        
-        # Identify shared devices between scenarios
-        shared_device_ids = set()
-        if outgoing and graceful:
-            outgoing_device_ids = set(outgoing.definition.devices)
-            incoming_device_ids = set(incoming.definition.devices)
-            shared_device_ids = outgoing_device_ids.intersection(incoming_device_ids)
-            logger.info(f"Identified {len(shared_device_ids)} shared devices that will maintain power")
-            
-            # DEBUG: Log device analysis
-            logger.debug(f"[SCENARIO_DEBUG] Device analysis: outgoing_devices={outgoing_device_ids}, incoming_devices={incoming_device_ids}, shared_devices={shared_device_ids}")
-        
-        # 1. Handle shutdown of non-shared devices from outgoing scenario
-        if outgoing:
-            # DEBUG: Log shutdown phase
-            logger.debug(f"[SCENARIO_DEBUG] Starting shutdown phase for outgoing scenario: {outgoing.scenario_id}")
-            
-            # For non-graceful transitions, we'll run the full shutdown sequence
-            if not graceful:
-                logger.info(f"Executing full shutdown sequence for scenario '{outgoing.scenario_id}'")
-                # DEBUG: Log full shutdown
-                logger.debug(f"[SCENARIO_DEBUG] Full shutdown sequence triggered for {outgoing.scenario_id}")
-                await outgoing.execute_shutdown_sequence()
-            else:
-                # For graceful transitions, we need to manually handle each device
-                logger.info(f"Executing selective shutdown for scenario '{outgoing.scenario_id}'")
-                
-                # DEBUG: Log graceful shutdown process
-                logger.debug(f"[SCENARIO_DEBUG] Graceful shutdown: processing {len(outgoing.definition.devices)} devices")
-                
-                # Shutdown devices that aren't shared with the incoming scenario
-                for device_id in outgoing.definition.devices:
-                    if device_id not in shared_device_ids:
-                        dev = self.device_manager.get_device(device_id)
-                        if dev:
-                            logger.info(f"Shutting down non-shared device: {device_id}")
-                            # DEBUG: Log individual device shutdown
-                            logger.debug(f"[SCENARIO_DEBUG] Shutting down non-shared device: {device_id}")
-                            try:
-                                await dev.execute_action("power_off", {}, source="scenario")
-                            except Exception as e:
-                                logger.error(f"Error shutting down device {device_id}: {str(e)}")
-                    else:
-                        # DEBUG: Log skipped shutdown
-                        logger.debug(f"[SCENARIO_DEBUG] Skipping shutdown for shared device: {device_id}")
-        
-        # 2. Initialize the incoming scenario, skipping power commands for shared devices
-        logger.info(f"Initializing scenario '{incoming.scenario_id}'")
-        # DEBUG: Log initialization phase
-        logger.debug(f"[SCENARIO_DEBUG] Starting initialization for scenario: {incoming.scenario_id}, skipping power for: {list(shared_device_ids)}")
-        await incoming.execute_startup_sequence(skip_power_for_devices=list(shared_device_ids))
-        
-        # 3. Update manager state
-        self.current_scenario = incoming
-
-        # 4. Persist state
-        await self._persist_state()
-        
-        logger.info(f"Successfully switched to scenario '{target_id}'")
-        
-        # Return summary of what was done
-        return {
-            "success": True,
-            "shared_devices": list(shared_device_ids),
-            "power_cycled_devices": list(set(incoming.definition.devices) - shared_device_ids)
-        }
+        # Derive + execute the transition plan from topology + capabilities.
+        return await self._switch_via_reconciler(outgoing, incoming, graceful=graceful)
 
     def _involved_devices(self, scenario: Scenario) -> set:
-        """Devices a scenario touches: derived from topology for thin scenarios, else the
-        explicit legacy `devices` list."""
-        if scenario.definition.source:
-            return resolve_targets(scenario.definition, self.topology)[2]
-        return set(scenario.definition.devices)
+        """Devices a scenario touches, derived from the topology."""
+        return resolve_targets(scenario.definition, self.topology)[2]
 
     async def _switch_via_reconciler(self, outgoing, incoming, *, graceful: bool) -> Dict[str, Any]:
         """Diff-based transition: power off outgoing-only devices, then reconcile the incoming
@@ -451,18 +376,15 @@ class ScenarioManager:
         logger.info(f"Deactivating scenario '{sc.scenario_id}' (powering off its devices)")
         result: Dict[str, Any] = {"success": True, "powered_off": [], "manual_steps": [], "failures": []}
         try:
-            if self._reconciler_enabled and sc.definition.source:
-                devices = self.device_manager.devices
-                involved = sorted(resolve_targets(sc.definition, self.topology)[2])
-                exec_result = await execute_plan(build_power_off_plan(involved, devices), devices)
-                result["powered_off"] = involved
-                result["failures"] = [
-                    {"device": a.device_id, "command": a.command, "error": err}
-                    for a, err in exec_result.failures
-                ]
-                result["success"] = exec_result.success
-            else:
-                await sc.execute_shutdown_sequence()
+            devices = self.device_manager.devices
+            involved = sorted(resolve_targets(sc.definition, self.topology)[2])
+            exec_result = await execute_plan(build_power_off_plan(involved, devices), devices)
+            result["powered_off"] = involved
+            result["failures"] = [
+                {"device": a.device_id, "command": a.command, "error": err}
+                for a, err in exec_result.failures
+            ]
+            result["success"] = exec_result.success
         except Exception as e:
             logger.error(f"Error deactivating scenario '{sc.scenario_id}': {str(e)}")
             result["success"] = False
@@ -548,44 +470,24 @@ class ScenarioManager:
         Returns:
             DeviceState: Standardized state representation
         """
-        # Use the current scenario's safe field access if available, otherwise fallback
-        if self.current_scenario:
-            scenario = self.current_scenario
-        else:
-            # Fallback: create a temporary scenario instance for field access
-            # This shouldn't happen often, but provides safety
-            from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition
-            temp_def = ScenarioDefinition(
-                scenario_id="temp",
-                name="temp",
-                roles={},
-                devices=[],
-                startup_sequence=[],
-                shutdown_sequence=[]
-            )
-            scenario = Scenario(temp_def, self.device_manager)
-        
-        # Extract and convert power state using scenario's safe field access
+        # Extract and convert power state using the shared safe field access
         power_value = None
-        raw_power = scenario._safe_get_device_field(state, "power")
+        raw_power = Scenario._safe_get_device_field(state, "power")
         if raw_power is not None:
             if isinstance(raw_power, bool):
                 power_value = raw_power
             elif isinstance(raw_power, str):
                 # Convert string power states to boolean
                 power_value = raw_power.lower() in ("on", "true", "1", "powered_on", "active")
-        
+
         # Extract input using safe field access (handles variations automatically)
-        input_value = scenario._safe_get_device_field(state, "input")
-        
-        # Extract output - not all devices have this
-        output_value = scenario._safe_get_device_field(state, "output")
-        
+        input_value = Scenario._safe_get_device_field(state, "input")
+
         # Build extra dict with all other fields, excluding base fields and already mapped ones
         base_fields = {"device_id", "device_name", "last_command", "error"}
-        mapped_fields = {"power", "input", "input_source", "video_input", "audio_input", "output"}
+        mapped_fields = {"power", "input", "input_source", "video_input", "audio_input"}
         excluded_fields = base_fields | mapped_fields
-        
+
         extra = {}
         if hasattr(state, "model_dump"):
             # Get all fields from the Pydantic model
@@ -593,10 +495,9 @@ class ScenarioManager:
             for field_name, field_value in all_fields.items():
                 if field_name not in excluded_fields and field_value is not None:
                     extra[field_name] = field_value
-        
+
         return DeviceState(
             power=power_value,
             input=input_value,
-            output=output_value,
             extra=extra
-        ) 
+        )

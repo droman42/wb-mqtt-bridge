@@ -1591,40 +1591,6 @@ export interface components {
             success: boolean;
         };
         /**
-         * CommandStep
-         * @description A step in a scenario sequence (startup or shutdown).
-         */
-        CommandStep: {
-            /**
-             * Command
-             * @description Command name to execute
-             */
-            command: string;
-            /**
-             * Condition
-             * @description Expression to evaluate against device state, run only if True
-             */
-            condition?: string | null;
-            /**
-             * Delay After Ms
-             * @description Delay in milliseconds after executing this command
-             * @default 0
-             */
-            delay_after_ms: number;
-            /**
-             * Device
-             * @description Device ID to execute the command on
-             */
-            device: string;
-            /**
-             * Params
-             * @description Command parameters
-             */
-            params?: {
-                [key: string]: unknown;
-            };
-        };
-        /**
          * DeviceAction
          * @description Schema for device action requests.
          * @example {
@@ -1674,11 +1640,6 @@ export interface components {
              * @description Active input port
              */
             input?: string | null;
-            /**
-             * Output
-             * @description Active output port
-             */
-            output?: string | null;
             /**
              * Power
              * @description True = ON, False = OFF
@@ -2315,12 +2276,10 @@ export interface components {
          * ScenarioDefinition
          * @description Declarative definition of a scenario.
          *
-         *     Two formats are supported during the redesign migration:
-         *
-         *     - **thin** (preferred): a ``source``/``display``/``audio`` selection. Device membership,
-         *       input values, and ordering are derived from ``config/topology.json`` by the reconciler;
-         *       ``devices`` and the sequences are left empty.
-         *     - **legacy / escape hatch**: explicit ``devices`` + ``startup_sequence``/``shutdown_sequence``.
+         *     Scenarios are **thin**: a ``source``/``display``/``audio`` selection. Device membership,
+         *     input values, and ordering are derived from ``config/topology.json`` by the reconciler.
+         *     The pre-redesign imperative format (explicit ``startup_sequence``/``shutdown_sequence``
+         *     steps) was removed once every shipped scenario had migrated.
          *
          *     See docs/design/scenarios/scenario_system_redesign.md §6.
          */
@@ -2338,7 +2297,7 @@ export interface components {
             description: string;
             /**
              * Devices
-             * @description Explicit device list (legacy format)
+             * @description Explicit device list (optional)
              */
             devices?: string[];
             /**
@@ -2371,20 +2330,10 @@ export interface components {
              */
             scenario_id: string;
             /**
-             * Shutdown Sequence
-             * @description Explicit shutdown steps (legacy / escape hatch)
-             */
-            shutdown_sequence?: components["schemas"]["CommandStep"][];
-            /**
              * Source
              * @description Primary content source device id
              */
             source?: string | null;
-            /**
-             * Startup Sequence
-             * @description Explicit startup steps (legacy / escape hatch)
-             */
-            startup_sequence?: components["schemas"]["CommandStep"][];
         };
         /**
          * ScenarioResponse
@@ -2617,6 +2566,10 @@ export interface components {
         };
         /** ValidationError */
         ValidationError: {
+            /** Context */
+            ctx?: Record<string, never>;
+            /** Input */
+            input?: unknown;
             /** Location */
             loc: (string | number)[];
             /** Message */

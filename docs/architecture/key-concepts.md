@@ -179,15 +179,6 @@ state per device), `ScenarioManager` rehydrates the active scenario id, and the
 system is back where it was — the next scenario action diffs against the restored
 state.
 
-### The legacy sequence path
-
-A pre-redesign path remains as an escape hatch behind `WB_SCENARIO_RECONCILER`
-(default on). A scenario with explicit `devices` + `startup_sequence` /
-`shutdown_sequence` runs through the old executor instead of the reconciler. No
-shipped scenario uses it today; it exists so a future bespoke case (e.g. one
-device needs an unusual hand-authored sequence) has an out without forcing the
-reconciler to grow special-case branches.
-
 ## Where to go next
 
 - **[Devices and scenarios](devices-and-scenarios.md)** — the driver flavors that

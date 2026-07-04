@@ -1,5 +1,4 @@
-import json
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field, field_validator, model_validator
 import logging
 
@@ -31,23 +30,13 @@ class ManualInstructions(BaseModel):
     startup: List[str] = Field(default_factory=list, description="Steps to perform when starting the scenario")
     shutdown: List[str] = Field(default_factory=list, description="Steps to perform when shutting down the scenario")
 
-class CommandStep(BaseModel):
-    """A step in a scenario sequence (startup or shutdown)."""
-    device: str = Field(..., description="Device ID to execute the command on")
-    command: str = Field(..., description="Command name to execute")
-    params: Dict[str, Any] = Field(default_factory=dict, description="Command parameters")
-    condition: Optional[str] = Field(None, description="Expression to evaluate against device state, run only if True")
-    delay_after_ms: int = Field(0, description="Delay in milliseconds after executing this command", ge=0)
-
 class ScenarioDefinition(BaseModel):
     """Declarative definition of a scenario.
 
-    Two formats are supported during the redesign migration:
-
-    - **thin** (preferred): a ``source``/``display``/``audio`` selection. Device membership,
-      input values, and ordering are derived from ``config/topology.json`` by the reconciler;
-      ``devices`` and the sequences are left empty.
-    - **legacy / escape hatch**: explicit ``devices`` + ``startup_sequence``/``shutdown_sequence``.
+    Scenarios are **thin**: a ``source``/``display``/``audio`` selection. Device membership,
+    input values, and ordering are derived from ``config/topology.json`` by the reconciler.
+    The pre-redesign imperative format (explicit ``startup_sequence``/``shutdown_sequence``
+    steps) was removed once every shipped scenario had migrated.
 
     See docs/design/scenarios/scenario_system_redesign.md §6.
     """
@@ -63,14 +52,9 @@ class ScenarioDefinition(BaseModel):
     source: Optional[str] = Field(default=None, description="Primary content source device id")
     display: Optional[str] = Field(default=None, description="Primary video sink device id")
     audio: Optional[str] = Field(default=None, description="Active audio device id; binds the volume/mute roles")
-    # Legacy / escape hatch.
-    devices: List[str] = Field(default_factory=list, description="Explicit device list (legacy format)")
-    startup_sequence: List[CommandStep] = Field(
-        default_factory=list, description="Explicit startup steps (legacy / escape hatch)"
-    )
-    shutdown_sequence: List[CommandStep] = Field(
-        default_factory=list, description="Explicit shutdown steps (legacy / escape hatch)"
-    )
+    # Optional explicit device list (thin scenarios normally leave this empty — membership is
+    # derived from the topology at resolve time).
+    devices: List[str] = Field(default_factory=list, description="Explicit device list (optional)")
     manual_instructions: Optional[ManualInstructions] = Field(
         default=None,
         description="Instructions requiring human intervention",
@@ -78,8 +62,9 @@ class ScenarioDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_references(self):
-        """Validate internal references for the legacy format. Thin scenarios derive membership
-        from the topology, so there is nothing to cross-check here (validated at resolve time)."""
+        """Validate internal references when an explicit ``devices`` list is authored. Thin
+        scenarios derive membership from the topology, so there is nothing to cross-check
+        here (validated at resolve time)."""
         if not self.devices:
             return self
 
@@ -88,27 +73,12 @@ class ScenarioDefinition(BaseModel):
             if device_id not in self.devices:
                 raise ValueError(f"Role '{role}' references device '{device_id}' which is not in devices list")
 
-        # Validate references in startup sequence
-        for i, step in enumerate(self.startup_sequence):
-            if step.device not in self.devices:
-                raise ValueError(
-                    f"Device '{step.device}' in startup sequence (step {i+1}) is not in devices list"
-                )
-        
-        # Validate references in shutdown sequence
-        for i, step in enumerate(self.shutdown_sequence):
-            if step.device not in self.devices:
-                raise ValueError(
-                    f"Device '{step.device}' in shutdown sequence (step {i+1}) is not in devices list"
-                )
-        
         return self
 
 class DeviceState(BaseModel):
     """Runtime state of a device."""
     power: Optional[bool] = Field(None, description="True = ON, False = OFF")
     input: Optional[str] = Field(None, description="Active input port")
-    output: Optional[str] = Field(None, description="Active output port")
     extra: Dict[str, Any] = Field(default_factory=dict, description="Additional device-specific state fields")
 
 class ManualStep(BaseModel):
