@@ -16,6 +16,22 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-04 (filed: CORE-2 — dead-code sweep, scoped against live code)** — Chat analysis of the
+  deferred-removal markers scattered across the ledger + design docs, reconciled against the codebase.
+  Key finding: the acceptance-gate item-4 list's recorded gates ("all scenarios thin", "Layer 3
+  authoritative") are **both already satisfied** — all 9 scenario configs are thin, and the Layer-3
+  oracle retirement (2026-06-09) already removed two of the list's entries (UI scenario-inheritance
+  duplicates + build-time generators; `DeviceState.output` is likewise already gone). What remains
+  alive and swept into CORE-2: the legacy imperative scenario path + string-condition evaluator +
+  `_validate_parameters`, the `WB_SCENARIO_RECONCILER` kill-switch (guards a fallback thin scenarios
+  can't execute), the `ScenarioDefinition` escape-hatch fields (contract-visible → UI regen in the
+  same change), the `group` transitional fallback in `wb_device/service.py` (conditional on the
+  gate-item-1 capability-coverage check), and the Phase-B `log_migration_guidance()` shim.
+  Delegations recorded: `MQTTClient.stop()/start()` shims → CORE-1 (its `/reload` rewrite owns the
+  one live caller); piwheels `pip.conf` → OPS-11. Real sequencing constraint is gate item 5
+  (cleanups regress → sweep before/with the DRV-1/SCN-3 rack passes). Filed `[P1] [house]`;
+  implementation not started.
+
 - **2026-07-02 (filed: OPS-11 — multi-arch images for the next-gen Wirenboard, deferred)** — Analysed
   what aarch64 support takes, prompted by `wb-mqtt-voice`'s three-target build matrix. Key finding: the
   bridge doesn't need the voice repo's per-target Dockerfiles/image names (theirs are forced by

@@ -568,6 +568,15 @@ endpoint).
 - [ ] **CORE-1** `[P2]` `[later]` `HW-GATED` — **System-router adapter cleanup — Item A only (Item B DONE 2026-05-26).** Item A: `POST /reload`'s `reload_system_task` constructs + drives a concrete `MQTTClient` inline; extract an application-layer reload service (e.g. `app/reload_service.py`) so the router stays a thin adapter. **Gated on hardware** — touches the live MQTT-reconnect path; can't be safely HW-verified without you at the rack. Item B (response DTO for `/config/system`) done in `73ee8d5` — new presentation `SystemConfigResponse` + nested DTOs; wire shape field-identical; `presentation/api/schemas.py` no longer imports the infra `SystemConfig`.
 
 
+- [ ] **CORE-2** `[P1]` `[house]` — **Dead-code sweep — the acceptance-gate item-4 pass, scoped against 2026-07-04 reality.** Filed off a chat analysis (2026-07-04) that reconciled the gate's removal list against live code: the recorded gates ("all scenarios thin" + "Layer 3 authoritative") are **both already met** — all 9 scenario configs are thin (zero `startup_sequence`/`shutdown_sequence` users), and the Layer-3 oracle retirement already deleted the UI's duplicate scenario inheritance + build-time generators. What actually holds the sweep is gate-item-5 logic (cleanups regress → sweep should precede the full HW re-verify, so sequence it before/with the DRV-1/SCN-3 rack passes, not after). **Scope (verified alive 2026-07-04):**
+  - **Legacy imperative scenario path:** `Scenario.execute_startup_sequence`/`execute_shutdown_sequence` (`domain/scenarios/scenario.py:97,134`), the shared-device `switch_scenario` legacy branch (`domain/scenarios/service.py:270,298,465`), the string-condition evaluator (`scenario.py:170-197`), `_validate_parameters` (`scenario.py:435` — only called from the legacy validate path).
+  - **`WB_SCENARIO_RECONCILER` kill-switch** (`service.py:66`) — guards a fallback that thin scenarios can't execute anyway; dead weight.
+  - **Escape-hatch model fields** `ScenarioDefinition.startup_sequence`/`shutdown_sequence` (`domain/scenarios/models.py:66-72`) — these leak into `openapi.json` + `ui/src/types/openapi.gen.ts`, so removal regenerates the contract and touches the UI types (`config-ui-stays-functional`: `npm run check && npm run build` in the same change).
+  - **`group` transitional fallback** (`infrastructure/wb_device/service.py` — legacy-group classification, the domain→group alias map at :26-27, `_get_control_type_from_group` :518) — redesign §17.1 retires it "once coverage is complete"; **conditional on the gate-item-1 coverage check first** (capability maps for *every* instance incl. `streamer`, `kitchen_hood`, `children_room_tv` — verify, then remove; if a gap is found, map it first).
+  - **"Configuration Migration Phase B" shim** — `log_migration_guidance()` (`app/bootstrap.py:231` → `infrastructure/config/manager.py:307`); migration long past.
+  - **Contract hygiene close-out:** confirm `openapi.json` has no orphaned models/fields after the above.
+  - **Explicitly NOT in scope:** the deprecated `MQTTClient.stop()/start()` shims — `stop()`'s one live caller is the `/reload` path that **CORE-1** rewrites; fold the shim removal into CORE-1. Also not in scope: piwheels `pip.conf` (rides OPS-11); OPS-2's "109 skipped tests" cleanup (already dissolved — 4 skip markers remain, suite green). **Stale gate-list entries confirmed already done, no action:** vestigial `DeviceState.output` (field no longer exists), UI `ScenarioVirtualDeviceHandler`/`Resolver` + generators (removed 2026-06-09).
+
 ### DOC — Docs / ledger / process
 
 **The ledger & documentation reconciliation series (DOC-4…DOC-10).** Filed 2026-06-30 from two
@@ -600,7 +609,9 @@ code/models/config behind — budget real time for this; do not skip it.
 3. **UI works for everything.** Every device page **and** every scenario page renders and functions
    under the runtime model (Layer 3); `manual_steps` are displayed; nothing depends on the retired
    build-time codegen.
-4. **Thorough code review + dead-code sweep.** Remove what the gradual migration superseded —
+4. **Thorough code review + dead-code sweep.** *→ tracked as **CORE-2** (filed 2026-07-04, scoped
+   against live code — two entries below were already done by then).* Remove what the gradual
+   migration superseded —
    likely candidates: the legacy imperative path (`Scenario.execute_startup_sequence` /
    `execute_shutdown_sequence`, the old shared-device `switch_scenario` branch, the string-condition
    evaluator, the dead `_validate_parameters`, vestigial `DeviceState.output`); the UI's duplicate
