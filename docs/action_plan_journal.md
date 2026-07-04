@@ -16,6 +16,32 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-04 (design decided + closed: SCN-4 → `docs/design/canonical_first.md`; filed SCN-6 + SCN-7)** —
+  The mandatory scenario↔Wirenboard design discussion ran as an interactive session and **outgrew the
+  original question into the target actuation architecture**. Reconciliation first narrowed SCN-4: its
+  recorded tie-ins (Layer-3 rendering, manual-steps surfacing) had already shipped, leaving purely the
+  representation question — which now has two consumers: the WB ecosystem (incl. the future WB-native
+  Alisa bridge, the project's declared Yandex path) and Irene (REST canonical against the catalog; her
+  repo explicitly flags SCN-4 as able to reshape catalog actuation targets). Decisions, each driven by
+  a user call: **(1)** option (b) — one Scenario Manager WB device with an enum select over scenario
+  ids; **(2)** inherited commands (громче/pause) fire at the same entity as canonical commands,
+  resolved role→device **bridge-side at fire time** (static-union catalog advertisement keeps the
+  catalog byte-stable; speakable 409s); **(3)** the user's unification: the UI scenario page rides the
+  SAME proxy (manifest = pure render projection; the page's power zone becomes `scenario.set/off`;
+  write-proxy/read-direct); **(4)** the user's second push — device pages too: the exposure gate had
+  already made page surface ≡ capability surface, so **canonical-first** becomes the target — catalog
+  (read) + canonical (write) + state/SSE (read) as the ONE client contract for UI, voice, WB card;
+  `/action` demotes to internal; VWB-17 re-scoped from voice-only future-proofing to the gate of the
+  device-page phase; **(5)** param metadata derived, not authored — native config param specs projected
+  through the capability `param_map` (+ value-label enum tables), one projection function feeding both
+  catalog and manifest; discharges the catalog's owed #19 param-introspection stub and rides VWB-15.
+  Verified along the way: manifest buttons speak native today (`layout_engine.py` `_action`); zero
+  sequence-form actions in all shipped maps (the manifest builder skips them too — parity exact);
+  canonical grammar (`{capability, action, params}` + `param_map`) expressive enough for selects/
+  params/zones. Ledger: SCN-4 → DONE (design deliverable per `design-then-implement`); **SCN-6**
+  (phase 1: proxy seam) + **SCN-7** (phase 2: device pages, gated on VWB-17) filed; VWB-15 + VWB-17
+  annotated; the design doc registered in the §0 document map. No code shipped — design only.
+
 - **2026-07-04 (filed + executed + closed: DRV-9 — kitchen_hood capability map)** — Interactive
   session at the user's direction ("right now, don't want to wait for the entire DRV-1"); closes the
   coverage gap CORE-2 surfaced this afternoon. Three design decisions put to the user, all resolved

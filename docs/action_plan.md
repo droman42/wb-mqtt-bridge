@@ -31,6 +31,10 @@ Roles of the other docs **now** (they were "driving" during the redesign; they'v
   frozen per-step Layer-3 *rollout* record moved to `docs/archive/layer3_rollout_record.md`, DOC-10.)
 - `docs/design/scenarios/scenario_system_redesign.md` — **IMPLEMENTED → as-built spec** for the scenario
   architecture (Layers 0/1/2/R + §17 groups→capabilities). Describes what was built; not driving.
+- `docs/design/canonical_first.md` — **DECIDED design (SCN-4, 2026-07-04): target actuation
+  architecture** — the scenario proxy (`scenario_manager`), canonical-first convergence (catalog/
+  canonical/state as the one client contract for UI + voice + WB), derived param descriptors.
+  **Drives SCN-6 / SCN-7**; its §6 projection rides VWB-15.
 - `docs/archive/scenarios/scenario_redesign_progress.md` — **archived 2026-06-30 (DOC-10)**; frozen
   session log, superseded by the as-built spec above.
 - `docs/archive/scenarios/layer3_step0_layout_analysis.md` — **archived 2026-06-30 (DOC-10)**; frozen
@@ -157,26 +161,31 @@ manual notes show; Auralic/A77 playback; passive ones show the right manual step
 room** (children_room_tv + appletv_children) was **deferred by the user** (skipped this round) — a
 possible round-3.
 
-- [ ] **SCN-4** `[P0]` `[house]` — **Scenario ↔ Wirenboard integration (MANDATORY DESIGN DISCUSSION → clean rebuild).** **UPDATE
-   2026-05-24 (Layer-3 WB re-key step 3, `f519605`): the old per-scenario WB virtual-device
-   implementation has been DELETED** — `ScenarioWBAdapter`, `ScenarioWBConfig`,
-   `setup_wb_emulation_for_all_scenarios` + the scenario MQTT-subscription setup, and the bootstrap/
-   router wiring are gone. It was dormant (publishing disabled since 2026-05-22, no caller, no tests)
-   and held the last scenario-side `group` reader. Per the user: the old implementation was disliked/
-   orphaned, so it's removed and **a clean replacement is now MANDATORY before any scenario↔WB
-   feature** — there is currently **NO** scenario representation on Wirenboard at all. Re-decide from
-   scratch (the previous model clutters the WB device list and conflates "scenario" with "device";
-   its control semantics were never clearly defined), considering at least:
-   - **(a) No WB representation** — scenarios live only in the bridge API + the (future Layer 3) UI;
-     Wirenboard sees only the underlying devices.
-   - **(b) A single "Scenario Manager" WB device** — one virtual device with an enum/selector
-     control (current scenario) + activate/deactivate, instead of one device per scenario.
-   - **(c) One WB device per scenario** (the disabled approach) — only if the semantics (controls,
-     activation, state feedback, manual-step surfacing) are properly defined.
-   - **(d) Wirenboard scenes/rules** — map scenarios onto WB's native scene/rule mechanism.
-   Tie-in: this overlaps Layer 3 runtime rendering and the manual-steps surfacing. The reconciler
-   itself does not depend on any WB scenario representation (scenarios activate via the API), so
-   this can be decided independently of the reconciler work.
+- [ ] **SCN-6** `[P1]` `[house]` — **Canonical-first phase 1: the scenario proxy seam.** Implementation
+   of `docs/design/canonical_first.md` §3–§5 (the SCN-4 design decision, 2026-07-04). Deliverables:
+   (1) the fire-time role-resolution service (application/domain layer — composes `ScenarioManager`
+   + capability maps; 409s: `no_active_scenario` / unbound role; response carries `executed_on`);
+   (2) the **`scenario_manager`** catalog device — `scenario` select capability (enum
+   `{wire,canonical,labels}` over scenario ids; `set`/`off` = today's switch/deactivate semantics) +
+   the **static union** of inheritable domains (volume/playback/menu/tracks/screen — catalog stays
+   byte-stable across switches); (3) canonical dispatch for `scenario_manager` (proxy path);
+   (4) the one WB «Сценарии» card — retained `scenario` enum value topic (the entity's ONLY state)
+   + curated pushbuttons (play/pause/stop, volume up/down — final list at implementation);
+   (5) scenario-page cutover: manifest revision (inherited buttons carry canonical tuples +
+   informational device id; power zone → `scenario.set`/`scenario.off`) + `RemoteControlLayout`
+   dispatch switch (`config-ui-stays-functional`: UI check + build in the same change). Write-proxy /
+   read-direct rule per design §3 — reads keep binding to real devices.
+
+- [ ] **SCN-7** `[P2]` `[later]` — **Canonical-first phase 2: device pages onto the canonical grammar.**
+   Implementation of `docs/design/canonical_first.md` §5–§6 after SCN-6. **Gated on VWB-17**
+   (sequence-form actions through the canonical dispatcher — zero shipped maps use sequences today,
+   but one authored sequence would silently break a page button once the UI rides canonical).
+   Deliverables: device-page manifest + renderer dispatch to `POST /devices/{id}/canonical`; the
+   canonical endpoint's `wait: false` echo mode (UI mash-clicks must not serialize on echo waits);
+   list-queries (`get_available_inputs`/`apps`) move off the action path to the read surface; the
+   manifest consumes the §6 param-descriptor projection (same function as the catalog). Phase 3
+   (`/action` demotion, `/scenario/switch`+`shutdown` internalization) is acceptance-gate material,
+   not scope here.
 
 - [ ] **SCN-5** `[P0]` `[house]` — **Transition-aware manual notes (the activation-time half).** Surface a
   topology manual-node's instruction **only when its link activates** in a transition — e.g. the Dodocus
@@ -473,7 +482,7 @@ endpoint).
 
 - [ ] **VWB-13** `[P1]` `[house]` — Catalog completeness sweep + bulk end-to-end verification across rooms (including each `global` aggregate device's canonical call landing on the broker, even if its wb-rules backing is still owed).
 
-- [ ] **VWB-15** `[P1]` `[house]` — **Emit the Irene↔voice catalog contract artifact** (cross-project; unblocks `wb-mqtt-voice` ARCH-26 / TEST-17). Publish/pin the bridge's FastAPI **`/openapi.json`** as the schema of record — it already carries **both** `CatalogResponse` and the canonical action-request body under `components/schemas`, so no bespoke schema is needed. Add a **`catalog dump`** command/endpoint that writes a representative **golden catalog** sample ("the works": rooms, device classes, `global`/`all_lights` aggregates, every capability incl. read-only `sensor`, `{wire,canonical,labels}` enum triplets, param schemas, localized ru/en names + aliases) **plus a real WB7 dump** as a realism check. Guard drift: a **self-contained CI check** that regenerates openapi + golden and fails if the copy committed **in this repo** is stale. **Publish boundary:** the bridge is the *generator/source of truth* and commits its reference artifacts **here** (e.g. `contracts/`); it does **NOT** write into `eval-commons`. The shared copy is pinned into `eval-commons/contracts/` by the voice side (`wb-mqtt-voice` TEST-17) — a one-way sync, no cross-repo write from the bridge.
+- [ ] **VWB-15** `[P1]` `[house]` — **Emit the Irene↔voice catalog contract artifact** (cross-project; unblocks `wb-mqtt-voice` ARCH-26 / TEST-17). Publish/pin the bridge's FastAPI **`/openapi.json`** as the schema of record — it already carries **both** `CatalogResponse` and the canonical action-request body under `components/schemas`, so no bespoke schema is needed. Add a **`catalog dump`** command/endpoint that writes a representative **golden catalog** sample ("the works": rooms, device classes, `global`/`all_lights` aggregates, every capability incl. read-only `sensor`, `{wire,canonical,labels}` enum triplets, param schemas, localized ru/en names + aliases) **plus a real WB7 dump** as a realism check. Guard drift: a **self-contained CI check** that regenerates openapi + golden and fails if the copy committed **in this repo** is stale. **Publish boundary:** the bridge is the *generator/source of truth* and commits its reference artifacts **here** (e.g. `contracts/`); it does **NOT** write into `eval-commons`. The shared copy is pinned into `eval-commons/contracts/` by the voice side (`wb-mqtt-voice` TEST-17) — a one-way sync, no cross-repo write from the bridge. **UPDATE 2026-07-04 (SCN-4 design, `docs/design/canonical_first.md` §6/§8):** the golden's **param schemas** now have a decided mechanism — `CatalogAction.params` filled by the derive-don't-author projection (native config param specs through the capability `param_map`, value-label tables for enum choices, capability-fixed params excluded); that projection **lands with this task** (it discharges the owed §P3.7 #19 introspection stub). The future `scenario_manager` catalog device (SCN-6) is **additive** — this artifact does not wait for it; the drift check forces a re-dump when SCN-6 lands.
   - **Reuse, don't rebuild the openapi dump:** the `wb-openapi` CLI (`backend/src/wb_mqtt_bridge/cli/dump_openapi.py`) **already emits and commits `openapi.json`** (the UI build consumes it), and it already carries `CatalogResponse` + the canonical action-request body — extend that path, don't recreate it. The genuinely **new** work is: the `catalog dump` golden-sample command (a sibling to `wb-openapi`), the WB7 dump, the `contracts/` home, and the golden's drift check.
   - **Two versions — ship both, they're distinct:** the catalog projection **already computes** a *content-hash* (short SHA-256 of `{rooms,devices}` in `presentation/api/catalog.py`) for Irene's lazy re-pull — keep it. §14.2 additionally wants a **build stamp naming the bridge commit** so the voice side knows which build it coded against — add that to the committed artifact (the content-hash tracks config drift, the commit stamp tracks the bridge build; neither substitutes for the other).
   - Spec: `wb-mqtt-voice/docs/design/mqtt_integration.md` §14. Filed 2026-07-01 off the voice-side ARCH-26 design session.
@@ -482,7 +491,7 @@ endpoint).
   - **Sequence-form caveat:** the target endpoint `POST /devices/{id}/canonical` does **not** yet route `sequence`-form actions — only single-command bindings (`devices.py`: *"sequence-form actions not yet routable via canonical endpoint"*). Until **VWB-17** lands, the crossover fixtures must use **single-command** canonical actions (every current slice-1 profile is single-command, so this covers the v1 voice set); full sequence coverage follows VWB-17.
   - Spec: `wb-mqtt-voice/docs/design/mqtt_integration.md` §14.
 
-- [ ] **VWB-17** `[P2]` `[later]` — **Route `sequence`-form actions through the canonical endpoint.** Today `POST /devices/{id}/canonical` rejects any capability action whose native binding is a multi-step `sequence` rather than a single `command` — it 500s with *"sequence-form actions not yet routable via canonical endpoint"* (`presentation/api/routers/devices.py`); only the reconciler / imperative path executes those. Extend the canonical dispatcher to resolve + execute sequence-form actions so **every** catalog action is reachable via the voice-friendly canonical seam (with the same value-topic echo semantics the single-command path already provides). Unblocks full crossover-fixture coverage in **VWB-16** (which is otherwise restricted to single-command fixtures). Not house-gating — every current slice-1 profile is single-command. Filed 2026-07-01 (surfaced during VWB-15/16 analysis).
+- [ ] **VWB-17** `[P2]` `[later]` — **Route `sequence`-form actions through the canonical endpoint.** Today `POST /devices/{id}/canonical` rejects any capability action whose native binding is a multi-step `sequence` rather than a single `command` — it 500s with *"sequence-form actions not yet routable via canonical endpoint"* (`presentation/api/routers/devices.py`); only the reconciler / imperative path executes those. Extend the canonical dispatcher to resolve + execute sequence-form actions so **every** catalog action is reachable via the voice-friendly canonical seam (with the same value-topic echo semantics the single-command path already provides). Unblocks full crossover-fixture coverage in **VWB-16** (which is otherwise restricted to single-command fixtures). Not house-gating — every current slice-1 profile is single-command. Filed 2026-07-01 (surfaced during VWB-15/16 analysis). **RE-SCOPED UP 2026-07-04 (SCN-4 design):** no longer voice-only future-proofing — this **gates SCN-7** (device pages onto the canonical grammar, `docs/design/canonical_first.md` §5): once the UI rides canonical, one authored sequence-form capability action would silently break a page button.
 
 
 ### UI — config-ui
