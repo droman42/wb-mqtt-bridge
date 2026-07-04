@@ -5,7 +5,9 @@ design deliverable of **SCN-4** ("Scenario ↔ Wirenboard integration — mandat
 discussion → clean rebuild"). The discussion outgrew the original question — the decisions
 below cover not just the scenario↔WB representation but the system's target actuation
 architecture. Implementation is filed separately: **SCN-6** (phase 1), **SCN-7** (phase 2);
-the param-schema derivation (§6) lands with **VWB-15**'s catalog work.
+the param-schema derivation (§6) lands with **VWB-15**'s catalog work. **§10 (room-scoped
+group addressing) is an addendum DECIDED 2026-07-05** — design deliverable of **VWB-22**,
+implementation filed as **VWB-23**.
 
 **Supersedes:** the deleted per-scenario WB virtual-device implementation
 (`ScenarioWBAdapter` + `setup_wb_emulation_for_all_scenarios`, removed 2026-05-24,
@@ -41,6 +43,10 @@ contract this revises in phase 1/2) · `../wb-mqtt-voice/docs/design/mqtt_integr
    units, enum choices) are **derived** from the native config param specs through the
    capability layer's `param_map` — one projection function feeding both the catalog and
    the manifest. Nothing is authored twice.
+6. **(Addendum 2026-07-05, §10)** Group utterances («включи свет», «закрой шторы») get a
+   **third canonical address form**: room + semantic group + action. The voice side
+   resolves only as deep as the utterance specifies; the **bridge** owns membership and
+   default-vs-fan-out policy.
 
 ## 2. The two consumers that shaped the decision
 
@@ -229,6 +235,7 @@ observable gain; remains possible later); status-quo split with a CI consistency
 | **2** | Device pages → canonical · echo `wait:false` mode · list-queries → read surface · manifest consumes the §6 projection | **SCN-7** (gated on **VWB-17**) |
 | **3** | `/action` demotion/retirement decision · `/scenario/switch`+`shutdown` internalization | acceptance-gate item 4 (code-review half) |
 | — | §6 param-descriptor projection → `CatalogAction.params` | rides **VWB-15** |
+| — | §10 room-scoped group addressing (`/rooms/{id}/canonical`, `group` overlay, `group_defaults`, aggregate response) | **VWB-23** (design **VWB-22**, 2026-07-05) |
 
 Contract-timing note (**revised 2026-07-04, user decision**): mechanically everything
 here is additive — but the **first** VWB-15 golden dump deliberately **waits for the
@@ -259,3 +266,136 @@ canonical path → same IR burst, same chokepoint fan-out → `200 {executed_on:
 mf_amplifier, …}`. The WB card's volume-up pushbutton takes the identical path via its
 `/on` topic. Failure with nothing active: `409 no_active_scenario` (Irene: «сейчас нет
 активного сценария»).
+
+## 10. Room-scoped group addressing (the third address form) — addendum 2026-07-05
+
+**Status:** DECIDED 2026-07-05 (discussion session, VWB-22 — surfaced by the voice side:
+"what should the system do with «turn on the lights» / «close curtains»?"). Design
+deliverable of **VWB-22**; implementation is **VWB-23**.
+
+### 10.1 The decision
+
+The canonical write door gains a **room-scoped** address alongside the device-level and
+scenario-level forms:
+
+```
+1. device-level    POST /devices/{device_id}/canonical            (phase 2, shipped)
+2. scenario-level  POST /devices/scenario_manager_<room>/canonical (§3–§4, shipped)
+3. group-level     POST /rooms/{room_id}/canonical                 (this addendum)
+```
+
+The resolver (Irene) resolves **only as deep as the utterance specifies**: a named device
+(«включи торшер») → form 1; a relative command inside an active scenario («громче») →
+form 2; a bare capability noun («включи свет», «закрой шторы») → form 3, room from
+context. Guessing a device out of «свет» would be the resolver inventing precision the
+utterance doesn't carry — that guess moves into the bridge, where it is *policy*, not
+heuristics. Form 2 is the precedent: caller names an intent, bridge picks the device.
+
+Request shape (additive, mirrors the device-level grammar):
+
+```
+POST /rooms/{room_id}/canonical
+{ group: "light", action: "on", params?: {…},
+  scope?: "auto" | "all" | "one",     // default "auto"
+  wait?: bool }                        // same echo semantics as the device endpoint
+```
+
+**Resolution policy (`scope`):**
+
+- **`auto`** (default) — the room's configured default device for the group, if any
+  (§10.3); otherwise fan-out to **all** members.
+- **`all`** — force fan-out. The caller heard the plural / «весь» — the bridge didn't;
+  this is how that signal survives. Without it, «выключи весь свет» would actuate one
+  ceiling lamp and leave three sconces lit.
+- **`one`** — force the default device; speakable `409 no_default_device` if the room has
+  none configured.
+
+### 10.2 Membership: the `group` overlay (why NOT the domain, and NOT re-profiling)
+
+The obvious rule — "members = devices in the room whose capability map has the domain" —
+**fails on the fleet as shipped**: all 36 light switches declare domain **`power`**
+(`light_switch`/`dimmable_light`/`rgb_light` profiles); only the kitchen hood carries a
+`light` domain. Domain-as-membership would sweep sockets and the oven-guard relay into
+«включи свет». The domain taxonomy conflates *grammar of control* (on/off) with
+*semantic class* (this is a lamp) — for WB passthroughs the semantics live in the
+**profile name**, not the domain.
+
+Decision: a capability entry carries an optional **`group`** tag — its semantic class.
+**Default: the domain name itself** (so `cover`, `volume`, `playback` need nothing);
+the three illumination profiles override their `power` capability with `group: "light"`.
+The hood's `light` capability matches implicitly — «включи свет» in the kitchen includes
+the hood light with zero authoring. Membership for `(room, group)` = devices with
+`room_id == room` owning a capability whose group matches.
+
+Execution per member re-enters the ordinary per-device canonical dispatch **against the
+member's own capability** (a light switch executes its `power.on`, the hood its
+`light.on`) — the group verb names the intent, each member keeps its native grammar, the
+`no_op` short-circuit and the `update_state` chokepoint apply per member unchanged.
+
+**Rejected: re-profiling illumination from `power` → `light`.** Semantically purer, but
+the `power` domain is load-bearing infrastructure — the reconciler's entire power
+management, the layout engine's power zone, the WB-device service grouping all key on it
+— and the migration buys nothing the overlay doesn't. Revisitable later; the overlay is
+forward-compatible with it (a migrated profile simply stops needing the tag).
+
+**Rejected: per-room master switches by convention** (a "lights" alias per room) —
+authoring burden, drift on every added light, and the master's state is undefined when
+half the lights are on. `wb-rules/all_lights.js` stays what it is: the hand-authored
+*global* physical master; form 3 is its per-room generalization on the REST side.
+
+**Rejected: curated `groups.json`** — a whole new config concept to solve membership
+errors we haven't observed. If a device must opt out of its natural group, that's a
+per-capability `group: null` override, not a new file.
+
+### 10.3 Room defaults & the singular/plural distinction
+
+`rooms.json` gains an optional per-room **`group_defaults`** map:
+
+```json
+{ "room_id": "living_room", …, "group_defaults": { "light": "living_room_ceiling" } }
+```
+
+Validated at load: the device must be in the room and a member of the group. This is what
+makes «включи свет» (singular intent, `scope: auto`) mean *the* main light where one is
+declared, while «весь свет» (`scope: all`) always fans out. The default is a property of
+the **room** — one place to look, no two-devices-both-claim-primary collisions a
+per-device flag would invite.
+
+### 10.4 Aggregate response — the honest confirmation
+
+With policy in the bridge, the caller no longer knows what was touched, so the response
+must say it:
+
+```
+200 { room_id, group, action, scope_applied: "default" | "fan_out",
+      results: [ { device_id, status: executed | no_op | skipped | failed, detail? } … ] }
+```
+
+`skipped` = member lacks the action (reported, never an error); partial failures return
+200 with per-member `failed` entries — the caller decides how to speak them («включила
+весь свет, бра не ответило»). Empty membership is a speakable **`404 no_group_members`**
+(the `no_active_scenario` pattern). `executed_on` semantics from §4 generalize to the
+`results` list.
+
+### 10.5 Safety rail: fan-out allow-list
+
+Fan-out launches for **benign groups only — `light` and `cover`** (a static table in the
+dispatch service, extended deliberately). For `power` and other consequential groups the
+endpoint refuses fan-out with a speakable 409 — «выключи всё» must not be one mumbled
+sentence away from the fridge and the NAS (the travel case is already owned, with curated
+exclusions, by the `at_home` switch). Explicit device or scenario remains the only path
+to consequential actuation.
+
+### 10.6 Contract & catalog impact (additive)
+
+- New endpoint `POST /rooms/{room_id}/canonical` (+ response shape above) in
+  `openapi.json`.
+- `CatalogDevice` capabilities expose their effective **`group`**; `CatalogRoom` exposes
+  **`group_defaults`** — Irene's noun lexicon («свет» → `light`, «шторы» → `cover`) binds
+  to catalog truth, not convention.
+- `rooms.json` schema: optional `group_defaults` (config model + UI config section).
+- All additive. If VWB-23 lands before the voice side pins the contract, v1 simply
+  carries it; afterwards it's an ordinary additive rev under the drift guard.
+- **Interim:** until VWB-23 ships, Irene *can* fan out client-side (the catalog already
+  carries rooms + domains), accepting N round-trips and voice-side membership guesses —
+  a stopgap, not the target.

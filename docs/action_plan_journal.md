@@ -16,6 +16,23 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-05 (filed + closed: VWB-22 — group-addressing design; filed open: VWB-23 —
+  implementation)** — The voice side's open question ("what should «включи свет» / «закрой шторы»
+  do?") ran as a discussion session and settled into `canonical_first.md` **§10**: a third
+  canonical address form `POST /rooms/{room_id}/canonical {group, action, scope}` — Irene resolves
+  only as deep as the utterance specifies, the bridge owns membership + default-vs-fan-out policy
+  (the ScenarioProxy precedent generalized). Key discovery during the session: the fleet's 36
+  light switches declare domain **`power`** (only the hood has `light`), so the naive
+  domain-as-membership rule would sweep sockets and the oven guard into «свет» — hence the
+  **`group` overlay** (capability-level tag defaulting to the domain name; 3 illumination
+  profiles override with `group: "light"`), chosen over a `power→light` re-profiling (rejected:
+  reconciler/layout/WB-service all key on `power`). User-shaped middle ground: `scope: auto`
+  prefers a room-configured default device (`group_defaults` in `rooms.json`) else fans out;
+  `all` preserves the plural signal; fan-out allow-listed to `light`+`cover` only. Aggregate
+  response lists per-member outcomes so voice confirmations stay honest. All contract impact
+  additive; pre-pin landing preferred. Implementation = **VWB-23** [P1], filed per
+  `design-then-implement`.
+
 - **2026-07-05 (filed + executed + closed: CORE-3 — maintenance guard rebuilt against the real
   midnight burst)** — Started as a "not ledger-worthy yet" diagnosis request ("skips MQTT events
   around midnight... find out what is wrong"), promoted to CORE-3 once the user said fix it. The
