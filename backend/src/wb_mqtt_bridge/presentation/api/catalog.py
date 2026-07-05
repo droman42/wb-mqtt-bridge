@@ -66,6 +66,14 @@ def _project_capability_actions(
     options_kind = {"input": "inputs", "apps": "apps"}
     for cap_name, cap in cap_map.root.items():
         dynamic_kind = options_kind.get(cap_name) if cap.list is not None else None
+        # VWB-24: enum field tables double as the closed value set of same-named action
+        # params (HVAC `set_mode(mode)`, `set_fan(fan)`, …) — the table stays authored
+        # ONCE on the field; the param derives it. The correspondence is by canonical
+        # param name == field name (the hvac profile's param_map renames guarantee it).
+        enum_tables = {
+            f.name: f.values for f in cap.fields
+            if f.type == "enum" and f.values is not None
+        }
         actions: list[CatalogAction] = []
         for action_name, cap_action in cap.actions.items():
             raw = (
@@ -75,6 +83,17 @@ def _project_capability_actions(
             params: Optional[list[CatalogParam]] = None
             if raw:
                 params = [CatalogParam(**d) for d in raw]
+                for p in params:
+                    table = enum_tables.get(p.name)
+                    if table is not None and p.type == "string" and p.values is None:
+                        p.values = [
+                            CatalogValueLabel(
+                                wire=v.wire,
+                                canonical=v.canonical,
+                                labels=v.labels.model_dump() if v.labels is not None else None,
+                            )
+                            for v in table
+                        ]
                 if dynamic_kind:
                     for p in params:
                         if p.type == "string" and p.values is None:

@@ -7,9 +7,9 @@
       "on":           { "command": "power_on" },
       "off":          { "command": "power_off" },
       "set_mode":     { "command": "set_mode",     "param_map": { "mode": "mode" } },
-      "set_fan":      { "command": "set_fan",      "param_map": { "speed": "speed" } },
-      "set_vane":     { "command": "set_vane",     "param_map": { "angle": "angle" } },
-      "set_widevane": { "command": "set_widevane", "param_map": { "direction": "direction" } },
+      "set_fan":      { "command": "set_fan",      "param_map": { "fan": "speed" } },
+      "set_vane":     { "command": "set_vane",     "param_map": { "vane": "angle" } },
+      "set_widevane": { "command": "set_widevane", "param_map": { "widevane": "direction" } },
       "set_setpoint": { "command": "set_setpoint", "param_map": { "temp": "temp" } }
     },
     "fields": [

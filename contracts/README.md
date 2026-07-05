@@ -35,6 +35,11 @@ deterministic (devices sorted by id; identical bytes across runs).
   the driver enforces.
 - **`values`** carries the `{wire, canonical, labels}` table when the choice set is
   **bridge-known and static** (e.g. the scenario enum — labels are localized, ru/en).
+  Since contract v1.3 this includes action params whose choice set lives on a
+  same-named read-side field (the HVAC `set_mode(mode)` / `set_fan(fan)` family):
+  the param mirrors the field's table, so «кондиционер на охлаждение» validates
+  against the same triplets the state reads back. The canonical param name always
+  equals the field name — that correspondence is the rule, not a coincidence.
 - **`options_from`** marks an **intentionally open set**: the choices are
   runtime-dynamic (installed apps change with every install) and enumerable via
   `GET /devices/{id}/options/<options_from>`. A param carries *either* `values` *or*

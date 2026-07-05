@@ -112,3 +112,28 @@ def test_stamp_names_a_bridge_build():
     committed = json.loads((CONTRACTS / "catalog.golden.json").read_text(encoding="utf-8"))
     # the stamp's catalog hash must match the committed golden (they travel together)
     assert stamp["catalog_version"] == committed["version"], _REGEN_HINT
+
+
+def test_contract_v13_hvac_action_params_carry_field_value_tables():
+    """VWB-24 (voice intake): `set_mode`/`set_fan` params are typed with the same
+    {wire, canonical, labels} tables their read-side fields carry — closed sets a
+    voice consumer can validate against with zero round-trips. Canonical param names
+    equal the field names (fan, not native speed) — that correspondence IS the
+    derivation rule."""
+    golden = _golden()
+    for device_id in ("bedroom_hvac", "children_room_hvac", "living_room_hvac"):
+        hvac = _device(golden, device_id)
+        climate = next(c for c in hvac["capabilities"] if c["name"] == "climate")
+        fields = {f["name"]: f for f in climate["fields"]}
+        for action_name, param_name in (
+            ("set_mode", "mode"), ("set_fan", "fan"),
+            ("set_vane", "vane"), ("set_widevane", "widevane"),
+        ):
+            action = next(a for a in climate["actions"] if a["name"] == action_name)
+            (param,) = action["params"]
+            assert param["name"] == param_name, f"{device_id}.{action_name}"
+            assert param["values"] == fields[param_name]["values"], (
+                f"{device_id}.{action_name}({param_name}) must mirror the field table"
+            )
+        mode_values = {v["canonical"]: v for v in fields["mode"]["values"]}
+        assert mode_values["cool"]["labels"]["ru"] == "охлаждение"

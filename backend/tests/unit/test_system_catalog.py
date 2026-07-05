@@ -453,3 +453,91 @@ def test_version_changes_when_a_capability_field_is_added(slice_managers):
     dm.devices["cabinet_spots"].capabilities = CapabilityMap.model_validate(extended_cap_map)
     after = build_catalog(dm, rm).version
     assert before != after
+
+
+def test_catalog_derives_action_param_values_from_same_named_enum_field():
+    """VWB-24: an action param whose canonical name matches an enum field derives the
+    field's ValueLabel table — authored ONCE on the field, projected onto the param.
+    The hvac profile's param_map renames (fan→speed etc.) exist to make names match."""
+    hvac = _fake_device(
+        device_id="bedroom_hvac",
+        names={"ru": "Кондиционер", "en": "AC"},
+        device_class="WbPassthroughDevice",
+        room="bedroom",
+        cap_map_dict={
+            "climate": {
+                "kind": "stateful", "feedback": True,
+                "actions": {
+                    "set_mode": {"command": "set_mode", "param_map": {"mode": "mode"}},
+                    "set_fan": {"command": "set_fan", "param_map": {"fan": "speed"}},
+                },
+                "fields": [
+                    {"name": "mode", "type": "enum", "values": [
+                        {"wire": "COOL", "canonical": "cool",
+                         "labels": {"ru": "охлаждение", "en": "cool", "de": "Kühlen"}},
+                        {"wire": "HEAT", "canonical": "heat",
+                         "labels": {"ru": "обогрев", "en": "heat", "de": "Heizen"}},
+                    ]},
+                    {"name": "fan", "type": "enum", "values": [
+                        {"wire": "AUTO", "canonical": "auto",
+                         "labels": {"ru": "авто", "en": "auto", "de": "Automatik"}},
+                    ]},
+                ],
+            }
+        },
+    )
+    _param = lambda name: SimpleNamespace(  # noqa: E731
+        name=name, type="string", required=True, default=None,
+        min=None, max=None, description=None, units=None,
+    )
+    hvac.config.commands = {
+        "set_mode": SimpleNamespace(params=[_param("mode")]),
+        "set_fan": SimpleNamespace(params=[_param("speed")]),
+    }
+    dm = SimpleNamespace(devices={"bedroom_hvac": hvac})
+    rm = MagicMock(); rm.list.return_value = []
+    cat = build_catalog(dm, rm)
+    climate = cat.devices[0].capabilities[0]
+
+    set_mode = next(a for a in climate.actions if a.name == "set_mode")
+    (mode_param,) = set_mode.params
+    assert mode_param.name == "mode"
+    assert mode_param.values is not None and len(mode_param.values) == 2
+    assert mode_param.values[0].wire == "COOL" and mode_param.values[0].canonical == "cool"
+    assert mode_param.values[0].labels == {"ru": "охлаждение", "en": "cool", "de": "Kühlen"}
+    assert mode_param.options_from is None
+
+    set_fan = next(a for a in climate.actions if a.name == "set_fan")
+    (fan_param,) = set_fan.params
+    assert fan_param.name == "fan"  # canonical name = the FIELD name, not native "speed"
+    assert fan_param.values is not None and fan_param.values[0].canonical == "auto"
+
+
+def test_catalog_param_without_matching_enum_field_stays_untyped():
+    """The derivation is by exact name match against an enum-with-values field — a param
+    with no counterpart field keeps `values: None` (an honest open string)."""
+    dev = _fake_device(
+        device_id="x",
+        names={"ru": "X", "en": "X"},
+        device_class="WbPassthroughDevice",
+        room=None,
+        cap_map_dict={
+            "climate": {
+                "kind": "stateful", "feedback": True,
+                "actions": {"set_mode": {"command": "set_mode", "param_map": {"mode": "mode"}}},
+                "fields": [{"name": "other", "type": "enum", "values": ["a", "b"]}],
+            }
+        },
+    )
+    dev.config.commands = {
+        "set_mode": SimpleNamespace(params=[SimpleNamespace(
+            name="mode", type="string", required=True, default=None,
+            min=None, max=None, description=None, units=None,
+        )]),
+    }
+    dm = SimpleNamespace(devices={"x": dev})
+    rm = MagicMock(); rm.list.return_value = []
+    cat = build_catalog(dm, rm)
+    set_mode = next(a for a in cat.devices[0].capabilities[0].actions if a.name == "set_mode")
+    (mode_param,) = set_mode.params
+    assert mode_param.values is None and mode_param.options_from is None

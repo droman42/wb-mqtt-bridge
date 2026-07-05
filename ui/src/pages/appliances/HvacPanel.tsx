@@ -72,12 +72,8 @@ const FIELD_TO_ACTION: Record<string, string> = {
   vane: 'set_vane',
   widevane: 'set_widevane',
 };
-const FIELD_TO_PARAM: Record<string, string> = {
-  mode: 'mode',
-  fan: 'speed',
-  vane: 'angle',
-  widevane: 'direction',
-};
+// Canonical param names equal the field names (the contract guarantees the
+// correspondence — that's how the catalog derives each param's value table).
 
 function labelOf(entry: CatalogValueLabel, language: 'en' | 'ru'): string {
   // Catalog labels are {ru, en, de, ...}; settings store carries en/ru today. Fall back
@@ -145,7 +141,7 @@ export function HvacPanel() {
     const current = typeof raw === 'string' ? raw : undefined;
     const glyphs = SECTION_GLYPHS[fieldName] ?? {};
     const actionName = FIELD_TO_ACTION[fieldName];
-    const paramName = FIELD_TO_PARAM[fieldName];
+    const paramName = fieldName;
     return (
       <section key={fieldName} className="rounded-lg border border-border p-4 space-y-3">
         <div className="text-sm font-medium">{enumLabel(fieldName)}</div>

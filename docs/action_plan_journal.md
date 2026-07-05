@@ -16,6 +16,24 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-05 (intake + executed + closed: VWB-24 — HVAC action params typed, contract v1.3)** —
+  Voice-side filing (QUAL-35 Slice 2) arrived uncommitted; intake verification per
+  `cross-repo-source-of-truth` confirmed every claim against the golden + live code AND found the
+  root cause deeper: `CommandParameterDefinition` has no `values` field (the G4 shape again), so
+  the §6 projection had nothing to project — while the read-side fields carry full ru/en/de
+  triplets and the driver already translates canonical→wire (actuation always worked; only
+  catalog metadata was missing). Sweep: the disease = exactly the climate quartet ×3 HVACs.
+  Fix per user decision (rename approach, not a `values_from` hint): catalog projection derives
+  param `values` from the **same-named enum field's table** (single authored source — the field);
+  hvac profile param_map renames canonical params to the field names (`{fan: speed}`,
+  `{vane: angle}`, `{widevane: direction}`; natives keep the firmware vocabulary; the rename is
+  free — voice deliberately hadn't wired these params). Vane/widevane typed for free.
+  `HvacPanel`'s FIELD_TO_PARAM indirection collapsed to identity. Golden `a17a63b0c47fdb53`
+  (pre-pin); openapi byte-unchanged; contracts/README values-bullet extended (scrub rule
+  honored). Tests: +2 derivation (test_system_catalog), +1 contract-semantics (all 3 HVACs × 4
+  actions mirror their field tables), param-map assertions updated. Suite 568; pyright 0;
+  contracts 3/3; UI check+build green. Voice re-pins and wires «кондиционер на охлаждение».
+
 - **2026-07-05 (executed + closed: VWB-19 — select-form canonical routing; filed open: UI-9 —
   dropdown seam flip)** — Pulled forward from `[later]` by user decision, off the chat question
   "which task enables app launch / input selection through canonical?". Reconciliation split the

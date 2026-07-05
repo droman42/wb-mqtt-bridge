@@ -236,8 +236,12 @@ def test_hvac_climate_actions_cover_mode_fan_vane_widevane_setpoint():
     # name in the firmware — see set_setpoint action's device-config topic).
     temperature = next(f for f in climate.fields if f.name == "temperature")
     assert temperature.type == "float" and temperature.unit == "°C"
-    # Param-map renames are identity (canonical → native) for all set_* actions.
-    assert climate.actions["set_widevane"].param_map == {"direction": "direction"}
+    # Canonical param names equal the FIELD names (VWB-24) so the catalog can derive
+    # each param's value table from the field's; natives keep the firmware vocabulary.
+    assert climate.actions["set_mode"].param_map == {"mode": "mode"}
+    assert climate.actions["set_fan"].param_map == {"fan": "speed"}
+    assert climate.actions["set_vane"].param_map == {"vane": "angle"}
+    assert climate.actions["set_widevane"].param_map == {"widevane": "direction"}
 
 
 def test_hvac_profile_mode_carries_firmware_wire_values_and_canonical_labels():
