@@ -430,20 +430,42 @@ async def dispatch_device_canonical(
         raise HTTPException(status_code=404, detail=resp.model_dump())
 
     cap = cap_map.root[payload.capability]
-    if payload.action not in cap.actions:
+    if payload.action in cap.actions:
+        # VWB-17: canonical -> native via the shared domain expansion. Command form
+        # yields one step; sequence form yields the ordered native steps (each step
+        # applies its own param_map rename + fixed-params overlay; inter-step
+        # delay_after_ms honored in the execution loop below).
+        steps = cap.actions[payload.action].expand(payload.params)
+    elif payload.action == "set" and cap.select is not None:
+        # VWB-19: select-form routing. `set` is the reserved canonical action for
+        # capabilities whose invocation lives in `select` — `{value}` resolves through
+        # the same expansion the reconciler uses (parametric rename or by_value table).
+        # An authored `set` action wins over this branch (checked above).
+        value = (payload.params or {}).get("value")
+        if value is None:
+            resp = _err_response(
+                response_device_id, payload.capability, payload.action,
+                CanonicalErrorCode.PARAM_INVALID,
+                "select-form `set` requires params.value",
+                field="value", reason="required",
+            )
+            raise HTTPException(status_code=400, detail=resp.model_dump())
+        try:
+            steps = cap.select.expand(value)
+        except ValueError as e:
+            resp = _err_response(
+                response_device_id, payload.capability, payload.action,
+                CanonicalErrorCode.PARAM_INVALID, str(e),
+                field="value", reason="unknown_value",
+            )
+            raise HTTPException(status_code=400, detail=resp.model_dump())
+    else:
         resp = _err_response(
             response_device_id, payload.capability, payload.action,
             CanonicalErrorCode.ACTION_NOT_SUPPORTED,
             f"Capability {payload.capability!r} has no action {payload.action!r}",
         )
         raise HTTPException(status_code=404, detail=resp.model_dump())
-
-    cap_action = cap.actions[payload.action]
-    # VWB-17: canonical -> native via the shared domain expansion. Command form yields
-    # one step; sequence form yields the ordered native steps (each step applies its
-    # own param_map rename + fixed-params overlay; inter-step delay_after_ms honored
-    # in the execution loop below).
-    steps = cap_action.expand(payload.params)
     if not steps:
         resp = _err_response(
             response_device_id, payload.capability, payload.action,
@@ -577,6 +599,13 @@ async def get_device_options(device_id: str, kind: str):
     cap = cap_map.get(capability) if cap_map else None
     list_action = getattr(cap, "list", None) if cap else None
     if list_action is None or not list_action.command:
+        # VWB-19: a by_value select has a closed, statically-known option set (the
+        # table keys) and typically no `list` query (fixed IR/relay codes) — serve
+        # the keys in the same result envelope a driver list query would return.
+        sel = getattr(cap, "select", None) if cap else None
+        static_values = sel.option_values() if sel is not None else None
+        if static_values is not None:
+            return {"success": True, "data": static_values}
         raise HTTPException(
             status_code=404,
             detail=f"Device {device_id!r} declares no '{capability}.list' query",

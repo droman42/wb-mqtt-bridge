@@ -80,6 +80,24 @@ def _project_capability_actions(
                         if p.type == "string" and p.values is None:
                             p.options_from = dynamic_kind
             actions.append(CatalogAction(name=action_name, params=params))
+        # VWB-19: select-form capabilities advertise the reserved `set` action (an
+        # authored `set` action wins, mirroring dispatch precedence). by_value selects
+        # carry their closed option set statically (`values` — voice validates at
+        # resolve time, no round-trip); parametric selects keep the runtime-dynamic
+        # `options_from` dance (`GET /devices/{id}/options/*`).
+        if cap.select is not None and not any(a.name == "set" for a in actions):
+            static = cap.select.option_values()
+            actions.append(CatalogAction(name="set", params=[CatalogParam(
+                name="value",
+                type="string",
+                required=True,
+                description="Target option (canonical value).",
+                values=(
+                    [CatalogValueLabel(wire=v, canonical=v) for v in static]
+                    if static is not None else None
+                ),
+                options_from=dynamic_kind if static is None else None,
+            )]))
         fields: list[CatalogField] = []
         for f in cap.fields:
             if mirrored_field_names is not None and f.name not in mirrored_field_names:
@@ -104,8 +122,8 @@ def _project_capability_actions(
             ))
         # VWB-20 (voice review, minor flag): suppress empty husks — a capability with
         # neither invocable actions nor readable fields says nothing a consumer can use.
-        # Today that's the select-form `input` on TVs (select isn't canonically routable
-        # yet — VWB-19); it reappears here the moment VWB-19 gives it a real `set`.
+        # Since VWB-19 select-form capabilities project a real `set`, so the once-husk
+        # TV `input` is back in the catalog; the guard stays for future husk shapes.
         if not actions and not fields:
             continue
         out.append(CatalogCapability(

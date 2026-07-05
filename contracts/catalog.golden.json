@@ -1,5 +1,5 @@
 {
-  "version": "91909b54bfb4b593",
+  "version": "dbfd2855dac52026",
   "rooms": [
     {
       "id": "bathroom",
@@ -2825,6 +2825,30 @@
           "group": "power"
         },
         {
+          "name": "input",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "value",
+                  "type": "string",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": "Target option (canonical value).",
+                  "unit": null,
+                  "values": null,
+                  "options_from": "inputs"
+                }
+              ]
+            }
+          ],
+          "fields": null,
+          "group": "input"
+        },
+        {
           "name": "volume",
           "actions": [
             {
@@ -4787,6 +4811,30 @@
           "group": "power"
         },
         {
+          "name": "input",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "value",
+                  "type": "string",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": "Target option (canonical value).",
+                  "unit": null,
+                  "values": null,
+                  "options_from": "inputs"
+                }
+              ]
+            }
+          ],
+          "fields": null,
+          "group": "input"
+        },
+        {
           "name": "volume",
           "actions": [
             {
@@ -5056,6 +5104,66 @@
           "group": "power"
         },
         {
+          "name": "input",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "value",
+                  "type": "string",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": "Target option (canonical value).",
+                  "unit": null,
+                  "values": [
+                    {
+                      "wire": "cd",
+                      "canonical": "cd",
+                      "labels": null
+                    },
+                    {
+                      "wire": "aux2",
+                      "canonical": "aux2",
+                      "labels": null
+                    },
+                    {
+                      "wire": "usb",
+                      "canonical": "usb",
+                      "labels": null
+                    },
+                    {
+                      "wire": "phono",
+                      "canonical": "phono",
+                      "labels": null
+                    },
+                    {
+                      "wire": "tuner",
+                      "canonical": "tuner",
+                      "labels": null
+                    },
+                    {
+                      "wire": "aux1",
+                      "canonical": "aux1",
+                      "labels": null
+                    },
+                    {
+                      "wire": "balanced",
+                      "canonical": "balanced",
+                      "labels": null
+                    }
+                  ],
+                  "options_from": null
+                }
+              ]
+            }
+          ],
+          "fields": null,
+          "group": "input"
+        },
+        {
           "name": "volume",
           "actions": [
             {
@@ -5114,6 +5222,30 @@
       "device_class": "EMotivaXMC2",
       "room": "living_room",
       "capabilities": [
+        {
+          "name": "input",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "value",
+                  "type": "string",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": "Target option (canonical value).",
+                  "unit": null,
+                  "values": null,
+                  "options_from": "inputs"
+                }
+              ]
+            }
+          ],
+          "fields": null,
+          "group": "input"
+        },
         {
           "name": "volume",
           "actions": [
@@ -5587,6 +5719,30 @@
           "group": "power"
         },
         {
+          "name": "input",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "value",
+                  "type": "string",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": "Target option (canonical value).",
+                  "unit": null,
+                  "values": null,
+                  "options_from": "inputs"
+                }
+              ]
+            }
+          ],
+          "fields": null,
+          "group": "input"
+        },
+        {
           "name": "volume",
           "actions": [
             {
@@ -5671,6 +5827,41 @@
           ],
           "fields": null,
           "group": "power"
+        },
+        {
+          "name": "input",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "value",
+                  "type": "string",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": "Target option (canonical value).",
+                  "unit": null,
+                  "values": [
+                    {
+                      "wire": "video",
+                      "canonical": "video",
+                      "labels": null
+                    },
+                    {
+                      "wire": "s_vhs",
+                      "canonical": "s_vhs",
+                      "labels": null
+                    }
+                  ],
+                  "options_from": null
+                }
+              ]
+            }
+          ],
+          "fields": null,
+          "group": "input"
         },
         {
           "name": "screen",

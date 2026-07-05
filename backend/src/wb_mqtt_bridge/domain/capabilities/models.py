@@ -95,6 +95,37 @@ class CapabilitySelect(BaseModel):
             raise ValueError("capability select needs exactly one of `command` or `by_value`")
         return self
 
+    def expand(self, value: Any) -> List["NativeStep"]:
+        """Flatten a canonical ``set {value}`` into native steps (VWB-19).
+
+        The single select-resolution site, shared by the canonical endpoint and the
+        scenario reconciler (mirror of :meth:`CapabilityAction.expand` for actions):
+
+        - ``by_value`` form -> the value's own :class:`CapabilityAction`, expanded
+          (unknown value raises ``ValueError`` naming the valid set);
+        - parametric form -> one step: the value under the ``param_map``'s native
+          name for the canonical ``input`` key, fixed ``params`` overlaid.
+        """
+        if self.by_value is not None:
+            act = self.by_value.get(value)
+            if act is None:
+                valid = ", ".join(self.by_value)
+                raise ValueError(f"unknown select value {value!r} (valid: {valid})")
+            return act.expand()
+        if self.command is None:  # unreachable: validator enforces exactly-one-form
+            raise ValueError("select declares neither `command` nor `by_value`")
+        native_param = self.param_map.get("input", "input")
+        params: Dict[str, Any] = {native_param: value, **self.params}
+        return [NativeStep(command=self.command, params=params)]
+
+    def option_values(self) -> Optional[List[str]]:
+        """The statically-known option set: ``by_value`` keys in declaration order.
+        ``None`` for the parametric form — its set lives behind the capability's
+        ``list`` query (runtime-dynamic, e.g. LG's ``get_available_inputs``)."""
+        if self.by_value is None:
+            return None
+        return list(self.by_value.keys())
+
 
 class CapabilityGate(BaseModel):
     """Timing for a stateful action. Feedback devices poll ``state_field`` to the

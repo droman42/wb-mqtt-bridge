@@ -261,16 +261,19 @@ def _input_action(device_id, cap, state, target_value, warnings) -> Optional[Pla
         return None
     gate = cap.gate
 
-    if sel.by_value is not None:
-        act = sel.by_value.get(target_value)
-        if not act:
-            warnings.append(f"{device_id} input has no value '{target_value}'")
-            return None
-        command, params = act.command, dict(act.params)
-    else:
-        command = sel.command
-        native_param = sel.param_map.get("input", "input")
-        params = {native_param: target_value, **sel.params}
+    # Shared select resolution (VWB-19) — same expansion the canonical endpoint uses.
+    try:
+        steps = sel.expand(target_value)
+    except ValueError as e:
+        warnings.append(f"{device_id} input: {e}")
+        return None
+    if len(steps) != 1:
+        warnings.append(
+            f"{device_id} input '{target_value}' expands to {len(steps)} steps; "
+            "multi-step select is not reconcilable"
+        )
+        return None
+    command, params = steps[0].command, dict(steps[0].params)
 
     return PlannedAction(
         device_id=device_id, domain="input", target=target_value, command=command,

@@ -7,7 +7,9 @@ below cover not just the scenario↔WB representation but the system's target ac
 architecture. Implementation is filed separately: **SCN-6** (phase 1), **SCN-7** (phase 2);
 the param-schema derivation (§6) lands with **VWB-15**'s catalog work. **§10 (room-scoped
 group addressing) is an addendum DECIDED 2026-07-05** — design deliverable of **VWB-22**,
-implementation filed as **VWB-23**.
+implementation filed as **VWB-23**. **§11 (select-form canonical routing) is an addendum
+DECIDED+SHIPPED 2026-07-05** — designed and implemented as **VWB-19** (UI dropdown flip
+split off as **UI-9**).
 
 **Supersedes:** the deleted per-scenario WB virtual-device implementation
 (`ScenarioWBAdapter` + `setup_wb_emulation_for_all_scenarios`, removed 2026-05-24,
@@ -236,6 +238,7 @@ observable gain; remains possible later); status-quo split with a CI consistency
 | **3** | `/action` demotion/retirement decision · `/scenario/switch`+`shutdown` internalization | acceptance-gate item 4 (code-review half) |
 | — | §6 param-descriptor projection → `CatalogAction.params` | rides **VWB-15** |
 | — | §10 room-scoped group addressing (`/rooms/{id}/canonical`, `group` overlay, `group_defaults`, aggregate response) | **VWB-23** (design **VWB-22**, 2026-07-05) |
+| — | §11 select-form canonical routing (`input.set {value}` via `CapabilitySelect.expand`, by_value options fallback, catalog `set` advertisement) | **VWB-19** (2026-07-05; UI dropdown flip → **UI-9**) |
 
 Contract-timing note (**revised 2026-07-04, user decision**): mechanically everything
 here is additive — but the **first** VWB-15 golden dump deliberately **waits for the
@@ -415,3 +418,66 @@ to consequential actuation.
 - **Interim:** until VWB-23 ships, Irene *can* fan out client-side (the catalog already
   carries rooms + domains), accepting N round-trips and voice-side membership guesses —
   a stopgap, not the target.
+
+## 11. Select-form canonical routing (`input.set {value}`) — addendum 2026-07-05
+
+**Decision (VWB-19).** `set` is the **reserved canonical action** for a capability whose
+invocation lives in a `select` block. The canonical dispatcher, which until now walked
+`cap.actions` only, additionally resolves
+
+```
+POST /devices/{id}/canonical
+{"capability": "input", "action": "set", "params": {"value": "cd"}}
+```
+
+through `CapabilitySelect.expand(value)` — a new domain method mirroring
+`CapabilityAction.expand()` (VWB-17) as the **single select-resolution site**. The
+scenario reconciler's private select handling (`_input_action`) was refactored onto the
+same method, so scenario activation and canonical dispatch cannot drift.
+
+### 11.1 The two select forms stay an internal detail
+
+The by_value/parametric split disappears from the contract — every select-capability
+answers the identical `set {value}` shape:
+
+- **parametric** (LG `set_input_source`, eMotiva, Auralic): one step; the value rides
+  under the `param_map`'s native name for the canonical `input` key, fixed `params`
+  overlaid. Value validity is the driver's concern (open set).
+- **by_value** (mf_amplifier ×7, upscaler ×2): table lookup to that value's own
+  `CapabilityAction` (sequences legal). An unknown value is a speakable
+  `400 param_invalid` naming the valid set.
+
+Precedence: an **authored `set` action wins** over the select route (checked first in
+dispatch, deduped in the catalog projection) — a future profile can override the generic
+behavior without a code change.
+
+### 11.2 Enumeration: closed sets are catalog-static, open sets stay runtime
+
+The shipped fleet splits cleanly — parametric selects all carry a `list` query, by_value
+selects never do (fixed IR/relay codes). Two consequences:
+
+- `GET /devices/{id}/options/inputs` now **falls back to the by_value table keys** when
+  no `list` query exists (same `{success, data}` envelope a driver query returns) — it
+  404'd for the amp before.
+- The catalog advertises `set` with a single required `value` param: **by_value → static
+  `values`** (wire = canonical = table key; Irene validates «переключи на CD» at resolve
+  time, zero round-trips), **parametric → `options_from: "inputs"`** (the VWB-20/G5
+  open-set dance).
+
+This un-suppresses the VWB-20 empty-husk `input` capability on TVs — with a real `set`
+it is a real catalog entry again.
+
+### 11.3 UI seam (deferred → UI-9)
+
+The Layer-3 dropdowns keep dispatching natively (`set_action`/`set_param` →
+`POST /devices/{id}/action`) — functional, backend-authored, unchanged. Flipping the
+manifest + UI dropdown seam to canonical dispatch (as SCN-7 did for buttons) is filed as
+**UI-9**; the dropdowns are the last first-party write consumer of `/action`, so UI-9 is
+the prerequisite of the §8 phase-3 demotion decision.
+
+### 11.4 Contract impact (additive)
+
+`set` actions (+ the `value` param descriptor) appear on the five select-capability
+device shapes in the catalog; `openapi.json` is unchanged in shape (no new endpoints).
+Ordinary additive rev under the drift guard; lands pre-pin like VWB-20/22/23 — the voice
+side should pin the then-current `contracts/`.

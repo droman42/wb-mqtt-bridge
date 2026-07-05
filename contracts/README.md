@@ -39,9 +39,15 @@ deterministic (devices sorted by id; identical bytes across runs).
   runtime-dynamic (installed apps change with every install) and enumerable via
   `GET /devices/{id}/options/<options_from>`. A param carries *either* `values` *or*
   `options_from`, never both — an open set frozen into the golden would drift.
+- **Selection capabilities advertise `set`** (contract v1.2, VWB-19): a capability
+  that switches between options (`input` on TVs, amps, streamers) carries a `set`
+  action with one required `value` param. Devices with a **closed** option set (one
+  native command per input) embed it as static `values` — the consumer can validate
+  «переключи на CD» without a round-trip; devices with a **runtime** set carry
+  `options_from: "inputs"` instead. Same rule as above: either/or, never both.
 - **No empty capability husks:** a capability with neither invocable actions nor
-  readable fields is suppressed from the catalog (today: the TVs' select-form
-  `input`, which becomes routable — and reappears here — with the bridge's VWB-19).
+  readable fields is suppressed from the catalog. (The TVs' `input` was the one case
+  — it carries a real `set` since VWB-19 and is back in the catalog.)
 
 ## Drift guard
 

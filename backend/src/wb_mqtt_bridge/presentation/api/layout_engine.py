@@ -274,8 +274,9 @@ def build_device_manifest(device: Any) -> LayoutManifest:
     content: Dict[str, ZoneContent] = {zid: ZoneContent() for zid in _ZONE_META}
 
     # SCN-7: every action-backed control carries its canonical (capability, action)
-    # tuple so the UI dispatches POST /devices/{id}/canonical (the select-form
-    # dropdowns stay on the native path — select is not canonically routable yet).
+    # tuple so the UI dispatches POST /devices/{id}/canonical. The dropdowns still
+    # dispatch natively: select became canonically routable in VWB-19 (`input.set
+    # {value}`), but flipping the manifest/UI dropdown seam is UI-9.
     if "power" in caps:
         content["power"] = _power_content(device, caps["power"])
         _tag_source(content["power"], None, "power", _canonical_reverse_map(caps["power"]))

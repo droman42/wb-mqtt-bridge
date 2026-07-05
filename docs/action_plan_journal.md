@@ -16,6 +16,28 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-05 (executed + closed: VWB-19 — select-form canonical routing; filed open: UI-9 —
+  dropdown seam flip)** — Pulled forward from `[later]` by user decision, off the chat question
+  "which task enables app launch / input selection through canonical?". Reconciliation split the
+  premise first: **app launch never needed anything** (`apps.launch` is an ordinary action, LG +
+  Apple TV both, routable since SCN-7); only input selection lived in `select` and was
+  unreachable. Shipped per the fresh **`canonical_first.md` §11** addendum (design + code, one
+  change): `set` = the reserved canonical action for select-capabilities;
+  **`CapabilitySelect.expand(value)`** as the single resolution site (mirror of VWB-17's
+  `CapabilityAction.expand`), the reconciler's private `_input_action` logic replaced by it;
+  dispatcher routes `set` through `cap.select` when no authored `set` exists (authored wins);
+  unknown/missing value → speakable `400 param_invalid` naming the valid set. Fleet fact: all 4
+  parametric selects carry `list`, both by_value selects don't — so `options/inputs` gained the
+  **static by_value fallback** (404'd for the amp before) and the catalog advertises `set {value}`
+  with **static `values` for by_value** (zero-round-trip validation for Irene) vs
+  **`options_from: "inputs"`** for parametric. The VWB-20 TV-input husk is a real catalog entry
+  again. `openapi.json` byte-unchanged; golden `dbfd2855dac52026` + STAMP (pre-pin — voice pins
+  current); UI types regen no-op, check+build green. New `test_select_canonical.py` (16 tests);
+  suite 565; pyright 0; contracts 3/3. **UI-9 filed:** flip the Layer-3 dropdown seam (manifest
+  `DropdownConfig` + `RuntimeDevicePage`) from native `set_action`/`set_param` to canonical —
+  the last first-party `/action` writer, gating the §8 phase-3 demotion decision. Voice can now
+  do «переключи на CD» the moment a command set wants it.
+
 - **2026-07-05 (executed + closed: VWB-23 — room-scoped group addressing shipped, same day as
   its design)** — §10 end-to-end: `Capability.group` overlay (+ explicit-null opt-out via
   `model_fields_set`), pure `domain/rooms/groups.py` resolver, `POST /rooms/{room_id}/canonical`
