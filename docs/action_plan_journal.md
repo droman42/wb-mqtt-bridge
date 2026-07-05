@@ -36,7 +36,10 @@ entries use the new IDs.
   suite 565; pyright 0; contracts 3/3. **UI-9 filed:** flip the Layer-3 dropdown seam (manifest
   `DropdownConfig` + `RuntimeDevicePage`) from native `set_action`/`set_param` to canonical —
   the last first-party `/action` writer, gating the §8 phase-3 demotion decision. Voice can now
-  do «переключи на CD» the moment a command set wants it.
+  do «переключи на CD» the moment a command set wants it. **Post-commit correction (user
+  flag):** ledger IDs scrubbed from `contracts/README.md` (`user-facing-docs-are-done` — task
+  IDs never appear in user-facing docs; the "(contract vX, TASK-ID)" framing was the leak, twice —
+  incl. the pre-existing v1.1 header; replaced by "since contract vX").
 
 - **2026-07-05 (executed + closed: VWB-23 — room-scoped group addressing shipped, same day as
   its design)** — §10 end-to-end: `Capability.group` overlay (+ explicit-null opt-out via

@@ -27,7 +27,7 @@ uv run wb-openapi -o openapi.json && cp openapi.json ../contracts/openapi.json
 rooms + scenario definitions, no drivers, no network, no broker — so the dump is
 deterministic (devices sorted by id; identical bytes across runs).
 
-## Param semantics (contract v1.1, VWB-20)
+## Param semantics (since contract v1.1)
 
 - **`unit`** on a param is the semantic unit of the value (`°C`, `%`, `dB`, `min`) —
   what a voice consumer needs to parse «поставь двадцать два градуса» against a
@@ -39,7 +39,7 @@ deterministic (devices sorted by id; identical bytes across runs).
   runtime-dynamic (installed apps change with every install) and enumerable via
   `GET /devices/{id}/options/<options_from>`. A param carries *either* `values` *or*
   `options_from`, never both — an open set frozen into the golden would drift.
-- **Selection capabilities advertise `set`** (contract v1.2, VWB-19): a capability
+- **Selection capabilities advertise `set`** (since contract v1.2): a capability
   that switches between options (`input` on TVs, amps, streamers) carries a `set`
   action with one required `value` param. Devices with a **closed** option set (one
   native command per input) embed it as static `values` — the consumer can validate
@@ -47,7 +47,7 @@ deterministic (devices sorted by id; identical bytes across runs).
   `options_from: "inputs"` instead. Same rule as above: either/or, never both.
 - **No empty capability husks:** a capability with neither invocable actions nor
   readable fields is suppressed from the catalog. (The TVs' `input` was the one case
-  — it carries a real `set` since VWB-19 and is back in the catalog.)
+  — it carries a real `set` since contract v1.2 and is back in the catalog.)
 
 ## Drift guard
 
