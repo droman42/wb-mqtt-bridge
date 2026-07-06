@@ -21,6 +21,23 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-06 (intake: B-11 evidence read seam accepted into VWB-28; VWB-26/28 unblocked — voice BUILD-12 shipped)** —
+  Voice-side amendment (their ARCH-34, `[deferred]` v1.1) arrived as an uncommitted note on the
+  VWB-28 row: factor the report collector behind **`GET /reports/evidence`** — the bundle-shaped,
+  B-5-redacted evidence WITHOUT filing a ticket — so the voice collector can fold bridge evidence
+  into VOICE bundles at filing time when a report looks smart-home-related. Intake verification:
+  ARCH-34 confirmed on their ledger (matching the note nearly verbatim, incl. the good details —
+  bridge-unreachable IS evidence, over-attach freely, bridge owns the envelope + voice pins);
+  **one claim corrected** — the "UI needs an evidence preview in the dialog (§2's spirit)"
+  consumer contradicts our agreed §2 ("no draft state"); B-11 was accepted **on the voice
+  consumer alone**, preview noted as possible later UX. Design doc gained **B-11** + §7 build
+  order + the §8 CLI trigger demoted to residual-case-only (the common case now closes
+  automatically at filing time). **Side finding at intake:** voice **BUILD-12 is DONE and
+  live-smoked** (`../wb-user-reports` exists with both lens files; their smoke ran
+  device→ticket #2→triage→auto-opened fix PR #1) — so VWB-26's and VWB-28's `BLOCKED` markers
+  were stale; both cleared (tags stay `[deferred]`; release scope unchanged). VWB-26 is
+  actionable now: `lens-bridge.md` awaits our co-ownership review. No code touched.
+
 - **2026-07-06 (VWB-27 DONE — bridge report-button design AGREED; VWB-28 filed)** — "While
   we're waiting to get unblocked" (VWB-26/28 gate on voice BUILD-12), the user pulled the
   VWB-27 design session forward: what evidence does the bridge collect when the UI

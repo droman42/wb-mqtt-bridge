@@ -508,7 +508,7 @@ endpoint).
   - **Sequence-form caveat — RESOLVED 2026-07-04 (VWB-17 DONE):** the canonical endpoint now routes `sequence`-form actions (shared `CapabilityAction.expand()` — per-step param translation, inter-step `delay_after_ms`, mid-sequence failure naming the step). Crossover fixtures may cover sequence-form actions freely.
   - Spec: `wb-mqtt-voice/docs/design/mqtt_integration.md` §14.
 
-- [ ] **VWB-26** `[P2]` `[deferred]` `BLOCKED` — **Problem-reporting participation (bridge side).**
+- [ ] **VWB-26** `[P2]` `[deferred]` — **Problem-reporting participation (bridge side).**
   FILED 2026-07-06 by wb-mqtt-voice (ARCH-30 design, AGREED:
   `wb-mqtt-voice/docs/design/problem_reports.md`), **accepted at intake same day** (verified per
   `cross-repo-source-of-truth`; renumbered from the filing's stale VWB-25 — that ID had been
@@ -523,24 +523,34 @@ endpoint).
   household-private in public PRs); **(2)** `/inbox` skill + a CLAUDE.md session-start line (list
   open fix PRs here + `needs-owner` bridge-lens tickets; one-by-one interactive review with the
   owner — mirror of voice ARCH-33; runs on the owner's local `gh` auth, no new repo secrets per
-  design §9). **BLOCKED on voice BUILD-12** (until the repo + labels + lens-file draft exist there
-  is nothing to review or list). Tagged `[deferred]` — release 1 was signed earlier the same day
-  without this criterion; **explicit candidate to pull into `[release]`** if the voice release
-  (which ships problem reporting) lands while our gate is still open. The UI "Report a problem"
-  button split out as **VWB-27**.
+  design §9). **Unblocked 2026-07-06** — voice BUILD-12 provisioned `wb-user-reports` same day
+  (`lens-bridge.md` exists and awaits our co-ownership review; their ARCH-33 `/inbox` +
+  CLAUDE.md session-start invariant is the pattern to mirror, including its load-bearing
+  "verify the finding independently, never trust the triage" instruction). Tagged `[deferred]`
+  — release 1 was signed earlier the same day without this criterion; **explicit candidate to
+  pull into `[release]`** if the voice release (which ships problem reporting) lands while our
+  gate is still open. The UI "Report a problem" button split out as **VWB-27**.
 
-- [ ] **VWB-28** `[P2]` `[deferred]` `BLOCKED` — **UI "Report a problem" — implementation**
+- [ ] **VWB-28** `[P2]` `[deferred]` — **UI "Report a problem" — implementation**
   (filed at VWB-27 design completion, 2026-07-06; design:
-  `docs/design/problem_reports_bridge.md`, B-1..B-10). **BLOCKED on voice BUILD-12** (needs
-  `wb-user-reports` to exist to file into; same gate as VWB-26). Build order per design §7:
-  the five evidence rings (backend dispatch ring at the `execute_action` chokepoint + filtered
-  MQTT window; browser console/API/SSE buffers + a cap on the existing `useLogStore`) →
-  collector + redaction pass + envelope builder → `ReportSinkPort` (domain) /
-  `GitHubReportSink` (infrastructure) + `data/reports/` spool with startup+hourly retry +
-  server-side rate limit → `POST /reports` router + the UI dialog/toast → tests (mock-sink
-  collector units, redaction cases, temp-dir e2e). `system.json` gains a `reports` section;
-  the PAT lives in the controller env (never the browser). `config-ui-stays-functional`
-  applies (new endpoint + config section → regen types, config section UI).
+  `docs/design/problem_reports_bridge.md`, B-1..B-11). **Unblocked same day** — voice BUILD-12
+  provisioned `wb-user-reports` (both lens files, labels, workflows, secrets) and live-smoked
+  the full device→ticket→triage→PR loop. Build order per design §7: the five evidence rings
+  (backend dispatch ring at the `execute_action` chokepoint + filtered MQTT window; browser
+  console/API/SSE buffers + a cap on the existing `useLogStore`) → collector + redaction pass +
+  envelope builder → `ReportSinkPort` (domain) / `GitHubReportSink` (infrastructure) +
+  `data/reports/` spool with startup+hourly retry + server-side rate limit → `POST /reports`
+  router **+ the B-11 `GET /reports/evidence` read seam** (voice ARCH-34 amendment, verified +
+  accepted at intake 2026-07-06: the same collector exposed as a read endpoint returning the
+  redacted bundle-shaped evidence WITHOUT filing — the voice collector folds it into voice
+  bundles at filing time, closing the design-§8 handover-evidence gap automatically for the
+  common case; the envelope shape is OURS to own and rides `openapi.json` → the `contracts/`
+  pin; the amendment's dialog-preview claim was corrected at intake — §2's "no draft state"
+  stands, B-11 rests on the voice consumer alone) → the UI dialog/toast → tests (mock-sink
+  collector units, redaction cases, temp-dir e2e, evidence-envelope schema test).
+  `system.json` gains a `reports` section; the PAT lives in the controller env (never the
+  browser). `config-ui-stays-functional` applies (new endpoints + config section → regen
+  types, config section UI).
 
 ### UI — config-ui
 

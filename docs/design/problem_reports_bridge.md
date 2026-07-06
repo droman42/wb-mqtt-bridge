@@ -1,7 +1,8 @@
 # Problem reporting — the bridge side («Report a problem» button)
 
 **Status: AGREED 2026-07-06 (interactive design session, VWB-27). B-1..B-10 user-approved
-(B-1..B-3 decided interactively; B-4..B-10 accepted as proposed).**
+(B-1..B-3 decided interactively; B-4..B-10 accepted as proposed). B-11 added the same day —
+a voice-side amendment (their ARCH-34), verified and accepted at intake.**
 
 The bridge's half of the cross-repo problem-reporting loop designed in
 `wb-mqtt-voice/docs/design/problem_reports.md` (ARCH-30, AGREED 2026-07-06). The shared pieces —
@@ -51,6 +52,19 @@ evidence infrastructure v1 builds.
   the bundle collector as infrastructure/app services; the router a thin presentation adapter.
   The dispatch ring hooks the existing `execute_action` chokepoint; the MQTT window hooks the
   MQTT client adapter.
+- **B-11 — The collector is also a READ seam: `GET /reports/evidence`** (voice-side amendment,
+  their ARCH-34, accepted 2026-07-06). The same collector that backs `POST /reports` is exposed
+  as a read endpoint returning the bundle-shaped evidence (Tier A snapshots + Tier B rings,
+  redacted per B-5) WITHOUT filing a ticket. Consumer: the voice collector calls it at
+  report-filing time when a smart-home intent was involved and folds the response into the
+  VOICE bundle under a `bridge/` subtree — closing the §8 handover-evidence gap automatically,
+  at filing time, for the common case. The **evidence envelope shape is the bridge's to own**
+  and rides `openapi.json` → the `contracts/` pin (the voice side pins its expectation, one-way
+  sync as always). Endpoint details: no caching; a light rate guard (the payload gzips logs —
+  heavier than a normal GET); redaction happens before return, exactly as in the filing path.
+  Note: the amendment's second claimed consumer — an evidence *preview* in the report dialog —
+  contradicts §2's agreed "no draft state" and is NOT adopted; preview stays a possible later
+  UX refinement, and B-11 stands on the voice consumer alone.
 
 ## 2. The dialog (UI side)
 
@@ -108,17 +122,23 @@ bundle link, report id.
 
 ## 7. Implementation
 
-Filed as **VWB-28** (blocked on the voice side's BUILD-12 provisioning `wb-user-reports`):
-rings (backend ×2, browser ×3 — one is a cap on the existing store) → collector + redaction +
-envelope builder → `ReportSinkPort`/`GitHubReportSink` + spool/retry + rate limit →
-`POST /reports` router + the UI dialog + toast → tests (collector unit tests with a mock sink;
-redaction cases; an e2e that files against a temp dir sink).
+Filed as **VWB-28** (unblocked 2026-07-06 — the voice side's BUILD-12 provisioned
+`wb-user-reports` and live-smoked the full loop): rings (backend ×2, browser ×3 — one is a cap
+on the existing store) → collector + redaction + envelope builder → `ReportSinkPort`/
+`GitHubReportSink` + spool/retry + rate limit → `POST /reports` router **+ the B-11
+`GET /reports/evidence` read seam** (same collector, second thin router; its response schema
+is a contract surface — regen `openapi.json` + `contracts/` pin) → the UI dialog + toast →
+tests (collector unit tests with a mock sink; redaction cases; an e2e that files against a
+temp-dir sink; an evidence-endpoint schema test).
 
 ## 8. Later (explicitly out of v1)
 
-- **The owner-invoked CLI trigger** (`attach bridge evidence to ticket N`) — the known gap
-  (B-3): a ticket handed voice→bridge arrives with only voice-side evidence, and the cloud
-  triage has no house access; until the CLI exists, the owner gathers bridge evidence manually
-  when a handover ticket needs it. Revisit when the volume justifies it.
+- **The owner-invoked CLI trigger** (`attach bridge evidence to ticket N`) — **demoted to the
+  residual case only (B-11, 2026-07-06):** the voice side's ARCH-34 calls the B-11 evidence
+  endpoint at filing time and attaches bridge evidence automatically whenever the report looks
+  smart-home-related, so a voice→bridge handover normally arrives WITH bridge evidence. The
+  residual gap — a report not flagged at filing, handed over later — is small enough that the
+  owner gathers evidence manually (or curls the B-11 endpoint) if it ever bites; a CLI stays
+  unfiled until the volume justifies it.
 - Screenshots / raw media (B-4 exclusion), a user-identity channel (the voice design's later
   registry), auto-attach on `lens:bridge` label events.
