@@ -529,15 +529,18 @@ endpoint).
   (which ships problem reporting) lands while our gate is still open. The UI "Report a problem"
   button split out as **VWB-27**.
 
-- [ ] **VWB-27** `[P2]` `[deferred]` — **UI "Report a problem" button — DESIGN task** (split off
-  VWB-26 at intake per `design-then-implement`; bridge bundle specifics are explicitly out of v1 in
-  the ARCH-30 design §11). Deliverable = a design doc: the button files the SAME envelope (design
-  §5: one issue + one bundle commit in `wb-user-reports`, title prefix `[bridge-ui]`, `lens:bridge`
-  at filing) — what the bridge collects is this repo's decision (candidates: backend service-log
-  window, recent MQTT traffic, device persisted/live states, pinned catalog version, UI console
-  errors; plus a redaction pass and the delivery path — the bridge has no ARCH-27-style durable
-  spool, so offline behavior needs its own answer). Implementation filed separately at design
-  completion.
+- [ ] **VWB-28** `[P2]` `[deferred]` `BLOCKED` — **UI "Report a problem" — implementation**
+  (filed at VWB-27 design completion, 2026-07-06; design:
+  `docs/design/problem_reports_bridge.md`, B-1..B-10). **BLOCKED on voice BUILD-12** (needs
+  `wb-user-reports` to exist to file into; same gate as VWB-26). Build order per design §7:
+  the five evidence rings (backend dispatch ring at the `execute_action` chokepoint + filtered
+  MQTT window; browser console/API/SSE buffers + a cap on the existing `useLogStore`) →
+  collector + redaction pass + envelope builder → `ReportSinkPort` (domain) /
+  `GitHubReportSink` (infrastructure) + `data/reports/` spool with startup+hourly retry +
+  server-side rate limit → `POST /reports` router + the UI dialog/toast → tests (mock-sink
+  collector units, redaction cases, temp-dir e2e). `system.json` gains a `reports` section;
+  the PAT lives in the controller env (never the browser). `config-ui-stays-functional`
+  applies (new endpoint + config section → regen types, config section UI).
 
 ### UI — config-ui
 

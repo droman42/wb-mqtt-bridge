@@ -21,6 +21,25 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-06 (VWB-27 DONE — bridge report-button design AGREED; VWB-28 filed)** — "While
+  we're waiting to get unblocked" (VWB-26/28 gate on voice BUILD-12), the user pulled the
+  VWB-27 design session forward: what evidence does the bridge collect when the UI
+  "Report a problem" button is pressed? → `docs/design/problem_reports_bridge.md`
+  (AGREED, B-1..B-10; the shared triage machinery comes from the voice ARCH-30 design
+  unchanged). Interactive decisions: **B-1** scope = page-context details (entity +
+  topology-neighbor configs/capability-maps/persisted-vs-live diffs) + ALL live states +
+  today's backend logs; **B-2** all three ring families in v1 (backend dispatch ring +
+  filtered MQTT window + browser buffers); **B-3** one trigger — the UI button with fully
+  automatic collection behind `POST /reports` (the owner-CLI attach-evidence trigger
+  explicitly out of v1; its handover-evidence gap recorded in the doc's §8). Session finds:
+  the UI's `useLogStore` action log already exists at every dispatch site (free Tier-C
+  narrative); the persisted-vs-live state diff is the natural optimistic-desync detector
+  (the DRV-5 bug class); the broker password in `system.json` is the redaction hot item.
+  B-4..B-10 (browser evidence set, redaction, rate limits, spool, endpoint+PAT, tunables,
+  hexagonal placement) accepted as proposed. **VWB-28 filed** (implementation, `[deferred]`
+  `BLOCKED` on voice BUILD-12, `config-ui-stays-functional` flagged for the new endpoint +
+  config section). No code touched.
+
 - **2026-07-06 (intake: VWB-26 + VWB-27 — problem-reporting participation, filed by wb-mqtt-voice)** —
   Voice-side filing (ARCH-30, design AGREED same day: `problem_reports.md` — private
   `wb-user-reports` triage home, one-Claude-two-lenses, handover-by-label) arrived uncommitted
