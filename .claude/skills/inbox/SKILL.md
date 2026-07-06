@@ -53,7 +53,8 @@ owner says skip.
    A triage PR must NOT touch ledger/journal files — those are the owner's (see step 5).
 4. Give a plain verdict: **merge / revise / reject**, with the one reason that decides it.
 5. On the owner's call:
-   - **merge** → `gh pr merge <pr> --squash --delete-branch` (also delete any local review branch);
+   - **merge** → `gh pr merge <pr> --squash --delete-branch` (removes the triage's remote branch;
+     also delete any local review branch you created, e.g. `git branch -D pr-<n>-review`);
      close the ticket with a note (`gh issue close <n> --repo droman42/wb-user-reports --comment "..."`);
      then do the ledger's half yourself: the merged fix is work — file/complete it per
      `every-task-in-the-ledger` + `read-at-start-record-at-completion` (journal entry; DONE row at
