@@ -21,6 +21,20 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-06 (intake: VWB-26 + VWB-27 — problem-reporting participation, filed by wb-mqtt-voice)** —
+  Voice-side filing (ARCH-30, design AGREED same day: `problem_reports.md` — private
+  `wb-user-reports` triage home, one-Claude-two-lenses, handover-by-label) arrived uncommitted
+  under the ID "VWB-25"; intake verification per `cross-repo-source-of-truth` confirmed every
+  claim against the design doc + the voice ledger (ARCH-31/32/33 + BUILD-12 all `[release]`
+  there) but caught an **ID collision** — VWB-25 was assigned to the wardrobe-alias task hours
+  earlier (`check_scope` failed on the duplicate; the filing was made from a stale ledger view).
+  **Accepted with corrections (user-confirmed):** renumbered → **VWB-26** (`[deferred]`,
+  `BLOCKED` on voice BUILD-12 — no repo/labels/lens-draft to act on yet; explicit
+  pull-into-`[release]` candidate if the voice release lands while our gate is open); the folded
+  "LATER" UI report-button item split out as **VWB-27** (design task per `design-then-implement`;
+  bridge bundle specifics are out of ARCH-30 v1 by its §11). The voice repo's stale "VWB-25"
+  back-reference in its doc map is theirs to fix (one-way sync). No code touched.
+
 - **2026-07-06 (REL-1 DONE — release 1 defined + signed off; open questions closed; VWB-25; journal rotated)** —
   Interactive session (user-requested: "address open questions one-by-one and define release 1
   gates in the spirit of the voice project"). **The definition** now heads `action_plan.md`:

@@ -508,6 +508,37 @@ endpoint).
   - **Sequence-form caveat — RESOLVED 2026-07-04 (VWB-17 DONE):** the canonical endpoint now routes `sequence`-form actions (shared `CapabilityAction.expand()` — per-step param translation, inter-step `delay_after_ms`, mid-sequence failure naming the step). Crossover fixtures may cover sequence-form actions freely.
   - Spec: `wb-mqtt-voice/docs/design/mqtt_integration.md` §14.
 
+- [ ] **VWB-26** `[P2]` `[deferred]` `BLOCKED` — **Problem-reporting participation (bridge side).**
+  FILED 2026-07-06 by wb-mqtt-voice (ARCH-30 design, AGREED:
+  `wb-mqtt-voice/docs/design/problem_reports.md`), **accepted at intake same day** (verified per
+  `cross-repo-source-of-truth`; renumbered from the filing's stale VWB-25 — that ID had been
+  assigned to the wardrobe-alias task hours earlier; the voice repo's back-reference is theirs to
+  fix). A shared private repo **`wb-user-reports`** receives problem tickets + support bundles; ONE
+  Claude triage workflow lives there with two lens process files — `lens:bridge` tickets check out
+  THIS repo, analyze, and may open fix PRs here (handover from the voice lens arrives as a
+  structured comment per design §7.3: symptom, extracted evidence, pinned catalog version, trace
+  slice, what was ruled out). Bridge-side scope: **(1)** review + co-own
+  `.github/claude/lens-bridge.md` in `wb-user-reports` (written under voice BUILD-12 but describing
+  THIS repo's triage rules — reproduce via the bridge's own suites; leak fence: nothing
+  household-private in public PRs); **(2)** `/inbox` skill + a CLAUDE.md session-start line (list
+  open fix PRs here + `needs-owner` bridge-lens tickets; one-by-one interactive review with the
+  owner — mirror of voice ARCH-33; runs on the owner's local `gh` auth, no new repo secrets per
+  design §9). **BLOCKED on voice BUILD-12** (until the repo + labels + lens-file draft exist there
+  is nothing to review or list). Tagged `[deferred]` — release 1 was signed earlier the same day
+  without this criterion; **explicit candidate to pull into `[release]`** if the voice release
+  (which ships problem reporting) lands while our gate is still open. The UI "Report a problem"
+  button split out as **VWB-27**.
+
+- [ ] **VWB-27** `[P2]` `[deferred]` — **UI "Report a problem" button — DESIGN task** (split off
+  VWB-26 at intake per `design-then-implement`; bridge bundle specifics are explicitly out of v1 in
+  the ARCH-30 design §11). Deliverable = a design doc: the button files the SAME envelope (design
+  §5: one issue + one bundle commit in `wb-user-reports`, title prefix `[bridge-ui]`, `lens:bridge`
+  at filing) — what the bridge collects is this repo's decision (candidates: backend service-log
+  window, recent MQTT traffic, device persisted/live states, pinned catalog version, UI console
+  errors; plus a redaction pass and the delivery path — the bridge has no ARCH-27-style durable
+  spool, so offline behavior needs its own answer). Implementation filed separately at design
+  completion.
+
 ### UI — config-ui
 
 - [ ] **UI-8** `[P2]` `[deferred]` — **UI `vite` 5 → 6 migration (deferred — deliberate major upgrade).** Filed 2026-06-27. Closes the remaining build-toolchain Dependabot alerts that couldn't be cleared by the lockfile-only `npm audit fix` (see journal 2026-06-27): **vite #113/#154/#155** (path traversal / dev-server) and **esbuild #81** (esbuild 0.25 rides vite 6). Does **NOT** cover the other 2 residual alerts — `minimatch` #101 (pinned by `@typescript-eslint@6`) and `js-yaml` #152 (pinned by `jest@29`); those are separate toolchain-major tasks (eslint 6→9 / jest upgrade), file them if/when pursued.
