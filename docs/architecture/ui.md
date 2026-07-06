@@ -83,7 +83,7 @@ bottom panel**. Each is optional.
 | Zone | Shape | What it renders |
 |---|---|---|
 | ① `power` | `PowerButtonConfig[]` (left / middle / right) | Up to three power buttons (`power-off`, `power-on`, `power-toggle`, `zone2-power`). |
-| ② `media-stack` | `inputs` (Dropdown) + `playback` (actions row) + `tracks` (actions row) | Source selection + transport. Dropdown is "by-api" (populated from a `list` call like LG's `get_apps`) or "by-commands" (one command per option, IR-style). |
+| ② `media-stack` | `inputs` (Dropdown) + `playback` (actions row) + `tracks` (actions row) | Source selection + transport. Dropdown options are either fetched at runtime (devices that can report their list, like a TV's inputs) or baked into the manifest as a fixed set (IR/relay-style); either way, picking an option issues the same "set the input" command through the canonical endpoint. |
 | ③ `screen` | Vertical button stack | Menu, home, back, info — the buttons that live to the left of the D-pad. |
 | ④ `menu` | Nav cluster | The D-pad + OK. Always rendered, even if all five slots are empty (it anchors the layout visually). |
 | ⑤ `volume` | `VolumeSliderConfig` + optional `mute_action` | Vertical slider reading the device state's `valueField`; zone-aware (XMC-2 main / zone2). |

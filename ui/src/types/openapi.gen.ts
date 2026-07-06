@@ -1803,8 +1803,12 @@ export interface components {
         };
         /** DropdownConfig */
         DropdownConfig: {
-            /** Apiaction */
-            apiAction?: string | null;
+            /** Canonicalaction */
+            canonicalAction?: string | null;
+            /** Canonicalcapability */
+            canonicalCapability?: string | null;
+            /** Canonicalparam */
+            canonicalParam?: string | null;
             /**
              * Empty
              * @default false
@@ -1822,10 +1826,6 @@ export interface components {
              * @enum {string}
              */
             populationMethod: "api" | "commands";
-            /** Setaction */
-            setAction?: string | null;
-            /** Setparam */
-            setParam?: string | null;
             /** Sourcedeviceid */
             sourceDeviceId?: string | null;
             /**

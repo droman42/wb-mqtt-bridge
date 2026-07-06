@@ -294,7 +294,7 @@ Verified 2026-05-23 against `openapi.json` (32 ops) × the UI client (`hooks/use
 | `GET /devices/{id}/layout` | `useDeviceLayout` | **ADDED** (Steps 2–3) — replaces `.gen.tsx` structure |
 | `GET /scenario/{id}/layout` | `useScenarioLayout` | **ADDED** (Step 3) — scenario composite remote |
 | `GET /devices/{id}/state` | `useDeviceState` | **KEEP** — initial live state (then SSE-driven) |
-| `POST /devices/{id}/action` | `useExecuteDeviceAction` | **KEEP** — execute + dynamic dropdown population (`get_available_inputs`/`…apps`) |
+| `POST /devices/{id}/action` | `useExecuteDeviceAction` | **KEEP (fallback only)** — population moved to `GET /devices/{id}/options/*` (SCN-7) and dropdown selection to canonical dispatch (UI-9, 2026-07-06); no first-party writer remains (demotion decision = acceptance-gate material) |
 | `GET /events/devices`,`/scenarios`,`/system` (SSE) | `useDeviceSSE`/`useScenarioSSE`/`useSystemSSE` | **KEEP** — live updates → invalidate React-Query cache |
 | `GET /devices/{id}/persisted_state`, `GET /devices/persisted_states` | `useDevicePersistedState`/`usePersistedStates` | **KEEP** |
 | `GET /config/devices`, `/config/device/{id}`, `/config/system` | `useDevicesConfig`/`useDeviceConfig`/`useSystemConfig` | **KEEP at runtime**; the **codegen's** build-time read of `/config/devices` is **RETIRED** |
@@ -387,9 +387,17 @@ button presses must not serialize on ~500 ms echo waits; live state keeps arrivi
 Voice keeps the default `wait: true` (a speakable post-action result). Other rules:
 - **Option enumeration is a READ:** dropdown population moved off the action path to
   `GET /devices/{id}/options/{inputs|apps}`, resolved through the capability's declared
-  `list` query and executed internally (`source="system"`). Selection (set_input /
-  launch_app) stays on the native `/action` path — **select-form actions are not yet
-  canonically routable** (tracked as VWB-19).
+  `list` query and executed internally (`source="system"`) — or, for fixed input sets
+  with no list query, served straight from the by_value table (VWB-19).
+- **Dropdown selection is canonical (UI-9, 2026-07-06):** `DropdownConfig` carries the
+  canonical tuple (`canonicalCapability`/`canonicalAction`/`canonicalParam` —
+  `input.set {value}` for inputs, `apps.launch {app}` for apps) in place of the retired
+  `setAction`/`setParam`/`apiAction`, and **option ids are canonical values for both
+  population methods** (a by_value option id is the table key, e.g. `cd`, not the
+  native command name `input_cd`). The selection hooks POST
+  `POST /devices/{target}/canonical` with `wait: false` (button parity); on scenario
+  pages the target stays the dropdown's `sourceDeviceId` — the role device — since
+  `apps` is not among the proxy's inheritable domains, matching the read side.
 - **Param metadata has one source:** `ProcessedParameter` derives through the shared §6
   projection (`param_projection.py`) — the same code path that fills the catalog's canonical
   view (VWB-15). Params fixed by the capability action (e.g. `{zone: 2}`) are excluded from

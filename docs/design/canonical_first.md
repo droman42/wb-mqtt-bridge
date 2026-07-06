@@ -8,8 +8,9 @@ architecture. Implementation is filed separately: **SCN-6** (phase 1), **SCN-7**
 the param-schema derivation (§6) lands with **VWB-15**'s catalog work. **§10 (room-scoped
 group addressing) is an addendum DECIDED 2026-07-05** — design deliverable of **VWB-22**,
 implementation filed as **VWB-23**. **§11 (select-form canonical routing) is an addendum
-DECIDED+SHIPPED 2026-07-05** — designed and implemented as **VWB-19** (UI dropdown flip
-split off as **UI-9**).
+DECIDED+SHIPPED 2026-07-05** — designed and implemented as **VWB-19**; the UI dropdown
+flip split off as **UI-9** shipped 2026-07-06 (§11.3), leaving `/action` with no
+first-party writers.
 
 **Supersedes:** the deleted per-scenario WB virtual-device implementation
 (`ScenarioWBAdapter` + `setup_wb_emulation_for_all_scenarios`, removed 2026-05-24,
@@ -238,7 +239,7 @@ observable gain; remains possible later); status-quo split with a CI consistency
 | **3** | `/action` demotion/retirement decision · `/scenario/switch`+`shutdown` internalization | acceptance-gate item 4 (code-review half) |
 | — | §6 param-descriptor projection → `CatalogAction.params` | rides **VWB-15** |
 | — | §10 room-scoped group addressing (`/rooms/{id}/canonical`, `group` overlay, `group_defaults`, aggregate response) | **VWB-23** (design **VWB-22**, 2026-07-05) |
-| — | §11 select-form canonical routing (`input.set {value}` via `CapabilitySelect.expand`, by_value options fallback, catalog `set` advertisement) | **VWB-19** (2026-07-05; UI dropdown flip → **UI-9**) |
+| — | §11 select-form canonical routing (`input.set {value}` via `CapabilitySelect.expand`, by_value options fallback, catalog `set` advertisement) | **VWB-19** (2026-07-05; UI dropdown flip **UI-9** shipped 2026-07-06 — phase 3's `/action` demotion decision is unblocked) |
 
 Contract-timing note (**revised 2026-07-04, user decision**): mechanically everything
 here is additive — but the **first** VWB-15 golden dump deliberately **waits for the
@@ -467,13 +468,21 @@ selects never do (fixed IR/relay codes). Two consequences:
 This un-suppresses the VWB-20 empty-husk `input` capability on TVs — with a real `set`
 it is a real catalog entry again.
 
-### 11.3 UI seam (deferred → UI-9)
+### 11.3 UI seam (UI-9 — SHIPPED 2026-07-06)
 
-The Layer-3 dropdowns keep dispatching natively (`set_action`/`set_param` →
-`POST /devices/{id}/action`) — functional, backend-authored, unchanged. Flipping the
-manifest + UI dropdown seam to canonical dispatch (as SCN-7 did for buttons) is filed as
-**UI-9**; the dropdowns are the last first-party write consumer of `/action`, so UI-9 is
-the prerequisite of the §8 phase-3 demotion decision.
+The Layer-3 dropdown seam is canonical (as SCN-7 made the buttons): `DropdownConfig`
+dropped the native `set_action`/`set_param`/`api_action` trio and carries the canonical
+tuple instead (`canonical_capability`/`canonical_action`/`canonical_param` — `input.set
+{value}` for inputs, `apps.launch {app}` for apps), and **option ids are canonical
+values for both population methods** (a by_value option's id is the table key, e.g.
+`cd`, no longer the native command name `input_cd`). The UI's selection hooks POST
+`/devices/{target}/canonical` with `wait: false` (button parity); the target stays the
+manifest's `sourceDeviceId` (the role device) on scenario pages — `apps` is not in the
+proxy's `INHERITABLE_DOMAINS`, so scenario app-launch dispatches at the role device
+directly, consistent with the read side (options fetch + power gating). Population is
+untouched: `populationMethod` still splits inline options vs the SCN-7 options
+endpoint. With the dropdowns flipped, **`/action` has no first-party write consumer
+left** — the §8 phase-3 demotion decision is unblocked (acceptance-gate material).
 
 ### 11.4 Contract impact (additive)
 

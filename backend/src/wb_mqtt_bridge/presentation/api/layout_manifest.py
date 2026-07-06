@@ -97,12 +97,15 @@ class DropdownOption(_Camel):
 
 class DropdownConfig(_Camel):
     type: Literal["inputs", "apps"]
+    # "api" = fetch options at runtime (GET /devices/{id}/options/{inputs|apps});
+    # "commands" = options are inline in the manifest (fixed set).
     population_method: Literal["api", "commands"]
-    api_action: Optional[str] = None
-    set_action: Optional[str] = None
-    # native param name the selected value is sent under for api selection (e.g. set_input -> "input",
-    # LG set_input_source -> "source"). Only set for populationMethod="api".
-    set_param: Optional[str] = None
+    # Canonical dispatch tuple (UI-9): selecting an option POSTs
+    # /devices/{target}/canonical {capability, action, params: {<canonical_param>: <option id>}}.
+    # Option ids are canonical values for BOTH population methods.
+    canonical_capability: Optional[str] = None
+    canonical_action: Optional[str] = None
+    canonical_param: Optional[str] = None
     # scenario-inherited: which device to send select/launch to (the role device). None for device pages.
     source_device_id: Optional[str] = None
     options: List[DropdownOption] = Field(default_factory=list)
@@ -130,7 +133,7 @@ class VolumeSliderConfig(_Camel):
     # deviceState[valueField] instead of branching on deviceClass (Step-2 hardening).
     value_field: Optional[str] = None
     # native param the level value is sent under (from the set action's param_map: Auralic
-    # {level: volume} -> "volume"), else "level". The analogue of DropdownConfig.set_param.
+    # {level: volume} -> "volume"), else "level".
     value_param: Optional[str] = None
 
 

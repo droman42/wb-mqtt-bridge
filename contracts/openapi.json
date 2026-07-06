@@ -1522,7 +1522,7 @@
       "DropdownConfig": {
         "additionalProperties": false,
         "properties": {
-          "apiAction": {
+          "canonicalAction": {
             "anyOf": [
               {
                 "type": "string"
@@ -1531,7 +1531,29 @@
                 "type": "null"
               }
             ],
-            "title": "Apiaction"
+            "title": "Canonicalaction"
+          },
+          "canonicalCapability": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Canonicalcapability"
+          },
+          "canonicalParam": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Canonicalparam"
           },
           "empty": {
             "default": false,
@@ -1557,28 +1579,6 @@
             ],
             "title": "Populationmethod",
             "type": "string"
-          },
-          "setAction": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Setaction"
-          },
-          "setParam": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Setparam"
           },
           "sourceDeviceId": {
             "anyOf": [

@@ -48,6 +48,53 @@ def _make_device(name: str, device_class: str):
     return dev
 
 
+def _dropdown(manifest: dict, zone_id: str, key: str) -> dict:
+    zone = next(z for z in manifest["remoteZones"] if z["zoneId"] == zone_id)
+    dd = zone["content"][key]
+    assert dd is not None
+    return dd
+
+
+@pytest.mark.skipif(ROOT is None, reason="config/ not present")
+def test_inputs_dropdown_parametric_is_canonical(  # UI-9: dropdowns dispatch canonically
+):
+    """Parametric select (LG TV): api-populated, carries the `input.set {value}` tuple."""
+    manifest = build_device_manifest(_make_device("lg_tv_living", "LgTv")).model_dump(by_alias=True)
+    dd = _dropdown(manifest, "media-stack", "inputsDropdown")
+    assert dd["populationMethod"] == "api"
+    assert (dd["canonicalCapability"], dd["canonicalAction"], dd["canonicalParam"]) == (
+        "input", "set", "value")
+    assert dd["options"] == []
+
+
+@pytest.mark.skipif(ROOT is None, reason="config/ not present")
+def test_inputs_dropdown_by_value_option_ids_are_canonical_values():
+    """by_value select (mf_amplifier): inline options whose ids are the table keys —
+    the same canonical values `input.set {value}` accepts — NOT native command names."""
+    manifest = build_device_manifest(_make_device("mf_amplifier", "AmplifierRelayDevice")).model_dump(by_alias=True)
+    dd = _dropdown(manifest, "media-stack", "inputsDropdown")
+    assert dd["populationMethod"] == "commands"
+    assert (dd["canonicalCapability"], dd["canonicalAction"], dd["canonicalParam"]) == (
+        "input", "set", "value")
+    ids = [o["id"] for o in dd["options"]]
+    assert ids and not any(i.startswith("input_") for i in ids)  # values, not command names
+    # every option id round-trips through the select's own expansion (dispatchability)
+    dev = _make_device("mf_amplifier", "AmplifierRelayDevice")
+    sel = dict(dev.capabilities.root)["input"].select
+    for i in ids:
+        assert len(sel.expand(i)) >= 1
+
+
+@pytest.mark.skipif(ROOT is None, reason="config/ not present")
+def test_apps_dropdown_carries_launch_tuple():
+    """apps dropdown: canonical `apps.launch {app}` (endpoint renames via param_map)."""
+    manifest = build_device_manifest(_make_device("appletv_living", "AppleTVDevice")).model_dump(by_alias=True)
+    dd = _dropdown(manifest, "apps", "appsDropdown")
+    assert dd["populationMethod"] == "api"
+    assert (dd["canonicalCapability"], dd["canonicalAction"], dd["canonicalParam"]) == (
+        "apps", "launch", "app")
+
+
 @pytest.mark.skipif(ROOT is None, reason="config/ not present")
 def test_engine_emotiva_multizone_power():
     """eMotiva power is multi-zone: zone 1 discrete off/on + zone 2 native toggle (`zone2-power`,

@@ -51,10 +51,13 @@ export interface PowerButtonConfig {
 
 export interface DropdownConfig {
   type: 'inputs' | 'apps';
-  populationMethod: 'api' | 'commands'; // API call vs direct commands
-  apiAction?: string; // e.g., 'get_available_inputs'
-  setAction?: string; // e.g., 'set_input'
-  setParam?: string; // native param the selected value is sent under for api selection (e.g. 'input', 'source')
+  populationMethod: 'api' | 'commands'; // fetch options at runtime vs inline in the manifest
+  // Canonical dispatch tuple (UI-9): selecting an option POSTs
+  // /devices/{target}/canonical {capability, action, params: {[canonicalParam]: optionId}}.
+  // Option ids are canonical values for BOTH population methods.
+  canonicalCapability?: string;
+  canonicalAction?: string;
+  canonicalParam?: string;
   sourceDeviceId?: string; // scenario-inherited: which device to fetch/select against (the role device)
   options: DropdownOption[];
   loading: boolean;

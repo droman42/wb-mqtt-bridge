@@ -452,8 +452,6 @@ endpoint).
 
 ### UI — config-ui
 
-- [ ] **UI-9** `[P2]` `[later]` — **Flip the Layer-3 dropdown seam to canonical dispatch.** Filed 2026-07-05, split off VWB-19 (which made select-form capabilities canonically routable — `input.set {value}`, `canonical_first.md` §11). The input/app dropdowns are the **last first-party write consumer** of the native `POST /devices/{id}/action` path: the manifest's `DropdownConfig` still carries `set_action`/`set_param` (by_value dropdowns even carry native command ids as option ids) and `RuntimeDevicePage` posts natively on selection. **Scope:** `DropdownConfig` gains the canonical `(capability, action)` tuple the button controls got in SCN-7 (options become canonical *values*, not command ids); layout engine emits it (`_inputs_dropdown`/`_apps_dropdown`); UI dispatches `POST /devices/{id}/canonical {capability, action: "set"/"launch", params: {value/app}}`; regen types; `npm run check` + build. **Why it matters beyond hygiene:** UI-9 gates the §8 phase-3 `/action` demotion decision — after it, `/action` has no first-party writers left. Natural trigger: the acceptance-gate demotion decision, or any next UI session touching `RuntimeDevicePage`.
-
 - [ ] **UI-8** `[P2]` `[later]` — **UI `vite` 5 → 6 migration (deferred — deliberate major upgrade).** Filed 2026-06-27. Closes the remaining build-toolchain Dependabot alerts that couldn't be cleared by the lockfile-only `npm audit fix` (see journal 2026-06-27): **vite #113/#154/#155** (path traversal / dev-server) and **esbuild #81** (esbuild 0.25 rides vite 6). Does **NOT** cover the other 2 residual alerts — `minimatch` #101 (pinned by `@typescript-eslint@6`) and `js-yaml` #152 (pinned by `jest@29`); those are separate toolchain-major tasks (eslint 6→9 / jest upgrade), file them if/when pursued.
   - **Scope.** Bump `vite ^5.4.21 → ^6.x` + `@vitejs/plugin-react ^4.0.3 → ^4.3.x` (vite-6-compatible) in `ui/package.json`; refresh the lockfile. No test-runner impact — `ui/` uses **jest**, not vitest.
   - **Low-risk by construction (already vite-6-ready):** config is ESM (`vite.config.ts` uses `import.meta.url`), `build.target` is explicitly `'esnext'`, Docker builder is **Node 20** + `engines.node >=18.0.0` — so vite 6's CJS-API removal, raised Node floor, and changed default target don't bite.
@@ -549,6 +547,8 @@ DOC-10 (retire the scenario/Layer-3 ledgers) · DOC-4 (the `scripts/check_scope.
 all done; DOC-7 folded into DOC-9.
 
 - ~~**DOC-7**~~ — *adopt additive conventions; folded into DOC-9 (the legend/tags/priority-split land in the re-ID pass).*
+
+- [ ] **DOC-11** `[P2]` `[later]` — **Reconcile `docs/architecture/ui.md` with canonical-first dispatch.** Spotted 2026-07-06 while shipping UI-9: the "Scenario manifests — same shape, different routing" section still describes pre-SCN-6 dispatch ("the UI dispatches the action against that [role] device" — since SCN-6 annotated scenario controls dispatch through the room's Scenario Manager entity with fire-time role resolution) and claims "the `source` device contributes the input-dropdown" (scenario manifests deliberately render NO inputs control — reconciler-derived). The doc also nowhere explains canonical dispatch as the UI's write path (SCN-7/UI-9 made it the only one). One narrative pass, user-facing voice, no ledger IDs in the text. Natural batching: the post-all-phases project-wide doc reconciliation, or the next ui.md-touching task.
 
 ---
 

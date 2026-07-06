@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { fetchDeviceOptions, useExecuteDeviceAction, useDeviceState as useDeviceStateQuery } from './useApi';
+import { fetchDeviceOptions, useExecuteCanonicalAction, useDeviceState as useDeviceStateQuery } from './useApi';
 import type { DropdownOption, RemoteDeviceStructure } from '../types/RemoteControlLayout';
 
 // NOTE: This file uses optimized dependency arrays to prevent infinite re-renders.
@@ -8,10 +8,12 @@ import type { DropdownOption, RemoteDeviceStructure } from '../types/RemoteContr
 
 // Layer-3 static-vs-fetch is decided by the manifest's `populationMethod` (the renderer is
 // class-agnostic — no deviceClass branching):
-//   "commands" -> options are inline in the manifest; selecting executes `option.id` directly.
+//   "commands" -> options are inline in the manifest (fixed set).
 //   "api"      -> fetch the list at runtime via GET /devices/{id}/options/{inputs|apps} (SCN-7:
-//                 option enumeration is a READ, not an action); select via the manifest's
-//                 `setAction`, sending the value under the manifest's `setParam`.
+//                 option enumeration is a READ, not an action).
+// Selection dispatches canonically either way (UI-9): the manifest's DropdownConfig carries the
+// canonical (capability, action, param) tuple and option ids are canonical values, so the hook
+// POSTs /devices/{target}/canonical {capability, action, params: {[param]: optionId}, wait:false}.
 
 interface UseInputsDataResult {
   inputs: DropdownOption[];
@@ -29,7 +31,7 @@ interface UseAppsDataResult {
 
 /**
  * Hook for fetching available inputs for a device.
- * "commands" dropdowns use the inline options; "api" dropdowns fetch via the manifest's apiAction.
+ * "commands" dropdowns use the inline options; "api" dropdowns fetch the options endpoint.
  */
 export function useInputsData(deviceStructure: RemoteDeviceStructure): UseInputsDataResult {
   const [inputs, setInputs] = useState<DropdownOption[]>([]);
@@ -143,7 +145,7 @@ export function useInputsData(deviceStructure: RemoteDeviceStructure): UseInputs
 
 /**
  * Hook for fetching available apps for a device.
- * "commands" dropdowns use inline options; "api" dropdowns fetch via the manifest's apiAction.
+ * "commands" dropdowns use inline options; "api" dropdowns fetch the options endpoint.
  */
 export function useAppsData(deviceStructure: RemoteDeviceStructure): UseAppsDataResult {
   const [apps, setApps] = useState<DropdownOption[]>([]);
@@ -251,24 +253,25 @@ export function useAppsData(deviceStructure: RemoteDeviceStructure): UseAppsData
 }
 
 /**
- * Hook for handling input selection. "commands" -> the option id IS the command; "api" -> setAction.
+ * Hook for handling input selection. Canonical dispatch (UI-9): `input.set {value}` —
+ * identical for api-populated (parametric) and inline (by_value) dropdowns.
  */
 export function useInputSelection(deviceStructure: RemoteDeviceStructure) {
   const [selectedInput, setSelectedInput] = useState<string>('');
-  const executeActionQuery = useExecuteDeviceAction();
+  const executeCanonicalQuery = useExecuteCanonicalAction();
 
-  const executeAction = useCallback(
-    (params: { deviceId: string; action: { action: string; params: any } }) =>
-      executeActionQuery.mutateAsync(params),
-    [executeActionQuery.mutateAsync]
+  const executeCanonical = useCallback(
+    (params: { deviceId: string; request: { capability: string; action: string; params: any; wait: boolean } }) =>
+      executeCanonicalQuery.mutateAsync(params),
+    [executeCanonicalQuery.mutateAsync]
   );
 
-  const { isCommands, setAction, setParam, targetDeviceId } = useMemo(() => {
+  const { capability, action, param, targetDeviceId } = useMemo(() => {
     const dd = deviceStructure.remoteZones.find(zone => zone.zoneId === 'media-stack')?.content?.inputsDropdown;
     return {
-      isCommands: dd?.populationMethod === 'commands',
-      setAction: dd?.setAction ?? null,
-      setParam: dd?.setParam ?? 'input',
+      capability: dd?.canonicalCapability ?? 'input',
+      action: dd?.canonicalAction ?? 'set',
+      param: dd?.canonicalParam ?? 'value',
       targetDeviceId: dd?.sourceDeviceId ?? deviceStructure.deviceId,  // role device for scenarios
     };
   }, [JSON.stringify(deviceStructure.remoteZones), deviceStructure.deviceId]);
@@ -277,42 +280,41 @@ export function useInputSelection(deviceStructure: RemoteDeviceStructure) {
     setSelectedInput(inputId);
 
     try {
-      if (isCommands) {
-        // The option id IS the device command (e.g. "input_cd").
-        await executeAction({ deviceId: targetDeviceId, action: { action: inputId, params: {} } });
-      } else {
-        // api: manifest-declared setAction + the value under the manifest-declared setParam
-        // (B5: eMotiva set_input/input, LG set_input_source/source).
-        await executeAction({ deviceId: targetDeviceId, action: { action: setAction ?? 'set_input', params: { [setParam]: inputId } } });
-      }
+      // wait:false — fire-and-return, same as button dispatch; SSE delivers the post-switch state.
+      await executeCanonical({
+        deviceId: targetDeviceId,
+        request: { capability, action, params: { [param]: inputId }, wait: false },
+      });
     } catch (err) {
       console.error('Failed to select input:', err);
       setSelectedInput('');
       throw err;
     }
-  }, [targetDeviceId, isCommands, setAction, setParam, executeAction]);
+  }, [targetDeviceId, capability, action, param, executeCanonical]);
 
   return { selectedInput, selectInput, setSelectedInput };
 }
 
 /**
- * Hook for handling app launching. Uses the manifest-declared setAction.
+ * Hook for handling app launching. Canonical dispatch (UI-9): `apps.launch {app}` —
+ * the bridge renames `app` to the native param via the capability's param_map.
  */
 export function useAppLaunching(deviceStructure: RemoteDeviceStructure) {
   const [selectedApp, setSelectedApp] = useState<string>('');
-  const executeActionQuery = useExecuteDeviceAction();
+  const executeCanonicalQuery = useExecuteCanonicalAction();
 
-  const executeAction = useCallback(
-    (params: { deviceId: string; action: { action: string; params: any } }) =>
-      executeActionQuery.mutateAsync(params),
-    [executeActionQuery.mutateAsync]
+  const executeCanonical = useCallback(
+    (params: { deviceId: string; request: { capability: string; action: string; params: any; wait: boolean } }) =>
+      executeCanonicalQuery.mutateAsync(params),
+    [executeCanonicalQuery.mutateAsync]
   );
 
-  const { setAction, setParam, targetDeviceId } = useMemo(() => {
+  const { capability, action, param, targetDeviceId } = useMemo(() => {
     const dd = deviceStructure.remoteZones.find(zone => zone.zoneId === 'apps')?.content?.appsDropdown;
     return {
-      setAction: dd?.setAction ?? null,
-      setParam: dd?.setParam ?? 'app_name',
+      capability: dd?.canonicalCapability ?? 'apps',
+      action: dd?.canonicalAction ?? 'launch',
+      param: dd?.canonicalParam ?? 'app',
       targetDeviceId: dd?.sourceDeviceId ?? deviceStructure.deviceId,  // role device for scenarios
     };
   }, [JSON.stringify(deviceStructure.remoteZones), deviceStructure.deviceId]);
@@ -321,15 +323,16 @@ export function useAppLaunching(deviceStructure: RemoteDeviceStructure) {
     setSelectedApp(appId);
 
     try {
-      // manifest-declared setAction + value under setParam (B5): LG launch_app/app_name,
-      // AppleTV launch_app/app. Routed to the role device's sourceDeviceId for scenarios.
-      await executeAction({ deviceId: targetDeviceId, action: { action: setAction ?? 'launch_app', params: { [setParam]: appId } } });
+      await executeCanonical({
+        deviceId: targetDeviceId,
+        request: { capability, action, params: { [param]: appId }, wait: false },
+      });
     } catch (err) {
       console.error('Failed to launch app:', err);
       setSelectedApp('');
       throw err;
     }
-  }, [targetDeviceId, setAction, setParam, executeAction]);
+  }, [targetDeviceId, capability, action, param, executeCanonical]);
 
   return { selectedApp, launchApp, setSelectedApp };
 }

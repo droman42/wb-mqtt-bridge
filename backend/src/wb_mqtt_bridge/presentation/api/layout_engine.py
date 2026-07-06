@@ -171,17 +171,15 @@ def _volume_content(device: Any, cap: Capability) -> ZoneContent:
 
 
 def _inputs_dropdown(device: Any, cap: Capability) -> DropdownConfig:
-    """input domain -> inputsDropdown. Parametric select -> api-populated (runtime); by_value ->
-    one command per option (populated from the map)."""
+    """input domain -> inputsDropdown, dispatched canonically as `input.set {value}` (UI-9;
+    the select route VWB-19 opened). Parametric select -> api-populated (runtime list);
+    by_value -> inline options whose ids ARE the canonical values (the table keys)."""
     sel = cap.select
     if sel is not None and sel.command:
-        # native param the selected value is sent under: the param_map's native name for the
-        # canonical "input" key (e.g. LG {input: source} -> "source"), else "input" (e.g. eMotiva).
-        set_param = (sel.param_map or {}).get("input") or "input"
         return DropdownConfig(
             type="inputs", population_method="api",
-            api_action=cap.list.command if cap.list else None,
-            set_action=sel.command, set_param=set_param, options=[], loading=False, empty=True,
+            canonical_capability="input", canonical_action="set", canonical_param="value",
+            options=[], loading=False, empty=True,
         )
     options: List[DropdownOption] = []
     for value, cap_action in ((sel.by_value if sel else None) or {}).items():
@@ -189,10 +187,12 @@ def _inputs_dropdown(device: Any, cap: Capability) -> DropdownConfig:
             continue
         cmd = device.get_available_commands().get(cap_action.command)
         options.append(DropdownOption(
-            id=cap_action.command, display_name=_humanize(value),
+            id=value, display_name=_humanize(value),
             description=(getattr(cmd, "description", "") or "") if cmd else "",
         ))
     return DropdownConfig(type="inputs", population_method="commands",
+                         canonical_capability="input", canonical_action="set",
+                         canonical_param="value",
                          options=options, loading=False, empty=not options)
 
 
@@ -233,16 +233,15 @@ def _screen_content(device: Any, cap: Capability) -> ZoneContent:
 
 
 def _apps_dropdown(device: Any, cap: Capability) -> DropdownConfig:
-    """apps domain -> appsDropdown (api-populated: launch action + list query)."""
-    launch = cap.actions.get("launch")
-    # native param the selected app is sent under: param_map's native name for the canonical "app"
-    # key (LG {app: app_name} -> "app_name"), else "app" (AppleTV launch_app takes "app").
-    set_param = ((launch.param_map or {}).get("app") or "app") if launch else None
+    """apps domain -> appsDropdown (api-populated; selection dispatched canonically as
+    `apps.launch {app}` — the canonical endpoint renames `app` to the native param via the
+    capability's param_map, e.g. LG {app: app_name})."""
+    has_launch = cap.actions.get("launch") is not None
     return DropdownConfig(
         type="apps", population_method="api",
-        api_action=cap.list.command if cap.list else None,
-        set_action=launch.command if launch and launch.command else None,
-        set_param=set_param,
+        canonical_capability="apps" if has_launch else None,
+        canonical_action="launch" if has_launch else None,
+        canonical_param="app" if has_launch else None,
         options=[], loading=False, empty=True,
     )
 
@@ -274,9 +273,9 @@ def build_device_manifest(device: Any) -> LayoutManifest:
     content: Dict[str, ZoneContent] = {zid: ZoneContent() for zid in _ZONE_META}
 
     # SCN-7: every action-backed control carries its canonical (capability, action)
-    # tuple so the UI dispatches POST /devices/{id}/canonical. The dropdowns still
-    # dispatch natively: select became canonically routable in VWB-19 (`input.set
-    # {value}`), but flipping the manifest/UI dropdown seam is UI-9.
+    # tuple so the UI dispatches POST /devices/{id}/canonical. UI-9 flipped the
+    # dropdowns too (the tuple lives on DropdownConfig; option ids are canonical
+    # values) — the manifest no longer routes any first-party write to /action.
     if "power" in caps:
         content["power"] = _power_content(device, caps["power"])
         _tag_source(content["power"], None, "power", _canonical_reverse_map(caps["power"]))

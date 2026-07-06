@@ -16,6 +16,24 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-06 (UI-9 DONE — dropdown seam canonical; `/action` demotion decision unblocked; DOC-11 filed)** —
+  Flipped the last first-party `/action` writer. `DropdownConfig` swapped the native trio
+  (`set_action`/`set_param`/`api_action` — the last was dead since SCN-7's options endpoint) for the
+  canonical tuple (`canonical_capability`/`canonical_action`/`canonical_param`); `_inputs_dropdown`
+  emits `input.set {value}` for BOTH select forms (the VWB-19 route) with **by_value option ids now
+  the table keys** (`cd`, not `input_cd`); `_apps_dropdown` emits `apps.launch {app}`.
+  `useInputSelection`/`useAppLaunching` dispatch `POST /devices/{target}/canonical` with
+  `wait:false` (button parity) — the "commands"-mode option-id-is-a-command special case is gone;
+  scenario pages keep targeting the dropdown's `sourceDeviceId` (role device) since `apps` is not
+  proxy-inheritable, matching the read side. openapi regenerated + contracts copy synced (golden
+  byte-unchanged — manifests aren't catalog surface). 4 new layout-engine tests (tuples; by_value
+  ids round-trip through `CapabilitySelect.expand`); suite **571**, pyright 0, contracts 3/3, UI
+  check + build green. Docs: `canonical_first.md` §11.3 → SHIPPED (+header/§8 row),
+  `ui_backend_contract.md` fate table + SCN-7 section, `ui.md` media-stack row. **Consequence: the
+  §8 phase-3 `/action` demotion decision is unblocked** (acceptance-gate item 4 — decision still
+  deliberately deferred to the gate pass). **Filed DOC-11**: ui.md's scenario-routing narrative
+  still describes pre-SCN-6 dispatch (spotted in passing; user-facing pass, batched for later).
+
 - **2026-07-06 (SCN-5 CLOSED OBSOLETE — task-start-reconciliation, no code)** — Picked up SCN-5
   ("transition-aware manual notes, the activation-time half — load-bearing for LD/VHS audio") and
   the start-of-task reconciliation showed **category (c): already addressed**. SCN-2 (DONE
