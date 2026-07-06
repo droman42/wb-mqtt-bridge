@@ -162,15 +162,6 @@ room** (children_room_tv + appletv_children) was **deferred by the user** (skipp
 possible round-3.
 
 
-- [ ] **SCN-5** `[P0]` `[house]` — **Transition-aware manual notes (the activation-time half).** Surface a
-  topology manual-node's instruction **only when its link activates** in a transition — e.g. the Dodocus
-  RCA-hub "set to LD/VHS" prompt appears only when switching onto the analog path. **Load-bearing:**
-  without it the LD/VHS scenarios have *no audio*. Activation-time work — the reconciler diffs which
-  topology links activate and emits the bound note; rides the reconciler/activation path, not the scenario
-  page. Baseline static notes already shipped (SCN-2, 2026-05-26); this is the deferred transition-aware
-  half (redesign §13.2 — the design-doc record that DOC-10 archives, so this is its standing home now).
-
-
 ### VWB — Voice-integration + native WB onboarding
 
 **Context (the P3.7 push — design narrative preserved from the former phase section):**

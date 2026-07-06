@@ -16,6 +16,24 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-06 (SCN-5 CLOSED OBSOLETE — task-start-reconciliation, no code)** — Picked up SCN-5
+  ("transition-aware manual notes, the activation-time half — load-bearing for LD/VHS audio") and
+  the start-of-task reconciliation showed **category (c): already addressed**. SCN-2 (DONE
+  2026-05-26, `79c3588`+`e7cbcb5`, UI `bd80cc5`) already shipped the load-bearing behavior the row
+  claimed was missing: reconciler emits path manual-node notes at activation
+  (`reconciler.py` `resolve_targets`), `ScenarioManager` holds them per room and threads them
+  through `get_scenario_state()` → `/scenario/state`, UI renders the amber "For this activation"
+  section; `test_transition_to_ld_surfaces_dodocus_note_on_switch_and_clears_on_deactivate` locks
+  the appletv→ld transition (5 manual-notes tests green at close). The row's only unshipped
+  literal ("only when its link activates" — diff-based suppression) is the phase-2 refinement
+  SCN-2 deliberately declined as UX-wrong for load-bearing notes, and near-vacuous in this fleet
+  (analog↔analog transitions always change the Dodocus position → the note text always changes).
+  Stale-row origin: the 2026-06-30 re-ID pass rebuilt the self-referential former §5.2 #6 into an
+  implementation task without re-checking SCN-2's shipped scope. **User consulted per the
+  invariant; confirmed close-as-obsolete.** Row moved to `action_plan_DONE.md` with the pointer;
+  the P0 band is now fully closed on the software side — remaining P0s (SCN-3, DRV-2) are
+  HW-gated. HW verification of the notes on the rack still rides SCN-3's verification pass.
+
 - **2026-07-05 (intake + executed + closed: VWB-24 — HVAC action params typed, contract v1.3)** —
   Voice-side filing (QUAL-35 Slice 2) arrived uncommitted; intake verification per
   `cross-repo-source-of-truth` confirmed every claim against the golden + live code AND found the
