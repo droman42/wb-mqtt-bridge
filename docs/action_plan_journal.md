@@ -21,6 +21,23 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-06 (DOC-12 DONE — ledger-discipline triad ported from the voice repo; 7 real violations caught + resorted)** —
+  Voice-side filing (their QUAL-72/73/74, canary-verified there) accepted at intake and implemented
+  in the same session at the user's direction ("we just cleaned up the mess created over the last
+  2 days"). **Intake correction:** the filing's check (1) — stranded `[x]` in the active plan —
+  already existed here (DOC-4's MISPLACED-status check, both directions); the actual port =
+  **MISFILED** (prefix ≠ enclosing section, both files) + **OUT-OF-ORDER** (IDs ascend per section;
+  sorted insert, never append), adapted to this ledger's `PREFIX —` headers with level-aware
+  section tracking (a `####` runbook inside the DONE file's DOC section must not reset it — found
+  while porting). **The new checks instantly caught 7 real violations from the last two days'
+  tempo:** active OPS (11,7,8) + CORE (4,1); DONE VWB-17/18/19 + DOC-4 appended out of order —
+  exactly the mess. One-time mechanical resort (scripted block moves, zero-entry-loss asserted:
+  identical line multisets + ID counts, 24+59 entries preserved). All three checks canary-verified
+  both directions. CLAUDE.md: discipline triad stated in `single-task-ledger`; the stale
+  "in-flight phase rows stay DONE in place" carve-out removed (contradicted move-not-flip; phases
+  long retired). Both repos now run the same ledger discipline. check_scope: 83 tasks / 60 done,
+  green.
+
 - **2026-07-06 (intake: B-11 evidence read seam accepted into VWB-28; VWB-26/28 unblocked — voice BUILD-12 shipped)** —
   Voice-side amendment (their ARCH-34, `[deferred]` v1.1) arrived as an uncommitted note on the
   VWB-28 row: factor the report collector behind **`GET /reports/evidence`** — the bundle-shaped,

@@ -20,6 +20,13 @@ Fails the build (exit 1) on:
                            missing on disk.
   5. ALIAS phantom       — action_plan_aliases.md maps an old id to a new id that the
                            ledger does not declare.
+  6. MISFILED task       — a task's ID prefix does not match its enclosing workstream
+                           section header, in either file (an insert placed before the
+                           NEXT section header lands in the PRECEDING section — the
+                           classic slip; ported from wb-mqtt-voice, DOC-12).
+  7. OUT-OF-ORDER id     — entries must ascend by ID number within each workstream
+                           section, both files: completions are INSERTED at sorted
+                           position, never appended (ported from wb-mqtt-voice, DOC-12).
 
 Informational (never fails): per-workstream open/done/partial summary.
 
@@ -52,6 +59,11 @@ ID_RE = re.compile(rf"\b((?:{_PFX})-\d+)\b")
 EVID_RE = re.compile(r"(?<![\w/-])docs/(?:design|review)/[\w./-]+\.md")
 # Alias-table row:  | DRV-1 | §5.1 #7 | … |
 ALIAS_ROW_RE = re.compile(rf"^\|\s*((?:{_PFX})-\d+)\s*\|")
+# A workstream SECTION header:  `### VWB — …` (active) / `## VWB — …` (DONE archive).
+# A header at the same-or-higher level ends the section; DEEPER headers (e.g. a `####`
+# runbook inside a `##` section) keep it — task rows may follow narrative sub-headers.
+SECTION_RE = re.compile(r"^(#{2,4})\s+([A-Z]+)\s+—")
+HEADER_RE = re.compile(r"^(#+)\s")
 
 
 def declarations(path: Path) -> list[tuple[str, str]]:
@@ -126,6 +138,45 @@ def main() -> int:
             m = ALIAS_ROW_RE.match(line)
             if m and m.group(1) not in known_ids:
                 errors.append(f"ALIAS phantom: alias target {m.group(1)} is not declared in the ledger")
+
+    # 6 + 7. MISFILED + OUT-OF-ORDER (ledger-discipline triad, ported from wb-mqtt-voice —
+    # DOC-12). Walk each file tracking the enclosing workstream section: a declaration's
+    # prefix must match the section, and IDs must ascend within it (sorted insert, not append).
+    def section_walk(path: Path, which: str) -> None:
+        if not path.exists():
+            return
+        section: str | None = None
+        level = 0  # header level of the current workstream section
+        prev: int | None = None
+        for line in path.read_text(encoding="utf-8").splitlines():
+            h = SECTION_RE.match(line)
+            if h and h.group(2) in PREFIXES:
+                section, level, prev = h.group(2), len(h.group(1)), None
+                continue
+            hh = HEADER_RE.match(line)
+            if hh and section is not None and len(hh.group(1)) <= level:
+                section, prev = None, None  # same-or-higher header ends the section
+                continue
+            m = DECL_RE.match(line)
+            if not m:
+                continue
+            pfx, num = m.group(2).split("-")
+            if section is None:
+                errors.append(f"MISFILED task: {m.group(2)} sits outside any workstream section [{which}]")
+                continue
+            if pfx != section:
+                errors.append(f"MISFILED task: {m.group(2)} sits under the {section} section [{which}]")
+                continue
+            n = int(num)
+            if prev is not None and n < prev:
+                errors.append(
+                    f"OUT-OF-ORDER id: {m.group(2)} appears after {pfx}-{prev} in the {section} section "
+                    f"[{which}] (insert at sorted position, don't append)"
+                )
+            prev = max(prev, n) if prev is not None else n
+
+    section_walk(ACTIVE, "active")
+    section_walk(DONE, "done")
 
     # ---- report ----
     print("== check_scope: ledger scope-drift guard ==\n")

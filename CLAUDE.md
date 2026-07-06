@@ -63,12 +63,17 @@ plan/journal/review docs never break. (Mirrors `../wb-mqtt-voice/CLAUDE.md` — 
   - **Two-file split (initial split applied 2026-06-30 — §5.2 #2):** when `docs/action_plan.md` grows
     large, completed tasks move to a frozen `docs/action_plan_DONE.md` (by section) — one ledger, every ID
     in exactly one file, a task **moves** active → done on completion (same change as the journal entry).
-    The seven fully-complete early phase bands (P0–P3) have moved; an **in-flight** phase's done rows stay
-    marked `DONE` in place until the whole phase closes (or §5.2 #1 settles partial-phase representation).
-  - A machine-checkable scope-drift guard enforces this: **`scripts/check_scope.py`** (DOC-4) flags
-    duplicate/misplaced IDs, orphan findings (a `PREFIX-N` id in a design/review doc not in the ledger),
-    dead `docs/design`|`docs/review` links, and phantom aliases. It runs in CI (the standalone
-    `ledger-guard` job, path-gated on `docs/**` — OPS-10) and standalone (`python3 scripts/check_scope.py`).
+  - **Ledger-discipline triad (DOC-12, ported from the voice repo 2026-07-06 — machine-enforced):**
+    (1) completion **moves** the entry, never flips `[x]` in place (a `[x]` row in the active plan fails
+    the gate); (2) a task row lives under the section matching its ID prefix, in **both** files — beware
+    the insert-before-the-next-header slip that lands a row in the *preceding* section; (3) rows **ascend
+    by ID within each section**, both files — completions are *inserted at sorted position*, not appended.
+  - A machine-checkable scope-drift guard enforces this: **`scripts/check_scope.py`** (DOC-4; discipline
+    triad added by DOC-12) flags duplicate/misplaced IDs, orphan findings (a `PREFIX-N` id in a
+    design/review doc not in the ledger), dead `docs/design`|`docs/review` links, phantom aliases,
+    **misfiled tasks** (prefix ≠ enclosing section), and **out-of-order IDs** (non-ascending within a
+    section). It runs in CI (the standalone `ledger-guard` job, path-gated on `docs/**` — OPS-10) and
+    standalone (`python3 scripts/check_scope.py`).
 - **`every-task-in-the-ledger`** — No work happens without an action-plan entry, **regardless of where the
   task came from** — a chat request, a GitHub issue, a code-review finding, a TODO spotted mid-task. The
   first action on any new piece of work is to file it: give it an ID *before* starting. External sources
