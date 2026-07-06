@@ -42,6 +42,19 @@ This document captures the project state and a prioritized action plan, revised 
 7. **CI green throughout** — backend suite + pyright 0 + import-linter + UI check/build + the
    ledger guard; standing, not a one-time check.
 
+**Ordering — explicit gating between the `[release]` tasks (amended 2026-07-06):**
+
+| Task | Gated by | Note |
+|---|---|---|
+| **REL-2** (cutover) | *(nothing)* | Root of the chain. Images already build in CI; user-at-rack. |
+| **DRV-5**, **OPS-8** | *(nothing)* | Software-only; startable immediately, in any order. |
+| **DRV-1**, **DRV-2**, **SCN-3** | rack session (user) | NOT gated on REL-2 — every HW pass so far ran against the dev-box bridge. Anything still open at cutover simply verifies on the WB7 bridge instead. |
+| **VWB-13** | **REL-2** | The sweep needs the bridge live on the WB7 broker. |
+| **VWB-16** | voice **TEST-18** fixtures | The only cross-repo gate; lands whenever the fixtures do. |
+| **REL-3** (rack pass + gate run) | **REL-2** + **DRV-1/2** + **SCN-3** + **DRV-5** + **OPS-8** + **VWB-13** | The convergence point: the end-to-end re-verification must run on the *deployed* bridge, after all code-touching `[release]` work has landed. Its review half may file remediation (code changes stay inside this gate). |
+| **REL-4** (docs pass) | **REL-3** | Docs describe the final state — after review remediation settles. Last task before the tag. |
+| **the tag** | everything above + **VWB-16** | |
+
 **Decisions recorded at sign-off (2026-07-06):** `POST /devices/{id}/action` ships in release 1 as
 the documented internal/dev door (full demotion = **CORE-4**, deferred until the canonical HW passes
 prove coverage) · DRV-3 / DRV-8 / children's-room round-3 / global-master aliases / VWB-12 sensors /
@@ -604,7 +617,7 @@ all done; DOC-7 folded into DOC-9.
 
 - [ ] **REL-3** `[P0]` `[release]` `HW-GATED` — **The converged release verification pass (rack session) + final gate run.** Single convergence point for every HW verification owed by closed tasks (the voice repo's ARCH-25 pattern): WB scenario cards + the live two-room concurrency drill (owed by SCN-6), the HVAC canonical HW check (owed by the VWB-14/24 chain), plus the **end-to-end re-verification after cleanup** (absorbs acceptance-gate item 5). Also carries the **final gate run**: the "thorough code review" half of acceptance-gate item 4 (per `review-then-remediate` — review doc under `docs/review/`, findings filed, P0/P1 remediated before the tag) and the closing `check_scope.py` + CI pass. Runs AFTER REL-2 (needs the bridge live on the controller) and alongside/after DRV-1's per-driver rows. Exit-criteria items 2 + 5.
 
-- [ ] **REL-4** `[P1]` `[release]` — **Release docs pass — project-wide doc reconciliation + master-doc handover.** The §0 recorded promise ("the redesign specs fully retire to history… a project-wide doc reconciliation formalizes the handover"): shift the project from plan-driven to architecture-driven (`project.md` / `architecture.md` / `ui_backend_contract.md` as the master set), verify every user-facing doc (`docs/architecture/*`, `docs/guides/*`, READMEs, `contracts/README.md`) tells the truth at the release version, regenerate stale diagrams. **DOC-11 folds in here** (the ui.md canonical-dispatch narrative — DOC-7→DOC-9 precedent). Exit-criteria item 6. Runs late (after the code-touching `[release]` tasks settle, before the tag).
+- [ ] **REL-4** `[P1]` `[release]` — **Release docs pass — project-wide doc reconciliation + master-doc handover.** The §0 recorded promise ("the redesign specs fully retire to history… a project-wide doc reconciliation formalizes the handover"): shift the project from plan-driven to architecture-driven (`project.md` / `architecture.md` / `ui_backend_contract.md` as the master set), verify every user-facing doc (`docs/architecture/*`, `docs/guides/*`, READMEs, `contracts/README.md`) tells the truth at the release version, regenerate stale diagrams. **DOC-11 folds in here** (the ui.md canonical-dispatch narrative — DOC-7→DOC-9 precedent). Exit-criteria item 6. **Gated by REL-3** (review remediation may change what the docs must describe); last task before the tag — see the Ordering table in the definition.
 
 ---
 

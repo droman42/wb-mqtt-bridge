@@ -40,6 +40,10 @@ entries use the new IDs.
   acceptance-gate items 4½/5), REL-4, CORE-4, VWB-25 (done). Acceptance-gate section annotated
   as absorbed. **Journal rotated** (first archive: `docs/archive/journal/2026-05-23_2026-06-08.md`,
   1595 → ~810 active lines + pointer). check_scope after: 79 tasks / 58 done.
+  *Amended same day (user question "are the REL tasks gated?"): the inter-task gating — previously
+  prose inside the REL-3/REL-4 rows — made explicit as an **Ordering table** in the definition
+  block (REL-2 = root; DRV-5/OPS-8 ungated; DRV-1/2 + SCN-3 rack-gated but NOT REL-2-gated;
+  VWB-13 ← REL-2; VWB-16 ← voice TEST-18; REL-3 = convergence; REL-4 ← REL-3; tag ← all + VWB-16).*
 
 - **2026-07-06 (UI-9 DONE — dropdown seam canonical; `/action` demotion decision unblocked; DOC-11 filed)** —
   Flipped the last first-party `/action` writer. `DropdownConfig` swapped the native trio
