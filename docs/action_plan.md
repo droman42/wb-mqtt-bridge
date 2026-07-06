@@ -508,29 +508,6 @@ endpoint).
   - **Sequence-form caveat — RESOLVED 2026-07-04 (VWB-17 DONE):** the canonical endpoint now routes `sequence`-form actions (shared `CapabilityAction.expand()` — per-step param translation, inter-step `delay_after_ms`, mid-sequence failure naming the step). Crossover fixtures may cover sequence-form actions freely.
   - Spec: `wb-mqtt-voice/docs/design/mqtt_integration.md` §14.
 
-- [ ] **VWB-26** `[P2]` `[deferred]` — **Problem-reporting participation (bridge side).**
-  FILED 2026-07-06 by wb-mqtt-voice (ARCH-30 design, AGREED:
-  `wb-mqtt-voice/docs/design/problem_reports.md`), **accepted at intake same day** (verified per
-  `cross-repo-source-of-truth`; renumbered from the filing's stale VWB-25 — that ID had been
-  assigned to the wardrobe-alias task hours earlier; the voice repo's back-reference is theirs to
-  fix). A shared private repo **`wb-user-reports`** receives problem tickets + support bundles; ONE
-  Claude triage workflow lives there with two lens process files — `lens:bridge` tickets check out
-  THIS repo, analyze, and may open fix PRs here (handover from the voice lens arrives as a
-  structured comment per design §7.3: symptom, extracted evidence, pinned catalog version, trace
-  slice, what was ruled out). Bridge-side scope: **(1)** review + co-own
-  `.github/claude/lens-bridge.md` in `wb-user-reports` (written under voice BUILD-12 but describing
-  THIS repo's triage rules — reproduce via the bridge's own suites; leak fence: nothing
-  household-private in public PRs); **(2)** `/inbox` skill + a CLAUDE.md session-start line (list
-  open fix PRs here + `needs-owner` bridge-lens tickets; one-by-one interactive review with the
-  owner — mirror of voice ARCH-33; runs on the owner's local `gh` auth, no new repo secrets per
-  design §9). **Unblocked 2026-07-06** — voice BUILD-12 provisioned `wb-user-reports` same day
-  (`lens-bridge.md` exists and awaits our co-ownership review; their ARCH-33 `/inbox` +
-  CLAUDE.md session-start invariant is the pattern to mirror, including its load-bearing
-  "verify the finding independently, never trust the triage" instruction). Tagged `[deferred]`
-  — release 1 was signed earlier the same day without this criterion; **explicit candidate to
-  pull into `[release]`** if the voice release (which ships problem reporting) lands while our
-  gate is still open. The UI "Report a problem" button split out as **VWB-27**.
-
 - [ ] **VWB-28** `[P2]` `[deferred]` — **UI "Report a problem" — implementation**
   (filed at VWB-27 design completion, 2026-07-06; design:
   `docs/design/problem_reports_bridge.md`, B-1..B-11). **Unblocked same day** — voice BUILD-12

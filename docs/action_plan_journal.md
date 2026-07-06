@@ -21,6 +21,26 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-06 (VWB-26 DONE — bridge joins the problem-reporting loop: lens co-owned, `/inbox` live)** —
+  Pulled forward hours after voice BUILD-12 unblocked it. **(1) Lens co-ownership review:**
+  `wb-user-reports`' `.github/claude/lens-bridge.md` verified against this repo — its §2
+  Reproduce named nonexistent test paths (`tests/test_capabilities.py` for what is
+  `backend/tests/unit/...`) and missed the `backend/` cwd, the `uv sync --extra dev` dev-extras
+  gotcha, the pyright/lint-imports/UI gates, the contract-regen rule, and a never-live-repro
+  warning (repo configs point at the real house) — all corrected in a commit on the reports repo;
+  the rest of the file (dedup, key bridge questions, four outcomes, ping-pong guard, leak fence,
+  triage-PRs-don't-touch-the-ledger) verified accurate and kept. **(2) `/inbox` + invariant:**
+  `.claude/skills/inbox/SKILL.md` mirrors voice ARCH-33 adapted to `lens:bridge` — reports repo
+  as the queue's source of truth, one-item-at-a-time walk, "verify the finding independently —
+  never trust the triage" with this repo's gates spelled out, and the merge path doing the
+  owner's ledger half (`every-task-in-the-ledger` + the DOC-12 triad); CLAUDE.md gained the
+  `problem-report-inbox` invariant (non-blocking session-start check, one-line mention, silent
+  gh-failure skip). **Verified live** against the private repo: both bridge-lens queues answer
+  (empty — ticket #2/PR #1 are voice-lens). En route, the new DOC-12 guard caught a real
+  clobber-slip (the VWB-26 DONE row initially overwrote VWB-27's line start; DUPLICATE fired
+  until the active row was removed) — the triad's first live save. check_scope: 83 tasks /
+  61 done, green. No backend/UI code touched.
+
 - **2026-07-06 (DOC-12 DONE — ledger-discipline triad ported from the voice repo; 7 real violations caught + resorted)** —
   Voice-side filing (their QUAL-72/73/74, canary-verified there) accepted at intake and implemented
   in the same session at the user's direction ("we just cleaned up the mess created over the last
