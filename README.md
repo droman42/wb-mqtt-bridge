@@ -32,6 +32,10 @@ as the home's single device catalog and actuation backend.
   surface.
 - **Strongly typed end-to-end.** Pydantic device configs, per-device state models, an
   OpenAPI contract the UI consumes by codegen. No dict-shaped state.
+- **Reports its own bugs.** A bug button in the UI files a problem report — your words
+  plus everything a developer needs (device states, recent commands, logs, browser
+  diagnostics), credentials scrubbed, delivered to a private tracker even if the
+  internet is down at that moment.
 - **Hexagonal layering, enforced.** `domain/` is import-pure; infrastructure adapters
   (MQTT, SQLite, drivers) implement the ports.
 
@@ -50,6 +54,9 @@ as the home's single device catalog and actuation backend.
     scenarios and the voice assistant.
   - **[UI](docs/architecture/ui.md)** — the Harmony-style remote, runtime layout
     manifests, build-time codegen.
+- **[Report a problem](docs/guides/report-a-problem.md)** — the bug button: describe
+  an issue in your own words; states, logs, and recent commands ride along
+  automatically (credentials scrubbed), into a private tracker.
 - **Planned features** — designed-but-not-built admin surfaces:
   - **[Device setup](docs/planned/device-setup.md)** — WB-cell importer + IR-learning
     sub-page (with public IR-code database support).

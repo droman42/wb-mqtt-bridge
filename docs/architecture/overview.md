@@ -17,11 +17,12 @@ Read it inside-out:
   ports. The managers (`DeviceManager`, `ScenarioManager`, `RoomManager`) live here
   because they coordinate domain entities and depend only on the ports. The domain
   reaches none of the outer layers.
-- **Ports — `domain/ports.py`.** Four small abstract contracts: `MessageBusPort`,
-  `DevicePort`, `StateRepositoryPort`, `EventPublisherPort`. These are the seams.
+- **Ports — `domain/ports.py`.** Five small abstract contracts: `MessageBusPort`,
+  `DevicePort`, `StateRepositoryPort`, `EventPublisherPort`, `ReportSinkPort`. These are the seams.
 - **Driven adapters — `infrastructure/`.** The implementations: the eight device
   drivers (`BaseDevice` ⇒ `DevicePort`), the MQTT client (⇒ `MessageBusPort`), the
-  SQLite store (⇒ `StateRepositoryPort`). Plus support code that doesn't sit on a port:
+  SQLite store (⇒ `StateRepositoryPort`), the GitHub report sink (⇒ `ReportSinkPort`).
+  Plus support code that doesn't sit on a port:
   the Wirenboard virtual-device emulator, the capability loader, the config manager.
 - **Driving adapters — `presentation/api/` and `cli/`.** FastAPI routers, the SSE
   fan-out, and the console tools. They call *into* the domain through the ports.

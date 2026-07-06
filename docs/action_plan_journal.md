@@ -42,6 +42,13 @@ entries use the new IDs.
   +2 paths, golden byte-unchanged. Docs: `interfaces.md` §Problem reports, `contracts/README.md`
   v1.4. **Activation owed to the rack:** controller PAT env + `reports.enabled` flip at/after
   REL-2 (not a release gate). The problem-reporting workstream on the bridge is now complete.
+  *Amended same day (user review of VWB-28): (1) hexagon re-verified on request — all new-module
+  imports point at `domain` only, contracts 3/3 KEPT, and the package-scoped import-linter
+  contracts cover new subpackages automatically (no gate edit needed); (2) the owed user-facing
+  docs added — `docs/guides/report-a-problem.md` (modeled on the voice guide), README feature
+  bullet + guide link, `overview.md` port list corrected four→five (`ReportSinkPort` + its
+  adapter row) — a `user-facing-docs-are-done` gap the review caught; (3) token-minting answered
+  (fine-grained PAT, wb-user-reports only, Issues+Contents write → controller env).*
 
 - **2026-07-06 (B-12 — report-button placement + look decided, pre-VWB-28)** — Short interactive
   round before implementation starts: the button is a **navbar far-right icon button** (the
