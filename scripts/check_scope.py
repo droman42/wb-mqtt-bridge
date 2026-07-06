@@ -37,7 +37,7 @@ DONE = ROOT / "docs" / "action_plan_DONE.md"
 ALIASES = ROOT / "docs" / "action_plan_aliases.md"
 FINDING_DIRS = [ROOT / "docs" / "design", ROOT / "docs" / "review"]
 
-PREFIXES = ("DRV", "SCN", "VWB", "UI", "OPS", "CORE", "DOC")
+PREFIXES = ("DRV", "SCN", "VWB", "UI", "OPS", "CORE", "DOC", "REL")
 _PFX = "|".join(PREFIXES)
 
 # A task DECLARATION line:  - [ ] **DRV-1** …  /  - [x] **VWB-6** …  /  - [~] **X-2** …

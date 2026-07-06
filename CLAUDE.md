@@ -56,8 +56,9 @@ plan/journal/review docs never break. (Mirrors `../wb-mqtt-voice/CLAUDE.md` — 
   driving doc per its §0 document-map convention). Every task has **exactly one ID** in the stable
   **`PREFIX-N` workstream-serial** scheme (e.g. `DRV-3`, `VWB-10`, `DOC-9` — prefix = workstream, serial
   assigned once / never renumbered; priority is a separate `[P0]/[P1]/[P2]` tag, milestone a
-  `[house]/[later]/[parked]` tag, plus a `HW-GATED` status marker; see the plan's "How to use this
-  file"). Old positional IDs (`#3.5`, `§P3.7 #13`, `§5.1 #7`) resolve via `docs/action_plan_aliases.md`.
+  `[release]/[deferred]` tag (since 2026-07-06, REL-1 — replaced `[house]/[later]/[parked]`; the
+  scope gate is the plan's "Definition of release 1" section), plus a `HW-GATED` status marker;
+  see the plan's "How to use this file"). Old positional IDs (`#3.5`, `§P3.7 #13`, `§5.1 #7`) resolve via `docs/action_plan_aliases.md`.
   Design/review docs may *surface findings* but **a finding is not scope until it has a plan ID**.
   - **Two-file split (initial split applied 2026-06-30 — §5.2 #2):** when `docs/action_plan.md` grows
     large, completed tasks move to a frozen `docs/action_plan_DONE.md` (by section) — one ledger, every ID

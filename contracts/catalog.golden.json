@@ -1,5 +1,5 @@
 {
-  "version": "a17a63b0c47fdb53",
+  "version": "acc1e18beb3f204a",
   "rooms": [
     {
       "id": "bathroom",
@@ -6835,7 +6835,11 @@
         "en": "Spots",
         "de": "Spots"
       },
-      "aliases": null,
+      "aliases": {
+        "ru": [
+          "свет"
+        ]
+      },
       "device_class": "WbPassthroughDevice",
       "room": "wardrobe",
       "capabilities": [
