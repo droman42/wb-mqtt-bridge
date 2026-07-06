@@ -11,7 +11,7 @@ This package contains FastAPI router modules that organize API endpoints by func
 - events: Server-Sent Events endpoints (/events/devices, /events/scenarios, /events/system)
 """
 
-from . import system, devices, mqtt, scenarios, rooms, state, events
+from . import system, devices, mqtt, scenarios, rooms, state, events, reports
 
 __all__ = [
     "system",

@@ -654,6 +654,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * File Problem Report
+         * @description File a problem report: collect evidence, package the envelope, deliver (or spool).
+         */
+        post: operations["file_problem_report_reports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Report Evidence
+         * @description The bundle-shaped, redacted evidence — no ticket filed (B-11 read seam).
+         */
+        get: operations["get_report_evidence_reports_evidence_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/room/list": {
         parameters: {
             query?: never;
@@ -1951,6 +1991,88 @@ export interface components {
             error_code?: string | null;
         };
         /**
+         * EvidenceEnvelope
+         * @description The bundle-shaped evidence — returned by ``GET /reports/evidence`` (redacted,
+         *     no filing) and embedded in every filed bundle. Top-level keys are the contract.
+         */
+        EvidenceEnvelope: {
+            /**
+             * Bridge
+             * @description version, platform, catalog_version
+             */
+            bridge: {
+                [key: string]: unknown;
+            };
+            /**
+             * Configs
+             * @description scoped device configs, redacted
+             */
+            configs?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Context
+             * @description entity_id/room the report is anchored to + the scoped device set
+             */
+            context?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Dispatch Ring
+             * @description last executed actions (B-2)
+             */
+            dispatch_ring?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Generated At
+             * @description UTC ISO-8601 timestamp of collection
+             */
+            generated_at: string;
+            /**
+             * Logs
+             * @description log filename -> base64(gzip(content))
+             */
+            logs?: {
+                [key: string]: string;
+            };
+            /**
+             * Mqtt Window
+             * @description recent broker traffic (B-2)
+             */
+            mqtt_window?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Scenarios
+             * @description active scenario + manual steps per room
+             */
+            scenarios?: {
+                [key: string]: unknown;
+            };
+            /**
+             * State Diffs
+             * @description persisted-vs-live field diffs for the scoped devices
+             */
+            state_diffs?: {
+                [key: string]: unknown;
+            };
+            /**
+             * States
+             * @description live state of EVERY device (B-1)
+             */
+            states?: {
+                [key: string]: unknown;
+            };
+            /**
+             * System Config
+             * @description system.json, redacted
+             */
+            system_config?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
          * GroupMemberResult
          * @description Per-member outcome of a room group action (§10.4). `skipped` = the member's
          *     matching capability lacks the requested action (reported, never an error);
@@ -2379,6 +2501,92 @@ export interface components {
              */
             zoneType: "power" | "media-stack" | "screen" | "volume" | "apps" | "menu" | "pointer";
         };
+        /** ReportRequest */
+        ReportRequest: {
+            /**
+             * Context
+             * @description Page context: route, entity_id — anchors the evidence scoping (B-1)
+             */
+            context?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Free Text
+             * @description The user's problem description, verbatim
+             */
+            free_text: string;
+            /**
+             * Ui Evidence
+             * @description Browser-side evidence (B-4): action log, console/API rings, SSE health, app context
+             */
+            ui_evidence?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** ReportResponse */
+        ReportResponse: {
+            /** Report Id */
+            report_id: string;
+            /**
+             * Spooled
+             * @description True = delivery failed, the report is spooled and will retry (B-7)
+             */
+            spooled: boolean;
+            /** Success */
+            success: boolean;
+            /**
+             * Url
+             * @description Ticket URL when filed immediately
+             */
+            url?: string | null;
+        };
+        /**
+         * ReportsConfigResponse
+         * @description Problem-reporting settings as served (the PAT itself never appears — only
+         *     the name of the env var holding it).
+         */
+        ReportsConfigResponse: {
+            /**
+             * Dispatch Ring Depth
+             * @default 50
+             */
+            dispatch_ring_depth: number;
+            /**
+             * Enabled
+             * @default false
+             */
+            enabled: boolean;
+            /**
+             * Max Reports Per Day
+             * @default 10
+             */
+            max_reports_per_day: number;
+            /**
+             * Max Reports Per Hour
+             * @default 3
+             */
+            max_reports_per_hour: number;
+            /**
+             * Mqtt Window Max Messages
+             * @default 500
+             */
+            mqtt_window_max_messages: number;
+            /**
+             * Mqtt Window Seconds
+             * @default 60
+             */
+            mqtt_window_seconds: number;
+            /**
+             * Repo
+             * @default droman42/wb-user-reports
+             */
+            repo: string;
+            /**
+             * Token Env
+             * @default WB_REPORTS_TOKEN
+             */
+            token_env: string;
+        };
         /**
          * RevoxA77ReelToReelState
          * @description Schema for Revox A77 reel-to-reel state.
@@ -2710,6 +2918,7 @@ export interface components {
             maintenance?: components["schemas"]["MaintenanceConfigResponse"] | null;
             mqtt_broker: components["schemas"]["MQTTBrokerConfigResponse"];
             persistence?: components["schemas"]["PersistenceConfigResponse"];
+            reports?: components["schemas"]["ReportsConfigResponse"] | null;
             /**
              * Service Name
              * @default MQTT Web Service
@@ -3583,6 +3792,71 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReloadResponse"];
+                };
+            };
+        };
+    };
+    file_problem_report_reports_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_report_evidence_reports_evidence_get: {
+        parameters: {
+            query?: {
+                /** @description Anchor entity for B-1 scoping (optional) */
+                entity_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

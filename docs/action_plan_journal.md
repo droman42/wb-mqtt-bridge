@@ -21,6 +21,28 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-06 (VWB-28 DONE — «Report a problem» shipped end-to-end; contract v1.4)** —
+  The whole B-1..B-12 design implemented in one pass, pulled forward from `[deferred]`.
+  **Backend:** `domain/reports/` (rings — `DispatchRing` at a new record-and-return wrapper on
+  the `execute_action` chokepoint, `MqttWindow` behind a new `traffic_observer` seam on the MQTT
+  client; B-5 redaction; `ReportService` collector + B-6 rate limit + §5 filing);
+  `ReportSinkPort` (domain) / `GitHubReportSink` (infra, contents+issues API, PAT from env) with
+  the B-7 `data/reports/` spool retried at startup + hourly; `POST /reports` +
+  **`GET /reports/evidence`** (B-11; `EvidenceEnvelope` = owned contract surface → openapi/
+  `contracts/` pin, **v1.4**); `ReportsConfig` on `SystemConfig` (+DTO; canonical `system.json`
+  gains `"reports": {"enabled": false}` — filing opt-in, evidence always on). **UI:** navbar
+  `BugReport` button (B-12: far right, muted→amber, «Сообщить о проблеме») + minimal dialog with
+  in-dialog confirmation (id / spooled / rate-limited variants); `lib/reportEvidence.ts` console/
+  crash taps + axios API ring + SSE health (fed from `useEventSource`) + `useLogStore` dump +
+  app context, collected only at send. **Two redaction bugs caught by the new tests** (an `auth`
+  dict was masked wholesale losing its username; `Authorization: Bearer x` masked only the first
+  token) — fixed: containers recurse, text masks to end-of-line. 12 new tests (rings, redaction,
+  collector scoping/diffs, filing bundle round-trip, spool temp-dir e2e, endpoints 200/429/503 +
+  evidence-always-on). Suite **583** · pyright 0 · contracts 3/3 · UI check+build green · openapi
+  +2 paths, golden byte-unchanged. Docs: `interfaces.md` §Problem reports, `contracts/README.md`
+  v1.4. **Activation owed to the rack:** controller PAT env + `reports.enabled` flip at/after
+  REL-2 (not a release gate). The problem-reporting workstream on the bridge is now complete.
+
 - **2026-07-06 (B-12 — report-button placement + look decided, pre-VWB-28)** — Short interactive
   round before implementation starts: the button is a **navbar far-right icon button** (the
   centered picker row leaves the edge free; FAB rejected — shadows dense remote corners), icon

@@ -33,6 +33,20 @@ class MaintenanceConfigResponse(BaseModel):
     topic: str
 
 
+class ReportsConfigResponse(BaseModel):
+    """Problem-reporting settings as served (the PAT itself never appears — only
+    the name of the env var holding it)."""
+    model_config = ConfigDict(from_attributes=True)
+    enabled: bool = False
+    repo: str = "droman42/wb-user-reports"
+    token_env: str = "WB_REPORTS_TOKEN"
+    max_reports_per_hour: int = 3
+    max_reports_per_day: int = 10
+    dispatch_ring_depth: int = 50
+    mqtt_window_seconds: int = 60
+    mqtt_window_max_messages: int = 500
+
+
 class SystemConfigResponse(BaseModel):
     """API response shape for ``GET /config/system`` — independent of the infra
     ``SystemConfig`` so the wire contract isn't a leak of internal config layout."""
@@ -46,6 +60,7 @@ class SystemConfigResponse(BaseModel):
     devices: Optional[Dict[str, Dict[str, Any]]] = None
     persistence: PersistenceConfigResponse = Field(default_factory=PersistenceConfigResponse)
     maintenance: Optional[MaintenanceConfigResponse] = None
+    reports: Optional[ReportsConfigResponse] = None
     device_directory: str = Field(default="devices")
 
 

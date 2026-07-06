@@ -13,6 +13,7 @@ from wb_mqtt_bridge.infrastructure.config.models import BaseDeviceConfig, BaseCo
 from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
 from wb_mqtt_bridge.infrastructure.wb_device.service import WBVirtualDeviceService
 from wb_mqtt_bridge.domain.capabilities.models import CapabilityMap
+from wb_mqtt_bridge.domain.reports.rings import DispatchRing
 from wb_mqtt_bridge.utils.types import StateT, CommandResult, CommandResponse, ActionHandler
 from wb_mqtt_bridge.domain.ports import DevicePort, EventPublisherPort
 
@@ -56,6 +57,9 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
         # `get_room()` through the DevicePort, not directly off config -- keeps the
         # hexagonal boundary intact.
         self.room: Optional[str] = config.room
+        # Problem-report dispatch ring (B-2): set by bootstrap alongside mqtt_client;
+        # None outside the composed app (tests, offline tools) = recording disabled.
+        self.dispatch_ring: Optional[DispatchRing] = None
 
         # Initialize state with basic device identification.
         # Cast acknowledges: BaseDeviceState is a placeholder satisfying StateT
@@ -803,21 +807,47 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
         return sorted(applicable)
     
     async def execute_action(
-        self, 
-        action: str, 
+        self,
+        action: str,
         params: Optional[Dict[str, Any]] = None,
         source: str = "unknown"
     ) -> CommandResponse[StateT]:
         """Execute an action identified by action name.
-        
+
+        This is the single dispatch chokepoint for every command source (API /
+        canonical / scenario / WB MQTT / system); the problem-report dispatch
+        ring records each attempt here (problem_reports_bridge.md B-2).
+
         Args:
             action: The action name to execute
             params: Optional parameters for the action
             source: Source of the command call (e.g., "api", "mqtt", "system")
-            
+
         Returns:
             CommandResponse: Response containing success status, device state, and any additional data
         """
+        response = await self._execute_action_impl(action, params, source)
+        ring = self.dispatch_ring
+        if ring is not None:
+            try:
+                ring.record(
+                    source=source,
+                    device_id=self.device_id,
+                    action=action,
+                    params=params,
+                    success=bool(response.get("success", False)),
+                    error=response.get("error"),
+                )
+            except Exception:  # noqa: BLE001 - evidence collection must never break dispatch
+                logger.exception("dispatch ring record failed")
+        return response
+
+    async def _execute_action_impl(
+        self,
+        action: str,
+        params: Optional[Dict[str, Any]] = None,
+        source: str = "unknown"
+    ) -> CommandResponse[StateT]:
         try:
             # Find the command configuration for this action
             cmd = None

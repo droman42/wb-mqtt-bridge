@@ -61,6 +61,13 @@ Membership is derived from the device fleet (each device's `room` field), not
 from a `devices` array in `rooms.json`. See **[Rooms](rooms.md)** for the full
 story.
 
+### Problem reports
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/reports` | The UI's "Report a problem" button. Body: `{free_text, context, ui_evidence}` — the user's words, the page they were on, and the browser-side evidence rings. The backend snapshots the rest (device states, persisted-vs-live diffs, active scenarios, scoped configs, today's logs, the recent-dispatch and MQTT-traffic rings), redacts credentials, packages one bundle, and files a ticket into the private reports repo (offline filings spool to disk and retry). Rate-limited; disabled unless `system.json` enables reporting. |
+| `GET` | `/reports/evidence` | The same evidence, redacted, as a plain read — no ticket filed. `?entity_id=` anchors the scoping to a device and its topology neighbors. This is the seam the voice assistant calls when one of *its* problem reports involves the smart home, folding bridge evidence into its own bundle. Always available. |
+
 ### State
 
 | Method | Path | Purpose |

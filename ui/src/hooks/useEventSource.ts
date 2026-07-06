@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { runtimeConfig, getSSEUrl } from '@/config/runtime';
+import { reportSseState } from '../lib/reportEvidence';
 
 export interface SSEOptions {
   withCredentials?: boolean;
@@ -71,6 +72,7 @@ export function useEventSource<T = any>(
         es.onopen = () => {
           if (!cancelledRef.current) {
             console.log(`🟢 SSE connection opened for ${fullUrl}`);
+            reportSseState(fullUrl, { connected: true });
             setConnected(true);
             setError(null);
             
@@ -85,6 +87,7 @@ export function useEventSource<T = any>(
         es.onmessage = (event) => {
           if (!cancelledRef.current) {
             try {
+              reportSseState(fullUrl, { lastEventTs: Date.now() });
               const eventData = JSON.parse(event.data);
               
               // Extract event type from data payload (new backend format)
@@ -124,6 +127,7 @@ export function useEventSource<T = any>(
 
         es.onerror = (e) => {
           console.error(`🔴 SSE connection error for ${fullUrl}`);
+          reportSseState(fullUrl, { connected: false, lastErrorTs: Date.now() });
           setError(e);
           setConnected(false);
           es.close();

@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Awaitable, Callable, Dict, Generic, List, Mapping, Optional, Union
 
 from wb_mqtt_bridge.domain.devices.config import BaseCommandConfig
+from wb_mqtt_bridge.domain.reports.models import ReportFiling, ReportFilingResult
 from wb_mqtt_bridge.utils.types import CommandResponse, StateT
 
 
@@ -242,3 +243,24 @@ class StateRepositoryPort(ABC):
     async def close(self) -> None:
         """Close the state repository and clean up resources."""
         pass 
+
+class ReportSinkPort(ABC):
+    """Port for filing problem reports (problem_reports_bridge.md B-8).
+
+    Used by: domain/reports/service.ReportService
+    Implemented by: infrastructure/reports/github_sink.GitHubReportSink
+    (which also owns the B-7 offline spool: a failed filing is spooled to disk
+    and retried — the port's contract is "never lose a report, tell me what
+    happened").
+    """
+
+    @abstractmethod
+    async def file_report(self, filing: ReportFiling) -> ReportFilingResult:
+        """File one report (issue + bundle commit). Must not raise on delivery
+        failure — spool instead and return ``spooled=True``."""
+        pass
+
+    @abstractmethod
+    async def retry_spooled(self) -> int:
+        """Retry spooled filings; returns how many were delivered."""
+        pass

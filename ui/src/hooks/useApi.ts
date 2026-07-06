@@ -19,6 +19,7 @@ import type {
   PersistedStatesResponse,
 } from '../types/api';
 import { BaseDeviceState } from '../types/BaseDeviceState';
+import { collectUiEvidence, recordApiCall } from '../lib/reportEvidence';
 
 // Create axios instance with base configuration
 // Use relative URLs when VITE_API_BASE_URL is empty (for nginx proxy)
@@ -34,6 +35,54 @@ const api = axios.create({
   baseURL: getBaseURL(),
   // No timeout - let backend manage operation-specific timeouts
 });
+
+// Problem-report API evidence ring (B-4): method/path/status/duration per call,
+// error bodies on failures — dumped only into a filed report's ui_evidence.
+api.interceptors.request.use((config) => {
+  (config as { _evidenceStart?: number })._evidenceStart = Date.now();
+  return config;
+});
+api.interceptors.response.use(
+  (response) => {
+    const start = (response.config as { _evidenceStart?: number })._evidenceStart ?? Date.now();
+    recordApiCall({
+      ts: Date.now(),
+      method: (response.config.method ?? '?').toUpperCase(),
+      path: response.config.url ?? '?',
+      status: response.status,
+      durationMs: Date.now() - start,
+    });
+    return response;
+  },
+  (error: unknown) => {
+    const err = error as {
+      config?: { method?: string; url?: string; _evidenceStart?: number };
+      response?: { status?: number; data?: unknown };
+      message?: string;
+    };
+    const start = err.config?._evidenceStart ?? Date.now();
+    recordApiCall({
+      ts: Date.now(),
+      method: (err.config?.method ?? '?').toUpperCase(),
+      path: err.config?.url ?? '?',
+      status: err.response?.status ?? null,
+      durationMs: Date.now() - start,
+      error: err.response?.data ? JSON.stringify(err.response.data).slice(0, 300) : err.message,
+    });
+    return Promise.reject(error);
+  }
+);
+
+// Problem reporting (problem_reports_bridge.md B-8/B-12): the navbar bug button's
+// filing call. Browser evidence is collected at send time, server assembles the rest.
+export type ReportRequest = components['schemas']['ReportRequest'];
+export type ReportResponse = components['schemas']['ReportResponse'];
+export const fileProblemReport = (freeText: string, entityId: string | null) =>
+  api.post<ReportResponse>('/reports', {
+    free_text: freeText,
+    context: { route: window.location.pathname, entity_id: entityId },
+    ui_evidence: collectUiEvidence(),
+  } satisfies ReportRequest).then(res => res.data);
 
 // System hooks
 export const useSystemInfo = () => {

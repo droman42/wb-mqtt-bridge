@@ -394,6 +394,20 @@ class MaintenanceConfig(BaseModel):
     duration: int = Field(..., description="Quiet-time of the maintenance window in seconds: the window opens on a live publish of the trigger topic and closes after this many seconds without traffic (each in-window message extends it; hard-capped at 60s)")
     topic: str = Field(..., description="MQTT topic whose live (non-retained) publish signals a controller maintenance/restart burst")
 
+class ReportsConfig(BaseModel):
+    """Problem-reporting configuration (problem_reports_bridge.md B-6/B-8/B-9).
+    Filing is opt-in (`enabled`); the evidence endpoint and rings are always on.
+    The GitHub PAT is NEVER in config — only the name of the env var holding it."""
+    enabled: bool = Field(default=False, description="Enable filing reports to the reports repo")
+    repo: str = Field(default="droman42/wb-user-reports", description="GitHub repo receiving tickets + bundles")
+    token_env: str = Field(default="WB_REPORTS_TOKEN", description="Env var holding the fine-grained PAT")
+    max_reports_per_hour: int = Field(default=3, description="Client-side rate limit (mirror of the voice D-7)")
+    max_reports_per_day: int = Field(default=10, description="Client-side rate limit (mirror of the voice D-7)")
+    dispatch_ring_depth: int = Field(default=50, description="Dispatch evidence ring depth (B-9)")
+    mqtt_window_seconds: int = Field(default=60, description="MQTT evidence window age cap (B-9)")
+    mqtt_window_max_messages: int = Field(default=500, description="MQTT evidence window size cap (B-9)")
+
+
 class SystemConfig(BaseModel):
     """Schema for system configuration."""
     service_name: str = Field(default="MQTT Web Service", description="Name of the service")
@@ -406,5 +420,6 @@ class SystemConfig(BaseModel):
     devices: Optional[Dict[str, Dict[str, Any]]] = None
     persistence: PersistenceConfig = Field(default_factory=PersistenceConfig)
     maintenance: Optional[MaintenanceConfig] = Field(default=None, description="Maintenance configuration settings")
+    reports: ReportsConfig = Field(default_factory=ReportsConfig, description="Problem-reporting settings")
     # Add explicit device directory configuration
     device_directory: str = Field(default="devices", description="Directory containing device configuration files") 

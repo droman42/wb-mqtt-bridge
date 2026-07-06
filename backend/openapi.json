@@ -1868,6 +1868,90 @@
         "title": "ErrorResponse",
         "type": "object"
       },
+      "EvidenceEnvelope": {
+        "description": "The bundle-shaped evidence — returned by ``GET /reports/evidence`` (redacted,\nno filing) and embedded in every filed bundle. Top-level keys are the contract.",
+        "properties": {
+          "bridge": {
+            "additionalProperties": true,
+            "description": "version, platform, catalog_version",
+            "title": "Bridge",
+            "type": "object"
+          },
+          "configs": {
+            "additionalProperties": true,
+            "description": "scoped device configs, redacted",
+            "title": "Configs",
+            "type": "object"
+          },
+          "context": {
+            "additionalProperties": true,
+            "description": "entity_id/room the report is anchored to + the scoped device set",
+            "title": "Context",
+            "type": "object"
+          },
+          "dispatch_ring": {
+            "description": "last executed actions (B-2)",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Dispatch Ring",
+            "type": "array"
+          },
+          "generated_at": {
+            "description": "UTC ISO-8601 timestamp of collection",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "logs": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "log filename -> base64(gzip(content))",
+            "title": "Logs",
+            "type": "object"
+          },
+          "mqtt_window": {
+            "description": "recent broker traffic (B-2)",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Mqtt Window",
+            "type": "array"
+          },
+          "scenarios": {
+            "additionalProperties": true,
+            "description": "active scenario + manual steps per room",
+            "title": "Scenarios",
+            "type": "object"
+          },
+          "state_diffs": {
+            "additionalProperties": true,
+            "description": "persisted-vs-live field diffs for the scoped devices",
+            "title": "State Diffs",
+            "type": "object"
+          },
+          "states": {
+            "additionalProperties": true,
+            "description": "live state of EVERY device (B-1)",
+            "title": "States",
+            "type": "object"
+          },
+          "system_config": {
+            "additionalProperties": true,
+            "description": "system.json, redacted",
+            "title": "System Config",
+            "type": "object"
+          }
+        },
+        "required": [
+          "generated_at",
+          "bridge"
+        ],
+        "title": "EvidenceEnvelope",
+        "type": "object"
+      },
       "GroupMemberResult": {
         "description": "Per-member outcome of a room group action (§10.4). `skipped` = the member's\nmatching capability lacks the requested action (reported, never an error);\n`no_op` = already at target; `failed` carries the member's error in `detail`.",
         "properties": {
@@ -2924,6 +3008,130 @@
         "title": "RemoteZone",
         "type": "object"
       },
+      "ReportRequest": {
+        "properties": {
+          "context": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Page context: route, entity_id — anchors the evidence scoping (B-1)",
+            "title": "Context"
+          },
+          "free_text": {
+            "description": "The user's problem description, verbatim",
+            "minLength": 1,
+            "title": "Free Text",
+            "type": "string"
+          },
+          "ui_evidence": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Browser-side evidence (B-4): action log, console/API rings, SSE health, app context",
+            "title": "Ui Evidence"
+          }
+        },
+        "required": [
+          "free_text"
+        ],
+        "title": "ReportRequest",
+        "type": "object"
+      },
+      "ReportResponse": {
+        "properties": {
+          "report_id": {
+            "title": "Report Id",
+            "type": "string"
+          },
+          "spooled": {
+            "description": "True = delivery failed, the report is spooled and will retry (B-7)",
+            "title": "Spooled",
+            "type": "boolean"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ticket URL when filed immediately",
+            "title": "Url"
+          }
+        },
+        "required": [
+          "success",
+          "report_id",
+          "spooled"
+        ],
+        "title": "ReportResponse",
+        "type": "object"
+      },
+      "ReportsConfigResponse": {
+        "description": "Problem-reporting settings as served (the PAT itself never appears — only\nthe name of the env var holding it).",
+        "properties": {
+          "dispatch_ring_depth": {
+            "default": 50,
+            "title": "Dispatch Ring Depth",
+            "type": "integer"
+          },
+          "enabled": {
+            "default": false,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "max_reports_per_day": {
+            "default": 10,
+            "title": "Max Reports Per Day",
+            "type": "integer"
+          },
+          "max_reports_per_hour": {
+            "default": 3,
+            "title": "Max Reports Per Hour",
+            "type": "integer"
+          },
+          "mqtt_window_max_messages": {
+            "default": 500,
+            "title": "Mqtt Window Max Messages",
+            "type": "integer"
+          },
+          "mqtt_window_seconds": {
+            "default": 60,
+            "title": "Mqtt Window Seconds",
+            "type": "integer"
+          },
+          "repo": {
+            "default": "droman42/wb-user-reports",
+            "title": "Repo",
+            "type": "string"
+          },
+          "token_env": {
+            "default": "WB_REPORTS_TOKEN",
+            "title": "Token Env",
+            "type": "string"
+          }
+        },
+        "title": "ReportsConfigResponse",
+        "type": "object"
+      },
       "RevoxA77ReelToReelState": {
         "description": "Schema for Revox A77 reel-to-reel state.",
         "properties": {
@@ -3543,6 +3751,16 @@
           },
           "persistence": {
             "$ref": "#/components/schemas/PersistenceConfigResponse"
+          },
+          "reports": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportsConfigResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "service_name": {
             "default": "MQTT Web Service",
@@ -4973,6 +5191,100 @@
         "summary": "Reload System",
         "tags": [
           "System"
+        ]
+      }
+    },
+    "/reports": {
+      "post": {
+        "description": "File a problem report: collect evidence, package the envelope, deliver (or spool).",
+        "operationId": "file_problem_report_reports_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "File Problem Report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/reports/evidence": {
+      "get": {
+        "description": "The bundle-shaped, redacted evidence — no ticket filed (B-11 read seam).",
+        "operationId": "get_report_evidence_reports_evidence_get",
+        "parameters": [
+          {
+            "description": "Anchor entity for B-1 scoping (optional)",
+            "in": "query",
+            "name": "entity_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Anchor entity for B-1 scoping (optional)",
+              "title": "Entity Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Report Evidence",
+        "tags": [
+          "reports"
         ]
       }
     },

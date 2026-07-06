@@ -31,11 +31,16 @@ from wb_mqtt_bridge.domain.scenarios.proxy import ScenarioProxy
 from wb_mqtt_bridge.infrastructure.scenarios.wb_adapter import ScenarioWBAdapter
 from wb_mqtt_bridge.infrastructure.capabilities.loader import attach_capability_maps, validate_command_exposure
 from wb_mqtt_bridge.infrastructure.maintenance.wirenboard_guard import WirenboardMaintenanceGuard
+from wb_mqtt_bridge.infrastructure.reports.github_sink import GitHubReportSink
+from wb_mqtt_bridge.domain.reports.models import ReportsSettings
+from wb_mqtt_bridge.domain.reports.rings import DispatchRing, MqttWindow
+from wb_mqtt_bridge.domain.reports.service import ReportService
 
 # Import routers
 from wb_mqtt_bridge.presentation.api.routers import (
-    system, devices, mqtt, scenarios, rooms, state, events
+    system, devices, mqtt, scenarios, rooms, state, events, reports
 )
+from wb_mqtt_bridge.presentation.api.catalog import build_catalog
 from wb_mqtt_bridge.presentation.api.sse_manager import sse_manager
 
 from wb_mqtt_bridge.__version__ import __version__
@@ -177,6 +182,16 @@ def create_app() -> FastAPI:
             'keepalive': mqtt_broker_config.keepalive,
             'auth': mqtt_broker_config.auth
         }, maintenance_guard=maintenance_guard)
+
+        # Problem-report evidence rings (problem_reports_bridge.md B-2): always on,
+        # in-memory, dumped only into report bundles / the evidence endpoint.
+        reports_cfg = system_config.reports
+        dispatch_ring = DispatchRing(depth=reports_cfg.dispatch_ring_depth)
+        mqtt_window = MqttWindow(
+            max_age_s=reports_cfg.mqtt_window_seconds,
+            max_entries=reports_cfg.mqtt_window_max_messages,
+        )
+        mqtt_client.traffic_observer = mqtt_window.record
         
         # Initialize device manager with state repository
         device_manager = DeviceManager(state_repository=state_store)
@@ -211,6 +226,7 @@ def create_app() -> FastAPI:
             device.mqtt_client = mqtt_client
             device.wb_service = wb_service
             device.event_publisher = sse_manager  # SSE fan-out via EventPublisherPort
+            device.dispatch_ring = dispatch_ring  # problem-report evidence (B-2)
             logger.info(f"Device {device_id} initialized with typed configuration and WB service")
 
         # Attach Layer 1 capability maps from config/capabilities/ (hot-fixable JSON).
@@ -299,6 +315,52 @@ def create_app() -> FastAPI:
         else:
             logger.warning("MQTT not connected - scenario WB cards skipped")
 
+        # Problem-report service (problem_reports_bridge.md): the collector behind
+        # POST /reports (filing, opt-in) and GET /reports/evidence (B-11, always on).
+        # Cross-layer inputs go in as callables so the domain service stays import-pure.
+        import platform as _platform
+        assert state_store is not None  # set earlier in this lifespan; narrows for the closure below
+        _report_state_store = state_store
+        report_sink = GitHubReportSink(
+            repo=reports_cfg.repo,
+            token_env=reports_cfg.token_env,
+            spool_dir=Path("data/reports"),
+        )
+        report_service = ReportService(
+            settings=ReportsSettings(
+                enabled=reports_cfg.enabled,
+                repo=reports_cfg.repo,
+                max_reports_per_hour=reports_cfg.max_reports_per_hour,
+                max_reports_per_day=reports_cfg.max_reports_per_day,
+                log_file=Path(system_config.log_file) if system_config.log_file else None,
+            ),
+            device_manager=device_manager,
+            scenario_manager=scenario_manager,
+            sink=report_sink,
+            dispatch_ring=dispatch_ring,
+            mqtt_window=mqtt_window,
+            persisted_state=lambda did: _report_state_store.get(f"device:{did}"),
+            system_config=lambda: system_config.model_dump(mode="json"),
+            catalog_version=lambda: build_catalog(device_manager, room_manager, scenario_proxy).version,
+            bridge_version=__version__,
+            platform=f"{_platform.system()}-{_platform.machine()}",
+        )
+
+        # B-7 spool retry: once at startup, then hourly (only meaningful when filing
+        # is enabled — a disabled bridge never spools).
+        report_retry_task: asyncio.Task | None = None
+        if reports_cfg.enabled:
+            async def _report_retry_loop() -> None:
+                while True:
+                    try:
+                        delivered = await report_sink.retry_spooled()
+                        if delivered:
+                            logger.info(f"Delivered {delivered} spooled problem report(s)")
+                    except Exception as e:
+                        logger.error(f"Spooled-report retry failed: {str(e)}")
+                    await asyncio.sleep(3600)
+            report_retry_task = asyncio.create_task(_report_retry_loop())
+
         # Initialize routers with dependencies
         system.initialize(config_manager, device_manager, mqtt_client, state_store, scenario_manager, room_manager, scenario_proxy)
         devices.initialize(config_manager, device_manager, mqtt_client, scenario_proxy)
@@ -307,7 +369,8 @@ def create_app() -> FastAPI:
         rooms.initialize(room_manager, device_manager)  # device_manager: VWB-23 group dispatch
         state.initialize(config_manager, device_manager, state_store, scenario_manager)
         events.initialize()  # Initialize SSE events router
-        
+        reports.initialize(report_service)
+
         logger.info("System startup complete")
         
         yield  # Service is running
@@ -316,6 +379,10 @@ def create_app() -> FastAPI:
         logger.info("System shutting down...")
         
         try:
+            # Stop the problem-report spool retry loop (pure timer; nothing to flush).
+            if report_retry_task is not None:
+                report_retry_task.cancel()
+
             # Shutdown SSE connections first to prevent blocking
             logger.info("Shutting down SSE connections...")
             await sse_manager.shutdown()
@@ -409,6 +476,7 @@ def create_app() -> FastAPI:
     app.include_router(rooms.router)
     app.include_router(state.router)
     app.include_router(events.router)
+    app.include_router(reports.router)
 
     _install_openapi_with_state_models(app)
 

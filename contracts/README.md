@@ -11,7 +11,7 @@ into a sibling repository. The voice side pins its own copy (into
 | File | What it is |
 |---|---|
 | `catalog.golden.json` | The golden catalog sample — the full house as `GET /system/catalog` serves it: rooms, devices (including the `global` aggregates and the per-room `scenario_manager_*` entities), capabilities with action **param descriptors** (typed `CatalogParam`: name/type/required/default/min/max/`unit`/`values`/`options_from` — the schema of record for param parsing) and `{wire, canonical, labels}` enum value tables. Generated offline and deterministically from `backend/config/` — same projection code path as the live endpoint. |
-| `openapi.json` | The pinned API schema of record — carries `CatalogResponse` and the canonical action request/response shapes under `components/schemas`. Byte-identical to `backend/openapi.json` (the UI-consumed copy). |
+| `openapi.json` | The pinned API schema of record — carries `CatalogResponse`, the canonical action request/response shapes, and (since contract v1.4) the problem-report surface: `EvidenceEnvelope`, the shape `GET /reports/evidence` returns — the bridge-side evidence a voice-filed problem report embeds when the smart home is involved. Byte-identical to `backend/openapi.json` (the UI-consumed copy). |
 | `STAMP.json` | The build stamp: which bridge commit + version last generated these artifacts, and the golden's content-hash. The content-hash tracks *config* drift (Irene re-fetches when the retained `bridge/catalog/version` topic changes); the commit stamp tracks the *code build* the voice side coded against. Neither substitutes for the other. The commit named is the build the artifacts were generated **from** (i.e. the parent of the commit that lands them). |
 
 ## Regeneration

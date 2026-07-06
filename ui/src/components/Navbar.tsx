@@ -4,9 +4,11 @@ import { Icon } from './icons';
 import { useRoomStore } from '../stores/useRoomStore';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import { Button } from './ui/button';
+import { ReportProblemDialog } from './ReportProblemDialog';
 
 function Navbar() {
   const navigate = useNavigate();
+  const [reportOpen, setReportOpen] = useState(false);
   const { 
     rooms, 
     devices, 
@@ -230,8 +232,8 @@ function Navbar() {
       {/* Right-side Controls */}
       <div className="absolute right-4 flex items-center space-x-2">
         {/* State Panel Toggle */}
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           size="icon"
           onClick={toggleStatePanel}
           title="Toggle Device State Panel"
@@ -240,15 +242,28 @@ function Navbar() {
         </Button>
 
         {/* Log Panel Toggle */}
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           size="icon"
           onClick={toggleLogPanel}
           title="Toggle Log Panel"
         >
           <span className="text-xs">LOG</span>
         </Button>
+
+        {/* Report a problem (B-12): quiet bug, amber on hover */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setReportOpen(true)}
+          title="Сообщить о проблеме"
+          className="text-muted-foreground hover:text-amber-400"
+        >
+          <Icon library="material" name="BugReport" size="md" fallback="bug" className="h-5 w-5" />
+        </Button>
       </div>
+
+      <ReportProblemDialog open={reportOpen} onClose={() => setReportOpen(false)} />
 
       {/* Click outside to close dropdowns */}
       {dropdownOpen && (

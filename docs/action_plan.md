@@ -507,28 +507,6 @@ endpoint).
 - [ ] **VWB-16** `[P2]` `[release]` — **Consumer contract test — crafted canonical `DeviceCommand` → native/echo** (cross-project; the consumer half of the bidirectional contract, pairs with `wb-mqtt-voice` TEST-18's producer half). Drive the bridge from the shared **`{utterance → expected canonical command}` crossover fixtures** (using the canonical-command half only — the utterance is Irene's concern): feed each crafted canonical command and assert it dispatches the right native action / value-topic echo, resolved against the **same golden catalog** the voice side tests against (so device-ids/capabilities can't drift apart). Depends on VWB-15's committed artifact.
   - **Sequence-form caveat — RESOLVED 2026-07-04 (VWB-17 DONE):** the canonical endpoint now routes `sequence`-form actions (shared `CapabilityAction.expand()` — per-step param translation, inter-step `delay_after_ms`, mid-sequence failure naming the step). Crossover fixtures may cover sequence-form actions freely.
   - Spec: `wb-mqtt-voice/docs/design/mqtt_integration.md` §14.
-
-- [ ] **VWB-28** `[P2]` `[deferred]` — **UI "Report a problem" — implementation**
-  (filed at VWB-27 design completion, 2026-07-06; design:
-  `docs/design/problem_reports_bridge.md`, B-1..B-11). **Unblocked same day** — voice BUILD-12
-  provisioned `wb-user-reports` (both lens files, labels, workflows, secrets) and live-smoked
-  the full device→ticket→triage→PR loop. Build order per design §7: the five evidence rings
-  (backend dispatch ring at the `execute_action` chokepoint + filtered MQTT window; browser
-  console/API/SSE buffers + a cap on the existing `useLogStore`) → collector + redaction pass +
-  envelope builder → `ReportSinkPort` (domain) / `GitHubReportSink` (infrastructure) +
-  `data/reports/` spool with startup+hourly retry + server-side rate limit → `POST /reports`
-  router **+ the B-11 `GET /reports/evidence` read seam** (voice ARCH-34 amendment, verified +
-  accepted at intake 2026-07-06: the same collector exposed as a read endpoint returning the
-  redacted bundle-shaped evidence WITHOUT filing — the voice collector folds it into voice
-  bundles at filing time, closing the design-§8 handover-evidence gap automatically for the
-  common case; the envelope shape is OURS to own and rides `openapi.json` → the `contracts/`
-  pin; the amendment's dialog-preview claim was corrected at intake — §2's "no draft state"
-  stands, B-11 rests on the voice consumer alone) → the UI dialog/toast → tests (mock-sink
-  collector units, redaction cases, temp-dir e2e, evidence-envelope schema test).
-  `system.json` gains a `reports` section; the PAT lives in the controller env (never the
-  browser). `config-ui-stays-functional` applies (new endpoints + config section → regen
-  types, config section UI).
-
 ### UI — config-ui
 
 - [ ] **UI-8** `[P2]` `[deferred]` — **UI `vite` 5 → 6 migration (deferred — deliberate major upgrade).** Filed 2026-06-27. Closes the remaining build-toolchain Dependabot alerts that couldn't be cleared by the lockfile-only `npm audit fix` (see journal 2026-06-27): **vite #113/#154/#155** (path traversal / dev-server) and **esbuild #81** (esbuild 0.25 rides vite 6). Does **NOT** cover the other 2 residual alerts — `minimatch` #101 (pinned by `@typescript-eslint@6`) and `js-yaml` #152 (pinned by `jest@29`); those are separate toolchain-major tasks (eslint 6→9 / jest upgrade), file them if/when pursued.

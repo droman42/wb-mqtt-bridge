@@ -42,6 +42,10 @@ class MQTTClient(MessageBusPort):
         
         # Message handlers
         self.message_handlers: Dict[str, Callable] = {}
+        # Problem-report MQTT window (B-2): a sync observer fed every in/out message
+        # ("in"|"out", topic, payload). Set by bootstrap; None = recording disabled.
+        # Must never raise into the publish/receive paths (guarded at call sites).
+        self.traffic_observer: Optional[Callable[[str, str, str], None]] = None
         # Map of topics to devices that have subscribed to them
         self.topic_subscribers: Dict[str, List[str]] = {}
         # Topics whose retained-on-subscribe message MUST be dispatched (opt-in). The
@@ -257,7 +261,13 @@ class MQTTClient(MessageBusPort):
                             continue
                         
                         logger.debug(f"Received message on {topic}: {payload}")
-                        
+
+                        if self.traffic_observer is not None:
+                            try:
+                                self.traffic_observer("in", topic, payload)
+                            except Exception:  # noqa: BLE001 - evidence collection must never break the receive loop
+                                logger.exception("MQTT traffic observer failed (in)")
+
                         # DEBUG: Enhanced logging for control topics (broader filtering)
                         if "controls" in topic or "processor" in topic or "tv" in topic or "soundbar" in topic:
                             logger.debug(f"[MQTT_DEBUG] Processing message: topic={topic}, payload='{payload}', timestamp={asyncio.get_event_loop().time()}")
@@ -380,6 +390,11 @@ class MQTTClient(MessageBusPort):
                 actual_payload = str(actual_payload)
 
             logger.debug(f"Publishing to {topic}: {actual_payload} (type: {type(actual_payload).__name__})")
+            if self.traffic_observer is not None:
+                try:
+                    self.traffic_observer("out", topic, str(actual_payload))
+                except Exception:  # noqa: BLE001 - evidence collection must never break publishing
+                    logger.exception("MQTT traffic observer failed (out)")
             await self.client.publish(topic, actual_payload, qos=qos, retain=retain)
         except MqttError as e:
             logger.error(f"Failed to publish to {topic}: {str(e)}")
