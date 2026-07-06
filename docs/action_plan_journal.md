@@ -21,6 +21,16 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-06 (B-12 — report-button placement + look decided, pre-VWB-28)** — Short interactive
+  round before implementation starts: the button is a **navbar far-right icon button** (the
+  centered picker row leaves the edge free; FAB rejected — shadows dense remote corners), icon
+  **Material `BugReport`** (top-down beetle — genuinely an insect per the user's requirement AND
+  the universal bug-report pictogram; sole icon library `@mui/icons-material` ships it —
+  `PestControl` roach and `EmojiNature` bee rejected on semantics), resting state **quiet**
+  (muted like the pickers, amber on hover — the manual-notes accent; tooltip «Сообщить о
+  проблеме»; no permanent accent, no text label). Recorded as **B-12** in
+  `problem_reports_bridge.md` (+§2 concretized). VWB-28 now has zero open design questions.
+
 - **2026-07-06 (VWB-26 DONE — bridge joins the problem-reporting loop: lens co-owned, `/inbox` live)** —
   Pulled forward hours after voice BUILD-12 unblocked it. **(1) Lens co-ownership review:**
   `wb-user-reports`' `.github/claude/lens-bridge.md` verified against this repo — its §2

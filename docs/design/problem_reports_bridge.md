@@ -2,7 +2,8 @@
 
 **Status: AGREED 2026-07-06 (interactive design session, VWB-27). B-1..B-10 user-approved
 (B-1..B-3 decided interactively; B-4..B-10 accepted as proposed). B-11 added the same day —
-a voice-side amendment (their ARCH-34), verified and accepted at intake.**
+a voice-side amendment (their ARCH-34), verified and accepted at intake. B-12 (button
+placement + look) decided interactively the same day, pre-VWB-28.**
 
 The bridge's half of the cross-repo problem-reporting loop designed in
 `wb-mqtt-voice/docs/design/problem_reports.md` (ARCH-30, AGREED 2026-07-06). The shared pieces —
@@ -65,11 +66,23 @@ evidence infrastructure v1 builds.
   Note: the amendment's second claimed consumer — an evidence *preview* in the report dialog —
   contradicts §2's agreed "no draft state" and is NOT adopted; preview stays a possible later
   UX refinement, and B-11 stands on the voice consumer alone.
+- **B-12 — Button placement + look** (decided interactively 2026-07-06, pre-implementation).
+  The affordance is an **icon button pinned to the navbar's far right** (the centered picker
+  row leaves that edge free; part of the app chrome on every page, never overlapping remote
+  layouts — a floating button was considered and rejected for shadowing dense control corners).
+  Icon: **Material `BugReport`** — the top-down beetle; genuinely an insect (user requirement)
+  AND the universal bug-report pictogram; the UI's one icon library (`@mui/icons-material`)
+  ships it, so no new dependency (rejected: `PestControl` — more literally a roach but
+  extermination semantics; `EmojiNature` — a bee, nature semantics). Resting state: **quiet**
+  — `muted-foreground` like the pickers, turning **amber on hover/press** (the manual-notes
+  accent — "attention, not alarm"), tooltip «Сообщить о проблеме». No permanent accent (a
+  standing amber icon would read like an active alert) and no text label (navbar width).
 
 ## 2. The dialog (UI side)
 
-A "Report a problem" affordance on every page opens a minimal dialog: one free-text field
-(«Опишите проблему своими словами» — same wording family as the voice flow), send/cancel.
+The "Report a problem" affordance — the B-12 navbar bug button (`BugReport` icon, far right,
+quiet with amber hover, tooltip «Сообщить о проблеме») — opens a minimal dialog: one free-text
+field («Опишите проблему своими словами» — same wording family as the voice flow), send/cancel.
 Send → `POST /reports` → confirmation toast carrying the report id (or the spooled-offline
 variant, B-7; or the rate-limit message, B-6). No draft state, no attachments UI.
 
