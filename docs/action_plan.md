@@ -48,10 +48,10 @@ This document captures the project state and a prioritized action plan, revised 
 |---|---|---|
 | **REL-2** (cutover) | *(nothing)* | Root of the chain. Images already build in CI; user-at-rack. |
 | **DRV-5**, **OPS-8** | *(nothing)* | Software-only; startable immediately, in any order. |
-| **DRV-1**, **DRV-2**, **SCN-3**, **SCN-9** | rack session (user) | NOT gated on REL-2 — every HW pass so far ran against the dev-box bridge. Anything still open at cutover simply verifies on the WB7 bridge instead. SCN-3/SCN-9 additionally run after DRV-1 (drivers-before-composites gate). |
+| **DRV-1**, **DRV-2**, **DRV-14**, **SCN-3**, **SCN-9** | rack session (user) | NOT gated on REL-2 — every HW pass so far ran against the dev-box bridge. Anything still open at cutover simply verifies on the WB7 bridge instead. SCN-3/SCN-9 additionally run after DRV-1 (drivers-before-composites gate). |
 | **VWB-13** | **REL-2** | The sweep needs the bridge live on the WB7 broker. |
 | **VWB-16** | voice **TEST-18** fixtures | The only cross-repo gate; lands whenever the fixtures do. |
-| **REL-3** (rack pass + gate run) | **REL-2** + **DRV-1/2** + **SCN-3** + **SCN-9** + **DRV-5** + **OPS-8** + **VWB-13** | The convergence point: the end-to-end re-verification must run on the *deployed* bridge, after all code-touching `[release]` work has landed. Its review half may file remediation (code changes stay inside this gate). |
+| **REL-3** (rack pass + gate run) | **REL-2** + **DRV-1/2** + **DRV-14** + **SCN-3** + **SCN-9** + **DRV-5** + **OPS-8** + **VWB-13** | The convergence point: the end-to-end re-verification must run on the *deployed* bridge, after all code-touching `[release]` work has landed. Its review half may file remediation (code changes stay inside this gate). |
 | **REL-4** (docs pass) | **REL-3** | Docs describe the final state — after review remediation settles. Last task before the tag. |
 | **the tag** | everything above + **VWB-16** | |
 
@@ -196,7 +196,27 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   **On completion, file the implementation follow-ups** as their own DRV tasks (the `RoborockDevice`
   driver + the interactive-map UI page). No driver/page work starts before the design locks.
 
----
+- [ ] **DRV-14** `[P1]` `[release]` — **Auralic: all-network power control (halt state) — retire the
+  IR power path.** Research verified live at the rack 2026-07-07 (user request "just research, no
+  coding yet"); evidence chain in the journal. **Finding: the May-era "deep sleep needs IR"
+  assumption is disproven on hardware.** The unit's power ladder is fully network-controllable:
+  on ⇄ standby via OpenHome `Product.SetStandby` (already used by the driver); and the state the IR
+  toggle / "true power off" actually produces is **"halted"** — network UP, UPnP description served,
+  a reduced service set (`HardwareConfig` + `Volume` + config services; `Product`/transport
+  deregistered) — from which **`HardwareConfig.SetHaltStatus(0)` wakes the unit into standby**
+  (verified: `GetHaltStatus`→1 while asleep; `SetHaltStatus(0)` → services re-registered on a new
+  dynamic port, `is_in_standby`→True). No network-dead state exists short of the rear rocker, which
+  IR can't reach either. **Scope:** (1) wrap `HardwareConfig` (`GetHaltStatus`/`SetHaltStatus`,
+  service `urn:av-openhome-org:service:HardwareConfig:1`, actions verified in SCPD) — natural home
+  is the `droman42/openhomedevice` fork (cross-repo: change there, pin here); (2) driver: `power_on`
+  from the halted state goes `SetHaltStatus(0)` → `SetStandby(False)` instead of IR; `power_off`
+  stops claiming "true power off" + optimistically setting `deep_sleep=True` (it currently lies —
+  the unit stays network-alive); the halted state becomes a *detected* state (device.xml reachable
+  but `Product` absent ⇒ halted, not "unreachable"); (3) config: retire `ir_power_on_topic`/
+  `ir_power_off_topic` from `streamer.json` — kills the ROM62 **toggle** hazard (same code both
+  directions) and frees the WB-MSW dependency; (4) re-verify the full ladder on hardware + update
+  the DRV-1 Auralic row. `[release]` because it changes the power semantics the music scenarios
+  reconcile against — better before the SCN-3 pass than after.
 
 
 ### SCN — Scenarios / topology / reconciler

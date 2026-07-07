@@ -21,6 +21,22 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-07 (DRV-14 FILED — Auralic all-network power research; IR disproven necessary)** —
+  user asked "do we really need IR power for the Auralic?" before starting the action walk; live
+  experiment answered it. Streamer connected cleanly post-DRV-13 (`.142`, renderer picked over
+  server, **standby readable, Volume service present** — two bench-probe answers in). UI power_off
+  took the IR "true power off" path and claimed `deep_sleep=True` — but probing showed the unit
+  **network-alive**: SSDP + device.xml up on a fresh port with a reduced service set
+  (`HardwareConfig`+`Volume`; `Product` deregistered). SCPD enumeration found
+  `GetHaltStatus`/`SetHaltStatus`; SOAP `GetHaltStatus`→1 confirmed "halted", and
+  **`SetHaltStatus(0)` woke it into standby** (full services back, `is_in_standby`→True). Power
+  ladder fully network-controllable: on ⇄ standby (`SetStandby`), standby ⇄ halted
+  (`SetHaltStatus`); no network-dead state short of the rear rocker. DRV-14 filed `[release]`
+  (wrap HardwareConfig in the openhomedevice fork, truth-tell `power_off`, detect the halted state,
+  retire the ROM62 IR toggle) and wired into the Ordering table ahead of the SCN passes. Also
+  closed en route: the streamer's DHCP reservation is live at `.142` (router lease enabled by the
+  user, config pinned).
+
 - **2026-07-07 (DRV-13 DONE — Auralic SSDP discovery rebuilt on raw M-SEARCH; the IP-drift saga)** —
   post-DRV-12 restart: cadenced probes fired on schedule but discovery still failed. Layered
   diagnosis: (1) unit dead at the configured `.16` → SSDP sweep found it at `.11`
