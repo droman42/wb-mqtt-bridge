@@ -129,3 +129,127 @@ def test_extract_ssdp_locations_rejects_location_host_mismatch():
 
 def test_extract_ssdp_locations_tolerates_garbage():
     assert AuralicDevice._extract_ssdp_locations([(b"\xff\xfe garbage", "192.168.1.50")], "192.168.1.50") == []
+
+
+# --- DRV-14: all-network power control (the halted state) ---------------------
+# Live-verified ladder: on <-> standby via Product.SetStandby; standby <-> halted
+# via HardwareConfig.SetHaltStatus. Halted = description reachable, Product
+# absent, network up. The IR power path is gone.
+
+
+def _halted_openhome(mock_standby_error: bool = False) -> MagicMock:
+    d = MagicMock()
+    d.product_service = None
+    d.set_halt = AsyncMock()
+    return d
+
+
+@pytest.mark.asyncio
+async def test_adopt_classifies_halted_device():
+    device = _make_device()
+    halted = _halted_openhome()
+
+    assert await device._adopt_openhome_device(halted) is False
+
+    assert device._deep_sleep_mode is True
+    assert device.openhome_device is halted  # handle kept for the halt wake
+    assert device.state.deep_sleep is True
+    assert device.state.connected is False
+    assert device.state.power == "off"
+
+
+@pytest.mark.asyncio
+async def test_adopt_connects_full_device():
+    device = _make_device()
+    full = MagicMock()
+    full.product_service = MagicMock()
+    device._update_device_state = AsyncMock()
+    device._refresh_sources_cache = AsyncMock()
+
+    assert await device._adopt_openhome_device(full) is True
+    assert device._deep_sleep_mode is False
+    device._update_device_state.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_power_on_wakes_halted_via_set_halt(monkeypatch):
+    """Halted → SetHaltStatus(false) → rediscover → adopt → standby exit."""
+    device = _make_device()
+    halted = _halted_openhome()
+    device.openhome_device = halted
+    device._deep_sleep_mode = True
+
+    woken = MagicMock()
+    woken.product_service = MagicMock()
+    woken.is_in_standby = AsyncMock(return_value=True)
+    woken.set_standby = AsyncMock()
+    device._create_openhome_device = AsyncMock(return_value=woken)
+    device._update_device_state = AsyncMock()
+    device._refresh_sources_cache = AsyncMock()
+    monkeypatch.setattr("asyncio.sleep", AsyncMock())
+
+    from wb_mqtt_bridge.infrastructure.config.models import BaseCommandConfig
+    result = await device.handle_power_on(BaseCommandConfig(action="power_on"), {})
+
+    assert result["success"] is True, result
+    halted.set_halt.assert_awaited_once_with(False)
+    woken.set_standby.assert_awaited_once_with(False)
+    assert device._deep_sleep_mode is False
+
+
+@pytest.mark.asyncio
+async def test_power_on_unreachable_fails_without_ir():
+    device = _make_device()
+    device.openhome_device = None
+    device._deep_sleep_mode = False
+
+    from wb_mqtt_bridge.infrastructure.config.models import BaseCommandConfig
+    result = await device.handle_power_on(BaseCommandConfig(action="power_on"), {})
+
+    assert result["success"] is False
+    assert "unreachable" in (result.get("error") or "")
+
+
+@pytest.mark.asyncio
+async def test_power_off_full_goes_standby_then_halt():
+    device = _make_device()
+    full = MagicMock()
+    full.product_service = MagicMock()
+    full.transport_state = AsyncMock(return_value="Stopped")
+    full.set_standby = AsyncMock()
+    full.set_halt = AsyncMock()
+    device.openhome_device = full
+    device._deep_sleep_mode = False
+
+    from wb_mqtt_bridge.infrastructure.config.models import BaseCommandConfig
+    result = await device.handle_power_off(BaseCommandConfig(action="power_off"), {})
+
+    assert result["success"] is True, result
+    full.set_standby.assert_awaited_once_with(True)
+    full.set_halt.assert_awaited_once_with(True)
+    assert device._deep_sleep_mode is True
+    assert device.state.deep_sleep is True
+
+
+@pytest.mark.asyncio
+async def test_power_off_already_halted_is_noop():
+    device = _make_device()
+    device._deep_sleep_mode = True
+    device.openhome_device = _halted_openhome()
+
+    from wb_mqtt_bridge.infrastructure.config.models import BaseCommandConfig
+    result = await device.handle_power_off(BaseCommandConfig(action="power_off"), {})
+
+    assert result["success"] is True
+    device.openhome_device.set_halt.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_update_device_state_detects_halted_handle():
+    device = _make_device()
+    device.openhome_device = _halted_openhome()
+
+    await device._update_device_state()
+
+    assert device.state.connected is False
+    assert device.state.deep_sleep is True

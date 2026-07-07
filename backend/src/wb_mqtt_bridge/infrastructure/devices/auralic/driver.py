@@ -19,43 +19,25 @@ from wb_mqtt_bridge.domain.devices.types import CommandResult
 logger = logging.getLogger(__name__)
 
 # Note about Auralic devices:
-# Auralic devices support two power states:
-# 1. Sleep/Standby (≈7W) - Can be controlled via UPnP (SetStandby)
-# 2. Deep Sleep/Power-off (≈0.3W) - Can ONLY be controlled via IR (physical power button long-press)
-#
-# This implementation uses a combination of UPnP/OpenHome control for regular functions
-# and IR control via MQTT for true power on/off functionality. The IR control is 
-# implemented through a Wirenboard IR blaster that can send the necessary signals.
-#
-# To use the IR control functionality, you must provide MQTT topics for power on/off
-# in the configuration:
-#
-# auralic:
-#   ir_power_on_topic: "wb-mqtt-bridge/wirenboard/ir_blaster/emit"    # Example topic
-#   ir_power_off_topic: "wb-mqtt-bridge/wirenboard/ir_blaster/emit"   # Example topic 
-#   device_boot_time: 15  # Time in seconds to wait for the device to boot
-#
-# Without these settings, the device can only be put into standby mode, not true power off.
+# All control is UPnP/OpenHome over the network (DRV-14) — including power. The
+# unit's power ladder: on <-> standby (Product.SetStandby), standby <-> halted
+# (HardwareConfig.SetHaltStatus — AURALiC-proprietary, wrapped by the
+# openhomedevice fork). In the halted state the network stays up and only
+# HardwareConfig keeps being served, so the driver *detects* halt (description
+# reachable, Product absent) and wakes it without IR. There is no network-dead
+# state short of the rear rocker switch.
 
 class AuralicDevice(BaseDevice[AuralicDeviceState]):
     # Narrow self.config so pyright sees AuralicDeviceConfig-shaped fields.
     config: AuralicDeviceConfig
     """
-    Implementation of an Auralic device controlled through OpenHome UPnP with IR control for power.
+    Implementation of an Auralic device controlled entirely through OpenHome UPnP.
     
     This class provides control for Auralic audio devices, supporting:
-    - UPnP/OpenHome control for regular functions (volume, source, playback)
-    - IR control via MQTT for true power on/off functionality
+    - UPnP/OpenHome control for all functions, power included (DRV-14)
     - Automatic discovery of devices on the network
     - Robust handling of Auralic's dynamic port assignment
-    - State tracking for both standby and deep sleep modes
-    
-    The implementation detects when a device is in deep sleep mode and uses IR commands
-    through a Wirenboard IR blaster to power it on. Similarly, it can put the device into
-    true power off state using IR commands.
-    
-    To use the IR control functionality, you must configure ir_power_on_topic and
-    ir_power_off_topic in the configuration.
+    - State tracking for on / standby / halted (deep sleep, network-alive)
     """
     
     def __init__(self, config: AuralicDeviceConfig, mqtt_client: Optional[MQTTClient] = None) -> None:
@@ -95,9 +77,6 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
         self._last_reconnect_probe = 0.0  # Monotonic time of the last cadenced discovery probe
         self._was_connected = False  # For rate-limited transition logging in the periodic loop
         
-        # IR control settings
-        self.ir_power_on_topic = getattr(self.config.auralic, 'ir_power_on_topic', None)
-        self.ir_power_off_topic = getattr(self.config.auralic, 'ir_power_off_topic', None)
         self.device_boot_time = getattr(self.config.auralic, 'device_boot_time', 15)  # Default 15 seconds
         self._discovery_task = None
         
@@ -106,37 +85,26 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
         self._sources_cache_timestamp = None  # When the cache was last updated
         self.sources_cache_ttl = 300  # Cache validity in seconds (5 minutes)
         
-        # Validate IR control configuration
-        if not (self.ir_power_on_topic and self.ir_power_off_topic):
-            logger.warning("IR control topics not configured. Full power control will not be available.")
     
     async def setup(self) -> bool:
         """Initialize the device."""
         try:
             # Initialize openhomedevice
-            self.openhome_device = await self._create_openhome_device()
-            
-            # Even if discovery fails, continue with setup but mark device
-            # as potentially in deep sleep mode
-            if not self.openhome_device:
-                logger.warning(f"Failed to connect to Auralic device at {self.ip_address} - device may be in deep sleep")
-                self.update_state(error="Device may be in deep sleep mode", connected=False, deep_sleep=True)
-                self._deep_sleep_mode = True
-                await self.emit_progress(f"Failed to connect to {self.device_name} - device may be in deep sleep", "action_progress")
+            device = await self._create_openhome_device()
+
+            # Even if discovery fails, continue with setup — the periodic loop
+            # keeps probing on the reconnect cadence (DRV-12). Unreachable is NOT
+            # assumed to be deep sleep any more (DRV-14): the halted state is
+            # *detected* (description up, Product absent), never guessed.
+            if not device:
+                logger.warning(f"Auralic device unreachable at {self.ip_address} — will keep probing")
+                self.update_state(error=f"Device unreachable at {self.ip_address}", connected=False, deep_sleep=False)
+                await self.emit_progress(f"{self.device_name} unreachable — will keep probing", "action_progress")
             else:
-                # Device was discovered, it's not in deep sleep
-                self._deep_sleep_mode = False
-                # Update initial state
-                await self._update_device_state()
+                await self._adopt_openhome_device(device)
 
             # Start periodic state updates regardless of discovery success
             self._update_task = asyncio.create_task(self._update_state_periodically())
-            
-            # Check if IR control is properly configured
-            if not (self.ir_power_on_topic and self.ir_power_off_topic):
-                logger.warning("IR control not properly configured - true power off will not be available")
-                self.update_state(warning="IR control not configured - only standby mode available")
-                await self.emit_progress("IR control not configured - only standby mode available", "action_progress")
             
             # Force a full state-change notification so registered callbacks (persistence +
             # WB-publish) see every field — solves the AuralicDeviceState not-fully-serialized
@@ -405,6 +373,13 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                     # Reraise other errors
                     raise
 
+            # Halted units (DRV-14) serve the description + HardwareConfig but
+            # deregister Product — the standby check can never work there, so
+            # classification is the caller's job (_adopt_openhome_device).
+            if device.product_service is None:
+                logger.info("Device description reachable but Product service absent — likely halted (deep sleep)")
+                return device
+
             # Quick check to see if we can communicate with the device
             try:
                 standby = await self._op(device.is_in_standby())
@@ -431,12 +406,61 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
         device = await self._create_openhome_device()
         if not device:
             return False
+        if not await self._adopt_openhome_device(device):
+            return False
+        logger.info(f"Reconnected to Auralic device {self.get_name()}")
+        return True
+
+    async def _adopt_openhome_device(self, device: OpenHomeDevice) -> bool:
+        """Classify a freshly discovered device and take it as the live handle.
+
+        Returns True when fully connected (OpenHome Product present). A device
+        without Product is the Auralic **halted** state (DRV-14): network up,
+        HardwareConfig served, everything else deregistered — the handle is kept
+        anyway so power_on can wake it via SetHaltStatus without re-discovery.
+        """
         self.openhome_device = device
+        if device.product_service is None:
+            self._deep_sleep_mode = True
+            self.update_state(
+                connected=False,
+                power="off",
+                deep_sleep=True,
+                error=None,
+                message="Device is halted (deep sleep) — wake via power_on or the Auralic app",
+            )
+            logger.info(f"Auralic device {self.get_name()} is halted (deep sleep, network alive)")
+            return False
         self._deep_sleep_mode = False
         await self._update_device_state()      # sets connected=True so the sources refresh below runs
         await self._refresh_sources_cache()
-        logger.info(f"Reconnected to Auralic device {self.get_name()}")
         return True
+
+    async def _wake_from_halt(self) -> bool:
+        """Wake a halted unit over the network (DRV-14; replaced the IR path).
+
+        HardwareConfig.SetHaltStatus(false) transitions the unit into standby;
+        the OpenHome services re-register on NEW dynamic ports, so the old
+        handle is useless afterwards — rediscover and adopt the fresh one.
+        """
+        device = self.openhome_device
+        if device is None:
+            return False
+        try:
+            await self._op(device.set_halt(False))
+        except Exception as e:
+            # The unit closes the connection while acting on the call (observed
+            # live at the rack) — a transport error here usually means the
+            # transition started, not that it failed. The rediscovery below is
+            # the real success check.
+            logger.debug(f"set_halt(False) transport hiccup (normal during the transition): {e}")
+        for _ in range(3):
+            await asyncio.sleep(3)
+            fresh = await self._create_openhome_device()
+            if fresh is not None and fresh.product_service is not None:
+                return await self._adopt_openhome_device(fresh)
+        logger.warning("Device did not leave the halted state after SetHaltStatus(false)")
+        return False
 
     async def _update_state_periodically(self) -> None:
         """Periodically update device state in background.
@@ -498,6 +522,11 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
         disconnected — we keep the rest of the state and leave the track fields stale."""
         if not self.openhome_device:
             self.update_state(connected=False, deep_sleep=self._deep_sleep_mode)
+            return
+
+        # A halted handle (DRV-14) has no Product service — nothing to poll.
+        if self.openhome_device.product_service is None:
+            self.update_state(connected=False, power="off", deep_sleep=True)
             return
 
         # Liveness probe — fast-fail when unreachable.
@@ -622,8 +651,8 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
         """
         Handle power on command.
         
-        For Auralic devices in deep sleep, this uses IR control via MQTT.
-        UPnP/OpenHome control only works for waking from standby mode.
+        All-network (DRV-14): a halted unit is woken via HardwareConfig
+        SetHaltStatus(false) into standby, then SetStandby(false) completes.
         
         Args:
             cmd_config: Command configuration
@@ -632,46 +661,20 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
         Returns:
             CommandResult: Result of the command
         """
-        # Use MQTT topic from config (no override in params)
-        mqtt_topic = self.ir_power_on_topic
-        
-        # CASE 1: Device is in deep sleep mode, use IR control
+        # CASE 1: Device is halted (deep sleep) — wake over the network (DRV-14;
+        # replaced the IR path): SetHaltStatus(false) moves it to standby, then
+        # CASE 2 below completes the standby exit on the fresh handle.
         if self._deep_sleep_mode:
-            logger.info("Device in deep sleep mode, using IR control to power on")
-            
-            if not mqtt_topic:
+            logger.info("Device is halted — waking via HardwareConfig.SetHaltStatus")
+            self.update_state(message="Waking from deep sleep (halt)...")
+            if not await self._wake_from_halt():
                 return self.create_command_result(
                     success=False,
-                    error="IR control not configured - cannot power on from deep sleep"
+                    error="Failed to wake device from the halted state"
                 )
-            
-            # Send IR command via MQTT
-            success = await self._send_ir_command(mqtt_topic)
-            if not success:
-                return self.create_command_result(
-                    success=False,
-                    error="Failed to send IR power on command"
-                )
-            
-            # Update state to indicate device is powering on
-            self.update_state(
-                connected=False,
-                power="off",
-                message="Device is powering on via IR command",
-                deep_sleep=False  # No longer in deep sleep, now powering on
-            )
-            
-            # Start delayed discovery to connect to the device once it's booted
-            self._start_delayed_discovery()
-            
-            return self.create_command_result(
-                success=True,
-                message="IR power on command sent. Device is booting...",
-                info=f"Device discovery will be attempted in {self.device_boot_time} seconds"
-            )
-        
+
         # CASE 2: Device is connected but in standby, use OpenHome API
-        elif self.openhome_device is not None:
+        if self.openhome_device is not None:
             logger.info("Device in standby mode, using OpenHome API to wake")
             
             try:
@@ -700,52 +703,25 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                 )
             except Exception as e:
                 logger.error(f"Error using OpenHome API to wake device: {str(e)}")
-                # Continue to fallback IR control path below.
-                logger.warning("OpenHome control failed, falling back to IR control")
+                return self.create_command_result(
+                    success=False,
+                    error=f"Failed to wake device from standby: {str(e)}"
+                )
 
-        # CASE 3: Fallback to IR control. Reached when:
-        # - CASE 1 didn't apply (not deep sleep),
-        # - and either CASE 2 didn't apply (no openhome_device) OR CASE 2's
-        #   OpenHome API call raised. CASE 2's success paths already returned.
-        logger.warning("Using IR control as fallback power on method")
-
-        if not mqtt_topic:
-            return self.create_command_result(
-                success=False,
-                error="IR control not configured and cannot use OpenHome API"
-            )
-
-        # Send IR command via MQTT
-        success = await self._send_ir_command(mqtt_topic)
-        if not success:
-            return self.create_command_result(
-                success=False,
-                error="Failed to send IR power on command"
-            )
-
-        # Update state to indicate device is powering on
-        self.update_state(
-            connected=False,
-            power="off",
-            message="Device is powering on via IR command",
-            deep_sleep=False  # No longer in deep sleep, now powering on
-        )
-
-        # Start delayed discovery
-        self._start_delayed_discovery()
-
+        # Device unreachable (no handle at all) — nothing to send a wake to.
+        # The periodic loop keeps probing; there is no IR fallback any more
+        # (DRV-14: every reachable power state is network-controllable).
         return self.create_command_result(
-            success=True,
-            message="IR power on command sent",
-            info=f"Device discovery will be attempted in {self.device_boot_time} seconds"
+            success=False,
+            error="Device unreachable — cannot power on"
         )
 
     async def handle_power_off(self, cmd_config: BaseCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
         Handle power off command.
         
-        For Auralic devices, this uses IR control via MQTT to achieve true power off.
-        UPnP/OpenHome can only put the device in standby mode.
+        All-network (DRV-14): full power off = SetStandby(true) + SetHaltStatus(true)
+        ("halted" — the deepest state reachable without the rear rocker; network stays up).
         
         Args:
             cmd_config: Command configuration
@@ -766,9 +742,6 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                     success=True,
                     message="Device already appears to be powered off"
                 )
-            
-            # Get MQTT topic from config for IR control
-            mqtt_topic = self.ir_power_off_topic
             
             # CASE 1: Standby only mode requested and device is connected
             if standby_only and self.openhome_device:
@@ -804,62 +777,64 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                         error=f"Failed to put device in standby mode: {str(e)}"
                     )
             
-            # CASE 2: Full power off requested (deep sleep via IR)
-            
-            # If IR control is not configured, we can't do true power off
-            if not mqtt_topic:
-                # If device is connected, try putting it in standby as a fallback
-                if self.openhome_device:
-                    logger.warning("IR control not configured - falling back to standby mode")
-                    
-                    try:
-                        await self.openhome_device.set_standby(True)
-                        logger.info("Device put in standby mode as fallback")
-                        await self._update_device_state()
-                        
-                        return self.create_command_result(
-                            success=True,
-                            message="Device put into standby mode (IR control not available)",
-                            warning="True power off not possible without IR control configuration"
-                        )
-                    except Exception as e:
-                        logger.error(f"Failed to put device in standby: {e}")
-                        return self.create_command_result(
-                            success=False,
-                            error=f"Failed to power off: {str(e)}"
-                        )
-                else:
-                    return self.create_command_result(
-                        success=False,
-                        error="IR control not configured - cannot perform true power off"
-                    )
-            
-            # Send IR command for true power off directly without standby step
-            logger.info("Sending IR command for true power off")
-            
-            # Send IR command via MQTT
-            success = await self._send_ir_command(mqtt_topic)
-            if not success:
+            # CASE 2: Full power off = standby + halt, all over the network
+            # (DRV-14; replaced the IR toggle). "Halted" is the deepest state the
+            # unit can reach without the rear rocker: network stays up, only
+            # HardwareConfig keeps being served.
+            if self._deep_sleep_mode:
+                return self.create_command_result(
+                    success=True,
+                    message="Device is already halted (deep sleep)"
+                )
+            if not self.openhome_device:
                 return self.create_command_result(
                     success=False,
-                    error="Failed to send IR power off command"
+                    error="Device unreachable — cannot power off"
                 )
-            
-            # Update state and set deep sleep mode
+
+            # Stop playback first, then standby, then halt.
+            try:
+                transport_state = await self.openhome_device.transport_state()
+                if transport_state != "Stopped":
+                    logger.info("Stopping playback before power off")
+                    await self.openhome_device.stop()
+                    await asyncio.sleep(0.5)
+            except Exception as e:
+                logger.warning(f"Error stopping playback: {e}")
+
+            try:
+                await self.openhome_device.set_standby(True)
+            except Exception as e:
+                logger.error(f"Failed to put device in standby: {e}")
+                return self.create_command_result(
+                    success=False,
+                    error=f"Failed to power off: {str(e)}"
+                )
+
+            try:
+                await self._op(self.openhome_device.set_halt(True))
+            except Exception as e:
+                # The unit closes the connection while acting on the halt call
+                # (observed live) — treat transport errors as the transition
+                # starting. The periodic probe self-corrects either way: it
+                # rediscovers the unit and classifies halted vs standby from
+                # what the device actually serves.
+                logger.debug(f"set_halt(True) transport hiccup (normal during the transition): {e}")
+
             self._deep_sleep_mode = True
             self.update_state(
                 connected=False,
                 power="off",
-                message="Device powered off via IR command",
+                message="Device halted (deep sleep) — network wake available",
                 deep_sleep=True
             )
-            
+
             return self.create_command_result(
                 success=True,
-                message="IR power off command sent successfully",
-                info="Device should now be in true power off state"
+                message="Device powered off (standby + halt)",
+                info="Halted state keeps the network up; power_on wakes it without IR"
             )
-                
+
         except Exception as e:
             logger.error(f"Error executing power off: {str(e)}")
             return self.create_command_result(
@@ -1312,40 +1287,7 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                 error=error_msg
             )
 
-    async def _send_ir_command(self, mqtt_topic: str) -> bool:
-        """
-        Send an IR command via MQTT.
-        
-        Args:
-            mqtt_topic: The MQTT topic to publish the command to
-            
-        Returns:
-            bool: True if command was sent successfully, False otherwise
-        """
-        if not self.mqtt_client:
-            logger.error("MQTT client not available for IR command")
-            return False
-            
-        if not mqtt_topic:
-            logger.error("MQTT topic not configured for IR command")
-            return False
-            
-        try:
-            logger.info(f"Sending IR command via MQTT topic: {mqtt_topic}")
-            await self.emit_progress(f"Sending IR command to {self.device_name}", "action_progress")
-            
-            # Send empty payload or configured payload
-            payload = "1"
-            
-            # Publish the message
-            await self.mqtt_client.publish(mqtt_topic, payload)
-            logger.info(f"IR command sent successfully to {mqtt_topic}")
-            await self.emit_progress(f"IR command sent successfully to {self.device_name}", "action_success")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to send IR command: {str(e)}")
-            return False
-            
+
     async def _delayed_discovery(self, delay: Optional[float] = None) -> None:
         """
         Perform device discovery after a delay to allow device to boot.
