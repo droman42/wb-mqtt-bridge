@@ -432,6 +432,10 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             logger.info(f"Auralic device {self.get_name()} is halted (deep sleep, network alive)")
             return False
         self._deep_sleep_mode = False
+        # Refresh the state's ip_address — a persisted snapshot can carry a
+        # pre-DHCP-move address (rack finding: state said .16 long after the
+        # config and the unit moved to .142).
+        self.update_state(ip_address=self.ip_address)
         await self._update_device_state()      # sets connected=True so the sources refresh below runs
         await self._refresh_sources_cache()
         return True

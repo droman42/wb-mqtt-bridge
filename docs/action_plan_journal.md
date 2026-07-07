@@ -21,6 +21,21 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-07 (DRV-14 DONE — Auralic all-network power shipped + HW-verified; the full arc)** —
+  research → library → driver → three live-fire iterations, one sitting. Library: fork branch
+  `hardware-config-halt` (PR bazwilliams/openhomedevice#26) — `is_halted`/`set_halt` + the
+  `Visible` dialect fix (Linn `true` vs AURALiC `1`; the unit's 11 sources were all filtered out —
+  found when the user's inputs dropdown enabled but came up empty). Driver: halted **detected**
+  (Product absent), never guessed; `power_off` = stop+standby+halt with honest messaging;
+  `_wake_from_halt` learned the hard way (first live ladder failed) that the halt transition moves
+  the unit's ports — the wake now goes to a **freshly discovered handle** every attempt. Also
+  fixed: options dialect (`input_id`/`input_name`) + **true device indices** (invisible sources
+  occupy slots — filtered positions would have switched the wrong source), stale state
+  `ip_address`. **Ladder HW-verified 13:18: off (standby+halt) → wake → on in 22 s; 11 sources in
+  the UI.** IR power gone (`ROM62` toggle freed). DRV-1 Auralic row: bench-probe answered (Volume
+  service present, sources enumerated, tri-state mapped), walk largely done — playback-with-content
+  rides the `music_auralic` SCN-3 pass. Suite 612; pins advanced twice with the guard test.
+
 - **2026-07-07 (DRV-14 FILED — Auralic all-network power research; IR disproven necessary)** —
   user asked "do we really need IR power for the Auralic?" before starting the action walk; live
   experiment answered it. Streamer connected cleanly post-DRV-13 (`.142`, renderer picked over
