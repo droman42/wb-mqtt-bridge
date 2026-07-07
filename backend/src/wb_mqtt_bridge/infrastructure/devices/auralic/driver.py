@@ -91,6 +91,8 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
         self.openhome_device = None
         self._update_task = None
         self._deep_sleep_mode = False  # Track if device is in deep sleep mode
+        self._last_reconnect_probe = 0.0  # Monotonic time of the last cadenced discovery probe
+        self._was_connected = False  # For rate-limited transition logging in the periodic loop
         
         # IR control settings
         self.ir_power_on_topic = getattr(self.config.auralic, 'ir_power_on_topic', None)
@@ -418,40 +420,48 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
         reboot changed its port) we keep state honest and attempt a bounded SSDP re-discovery every
         `reconnect_interval` seconds rather than giving up. Logging is rate-limited to the
         connected<->unreachable transitions so a long-offline device doesn't flood the log."""
-        last_reconnect = 0.0
-        was_connected = self.state.connected
         loop = asyncio.get_event_loop()
 
         while True:
             try:
-                if self._deep_sleep_mode:
-                    # Truly powered off via IR — stay quiet; power-on is the IR handler's job.
-                    self.update_state(connected=False, power="off", deep_sleep=True)
-                elif self.openhome_device is None:
-                    # Never connected (e.g. offline at boot) — retry discovery on the cadence.
-                    if loop.time() - last_reconnect >= self.reconnect_interval:
-                        last_reconnect = loop.time()
-                        await self._attempt_reconnect()
-                else:
-                    await self._update_device_state()
-                    if not self.state.connected and loop.time() - last_reconnect >= self.reconnect_interval:
-                        # Connection went stale (likely a reboot → new port) — rediscover.
-                        last_reconnect = loop.time()
-                        await self._attempt_reconnect()
-
-                # Rate-limited transition logging.
-                if self.state.connected and not was_connected:
-                    logger.info(f"Auralic device {self.get_name()} is reachable")
-                elif not self.state.connected and was_connected:
-                    logger.warning(f"Auralic device {self.get_name()} is unreachable — will keep retrying every {self.reconnect_interval}s")
-                was_connected = self.state.connected
-
+                await self._periodic_tick(loop.time())
                 await asyncio.sleep(self.update_interval)
             except asyncio.CancelledError:
                 break
             except Exception as e:
                 logger.debug(f"Auralic periodic update error: {e}")
                 await asyncio.sleep(self.update_interval)
+
+    async def _periodic_tick(self, now: float) -> None:
+        """One iteration of the periodic loop (extracted for testability)."""
+        if self._deep_sleep_mode:
+            # Keep state honest — but STILL probe on the reconnect cadence. Deep
+            # sleep can end without the bridge's involvement (front panel, the
+            # Auralic app), and a boot-time discovery failure sets this flag as a
+            # guess, not a fact — the old "stay quiet" branch left a physically
+            # woken unit invisible forever (observed live at the rack, DRV-12).
+            self.update_state(connected=False, power="off", deep_sleep=True)
+            if now - self._last_reconnect_probe >= self.reconnect_interval:
+                self._last_reconnect_probe = now
+                await self._attempt_reconnect()
+        elif self.openhome_device is None:
+            # Never connected (e.g. offline at boot) — retry discovery on the cadence.
+            if now - self._last_reconnect_probe >= self.reconnect_interval:
+                self._last_reconnect_probe = now
+                await self._attempt_reconnect()
+        else:
+            await self._update_device_state()
+            if not self.state.connected and now - self._last_reconnect_probe >= self.reconnect_interval:
+                # Connection went stale (likely a reboot → new port) — rediscover.
+                self._last_reconnect_probe = now
+                await self._attempt_reconnect()
+
+        # Rate-limited transition logging.
+        if self.state.connected and not self._was_connected:
+            logger.info(f"Auralic device {self.get_name()} is reachable")
+        elif not self.state.connected and self._was_connected:
+            logger.warning(f"Auralic device {self.get_name()} is unreachable — will keep retrying every {self.reconnect_interval}s")
+        self._was_connected = self.state.connected
     
     async def _update_device_state(self) -> None:
         """Update current device state.

@@ -21,6 +21,18 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-07 (DRV-12 DONE — Auralic asleep-at-boot never rediscovered; sitting continued)** —
+  eMotiva row closed to "scenario route only" (zone2 power/independence + volume verified; main-zone
+  volume **N/A by topology** — `processor:zone2 → mf_amplifier:aux2` is the only audio output; the
+  source-switch ack quirk observed live and handled by pymotivaxmc2). The living_room_tv `volume=98`
+  sighting explained: genuine webOS volumeStatus push on the eMotiva's ARC engagement (external-audio
+  scale), reverted to 30 with the path — DRV-4's two-axis story, no bug. Two UX papercuts filed off
+  the sitting (UI-10 dropdowns don't reflect live selection; UI-11 same-name devices
+  indistinguishable — the «Телевизор»×2 confusion). Then the Auralic walk opened with a real find:
+  physically woken streamer stayed invisible — boot-failure sets the deep-sleep *guess* and the old
+  loop branch never probed (40 min, zero attempts). Fixed: `_periodic_tick` extraction + cadenced
+  probe in the deep-sleep branch; 4 tests; suite 598. Walk continues post-restart.
+
 - **2026-07-07 (DRV-11 DONE — XMC-2 space-padded negative volumes parsed as 0.0; rack sitting
   continued)** — post-restart re-verification of DRV-10 all green on hardware (cold WoL power-on;
   `set_volume` echo payload success + OSD moved; already-on no-op in 1 ms). IR fleet blessed via
