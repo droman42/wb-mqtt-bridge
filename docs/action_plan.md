@@ -184,6 +184,25 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   (SCN-3) drives the A77 — if the SCN-3 pass exercises it first, fold the result back here.
 
 
+- [ ] **DRV-16** `[P2]` `[deferred]` `HW-GATED` — **LG TLS: actually verify against the configured
+  certs + cert-capture tooling review.** Analysis 2026-07-07 (rack sitting, user noticed the
+  warnings): both TV configs are correct (`secure: true`, valid `cert_file` PEMs in
+  `config/devices/certs/`), but `_create_webos_tv` **hardcodes `verify_ssl=False`**
+  ("Always … for WebOS TVs") and the library checks `verify_ssl` *before* `cert_file` — so the
+  pinning branch (`load_verify_locations` + hostname-check off, the right pattern for LG
+  self-signed certs) is never reached and every connect is **encrypted but unauthenticated**
+  (the `SSL certificate verification disabled` warning on each attempt). **Fix:** driver default
+  `verify_ssl = cert_file is not None` (keep the `ssl_options` override); on verification failure
+  emit a clear "TV cert rotated — re-capture the PEM" error (LG regenerates certs on factory
+  reset / some fw updates — the likely reason the False was hardcoded; pinning trades availability
+  for authentication, so the failure message must say what to do). Rack re-test: both TVs
+  connecting with verification ON. **Tooling half:** the capture tool lives in the LIBRARY —
+  `asyncwebostv.SecureWebOSTV.get_certificate(save_path)` + standalone
+  `extract_certificate(host, port=3001, output_file)` (`secure_connection.py:223`); the bridge has
+  no wrapper. Review/update it there and expose a thin bridge-side entry (CLI now; the
+  device-setup page flow consumes it post-release — `docs/planned/device-setup.md` is the home:
+  pairing + cert capture belong in the same onboarding step).
+
 ### SCN — Scenarios / topology / reconciler
 
 - [ ] **SCN-3** `[P0]` `[release]` `HW-GATED` — **Round-2 music scenarios.**
