@@ -21,6 +21,17 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-07 (DRV-2 DONE — Apple TV dropdown app launch; sitting continued)** — kitchen hood +
+  living-room HVAC actuate from the UI (HVAC read-side enum warnings stay with REL-3's check);
+  UI-12 filed off the sitting (WB-passthrough fleet miscategorized as "devices" — only
+  `kitchen_hood` carries `device_category: appliance`); A77 transport walk moved out of release
+  scope → DRV-15 (user decision; `music_reel`/SCN-3 may cover it first); PR #26 retitled+rewritten
+  to cover both library changes. Then DRV-2: the dropdown sends the app **id**, the handler
+  resolved display **names** only → dual matching (LG precedent), 2 regression tests, HW-verified
+  live (ARD Mediathek launches; «works!!!»). Apple TV living unit otherwise re-verified green;
+  pointer pad re-test noted on the DRV-1 row. Suite 614. Release gate: exit-criteria item 2's
+  DRV-2 line is now satisfied.
+
 - **2026-07-07 (DRV-14 DONE — Auralic all-network power shipped + HW-verified; the full arc)** —
   research → library → driver → three live-fire iterations, one sitting. Library: fork branch
   `hardware-config-halt` (PR bazwilliams/openhomedevice#26) — `is_halted`/`set_halt` + the
