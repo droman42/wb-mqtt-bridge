@@ -5,7 +5,7 @@ from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 from wb_mqtt_bridge.domain.devices.models import WirenboardIRState, LastCommand
 from wb_mqtt_bridge.infrastructure.config.models import WirenboardIRDeviceConfig, IRCommandConfig, BaseCommandConfig
 from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
-from wb_mqtt_bridge.utils.types import CommandResult, ActionHandler
+from wb_mqtt_bridge.domain.devices.types import CommandResult, ActionHandler
 
 logger = logging.getLogger(__name__)
 

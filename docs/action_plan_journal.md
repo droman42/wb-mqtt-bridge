@@ -21,6 +21,20 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-07 (CORE-6 DONE — import-linter parity with voice; `domain ⇄ utils` cycle broken)** —
+  filed + executed same session off the chat-requested enforcement comparison. The gate machinery
+  was already identical (`py-dev-gates@v0.1.1`); the gap was declared coverage — 3 contracts vs
+  voice's 11 — and one live violation hiding in it: `utils/types.py` + `utils/validation.py`
+  imported `domain.*` while `domain/` imported `utils`, a package cycle contradicting
+  `overview.md`'s foundation claim. Moved `utils/types.py` → `domain/devices/types.py` (it was
+  pure domain vocabulary: `CommandResult`/`CommandResponse`/`StateT`/`ActionHandler`) and
+  `utils/validation.py` → `infrastructure/config/validation.py`; rewrote 14 import sites (incl.
+  2 tests + the howto-new-driver guide). Contracts 3 → 6: infrastructure additionally forbidden
+  from `app`/`cli`, presentation from `app`/`cli`, utils from everything upward (canary-verified
+  to fire), plus driver-package `independence` across the 8 drivers. Non-goals recorded:
+  seam-pinning (behavioral chokepoints, test-locked) + port-purity (domain rule has no ignores).
+  Gates: 6/6 kept, suite 583, pyright 0, OpenAPI byte-identical.
+
 - **2026-07-07 (CORE-5 FILED — `device-test` CLI reviewed stale, resurrection deferred post-release)** —
   user flagged the `device-test` CLI as ~1 year untouched; reviewed against the live core before
   filing (evidence in the CORE-5 row): imports clean, entry point resolves, but it mirrors a

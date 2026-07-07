@@ -19,7 +19,7 @@ from wb_mqtt_bridge.presentation.api.schemas import (
 )
 from wb_mqtt_bridge.presentation.api.layout_engine import build_device_manifest
 from wb_mqtt_bridge.presentation.api.layout_manifest import LayoutManifest
-from wb_mqtt_bridge.utils.types import CommandResponse
+from wb_mqtt_bridge.domain.devices.types import CommandResponse
 
 
 # §P3.7 #15: how long the canonical endpoint waits for a value-topic echo before

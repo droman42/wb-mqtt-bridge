@@ -31,7 +31,7 @@ from wb_mqtt_bridge.infrastructure.config.models import LgTvDeviceConfig, Standa
 from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
 from datetime import datetime
 # Import the new type definitions
-from wb_mqtt_bridge.utils.types import CommandResult
+from wb_mqtt_bridge.domain.devices.types import CommandResult
 
 logger = logging.getLogger(__name__)
 

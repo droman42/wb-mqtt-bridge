@@ -19,7 +19,7 @@ from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 from wb_mqtt_bridge.domain.devices.models import AppleTVState, LastCommand
 from wb_mqtt_bridge.infrastructure.config.models import AppleTVDeviceConfig, StandardCommandConfig
 from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
-from wb_mqtt_bridge.utils.types import CommandResult
+from wb_mqtt_bridge.domain.devices.types import CommandResult
 
 logger = logging.getLogger(__name__) # Define logger for the module
 

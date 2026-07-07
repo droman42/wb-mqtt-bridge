@@ -42,7 +42,7 @@ from wb_mqtt_bridge.domain.devices.models import (
 from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
 from wb_mqtt_bridge.infrastructure.wb_device.service import WBVirtualDeviceService
-from wb_mqtt_bridge.utils.types import ActionHandler, CommandResult
+from wb_mqtt_bridge.domain.devices.types import ActionHandler, CommandResult
 
 logger = logging.getLogger(__name__)
 

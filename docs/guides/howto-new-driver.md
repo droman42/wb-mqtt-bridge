@@ -69,7 +69,7 @@ from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 from wb_mqtt_bridge.domain.devices.models import AuralicDeviceState
 from wb_mqtt_bridge.infrastructure.config.models import AuralicDeviceConfig
 from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
-from wb_mqtt_bridge.utils.types import CommandResult
+from wb_mqtt_bridge.domain.devices.types import CommandResult
 
 
 class AuralicDevice(BaseDevice[AuralicDeviceState]):

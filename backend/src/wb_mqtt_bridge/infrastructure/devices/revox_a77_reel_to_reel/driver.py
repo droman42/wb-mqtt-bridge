@@ -5,7 +5,7 @@ from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 from wb_mqtt_bridge.domain.devices.models import RevoxA77ReelToReelState, LastCommand
 from wb_mqtt_bridge.infrastructure.config.models import RevoxA77ReelToReelConfig, IRCommandConfig
 from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
-from wb_mqtt_bridge.utils.types import CommandResult
+from wb_mqtt_bridge.domain.devices.types import CommandResult
 import asyncio
 
 logger = logging.getLogger(__name__)

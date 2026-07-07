@@ -9,7 +9,7 @@ from typing import Any, Awaitable, Callable, Dict, Generic, List, Mapping, Optio
 
 from wb_mqtt_bridge.domain.devices.config import BaseCommandConfig
 from wb_mqtt_bridge.domain.reports.models import ReportFiling, ReportFilingResult
-from wb_mqtt_bridge.utils.types import CommandResponse, StateT
+from wb_mqtt_bridge.domain.devices.types import CommandResponse, StateT
 
 
 class MessageBusPort(ABC):

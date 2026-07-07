@@ -12,7 +12,7 @@ from wb_mqtt_bridge.infrastructure.config.models import (
     MaintenanceConfig
 )
 from wb_mqtt_bridge.utils.class_loader import load_class_by_name
-from wb_mqtt_bridge.utils.validation import (
+from wb_mqtt_bridge.infrastructure.config.validation import (
     validate_device_configs
 )
 

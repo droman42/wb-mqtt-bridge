@@ -159,10 +159,57 @@ forbidden_modules = [
 ]
 
 [[tool.importlinter.contracts]]
-name = "Infrastructure does not import presentation"
+name = "Infrastructure does not import presentation, the composition root, or the CLI"
 type = "forbidden"
 source_modules = ["wb_mqtt_bridge.infrastructure"]
-forbidden_modules = ["wb_mqtt_bridge.presentation"]
+forbidden_modules = [
+    "wb_mqtt_bridge.presentation",
+    "wb_mqtt_bridge.app",
+    "wb_mqtt_bridge.cli",
+]
+
+[[tool.importlinter.contracts]]
+name = "Presentation does not import the composition root or the CLI"
+type = "forbidden"
+source_modules = ["wb_mqtt_bridge.presentation"]
+forbidden_modules = [
+    "wb_mqtt_bridge.app",
+    "wb_mqtt_bridge.cli",
+]
+
+[[tool.importlinter.contracts]]
+# The foundation layer: pure cross-cutting code, importable from anywhere,
+# importing nothing above it. (CORE-6: utils/types.py -- domain vocabulary --
+# moved to domain/devices/types.py, and utils/validation.py -- config-file
+# validation -- moved to infrastructure/config/validation.py, which broke the
+# domain <-> utils package cycle this contract now prevents from returning.)
+name = "Utils (foundation) depends on nothing upward"
+type = "forbidden"
+source_modules = ["wb_mqtt_bridge.utils"]
+forbidden_modules = [
+    "wb_mqtt_bridge.domain",
+    "wb_mqtt_bridge.infrastructure",
+    "wb_mqtt_bridge.presentation",
+    "wb_mqtt_bridge.app",
+    "wb_mqtt_bridge.cli",
+]
+
+[[tool.importlinter.contracts]]
+# Each device driver is a self-contained adapter behind DevicePort; shared code
+# belongs in infrastructure.devices.base (not listed here, so importing it is
+# fine), never in a sibling driver.
+name = "Device drivers are independent of each other"
+type = "independence"
+modules = [
+    "wb_mqtt_bridge.infrastructure.devices.apple_tv",
+    "wb_mqtt_bridge.infrastructure.devices.auralic",
+    "wb_mqtt_bridge.infrastructure.devices.broadlink_kitchen_hood",
+    "wb_mqtt_bridge.infrastructure.devices.emotiva_xmc2",
+    "wb_mqtt_bridge.infrastructure.devices.lg_tv",
+    "wb_mqtt_bridge.infrastructure.devices.revox_a77_reel_to_reel",
+    "wb_mqtt_bridge.infrastructure.devices.wb_passthrough",
+    "wb_mqtt_bridge.infrastructure.devices.wirenboard_ir_device",
+]
 
 [[tool.importlinter.contracts]]
 name = "Presentation does not reach into infrastructure adapters (one documented exception)"

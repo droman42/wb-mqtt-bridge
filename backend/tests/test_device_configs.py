@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
     from wb_mqtt_bridge.infrastructure.config.manager import ConfigManager
-    from wb_mqtt_bridge.utils.validation import validate_device_configs
+    from wb_mqtt_bridge.infrastructure.config.validation import validate_device_configs
     from wb_mqtt_bridge.infrastructure.config.models import (
         BaseDeviceConfig,
         StandardCommandConfig,

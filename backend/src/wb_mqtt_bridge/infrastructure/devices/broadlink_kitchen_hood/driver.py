@@ -8,7 +8,7 @@ from wb_mqtt_bridge.domain.devices.models import KitchenHoodState
 from wb_mqtt_bridge.infrastructure.config.models import BroadlinkKitchenHoodConfig, StandardCommandConfig
 from wb_mqtt_bridge.domain.devices.config import BaseCommandConfig
 from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
-from wb_mqtt_bridge.utils.types import CommandResult
+from wb_mqtt_bridge.domain.devices.types import CommandResult
 
 logger = logging.getLogger(__name__)
 

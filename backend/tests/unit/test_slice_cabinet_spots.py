@@ -24,7 +24,7 @@ import pytest
 
 from wb_mqtt_bridge.infrastructure.capabilities.loader import load_capability_map
 from wb_mqtt_bridge.infrastructure.config.models import WbPassthroughDeviceConfig
-from wb_mqtt_bridge.utils.validation import discover_config_files
+from wb_mqtt_bridge.infrastructure.config.validation import discover_config_files
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEVICE_CFG = REPO_ROOT / "backend" / "config" / "devices" / "wb-devices" / "cabinet" / "cabinet_spots.json"

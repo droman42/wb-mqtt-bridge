@@ -11,7 +11,7 @@ from pymotivaxmc2.enums import Property, Zone
 from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 from wb_mqtt_bridge.domain.devices.models import EmotivaXMC2State, LastCommand
 from wb_mqtt_bridge.infrastructure.config.models import EmotivaConfig as AppEmotivaConfig, EmotivaXMC2DeviceConfig, StandardCommandConfig, CommandParameterDefinition
-from wb_mqtt_bridge.utils.types import CommandResult
+from wb_mqtt_bridge.domain.devices.types import CommandResult
 
 logger = logging.getLogger(__name__)
 

@@ -14,7 +14,7 @@ from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
 from wb_mqtt_bridge.infrastructure.wb_device.service import WBVirtualDeviceService
 from wb_mqtt_bridge.domain.capabilities.models import CapabilityMap
 from wb_mqtt_bridge.domain.reports.rings import DispatchRing
-from wb_mqtt_bridge.utils.types import StateT, CommandResult, CommandResponse, ActionHandler
+from wb_mqtt_bridge.domain.devices.types import StateT, CommandResult, CommandResponse, ActionHandler
 from wb_mqtt_bridge.domain.ports import DevicePort, EventPublisherPort
 
 logger = logging.getLogger(__name__)
