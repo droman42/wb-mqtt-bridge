@@ -568,6 +568,13 @@ endpoint).
   app id (`ivi` — matches `current_app`), but LG `state.input_source` stores the *label* ("Emotiva
   XMC") while input options key by id (`HDMI_2`), and eMotiva state stores canonical `sourceN` —
   normalization per dropdown is the real work. `config-ui-stays-functional` gates apply.
+  **Second facet (rack sitting, later same day):** the power gate that gray-outs the selector
+  (`useRemoteControlData`: requires `power === 'on'` + `connected`) is **too strict per class** —
+  an Auralic in standby is connected and its source list is likely readable (`Product.SourceXml`
+  is served in standby); the streamer page showed a hard-disabled «device powered off» selector
+  while the user stood next to a lit unit. Make the gate capability/class-informed (or allow
+  opening with cached options + a standby hint); pairs with DRV-14's tri-state power semantics
+  (on / standby / halted).
 
 - [ ] **UI-11** `[P2]` `[deferred]` — **Same-name devices are indistinguishable on device pages.**
   Found at the 2026-07-07 rack sitting: both LG TVs are named «Телевизор»; the user opened the
