@@ -203,6 +203,22 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   device-setup page flow consumes it post-release — `docs/planned/device-setup.md` is the home:
   pairing + cert capture belong in the same onboarding step).
 
+- [ ] **DRV-17** `[P2]` `[deferred]` — **Auralic rich now-playing (cover art, progress, quality
+  badge).** Filed off an EOD research question 2026-07-07. The bridge keeps **3** track fields
+  (title/artist/album) out of **~27 the library already parses** from the same per-poll DIDL
+  `Metadata` blob — discarded today: `albumArtwork` (albumArtURI — cover art), genre, year,
+  track/disc numbers, the classical roles (composer/performer/conductor), channels/bitDepth/
+  sampleRate/bitRate/duration/mimeType, etc. Beyond that, the unit offers (unwrapped by
+  `openhomedevice`): **`Info.Details`** — the *stream truth*: actual bitrate/bitDepth/sampleRate,
+  **lossless flag, codec name** (the "24/96 FLAC" badge data); **`Info.Metatext`** — live radio
+  now-playing text; the **`Time` service** — position + duration (a working progress bar).
+  **Scope:** (1) wrap Details/Metatext/Time in the `droman42/openhomedevice` fork (same style as
+  the halt API; cross-repo: change there, pin here — batch with whatever PR #26 becomes);
+  (2) extend `AuralicDeviceState` with the chosen fields — **contract change** (openapi + UI
+  types regen, `config-ui-stays-functional` gates); (3) a now-playing panel on the streamer/
+  scenario page (cover art via albumArtURI, progress from Time, quality badge from Details).
+  Decide the field set at design time — don't ship all 27; pick what the panel renders.
+
 ### SCN — Scenarios / topology / reconciler
 
 - [ ] **SCN-10** `[P2]` `[deferred]` — **Feedback-gated topology ordering edges (wait for the
