@@ -9,7 +9,7 @@
   "device_class": "AuralicDevice",
   "config_class": "AuralicDeviceConfig",
   "auralic": {
-    "ip_address": "192.168.110.11",
+    "ip_address": "192.168.110.142",
     "update_interval": 15,
     "discovery_mode": true,
     "device_url": null,
