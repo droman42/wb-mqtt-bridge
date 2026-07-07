@@ -350,3 +350,19 @@ async def test_power_on_is_noop_when_already_on(device):
     device.system.power_on_with_monitoring.assert_not_awaited()
     assert device.state.last_command is not None
     assert device.state.last_command.params.get("method") == "already_on"
+
+
+@pytest.mark.asyncio
+async def test_set_input_source_accepts_topology_port_dialect(device):
+    """SCN-9 rack finding: the topology speaks 'hdmi2', webOS speaks 'HDMI_2'.
+
+    The movie scenarios' TV-input step failed on exactly this mismatch — the
+    matcher must normalize separators (id equality, name containment).
+    """
+    device._cached_input_sources = [{"id": "HDMI_2", "label": "Emotiva XMC"}]
+    device.input_control.set_input = AsyncMock(return_value={"returnValue": True})
+
+    result = await device.execute_action("set_input_source", {"source": "hdmi2"}, source="scenario")
+
+    assert result["success"] is True, result
+    device.input_control.set_input.assert_awaited_once_with("HDMI_2")

@@ -1,30 +1,63 @@
 {
   "power": {
-    "kind": "stateful", "feedback": false, "state_field": "power", "on_value": "on",
-    "actions": { "toggle": { "command": "power" } },
-    "gate": { "delay_ms": 1000 }
-  },
-  "input": {
-    "kind": "stateful", "feedback": false, "state_field": "input",
-    "select": {
-      "by_value": {
-        "cd": { "command": "input_cd" },
-        "aux2": { "command": "input_aux2" },
-        "usb": { "command": "input_usb" },
-        "phono": { "command": "input_phono" },
-        "tuner": { "command": "input_tuner" },
-        "aux1": { "command": "input_aux1" },
-        "balanced": { "command": "input_balanced" }
+    "kind": "stateful",
+    "feedback": false,
+    "state_field": "power",
+    "on_value": "on",
+    "actions": {
+      "toggle": {
+        "command": "power"
       }
     },
-    "gate": { "delay_ms": 500 }
+    "gate": {
+      "delay_ms": 4000
+    }
+  },
+  "input": {
+    "kind": "stateful",
+    "feedback": false,
+    "state_field": "input",
+    "select": {
+      "by_value": {
+        "cd": {
+          "command": "input_cd"
+        },
+        "aux2": {
+          "command": "input_aux2"
+        },
+        "usb": {
+          "command": "input_usb"
+        },
+        "phono": {
+          "command": "input_phono"
+        },
+        "tuner": {
+          "command": "input_tuner"
+        },
+        "aux1": {
+          "command": "input_aux1"
+        },
+        "balanced": {
+          "command": "input_balanced"
+        }
+      }
+    },
+    "gate": {
+      "delay_ms": 500
+    }
   },
   "volume": {
     "kind": "momentary",
     "actions": {
-      "up": { "command": "volume_up" },
-      "down": { "command": "volume_down" },
-      "mute_toggle": { "command": "mute" }
+      "up": {
+        "command": "volume_up"
+      },
+      "down": {
+        "command": "volume_down"
+      },
+      "mute_toggle": {
+        "command": "mute"
+      }
     }
   }
 }

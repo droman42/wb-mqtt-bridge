@@ -1,4 +1,5 @@
 import json
+import re
 import logging
 import asyncio
 import os
@@ -2243,9 +2244,17 @@ class LgTv(BaseDevice[LgTvState]):
         Returns:
             The found input source (dict or string) or None if not found
         """
+        # Normalize away separators: the topology speaks bare port names ('hdmi2'),
+        # webOS speaks underscored ids ('HDMI_2') and spaced labels ('HDMI 2') —
+        # SCN-9 rack finding: the movie scenarios' TV-input step failed on exactly
+        # this mismatch.
+        def _norm(value: str) -> str:
+            return re.sub(r"[^a-z0-9]", "", value.lower())
+
+        want = _norm(input_source)
         for source in sources:
             processed = self._process_input_source(source)
-            if processed and (input_source.lower() == processed["id"].lower() or input_source.lower() in processed["name"].lower()):
+            if processed and (want == _norm(processed["id"]) or want in _norm(processed["name"])):
                 return source
         return None
     
