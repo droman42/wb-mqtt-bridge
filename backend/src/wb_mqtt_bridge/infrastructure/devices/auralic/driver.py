@@ -599,14 +599,18 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             # Get sources from OpenHome API
             sources = await self.openhome_device.sources()
             
-            # Process sources into a consistent format
+            # Process sources into the options dialect the UI dropdown maps
+            # (input_id/input_name — same fields the LG driver emits). The id is
+            # the library-reported TRUE device index: sources() filters out
+            # invisible sources but invisible ones still occupy index slots, so
+            # a filtered-list position would select the wrong source on the
+            # device (SetSourceIndex takes the raw index).
             formatted_sources = []
             for idx, source in enumerate(sources):
                 formatted_sources.append({
-                    "source_id": str(idx),
-                    "source_name": source.get("name", f"Unknown Source {idx}"),
+                    "input_id": str(source.get("index", idx)),
+                    "input_name": source.get("name", f"Unknown Source {idx}"),
                     "type": source.get("type", "unknown"),
-                    "visible": source.get("visible", True)
                 })
             
             # Store in cache
@@ -1097,40 +1101,31 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                     error="Input parameter is required"
                 )
             
-            # Get list of sources from cache or refresh if needed
-            await self._get_available_sources()
-            
-            # If source is numeric, use as index
+            # Resolve against the cached options (input_id = TRUE device index —
+            # SetSourceIndex takes the raw index; filtered-list positions would
+            # select the wrong source because invisible sources occupy slots).
+            sources = await self._get_available_sources()
+
             if isinstance(source, (int, str)) and str(source).isdigit():
-                source_index = int(source)
-                # We need raw sources for actual setting
-                raw_sources = await self.openhome_device.sources()
-                if 0 <= source_index < len(raw_sources):
-                    await self.openhome_device.set_source(source_index)
-                    source_name = raw_sources[source_index]["name"]
-                else:
+                match = next((s for s in sources if s["input_id"] == str(int(source))), None)
+                if match is None:
                     return self.create_command_result(
                         success=False,
-                        error=f"Invalid source index: {source_index}"
+                        error=f"Invalid source index: {source}"
                     )
-            # Otherwise find source by name
             else:
-                source_name = str(source)
-                source_index = None
-                raw_sources = await self.openhome_device.sources()
-                
-                for i, s in enumerate(raw_sources):
-                    if source_name.lower() == s["name"].lower():
-                        source_index = i
-                        break
-                
-                if source_index is not None:
-                    await self.openhome_device.set_source(source_index)
-                else:
+                match = next(
+                    (s for s in sources if s["input_name"].lower() == str(source).lower()),
+                    None,
+                )
+                if match is None:
                     return self.create_command_result(
                         success=False,
-                        error=f"Source not found: {source_name}"
+                        error=f"Source not found: {source}"
                     )
+
+            await self.openhome_device.set_source(int(match["input_id"]))
+            source_name = match["input_name"]
             
             # Update state
             await self._update_device_state()

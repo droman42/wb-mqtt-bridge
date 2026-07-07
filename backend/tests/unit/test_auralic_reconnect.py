@@ -253,3 +253,82 @@ async def test_update_device_state_detects_halted_handle():
 
     assert device.state.connected is False
     assert device.state.deep_sleep is True
+
+
+# --- DRV-14 follow-up: source options dialect + true device indices -----------
+# The unit reports SourceXml with invisible sources occupying index slots;
+# the library returns visible sources carrying their TRUE index. Options must
+# emit input_id/input_name (the dialect the UI dropdown maps) with the true
+# index, and set_input must select by that index — a filtered-list position
+# would switch the wrong source (SetSourceIndex takes the raw index).
+
+
+def _sources_fixture():
+    # Mirrors the live ALTAIR G1: 'AES' is visible-position 5 but device-index 9.
+    return [
+        {"index": 0, "name": "Playlist", "type": "Playlist"},
+        {"index": 2, "name": "AirPlay", "type": "AirPlay"},
+        {"index": 9, "name": "AES", "type": "AES"},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_sources_cache_uses_ui_dialect_and_true_indices():
+    device = _make_device()
+    device.openhome_device = MagicMock()
+    device.state.connected = True
+    device.openhome_device.sources = AsyncMock(return_value=_sources_fixture())
+
+    await device._refresh_sources_cache()
+
+    assert device._sources_cache == [
+        {"input_id": "0", "input_name": "Playlist", "type": "Playlist"},
+        {"input_id": "2", "input_name": "AirPlay", "type": "AirPlay"},
+        {"input_id": "9", "input_name": "AES", "type": "AES"},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_set_input_by_index_uses_true_device_index():
+    device = _make_device()
+    device.openhome_device = MagicMock()
+    device.state.connected = True
+    device.openhome_device.sources = AsyncMock(return_value=_sources_fixture())
+    device.openhome_device.set_source = AsyncMock()
+    device._update_device_state = AsyncMock()
+
+    from wb_mqtt_bridge.infrastructure.config.models import BaseCommandConfig
+    result = await device.handle_set_input(BaseCommandConfig(action="set_input"), {"input": "9"})
+
+    assert result["success"] is True, result
+    device.openhome_device.set_source.assert_awaited_once_with(9)
+
+
+@pytest.mark.asyncio
+async def test_set_input_by_name_resolves_true_index():
+    device = _make_device()
+    device.openhome_device = MagicMock()
+    device.state.connected = True
+    device.openhome_device.sources = AsyncMock(return_value=_sources_fixture())
+    device.openhome_device.set_source = AsyncMock()
+    device._update_device_state = AsyncMock()
+
+    from wb_mqtt_bridge.infrastructure.config.models import BaseCommandConfig
+    result = await device.handle_set_input(BaseCommandConfig(action="set_input"), {"input": "airplay"})
+
+    assert result["success"] is True, result
+    device.openhome_device.set_source.assert_awaited_once_with(2)
+
+
+@pytest.mark.asyncio
+async def test_set_input_rejects_unknown_index():
+    device = _make_device()
+    device.openhome_device = MagicMock()
+    device.state.connected = True
+    device.openhome_device.sources = AsyncMock(return_value=_sources_fixture())
+
+    from wb_mqtt_bridge.infrastructure.config.models import BaseCommandConfig
+    result = await device.handle_set_input(BaseCommandConfig(action="set_input"), {"input": "5"})
+
+    assert result["success"] is False
+    assert "Invalid source index" in (result.get("error") or "")
