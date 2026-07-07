@@ -569,6 +569,23 @@ endpoint).
   catalog/rooms data the UI loads), and add the room label in whatever nav/list renders bare device
   names. Pure UI; no contract change expected.
 
+- [ ] **UI-12** `[P2]` `[deferred]` — **Room lists miscategorize the whole WB-passthrough fleet as
+  "devices".** Found at the 2026-07-07 rack sitting: every WB-passthrough instance (lights,
+  curtains, heating, HVACs, sensors) shows in the room **device** list; the appliance list holds
+  only `kitchen_hood` — ironically the one appliance that is NOT a passthrough. **Mechanism
+  (investigated):** the split is `device_category` from each device config
+  (`BaseDeviceConfig.device_category`, default `"device"`; UI filters on it via the layout
+  manifest's `deviceCategory`). Only `kitchen_hood.json` sets `"appliance"` — even the 3 Mitsubishi
+  HVACs (which HAVE bespoke `HvacPanel` appliance pages) default to `device`. **Fix shape:**
+  backend categorization, not UI logic — either default `device_category = "appliance"` at the
+  `WbPassthroughDeviceConfig` class level (one line, covers all 57+ instances incl. HVACs) or bulk
+  per-config; **mind the side-effects:** `capabilities/loader.py` skips the exposed-command
+  validation for appliance-category devices, and `device_category` rides the layout manifest +
+  possibly the catalog → contract/golden regen check + `config-ui-stays-functional` gates apply.
+  Routing is unaffected (appliance-list entries without a bespoke page fall through to the runtime
+  layout as today). Decide during implementation whether pure-sensor instances belong in either
+  list at all.
+
 
 ### OPS — Docker / CI-CD / deploy / ops
 
