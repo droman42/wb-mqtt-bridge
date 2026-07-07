@@ -21,6 +21,16 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-07 (DRV-1 DONE — the per-driver HW pass closes after ~6 weeks `DOING`)** — the user
+  closed it at the sitting after the Apple TV pointer pad went green (living unit fully verified
+  same day). All seven driver classes hardware-verified. Residuals re-homed at close:
+  children-room LG smoke **waived** ("always worked — it was my development environment"); LG
+  reconnect-cycle + mf_amplifier mute re-check (ROM20 re-learn, user-owned) → **REL-3**; eMotiva
+  scenario route + Auralic playback-with-content → **SCN-3**; A77 → **DRV-15** (already moved).
+  Release exit-criteria item 2's DRV-1 line is satisfied; the drivers-before-composites
+  methodology gate is discharged — the SCN-3/SCN-9 scenario passes are now unblocked on their
+  own terms. 96 tasks, 71 done.
+
 - **2026-07-07 (DRV-2 DONE — Apple TV dropdown app launch; sitting continued)** — kitchen hood +
   living-room HVAC actuate from the UI (HVAC read-side enum warnings stay with REL-3's check);
   UI-12 filed off the sitting (WB-passthrough fleet miscategorized as "devices" — only
