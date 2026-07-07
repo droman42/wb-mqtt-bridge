@@ -76,14 +76,14 @@ def test_no_moving_branch_ref_in_uv_sources():
 
 
 def test_openhomedevice_pinned_to_immutable_sha():
-    """openhomedevice must be pinned to the immutable SHA de5fad85170347cceefafd9add4a36cb50922cb1.
+    """openhomedevice must be pinned to the immutable SHA 75e8cfcec561ab1b884ce904517d941de9af8b4e.
 
     The fork removes lxml (ARMv7 constraint) and carries the AURALiC
     HardwareConfig halt support (DRV-14; PR'd upstream as
     bazwilliams/openhomedevice#26).  Migrating to a different SHA requires a
     conscious decision, not an accidental branch-track.
     """
-    expected_sha = "de5fad85170347cceefafd9add4a36cb50922cb1"
+    expected_sha = "75e8cfcec561ab1b884ce904517d941de9af8b4e"
     data = _load_pyproject()
     sources: dict = data.get("tool", {}).get("uv", {}).get("sources", {})
 

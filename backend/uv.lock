@@ -1529,7 +1529,7 @@ wheels = [
 [[package]]
 name = "openhomedevice"
 version = "2.2.1"
-source = { git = "https://github.com/droman42/openhomedevice.git?rev=de5fad85170347cceefafd9add4a36cb50922cb1#de5fad85170347cceefafd9add4a36cb50922cb1" }
+source = { git = "https://github.com/droman42/openhomedevice.git?rev=75e8cfcec561ab1b884ce904517d941de9af8b4e#75e8cfcec561ab1b884ce904517d941de9af8b4e" }
 dependencies = [
     { name = "async-upnp-client" },
 ]
@@ -2603,7 +2603,7 @@ requires-dist = [
     { name = "import-linter", marker = "extra == 'dev'", specifier = ">=2.0" },
     { name = "jsonschema", specifier = ">=4.4.0,<5" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=0.9" },
-    { name = "openhomedevice", git = "https://github.com/droman42/openhomedevice.git?rev=de5fad85170347cceefafd9add4a36cb50922cb1" },
+    { name = "openhomedevice", git = "https://github.com/droman42/openhomedevice.git?rev=75e8cfcec561ab1b884ce904517d941de9af8b4e" },
     { name = "paho-mqtt", specifier = ">=1.6.1,<2" },
     { name = "psutil", specifier = ">=7.0.0,<8" },
     { name = "py-dev-gates", marker = "extra == 'dev'", git = "https://github.com/droman42/py-dev-gates?rev=v0.1.1" },
