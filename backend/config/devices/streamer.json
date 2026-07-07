@@ -9,10 +9,10 @@
   "device_class": "AuralicDevice",
   "config_class": "AuralicDeviceConfig",
   "auralic": {
-    "ip_address": "192.168.110.16",
+    "ip_address": "192.168.110.11",
     "update_interval": 15,
     "discovery_mode": true,
-    "device_url": "http://192.168.110.16:47216/lightningRender-bc-34-00-a0-67-ba/Upnp/device.xml",
+    "device_url": null,
     "ir_power_on_topic": "/devices/wb-msw-v3_207/controls/Play from ROM62/on",
     "ir_power_off_topic": "/devices/wb-msw-v3_207/controls/Play from ROM62/on",
     "device_boot_time": 20
