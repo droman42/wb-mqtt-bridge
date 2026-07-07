@@ -1367,8 +1367,15 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
                         error=error_msg
                     )
 
-            # Perform case-insensitive lookup
-            app_id_to_launch = self._app_list.get(app_name.lower())
+            # Accept an app ID or a display name (DRV-2): the UI apps dropdown
+            # sends the ID (e.g. 'de.swr.avp.ard.tablet'), while voice/config
+            # send the display name ('ARD Mediathek') — same dual-match
+            # tolerance as the LG driver's _find_app_by_name_or_id.
+            if app_name in self._app_list.values():
+                app_id_to_launch = app_name
+            else:
+                # Case-insensitive lookup by display name
+                app_id_to_launch = self._app_list.get(app_name.lower())
 
             if not app_id_to_launch:
                 error_msg = f"App '{app_name}' not found in the installed apps list."

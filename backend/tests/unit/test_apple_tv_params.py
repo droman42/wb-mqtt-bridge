@@ -169,6 +169,35 @@ async def test_launch_app_resolves_name_to_bundle_id(device, fake_atv):
     fake_atv.apps.launch_app.assert_awaited_once_with("com.google.youtube")
 
 
+@pytest.mark.asyncio
+async def test_launch_app_accepts_bundle_id_directly(device, fake_atv):
+    """DRV-2: the UI apps dropdown sends the app ID, not the display name.
+
+    Rack evidence 2026-07-07: {'app': 'de.swr.avp.ard.tablet'} was looked up as a
+    NAME in the name->id table (where the entry is 'ARD Mediathek') -> App not
+    found. An exact ID must launch directly.
+    """
+    device._app_list = {
+        "ard mediathek": "de.swr.avp.ard.tablet",
+        "youtube": "com.google.youtube",
+    }
+    result = await device.handle_launch_app(
+        device.config.commands["launch_app"], {"app": "de.swr.avp.ard.tablet"}
+    )
+    assert result["success"] is True, result
+    fake_atv.apps.launch_app.assert_awaited_once_with("de.swr.avp.ard.tablet")
+
+
+@pytest.mark.asyncio
+async def test_launch_app_unknown_app_still_errors(device, fake_atv):
+    device._app_list = {"youtube": "com.google.youtube"}
+    result = await device.handle_launch_app(
+        device.config.commands["launch_app"], {"app": "nonexistent.bundle.id"}
+    )
+    assert result["success"] is False
+    fake_atv.apps.launch_app.assert_not_awaited()
+
+
 # --- Listener push callbacks (PushListener / PowerListener) ------------------
 
 
