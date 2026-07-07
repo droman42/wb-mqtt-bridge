@@ -21,6 +21,18 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-07 (SCN-9 DONE — the scenario lifecycle re-proven, same day it was filed)** — the
+  movie-scenario walk delivered all four points: start (14:59, three step findings all fixed same
+  hour — LG input dialect matcher, amp power gate 1→4 s, zappiti power re-learned + corrected to a
+  TOGGLE with catalog golden → `d0536f643b783d8a`), switch both directions (diff-only; the
+  switch-back exposed the ordering-edge settle gap — ack≠completed, `delay_ms: 5000` mitigation +
+  SCN-10 filed for feedback-gated edges, with the design note that the capability schema already
+  carries everything needed), end (15:43, five teardown actions, zero failures, room dark), and
+  restart survival (15:19, active scenario restored, 2-action re-reconcile). Also: zappiti
+  subtitles ROM38 carried ROM37's code — re-learned + verified; REL-3's re-learn list is down to
+  the amp mute ROM20. **The scenario machinery itself needed zero fixes** — every finding was
+  dialect, timing data, or stored IR. 5 s settle feel-check rides SCN-3's sitting.
+
 - **2026-07-07 (DRV-1 DONE — the per-driver HW pass closes after ~6 weeks `DOING`)** — the user
   closed it at the sitting after the Apple TV pointer pad went green (living unit fully verified
   same day). All seven driver classes hardware-verified. Residuals re-homed at close:

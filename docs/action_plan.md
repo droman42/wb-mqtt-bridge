@@ -208,22 +208,6 @@ manual notes show; Auralic/A77 playback; passive ones show the right manual step
 room** (children_room_tv + appletv_children) was **deferred by the user** (skipped this round) — a
 possible round-3.
 
-- [ ] **SCN-9** `[P0]` `[release]` `HW-GATED` — **Scenario lifecycle regression re-verification —
-  start / switch / end on hardware.** The core Harmony loop was last hardware-verified at the
-  2026-05-22 rack session (the P1/P2 pass) — **before** the hexagonal restructuring, the state-sync
-  chokepoint work, canonical dispatch (VWB-6/UI-9), the eMotiva logical-source input redesign, and the
-  VWB-28 `execute_action` record-and-return wrapper. Everything since is mock-tested only
-  ([[mock-tests-miss-driver-bugs]]); the lifecycle must be re-proven, not assumed by the fancier
-  passes. Walk on the rack: (1) **start** — activation from idle powers the chain in topology order,
-  manual steps surface, the WB scenario virtual device reflects the active scenario; (2) **switch** —
-  direct scenario→scenario transition executes only the diff (shared devices untouched, dropped
-  devices handled per switch policy), assumed state stays coherent afterwards; (3) **end** — explicit
-  `deactivate` powers the chain down; plus (4) **restart survival** — bridge restart mid-active-scenario
-  restores the active scenario from persisted state without re-firing commands (shutdown stays
-  transparent to hardware). Runs **after** DRV-1 (drivers-before-composites methodology gate),
-  naturally in the same sitting as SCN-3's music walk; REL-3's two-room concurrency drill builds on
-  top of this, so this row gates REL-3.
-
 
 - [ ] **SCN-10** `[P2]` `[deferred]` — **Feedback-gated topology ordering edges (wait for the
   *reported* state, not just the ack).** Found live during the SCN-9 walk (2026-07-07, the
