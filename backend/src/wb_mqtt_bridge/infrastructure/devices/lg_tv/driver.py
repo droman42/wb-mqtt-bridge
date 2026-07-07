@@ -1214,7 +1214,23 @@ class LgTv(BaseDevice[LgTvState]):
         try:
             logger.info(f"Attempting to power on TV {self.get_name()}")
             success = False
-            
+
+            # Idempotence guard (DRV-10): on an already-on, connected TV,
+            # ssap://system/turnOn answers with an empty payload, which sent the old
+            # code down the WoL fallback + boot wait + full reconnect — ~20 s of
+            # churn for a no-op. state.power is trustworthy here (the power_state
+            # subscription delivers physical-remote transitions in <1 s), so treat
+            # already-on as success. NB for DRV-5: this guard must honor `force`.
+            if self.client and self.state.connected and self.state.power == "on":
+                logger.info("TV is already on and connected — power_on is a no-op")
+                self.update_state(last_command=LastCommand(
+                    action="power_on",
+                    source="api",
+                    timestamp=datetime.now(),
+                    params={"method": "already_on"},
+                ))
+                return True
+
             # First try using WebOS API if we have an active connection
             if self.system and self.client and self.state.connected:
                 try:
@@ -1524,37 +1540,17 @@ class LgTv(BaseDevice[LgTvState]):
 
             # Launch the app
             result: Any = None
+            success = False
             if self.app:
                 result = await self.app.launch(actual_app_id)
-                
-                # Add detailed logging of the result structure
                 logger.debug(f"Launch app result type: {type(result)}, value: {result}")
-                if isinstance(result, dict):
-                    logger.debug(f"Result keys: {result.keys()}")
-                    if "returnValue" in result:
-                        logger.debug(f"returnValue: {result['returnValue']}")
-            
-            # WebOS API responses can vary:
-            # 1. {'returnValue': True} - Direct response
-            # 2. {'payload': {'returnValue': True}} - Nested response
-            # 3. Empty dict but operation succeeded
-            success = False
-            
-            if isinstance(result, dict):
-                # Check for direct returnValue
-                if "returnValue" in result and result["returnValue"]:
-                    success = True
-                # Check for nested returnValue in payload
-                elif "payload" in result and isinstance(result["payload"], dict):
-                    if "returnValue" in result["payload"] and result["payload"]["returnValue"]:
-                        success = True
-                # Empty dict with no error could also be a success
-                elif not result:
-                    # If result is empty and we received no error, assume success
-                    # since the WebOS API sometimes returns empty responses for successful operations
-                    success = True
-                    logger.debug("Empty result dict received, assuming success")
-            
+                # Library contract (asyncwebostv `launch` + standard_validation): a
+                # failed launch RAISES IOError; a return means the TV confirmed
+                # returnValue=True and the library stripped it — the remaining echo
+                # may be empty or carry e.g. {'sessionId': ...}. Returning at all IS
+                # success (DRV-10; same contract as _execute_media_command).
+                success = True
+
             if success:
                 logger.info(f"Successfully launched app '{app_title}'")
                 # Update state
@@ -2354,63 +2350,33 @@ class LgTv(BaseDevice[LgTvState]):
                 
                 # Add detailed debug logging to see the exact structure
                 logger.debug(f"Raw result from {media_method_name}: {type(result)} {result}")
-                
-                # Check result
-                # Handle the nested payload structure in the response
-                success = False
-                if isinstance(result, dict):
-                    logger.debug(f"Result is dict with keys: {result.keys()}")
-                    # Check for returnValue in the payload (most common case)
-                    if "payload" in result and isinstance(result["payload"], dict):
-                        logger.debug(f"Found payload with content: {result['payload']}")
-                        # Treat empty dict as success (library validation already confirmed it)
-                        if not result["payload"]:
-                            success = True
-                            logger.debug("Empty payload dict treated as success")
-                        else:
-                            success = result["payload"].get("returnValue", False)
-                        logger.debug(f"Payload returnValue: {success}")
-                    # Fallback to checking at the top level
-                    else:
-                        # Treat empty dict as success (library validation already confirmed it)
-                        if not result:
-                            success = True
-                            logger.debug("Empty result dict treated as success")
-                        else:
-                            success = result.get("returnValue", False)
-                        logger.debug(f"Top level returnValue: {success}")
-                else:
-                    logger.debug(f"Result is not a dict, it's a {type(result)}")
-                
-                logger.debug(f"Final success determination: {success}")
-                
-                if success:
-                    # Update state if needed
-                    if state_key_to_update:
-                        if requires_level:
-                            self.update_state(volume=level)
-                        elif requires_state:
-                            self.update_state(mute=state)
 
+                # Library contract (asyncwebostv exec_command + standard_validation):
+                # a failed command RAISES IOError; a return means the TV confirmed
+                # returnValue=True and the library stripped it, handing back only the
+                # echo fields (possibly empty, possibly e.g. {'volume': 20,
+                # 'soundOutput': ''} on newer firmware). Returning at all IS success —
+                # re-checking the stripped payload for returnValue misclassified
+                # echo-carrying responses (DRV-10).
 
-                    # Update volume state if requested
-                    if update_volume_after:
-                        await self._update_volume_state()
-                    
-                    # Update last command in state
-                    await self._update_last_command(action_name, params, "api")
-                    
-                    return self.create_command_result(
-                        success=True,
-                        message=f"{action_name} executed successfully"
-                    )
-                else:
-                    error_msg = f"Command {action_name} failed: {result}"
-                    logger.error(error_msg)
-                    return self.create_command_result(
-                        success=False,
-                        error=error_msg
-                    )
+                # Update state if needed
+                if state_key_to_update:
+                    if requires_level:
+                        self.update_state(volume=level)
+                    elif requires_state:
+                        self.update_state(mute=state)
+
+                # Update volume state if requested
+                if update_volume_after:
+                    await self._update_volume_state()
+
+                # Update last command in state
+                await self._update_last_command(action_name, params, "api")
+
+                return self.create_command_result(
+                    success=True,
+                    message=f"{action_name} executed successfully"
+                )
             else:
                 error_msg = f"Media control method not found: {media_method_name}"
                 logger.error(error_msg)

@@ -283,3 +283,70 @@ async def test_set_input_source_action_resolves_and_switches(device):
     assert result["success"] is True, result
     device.input_control.set_input.assert_awaited_once_with("HDMI_2")
     assert device.state.input_source == "Emotiva XMC"
+
+
+# --- DRV-10: trust the library's validated-response contract -----------------
+# asyncwebostv's standard_validation pops returnValue (raising IOError when it's
+# falsy) and returns the STRIPPED payload — so a returned dict already means the
+# TV confirmed success. The driver used to re-check the stripped payload for
+# returnValue and misclassified echo-carrying responses (rack finding 2026-07-07:
+# setVolume answered {'volume': 20, 'soundOutput': ''} → reported failed while
+# the TV applied it).
+
+
+@pytest.mark.asyncio
+async def test_set_volume_succeeds_on_echo_payload(device, fake_media):
+    """A stripped echo payload (no returnValue) is success, not failure."""
+    fake_media.set_volume = AsyncMock(return_value={"volume": 20, "soundOutput": ""})
+
+    result = await device.handle_set_volume(device.config.commands["set_volume"], {"level": 20})
+
+    assert result["success"] is True, result
+    assert device.state.volume == 20
+
+
+@pytest.mark.asyncio
+async def test_media_command_fails_when_library_raises(device, fake_media):
+    """The failure channel is the library's IOError, not the payload shape."""
+    fake_media.set_volume = AsyncMock(side_effect=IOError("Unknown error."))
+
+    result = await device.handle_set_volume(device.config.commands["set_volume"], {"level": 20})
+
+    assert result["success"] is False
+    assert "Unknown error." in (result.get("error") or "")
+
+
+@pytest.mark.asyncio
+async def test_launch_app_succeeds_on_echo_payload(device):
+    """launch uses the same validated contract — a sessionId echo is success."""
+    device._cached_apps = [{"id": "ivi", "title": "Иви"}]
+    device.app.launch = AsyncMock(return_value={"sessionId": "abc123"})
+    device._update_current_app = AsyncMock()
+
+    result = await device.handle_launch_app(
+        StandardCommandConfig(action="launch_app"), {"app_name": "ivi"}
+    )
+
+    assert result["success"] is True, result
+    device.app.launch.assert_awaited_once_with("ivi")
+
+
+@pytest.mark.asyncio
+async def test_power_on_is_noop_when_already_on(device):
+    """DRV-10 guard: connected + power=on → success without WoL / reconnect churn.
+
+    Before the guard, ssap://system/turnOn answered an empty payload on an
+    already-on TV, sending the driver into WoL fallback + a ~20 s boot wait +
+    a full reconnect. NB for DRV-5: this guard must honor `force` when it lands.
+    """
+    device.state.power = "on"
+    device.wake_on_lan = AsyncMock()
+    device.connect = AsyncMock()
+
+    assert await device.power_on() is True
+
+    device.wake_on_lan.assert_not_awaited()
+    device.connect.assert_not_awaited()
+    device.system.power_on_with_monitoring.assert_not_awaited()
+    assert device.state.last_command is not None
+    assert device.state.last_command.params.get("method") == "already_on"

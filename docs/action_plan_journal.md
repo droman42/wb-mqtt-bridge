@@ -21,6 +21,25 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-07 (DRV-10 DONE — LG false-negative classifiers fixed; already-on power churn killed;
+  rack sitting log)** — the first live DRV-1 sitting of the day, backend observed via
+  `logs/service.log` while the user drove the UI. **LG living row re-verified on hardware:** power
+  on (already-on path), home, launch_app (ivi), pointer move + click (~50–60 ms cadence), nav
+  cluster (menu/back/exit/enter), power off with subscription-confirmed standby in ~2.3 s.
+  **Two live finds:** (1) `set_volume` false-negative → root-caused to the driver re-validating
+  asyncwebostv's already-validated-and-stripped payload (the library pops `returnValue`, raises
+  `IOError` on failure); fixed `_execute_media_command` + `launch_app` to trust the contract,
+  `_execute_with_monitoring` audited correct as-is (raw monitoring dicts); (2) power-on-while-on →
+  `turnOn` answers empty payload → old code WoL'd + slept 20 s + full-reconnected; fixed with an
+  idempotence guard (connected + power=on ⇒ no-op; DRV-5 inventory updated LgTv 0→1 guard, LOW,
+  must honor `force`). Startup init verified correct (subscriptions synced power='on' in 2 s).
+  4 regression tests; suite 591. **OPS-12 validated live** (rollover + 31-day prune fired on this
+  very startup). Also observed, pending decisions: eMotiva zone2=On-while-main-Off at connect;
+  HVAC «Кондиционер» numeric wire values failing enum parse (fan '0', mode '2', vane '0',
+  widevane '3') — REL-3's HVAC check will hit this; DEBUG log prints the broker password in the
+  MQTT-init line. Process note: a `tail` pipe swallowed a failing guard exit on the DRV-10 filing
+  commit (6 OUT-OF-ORDER errors pushed, fixed next commit) — run the guard bare, never piped.
+
 - **2026-07-07 (OPS-12 DONE — voice-style startup log rollover; dead rotation cleanup fixed)** —
   user-requested at the rack, first item of the REL-2 sitting. Each startup now renames the live
   log aside (`service.log.<YYYYmmdd_HHMMSS>.log`) and starts fresh; daily rotation kept. The
