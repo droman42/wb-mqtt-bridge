@@ -21,6 +21,17 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-07 (CORE-5 FILED — `device-test` CLI reviewed stale, resurrection deferred post-release)** —
+  user flagged the `device-test` CLI as ~1 year untouched; reviewed against the live core before
+  filing (evidence in the CORE-5 row): imports clean, entry point resolves, but it mirrors a
+  year-old bootstrap — no state-repository re-hydration (commands live gear from factory-default
+  assumed state), no capability maps, private-attr wiring (`_mqtt_client`), legacy
+  reconnect-to-subscribe dance, pre-`CommandResponse` result printing. Also surfaced a second
+  stale artifact: `backend/tests/device_test.py` (798-line REST/MQTT driver script squatting in
+  `tests/`, matches the `*_test.py` collection pattern) — folded into the same task. Key
+  resurrection fork recorded: extract a shared fleet-composition helper from bootstrap vs.
+  retarget as a thin REST client. Filed `[P2]` `[deferred]`.
+
 - **2026-07-07 (SCN-9 FILED — scenario lifecycle regression re-verification)** — user-requested
   intake during the rack-queue survey: the core start/switch/end scenario loop was last
   hardware-verified 2026-05-22, before the hexagonal restructuring, canonical dispatch and the

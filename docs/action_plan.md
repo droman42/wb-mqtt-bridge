@@ -606,7 +606,30 @@ endpoint).
 
 - [ ] **CORE-4** `[P2]` `[deferred]` — **Full `POST /devices/{id}/action` demotion (release-2 candidate).** Decided at the release-1 sign-off (2026-07-06): `/action` ships in release 1 **as the documented internal/dev + UI-fallback door, untouched** — UI-9 removed its last first-party writer, but demoting it before the canonical hardware passes (REL-3, VWB-13) prove coverage would remove the safety net exactly when it might be needed. Post-release scope: strip the UI's un-annotated-control fallback dispatch paths, mark the endpoint internal in the OpenAPI docs (or move it under an internal prefix), and re-examine `/scenario/switch`+`/scenario/shutdown` internalization (the rest of `canonical_first.md` §8 phase 3) in the same pass.
 
-### DOC — Docs / ledger / process
+- [ ] **CORE-5** `[P2]` `[deferred]` — **Resurrect the `device-test` CLI (stale ~1 year) + settle the
+  `tests/device_test.py` squatter.** Reviewed 2026-07-07 on user request. The tool
+  (`cli/device_test.py`, console script `device-test`, in the hexagon diagram) is the interactive
+  per-device walk — exactly the DRV-1 shape: pick a device, fire actions, see state after each. It
+  still imports clean and the entry point resolves, but it mirrors a **year-old bootstrap** (last real
+  touch pre-monorepo `f187b96`; only mechanical typing/rename edits since). Verified gaps vs. the
+  current composition root:
+  (1) **no `StateRepositoryPort`** — `DeviceManager()` bare, so devices never re-hydrate persisted
+  state before `setup()`; idempotence guards and assumed state behave unlike the real bridge, and the
+  tool commands live gear from factory-default state;
+  (2) **no `attach_capability_maps`** — capability-driven surfaces absent (DRV-5's `force` exposure
+  won't render);
+  (3) **private-attr wiring** — pokes `device_manager._mqtt_client` + casts `DevicePort`→`BaseDevice`,
+  copying an old bootstrap shape instead of sharing it;
+  (4) legacy disconnect→`connect_and_subscribe` re-connect dance;
+  (5) result printing still handles the pre-`CommandResponse` nested-`result` shape.
+  **Resurrection decision to make first:** (a) re-wire by **extracting a shared fleet-composition
+  helper** from `app/bootstrap.py` (CLI and app can't drift again — hexagonally the cleanest), vs.
+  (b) **retarget as a thin REST client of the running bridge** — which is what the *other* stale
+  artifact already is: `backend/tests/device_test.py` (798 lines, drives a live service via
+  REST/MQTT) squats in `tests/` matching pytest's `*_test.py` collection pattern (collects nothing,
+  but misplaced) — fold or delete it in the same pass. Align with `eval/README.md`'s note that
+  `device-test <id> <command>` is a wanted future eval CLI surface (needs MQTT). Post-release: the
+  DRV-1/SCN rack passes run off the UI + eval suite; this tool is a developer convenience, not a gate.
 
 **The ledger & documentation reconciliation series (DOC-4…DOC-10).** Filed 2026-06-30 from two
 chat-requested analyses: (1) a comparison of this plan's former positional `P0…P4 / #n` numbering
