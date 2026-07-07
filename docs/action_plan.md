@@ -162,24 +162,6 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
 
 - [ ] **DRV-2** `[P0]` `[release]` — **Apple TV app launching** — `Запуск приложений на AppleTV`.
 
-- [ ] **DRV-10** `[P1]` `[release]` — **LG TV driver: false-negative on `set_volume` (and audit the
-  sibling response classifiers).** Found live at the rack 2026-07-07 during the DRV-1 sitting: UI
-  `set_volume` 20/40 → TV **applied** both (OSD moved, internal speakers), state stayed correct via
-  the volumeStatus subscription, but the driver reported `success: False` with
-  `Command set_volume failed: {'volume': 20, 'soundOutput': ''}`. **Root cause (verified against
-  `../asyncwebostv`):** the library's `standard_validation` *pops* `returnValue` (raising `IOError`
-  when it's falsy) and returns the **stripped** payload — so a dict result means the library already
-  confirmed success; `_execute_media_command` then re-checks the stripped payload for `returnValue`
-  and misclassifies any response carrying extra echo fields (this OLED firmware echoes
-  `{volume, soundOutput}` from `setVolume`). The driver's own "empty dict = success (library
-  validation already confirmed it)" comment shows the contract was half-understood — bare-ack
-  responses were patched, echo responses weren't. **Fix:** in `_execute_media_command`, trust the
-  library contract — returned-without-raising ⇒ success; drop the `returnValue` re-check. **Audit
-  the same pattern** in the `launch_app` classifier and the `power_on_with_monitoring` path (the
-  10:51:29 `power_on_with_monitoring failed: {}` warning against an already-on TV looks like the
-  same disease) + a regression test per fixed classifier (echo-payload shape). Re-verify `set_volume`
-  at the TV after the fix (rides the DRV-1 LG row's next pass).
-
 - [ ] **DRV-3** `[P2]` `[deferred]` — **IR-code learning page** — capture codes from physical remotes (`Сделать страничку для обучения IR кодам с пультов`).
 
 - [ ] **DRV-4** `[P2]` `[deferred]` — **LG TV `audio_output` API — clean rework of the "press Home" hack + enable a true `watch_tv` (TV speakers only) scenario.** Discovered 2026-05-30: `asyncwebostv.controls.MediaControl` already exposes `set_audio_output(value)` (`ssap://audio/changeSoundOutput`) + subscribable `get_audio_output` (`ssap://audio/getSoundOutput`); valid values per library's `list_audio_output_sources` are `['tv_speaker', 'external_speaker', 'soundbar', 'bt_soundbar', 'tv_external_speaker']` (likely incomplete for newer webOS — `external_arc`, `external_optical`, `bt_headset`, `mobile`, `lineout` exist on some firmware; verify on OLED77G1RLA via `get_audio_output` first). **Architectural implication:** the TV's audio output is an INDEPENDENT axis from its video input — webOS lets you have HDMI 1 on screen while audio routes via ARC to the AVR. The current `tv_on_speakers` "press Home" mechanism (driver translates `set_input_source(arc)` → `handle_home`; commit `e5dffa4`) was correct for its PRIMARY video-side purpose (force TV out of HDMI input mode for the watch-TV-with-amp scenario) but uses the wrong axis. **Clean rework when next at LG TV:** (1) add `state.audio_output` field (subscribable); (2) add `handle_set_audio_output` action; (3) add `audio_output` capability domain with `source_modes` (reuses the symmetric src_port mechanism but on a different capability); (4) topology link's src_port becomes the audio-output value, translated in the driver to the webOS string (`arc` → `external_arc`, `tv_speaker` → `tv_speaker`, etc.). **Enables a clean `watch_tv` scenario** (TV speakers only, all other devices off — discarded today because the press-Home hack didn't fit). **HW verification gates before coding:** (a) exact webOS audio-output value for HDMI ARC on the OLED77G1RLA (call `get_audio_output` while on the current ARC-routing setup); (b) whether explicit ARC audio output is enough for eMotiva ARC engagement without forcing TV to internal mode (i.e., does the precondition observed today — "TV must be in TV mode" — go away if the TV is just explicitly broadcasting on ARC?); (c) whether the eMotiva still needs the power-cycle workaround for ARC engagement, or whether CEC + TV-broadcasting-on-ARC is sufficient; (d) subscription delivery reliability for `get_audio_output`. **No urgency** — current `tv_on_speakers` works for its purpose (still HW-pending anyway). File as a coherent LG-TV cleanup pass.
@@ -209,6 +191,24 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   **lock the design** — completion means the design is *done and recorded*, **not** that code shipped.
   **On completion, file the implementation follow-ups** as their own DRV tasks (the `RoborockDevice`
   driver + the interactive-map UI page). No driver/page work starts before the design locks.
+
+- [ ] **DRV-10** `[P1]` `[release]` — **LG TV driver: false-negative on `set_volume` (and audit the
+  sibling response classifiers).** Found live at the rack 2026-07-07 during the DRV-1 sitting: UI
+  `set_volume` 20/40 → TV **applied** both (OSD moved, internal speakers), state stayed correct via
+  the volumeStatus subscription, but the driver reported `success: False` with
+  `Command set_volume failed: {'volume': 20, 'soundOutput': ''}`. **Root cause (verified against
+  `../asyncwebostv`):** the library's `standard_validation` *pops* `returnValue` (raising `IOError`
+  when it's falsy) and returns the **stripped** payload — so a dict result means the library already
+  confirmed success; `_execute_media_command` then re-checks the stripped payload for `returnValue`
+  and misclassifies any response carrying extra echo fields (this OLED firmware echoes
+  `{volume, soundOutput}` from `setVolume`). The driver's own "empty dict = success (library
+  validation already confirmed it)" comment shows the contract was half-understood — bare-ack
+  responses were patched, echo responses weren't. **Fix:** in `_execute_media_command`, trust the
+  library contract — returned-without-raising ⇒ success; drop the `returnValue` re-check. **Audit
+  the same pattern** in the `launch_app` classifier and the `power_on_with_monitoring` path (the
+  10:51:29 `power_on_with_monitoring failed: {}` warning against an already-on TV looks like the
+  same disease) + a regression test per fixed classifier (echo-payload shape). Re-verify `set_volume`
+  at the TV after the fix (rides the DRV-1 LG row's next pass).
 
 ---
 
