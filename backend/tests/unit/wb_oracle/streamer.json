@@ -77,6 +77,17 @@
         "type": "pushbutton"
       }
     },
+    "previous": {
+      "initial_state": "0",
+      "meta": {
+        "order": 350,
+        "readonly": false,
+        "title": {
+          "en": "Previous track"
+        },
+        "type": "pushbutton"
+      }
+    },
     "set_input": {
       "initial_state": "unknown",
       "meta": {
@@ -143,6 +154,7 @@
     "/devices/streamer/controls/pause/on",
     "/devices/streamer/controls/stop/on",
     "/devices/streamer/controls/next/on",
+    "/devices/streamer/controls/previous/on",
     "/devices/streamer/controls/set_volume/on",
     "/devices/streamer/controls/volume_up/on",
     "/devices/streamer/controls/volume_down/on",

@@ -1,5 +1,5 @@
 {
-  "version": "d0536f643b783d8a",
+  "version": "8159b4b0068d1c63",
   "rooms": [
     {
       "id": "bathroom",
@@ -6482,6 +6482,10 @@
             },
             {
               "name": "next",
+              "params": null
+            },
+            {
+              "name": "previous",
               "params": null
             }
           ],

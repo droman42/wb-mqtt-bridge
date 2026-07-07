@@ -49,6 +49,10 @@
       "action": "next",
       "description": "Next Track"
     },
+    "previous": {
+      "action": "previous",
+      "description": "Previous track"
+    },
     "set_volume": {
       "action": "set_volume",
       "description": "Set Volume",

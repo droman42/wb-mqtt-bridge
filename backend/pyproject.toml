@@ -52,7 +52,7 @@ dependencies = [
     # upstream 2.3.1 code minus lxml (stdlib ElementTree); do NOT move to upstream. 2026-05-29.
     # 2026-07-07 (DRV-14): fork also carries HardwareConfig halt support (is_halted/set_halt,
     # branch hardware-config-halt; PR'd upstream as bazwilliams/openhomedevice#26).
-    "openhomedevice @ git+https://github.com/droman42/openhomedevice.git@75e8cfcec561ab1b884ce904517d941de9af8b4e",
+    "openhomedevice @ git+https://github.com/droman42/openhomedevice.git@819b16102fb71e68c4f593af4d49c66a344d300a",
     # openhomedevice's only runtime dep; pinned explicitly so a transitive bump can't reintroduce
     # the DIDL-Lite metadata-parse break (openhomedevice issue #23, async_upnp_client 0.39->0.40).
     "async_upnp_client>=0.40,<0.45",
@@ -237,4 +237,4 @@ disallow_incomplete_defs = false
 [tool.uv]
 # Git sources for dependencies
 [tool.uv.sources]
-openhomedevice = { git = "https://github.com/droman42/openhomedevice.git", rev = "75e8cfcec561ab1b884ce904517d941de9af8b4e" }
+openhomedevice = { git = "https://github.com/droman42/openhomedevice.git", rev = "819b16102fb71e68c4f593af4d49c66a344d300a" }
