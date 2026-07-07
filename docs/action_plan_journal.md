@@ -21,6 +21,18 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-07 (DRV-11 DONE — XMC-2 space-padded negative volumes parsed as 0.0; rack sitting
+  continued)** — post-restart re-verification of DRV-10 all green on hardware (cold WoL power-on;
+  `set_volume` echo payload success + OSD moved; already-on no-op in 1 ms). IR fleet blessed via
+  `mf_amplifier` (power/inputs/volume react; **mute publishes ROM20 cleanly but the amp ignores it**
+  — stored code suspect, user to check the OEM remote / re-learn; volume stepping slow = one code
+  per press, enhancement candidate). eMotiva zone-1 power-on clean in 3.6 s, ARC recognized
+  (`HDMI ARC` → `arc`), and the **third sighting of `zone2_power=On`** turned out to carry a real
+  driver bug: the device pads short negatives (`'- 3.0'`), `float()` raised, silent fallback showed
+  **0 dB instead of −3.0 dB**. Fixed in the converter (space-strip + warning) and the raw zone2
+  status-sync path now routes through it; 3 regression tests; suite 594. `pymotivaxmc2` not at
+  fault (raw XML strings by design). Zone2-physically-on question still open at the rack.
+
 - **2026-07-07 (DRV-10 DONE — LG false-negative classifiers fixed; already-on power churn killed;
   rack sitting log)** — the first live DRV-1 sitting of the day, backend observed via
   `logs/service.log` while the user drove the UI. **LG living row re-verified on hardware:** power

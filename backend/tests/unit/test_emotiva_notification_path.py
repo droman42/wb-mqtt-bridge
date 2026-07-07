@@ -299,3 +299,25 @@ async def test_power_cycle_for_arc_skips_power_off_when_already_off(device: EMot
     device.client.power_off.assert_not_called()
     device.client.power_on.assert_awaited_once()
     assert result["success"] is True
+
+
+# --- DRV-11: the XMC-2 pads short negative volumes with a space ---------------
+# Observed live at the rack 2026-07-07: the device notified
+# zone2_volume = '- 3.0' (space after the sign for values shorter than the
+# field width). Plain float() raised and the converter silently fell back to
+# 0.0 — the bridge showed 0 dB while the hardware sat at -3.0 dB. Any zone's
+# volume in the -9.9..-0.1 range hits the same form.
+
+
+def test_handle_property_change_volume_space_padded(device: EMotivaXMC2):
+    device._handle_property_change("volume", None, "- 5.0")
+    assert device.state.volume == -5.0
+
+
+def test_handle_property_change_zone2_volume_space_padded(device: EMotivaXMC2):
+    device._handle_property_change("zone2_volume", None, "- 3.0")
+    assert device.state.zone2_volume == -3.0
+
+
+def test_process_property_value_unparseable_volume_falls_back(device: EMotivaXMC2):
+    assert device._process_property_value("volume", "garbage") == 0.0

@@ -382,10 +382,16 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 return PowerState.ON if value.lower() == "on" else PowerState.OFF
             return value  # Already converted
         elif property_name in ["volume", "zone2_volume"]:
-            # Convert volume to float
+            # Convert volume to float. The XMC-2 pads short negative values with a
+            # space after the sign ('- 3.0' for -3.0 dB, verified at the rack
+            # 2026-07-07) — plain float() rejects that and the old fallback
+            # silently reported 0.0 (DRV-11).
             try:
+                if isinstance(value, str):
+                    value = value.replace(" ", "")
                 return float(value)
             except (ValueError, TypeError):
+                logger.warning(f"Unparseable {property_name} value from device: {value!r}")
                 return 0.0
 
         # mute / zone2_mute are deliberately absent — Emotiva protocol §4.2 has no
@@ -1521,7 +1527,11 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                     # Query Zone2 volume
                     try:
                         volume_result = await self.client.status(Property.ZONE2_VOLUME)
-                        volume = volume_result.get(Property.ZONE2_VOLUME)
+                        # Route through the converter — the device may answer with the
+                        # space-padded form ('- 3.0') this raw path used to store verbatim.
+                        volume = self._process_property_value(
+                            "zone2_volume", volume_result.get(Property.ZONE2_VOLUME)
+                        )
                         self.update_state(zone2_volume=volume)
                         updated_properties["zone2_volume"] = volume
                         logger.debug(f"Synchronized Zone2 volume: {volume}")
