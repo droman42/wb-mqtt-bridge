@@ -535,6 +535,28 @@ endpoint).
   - **Risk surface = the dev-server SSE proxy.** `server.proxy['/events'].configure()` hooks `proxy.on('proxyReq'|'proxyRes'|'error', …)` to force `text/event-stream` + disable buffering. Re-verify these `http-proxy` hooks against vite 6's proxy API. This is **dev-server-only** (`npm run dev`); the production nginx path is unaffected.
   - **Definition of done.** `cd ui && npm run check && npm run build` clean (`config-ui-stays-functional`); a `npm run dev` SSE smoke test (the `/events` proxy still streams against a running backend) since #113 + the SSE proxy both live on the dev server; Dependabot drops to the 2 eslint/jest residuals. Then journal it (`read-at-start-record-at-completion`).
 
+- [ ] **UI-10** `[P2]` `[deferred]` — **Inputs/apps dropdowns don't reflect the live selection.** Found
+  at the 2026-07-07 rack sitting (living-room TV playing ivi; page shows "Select App…"): on every
+  page mount the dropdowns render the placeholder even though device state knows the answer —
+  `selectedInput`/`selectedApp` are plain local `useState('')` in `useRemoteControlData.ts`
+  (`useInputSelection`/`useAppLaunching`), seeded from nothing and updated only by the user's own
+  picks in that mount; they also never follow changes made elsewhere (physical remote, scenario,
+  voice). Affects **every device/scenario page with an inputs or apps dropdown**. **Fix shape:**
+  derive the selection from the live state (`current_app` / `input_source` via the existing
+  `['devices', id, 'state']` query that SSE keeps fresh), keeping local state only as an optimistic
+  overlay while a pick is in flight. **Mind the id/label mismatch per class:** app options key by
+  app id (`ivi` — matches `current_app`), but LG `state.input_source` stores the *label* ("Emotiva
+  XMC") while input options key by id (`HDMI_2`), and eMotiva state stores canonical `sourceN` —
+  normalization per dropdown is the real work. `config-ui-stays-functional` gates apply.
+
+- [ ] **UI-11** `[P2]` `[deferred]` — **Same-name devices are indistinguishable on device pages.**
+  Found at the 2026-07-07 rack sitting: both LG TVs are named «Телевизор»; the user opened the
+  children's-room one believing it was the living room's and lost minutes to "why does it show
+  powered off????". Nothing on the page (or the list it was picked from) names the room. **Fix
+  shape:** room-qualify the device-page header («Телевизор — Детская»; room name is already in the
+  catalog/rooms data the UI loads), and add the room label in whatever nav/list renders bare device
+  names. Pure UI; no contract change expected.
+
 
 ### OPS — Docker / CI-CD / deploy / ops
 
