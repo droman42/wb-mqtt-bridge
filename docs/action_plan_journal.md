@@ -21,6 +21,22 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-07 (SCN-3 DONE — all four music scenarios; the evening half of the rack sitting)** —
+  turntable (amp 4 s gate → cd, volume, **mute on the fresh ROM20**, reworded notes);
+  auralic (one-action switch; Lightning DS playback with full now-playing after three live fixes —
+  DIDL list-artist flattening, SourceIndex current-source, the lib skip() Playlist fallback for
+  units reporting an empty source type — plus Previous exposed end-to-end, golden →
+  `8159b4b0068d1c63`); reel/tape back-and-forth at 13–21 ms, amp/A77 behaving. **Collateral:**
+  the power-off gate bool-complement fix (a 25 s teardown stall that hung the UI spinner and ate
+  the notes dialog), **lifecycle SSE moved to the domain chokepoint** (the canonical path — the
+  UI's primary since UI-9 — emitted nothing; page went stale until reload; router duplicates
+  removed, UI mutation belt-and-suspenders added), the quiet halted probe (GetHaltStatus on the
+  stored handle instead of a 60 s M-SEARCH loop), and the manual-notes rework (user wording moved
+  into topology position strings; scenario manual_instructions emptied pending re-authoring —
+  Revox/Sugden power notes parked). Exit-criteria item 2 is now fully satisfied except REL-3
+  itself; **no rack-testable release task remains** — the board is REL-2 (user) → VWB-13 → REL-3
+  → REL-4, plus desk-work DRV-5/OPS-8 and cross-repo VWB-16.
+
 - **2026-07-07 (SCN-9 DONE — the scenario lifecycle re-proven, same day it was filed)** — the
   movie-scenario walk delivered all four points: start (14:59, three step findings all fixed same
   hour — LG input dialect matcher, amp power gate 1→4 s, zappiti power re-learned + corrected to a

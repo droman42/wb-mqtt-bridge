@@ -205,29 +205,6 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
 
 ### SCN — Scenarios / topology / reconciler
 
-- [ ] **SCN-3** `[P0]` `[release]` `HW-GATED` — **Round-2 music scenarios.**
-
-**BUILT 2026-05-25 (mock-validated; pending hardware verification).** Wiring interview done; the four
-round-2 **music** scenarios are authored + reconciler-driven (`f1455c6`, `368fbcb`, `59fb661`):
-
-| Scenario | Source | Amp routing | Notes |
-|---|---|---|---|
-| `music_auralic` | `streamer` (Auralic) | direct → `mf_amplifier:balanced` | controllable; playback on the streamer |
-| `music_reel` | `reel_to_reel` (Revox A77) | Dodocus **Reel** → `mf_amplifier:cd` | controllable (IR); Dodocus note auto-surfaces |
-| `music_tape` | `b215` (Revox B215) | Dodocus **Tape** → `mf_amplifier:cd` | **passive** manual source; amp volume + "press Play" note |
-| `music_turntable` | `kuzma` (Kuzma Stabi S) | → Sugden PA4 → Dodocus **Phono** → `mf_amplifier:cd` | **passive**; amp volume + manual notes (power on Sugden, set hub, cue the record) |
-
-The Dodocus RCA hub is now the central analog selector (5 positions: ld/vhs/reel/tape/phono, all →
-amp `cd`). The two passive sources (no driver) are modelled as **manual topology nodes** + a one-line
-reconciler change (a manual-node `source` anchors the topology path so the amp input + the hub note
-resolve, but isn't itself controlled) — see §6 (2026-05-25). `kitchen_hood` stays appliance-only.
-
-**Remaining:** **hardware verification** of the four (amp powers + selects the right input; Dodocus
-manual notes show; Auralic/A77 playback; passive ones show the right manual steps). The **children's
-room** (children_room_tv + appletv_children) was **deferred by the user** (skipped this round) — a
-possible round-3.
-
-
 - [ ] **SCN-10** `[P2]` `[deferred]` — **Feedback-gated topology ordering edges (wait for the
   *reported* state, not just the ack).** Found live during the SCN-9 walk (2026-07-07, the
   movie_appletv → movie_zappiti switch-back): the `processor.input → video.power` ordering edge
@@ -708,7 +685,7 @@ all done; DOC-7 folded into DOC-9.
 
 - [ ] **REL-2** `[P0]` `[release]` — **WB7 compose cutover + deployment realism (user-owned, at the rack).** The load-bearing debt, now a ledger task so the scope gate can see it: (1) deploy the bridge + UI images on the WB7 controller per `ops/INSTALL.md` (the dev box has served the house since 2026-05-30 — Irene needs an always-on bridge); (2) deploy `wb-rules/all_lights.js` (drafted in VWB-10; the `all_lights` contract has no listening side until then); (3) the **realism dump** — `curl http://<wb7>:8000/system/catalog` diffed against `contracts/catalog.golden.json` (deployment drift, not config drift; recorded in `contracts/README.md` §Realism check); (4) service survives a controller restart (state restore + the CORE-3 maintenance guard live). Exit-criteria item 1.
 
-- [ ] **REL-3** `[P0]` `[release]` `HW-GATED` — **The converged release verification pass (rack session) + final gate run.** Single convergence point for every HW verification owed by closed tasks (the voice repo's ARCH-25 pattern): WB scenario cards + the live two-room concurrency drill (owed by SCN-6), the HVAC canonical HW check (owed by the VWB-14/24 chain), **the DRV-1 close residuals (updated through the 2026-07-07 sitting): all three suspect ROMs re-learned same day (zappiti power ROM26 + subtitles ROM38 verified; mf_amplifier mute ROM20 re-learned, functional re-check rides the music sitting), + the optional LG reconnect-cycle test,** plus the **end-to-end re-verification after cleanup** (absorbs acceptance-gate item 5). Also carries the **final gate run**: the "thorough code review" half of acceptance-gate item 4 (per `review-then-remediate` — review doc under `docs/review/`, findings filed, P0/P1 remediated before the tag) and the closing `check_scope.py` + CI pass. Runs AFTER REL-2 (needs the bridge live on the controller) and alongside/after DRV-1's per-driver rows. Exit-criteria items 2 + 5.
+- [ ] **REL-3** `[P0]` `[release]` `HW-GATED` — **The converged release verification pass (rack session) + final gate run.** Single convergence point for every HW verification owed by closed tasks (the voice repo's ARCH-25 pattern): WB scenario cards + the live two-room concurrency drill (owed by SCN-6), the HVAC canonical HW check (owed by the VWB-14/24 chain), **the DRV-1 close residuals (updated through the 2026-07-07 sitting): all three suspect ROMs re-learned same day (zappiti power ROM26 + subtitles ROM38 verified; mf_amplifier mute ROM20 re-learned, functional re-check rides the music sitting), + the optional LG reconnect-cycle test + a movie_zappiti re-activation feel-check of the 5 s `processor.input → video.power` settle (mechanism proven, the edge itself untraversed since the delay landed),** plus the **end-to-end re-verification after cleanup** (absorbs acceptance-gate item 5). Also carries the **final gate run**: the "thorough code review" half of acceptance-gate item 4 (per `review-then-remediate` — review doc under `docs/review/`, findings filed, P0/P1 remediated before the tag) and the closing `check_scope.py` + CI pass. Runs AFTER REL-2 (needs the bridge live on the controller) and alongside/after DRV-1's per-driver rows. Exit-criteria items 2 + 5.
 
 - [ ] **REL-4** `[P1]` `[release]` — **Release docs pass — project-wide doc reconciliation + master-doc handover.** The §0 recorded promise ("the redesign specs fully retire to history… a project-wide doc reconciliation formalizes the handover"): shift the project from plan-driven to architecture-driven (`project.md` / `architecture.md` / `ui_backend_contract.md` as the master set), verify every user-facing doc (`docs/architecture/*`, `docs/guides/*`, READMEs, `contracts/README.md`) tells the truth at the release version, regenerate stale diagrams. **DOC-11 folds in here** (the ui.md canonical-dispatch narrative — DOC-7→DOC-9 precedent). Exit-criteria item 6. **Gated by REL-3** (review remediation may change what the docs must describe); last task before the tag — see the Ordering table in the definition.
 
