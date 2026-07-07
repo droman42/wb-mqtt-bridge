@@ -439,26 +439,32 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
     async def _wake_from_halt(self) -> bool:
         """Wake a halted unit over the network (DRV-14; replaced the IR path).
 
-        HardwareConfig.SetHaltStatus(false) transitions the unit into standby;
-        the OpenHome services re-register on NEW dynamic ports, so the old
-        handle is useless afterwards — rediscover and adopt the fresh one.
+        HardwareConfig.SetHaltStatus(false) transitions the unit into standby
+        and the OpenHome services re-register on NEW dynamic ports. The halted
+        unit's OWN ports also move on every transition (rack finding: the
+        stored handle's port was already dead by power_on time — the wake call
+        got connection-refused and never reached the unit), so every attempt
+        REDISCOVERS first and sends the wake to the freshest handle. The unit
+        may close the connection while acting on the call, so transport errors
+        never abort — the next rediscovery is the real success check.
+        Re-sending to a unit already waking is harmless (idempotent target).
         """
-        device = self.openhome_device
-        if device is None:
-            return False
-        try:
-            await self._op(device.set_halt(False))
-        except Exception as e:
-            # The unit closes the connection while acting on the call (observed
-            # live at the rack) — a transport error here usually means the
-            # transition started, not that it failed. The rediscovery below is
-            # the real success check.
-            logger.debug(f"set_halt(False) transport hiccup (normal during the transition): {e}")
-        for _ in range(3):
+        for attempt in range(4):
+            device = await self._create_openhome_device()
+            if device is None and attempt == 0:
+                device = self.openhome_device  # last resort: the stored handle
+            if device is not None:
+                if device.product_service is not None:
+                    # Awake (fully re-registered) — adopt and done.
+                    return await self._adopt_openhome_device(device)
+                try:
+                    await self._op(device.set_halt(False))
+                except Exception as e:
+                    logger.debug(f"set_halt(False) transport hiccup (normal during the transition): {e}")
             await asyncio.sleep(3)
-            fresh = await self._create_openhome_device()
-            if fresh is not None and fresh.product_service is not None:
-                return await self._adopt_openhome_device(fresh)
+        device = await self._create_openhome_device()
+        if device is not None and device.product_service is not None:
+            return await self._adopt_openhome_device(device)
         logger.warning("Device did not leave the halted state after SetHaltStatus(false)")
         return False
 

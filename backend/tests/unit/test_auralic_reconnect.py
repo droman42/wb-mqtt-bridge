@@ -173,17 +173,23 @@ async def test_adopt_connects_full_device():
 
 @pytest.mark.asyncio
 async def test_power_on_wakes_halted_via_set_halt(monkeypatch):
-    """Halted → SetHaltStatus(false) → rediscover → adopt → standby exit."""
+    """Halted → rediscover fresh handle → SetHaltStatus(false) → adopt → standby exit.
+
+    The wake is sent to a FRESHLY DISCOVERED handle, never the stored one —
+    the halted unit's ports move on every transition (rack finding 13:11: the
+    stored port was already dead and the wake call got connection-refused).
+    """
     device = _make_device()
-    halted = _halted_openhome()
-    device.openhome_device = halted
+    stale = _halted_openhome()
+    device.openhome_device = stale
     device._deep_sleep_mode = True
 
+    fresh_halted = _halted_openhome()
     woken = MagicMock()
     woken.product_service = MagicMock()
     woken.is_in_standby = AsyncMock(return_value=True)
     woken.set_standby = AsyncMock()
-    device._create_openhome_device = AsyncMock(return_value=woken)
+    device._create_openhome_device = AsyncMock(side_effect=[fresh_halted, woken])
     device._update_device_state = AsyncMock()
     device._refresh_sources_cache = AsyncMock()
     monkeypatch.setattr("asyncio.sleep", AsyncMock())
@@ -192,7 +198,8 @@ async def test_power_on_wakes_halted_via_set_halt(monkeypatch):
     result = await device.handle_power_on(BaseCommandConfig(action="power_on"), {})
 
     assert result["success"] is True, result
-    halted.set_halt.assert_awaited_once_with(False)
+    fresh_halted.set_halt.assert_awaited_once_with(False)
+    stale.set_halt.assert_not_awaited()  # never the stale handle
     woken.set_standby.assert_awaited_once_with(False)
     assert device._deep_sleep_mode is False
 
