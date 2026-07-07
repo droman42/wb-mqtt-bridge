@@ -1,6 +1,9 @@
 import os
+import re
+import time
 import logging
 import asyncio
+from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 from contextlib import asynccontextmanager
@@ -47,29 +50,80 @@ from wb_mqtt_bridge.__version__ import __version__
 
 
 # Setup logging
+LOG_RETENTION_DAYS = 30
+
+
+def _startup_rollover(log_path: Path) -> None:
+    """Rename the previous run's live log aside so each startup begins a fresh file.
+
+    The rotated name stays in the same `<name>.<stamp>.log` family the daily
+    rotation uses, so the report-evidence collector's `service.log.*` glob
+    (domain/reports/service.py::_collect_logs) sees both kinds of siblings.
+    """
+    if not log_path.exists():
+        return
+    try:
+        if log_path.stat().st_size == 0:
+            return  # nothing worth keeping; reuse the empty file
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        rotated = log_path.with_name(f"{log_path.name}.{stamp}.log")
+        log_path.rename(rotated)
+        print(f"Previous log rotated to: {rotated}")
+    except OSError as e:
+        # File logging isn't up yet; never block startup on a rename failure.
+        print(f"Warning: could not rotate previous log {log_path}: {e}")
+
+
+def _prune_old_logs(log_path: Path, keep_days: int = LOG_RETENTION_DAYS) -> int:
+    """Delete rotated siblings (`<name>.*`) older than the retention window.
+
+    Covers the startup-renamed files, which TimedRotatingFileHandler's own
+    backupCount cleanup never matches (its extMatch only knows the daily suffix).
+    """
+    cutoff = time.time() - keep_days * 86400
+    removed = 0
+    for sibling in log_path.parent.glob(log_path.name + ".*"):
+        try:
+            if sibling.stat().st_mtime < cutoff:
+                sibling.unlink()
+                removed += 1
+        except OSError:
+            continue
+    return removed
+
+
 def setup_logging(log_file: str, log_level: str):
-    """Configure the logging system with daily rotation."""
+    """Configure the logging system: fresh file per startup + daily rotation."""
     try:
         # Create logs directory if it doesn't exist
         log_dir = os.path.dirname(log_file)
         Path(log_dir).mkdir(parents=True, exist_ok=True)
-        
+
+        # Each startup gets a fresh file (voice-repo behavior); long-running
+        # operation still rotates daily below. Prune anything past retention.
+        log_path = Path(log_file)
+        _startup_rollover(log_path)
+        pruned = _prune_old_logs(log_path)
+
         # Set up logging format
         log_formatter = logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
-        
+
         # Create timed rotating file handler
         file_handler = TimedRotatingFileHandler(
             filename=log_file,
             when='midnight',  # Rotate at midnight
             interval=1,       # One day interval
-            backupCount=30,   # Keep 30 days of logs
+            backupCount=LOG_RETENTION_DAYS,
             encoding='utf-8'
         )
-        
-        # Set custom suffix for rotated files
+
+        # Set custom suffix for rotated files — and teach the handler's cleanup
+        # to recognize it: getFilesToDelete() filters via extMatch, whose default
+        # pattern never matches this suffix, so backupCount deleted nothing.
         file_handler.suffix = "%Y%m%d.log"
+        file_handler.extMatch = re.compile(r"^\d{8}\.log$")
         file_handler.setFormatter(log_formatter)
         
         # Create console handler
@@ -91,7 +145,12 @@ def setup_logging(log_file: str, log_level: str):
         root_logger.setLevel(numeric_level)
         
         logger = logging.getLogger(__name__)
-        logger.info("Logging system initialized with daily rotation at level %s", log_level)
+        logger.info(
+            "Logging system initialized (fresh file per startup, daily rotation, "
+            "%d-day retention) at level %s", LOG_RETENTION_DAYS, log_level
+        )
+        if pruned:
+            logger.info("Pruned %d rotated log file(s) past retention", pruned)
         
     except Exception as e:
         print(f"Error setting up logging: {str(e)}")

@@ -21,6 +21,17 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-07 (OPS-12 DONE — voice-style startup log rollover; dead rotation cleanup fixed)** —
+  user-requested at the rack, first item of the REL-2 sitting. Each startup now renames the live
+  log aside (`service.log.<YYYYmmdd_HHMMSS>.log`) and starts fresh; daily rotation kept. The
+  rename deliberately stays in the `service.log.*` family so VWB-28's `_collect_logs` glob needed
+  no change. Analysis found `backupCount=30` had **never deleted anything** (custom
+  `TimedRotatingFileHandler.suffix` without matching `extMatch`) — fixed, plus a startup prune of
+  siblings past 30 days for the startup-renamed files the handler can't see. 4 new unit tests +
+  a two-startup smoke run; suite 587, pyright 0, contracts 6/6, no contract/UI impact. Filing
+  footnote: the first OPS-12 commit attempt was blocked by the DOC-12 guard catching an edit slip
+  that swallowed the `### CORE` header — the day-old triad already paying rent.
+
 - **2026-07-07 (CORE-6 DONE — import-linter parity with voice; `domain ⇄ utils` cycle broken)** —
   filed + executed same session off the chat-requested enforcement comparison. The gate machinery
   was already identical (`py-dev-gates@v0.1.1`); the gap was declared coverage — 3 contracts vs
