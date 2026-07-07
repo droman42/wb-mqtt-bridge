@@ -90,6 +90,9 @@ Roles of the other docs **now** (they were "driving" during the redesign; they'v
   architecture** — the scenario proxy (`scenario_manager`), canonical-first convergence (catalog/
   canonical/state as the one client contract for UI + voice + WB), derived param descriptors.
   **Drives SCN-6 / SCN-7**; its §6 projection rides VWB-15.
+- `docs/design/zappiti-driver-spec.md` — **LIVING hardware/design contract (DRV-18, 2026-07-07):**
+  the Zappiti Neo (Dune HD) IP-control contract (Part I) + the browser-native catalog & indexing
+  design (Part II). **Drives DRV-19 / DRV-20.**
 - `docs/archive/scenarios/scenario_redesign_progress.md` — **archived 2026-06-30 (DOC-10)**; frozen
   session log, superseded by the as-built spec above.
 - `docs/archive/scenarios/layer3_step0_layout_analysis.md` — **archived 2026-06-30 (DOC-10)**; frozen
@@ -218,6 +221,29 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   types regen, `config-ui-stays-functional` gates); (3) a now-playing panel on the streamer/
   scenario page (cover art via albumArtURI, progress from Time, quality badge from Details).
   Decide the field set at design time — don't ship all 27; pick what the panel renders.
+
+- [ ] **DRV-19** `[P2]` `[deferred]` — **Zappiti Neo network driver (spec Part I).** Implement the
+  Dune HD IP Control driver per [`docs/design/zappiti-driver-spec.md`](design/zappiti-driver-spec.md)
+  §§1–8: HTTP-only driver class (fixed IP, router-pinned; no auth, no ADB), **discrete power**
+  (`standby`/`main_screen` — replaces the `video` WirenboardIRDevice and retires its ROM toggle +
+  the whole flaky-IR class; even remote-key fallbacks go over HTTP `ir_code`), **fire-then-poll
+  launch verification** (§5.2 — `command_status=ok` only means "parsed"), slow steady-state status
+  poll with transition-only logging (§5.3), track/subtitle/chapter control via `set_playback_state`.
+  **Ripples (spec §7):** device + capability configs, `movie_zappiti` roles, catalog golden → voice
+  re-pin; a status-reporting Neo lets the 5 s `processor.input→video.power` topology delay become a
+  real feedback gate (pairs with SCN-10). **Pre-work gates (spec §8):** IP-Control persistence
+  across a power-cycle, cold-launch wake from standby, mount-order stability with several shares.
+
+- [ ] **DRV-20** `[P2]` `[deferred]` — **Zappiti catalog & indexing (spec Part II).** Per
+  [`docs/design/zappiti-driver-spec.md`](design/zappiti-driver-spec.md) §§9–14: **browser-native
+  indexer** in a catalog panel (mediainfo.js/WASM header probe, FilenameParser + TMDb matching
+  ported to TS, match-resolution queue — TMDb-first with the contributor loop; OMDb only as a
+  post-release optional module), bridge **ingest API + separate `catalog.sqlite`** (sole writer,
+  plain SQL via the existing async persistence layer — no ORM), server-side `w500`/`w780` artwork
+  on `/mnt/data`, browse/launch panel on the Zappiti device + movie scenario pages, series/season/
+  episode modeling + mark-missing pruning. **First gate:** the §10.2 mediainfo.js↔ffprobe parity
+  bench (fallback = the rejected container batch). Depends on DRV-19 (the launch path); expect a
+  backend/UI split into subtasks when picked up (`config-ui-stays-functional` applies throughout).
 
 ### SCN — Scenarios / topology / reconciler
 

@@ -21,6 +21,22 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-07 (DRV-18 DONE, DRV-19/20 filed — the Zappiti design, the night half)** — a browser
+  design session produced `docs/design/zappiti-driver-spec.md`; verified per the cross-repo intake
+  rule (all §14 reuse claims real in `zappiti_updater`; the "Peewee matches the bridge stack" claim
+  false — bridge is aiosqlite, fixed) and reworked in-session: Part I gains the polling policy
+  (launch burst vs slow transition-only steady state), the don't-wire volume note, the pinned-IP +
+  multi-export §7 rows, the mount-order §8 item, and a Bridge-integration-impact block (replaces
+  the `video` IR device; discrete power kills the toggle; golden → voice re-pin; the 5 s topology
+  delay upgradeable to a SCN-10 feedback gate). Part II re-architected around the four decisions
+  pinned live: **browser-native indexer** (mediainfo.js/WASM probe over laptop mounts — chosen over
+  the Synology container for the zero-install productization story), bridge = sole SQLite writer
+  behind an ingest API (no DB crossing at all), TMDb-first with the contributor loop (OMDb → a
+  post-release optional module, voice-project spirit), catalog panel on the Zappiti device +
+  scenario pages with `w500`/`w780` artwork; schema gains series/season/episode + mark-missing
+  pruning (the "add a season later" gaps). Design task DRV-18 closed born-done; DRV-19 (driver) +
+  DRV-20 (catalog) filed `[deferred]`. Release board unchanged.
+
 - **2026-07-07 (SCN-3 DONE — all four music scenarios; the evening half of the rack sitting)** —
   turntable (amp 4 s gate → cd, volume, **mute on the fresh ROM20**, reworded notes);
   auralic (one-action switch; Lightning DS playback with full now-playing after three live fixes —
