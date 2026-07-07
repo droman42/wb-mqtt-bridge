@@ -510,3 +510,39 @@ def test_source_targets_skipped_when_device_has_no_input_capability():
     assert appletv_input == []
     # No warning for appletv input (Apple TV has no input capability — expected for sources)
     assert not any("appletv_living" in w and "input capability" in w for w in plan.warnings)
+
+
+# --- SCN-3 rack finding: bool power gates burned the full poll timeout ---------
+
+
+def test_power_off_targets_bool_complement_for_auralic():
+    """The Auralic power gate keys on `connected: true` (bool). The off-plan used
+    to target the STRING "off" — never equal to a bool — so every teardown
+    burned the full 25 s poll_timeout (rack: the music_auralic -> music_reel
+    switch hung the UI spinner for ~29 s)."""
+    devices = {"streamer": _device("AuralicDevice", "streamer", power="on", connected=True)}
+    plan = build_power_off_plan(["streamer"], devices)
+    acts = [a for a in plan.actions if a.device_id == "streamer"]
+    assert len(acts) == 1
+    assert acts[0].state_field == "connected"
+    assert acts[0].target is False  # bool complement, not "off"
+
+
+async def test_gate_satisfied_immediately_when_bool_off_reached():
+    from wb_mqtt_bridge.domain.scenarios.reconciler import _gate
+
+    devices = {"streamer": _device("AuralicDevice", "streamer", power="on", connected=True)}
+    plan = build_power_off_plan(["streamer"], devices)
+    action = plan.actions[0]
+    # After the command executes, the driver flips connected to False.
+    done = _device("AuralicDevice", "streamer", power="off", connected=False)
+
+    assert await _gate(done, action, poll_interval_ms=10) is True
+
+
+def test_power_off_keeps_string_off_for_string_fields():
+    """eMotiva/LG-style string power fields keep the 'off' convention."""
+    devices = {"living_room_tv": _device("LgTv", "living_room_tv", power="on")}
+    plan = build_power_off_plan(["living_room_tv"], devices)
+    tv = [a for a in plan.actions if a.device_id == "living_room_tv"][0]
+    assert tv.target == "off"

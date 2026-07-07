@@ -203,6 +203,17 @@ def _power_actions(device_id, cap, state, warnings) -> List[PlannedAction]:
     return out
 
 
+def _off_target(on_value: Any) -> Any:
+    """The gate-poll comparison value for power OFF.
+
+    Boolean on_values complement (the Auralic power gate keys on `connected:
+    true` — polling for the string "off" against a bool burned the full
+    25 s poll_timeout on every teardown, rack finding 2026-07-07); string
+    fields keep the "off" convention (eMotiva/LG power fields).
+    """
+    return (not on_value) if isinstance(on_value, bool) else "off"
+
+
 def _power_off_actions(device_id, cap, state) -> List[PlannedAction]:
     """Emit power-off actions for a device that is currently on (multi-zone/toggle aware)."""
     out: List[PlannedAction] = []
@@ -215,7 +226,7 @@ def _power_off_actions(device_id, cap, state) -> List[PlannedAction]:
             if not act:
                 continue
             out.append(PlannedAction(
-                device_id=device_id, domain="power", target="off",
+                device_id=device_id, domain="power", target=_off_target(zone.on_value),
                 command=act.command, params=dict(act.params), feedback=cap.feedback,
                 state_field=zone.state_field, poll_timeout_ms=gate.poll_timeout_ms,
                 delay_ms=gate.delay_ms, zone=zone_key, reason=f"power zone {zone_key} off",
@@ -228,7 +239,7 @@ def _power_off_actions(device_id, cap, state) -> List[PlannedAction]:
     if not act:
         return out
     out.append(PlannedAction(
-        device_id=device_id, domain="power", target="off",
+        device_id=device_id, domain="power", target=_off_target(cap.on_value),
         command=act.command, params=dict(act.params), feedback=cap.feedback,
         state_field=cap.state_field, poll_timeout_ms=gate.poll_timeout_ms,
         delay_ms=gate.delay_ms, reason="power off",
