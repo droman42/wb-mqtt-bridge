@@ -235,9 +235,14 @@ possible round-3.
   mechanism: an ordering edge that releases the successor when the `first` device's **state
   reports the commanded value** (the eMotiva notifies `source` within ~0.5 s of the real switch;
   poll the device state with a bounded timeout, fall back to `delay_ms`). Feedback-capable
-  domains only (`feedback: true` in the capability map); reconciler + topology schema change —
-  keep the fixed-delay edge as the fallback semantics. Post-release: the 5 s settle serves the
-  house fine.
+  domains only (`feedback: true` in the capability map). **Design note (user question answered
+  2026-07-07): no new capability schema needed** — the vocabulary already exists end-to-end:
+  `feedback` per domain (the "can it report" bit), `state_field` (where the report lands),
+  `gate.poll_timeout_ms` (how long to wait — eMotiva input already declares 3000 ms), and the
+  reconciler already threads all three into each `PlannedAction` for *within-device*
+  confirmation. SCN-10 is therefore reconciler-only logic plus at most one optional
+  topology-edge field (confirm-vs-delay semantics); `feedback: false` firsts fall back to
+  `delay_ms`. Post-release: the 5 s settle serves the house fine.
 
 
 ### VWB — Voice-integration + native WB onboarding
