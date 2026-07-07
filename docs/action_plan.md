@@ -225,6 +225,21 @@ possible round-3.
   top of this, so this row gates REL-3.
 
 
+- [ ] **SCN-10** `[P2]` `[deferred]` — **Feedback-gated topology ordering edges (wait for the
+  *reported* state, not just the ack).** Found live during the SCN-9 walk (2026-07-07, the
+  movie_appletv → movie_zappiti switch-back): the `processor.input → video.power` ordering edge
+  sequenced correctly but released the successor **4 ms after the eMotiva's ack** — the ack is
+  instant while the physical HDMI re-route takes seconds, so the Zappiti booted into an unrouted
+  sink and lost its HDMI output (known hardware quirk, needs repower). **Mitigated with
+  `delay_ms: 5000`** on the edge (topology.json, same commit) — a blunt fixed wait. The proper
+  mechanism: an ordering edge that releases the successor when the `first` device's **state
+  reports the commanded value** (the eMotiva notifies `source` within ~0.5 s of the real switch;
+  poll the device state with a bounded timeout, fall back to `delay_ms`). Feedback-capable
+  domains only (`feedback: true` in the capability map); reconciler + topology schema change —
+  keep the fixed-delay edge as the fallback semantics. Post-release: the 5 s settle serves the
+  house fine.
+
+
 ### VWB — Voice-integration + native WB onboarding
 
 **Context (the P3.7 push — design narrative preserved from the former phase section):**
