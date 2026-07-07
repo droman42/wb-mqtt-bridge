@@ -162,7 +162,7 @@ async def test_switch_ld_surfaces_dodocus_manual_step():
     assert result["success"]
     # Activation manual notes surface via get_scenario_state (single source of truth for the UI).
     live = sm.get_scenario_state("movie_ld")
-    assert any("LD position" in m.instruction for m in live.manual_steps)
+    assert any("to LD" in m.instruction for m in live.manual_steps)
     # upscaler input switched (to video) but never powered (auto-powers with the source)
     assert ("upscaler", "input_video") in calls
     assert ("upscaler", "power_on") not in calls
@@ -205,7 +205,7 @@ async def test_transition_to_ld_surfaces_dodocus_note_on_switch_and_clears_on_de
     live = sm.get_scenario_state("movie_ld")
     assert live.scenario_id == "movie_ld"
     assert any(
-        m.node == "dodocus" and "LD position" in m.instruction
+        m.node == "dodocus" and "to LD" in m.instruction
         for m in live.manual_steps
     )
 

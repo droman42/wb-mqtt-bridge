@@ -97,7 +97,8 @@ def test_scenario_manifest_music_tape_passive_source():
 
     assert m["entityKind"] == "scenario"
     assert m["deviceId"] == "music_tape"
-    assert any("B215" in s for s in m["manualInstructions"]["startup"])
+    # Mirrors the def verbatim (notes are user-edited data — don't pin content)
+    assert m["manualInstructions"]["startup"] == sdef.manual_instructions.startup
 
     zones = {z["zoneId"]: z for z in m["remoteZones"]}
     # power zone = scenario lifecycle (no sourceDeviceId)

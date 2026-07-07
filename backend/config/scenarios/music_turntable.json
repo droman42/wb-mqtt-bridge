@@ -8,12 +8,8 @@
     "volume": "mf_amplifier"
   },
   "manual_instructions": {
-    "startup": [
-      "▶️ Place a record and lower the arm on the Kuzma Stabi S turntable"
-    ],
-    "shutdown": [
-      "⏹️ Lift the arm and stop the platter when you're done"
-    ]
+    "startup": [],
+    "shutdown": []
   },
   "names": {
     "ru": "Музыка — виниловый проигрыватель",

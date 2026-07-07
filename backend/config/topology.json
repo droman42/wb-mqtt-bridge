@@ -5,11 +5,11 @@
       "kind": "manual",
       "name": "Dodocus RCA hub",
       "positions": {
-        "ld": "Set the Dodocus RCA hub to the LD position (ensure AMP mode is selected)",
-        "vhs": "Set the Dodocus RCA hub to the VHS position (ensure AMP mode is selected)",
-        "reel": "Set the Dodocus RCA hub to the Reel position (ensure AMP mode is selected)",
-        "tape": "Set the Dodocus RCA hub to the Tape position (ensure AMP mode is selected)",
-        "phono": "Set the Dodocus RCA hub to the Phono position (ensure AMP mode is selected)"
+        "ld": "Switch Dodocus to LD",
+        "vhs": "Switch Dodocus to VHS",
+        "reel": "Switch Dodocus to REEL",
+        "tape": "Switch Dodocus to TAPE",
+        "phono": "Switch Dodocus to LP"
       }
     },
     "b215": {
@@ -24,7 +24,7 @@
       "kind": "manual",
       "name": "Sugden Masterclass PA4 phono corrector",
       "positions": {
-        "in": "Power on the Sugden Masterclass PA4 phono corrector"
+        "in": "Power on the Sugden PA-4"
       }
     }
   },

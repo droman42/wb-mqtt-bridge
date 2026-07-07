@@ -8,12 +8,8 @@
     "volume": "mf_amplifier"
   },
   "manual_instructions": {
-    "startup": [
-      "▶️ Load a cassette and press Play on the Revox B215 tape deck"
-    ],
-    "shutdown": [
-      "⏹️ Stop the Revox B215 when you're done"
-    ]
+    "startup": [],
+    "shutdown": []
   },
   "names": {
     "ru": "Музыка — кассетная дека Revox",

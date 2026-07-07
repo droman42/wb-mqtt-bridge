@@ -13,12 +13,8 @@
     "inputs": "processor"
   },
   "manual_instructions": {
-    "startup": [
-      "💡 Dim the living room lights if needed"
-    ],
-    "shutdown": [
-      "💡 Don't forget to turn the lights back on"
-    ]
+    "startup": [],
+    "shutdown": []
   },
   "names": {
     "ru": "Кино с видеокассеты",

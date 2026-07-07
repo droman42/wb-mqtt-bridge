@@ -9,9 +9,7 @@
     "playback": "reel_to_reel"
   },
   "manual_instructions": {
-    "startup": [
-      "🎞️ Thread a tape on the Revox A77 if one isn't loaded"
-    ],
+    "startup": [],
     "shutdown": []
   },
   "names": {

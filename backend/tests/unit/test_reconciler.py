@@ -146,7 +146,7 @@ def test_resolve_ld_path_emits_manual_step_and_cd_input():
     assert input_targets["mf_amplifier"] == "cd"  # via the manual hub
     assert {"ld_player", "upscaler", "processor", "living_room_tv", "mf_amplifier"} <= involved
     assert "dodocus" not in involved  # manual node is not a device
-    assert any(m.node == "dodocus" and "LD position" in m.instruction for m in manual_steps)
+    assert any(m.node == "dodocus" and "to LD" in m.instruction for m in manual_steps)
 
 
 def test_manual_source_node_anchors_path_without_being_controlled():
@@ -325,7 +325,7 @@ def test_movie_ld_plan_uses_manual_hub_and_upscaler_delay():
     plan = build_plan(_scenario("movie_ld"), TOPOLOGY, _all_devices())
 
     # manual Dodocus step (audio routed via the hub to amp `cd`)
-    assert any(m.node == "dodocus" and "LD position" in m.instruction for m in plan.manual_steps)
+    assert any(m.node == "dodocus" and "to LD" in m.instruction for m in plan.manual_steps)
     assert _find(plan, "mf_amplifier", "input").command == "input_cd"
     # upscaler input via topology (video) with the 4.5s settle; no power action (auto-powers)
     ups_in = _find(plan, "upscaler", "input")
@@ -360,9 +360,9 @@ def _music_devices(**overrides):
     "name,amp_input,manual_pos,passive_source",
     [
         ("music_auralic", "balanced", None, None),
-        ("music_reel", "cd", "Reel", None),
-        ("music_tape", "cd", "Tape", "b215"),
-        ("music_turntable", "cd", "Phono", "kuzma"),
+        ("music_reel", "cd", "to REEL", None),
+        ("music_tape", "cd", "to TAPE", "b215"),
+        ("music_turntable", "cd", "to LP", "kuzma"),
     ],
 )
 def test_music_scenarios_resolve_and_build_clean(name, amp_input, manual_pos, passive_source):
@@ -387,7 +387,7 @@ def test_music_turntable_surfaces_both_manual_hops():
     _, _source_targets, involved, manual_steps, warnings = resolve_targets(_scenario("music_turntable"), TOPOLOGY)
     notes = {m.node: m.instruction for m in manual_steps}
     assert "Power on" in notes.get("sugden_pa4", "")
-    assert "Phono" in notes.get("dodocus", "")
+    assert "to LP" in notes.get("dodocus", "")
     assert "kuzma" not in involved and "sugden_pa4" not in involved
     assert warnings == []
 
