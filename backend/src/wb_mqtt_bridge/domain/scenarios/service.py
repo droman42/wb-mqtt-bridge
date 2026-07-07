@@ -67,7 +67,8 @@ class ScenarioManager:
         # SCN-6: optional observer invoked with (room_id) after a room's active
         # scenario changes (switch/deactivate). Set by the composition root to the WB
         # card adapter's value-topic publisher; sync or async callables accepted.
-        self.on_active_changed: Optional[Any] = None
+        self.on_active_changed: Optional[Any] = None  # legacy single slot (the WB card adapter)
+        self.active_changed_observers: List[Any] = []  # additional observers (SSE fan-out, ...)
     
     async def initialize(self) -> None:
         """
@@ -367,15 +368,22 @@ class ScenarioManager:
             raise
     
     async def _notify_active_changed(self, room_id: str) -> None:
-        """Best-effort observer call after a room's active scenario changed."""
-        if self.on_active_changed is None:
-            return
-        try:
-            result = self.on_active_changed(room_id)
-            if result is not None and hasattr(result, "__await__"):
-                await result
-        except Exception as e:
-            logger.error(f"on_active_changed observer failed for '{room_id}': {str(e)}")
+        """Best-effort observer calls after a room's active scenario changed.
+
+        This is the single notification chokepoint for EVERY activation path
+        (REST, canonical scenario.set, restore, deactivate) — observers must
+        not assume which path fired it.
+        """
+        observers = ([self.on_active_changed] if self.on_active_changed else []) + list(
+            self.active_changed_observers
+        )
+        for observer in observers:
+            try:
+                result = observer(room_id)
+                if result is not None and hasattr(result, "__await__"):
+                    await result
+            except Exception as e:
+                logger.error(f"active-changed observer failed for '{room_id}': {str(e)}")
 
     async def _persist_state(self, room_id: str) -> None:
         """

@@ -1,6 +1,5 @@
 import logging
 from typing import Dict, Any, List, Optional
-from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -9,7 +8,7 @@ from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition
 from wb_mqtt_bridge.domain.scenarios.scenario import ScenarioError, ScenarioExecutionError
 from wb_mqtt_bridge.domain.scenarios.service import ScenarioManager
 from wb_mqtt_bridge.domain.rooms.service import RoomManager
-from wb_mqtt_bridge.presentation.api.sse_manager import sse_manager, SSEChannel
+
 from wb_mqtt_bridge.presentation.api.layout_engine import build_scenario_manifest
 from wb_mqtt_bridge.presentation.api.layout_manifest import LayoutManifest
 
@@ -148,19 +147,6 @@ async def switch_scenario(data: SwitchScenarioRequest):
     try:
         await scenario_manager.switch_scenario(data.id, graceful=data.graceful)
 
-        # Broadcast scenario state change via SSE. `state` carries manual_steps now
-        # (ScenarioState.manual_steps) — clients refetch /scenario/state on this event.
-        room_id = scenario_manager.scenario_definitions[data.id].room_id
-        await sse_manager.broadcast(
-            channel=SSEChannel.SCENARIOS,
-            event_type="scenario_switched",
-            data={
-                "scenario_id": data.id,
-                "room_id": room_id,
-                "state": scenario_manager.get_scenario_state(data.id).model_dump(),
-                "timestamp": datetime.now().isoformat()
-            }
-        )
 
         return ScenarioResponse(
             status="success",
@@ -212,18 +198,6 @@ async def start_scenario(data: StartScenarioRequest):
         # Use switch_scenario to start the scenario (since no current scenario exists)
         await scenario_manager.switch_scenario(data.id, graceful=True)
 
-        # Broadcast scenario state change via SSE. `state` carries manual_steps now
-        # (ScenarioState.manual_steps) — clients refetch /scenario/state on this event.
-        await sse_manager.broadcast(
-            channel=SSEChannel.SCENARIOS,
-            event_type="scenario_started",
-            data={
-                "scenario_id": data.id,
-                "room_id": room_id,
-                "state": scenario_manager.get_scenario_state(data.id).model_dump(),
-                "timestamp": datetime.now().isoformat()
-            }
-        )
 
         return ScenarioResponse(
             status="success",
@@ -278,17 +252,6 @@ async def shutdown_scenario(data: ShutdownScenarioRequest):
         # DOES power off the gear (distinct from process shutdown, which leaves hardware as-is).
         await scenario_manager.deactivate(room_id)
 
-        # Broadcast scenario state change via SSE. After deactivate(), current_scenario is
-        # cleared (and so are the manual notes); clients reading /scenario/state will get 404.
-        await sse_manager.broadcast(
-            channel=SSEChannel.SCENARIOS,
-            event_type="scenario_shutdown",
-            data={
-                "scenario_id": current_scenario_id,
-                "room_id": room_id,
-                "timestamp": datetime.now().isoformat()
-            }
-        )
 
         return ScenarioResponse(
             status="success",
@@ -319,22 +282,9 @@ async def execute_role_action(data: ActionRequest):
     try:
         result = await scenario_manager.execute_role_action(data.role, data.command, data.params)
 
-        # Broadcast scenario state update via SSE (the single active scenario that owns
-        # the role — execute_role_action rejects ambiguity before we get here).
-        owner = scenario_manager.find_role_owner(data.role)
-        if owner:
-            await sse_manager.broadcast(
-                channel=SSEChannel.SCENARIOS,
-                event_type="role_action_executed",
-                data={
-                    "role": data.role,
-                    "command": data.command,
-                    "params": data.params,
-                    "state": scenario_manager.get_scenario_state(owner.scenario_id).model_dump(),
-                    "timestamp": datetime.now().isoformat()
-                }
-            )
-            
+        # No scenario SSE here: a role action drives a DEVICE, not the room's
+        # active-scenario slot — device state flows through the devices channel.
+        # Lifecycle events are emitted by the domain chokepoint observer.
         return {"status": "success", "result": result}
     except ScenarioExecutionError as e:
         # Specifically handle execution errors

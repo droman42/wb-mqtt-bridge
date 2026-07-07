@@ -385,3 +385,53 @@ async def test_update_device_state_survives_list_artist_and_resolves_source():
     assert device.state.track_title == "Hells Bells"
     assert device.state.track_artist == "AC/DC"
     assert device.state.source == "Playlist"
+
+
+# --- Quiet halted probe (reconnect-churn fix) ----------------------------------
+
+
+@pytest.mark.asyncio
+async def test_probe_halted_stays_quiet_when_handle_answers():
+    """A halted unit whose handle still answers GetHaltStatus needs NO discovery
+    — the old full M-SEARCH every 60 s read like a reconnect-failure loop."""
+    device = _make_device()
+    device._deep_sleep_mode = True
+    halted = _halted_openhome()
+    halted.is_halted = AsyncMock(return_value=True)
+    device.openhome_device = halted
+    device._attempt_reconnect = AsyncMock()
+
+    await device._periodic_tick(now=device.reconnect_interval + 1.0)
+
+    halted.is_halted.assert_awaited_once()
+    device._attempt_reconnect.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_probe_halted_rediscovers_when_handle_dies():
+    """A dead handle (connection refused) means the unit transitioned — that IS
+    the wake signal, so a full rediscovery runs."""
+    device = _make_device()
+    device._deep_sleep_mode = True
+    halted = _halted_openhome()
+    halted.is_halted = AsyncMock(side_effect=OSError("connection refused"))
+    device.openhome_device = halted
+    device._attempt_reconnect = AsyncMock()
+
+    await device._periodic_tick(now=device.reconnect_interval + 1.0)
+
+    device._attempt_reconnect.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_probe_halted_rediscovers_when_no_longer_halted():
+    device = _make_device()
+    device._deep_sleep_mode = True
+    halted = _halted_openhome()
+    halted.is_halted = AsyncMock(return_value=False)
+    device.openhome_device = halted
+    device._attempt_reconnect = AsyncMock()
+
+    await device._periodic_tick(now=device.reconnect_interval + 1.0)
+
+    device._attempt_reconnect.assert_awaited_once()

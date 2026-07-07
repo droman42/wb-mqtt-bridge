@@ -421,6 +421,7 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
         """
         self.openhome_device = device
         if device.product_service is None:
+            already_halted = self._deep_sleep_mode
             self._deep_sleep_mode = True
             self.update_state(
                 connected=False,
@@ -429,7 +430,10 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
                 error=None,
                 message="Device is halted (deep sleep) — wake via power_on or the Auralic app",
             )
-            logger.info(f"Auralic device {self.get_name()} is halted (deep sleep, network alive)")
+            # Transition-only INFO — repeats (the cadenced probe re-adopting a
+            # still-halted unit) stay at DEBUG to keep the log quiet.
+            log = logger.debug if already_halted else logger.info
+            log(f"Auralic device {self.get_name()} is halted (deep sleep, network alive)")
             return False
         self._deep_sleep_mode = False
         # Refresh the state's ip_address — a persisted snapshot can carry a
@@ -439,6 +443,27 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
         await self._update_device_state()      # sets connected=True so the sources refresh below runs
         await self._refresh_sources_cache()
         return True
+
+    async def _probe_halted(self) -> None:
+        """Cadenced check of a halted unit — cheap before loud.
+
+        The halted unit's ports move per TRANSITION, not per minute, so the
+        stored handle usually stays valid between probes: one GetHaltStatus
+        answers "still halted" without any discovery (the old full M-SEARCH
+        every 60 s read like a reconnect-failure loop in the log). Only when
+        the handle stops answering — or reports not-halted — has the unit
+        transitioned, and THAT is the wake signal worth a full rediscovery.
+        """
+        device = self.openhome_device
+        if device is not None:
+            try:
+                halted = await self._op(device.is_halted())
+                if halted:
+                    logger.debug(f"Auralic device {self.get_name()} still halted (quiet probe)")
+                    return
+            except Exception as e:
+                logger.debug(f"Halted handle stopped answering ({e}) — rediscovering")
+        await self._attempt_reconnect()
 
     async def _wake_from_halt(self) -> bool:
         """Wake a halted unit over the network (DRV-14; replaced the IR path).
@@ -502,7 +527,7 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             self.update_state(connected=False, power="off", deep_sleep=True)
             if now - self._last_reconnect_probe >= self.reconnect_interval:
                 self._last_reconnect_probe = now
-                await self._attempt_reconnect()
+                await self._probe_halted()
         elif self.openhome_device is None:
             # Never connected (e.g. offline at boot) — retry discovery on the cadence.
             if now - self._last_reconnect_probe >= self.reconnect_interval:

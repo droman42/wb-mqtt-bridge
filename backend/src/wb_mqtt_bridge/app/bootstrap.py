@@ -7,7 +7,7 @@ from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 from contextlib import asynccontextmanager
-from typing import Any, Callable, cast
+from typing import Any, Callable, Dict, cast
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -44,7 +44,7 @@ from wb_mqtt_bridge.presentation.api.routers import (
     system, devices, mqtt, scenarios, rooms, state, events, reports
 )
 from wb_mqtt_bridge.presentation.api.catalog import build_catalog
-from wb_mqtt_bridge.presentation.api.sse_manager import sse_manager
+from wb_mqtt_bridge.presentation.api.sse_manager import sse_manager, SSEChannel
 
 from wb_mqtt_bridge.__version__ import __version__
 
@@ -373,6 +373,29 @@ def create_app() -> FastAPI:
                 logger.error(f"Failed to set up scenario WB cards: {str(e)}")
         else:
             logger.warning("MQTT not connected - scenario WB cards skipped")
+
+        # SSE observer on the activation chokepoint: EVERY path (REST, canonical
+        # scenario.set, restore, deactivate) notifies the scenarios channel, so an
+        # open scenario page goes live regardless of who switched. (Rack finding
+        # 2026-07-07: the canonical path — the UI's PRIMARY path since UI-9 —
+        # emitted nothing; only the legacy REST routers did, and the page stayed
+        # stale until reload.)
+        async def _scenario_sse_observer(room_id: str) -> None:
+            active = scenario_manager.active.get(room_id)
+            payload: Dict[str, Any] = {
+                "scenario_id": active.scenario_id if active else None,
+                "room_id": room_id,
+                "timestamp": datetime.now().isoformat(),
+            }
+            if active is not None:
+                payload["state"] = scenario_manager.get_scenario_state(active.scenario_id).model_dump()
+            await sse_manager.broadcast(
+                channel=SSEChannel.SCENARIOS,
+                event_type="scenario_switched" if active else "scenario_shutdown",
+                data=payload,
+            )
+
+        scenario_manager.active_changed_observers.append(_scenario_sse_observer)
 
         # Problem-report service (problem_reports_bridge.md): the collector behind
         # POST /reports (filing, opt-in) and GET /reports/evidence (B-11, always on).

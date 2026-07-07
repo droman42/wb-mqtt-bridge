@@ -233,13 +233,24 @@ export const useExecuteCanonicalAction = () => {
   return useMutation({
     mutationFn: ({ deviceId, request }: { deviceId: string; request: CanonicalActionRequest }) =>
       api.post<CanonicalActionResponse>(`/devices/${deviceId}/canonical`, request).then(res => res.data),
-    onSuccess: (response, { deviceId }) => {
+    onSuccess: (response, { deviceId, request }) => {
       // The bridge waits for the value-topic echo (up to ~500ms) and returns post-state.
       // Merge into cache so live state reflects immediately; otherwise invalidate.
       if (response.state) {
         queryClient.setQueryData(['devices', deviceId, 'state'], response.state);
       } else {
         void queryClient.invalidateQueries({ queryKey: ['devices', deviceId, 'state'] });
+      }
+      // A scenario lifecycle dispatch (scenario.set / scenario.off on the room's
+      // Scenario Manager entity) changes which scenario is active — refresh the
+      // scenario-state queries so an open scenario page goes live without waiting
+      // for the SSE round-trip. (Rack finding 2026-07-07: the page stayed stale
+      // until reload — canonical became the primary path in UI-9 but only the
+      // legacy /scenario/switch mutation invalidated these keys.)
+      if (request.capability === 'scenario') {
+        void queryClient.invalidateQueries({ queryKey: ['scenario', 'state'] });
+        void queryClient.invalidateQueries({ queryKey: ['scenarios', 'state'] });
+        void queryClient.invalidateQueries({ queryKey: ['devices'] });
       }
     },
   });
