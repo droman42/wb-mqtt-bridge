@@ -121,24 +121,13 @@
         "type": "pushbutton"
       }
     },
-    "power_off": {
+    "power": {
       "initial_state": "0",
       "meta": {
-        "order": 102,
+        "order": 150,
         "readonly": false,
         "title": {
-          "en": "Power Off"
-        },
-        "type": "pushbutton"
-      }
-    },
-    "power_on": {
-      "initial_state": "0",
-      "meta": {
-        "order": 101,
-        "readonly": false,
-        "title": {
-          "en": "Power On"
+          "en": "Power On/Off"
         },
         "type": "pushbutton"
       }
@@ -179,8 +168,7 @@
   },
   "device_id": "video",
   "subscription_topics": [
-    "/devices/video/controls/power_on/on",
-    "/devices/video/controls/power_off/on",
+    "/devices/video/controls/power/on",
     "/devices/video/controls/play_pause/on",
     "/devices/video/controls/chapter_plus/on",
     "/devices/video/controls/chapter_minus/on",

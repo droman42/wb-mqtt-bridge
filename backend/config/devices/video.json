@@ -9,17 +9,11 @@
   "device_class": "WirenboardIRDevice",
   "config_class": "WirenboardIRDeviceConfig",
   "commands": {
-    "power_on": {
-      "action": "power_on",
+    "power": {
+      "action": "power",
       "location": "wb-msw-v3_207",
       "rom_position": "26",
-      "description": "Power On"
-    },
-    "power_off": {
-      "action": "power_off",
-      "location": "wb-msw-v3_207",
-      "rom_position": "27",
-      "description": "Power Off"
+      "description": "Power On/Off"
     },
     "play_pause": {
       "action": "play_pause",
