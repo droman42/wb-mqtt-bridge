@@ -161,6 +161,11 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   **Also covered as a side-effect:** the aiomqtt 2.0.1 downgrade HW verify (every IR-via-WB driver row exercises the aiomqtt stack). Pass = ready to go into P3.6 scenario verification with isolated-driver confidence.
 
 - [ ] **DRV-2** `[P0]` `[release]` — **Apple TV app launching** — `Запуск приложений на AppleTV`.
+  **Root cause captured live 2026-07-07 (rack sitting; fix rides the DRV-1 wrap-up per the user):**
+  the UI apps dropdown sends the **app id** (`{'app': 'de.swr.avp.ard.tablet'}`), but
+  `handle_launch_app` treats the param as a **name** and resolves it through the name→id table —
+  where the entry is "ARD Mediathek" → `App not found`. Fix shape: accept id OR name (the LG
+  driver's `_find_app_by_name_or_id` dual-match precedent); re-test from the dropdown at the rack.
 
 - [ ] **DRV-3** `[P2]` `[deferred]` — **IR-code learning page** — capture codes from physical remotes (`Сделать страничку для обучения IR кодам с пультов`).
 
