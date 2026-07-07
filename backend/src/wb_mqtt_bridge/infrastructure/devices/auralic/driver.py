@@ -555,13 +555,20 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             volume = await self._op(self.openhome_device.volume())
             mute = await self._op(self.openhome_device.is_muted())
 
-            # Current source
+            # Current source. Two dead ends, verified live 2026-07-07: the lib's
+            # source() returns a dict (never an int — the old isinstance check
+            # silently kept source at None), and on this unit its name/type are
+            # EMPTY even mid-playback. The reliable route is the raw Product
+            # SourceIndex matched against the sources list (real names from
+            # SourceXml, carrying true device indices).
             sources = await self._op(self.openhome_device.sources())
             current_source = None
             try:
-                source_index = await self._op(self.openhome_device.source())
-                if isinstance(source_index, int) and 0 <= source_index < len(sources):
-                    current_source = sources[source_index]["name"]
+                idx_action = self.openhome_device.product_service.action("SourceIndex")
+                source_index = (await self._op(idx_action.async_call()))["Value"]
+                current_source = next(
+                    (s["name"] for s in sources if s.get("index") == source_index), None
+                )
             except Exception as e:
                 logger.debug(f"Could not get current source: {str(e)}")
 
@@ -580,9 +587,9 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             # Track metadata in its own guard — a bad DIDL payload shouldn't disconnect the device.
             try:
                 track_info = await self._op(self.openhome_device.track_info())
-                updates["track_title"] = track_info.get("title")
-                updates["track_artist"] = track_info.get("artist")
-                updates["track_album"] = track_info.get("album")
+                updates["track_title"] = self._didl_text(track_info.get("title"))
+                updates["track_artist"] = self._didl_text(track_info.get("artist"))
+                updates["track_album"] = self._didl_text(track_info.get("album"))
             except Exception as e:
                 logger.debug(f"Could not parse track info (keeping prior values): {str(e)}")
 
@@ -591,6 +598,22 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
         except Exception as e:
             logger.debug(f"Error updating device state: {str(e)}")
             self.update_state(connected=False, error=str(e), deep_sleep=self._deep_sleep_mode)
+
+    @staticmethod
+    def _didl_text(value: Any) -> Optional[str]:
+        """Flatten a DIDL-Lite text field to a plain string.
+
+        openhomedevice parses `upnp:artist` with many=True, so multi-artist
+        tracks arrive as a LIST — which the str-typed state fields reject
+        (rack finding 2026-07-07: `['AC/DC']` knocked the device to
+        disconnected via a validation error raised OUTSIDE the parse guard).
+        """
+        if value is None:
+            return None
+        if isinstance(value, (list, tuple)):
+            joined = ", ".join(str(v) for v in value if v)
+            return joined or None
+        return str(value)
 
     async def _refresh_sources_cache(self) -> bool:
         """Refresh the internal cache of available sources.

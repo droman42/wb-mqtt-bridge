@@ -339,3 +339,49 @@ async def test_set_input_rejects_unknown_index():
 
     assert result["success"] is False
     assert "Invalid source index" in (result.get("error") or "")
+
+
+# --- Now-playing metadata + current source (rack findings, playing AC/DC) ------
+
+
+def test_didl_text_flattens_lists():
+    """DIDL-Lite artist arrives as a LIST (many=True) — ['AC/DC'] knocked the
+    device to disconnected via a str-field validation error."""
+    assert AuralicDevice._didl_text(["AC/DC"]) == "AC/DC"
+    assert AuralicDevice._didl_text(["A", "B"]) == "A, B"
+    assert AuralicDevice._didl_text("plain") == "plain"
+    assert AuralicDevice._didl_text(None) is None
+    assert AuralicDevice._didl_text([]) is None
+
+
+@pytest.mark.asyncio
+async def test_update_device_state_survives_list_artist_and_resolves_source():
+    """Playing state: list artist flattens to str (device STAYS connected) and
+    the current source resolves via raw SourceIndex matched by true index —
+    the lib's source() returns empty name/type on this unit even mid-playback."""
+    device = _make_device()
+    oh = MagicMock()
+    oh.product_service = MagicMock()
+    idx_action = MagicMock()
+    idx_action.async_call = AsyncMock(return_value={"Value": 0})
+    oh.product_service.action.return_value = idx_action
+    oh.is_in_standby = AsyncMock(return_value=False)
+    oh.transport_state = AsyncMock(return_value="Playing")
+    oh.volume = AsyncMock(return_value=75)
+    oh.is_muted = AsyncMock(return_value=False)
+    oh.sources = AsyncMock(return_value=[
+        {"index": 0, "name": "Playlist", "type": "Playlist"},
+        {"index": 9, "name": "AES", "type": "AES"},
+    ])
+    oh.track_info = AsyncMock(return_value={
+        "title": "Hells Bells", "artist": ["AC/DC"], "album": None,
+    })
+    device.openhome_device = oh
+
+    await device._update_device_state()
+
+    assert device.state.connected is True
+    assert device.state.transport_state == "Playing"
+    assert device.state.track_title == "Hells Bells"
+    assert device.state.track_artist == "AC/DC"
+    assert device.state.source == "Playlist"

@@ -51,8 +51,13 @@ def _make_fake_openhome():
     })
     oh.volume = AsyncMock(return_value=55)
     oh.is_muted = AsyncMock(return_value=False)
-    oh.sources = AsyncMock(return_value=[{"name": "Spotify", "type": "digital"}])
-    oh.source = AsyncMock(return_value=0)
+    oh.sources = AsyncMock(return_value=[{"index": 0, "name": "Spotify", "type": "digital"}])
+    # Current source resolves via the raw Product SourceIndex matched by true
+    # index (the lib's source() returns empty name/type on the real unit).
+    idx_action = MagicMock()
+    idx_action.async_call = AsyncMock(return_value={"Value": 0})
+    oh.product_service = MagicMock()
+    oh.product_service.action.return_value = idx_action
     return oh
 
 
