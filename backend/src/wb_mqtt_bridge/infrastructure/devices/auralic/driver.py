@@ -1,5 +1,7 @@
 import logging
 import asyncio
+import socket
+import time
 from typing import Dict, Any, List, Optional, cast, Tuple
 from datetime import datetime
 from urllib.parse import urlparse
@@ -7,7 +9,6 @@ import xml.etree.ElementTree as ET
 import aiohttp
 
 from openhomedevice.device import Device as OpenHomeDevice
-from async_upnp_client.search import SsdpSearchListener
 
 from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 from wb_mqtt_bridge.domain.devices.models import AuralicDeviceState
@@ -232,46 +233,70 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             logger.debug(f"Error extracting device properties: {str(e)}")
             return None, None, None
     
+    @staticmethod
+    def _extract_ssdp_locations(responses: List[Tuple[bytes, str]], target_ip: str) -> List[str]:
+        """Pull unique LOCATION urls out of raw SSDP datagrams from the target IP.
+
+        Pure parsing (testable): `responses` is [(datagram, sender_ip), ...].
+        """
+        locations: List[str] = []
+        for data, sender_ip in responses:
+            if sender_ip != target_ip:
+                continue
+            for line in data.decode(errors="replace").splitlines():
+                if line.lower().startswith("location:"):
+                    loc = line.split(":", 1)[1].strip()
+                    if loc and urlparse(loc).hostname == target_ip and loc not in locations:
+                        locations.append(loc)
+        return locations
+
+    @staticmethod
+    def _msearch_sync(target_ip: str, timeout: float = 4.0) -> List[Tuple[bytes, str]]:
+        """Blocking raw-socket SSDP M-SEARCH; returns raw (datagram, sender_ip) pairs.
+
+        DRV-13: async_upnp_client's SsdpSearchListener received ZERO responses on the
+        real network (verified against 0.44.0 with every callback/source/search-target
+        variant) while this plain M-SEARCH gets answers from every UPnP device in the
+        house, the Auralic included. Runs in an executor from the async path.
+        """
+        msearch = "\r\n".join([
+            "M-SEARCH * HTTP/1.1",
+            "HOST: 239.255.255.250:1900",
+            'MAN: "ssdp:discover"',
+            "MX: 2",
+            "ST: upnp:rootdevice",
+            "", "",
+        ]).encode()
+        responses: List[Tuple[bytes, str]] = []
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        try:
+            sock.settimeout(1.0)
+            sock.sendto(msearch, ("239.255.255.250", 1900))
+            deadline = time.monotonic() + timeout
+            while time.monotonic() < deadline:
+                try:
+                    data, addr = sock.recvfrom(4096)
+                except socket.timeout:
+                    continue
+                responses.append((data, addr[0]))
+        except OSError as e:
+            logger.warning(f"SSDP M-SEARCH failed: {e}")
+        finally:
+            sock.close()
+        return responses
+
     async def _discover_device_url_async(self) -> Optional[str]:
-        """Discover Auralic device URL using async_upnp_client, filtered by IP address."""
+        """Discover the Auralic device URL via raw SSDP M-SEARCH, filtered by IP address."""
         try:
             logger.info(f"Discovering UPnP devices at IP {self.ip_address}...")
 
-            # Collect candidate locations in the SSDP callback (sync, no blocking I/O), then fetch
-            # + classify their description XML asynchronously after the search completes.
-            candidate_locations: List[str] = []
-
-            def device_discovered(response):
-                """Callback for when a device is discovered (sync — just records the location)."""
-                try:
-                    location = response.get('LOCATION') or response.get('location')
-                    if not location:
-                        return
-                    # Only keep devices at our target IP
-                    if urlparse(location).hostname == self.ip_address and location not in candidate_locations:
-                        logger.debug(f"Found device at {self.ip_address}: {location}")
-                        candidate_locations.append(location)
-                except Exception as e:
-                    logger.debug(f"Error processing discovered device: {e}")
-
-            # Create SSDP search listener
-            search_listener = SsdpSearchListener(
-                callback=device_discovered,
-                timeout=4,  # 4 second timeout
-                search_target='ssdp:all'  # Search for all devices
-            )
-
-            # Start discovery
-            await search_listener.async_start()
-            try:
-                # Perform the search
-                search_listener.async_search()  # This is not an async method either
-
-                # Wait for responses (timeout is handled by the listener)
-                await asyncio.sleep(4.5)  # Slightly longer than timeout to catch late responses
-
-            finally:
-                search_listener.async_stop()  # This is not an async method
+            # Raw M-SEARCH in an executor (bounded ~4 s), then parse out candidate
+            # locations at our target IP.
+            loop = asyncio.get_event_loop()
+            responses = await loop.run_in_executor(None, self._msearch_sync, self.ip_address)
+            candidate_locations = self._extract_ssdp_locations(responses, self.ip_address)
+            for loc in candidate_locations:
+                logger.debug(f"Found device at {self.ip_address}: {loc}")
 
             # Fetch + classify each candidate's description XML asynchronously.
             discovered_devices = []

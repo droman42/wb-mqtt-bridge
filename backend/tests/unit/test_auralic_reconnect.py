@@ -92,3 +92,40 @@ async def test_connected_device_polls_state_without_probe():
 
     device._update_device_state.assert_awaited_once()
     device._attempt_reconnect.assert_not_awaited()
+
+
+# --- DRV-13: raw-socket SSDP discovery (SsdpSearchListener received nothing) --
+
+
+def test_extract_ssdp_locations_filters_by_ip_and_dedups():
+    datagram = (
+        b"HTTP/1.1 200 OK\r\n"
+        b"CACHE-CONTROL: max-age=1800\r\n"
+        b"LOCATION: http://192.168.1.50:36243/lightningRender-aa/Upnp/device.xml\r\n"
+        b"SERVER: Posix/200809.0 UPnP/1.1 ohNet/1.0\r\n"
+        b"ST: upnp:rootdevice\r\n\r\n"
+    )
+    other = (
+        b"HTTP/1.1 200 OK\r\n"
+        b"location: http://192.168.1.99:5000/desc.xml\r\n\r\n"
+    )
+    responses = [
+        (datagram, "192.168.1.50"),
+        (datagram, "192.168.1.50"),  # duplicate answer
+        (other, "192.168.1.99"),     # wrong sender
+    ]
+    locs = AuralicDevice._extract_ssdp_locations(responses, "192.168.1.50")
+    assert locs == ["http://192.168.1.50:36243/lightningRender-aa/Upnp/device.xml"]
+
+
+def test_extract_ssdp_locations_rejects_location_host_mismatch():
+    """A datagram relayed from the right sender but pointing elsewhere is dropped."""
+    spoofed = (
+        b"HTTP/1.1 200 OK\r\n"
+        b"LOCATION: http://10.0.0.1:8080/desc.xml\r\n\r\n"
+    )
+    assert AuralicDevice._extract_ssdp_locations([(spoofed, "192.168.1.50")], "192.168.1.50") == []
+
+
+def test_extract_ssdp_locations_tolerates_garbage():
+    assert AuralicDevice._extract_ssdp_locations([(b"\xff\xfe garbage", "192.168.1.50")], "192.168.1.50") == []

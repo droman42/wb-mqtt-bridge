@@ -21,6 +21,19 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-07 (DRV-13 DONE — Auralic SSDP discovery rebuilt on raw M-SEARCH; the IP-drift saga)** —
+  post-DRV-12 restart: cadenced probes fired on schedule but discovery still failed. Layered
+  diagnosis: (1) unit dead at the configured `.16` → SSDP sweep found it at `.11`
+  (`streamer.json` updated, stale `device_url` nulled); (2) still zero candidates → reproduced
+  standalone: `async_upnp_client` 0.44.0 `SsdpSearchListener` receives **nothing** on this
+  network under any variant while a raw-socket M-SEARCH gets 16 answers — the May "async SSDP
+  discovery" was mock-tested only, first hardware contact today. Replaced with `_msearch_sync`
+  (executor) + pure `_extract_ssdp_locations`; classification pipeline unchanged; live-verified
+  (2 candidates at target). 3 parsing tests; suite 601. Router lease plot twist (user screenshot):
+  the unit's MAC maps to a `.142` "LivingRoom" lease while the woken unit squats on old `.11`
+  without re-DHCPing — canonical-address decision left with the user (reservation to `.11` vs
+  renew onto `.142` + one config flip).
+
 - **2026-07-07 (DRV-12 DONE — Auralic asleep-at-boot never rediscovered; sitting continued)** —
   eMotiva row closed to "scenario route only" (zone2 power/independence + volume verified; main-zone
   volume **N/A by topology** — `processor:zone2 → mf_amplifier:aux2` is the only audio output; the
