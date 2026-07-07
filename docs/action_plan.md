@@ -631,6 +631,23 @@ endpoint).
   `device-test <id> <command>` is a wanted future eval CLI surface (needs MQTT). Post-release: the
   DRV-1/SCN rack passes run off the UI + eval suite; this tool is a developer convenience, not a gate.
 
+- [ ] **CORE-6** `[P1]` — **Import-linter parity with the voice repo + break the `domain ⇄ utils`
+  cycle.** From the 2026-07-07 chat-requested enforcement comparison: both repos run the identical
+  gate machinery (`py-dev-gates@v0.1.1`: import-linter + no-`TYPE_CHECKING` + pyright), but the
+  bridge declares **3 contracts vs voice's 11** — the three load-bearing boundaries and nothing else.
+  Scope: (1) **break the live `domain ⇄ utils` package cycle** — `utils/types.py` (42 lines of pure
+  domain vocabulary: `CommandResult`, `CommandResponse`, `StateT`; imported by `domain/ports.py`,
+  `devices/base.py` + all 8 drivers, the devices router) moves into `domain/devices/`;
+  `utils/validation.py` (config-file validation, sole importer `infrastructure/config/manager.py`)
+  moves into `infrastructure/config/` — after which `utils` imports nothing upward and
+  `docs/architecture/overview.md`'s standing foundation claim becomes true; (2) **add the missing
+  contracts** — utils foundation purity (voice ARCH-12 analog), `infrastructure ↛ app/cli` +
+  `presentation ↛ app/cli` (composition-root direction, voice ARCH-11 analog; verified clean today
+  — free hardening), and an `independence` contract across the 8 device-driver packages (voice
+  ARCH-4 analog; also clean today). Non-goals: seam-pinning contracts (the bridge's chokepoints are
+  behavioral, locked by tests) and a port-purity contract (the domain rule carries no ignores, so
+  ports are already covered).
+
 **The ledger & documentation reconciliation series (DOC-4…DOC-10).** Filed 2026-06-30 from two
 chat-requested analyses: (1) a comparison of this plan's former positional `P0…P4 / #n` numbering
 against the sister repo's workstream-serial ledger (`../wb-mqtt-voice/docs/RELEASE_PLAN.md` + frozen
