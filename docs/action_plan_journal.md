@@ -21,6 +21,13 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-07 (SCN-9 FILED — scenario lifecycle regression re-verification)** — user-requested
+  intake during the rack-queue survey: the core start/switch/end scenario loop was last
+  hardware-verified 2026-05-22, before the hexagonal restructuring, canonical dispatch and the
+  VWB-28 dispatch-ring wrapper — everything since is mock-tested only. Filed as `[P0]`
+  `[release]` `HW-GATED` with a 4-point rack walk (start / switch / deactivate / restart
+  survival), sequenced after DRV-1 and added to REL-3's gate list in the Ordering table.
+
 - **2026-07-06 (VWB-28 DONE — «Report a problem» shipped end-to-end; contract v1.4)** —
   The whole B-1..B-12 design implemented in one pass, pulled forward from `[deferred]`.
   **Backend:** `domain/reports/` (rings — `DispatchRing` at a new record-and-return wrapper on

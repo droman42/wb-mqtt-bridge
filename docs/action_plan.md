@@ -48,10 +48,10 @@ This document captures the project state and a prioritized action plan, revised 
 |---|---|---|
 | **REL-2** (cutover) | *(nothing)* | Root of the chain. Images already build in CI; user-at-rack. |
 | **DRV-5**, **OPS-8** | *(nothing)* | Software-only; startable immediately, in any order. |
-| **DRV-1**, **DRV-2**, **SCN-3** | rack session (user) | NOT gated on REL-2 — every HW pass so far ran against the dev-box bridge. Anything still open at cutover simply verifies on the WB7 bridge instead. |
+| **DRV-1**, **DRV-2**, **SCN-3**, **SCN-9** | rack session (user) | NOT gated on REL-2 — every HW pass so far ran against the dev-box bridge. Anything still open at cutover simply verifies on the WB7 bridge instead. SCN-3/SCN-9 additionally run after DRV-1 (drivers-before-composites gate). |
 | **VWB-13** | **REL-2** | The sweep needs the bridge live on the WB7 broker. |
 | **VWB-16** | voice **TEST-18** fixtures | The only cross-repo gate; lands whenever the fixtures do. |
-| **REL-3** (rack pass + gate run) | **REL-2** + **DRV-1/2** + **SCN-3** + **DRV-5** + **OPS-8** + **VWB-13** | The convergence point: the end-to-end re-verification must run on the *deployed* bridge, after all code-touching `[release]` work has landed. Its review half may file remediation (code changes stay inside this gate). |
+| **REL-3** (rack pass + gate run) | **REL-2** + **DRV-1/2** + **SCN-3** + **SCN-9** + **DRV-5** + **OPS-8** + **VWB-13** | The convergence point: the end-to-end re-verification must run on the *deployed* bridge, after all code-touching `[release]` work has landed. Its review half may file remediation (code changes stay inside this gate). |
 | **REL-4** (docs pass) | **REL-3** | Docs describe the final state — after review remediation settles. Last task before the tag. |
 | **the tag** | everything above + **VWB-16** | |
 
@@ -218,6 +218,22 @@ resolve, but isn't itself controlled) — see §6 (2026-05-25). `kitchen_hood` s
 manual notes show; Auralic/A77 playback; passive ones show the right manual steps). The **children's
 room** (children_room_tv + appletv_children) was **deferred by the user** (skipped this round) — a
 possible round-3.
+
+- [ ] **SCN-9** `[P0]` `[release]` `HW-GATED` — **Scenario lifecycle regression re-verification —
+  start / switch / end on hardware.** The core Harmony loop was last hardware-verified at the
+  2026-05-22 rack session (the P1/P2 pass) — **before** the hexagonal restructuring, the state-sync
+  chokepoint work, canonical dispatch (VWB-6/UI-9), the eMotiva logical-source input redesign, and the
+  VWB-28 `execute_action` record-and-return wrapper. Everything since is mock-tested only
+  ([[mock-tests-miss-driver-bugs]]); the lifecycle must be re-proven, not assumed by the fancier
+  passes. Walk on the rack: (1) **start** — activation from idle powers the chain in topology order,
+  manual steps surface, the WB scenario virtual device reflects the active scenario; (2) **switch** —
+  direct scenario→scenario transition executes only the diff (shared devices untouched, dropped
+  devices handled per switch policy), assumed state stays coherent afterwards; (3) **end** — explicit
+  `deactivate` powers the chain down; plus (4) **restart survival** — bridge restart mid-active-scenario
+  restores the active scenario from persisted state without re-firing commands (shutdown stays
+  transparent to hardware). Runs **after** DRV-1 (drivers-before-composites methodology gate),
+  naturally in the same sitting as SCN-3's music walk; REL-3's two-room concurrency drill builds on
+  top of this, so this row gates REL-3.
 
 
 ### VWB — Voice-integration + native WB onboarding
