@@ -254,35 +254,6 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   topology-edge field (confirm-vs-delay semantics); `feedback: false` firsts fall back to
   `delay_ms`. Post-release: the 5 s settle serves the house fine.
 
-- [ ] **SCN-11** `[P1]` `[release]` — **Per-device force-reconcile dialog on the active scenario
-  page (user-mediated desync repair).** Scoped interactively 2026-07-08 alongside the DRV-5 UX
-  re-pin: the desync *symptom* usually surfaces at the scenario level ("some device isn't in the
-  expected state"), so the repair tool lives there too. A reconcile button on the **active**
-  scenario page only (on an inactive page the same gesture is just "start the scenario") opens a
-  dialog listing every involved device: **believed state (power/input) vs desired** (from
-  `resolve_targets`), in-sync rows visually calm, out-of-sync highlighted, non-reconcilable
-  capabilities greyed/omitted. Note the inversion: rows the reconciler marks `already_satisfied`
-  are exactly the ones force exists for — "satisfied" only means the *believed* state matches;
-  the user standing in the room is the feedback channel. **Tap a row → expand-then-confirm** (no
-  instant fire — fat-finger safety on phone/iPad): the row shows the derived chain + ETA
-  ("power_on → 4 s gate → input hdmi2"), a confirm button fires it, then per-row live progress
-  while executing (worst case a 25 s poll gate — the dialog must not freeze). **Mechanism:** a
-  single-device forced plan — `build_plan` variant that skips the believed-vs-desired diff (emits
-  power + input actions unconditionally toward the scenario targets), injects `force: true` into
-  each action's params (the DRV-5 driver foundation), and runs the normal `execute_plan`
-  (per-capability gates/polls preserved; cross-device ordering edges drop out *correctly* — `_order`
-  only applies an edge when both endpoints are in the plan). **Toggle-claim correction (the sharp
-  edge):** for toggle-only power the forced action passes its known plan `target` (e.g.
-  `assume_state`) and the toggle handler claims the *target* instead of blind-flipping — otherwise
-  forcing a desynced toggle device recreates the desync mirrored and a second tap would power it
-  back off (zappiti power is a TOGGLE config since the ROM26 re-learn, so this sits on the primary
-  movie device). Backend: ScenarioManager preview + force methods (domain), GET reconcile-preview +
-  POST force-device endpoints (presentation); UI: dialog on RuntimeScenarioPage + openapi/type
-  regen (`config-ui-stays-functional`). **Depends on DRV-5** (driver `force` param + structured
-  skip marker); sequenced immediately after it (user decision 2026-07-08). Amends-in-part DRV-5's
-  "no scenario-level force" non-goal: the *blanket* activation flag stays rejected; this is the
-  precision per-device tool with the user in the loop.
-
 
 ### VWB — Voice-integration + native WB onboarding
 

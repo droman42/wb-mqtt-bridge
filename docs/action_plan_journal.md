@@ -21,6 +21,22 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-08, later (SCN-11 DONE — the scenario force-reconcile dialog, same desk session)** —
+  filed in the morning, shipped by the same sitting. Domain: `build_forced_device_plan` (single-
+  device forced plan; diff skipped, `force` injected, cross-device ordering edges drop out — the
+  5 s zappiti settle is test-pinned present in the full plan and absent in the forced one) +
+  `build_reconcile_preview` (believed-vs-desired rows; eMotiva power as per-zone dicts) +
+  `ScenarioManager.reconcile_preview`/`force_reconcile_device` (active-only). The toggle sharp
+  edge landed as designed: forced toggles carry **`assume_state` = the plan target** and the IR
+  toggle handler claims it instead of blind-flipping (else the desync comes back mirrored);
+  `assume_state` joined `force` as a reserved param. Endpoints: GET `reconcile_preview` (pure
+  read, 404/409) + POST `force_reconcile` (gated chain server-side). UI: "Device states…" button
+  under the active scenario's remote → `ForceReconcileDialog` (expand-then-confirm rows, per-row
+  progress; in-sync rows calm but tappable — the inversion is the point). 13 new tests; suite
+  **649**, pyright 0, contracts 6/6, UI clean, eval cli 4/4; OpenAPI 36/90 regenerated; contract
+  + architecture docs updated. HW feel-check rides REL-3. Commit `43c504c` + the ledger move.
+  **Release board: the desk half is now DRV-5 ✅ SCN-11 ✅ — OPS-8 is the last desk task.**
+
 - **2026-07-08 (DRV-5 DONE + SCN-11 filed — the force escape hatch, UX pinned interactively)** —
   the desk session opened the release board's software half. UX discussion first (user-driven):
   the plan's arm-checkbox sketch lost to **reactive re-tap** — a guarded skip now returns a
