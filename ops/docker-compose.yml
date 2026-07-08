@@ -29,6 +29,13 @@ services:
       # so a `git pull` never touches it.
       - ../.state/data:/app/data
       - ../.state/logs:/app/logs
+    environment:
+      # Problem-report filing (when system.json enables reports): the fine-grained
+      # GitHub PAT reaches the container via an `ops/.env` file next to this compose
+      # file (gitignored — never committed; see INSTALL.md "Enabling problem
+      # reports"). Compose reads .env for BOTH start paths: the systemd unit and
+      # update.sh. Empty default keeps reports-disabled deployments quiet.
+      WB_REPORTS_TOKEN: "${WB_REPORTS_TOKEN:-}"
     logging:
       driver: json-file
       options:

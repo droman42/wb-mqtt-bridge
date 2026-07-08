@@ -59,8 +59,23 @@ sudo mv /mnt/data/mqtt-bridge-config.bak/logs /mnt/data/mqtt-bridge-config/.stat
 sudo rm -rf /mnt/data/mqtt-bridge-config.bak  # contains the old `config/` dir we no longer need
 ```
 
-The state DB (`/mnt/data/mqtt-bridge-config/.state/data/state.db`) holds your
-devices' last-good assumed state — preserve it across upgrades.
+The state DB (`/mnt/data/mqtt-bridge-config/.state/data/state_store.sqlite`) holds
+your devices' last-good assumed state — preserve it across upgrades.
+
+### 4a. Taking over from a bridge running elsewhere (cutover)
+
+If another instance of the bridge has been serving the house from a different
+machine (e.g. a development box), two things matter:
+
+1. **Stop the other instance BEFORE starting this one.** Both use the same MQTT
+   client id, and two live bridges on one broker fight over the connection and
+   can double-actuate devices. Stop first, then start here — never overlap.
+2. **Carry its state over (recommended).** The other instance's
+   `backend/data/state_store.sqlite` holds the *current* assumed state of every
+   device — much fresher than any old backup on this Wirenboard. After stopping
+   it, copy that file to `/mnt/data/mqtt-bridge-config/.state/data/state_store.sqlite`
+   here (overwriting whatever step 4 restored), so the takeover is seamless and
+   no device gets re-commanded from stale assumptions.
 
 ### 5. Install the systemd unit
 
@@ -85,8 +100,11 @@ Verify reachable:
 
 ```bash
 curl http://localhost:8000/openapi.json | head
-curl http://localhost:80/                       # UI nginx
+curl http://localhost:3000/                     # UI nginx (listens on 3000 —
+                                                # port 80 belongs to the WB admin UI)
 ```
+
+The web UI is then at `http://<wirenboard-ip>:3000/` from any browser on the LAN.
 
 ---
 
@@ -128,6 +146,28 @@ sudo docker system prune -a -f
 `system prune -a -f` is safe on this WB: nothing else builds Docker images
 here, and any image not referenced by a running container will be re-pullable
 from GHCR.
+
+---
+
+## Enabling problem reports (optional, one-time)
+
+The bridge can file problem reports (the UI's "Report a problem" button) as tickets
+into a private GitHub repo. That needs a fine-grained GitHub PAT scoped to that one
+repo (Issues + Contents read/write). The token reaches the container via an env
+file next to the compose file — it is gitignored and never committed:
+
+```bash
+cat > /mnt/data/mqtt-bridge-config/ops/.env <<'EOF'
+WB_REPORTS_TOKEN=github_pat_XXXXXXXXXXXX
+EOF
+chmod 600 /mnt/data/mqtt-bridge-config/ops/.env
+```
+
+Then set `"reports": {"enabled": true, ...}` in `backend/config/system.json` and
+restart (`sudo systemctl restart wb-mqtt-bridge.service`). Both start paths — the
+systemd unit and `update.sh` — read the same `.env` file, so the token survives
+updates. Without the file, reporting simply stays disabled; nothing else is
+affected.
 
 ---
 
