@@ -133,9 +133,13 @@ RUN if [ "$LEAN" = "true" ]; then \
 # Expose port
 EXPOSE 8000
 
-# Health check to monitor container status
-HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/', timeout=10)" || exit 1
+# Health check to monitor container status. start-period 180s: uvicorn only
+# starts serving after the whole device-fleet lifespan completes (WoL waits,
+# discovery probes...) — observed >20s on the WB7, so the old 20s start-period
+# marked the container unhealthy on every boot before it self-healed.
+# 127.0.0.1 explicitly: `localhost` may resolve to ::1 while uvicorn binds IPv4.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=10)" || exit 1
 
 # Command to run the service using the console script
 CMD ["wb-api", "--host", "0.0.0.0", "--port", "8000"] 

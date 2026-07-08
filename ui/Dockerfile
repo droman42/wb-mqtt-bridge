@@ -43,7 +43,10 @@ RUN chmod +x /docker-entrypoint.sh
 
 EXPOSE 3000
 
+# 127.0.0.1 explicitly: busybox wget resolves `localhost` to ::1 first, and
+# nginx listens on IPv4 only — the check refused forever (seen live on the WB7
+# while real traffic worked fine).
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/ || exit 1
 
 ENTRYPOINT ["/docker-entrypoint.sh"] 
