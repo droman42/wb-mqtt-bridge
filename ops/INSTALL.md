@@ -12,6 +12,28 @@ Standard Docker tooling — **not** WB's native `docker_manager`. Trade-offs:
 
 ---
 
+## On-controller layout (two trees, deliberately)
+
+```
+/mnt/sdcard/wb-mqtt-bridge/        <- this repo, cloned (compose, update.sh, .env)
+/mnt/data/mqtt-bridge-config/    <- the RUNTIME tree the containers mount
+├── config/   synced from the clone's backend/config by update.sh (:ro in the container)
+├── data/     SQLite state store — survives updates
+└── logs/     service logs
+```
+
+The runtime tree keeps the historical layout this Wirenboard has always used
+(the pre-compose flow used the same three directories), so nothing about where
+state and logs live changes across the migration. The repo clone is the config
+**source of truth**: `git pull` + `update.sh` mirrors `backend/config` into the
+runtime tree on every update.
+
+Docker's image store stays at its existing location (`/mnt/data/.docker`): the
+SD card is exFAT, which cannot host Docker's overlay filesystem, and the two
+images are small enough for `/mnt/data` as long as `update.sh`'s prune step
+keeps running (it removes each replaced `:latest` on every update). The SD card
+holds only the repo clone — plain files, which exFAT handles fine.
+
 ## First install (one-time, takes ~5 min)
 
 Prereqs: WB has Docker installed (it does, via WB's own setup). You have shell
@@ -34,35 +56,35 @@ sudo docker rmi wb-mqtt-bridge:latest wb-mqtt-ui:latest 2>/dev/null || true
 # how you installed it). Leave docker_manager running for OTHER WB apps.
 ```
 
-### 2. Preserve existing runtime state (if any)
+### 2. Clone the repo (on the SD card)
 
-The current docker_manager flow keeps state at `/mnt/data/mqtt-bridge-config/{data,logs}`.
-Move it aside so the `git clone` step below has a clean target:
-
-```bash
-sudo mv /mnt/data/mqtt-bridge-config /mnt/data/mqtt-bridge-config.bak
-```
-
-### 3. Clone the repo at the install path
+The clone is re-pullable "garbage" — it goes on the roomy SD card, keeping
+`/mnt/data` (the small runtime partition) for state only:
 
 ```bash
-cd /mnt/data
-sudo git clone https://github.com/droman42/wb-mqtt-bridge mqtt-bridge-config
-sudo mkdir -p mqtt-bridge-config/.state
+cd /mnt/sdcard
+sudo git clone https://github.com/droman42/wb-mqtt-bridge wb-mqtt-bridge
 ```
 
-### 4. Restore preserved state (skip on a fresh install)
+The existing `/mnt/data/mqtt-bridge-config/{config,data,logs}` tree stays exactly
+where it is — it becomes the runtime tree. (Fresh install without one:
+`sudo mkdir -p /mnt/data/mqtt-bridge-config/{config,data,logs}`.)
+
+### 3. Initial config sync
+
+`update.sh` does this on every update; run the sync once by hand so the first
+start has current config (this **replaces** whatever the old flow left in
+`config/` — the repo is the source of truth). Needs `rsync`
+(`sudo apt install rsync` if missing):
 
 ```bash
-sudo mv /mnt/data/mqtt-bridge-config.bak/data /mnt/data/mqtt-bridge-config/.state/data
-sudo mv /mnt/data/mqtt-bridge-config.bak/logs /mnt/data/mqtt-bridge-config/.state/logs
-sudo rm -rf /mnt/data/mqtt-bridge-config.bak  # contains the old `config/` dir we no longer need
+sudo rsync -a --delete /mnt/sdcard/wb-mqtt-bridge/backend/config/ /mnt/data/mqtt-bridge-config/config/
 ```
 
-The state DB (`/mnt/data/mqtt-bridge-config/.state/data/state_store.sqlite`) holds
-your devices' last-good assumed state — preserve it across upgrades.
+The state DB (`/mnt/data/mqtt-bridge-config/data/state_store.sqlite`) holds your
+devices' last-good assumed state — preserve it across upgrades.
 
-### 4a. Taking over from a bridge running elsewhere (cutover)
+### 4. Taking over from a bridge running elsewhere (cutover)
 
 If another instance of the bridge has been serving the house from a different
 machine (e.g. a development box), two things matter:
@@ -72,15 +94,15 @@ machine (e.g. a development box), two things matter:
    can double-actuate devices. Stop first, then start here — never overlap.
 2. **Carry its state over (recommended).** The other instance's
    `backend/data/state_store.sqlite` holds the *current* assumed state of every
-   device — much fresher than any old backup on this Wirenboard. After stopping
-   it, copy that file to `/mnt/data/mqtt-bridge-config/.state/data/state_store.sqlite`
-   here (overwriting whatever step 4 restored), so the takeover is seamless and
-   no device gets re-commanded from stale assumptions.
+   device — much fresher than anything already in this Wirenboard's `data/`
+   (which predates the other instance taking over). After stopping it, copy that
+   file to `/mnt/data/mqtt-bridge-config/data/state_store.sqlite` here, so the
+   takeover is seamless and no device gets re-commanded from stale assumptions.
 
 ### 5. Install the systemd unit
 
 ```bash
-sudo cp /mnt/data/mqtt-bridge-config/ops/wb-mqtt-bridge.service /etc/systemd/system/
+sudo cp /mnt/sdcard/wb-mqtt-bridge/ops/wb-mqtt-bridge.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable wb-mqtt-bridge.service
 ```
@@ -88,7 +110,7 @@ sudo systemctl enable wb-mqtt-bridge.service
 ### 6. First start
 
 ```bash
-cd /mnt/data/mqtt-bridge-config/ops
+cd /mnt/sdcard/wb-mqtt-bridge/ops
 sudo docker compose pull
 sudo systemctl start wb-mqtt-bridge.service
 sudo systemctl status wb-mqtt-bridge.service   # should be active (exited)
@@ -111,20 +133,23 @@ The web UI is then at `http://<wirenboard-ip>:3000/` from any browser on the LAN
 ## Update flow (no cable, no PAT)
 
 ```bash
-cd /mnt/data/mqtt-bridge-config
-sudo git pull                  # config changes
-sudo ./ops/update.sh           # pulls latest images + restarts + cleans dangling
+cd /mnt/sdcard/wb-mqtt-bridge
+sudo git pull                  # config changes + scripts
+sudo ./ops/update.sh           # syncs config into the runtime tree + pulls
+                               # latest images + restarts + cleans dangling
 ```
 
-`update.sh` runs `docker image prune -f` at the end, which removes the **just-
-replaced** old `:latest` (now untagged) so the WB's flash doesn't accumulate it.
-Tagged images you've pinned (e.g. `:vYYYYMMDD-<short>` for rollback) are NOT
-touched.
+`update.sh` first mirrors the clone's `backend/config` into
+`/mnt/data/mqtt-bridge-config/config` (so a `git pull` is how config reaches the
+container), then runs `docker image prune -f` at the end, which removes the
+**just-replaced** old `:latest` (now untagged) so the WB's flash doesn't
+accumulate it. Tagged images you've pinned (e.g. `:vYYYYMMDD-<short>` for
+rollback) are NOT touched.
 
 To update just the images without `git pull`:
 
 ```bash
-cd /mnt/data/mqtt-bridge-config/ops
+cd /mnt/sdcard/wb-mqtt-bridge/ops
 sudo docker compose pull
 sudo docker compose up -d
 sudo docker image prune -f     # don't forget — compose alone leaves dangling
@@ -157,17 +182,18 @@ repo (Issues + Contents read/write). The token reaches the container via an env
 file next to the compose file — it is gitignored and never committed:
 
 ```bash
-cat > /mnt/data/mqtt-bridge-config/ops/.env <<'EOF'
+cat > /mnt/sdcard/wb-mqtt-bridge/ops/.env <<'EOF'
 WB_REPORTS_TOKEN=github_pat_XXXXXXXXXXXX
 EOF
-chmod 600 /mnt/data/mqtt-bridge-config/ops/.env
+chmod 600 /mnt/sdcard/wb-mqtt-bridge/ops/.env
 ```
 
-Then set `"reports": {"enabled": true, ...}` in `backend/config/system.json` and
-restart (`sudo systemctl restart wb-mqtt-bridge.service`). Both start paths — the
-systemd unit and `update.sh` — read the same `.env` file, so the token survives
-updates. Without the file, reporting simply stays disabled; nothing else is
-affected.
+Then set `"reports": {"enabled": true, ...}` in the repo's
+`backend/config/system.json` (commit it — the repo is the config source of
+truth), run `update.sh` (or restart:
+`sudo systemctl restart wb-mqtt-bridge.service`). Both start paths — the systemd
+unit and `update.sh` — read the same `.env` file, so the token survives updates.
+Without the file, reporting simply stays disabled; nothing else is affected.
 
 ---
 
@@ -190,11 +216,11 @@ If the upgrade wipes Docker state but preserves `/mnt/data/`:
 
 ```bash
 sudo systemctl daemon-reload                            # systemd unit survived
-sudo docker compose -f /mnt/data/mqtt-bridge-config/ops/docker-compose.yml pull
+sudo docker compose -f /mnt/sdcard/wb-mqtt-bridge/ops/docker-compose.yml pull
 sudo systemctl start wb-mqtt-bridge.service
 ```
 
-If the upgrade wipes `/mnt/data/` too: re-do steps 3-6 of First install. State
+If the upgrade wipes `/mnt/data/` too: re-do steps 2-6 of First install. State
 DB is gone in that scenario — devices will rebuild assumed state on next use.
 
 ---

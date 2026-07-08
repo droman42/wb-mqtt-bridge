@@ -6,8 +6,17 @@
 # broker on localhost:1883 — the WB's broker is the system MQTT, not a
 # separate container.
 #
+# On-controller layout (two trees, deliberately):
+#   /mnt/sdcard/wb-mqtt-bridge/        — this repo, cloned (compose, update.sh, .env)
+#   /mnt/data/mqtt-bridge-config/    — the RUNTIME tree the containers mount
+#     ├── config/   <- synced from the clone's backend/config by update.sh
+#     ├── data/     <- SQLite state store (survives updates)
+#     └── logs/     <- service logs
+# The runtime tree keeps the historical docker_manager-era layout; the mounts
+# below are therefore ABSOLUTE paths, independent of where the clone lives.
+#
 # Bring up:   docker compose up -d
-# Update:     ./update.sh                 (pulls + restarts)
+# Update:     ./update.sh                 (syncs config + pulls + restarts)
 # Stop:       docker compose down
 # Logs:       docker compose logs -f      ([backend|ui] to filter)
 #
@@ -22,13 +31,12 @@ services:
     mem_limit: 256m
     cpus: 0.5
     volumes:
-      # Config travels with the cloned repo (single source of truth). No separate
-      # config tarball: `git pull` updates the device/scenario/etc. JSONs.
-      - ../backend/config:/app/config:ro
-      # Runtime state — SQLite state store + logs. Lives under .state/ (gitignored)
-      # so a `git pull` never touches it.
-      - ../.state/data:/app/data
-      - ../.state/logs:/app/logs
+      # The runtime tree (see the layout note at the top). config/ is read-only
+      # and populated by update.sh's sync from the clone's backend/config — the
+      # repo stays the single source of truth; `git pull` + update.sh delivers it.
+      - /mnt/data/mqtt-bridge-config/config:/app/config:ro
+      - /mnt/data/mqtt-bridge-config/data:/app/data
+      - /mnt/data/mqtt-bridge-config/logs:/app/logs
     environment:
       # Problem-report filing (when system.json enables reports): the fine-grained
       # GitHub PAT reaches the container via an `ops/.env` file next to this compose

@@ -147,15 +147,19 @@ the UI at port 3000.
 
 #### Volume Mounts and Data Persistence
 
-The compose file mounts (paths relative to `ops/`):
+On the Wirenboard, two trees split the concerns: the repo clone lives on the
+roomy SD card (`/mnt/sdcard/wb-mqtt-bridge` — compose, scripts, and the config
+source of truth), while the containers mount the runtime tree on the small
+persistent partition:
 
-- **Configuration**: `../backend/config` → `/app/config` (read-only — config is
-  the cloned repo itself; `git pull` updates it)
-- **Database**: `../.state/data` → `/app/data` (SQLite state store)
-- **Logs**: `../.state/logs` → `/app/logs`
+- **Configuration**: `/mnt/data/mqtt-bridge-config/config` → `/app/config`
+  (read-only; `update.sh` mirrors the clone's `backend/config` here, so
+  `git pull` + `update.sh` is how config changes reach the container)
+- **Database**: `/mnt/data/mqtt-bridge-config/data` → `/app/data` (SQLite state store)
+- **Logs**: `/mnt/data/mqtt-bridge-config/logs` → `/app/logs`
 
-`.state/` is gitignored, so device states and logs survive both image updates
-and `git pull`.
+The runtime tree is untouched by `git pull`, so device state and logs survive
+both image updates and config updates.
 
 #### Dependency Optimization for Lean Images
 
