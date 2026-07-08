@@ -21,6 +21,25 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-08, the cutover (REL-2 DONE — the house is served from the WB7)** — the user drove
+  the controller shell, Claude verified over SSH/HTTP from the dev box; the runbook was rebuilt
+  in-flight three times as controller reality arrived: (1) the historical runtime tree
+  `/mnt/data/mqtt-bridge-config/{config,data,logs}` KEPT (user decision; compose mounts went
+  absolute; update.sh gained the config rsync), (2) the clone moved to the exFAT SD card — which
+  also ruled out moving Docker's data-root there (overlay2 needs POSIX; stays at
+  `/mnt/data/.docker`), (3) after reboot test #1 FAILED (`RequiresMountsFor=/mnt/sdcard` dragged
+  the automount's mount+fsck into early boot before the card enumerated — oneshot, no retry),
+  the user's structural call: **boot depends only on /mnt/data** — update.sh deploys the compose
+  file into the runtime tree, the unit runs compose from there, the clone is update-time-only
+  (`e88aa84`). Reboot test #2: PASSED, ~3.5 min to a serving bridge, zero hands. Realism dump
+  **MATCH** (golden `8159b4b0068d1c63`, 79 devices); `all_lights.js` in; reports live end-to-end
+  (token via runtime-tree `.env`, `enabled` flipped through the repo — `78673b3`, the user's own
+  commit, the source-of-truth flow working as designed). Bonus finds: container healthchecks
+  lied (UI `localhost`→`::1` vs IPv4-only nginx = unhealthy forever; backend start-period 20s <
+  device-fleet boot) — fixed `cc6a94d`, images rebuilt. Ops lesson exported to the voice repo as
+  a note (same sdcard-boot-dependency suspected there). **VWB-13 unblocked; REL-3 is next at the
+  rack.** 104/79.
+
 - **2026-07-08, night (OPS-7 DONE — Dependabot triage; alerts 88 → 5 → 0; OPS-13 filed)** —
   the May entry aged well in the best way: 83 of its 88 alerts dissolved via ordinary lockfile
   evolution (axios + the whole backend aiohttp/urllib3 set gone; backend lockfile fully clean),
