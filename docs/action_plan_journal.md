@@ -21,6 +21,18 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-08, night (OPS-7 DONE — Dependabot triage; alerts 88 → 5 → 0; OPS-13 filed)** —
+  the May entry aged well in the best way: 83 of its 88 alerts dissolved via ordinary lockfile
+  evolution (axios + the whole backend aiohttp/urllib3 set gone; backend lockfile fully clean),
+  so the original bump plan was obsolete. The 5 survivors were all `scope: development`
+  (vite ×3 / esbuild / minimatch — dev server + lint-time only, nothing in the shipped
+  containers) and none fixable in-range (`npm audit fix` a no-op; minimatch pinned EXACTLY by
+  typescript-estree 6.21; vite fix starts at 6.4.3). Per the entry's own standing rule, all 5
+  **dismissed as tolerable_risk** with comments pointing at the newly filed **OPS-13**
+  (post-release UI toolchain migration: eslint 9 flat config + @typescript-eslint 8 + vite
+  current). Open alerts: **0** — the per-push banner is gone. No code/lockfile change.
+  103 tasks / 78 done; the desk stays clear.
+
 - **2026-07-08, evening (OPS-8 DONE — reconciled, narrowed, shipped; THE DESK IS CLEAR)** —
   the user's "might be greatly outdated" was right: of the five 2026-05-22 sub-items, the
   teardown-hang one was OPS-6 (done 2026-05-28) and auto-reconnect had been addressed piecewise

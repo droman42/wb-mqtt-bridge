@@ -599,20 +599,22 @@ endpoint).
 
 ### OPS — Docker / CI-CD / deploy / ops
 
-- [ ] **OPS-7** `[P2]` `[deferred]` — **Dependency refresh — clear the Dependabot noise (88 alerts as of 2026-05-31).** Lockfiles haven't been bumped since the 2025-07 pause; GitHub now reports 1 critical / 28 high / 41 medium / 18 low. Audit (2026-05-31, before the UI image build) showed the headline number is misleading for this deployment: most are transitive duplicates of a few root packages, and almost none are exploitable on a LAN-only Wirenboard with a trusted UI↔backend channel. **Triage breakdown:**
-  - **UI lockfile (`ui/package-lock.json`) — bulk of alerts.** Dominated by `axios` (~14 across H/M/L: prototype-pollution gadgets, NO_PROXY bypasses, header injection, DoS) — all need attacker-controlled config merging or hostile proxy config, neither applies (axios calls go to a fixed `apiBaseUrl`). The build-chain cluster (`vite`/`rollup`/`esbuild`/`postcss`/`picomatch`/`yaml`/`js-yaml`/`glob`/`minimatch`/`flatted`/`lodash`/`fast-uri`/`follow-redirects`/`form-data`/`@remix-run/router`/`react-router`) is **build-time only**, never in the deployed container. The 1 critical (`form-data` unsafe-random boundary, CVE-2025-7783) only matters across an attacker boundary — not the case here.
-  - **Backend lockfile (`backend/uv.lock`).** `aiohttp` (~13) covers inbound HTTP parsing DoS / header injection — but we use aiohttp as a **CLIENT** (openhomedevice/pyatv/pymotivaxmc2 outbound to LAN devices), not a server, so the inbound surface isn't exposed. `urllib3` (5) is redirect/decompression-bomb stuff — we don't follow cross-origin redirects to untrusted hosts. `starlette` FileResponse Range DoS — we don't serve FileResponse. `black`/`pytest`/`Pygments`/`playwright` are dev tooling. `cryptography`/`pyopenssl` are TLS-tail issues; we're an MQTT client on a private LAN, not a public TLS server.
-  - **Net real-world risk for the home deployment: low.** Threat model is "someone on the home LAN behaves maliciously" — almost nobody. Noise, not danger.
-
-  **Plan (one focused PR, no rush):**
-  1. **UI side:** `cd ui && npm update axios react-router @remix-run/router` first (kills ~half the high count); then `npm audit fix` for the build-chain tail (verify no major-version breakage); then `npm run typecheck:all && npm run validate:generated-code` and a local `npm run dev` smoke against the rack backend.
-  2. **Backend side:** `cd backend && uv lock --upgrade-package aiohttp urllib3 starlette cryptography pyopenssl requests` (the high-value targets); regenerate uv.lock; `pytest -x` for the existing 401 tests; verify openhomedevice/pyatv/pymotivaxmc2 still import cleanly (those are the actual aiohttp consumers).
-  3. **Defer:** the build-chain UI deps (vite/rollup/esbuild) — bump only if a real CVE in our actual runtime path appears. Mass-bumping the toolchain risks Vite-major-version churn without security benefit on a LAN UI.
-  4. **Hexagonal LAW:** no domain touch, no config touch — pure dep bumps.
-
-  **Gate:** do this on a quiet day, NOT before a hardware verification session (dep bumps add a confounder to whatever you're actually trying to debug at the rack). Re-pull the Dependabot count after the PR to confirm the drop.
-
 - [ ] **OPS-11** `[P2]` `[deferred]` — **Multi-arch images: add `linux/arm64` (aarch64, next-gen Wirenboard) alongside `linux/arm/v7`.** Filed 2026-07-02 off a chat analysis (sister-repo prompt: `wb-mqtt-voice` builds armv7 + aarch64 + standalone). **Unlike the voice repo** (per-target Dockerfiles + arch-suffixed image names, forced by per-platform ML profiles), the bridge's images are identical on both arches → use buildx **multi-platform manifests**: `platforms: linux/arm/v7,linux/arm64` in both image jobs of `.github/workflows/build-arm.yml` yields ONE manifest list per existing tag — WB7 pulls armv7, WB8 pulls arm64 from the same `ghcr.io/...:latest`; `ops/` (compose / `update.sh` / INSTALL.md flow) unchanged. **Work items:** (1) workflow: extend `platforms`, **drop the `ARCH=arm32v7` build-arg** — the Dockerfile's `${ARCH:+$ARCH/}python` prefix predates platform-aware buildx and would force the arm32 base into the arm64 leg (Dockerfile itself needs no change; `ARG ARCH=` defaults empty); (2) `ui/Dockerfile`: stage 1 → `FROM --platform=$BUILDPLATFORM node:20 AS builder` — the `dist/` bundle is arch-independent, so the ~14-min QEMU node build runs natively on the amd64 runner once and only the small nginx stage builds per-arch (bonus: the *existing* armv7 UI build should drop to ~2-3 min); (3) docs: a sentence each in `ops/INSTALL.md` + the READMEs noting the images are multi-arch. **Notes:** piwheels extra-index is armv7-only but harmless on arm64 (PyPI aarch64 cp311 wheel coverage is good — likely a faster leg than armv7); that `/etc/pip/pip.conf` is probably vestigial anyway since the image installs via `uv`, which doesn't read pip config — verify/drop while in there. WB8's Cortex-A5x could in principle run the armv7 image via AArch32 compat, but native arm64 is the clean path at ~6 lines of diff. **Verification:** QEMU build smoke in CI; real run gated on actual WB8 hardware (hence `[later]`).
+
+- [ ] **OPS-13** `[P2]` `[deferred]` — **UI dev-toolchain migration: eslint 9 + @typescript-eslint 8 + vite 6/8.**
+  Filed 2026-07-08 as the deliberate-successor half of the OPS-7 triage: the five then-open
+  Dependabot alerts (vite ×3, esbuild, minimatch — ALL `scope: development`, none in the shipped
+  nginx container or the backend image) were dismissed as `tolerable_risk` with comments pointing
+  here, because every fix crosses a major boundary: the vite/esbuild trio needs **vite ^5.4 →
+  ≥6.4.3** (first patched); the minimatch ReDoS is pinned exactly (`9.0.3`) by
+  `@typescript-eslint/typescript-estree` 6.21, fixed only in **@typescript-eslint ≥7.5.1**, which
+  in practice means the **eslint 8 → 9 flat-config migration** (package.json pins: eslint `^8.45`,
+  @typescript-eslint `^6.0`). One coherent post-release pass: migrate the eslint config to flat
+  config + bump the @typescript-eslint pair + vite to current (esbuild rides along), then
+  `npm run check && npm run build` + a dev-server smoke; re-check the dismissed alerts after.
+  **Not before the release** — pure dev-chain churn with zero deployment exposure, and a
+  toolchain major adds confounders right when the rack sessions need a stable build (OPS-7's
+  standing rule: bump build-chain deps only for a CVE in the actual runtime path).
 
 ### CORE — Backend core / architecture
 
