@@ -1,26 +1,26 @@
 # ops/wb-mqtt-bridge.service — systemd unit that runs the compose stack on
 # Wirenboard boot. Replaces docker_manager's lifecycle management.
 #
+# Runs compose from the RUNTIME tree on /mnt/data (update.sh deploys the
+# compose file there) — boot deliberately does NOT depend on the SD-card clone,
+# which is lazily automounted and only needed at update time.
+#
 # Install (one-time, see ops/INSTALL.md for the full walkthrough):
 #   sudo cp /mnt/sdcard/wb-mqtt-bridge/ops/wb-mqtt-bridge.service /etc/systemd/system/
 #   sudo systemctl daemon-reload
 #   sudo systemctl enable --now wb-mqtt-bridge.service
-#
-# Adjust WorkingDirectory below if you cloned the repo to a different path.
 
 [Unit]
 Description=wb-mqtt-bridge (backend + UI via docker compose)
 Requires=docker.service
 After=docker.service network-online.target
 Wants=network-online.target
-# The repo clone lives on the SD card (automount) and the containers mount the
-# runtime tree on /mnt/data — make sure both are mounted before compose runs.
-RequiresMountsFor=/mnt/sdcard /mnt/data
+RequiresMountsFor=/mnt/data
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-WorkingDirectory=/mnt/sdcard/wb-mqtt-bridge/ops
+WorkingDirectory=/mnt/data/mqtt-bridge-config
 ExecStart=/usr/bin/docker compose up -d
 ExecStop=/usr/bin/docker compose down
 # A failed pull or start shouldn't tear systemd's PID 1 down — let restart handle it.

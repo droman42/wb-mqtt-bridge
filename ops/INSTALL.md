@@ -15,12 +15,18 @@ Standard Docker tooling — **not** WB's native `docker_manager`. Trade-offs:
 ## On-controller layout (two trees, deliberately)
 
 ```
-/mnt/sdcard/wb-mqtt-bridge/        <- this repo, cloned (compose, update.sh, .env)
-/mnt/data/mqtt-bridge-config/    <- the RUNTIME tree the containers mount
-├── config/   synced from the clone's backend/config by update.sh (:ro in the container)
-├── data/     SQLite state store — survives updates
-└── logs/     service logs
+/mnt/sdcard/wb-mqtt-bridge/      <- this repo, cloned — needed ONLY at update time
+/mnt/data/mqtt-bridge-config/    <- the RUNTIME tree: everything the service needs at boot
+├── docker-compose.yml   deployed from the clone's ops/ by update.sh
+├── .env                 reports token (user-created; update.sh never touches it)
+├── config/              synced from the clone's backend/config by update.sh (:ro in container)
+├── data/                SQLite state store — survives updates
+└── logs/                service logs
 ```
+
+Boot depends only on `/mnt/data` and Docker — deliberately **not** on the SD
+card, which is lazily automounted and can be slow to appear after a reboot.
+The card matters only when you run `update.sh`.
 
 The runtime tree keeps the historical layout this Wirenboard has always used
 (the pre-compose flow used the same three directories), so nothing about where
@@ -70,15 +76,16 @@ The existing `/mnt/data/mqtt-bridge-config/{config,data,logs}` tree stays exactl
 where it is — it becomes the runtime tree. (Fresh install without one:
 `sudo mkdir -p /mnt/data/mqtt-bridge-config/{config,data,logs}`.)
 
-### 3. Initial config sync
+### 3. Initial sync into the runtime tree
 
-`update.sh` does this on every update; run the sync once by hand so the first
-start has current config (this **replaces** whatever the old flow left in
-`config/` — the repo is the source of truth). Needs `rsync`
-(`sudo apt install rsync` if missing):
+`update.sh` does this on every update; run it once by hand so the first start
+has current config and the compose file in place (config sync **replaces**
+whatever the old flow left in `config/` — the repo is the source of truth).
+Needs `rsync` (`sudo apt install rsync` if missing):
 
 ```bash
 sudo rsync -a --delete /mnt/sdcard/wb-mqtt-bridge/backend/config/ /mnt/data/mqtt-bridge-config/config/
+sudo cp /mnt/sdcard/wb-mqtt-bridge/ops/docker-compose.yml /mnt/data/mqtt-bridge-config/
 ```
 
 The state DB (`/mnt/data/mqtt-bridge-config/data/state_store.sqlite`) holds your
@@ -110,7 +117,7 @@ sudo systemctl enable wb-mqtt-bridge.service
 ### 6. First start
 
 ```bash
-cd /mnt/sdcard/wb-mqtt-bridge/ops
+cd /mnt/data/mqtt-bridge-config
 sudo docker compose pull
 sudo systemctl start wb-mqtt-bridge.service
 sudo systemctl status wb-mqtt-bridge.service   # should be active (exited)
@@ -140,8 +147,9 @@ sudo ./ops/update.sh           # syncs config into the runtime tree + pulls
 ```
 
 `update.sh` first mirrors the clone's `backend/config` into
-`/mnt/data/mqtt-bridge-config/config` (so a `git pull` is how config reaches the
-container), then runs `docker image prune -f` at the end, which removes the
+`/mnt/data/mqtt-bridge-config/config` and deploys `docker-compose.yml` next to
+it (so a `git pull` is how both config and compose changes reach the runtime
+tree), then runs `docker image prune -f` at the end, which removes the
 **just-replaced** old `:latest` (now untagged) so the WB's flash doesn't
 accumulate it. Tagged images you've pinned (e.g. `:vYYYYMMDD-<short>` for
 rollback) are NOT touched.
@@ -149,7 +157,7 @@ rollback) are NOT touched.
 To update just the images without `git pull`:
 
 ```bash
-cd /mnt/sdcard/wb-mqtt-bridge/ops
+cd /mnt/data/mqtt-bridge-config
 sudo docker compose pull
 sudo docker compose up -d
 sudo docker image prune -f     # don't forget — compose alone leaves dangling
@@ -182,10 +190,10 @@ repo (Issues + Contents read/write). The token reaches the container via an env
 file next to the compose file — it is gitignored and never committed:
 
 ```bash
-cat > /mnt/sdcard/wb-mqtt-bridge/ops/.env <<'EOF'
+cat > /mnt/data/mqtt-bridge-config/.env <<'EOF'
 WB_REPORTS_TOKEN=github_pat_XXXXXXXXXXXX
 EOF
-chmod 600 /mnt/sdcard/wb-mqtt-bridge/ops/.env
+chmod 600 /mnt/data/mqtt-bridge-config/.env
 ```
 
 Then set `"reports": {"enabled": true, ...}` in the repo's
@@ -216,7 +224,7 @@ If the upgrade wipes Docker state but preserves `/mnt/data/`:
 
 ```bash
 sudo systemctl daemon-reload                            # systemd unit survived
-sudo docker compose -f /mnt/sdcard/wb-mqtt-bridge/ops/docker-compose.yml pull
+sudo docker compose -f /mnt/data/mqtt-bridge-config/docker-compose.yml pull
 sudo systemctl start wb-mqtt-bridge.service
 ```
 

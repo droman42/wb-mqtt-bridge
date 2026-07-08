@@ -7,13 +7,16 @@
 # separate container.
 #
 # On-controller layout (two trees, deliberately):
-#   /mnt/sdcard/wb-mqtt-bridge/        — this repo, cloned (compose, update.sh, .env)
-#   /mnt/data/mqtt-bridge-config/    — the RUNTIME tree the containers mount
-#     ├── config/   <- synced from the clone's backend/config by update.sh
-#     ├── data/     <- SQLite state store (survives updates)
-#     └── logs/     <- service logs
-# The runtime tree keeps the historical docker_manager-era layout; the mounts
-# below are therefore ABSOLUTE paths, independent of where the clone lives.
+#   /mnt/sdcard/wb-mqtt-bridge/      — this repo, cloned; needed ONLY at update time
+#   /mnt/data/mqtt-bridge-config/    — the RUNTIME tree; everything boot needs
+#     ├── docker-compose.yml  <- THIS FILE, deployed there by update.sh
+#     ├── .env                <- reports token (user-created, never synced)
+#     ├── config/             <- synced from the clone's backend/config by update.sh
+#     ├── data/               <- SQLite state store (survives updates)
+#     └── logs/               <- service logs
+# The systemd unit runs compose FROM the runtime tree so a reboot never depends
+# on the lazily-automounted SD card. The runtime tree keeps the historical
+# docker_manager-era layout; the mounts below are therefore ABSOLUTE paths.
 #
 # Bring up:   docker compose up -d
 # Update:     ./update.sh                 (syncs config + pulls + restarts)
@@ -39,10 +42,11 @@ services:
       - /mnt/data/mqtt-bridge-config/logs:/app/logs
     environment:
       # Problem-report filing (when system.json enables reports): the fine-grained
-      # GitHub PAT reaches the container via an `ops/.env` file next to this compose
-      # file (gitignored — never committed; see INSTALL.md "Enabling problem
-      # reports"). Compose reads .env for BOTH start paths: the systemd unit and
-      # update.sh. Empty default keeps reports-disabled deployments quiet.
+      # GitHub PAT reaches the container via the `.env` file next to the DEPLOYED
+      # copy of this compose file in the runtime tree (user-created, outside git;
+      # see INSTALL.md "Enabling problem reports"). Compose reads .env for BOTH
+      # start paths: the systemd unit and update.sh — each runs compose from the
+      # runtime tree. Empty default keeps reports-disabled deployments quiet.
       WB_REPORTS_TOKEN: "${WB_REPORTS_TOKEN:-}"
     logging:
       driver: json-file

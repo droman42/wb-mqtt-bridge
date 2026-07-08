@@ -148,9 +148,10 @@ the UI at port 3000.
 #### Volume Mounts and Data Persistence
 
 On the Wirenboard, two trees split the concerns: the repo clone lives on the
-roomy SD card (`/mnt/sdcard/wb-mqtt-bridge` — compose, scripts, and the config
-source of truth), while the containers mount the runtime tree on the small
-persistent partition:
+roomy SD card (`/mnt/sdcard/wb-mqtt-bridge` — the source of truth, needed only
+at update time), while everything the service needs at boot — the deployed
+compose file, config, state — lives in the runtime tree on the small,
+early-mounted persistent partition:
 
 - **Configuration**: `/mnt/data/mqtt-bridge-config/config` → `/app/config`
   (read-only; `update.sh` mirrors the clone's `backend/config` here, so
