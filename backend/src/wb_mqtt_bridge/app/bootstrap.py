@@ -157,6 +157,41 @@ def setup_logging(log_file: str, log_level: str):
         raise
 
 
+async def _release_partial_startup(
+    report_retry_task: "asyncio.Task | None",
+    device_manager: "DeviceManager | None",
+    mqtt_client: "MQTTClient | None",
+    state_store: "SQLiteStateStore | None",
+) -> None:
+    """Best-effort release of partially initialized startup resources (OPS-8).
+
+    A rare, unexpected error mid-startup (outside the handled device/scenario
+    load paths) used to leak whatever was already up — an open SQLite handle, a
+    connected MQTT client, device sockets — leaving a hung process holding its
+    ports. Called from the lifespan's startup except-block before re-raising.
+    Every step is independently guarded: a failing release must not mask the
+    original startup error or stop the remaining releases.
+    """
+    log = logging.getLogger(__name__)
+    if report_retry_task is not None:
+        report_retry_task.cancel()
+    if device_manager is not None:
+        try:
+            await device_manager.shutdown_devices()
+        except Exception as e:
+            log.warning(f"Startup-failure cleanup: device shutdown failed: {e}")
+    if mqtt_client is not None:
+        try:
+            await mqtt_client.disconnect()
+        except Exception as e:
+            log.warning(f"Startup-failure cleanup: MQTT disconnect failed: {e}")
+    if state_store is not None:
+        try:
+            await state_store.close()
+        except Exception as e:
+            log.warning(f"Startup-failure cleanup: state store close failed: {e}")
+
+
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     
@@ -171,290 +206,313 @@ def create_app() -> FastAPI:
         """Lifespan context manager for FastAPI application."""
         # Startup
         nonlocal config_manager, device_manager, mqtt_client, state_store
+
+        # Predeclared so the startup-failure cleanup below can reference it no
+        # matter where the startup died (it is created near the end of startup).
+        report_retry_task: asyncio.Task | None = None
+
+        # OPS-8: the whole startup is wrapped — an unexpected failure anywhere in
+        # here releases the already-acquired resources (best effort) and re-raises,
+        # instead of leaking sockets/ports into a hung process.
+        try:
+            # Initialize config manager
+            config_manager = ConfigManager()
         
-        # Initialize config manager
-        config_manager = ConfigManager()
+            # Set app title from config
+            service_name = config_manager.get_service_name()
+            app.title = service_name
         
-        # Set app title from config
-        service_name = config_manager.get_service_name()
-        app.title = service_name
+            # Setup logging with system config
+            system_config = config_manager.get_system_config()
+            log_file = system_config.log_file or 'logs/service.log'
+            log_level = system_config.log_level
+            setup_logging(log_file, log_level)
         
-        # Setup logging with system config
-        system_config = config_manager.get_system_config()
-        log_file = system_config.log_file or 'logs/service.log'
-        log_level = system_config.log_level
-        setup_logging(log_file, log_level)
+            # Diagnostic: Check what level was actually set
+            root_logger = logging.getLogger()
+            print(f"DEBUG: After setup_logging - Root logger level: {root_logger.level} (requested: {log_level})")
         
-        # Diagnostic: Check what level was actually set
-        root_logger = logging.getLogger()
-        print(f"DEBUG: After setup_logging - Root logger level: {root_logger.level} (requested: {log_level})")
+            # Check for log level override from environment
+            override_log_level = os.getenv('OVERRIDE_LOG_LEVEL')
+            if override_log_level:
+                override_numeric_level = getattr(logging, override_log_level.upper(), None)
+                if override_numeric_level is not None:
+                    root_logger = logging.getLogger()
+                    root_logger.setLevel(override_numeric_level)
+                    print(f"Log level overridden by environment variable: {override_log_level}")
+                else:
+                    print(f"Warning: Invalid log level override '{override_log_level}', ignoring")
         
-        # Check for log level override from environment
-        override_log_level = os.getenv('OVERRIDE_LOG_LEVEL')
-        if override_log_level:
-            override_numeric_level = getattr(logging, override_log_level.upper(), None)
-            if override_numeric_level is not None:
-                root_logger = logging.getLogger()
-                root_logger.setLevel(override_numeric_level)
-                print(f"Log level overridden by environment variable: {override_log_level}")
+            # Apply logger-specific configuration
+            if system_config.loggers:
+                for logger_name, logger_level in system_config.loggers.items():
+                    specific_logger = logging.getLogger(logger_name)
+                    specific_level = getattr(logging, logger_level.upper(), logging.INFO)
+                    specific_logger.setLevel(specific_level)
+                    logging.info(f"Set logger {logger_name} to level {logger_level}")
+        
+            logger = logging.getLogger(__name__)
+            logger.info("Starting MQTT Web Service")
+        
+            # Initialize state store after config but before device manager
+            db_path = Path(system_config.persistence.db_path)
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            state_store = SQLiteStateStore(db_path=str(db_path))
+            await state_store.initialize()
+            logger.info(f"State persistence initialized with SQLite at {db_path}")
+        
+            # Initialize MQTT client first
+            mqtt_broker_config = system_config.mqtt_broker
+        
+            # Check if maintenance is enabled and create guard if needed
+            maintenance_guard = None
+            if config_manager.is_maintenance_enabled():
+                maintenance_config = config_manager.get_maintenance_config()
+                assert maintenance_config is not None, "is_maintenance_enabled() implies non-None config"
+                logger.info(f"Maintenance is enabled - creating WirenboardMaintenanceGuard with duration={maintenance_config.duration}s, topic={maintenance_config.topic}")
+                maintenance_guard = WirenboardMaintenanceGuard(
+                    duration=maintenance_config.duration,
+                    topic=maintenance_config.topic
+                )
             else:
-                print(f"Warning: Invalid log level override '{override_log_level}', ignoring")
-        
-        # Apply logger-specific configuration
-        if system_config.loggers:
-            for logger_name, logger_level in system_config.loggers.items():
-                specific_logger = logging.getLogger(logger_name)
-                specific_level = getattr(logging, logger_level.upper(), logging.INFO)
-                specific_logger.setLevel(specific_level)
-                logging.info(f"Set logger {logger_name} to level {logger_level}")
-        
-        logger = logging.getLogger(__name__)
-        logger.info("Starting MQTT Web Service")
-        
-        # Initialize state store after config but before device manager
-        db_path = Path(system_config.persistence.db_path)
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-        state_store = SQLiteStateStore(db_path=str(db_path))
-        await state_store.initialize()
-        logger.info(f"State persistence initialized with SQLite at {db_path}")
-        
-        # Initialize MQTT client first
-        mqtt_broker_config = system_config.mqtt_broker
-        
-        # Check if maintenance is enabled and create guard if needed
-        maintenance_guard = None
-        if config_manager.is_maintenance_enabled():
-            maintenance_config = config_manager.get_maintenance_config()
-            assert maintenance_config is not None, "is_maintenance_enabled() implies non-None config"
-            logger.info(f"Maintenance is enabled - creating WirenboardMaintenanceGuard with duration={maintenance_config.duration}s, topic={maintenance_config.topic}")
-            maintenance_guard = WirenboardMaintenanceGuard(
-                duration=maintenance_config.duration,
-                topic=maintenance_config.topic
-            )
-        else:
-            logger.info("Maintenance is disabled - no maintenance guard will be used")
+                logger.info("Maintenance is disabled - no maintenance guard will be used")
             
-        mqtt_client = MQTTClient({
-            'host': mqtt_broker_config.host,
-            'port': mqtt_broker_config.port,
-            'client_id': mqtt_broker_config.client_id,
-            'keepalive': mqtt_broker_config.keepalive,
-            'auth': mqtt_broker_config.auth
-        }, maintenance_guard=maintenance_guard)
+            mqtt_client = MQTTClient({
+                'host': mqtt_broker_config.host,
+                'port': mqtt_broker_config.port,
+                'client_id': mqtt_broker_config.client_id,
+                'keepalive': mqtt_broker_config.keepalive,
+                'auth': mqtt_broker_config.auth
+            }, maintenance_guard=maintenance_guard)
 
-        # Problem-report evidence rings (problem_reports_bridge.md B-2): always on,
-        # in-memory, dumped only into report bundles / the evidence endpoint.
-        reports_cfg = system_config.reports
-        dispatch_ring = DispatchRing(depth=reports_cfg.dispatch_ring_depth)
-        mqtt_window = MqttWindow(
-            max_age_s=reports_cfg.mqtt_window_seconds,
-            max_entries=reports_cfg.mqtt_window_max_messages,
-        )
-        mqtt_client.traffic_observer = mqtt_window.record
-        
-        # Initialize device manager with state repository
-        device_manager = DeviceManager(state_repository=state_store)
-        await device_manager.load_device_modules()
-        
-        # Log the number of typed configurations
-        typed_configs = config_manager.get_all_typed_configs()
-        if typed_configs:
-            logger.info(f"Using {len(typed_configs)} typed device configurations")
-        
-        # Create WB virtual device service BEFORE initializing devices so device
-        # constructors receive it -- WB-passthrough devices' setup() needs both
-        # `mqtt_client` (to subscribe to state_topic + meta/error) and the service to
-        # decide whether to register the WB virtual device (which they skip via
-        # `enable_wb_emulation=False`).
-        wb_service = WBVirtualDeviceService(message_bus=mqtt_client)
-        logger.info("Created WB virtual device service")
-        device_manager.set_runtime_services(mqtt_client=mqtt_client, wb_service=wb_service)
-
-        # Initialize devices using typed configurations only
-        await device_manager.initialize_devices(config_manager.get_all_device_configs())
-
-        # Wire the SSE event-publisher port + safety-net `mqtt_client` / `wb_service`
-        # assignments (already set in the constructor; idempotent here).
-        # device_manager.devices values are DevicePort by contract -- at runtime
-        # every shipped impl is BaseDevice (which has these attributes). app/
-        # is the composition root, allowed to know infrastructure types; cast
-        # to BaseDevice so pyright sees the BaseDevice attribute surface.
-        from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice as _BaseDevice  # local: keep domain/ import-pure
-        for device_id, port_device in device_manager.devices.items():
-            device = cast(_BaseDevice, port_device)
-            device.mqtt_client = mqtt_client
-            device.wb_service = wb_service
-            device.event_publisher = sse_manager  # SSE fan-out via EventPublisherPort
-            device.dispatch_ring = dispatch_ring  # problem-report evidence (B-2)
-            logger.info(f"Device {device_id} initialized with typed configuration and WB service")
-
-        # Attach Layer 1 capability maps from config/capabilities/ (hot-fixable JSON).
-        attach_capability_maps(device_manager.devices, Path(config_manager.config_dir) / "capabilities")
-        logger.info("Attached capability maps to devices")
-
-        _exposure_violations = validate_command_exposure(device_manager.devices)
-        if _exposure_violations:
-            logger.warning(
-                "Command-exposure check: %d command(s) are `exposed` but not capability-backed "
-                "(they will be invisible in Layer-3 manifests — mark `exposed: false` or add a "
-                "capability): %s",
-                len(_exposure_violations), ", ".join(sorted(_exposure_violations)),
+            # Problem-report evidence rings (problem_reports_bridge.md B-2): always on,
+            # in-memory, dumped only into report bundles / the evidence endpoint.
+            reports_cfg = system_config.reports
+            dispatch_ring = DispatchRing(depth=reports_cfg.dispatch_ring_depth)
+            mqtt_window = MqttWindow(
+                max_age_s=reports_cfg.mqtt_window_seconds,
+                max_entries=reports_cfg.mqtt_window_max_messages,
             )
-        else:
-            logger.info(
-                "Command-exposure check: OK (every device command is exposed:false or capability-backed)"
-            )
-
-        # Persisted device state is restored inside initialize_devices(), per device BEFORE
-        # its setup() — it must precede the post-setup initial persist, which would otherwise
-        # clobber the last-good snapshot with boot defaults. (Replaces the old
-        # device_manager.initialize() restore stub that ran here, too late.)
-
-        # Get topics for all devices
-        device_topics: dict[str, list[str]] = {}
-        for device_id, device in device_manager.devices.items():
-            topics = device.subscribe_topics()
-            device_topics[device_id] = topics
-            logger.info(f"Device {device_id} subscribed to topics: {topics}")
-
-        # Connect MQTT client. Filter out any None handlers
-        # (get_message_handler returns Optional; skip the missing ones rather
-        # than passing them down).
-        handler_map: dict[str, Callable[..., Any]] = {}
-        for device_id, topics in device_topics.items():
-            handler = device_manager.get_message_handler(device_id)
-            if handler is None:
-                continue
-            for topic in topics:
-                handler_map[topic] = handler
-        await mqtt_client.connect_and_subscribe(handler_map)
+            mqtt_client.traffic_observer = mqtt_window.record
         
-        # Wait for MQTT connection to be fully established
-        logger.info("Waiting for MQTT connection to be established...")
-        connection_success = await mqtt_client.wait_for_connection(timeout=30.0)
-        if not connection_success:
-            logger.error("Failed to establish MQTT connection within timeout - WB emulation will be skipped")
-        else:
-            logger.info("MQTT connection established successfully")
-            
-            # Now that MQTT is connected, set up Wirenboard virtual device emulation for all devices
-            logger.info("Setting up Wirenboard virtual device emulation...")
+            # Initialize device manager with state repository
+            device_manager = DeviceManager(state_repository=state_store)
+            await device_manager.load_device_modules()
+        
+            # Log the number of typed configurations
+            typed_configs = config_manager.get_all_typed_configs()
+            if typed_configs:
+                logger.info(f"Using {len(typed_configs)} typed device configurations")
+        
+            # Create WB virtual device service BEFORE initializing devices so device
+            # constructors receive it -- WB-passthrough devices' setup() needs both
+            # `mqtt_client` (to subscribe to state_topic + meta/error) and the service to
+            # decide whether to register the WB virtual device (which they skip via
+            # `enable_wb_emulation=False`).
+            wb_service = WBVirtualDeviceService(message_bus=mqtt_client)
+            logger.info("Created WB virtual device service")
+            device_manager.set_runtime_services(mqtt_client=mqtt_client, wb_service=wb_service)
+
+            # Initialize devices using typed configurations only
+            await device_manager.initialize_devices(config_manager.get_all_device_configs())
+
+            # Wire the SSE event-publisher port + safety-net `mqtt_client` / `wb_service`
+            # assignments (already set in the constructor; idempotent here).
+            # device_manager.devices values are DevicePort by contract -- at runtime
+            # every shipped impl is BaseDevice (which has these attributes). app/
+            # is the composition root, allowed to know infrastructure types; cast
+            # to BaseDevice so pyright sees the BaseDevice attribute surface.
+            from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice as _BaseDevice  # local: keep domain/ import-pure
             for device_id, port_device in device_manager.devices.items():
                 device = cast(_BaseDevice, port_device)
+                device.mqtt_client = mqtt_client
+                device.wb_service = wb_service
+                device.event_publisher = sse_manager  # SSE fan-out via EventPublisherPort
+                device.dispatch_ring = dispatch_ring  # problem-report evidence (B-2)
+                logger.info(f"Device {device_id} initialized with typed configuration and WB service")
+
+            # Attach Layer 1 capability maps from config/capabilities/ (hot-fixable JSON).
+            attach_capability_maps(device_manager.devices, Path(config_manager.config_dir) / "capabilities")
+            logger.info("Attached capability maps to devices")
+
+            _exposure_violations = validate_command_exposure(device_manager.devices)
+            if _exposure_violations:
+                logger.warning(
+                    "Command-exposure check: %d command(s) are `exposed` but not capability-backed "
+                    "(they will be invisible in Layer-3 manifests — mark `exposed: false` or add a "
+                    "capability): %s",
+                    len(_exposure_violations), ", ".join(sorted(_exposure_violations)),
+                )
+            else:
+                logger.info(
+                    "Command-exposure check: OK (every device command is exposed:false or capability-backed)"
+                )
+
+            # Persisted device state is restored inside initialize_devices(), per device BEFORE
+            # its setup() — it must precede the post-setup initial persist, which would otherwise
+            # clobber the last-good snapshot with boot defaults. (Replaces the old
+            # device_manager.initialize() restore stub that ran here, too late.)
+
+            # Get topics for all devices
+            device_topics: dict[str, list[str]] = {}
+            for device_id, device in device_manager.devices.items():
+                topics = device.subscribe_topics()
+                device_topics[device_id] = topics
+                logger.info(f"Device {device_id} subscribed to topics: {topics}")
+
+            # Connect MQTT client. Filter out any None handlers
+            # (get_message_handler returns Optional; skip the missing ones rather
+            # than passing them down).
+            handler_map: dict[str, Callable[..., Any]] = {}
+            for device_id, topics in device_topics.items():
+                handler = device_manager.get_message_handler(device_id)
+                if handler is None:
+                    continue
+                for topic in topics:
+                    handler_map[topic] = handler
+            await mqtt_client.connect_and_subscribe(handler_map)
+        
+            # Wait for MQTT connection to be fully established
+            logger.info("Waiting for MQTT connection to be established...")
+            connection_success = await mqtt_client.wait_for_connection(timeout=30.0)
+            if not connection_success:
+                logger.error("Failed to establish MQTT connection within timeout - WB emulation will be skipped")
+            else:
+                logger.info("MQTT connection established successfully")
+            
+                # Now that MQTT is connected, set up Wirenboard virtual device emulation for all devices
+                logger.info("Setting up Wirenboard virtual device emulation...")
+                for device_id, port_device in device_manager.devices.items():
+                    device = cast(_BaseDevice, port_device)
+                    try:
+                        await device.setup_wb_emulation_if_enabled()
+                        logger.debug(f"WB emulation setup completed for device {device_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to setup WB emulation for device {device_id}: {str(e)}")
+        
+            # Initialize room manager (after devices are loaded)
+            room_manager = RoomManager(Path(config_manager.config_dir), device_manager)
+        
+            # Initialize scenario manager
+            scenario_manager = ScenarioManager(
+                device_manager=device_manager,
+                room_manager=room_manager,
+                state_repository=state_store,
+                scenario_dir=Path(config_manager.config_dir) / "scenarios"
+            )
+            await scenario_manager.initialize()
+            logger.info("Scenario manager initialized")
+
+            # Scenario <-> Wirenboard integration (SCN-6, canonical_first.md §3-§4): one
+            # Scenario Manager entity per scenario-bearing room. The domain proxy resolves
+            # role -> device at fire time for REST/UI/WB alike; the WB adapter renders each
+            # entity as a «Сценарии» card and keeps its value topic tracking the room slot.
+            scenario_proxy = ScenarioProxy(scenario_manager, device_manager)
+            scenario_wb_adapter = ScenarioWBAdapter(scenario_proxy, wb_service, mqtt_client)
+            if connection_success:
                 try:
-                    await device.setup_wb_emulation_if_enabled()
-                    logger.debug(f"WB emulation setup completed for device {device_id}")
+                    await scenario_wb_adapter.setup()
                 except Exception as e:
-                    logger.error(f"Failed to setup WB emulation for device {device_id}: {str(e)}")
-        
-        # Initialize room manager (after devices are loaded)
-        room_manager = RoomManager(Path(config_manager.config_dir), device_manager)
-        
-        # Initialize scenario manager
-        scenario_manager = ScenarioManager(
-            device_manager=device_manager,
-            room_manager=room_manager,
-            state_repository=state_store,
-            scenario_dir=Path(config_manager.config_dir) / "scenarios"
-        )
-        await scenario_manager.initialize()
-        logger.info("Scenario manager initialized")
+                    logger.error(f"Failed to set up scenario WB cards: {str(e)}")
+            else:
+                logger.warning("MQTT not connected - scenario WB cards skipped")
 
-        # Scenario <-> Wirenboard integration (SCN-6, canonical_first.md §3-§4): one
-        # Scenario Manager entity per scenario-bearing room. The domain proxy resolves
-        # role -> device at fire time for REST/UI/WB alike; the WB adapter renders each
-        # entity as a «Сценарии» card and keeps its value topic tracking the room slot.
-        scenario_proxy = ScenarioProxy(scenario_manager, device_manager)
-        scenario_wb_adapter = ScenarioWBAdapter(scenario_proxy, wb_service, mqtt_client)
-        if connection_success:
-            try:
-                await scenario_wb_adapter.setup()
-            except Exception as e:
-                logger.error(f"Failed to set up scenario WB cards: {str(e)}")
-        else:
-            logger.warning("MQTT not connected - scenario WB cards skipped")
+            # SSE observer on the activation chokepoint: EVERY path (REST, canonical
+            # scenario.set, restore, deactivate) notifies the scenarios channel, so an
+            # open scenario page goes live regardless of who switched. (Rack finding
+            # 2026-07-07: the canonical path — the UI's PRIMARY path since UI-9 —
+            # emitted nothing; only the legacy REST routers did, and the page stayed
+            # stale until reload.)
+            async def _scenario_sse_observer(room_id: str) -> None:
+                active = scenario_manager.active.get(room_id)
+                payload: Dict[str, Any] = {
+                    "scenario_id": active.scenario_id if active else None,
+                    "room_id": room_id,
+                    "timestamp": datetime.now().isoformat(),
+                }
+                if active is not None:
+                    payload["state"] = scenario_manager.get_scenario_state(active.scenario_id).model_dump()
+                await sse_manager.broadcast(
+                    channel=SSEChannel.SCENARIOS,
+                    event_type="scenario_switched" if active else "scenario_shutdown",
+                    data=payload,
+                )
 
-        # SSE observer on the activation chokepoint: EVERY path (REST, canonical
-        # scenario.set, restore, deactivate) notifies the scenarios channel, so an
-        # open scenario page goes live regardless of who switched. (Rack finding
-        # 2026-07-07: the canonical path — the UI's PRIMARY path since UI-9 —
-        # emitted nothing; only the legacy REST routers did, and the page stayed
-        # stale until reload.)
-        async def _scenario_sse_observer(room_id: str) -> None:
-            active = scenario_manager.active.get(room_id)
-            payload: Dict[str, Any] = {
-                "scenario_id": active.scenario_id if active else None,
-                "room_id": room_id,
-                "timestamp": datetime.now().isoformat(),
-            }
-            if active is not None:
-                payload["state"] = scenario_manager.get_scenario_state(active.scenario_id).model_dump()
-            await sse_manager.broadcast(
-                channel=SSEChannel.SCENARIOS,
-                event_type="scenario_switched" if active else "scenario_shutdown",
-                data=payload,
+            scenario_manager.active_changed_observers.append(_scenario_sse_observer)
+
+            # Problem-report service (problem_reports_bridge.md): the collector behind
+            # POST /reports (filing, opt-in) and GET /reports/evidence (B-11, always on).
+            # Cross-layer inputs go in as callables so the domain service stays import-pure.
+            import platform as _platform
+            assert state_store is not None  # set earlier in this lifespan; narrows for the closure below
+            _report_state_store = state_store
+            report_sink = GitHubReportSink(
+                repo=reports_cfg.repo,
+                token_env=reports_cfg.token_env,
+                spool_dir=Path("data/reports"),
+            )
+            report_service = ReportService(
+                settings=ReportsSettings(
+                    enabled=reports_cfg.enabled,
+                    repo=reports_cfg.repo,
+                    max_reports_per_hour=reports_cfg.max_reports_per_hour,
+                    max_reports_per_day=reports_cfg.max_reports_per_day,
+                    log_file=Path(system_config.log_file) if system_config.log_file else None,
+                ),
+                device_manager=device_manager,
+                scenario_manager=scenario_manager,
+                sink=report_sink,
+                dispatch_ring=dispatch_ring,
+                mqtt_window=mqtt_window,
+                persisted_state=lambda did: _report_state_store.get(f"device:{did}"),
+                system_config=lambda: system_config.model_dump(mode="json"),
+                catalog_version=lambda: build_catalog(device_manager, room_manager, scenario_proxy).version,
+                bridge_version=__version__,
+                platform=f"{_platform.system()}-{_platform.machine()}",
             )
 
-        scenario_manager.active_changed_observers.append(_scenario_sse_observer)
+            # B-7 spool retry: once at startup, then hourly (only meaningful when filing
+            # is enabled — a disabled bridge never spools). (report_retry_task is
+            # predeclared above the try so the failure cleanup can reference it.)
+            if reports_cfg.enabled:
+                async def _report_retry_loop() -> None:
+                    while True:
+                        try:
+                            delivered = await report_sink.retry_spooled()
+                            if delivered:
+                                logger.info(f"Delivered {delivered} spooled problem report(s)")
+                        except Exception as e:
+                            logger.error(f"Spooled-report retry failed: {str(e)}")
+                        await asyncio.sleep(3600)
+                report_retry_task = asyncio.create_task(_report_retry_loop())
 
-        # Problem-report service (problem_reports_bridge.md): the collector behind
-        # POST /reports (filing, opt-in) and GET /reports/evidence (B-11, always on).
-        # Cross-layer inputs go in as callables so the domain service stays import-pure.
-        import platform as _platform
-        assert state_store is not None  # set earlier in this lifespan; narrows for the closure below
-        _report_state_store = state_store
-        report_sink = GitHubReportSink(
-            repo=reports_cfg.repo,
-            token_env=reports_cfg.token_env,
-            spool_dir=Path("data/reports"),
-        )
-        report_service = ReportService(
-            settings=ReportsSettings(
-                enabled=reports_cfg.enabled,
-                repo=reports_cfg.repo,
-                max_reports_per_hour=reports_cfg.max_reports_per_hour,
-                max_reports_per_day=reports_cfg.max_reports_per_day,
-                log_file=Path(system_config.log_file) if system_config.log_file else None,
-            ),
-            device_manager=device_manager,
-            scenario_manager=scenario_manager,
-            sink=report_sink,
-            dispatch_ring=dispatch_ring,
-            mqtt_window=mqtt_window,
-            persisted_state=lambda did: _report_state_store.get(f"device:{did}"),
-            system_config=lambda: system_config.model_dump(mode="json"),
-            catalog_version=lambda: build_catalog(device_manager, room_manager, scenario_proxy).version,
-            bridge_version=__version__,
-            platform=f"{_platform.system()}-{_platform.machine()}",
-        )
+            # Initialize routers with dependencies
+            system.initialize(config_manager, device_manager, mqtt_client, state_store, scenario_manager, room_manager, scenario_proxy)
+            devices.initialize(config_manager, device_manager, mqtt_client, scenario_proxy)
+            mqtt.initialize(mqtt_client)
+            scenarios.initialize(scenario_manager, room_manager, mqtt_client)
+            rooms.initialize(room_manager, device_manager)  # device_manager: VWB-23 group dispatch
+            state.initialize(config_manager, device_manager, state_store, scenario_manager)
+            events.initialize()  # Initialize SSE events router
+            reports.initialize(report_service)
 
-        # B-7 spool retry: once at startup, then hourly (only meaningful when filing
-        # is enabled — a disabled bridge never spools).
-        report_retry_task: asyncio.Task | None = None
-        if reports_cfg.enabled:
-            async def _report_retry_loop() -> None:
-                while True:
-                    try:
-                        delivered = await report_sink.retry_spooled()
-                        if delivered:
-                            logger.info(f"Delivered {delivered} spooled problem report(s)")
-                    except Exception as e:
-                        logger.error(f"Spooled-report retry failed: {str(e)}")
-                    await asyncio.sleep(3600)
-            report_retry_task = asyncio.create_task(_report_retry_loop())
+            logger.info("System startup complete")
 
-        # Initialize routers with dependencies
-        system.initialize(config_manager, device_manager, mqtt_client, state_store, scenario_manager, room_manager, scenario_proxy)
-        devices.initialize(config_manager, device_manager, mqtt_client, scenario_proxy)
-        mqtt.initialize(mqtt_client)
-        scenarios.initialize(scenario_manager, room_manager, mqtt_client)
-        rooms.initialize(room_manager, device_manager)  # device_manager: VWB-23 group dispatch
-        state.initialize(config_manager, device_manager, state_store, scenario_manager)
-        events.initialize()  # Initialize SSE events router
-        reports.initialize(report_service)
+        except Exception:
+            # OPS-8 defensive startup-failure cleanup: the handled cases (device
+            # setup failures, scenario load errors) never reach here — this is the
+            # net for the UNEXPECTED failure that would otherwise leak an open
+            # SQLite handle / connected MQTT client / device sockets into a hung
+            # process. Best-effort release, then re-raise so the process exits
+            # with the real error.
+            logging.getLogger(__name__).exception(
+                "Startup failed — releasing partially initialized resources"
+            )
+            await _release_partial_startup(
+                report_retry_task, device_manager, mqtt_client, state_store
+            )
+            raise
 
-        logger.info("System startup complete")
-        
         yield  # Service is running
         
         # Shutdown
@@ -498,7 +556,23 @@ def create_app() -> FastAPI:
             # Shutdown room manager
             logger.info("Shutting down room manager...")
             await room_manager.shutdown()
-            
+
+            # Mark regular-device WB virtual cards offline (meta/error=offline +
+            # meta/available=0) while MQTT is still connected — scenario cards are
+            # handled by scenario_manager.shutdown() above, but device cards used
+            # to keep their retained available=1 forever, looking live in the WB
+            # UI with the bridge down (OPS-8). Hardware-transparent: this touches
+            # broker metadata only, never the devices.
+            logger.info("Marking WB virtual device cards offline...")
+            for port_device in device_manager.devices.values():
+                wb_dev = cast(_BaseDevice, port_device)
+                try:
+                    await wb_dev.cleanup_wb_device_state()
+                except Exception as e:
+                    logger.warning(
+                        f"WB offline cleanup failed for {wb_dev.device_id}: {e}"
+                    )
+
             # Disconnect MQTT to prevent incoming messages during shutdown
             logger.info("Disconnecting MQTT client...")
             await mqtt_client.disconnect()

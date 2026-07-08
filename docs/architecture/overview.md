@@ -111,10 +111,14 @@ A small set of conventions keeps the hexagon working — none of them are aspira
    discriminated union of state models to `/openapi.json` (the contract the UI
    consumes).
 
-On shutdown: SSE drain, flush pending state persistence, cancel background tasks. The
-scenario and device shutdown is **transparent to the hardware** — it does *not* power
-devices off; that would corrupt the optimistic assumed state the reconciler relies on.
-Powering off is the explicit `deactivate` action.
+On shutdown: SSE drain, flush pending state persistence, cancel background tasks, and
+mark every published WB virtual-device card offline on the broker (so a stopped bridge's
+devices don't keep looking live in the Wirenboard UI). The scenario and device shutdown
+is **transparent to the hardware** — it does *not* power devices off; that would corrupt
+the optimistic assumed state the reconciler relies on. Powering off is the explicit
+`deactivate` action. Startup is symmetric about failure: if it dies partway, the
+already-acquired resources (state store, MQTT connection, device sockets) are released
+before the process exits, rather than leaking into a hung process.
 
 ## Where to go next
 

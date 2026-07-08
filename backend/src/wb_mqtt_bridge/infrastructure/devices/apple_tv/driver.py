@@ -363,17 +363,11 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
             logger.info(f"[{self.device_id}] Updated app list: {len(self._app_list)} apps found.")
             logger.debug(f"[{self.device_id}] App list: {self._app_list}")
         except Exception as e:
-            logger.error(f"[{self.device_id}] Failed to fetch app list: {e}", exc_info=True)
-            # Keep the old list
-            self.update_state(
-                error=f"Failed to update app list: {str(e)}",
-                last_command=LastCommand(
-                    action="update_app_list",
-                    source="system",
-                    timestamp=datetime.now(),
-                    params={"error": str(e)}
-                )
-            )
+            # A failed fetch usually just means the box is asleep/unreachable at
+            # the moment someone queried its apps — not a device fault. Keep the
+            # old list, log at WARNING, and do NOT write state.error (OPS-8: the
+            # ERROR + state.error combo made a sleeping Apple TV look broken).
+            logger.warning(f"[{self.device_id}] Could not fetch app list (device asleep/unreachable?): {e}")
 
     async def handle_refresh_status(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> CommandResult:
         """
