@@ -21,6 +21,19 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-08, evening — Domovoy productization intake accepted (VWB-29, CORE-7, OPS-14, OPS-15,
+  OPS-16 filed)** — the joint productization session (run from `~/development` as both repos' Claude;
+  voice-side BUILD-20, committed there `7214eb7`) left `docs/design/productization_bridge.md` + five
+  proposed ledger entries **uncommitted** per `cross-repo-source-of-truth`. Verified against live code
+  before accepting: contract artifacts + STAMP as described (`contracts/`, commit `7206902`); voice's
+  re-pin to golden `8159b4b0068d1c63` confirmed landed (`eval-commons/contracts/STAMP.json` matches —
+  the stale "voice must re-pin" note is closed); OPS-12/VWB-28 logging facts match their DONE entries;
+  driver wiring is indeed config-name-based (`device_class`/`config_class` in `devices/*.json`);
+  `ledger-guard` job present; `check_scope.py` green with the five in place (109 tasks). All five stay
+  `[P2]` `[deferred]` — nothing enters the release-1 board. Umbrella product name: **Domovoy**. This
+  was the deliberate last use of the uncommitted-filing mechanism — replaced by board-as-outbox once
+  eval-commons becomes `domovoy-commons` (voice BUILD-21).
+
 - **2026-07-08, the cutover (REL-2 DONE — the house is served from the WB7)** — the user drove
   the controller shell, Claude verified over SSH/HTTP from the dev box; the runbook was rebuilt
   in-flight three times as controller reality arrived: (1) the historical runtime tree

@@ -542,6 +542,16 @@ endpoint).
 - [ ] **VWB-16** `[P2]` `[release]` — **Consumer contract test — crafted canonical `DeviceCommand` → native/echo** (cross-project; the consumer half of the bidirectional contract, pairs with `wb-mqtt-voice` TEST-18's producer half). Drive the bridge from the shared **`{utterance → expected canonical command}` crossover fixtures** (using the canonical-command half only — the utterance is Irene's concern): feed each crafted canonical command and assert it dispatches the right native action / value-topic echo, resolved against the **same golden catalog** the voice side tests against (so device-ids/capabilities can't drift apart). Depends on VWB-15's committed artifact.
   - **Sequence-form caveat — RESOLVED 2026-07-04 (VWB-17 DONE):** the canonical endpoint now routes `sequence`-form actions (shared `CapabilityAction.expand()` — per-step param translation, inter-step `delay_after_ms`, mid-sequence failure naming the step). Crossover fixtures may cover sequence-form actions freely.
   - Spec: `wb-mqtt-voice/docs/design/mqtt_integration.md` §14.
+
+- [ ] **VWB-29** `[P2]` `[deferred]` — **Contract release tagging + artifacts** (INTAKE — filed
+  uncommitted 2026-07-08 from the joint productization session, voice BUILD-20; verify per
+  `cross-repo-source-of-truth` before accepting). Make a "contract release" machine-readable for the
+  voice side's scripted re-pin + staleness gate (their BUILD-24, gated on this): on deliberate contract
+  changes, tag `contract-vN` and attach `contracts/` artifacts (openapi, golden catalog, stamp) to a
+  GitHub Release. Recommend deliberate cuts over tag-every-golden-change (additive = minor, breaking =
+  major). Design: `docs/design/productization_bridge.md` §2 + the shared spec
+  `wb-mqtt-voice/docs/design/productization.md` D-11.
+
 ### UI — config-ui
 
 - [ ] **UI-8** `[P2]` `[deferred]` — **UI `vite` 5 → 6 migration (deferred — deliberate major upgrade).** Filed 2026-06-27. Closes the remaining build-toolchain Dependabot alerts that couldn't be cleared by the lockfile-only `npm audit fix` (see journal 2026-06-27): **vite #113/#154/#155** (path traversal / dev-server) and **esbuild #81** (esbuild 0.25 rides vite 6). Does **NOT** cover the other 2 residual alerts — `minimatch` #101 (pinned by `@typescript-eslint@6`) and `js-yaml` #152 (pinned by `jest@29`); those are separate toolchain-major tasks (eslint 6→9 / jest upgrade), file them if/when pursued.
@@ -616,6 +626,32 @@ endpoint).
   toolchain major adds confounders right when the rack sessions need a stable build (OPS-7's
   standing rule: bump build-chain deps only for a CVE in the actual runtime path).
 
+- [ ] **OPS-14** `[P2]` `[deferred]` — **Adopt the shared logging package from
+  `domovoy-commons/packages/core-py`, replacing the OPS-12 local implementation** (INTAKE — filed
+  uncommitted 2026-07-08, joint productization session; verify before accepting). OPS-12's scheme
+  (startup rollover `service.log.<stamp>.log`, midnight rotation, 30-day prune) was hand-ported to the
+  voice repo as their BUG-30 — two copies by design review. The voice side designs the extracted
+  surface (their ARCH-43; this repo's VWB-28 evidence-glob compatibility is input to that design);
+  this task swaps the local implementation for the package. Gated on the commons restructuring (voice
+  BUILD-21) + ARCH-43. Design: `docs/design/productization_bridge.md` §2, shared spec D-8.
+
+- [ ] **OPS-15** `[P2]` `[deferred]` — **Ops-spec conformance pass** (INTAKE — filed uncommitted
+  2026-07-08, joint productization session; verify before accepting). Once the normative ops spec
+  exists in `domovoy-commons/process/` (shared spec D-12 — largely codifying THIS repo's REL-2 layout
+  as the reference pattern): walk `ops/` (update.sh shape, INSTALL.md structure, unit file, retention
+  constants, naming) against the conformance checklist; fix dialects or record deliberate deviations
+  in the spec. Sibling of the voice repo's narrowed BUILD-18. Design:
+  `docs/design/productization_bridge.md` §2.
+
+- [ ] **OPS-16** `[P2]` `[deferred]` — **Shared CLAUDE.md invariant blocks + drift guard — bridge-side
+  adoption** (INTAKE — filed uncommitted 2026-07-08, joint productization session; verify before
+  accepting). Fence the shared invariants in CLAUDE.md between markers (normative source:
+  `domovoy-commons/process/`), keep bridge-local ones outside, adopt the drift-guard script beside
+  `check_scope.py` in the `ledger-guard` CI job, and take the same-slug renames — `config-master-canonical`
+  means the OPPOSITE here vs the voice repo (JSON tree vs single TOML); it splits into two
+  differently-named invariants (drift inventory: shared spec §2). Gated on the commons PROD task
+  authoring the blocks. Design: `docs/design/productization_bridge.md` §2.
+
 ### CORE — Backend core / architecture
 
 - [ ] **CORE-1** `[P2]` `[deferred]` `HW-GATED` — **System-router adapter cleanup — Item A only (Item B DONE 2026-05-26).** Item A: `POST /reload`'s `reload_system_task` constructs + drives a concrete `MQTTClient` inline; extract an application-layer reload service (e.g. `app/reload_service.py`) so the router stays a thin adapter. **Gated on hardware** — touches the live MQTT-reconnect path; can't be safely HW-verified without you at the rack. **Completion goal = 100% clean hexagon (explicit, added 2026-07-07):** this task owns the **only** `ignore_imports` exception in the import-linter config (`presentation.api.routers.system -> infrastructure.mqtt.client`, backend `pyproject.toml`); done means (1) the reload service extracted and the back-edge gone from the code, (2) the **`ignore_imports` entry deleted** — the contract set (6 since CORE-6) passes with **zero exceptions**, (3) the "one documented exception" passages updated in `docs/architecture/overview.md` + the contract name/comment in `pyproject.toml` + the [[hexagonal-layering]] memory, (4) HW-verified at the rack: `POST /reload` still reconnects cleanly against the live broker. Item B (response DTO for `/config/system`) done in `73ee8d5` — new presentation `SystemConfigResponse` + nested DTOs; wire shape field-identical; `presentation/api/schemas.py` no longer imports the infra `SystemConfig`.
@@ -646,6 +682,15 @@ endpoint).
   but misplaced) — fold or delete it in the same pass. Align with `eval/README.md`'s note that
   `device-test <id> <command>` is a wanted future eval CLI surface (needs MQTT). Post-release: the
   DRV-1/SCN rack passes run off the UI + eval suite; this tool is a developer convenience, not a gate.
+
+- [ ] **CORE-7** `[P2]` `[deferred]` — **Adopt the shared dynamic code loader from
+  `domovoy-commons/packages/core-py`** (INTAKE — filed uncommitted 2026-07-08, joint productization
+  session; verify before accepting). The user wants the voice repo's loader pattern for the bridge
+  (driver/module loading). Gated on the voice-side extraction design (their ARCH-42) + the core-py
+  package existing (voice BUILD-21). At task start: reconcile against the bridge's actual loading
+  needs (driver classes are wired via config `class` names today) and verify the extracted surface
+  fits the hexagon — loader = infrastructure concern behind a port, no new cross-layer imports
+  (`hexagonal-architecture`). Design: `docs/design/productization_bridge.md` §2, shared spec D-8.
 
 **The ledger & documentation reconciliation series (DOC-4…DOC-10).** Filed 2026-06-30 from two
 chat-requested analyses: (1) a comparison of this plan's former positional `P0…P4 / #n` numbering
