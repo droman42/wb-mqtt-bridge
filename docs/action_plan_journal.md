@@ -21,6 +21,29 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-08 (DRV-5 DONE + SCN-11 filed — the force escape hatch, UX pinned interactively)** —
+  the desk session opened the release board's software half. UX discussion first (user-driven):
+  the plan's arm-checkbox sketch lost to **reactive re-tap** — a guarded skip now returns a
+  structured marker (`data={no_op, skipped_reason:"idempotence"}` via the new
+  `BaseDevice.idempotence_skip(...)` chokepoint), the UI arms an 8 s "tap again to send anyway"
+  offer (amber banner + button pulse), and the re-tap re-sends with the reserved `force` param —
+  no manifest/capability-map coupling at all, the skip response is the signal. All 9 idempotence
+  guard sites converted (IR power pair = the HIGH-value desync trap; eMotiva ×5 incl. the ARC
+  power-cycle guard; Auralic; LG); `_resolve_and_validate_params` preserves `force` alongside
+  declared params; `CanonicalActionResponse.skipped_reason` added and threaded through `wait:false`.
+  **Bonus fix:** `wait:true` canonical on an already-at-target guarded device no longer 503s (the
+  skips now set `no_op`, so the short-circuit fires — voice «включи» on an already-on IR device).
+  Suite **636** (+13: per-guard regressions + 2 route tests), pyright 0, contracts 6/6, UI
+  check+build, eval cli 4/4; OpenAPI + UI types regenerated; docs updated (`ui_backend_contract.md`
+  force section; `devices-and-scenarios.md`/`ui.md` — the promised "manual resync button" is now
+  real, described as shipped). **Also this session:** the user re-scoped the feature as primarily
+  a *scenario* symptom → **SCN-11 filed `[P1] [release]`** (per-device force-reconcile dialog on
+  the active scenario page: believed-vs-desired table from a pure `build_plan` preview,
+  expand-then-confirm rows, single-device forced plan, `assume_state` toggle-claim correction) —
+  next up, right after this. DRV-5's "no scenario-level force" non-goal amended: the blanket flag
+  stays rejected, SCN-11 is the user-mediated precision variant. Commits `22dfa5e` (filing),
+  `ab7eb6c` (implementation), + the ledger move.
+
 - **2026-07-07 (DRV-18 DONE, DRV-19/20 filed — the Zappiti design, the night half)** — a browser
   design session produced `docs/design/zappiti-driver-spec.md`; verified per the cross-repo intake
   rule (all §14 reuse claims real in `zappiti_updater`; the "Peewee matches the bridge stack" claim
