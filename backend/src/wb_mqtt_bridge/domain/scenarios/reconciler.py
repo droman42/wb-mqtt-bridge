@@ -166,37 +166,53 @@ def _state_value(state: Any, field_name: Optional[str]) -> Any:
     return getattr(state, field_name, None) if field_name else None
 
 
-def _power_actions(device_id, cap, state, warnings) -> List[PlannedAction]:
-    """Emit power actions to bring a device ON (multi-zone aware, toggle aware)."""
+def _power_actions(device_id, cap, state, warnings, force: bool = False) -> List[PlannedAction]:
+    """Emit power actions to bring a device ON (multi-zone aware, toggle aware).
+
+    ``force`` (SCN-11): skip the believed-vs-target diff — emit unconditionally toward
+    the target — and inject the reserved ``force`` param so driver idempotence guards
+    don't re-swallow the command. Toggle-only power additionally carries
+    ``assume_state`` = the plan target: a forced toggle must claim the *target* state
+    afterwards, not blind-flip the (possibly wrong) belief — otherwise forcing a
+    desynced toggle device recreates the desync mirrored.
+    """
     out: List[PlannedAction] = []
     gate = cap.gate
 
     if cap.zones:
         for zone_key, zone in cap.zones.items():
-            if _state_value(state, zone.state_field) == zone.on_value:
+            if not force and _state_value(state, zone.state_field) == zone.on_value:
                 continue
             act = zone.actions.get("on")
             if not act:
                 warnings.append(f"{device_id} power zone {zone_key} has no 'on' action")
                 continue
+            params = dict(act.params)
+            if force:
+                params["force"] = True
             out.append(PlannedAction(
                 device_id=device_id, domain="power", target=zone.on_value,
-                command=act.command, params=dict(act.params), feedback=cap.feedback,
+                command=act.command, params=params, feedback=cap.feedback,
                 state_field=zone.state_field, poll_timeout_ms=gate.poll_timeout_ms,
                 delay_ms=gate.delay_ms, zone=zone_key, reason=f"power zone {zone_key} on",
             ))
         return out
 
-    if _state_value(state, cap.state_field) == cap.on_value:
+    if not force and _state_value(state, cap.state_field) == cap.on_value:
         return out
     act = cap.actions.get("on") or cap.actions.get("toggle")
     if not act:
         warnings.append(f"{device_id} power has no 'on' or 'toggle' action")
         return out
     is_toggle = "on" not in cap.actions and "toggle" in cap.actions
+    params = dict(act.params)
+    if force:
+        params["force"] = True
+        if is_toggle:
+            params["assume_state"] = cap.on_value
     out.append(PlannedAction(
         device_id=device_id, domain="power", target=cap.on_value,
-        command=act.command, params=dict(act.params), feedback=cap.feedback,
+        command=act.command, params=params, feedback=cap.feedback,
         state_field=cap.state_field, poll_timeout_ms=gate.poll_timeout_ms,
         delay_ms=gate.delay_ms, reason="power on (toggle)" if is_toggle else "power on",
     ))
@@ -263,8 +279,8 @@ def build_power_off_plan(device_ids, devices: Dict[str, Any]) -> ReconcilePlan:
     return plan
 
 
-def _input_action(device_id, cap, state, target_value, warnings) -> Optional[PlannedAction]:
-    if _state_value(state, cap.state_field) == target_value:
+def _input_action(device_id, cap, state, target_value, warnings, force: bool = False) -> Optional[PlannedAction]:
+    if not force and _state_value(state, cap.state_field) == target_value:
         return None
     sel = cap.select
     if sel is None:
@@ -285,6 +301,8 @@ def _input_action(device_id, cap, state, target_value, warnings) -> Optional[Pla
         )
         return None
     command, params = steps[0].command, dict(steps[0].params)
+    if force:
+        params["force"] = True  # SCN-11: bypass driver idempotence guards
 
     return PlannedAction(
         device_id=device_id, domain="input", target=target_value, command=command,
@@ -423,6 +441,132 @@ def build_plan(scenario, topology: Topology, devices: Dict[str, Any]) -> Reconci
 
     plan.actions = _order(raw, topology)
     return plan
+
+
+# --- SCN-11: per-device force-reconcile (user-mediated desync repair) ---------
+
+
+def _device_input_target(device_id, cap_map, input_targets, source_targets):
+    """The device's resolved input target, honoring the dst-wins + source_modes opt-in
+    rules build_plan applies. None when the device has no (reconcilable) input target."""
+    input_cap = cap_map.get("input")
+    if input_cap is None or not input_cap.reconcile:
+        return None, None
+    if device_id in input_targets:
+        return input_cap, input_targets[device_id]
+    if device_id in source_targets:
+        src_port = source_targets[device_id]
+        if input_cap.source_modes is not None and src_port in input_cap.source_modes:
+            return input_cap, src_port
+    return None, None
+
+
+def build_forced_device_plan(scenario, topology: Topology, devices: Dict[str, Any], device_id: str) -> ReconcilePlan:
+    """Single-device FORCED plan (SCN-11): emit the device's power + input actions
+    unconditionally toward the scenario targets — the believed-vs-desired diff is
+    deliberately skipped, because the whole point is that the belief may be wrong and
+    the user (standing in the room) is the feedback channel. Each action carries the
+    reserved ``force`` param (bypasses driver idempotence guards, DRV-5) and toggles
+    carry ``assume_state`` (claim the target, don't blind-flip).
+
+    Ordered through the same ``_order`` as a full plan; cross-device ordering edges
+    drop out *correctly* — ``_order`` only applies an edge when both endpoints are in
+    the plan, and the other devices are presumed already settled.
+    """
+    plan = ReconcilePlan()
+    input_targets, source_targets, involved, _manual, _warnings = resolve_targets(scenario, topology)
+
+    if device_id not in involved:
+        plan.warnings.append(f"device '{device_id}' is not involved in this scenario")
+        return plan
+    device = devices.get(device_id)
+    if device is None:
+        plan.warnings.append(f"device '{device_id}' not found")
+        return plan
+    cap_map = getattr(device, "capabilities", None)
+    if cap_map is None:
+        plan.warnings.append(f"device '{device_id}' has no capability map")
+        return plan
+    state = device.get_current_state()
+
+    raw: List[PlannedAction] = []
+    power_cap = cap_map.get("power")
+    if power_cap is not None and power_cap.reconcile:
+        raw.extend(_power_actions(device_id, power_cap, state, plan.warnings, force=True))
+
+    input_cap, target = _device_input_target(device_id, cap_map, input_targets, source_targets)
+    if input_cap is not None and target is not None:
+        action = _input_action(device_id, input_cap, state, target, plan.warnings, force=True)
+        if action is not None:
+            raw.append(action)
+
+    plan.actions = _order(raw, topology)
+    return plan
+
+
+@dataclass
+class DomainComparison:
+    """Believed vs desired for one capability domain of one device."""
+
+    domain: str  # "power" | "input"
+    believed: Any
+    desired: Any
+    in_sync: bool
+
+
+@dataclass
+class DevicePreview:
+    """One row of the force-reconcile dialog: what the bridge believes vs what the
+    active scenario wants, plus the forced plan a confirm would run. NB the inversion:
+    an ``in_sync`` row is exactly where force exists — "in sync" only means the
+    *believed* state matches; the user may be looking at a device that disagrees."""
+
+    device_id: str
+    comparisons: List[DomainComparison] = field(default_factory=list)
+    in_sync: bool = True
+    plan: ReconcilePlan = field(default_factory=ReconcilePlan)
+
+
+def build_reconcile_preview(scenario, topology: Topology, devices: Dict[str, Any]) -> List[DevicePreview]:
+    """Per-device believed-vs-desired rows for the active scenario (SCN-11). Pure —
+    reads capability maps + assumed state, mutates nothing."""
+    input_targets, source_targets, involved, _manual, _warnings = resolve_targets(scenario, topology)
+    previews: List[DevicePreview] = []
+
+    for device_id in sorted(involved):
+        device = devices.get(device_id)
+        if device is None:
+            continue
+        cap_map = getattr(device, "capabilities", None)
+        if cap_map is None:
+            continue
+        state = device.get_current_state()
+        comparisons: List[DomainComparison] = []
+
+        power_cap = cap_map.get("power")
+        if power_cap is not None and power_cap.reconcile:
+            if power_cap.zones:
+                believed: Any = {
+                    zk: _state_value(state, z.state_field) for zk, z in power_cap.zones.items()
+                }
+                desired: Any = {zk: z.on_value for zk, z in power_cap.zones.items()}
+            else:
+                believed = _state_value(state, power_cap.state_field)
+                desired = power_cap.on_value
+            comparisons.append(DomainComparison("power", believed, desired, believed == desired))
+
+        input_cap, target = _device_input_target(device_id, cap_map, input_targets, source_targets)
+        if input_cap is not None and target is not None:
+            believed = _state_value(state, input_cap.state_field)
+            comparisons.append(DomainComparison("input", believed, target, believed == target))
+
+        previews.append(DevicePreview(
+            device_id=device_id,
+            comparisons=comparisons,
+            in_sync=all(c.in_sync for c in comparisons),
+            plan=build_forced_device_plan(scenario, topology, devices, device_id),
+        ))
+    return previews
 
 
 # --- execution ---------------------------------------------------------------

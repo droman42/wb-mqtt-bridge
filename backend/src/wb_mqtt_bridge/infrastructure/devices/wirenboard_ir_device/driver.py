@@ -206,9 +206,16 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
             logger.debug(f"Executing power toggle for {self.device_name}")
             
             try:
-                # Determine new power state (opposite of current)
-                new_power_state = "off" if self.state.power == "on" else "on"
-                
+                # Determine new power state (opposite of current). A forced reconcile
+                # (SCN-11) passes `assume_state` = the plan target: when the belief is
+                # wrong, blind-flipping it would recreate the desync mirrored — the
+                # caller KNOWS which state the toggle lands on, so claim that instead.
+                assume_state = (params or {}).get("assume_state")
+                if assume_state in ("on", "off"):
+                    new_power_state = assume_state
+                else:
+                    new_power_state = "off" if self.state.power == "on" else "on"
+
                 # Execute the IR command
                 result = await self._execute_ir_command(action_name, original_cmd_config, params)
                 

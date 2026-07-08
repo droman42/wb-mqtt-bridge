@@ -546,3 +546,108 @@ def test_power_off_keeps_string_off_for_string_fields():
     plan = build_power_off_plan(["living_room_tv"], devices)
     tv = [a for a in plan.actions if a.device_id == "living_room_tv"][0]
     assert tv.target == "off"
+
+
+# --- SCN-11: forced single-device plan + reconcile preview -------------------
+
+
+from wb_mqtt_bridge.domain.scenarios.reconciler import (  # noqa: E402
+    build_forced_device_plan,
+    build_reconcile_preview,
+)
+
+
+def _movie_zappiti_devices():
+    return {
+        "video": _device("WirenboardIRDevice", "video", input=None),
+        "processor": _device("EMotivaXMC2", "processor", zone2_power=None, input_source=None),
+        "living_room_tv": _device("LgTv", "living_room_tv", input_source=None),
+        "mf_amplifier": _device("WirenboardIRDevice", "mf_amplifier", input=None),
+    }
+
+
+def test_forced_plan_emits_despite_satisfied_state():
+    """The core SCN-11 inversion: a device the reconciler calls already_satisfied gets a
+    full forced chain anyway — 'satisfied' only means the BELIEF matches; the user
+    standing in the room is the feedback channel saying it doesn't."""
+    devices = _movie_appletv_devices(
+        mf_amplifier=_device("WirenboardIRDevice", "mf_amplifier", power="on", input="aux2"),
+    )
+    scenario = _scenario("movie_appletv")
+
+    normal = build_plan(scenario, TOPOLOGY, devices)
+    assert _find(normal, "mf_amplifier", "power") is None
+    assert "mf_amplifier.power" in normal.already_satisfied
+
+    forced = build_forced_device_plan(scenario, TOPOLOGY, devices, "mf_amplifier")
+    power = _find(forced, "mf_amplifier", "power")
+    inp = _find(forced, "mf_amplifier", "input")
+    assert power is not None and inp is not None
+    # every forced action bypasses the driver idempotence guards (DRV-5 foundation)
+    assert power.params["force"] is True and inp.params["force"] is True
+    # toggle power claims the plan TARGET, not a blind flip of the (wrong) belief
+    assert power.command == "power" and power.params["assume_state"] == "on"
+    # single-device plan: nothing else rides along
+    assert {a.device_id for a in forced.actions} == {"mf_amplifier"}
+    # within-device ordering preserved (power before input)
+    assert _idx(forced, "mf_amplifier", "power") < _idx(forced, "mf_amplifier", "input")
+
+
+def test_forced_plan_non_toggle_power_carries_no_assume_state():
+    devices = _movie_appletv_devices()
+    forced = build_forced_device_plan(_scenario("movie_appletv"), TOPOLOGY, devices, "living_room_tv")
+    power = _find(forced, "living_room_tv", "power")
+    assert power is not None
+    assert power.params.get("force") is True
+    assert "assume_state" not in power.params
+
+
+def test_forced_plan_drops_cross_device_ordering_edges():
+    """Full movie_zappiti plan: the processor.input -> video.power edge imposes a 5 s
+    settle. The single-device forced plan for `video` presumes the processor already
+    settled long ago — the edge must drop out (its other endpoint isn't in the plan)."""
+    devices = _movie_zappiti_devices()
+    scenario = _scenario("movie_zappiti")
+
+    full = build_plan(scenario, TOPOLOGY, devices)
+    full_video_power = _find(full, "video", "power")
+    assert full_video_power is not None and full_video_power.pre_delay_ms == 5000
+
+    forced = build_forced_device_plan(scenario, TOPOLOGY, devices, "video")
+    forced_video_power = _find(forced, "video", "power")
+    assert forced_video_power is not None and forced_video_power.pre_delay_ms == 0
+    assert {a.device_id for a in forced.actions} == {"video"}
+
+
+def test_forced_plan_uninvolved_device_is_empty_with_warning():
+    devices = _movie_appletv_devices()
+    forced = build_forced_device_plan(_scenario("movie_appletv"), TOPOLOGY, devices, "kitchen_hood")
+    assert forced.actions == []
+    assert any("not involved" in w for w in forced.warnings)
+
+
+def test_reconcile_preview_rows():
+    devices = _movie_appletv_devices(
+        mf_amplifier=_device("WirenboardIRDevice", "mf_amplifier", power="on", input="aux2"),
+    )
+    previews = build_reconcile_preview(_scenario("movie_appletv"), TOPOLOGY, devices)
+    by_id = {p.device_id: p for p in previews}
+
+    # the satisfied amp reads in_sync — yet still carries a forced plan (the inversion)
+    amp = by_id["mf_amplifier"]
+    assert amp.in_sync is True
+    assert all(c.in_sync for c in amp.comparisons)
+    assert amp.plan.actions
+
+    # a cold TV is out of sync on both domains
+    tv = by_id["living_room_tv"]
+    assert tv.in_sync is False
+    doms = {c.domain: c for c in tv.comparisons}
+    assert doms["power"].believed == "off" and doms["power"].desired == "on"
+    assert doms["input"].desired == "hdmi2"
+
+    # eMotiva zoned power: believed/desired are per-zone dicts
+    proc = by_id["processor"]
+    pdom = {c.domain: c for c in proc.comparisons}["power"]
+    assert isinstance(pdom.desired, dict) and isinstance(pdom.believed, dict)
+    assert set(pdom.desired.keys()) == set(pdom.believed.keys())

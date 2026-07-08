@@ -145,6 +145,14 @@ This is what makes scenario pages feel like one Harmony activity: it's a remote
 for the *whole stack*, assembled from the right pieces of each participating
 device's manifest.
 
+While a scenario is running, a small **"Device states…"** button under its remote
+opens a repair dialog: every participating device with what the bridge believes
+its state to be versus what the scenario wants. If a device disagrees with what
+you actually see in the room (someone used its physical remote, it timed out into
+standby), tap its row — it expands to the exact commands and waits that would be
+sent — and confirm to send them anyway, bypassing the "already there" checks. You
+are the feedback channel the one-way devices don't have.
+
 ## Live state — SSE, not polling
 
 `RuntimeDevicePage` opens one SSE connection per page (`GET /events/devices`),

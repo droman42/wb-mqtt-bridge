@@ -1,7 +1,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 
 from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition, ScenarioState, DeviceState, ManualStep
 from wb_mqtt_bridge.domain.scenarios.scenario import Scenario, ScenarioError
@@ -11,8 +11,13 @@ from wb_mqtt_bridge.domain.ports import StateRepositoryPort
 from wb_mqtt_bridge.domain.topology.loader import load_topology
 from wb_mqtt_bridge.domain.topology.models import Topology
 from wb_mqtt_bridge.domain.scenarios.reconciler import (
+    DevicePreview,
+    ExecutionResult,
+    ReconcilePlan,
+    build_forced_device_plan,
     build_plan,
     build_power_off_plan,
+    build_reconcile_preview,
     execute_plan,
     resolve_targets,
 )
@@ -316,6 +321,59 @@ class ScenarioManager:
             "powered_off": sorted(to_power_off),
             "failures": failures,
         }
+
+    # --- SCN-11: per-device force-reconcile (user-mediated desync repair) --------
+
+    def _active_scenario_by_id(self, scenario_id: str) -> Optional[Scenario]:
+        for sc in self.active.values():
+            if sc.scenario_id == scenario_id:
+                return sc
+        return None
+
+    def reconcile_preview(self, scenario_id: str) -> List[DevicePreview]:
+        """Believed-vs-desired rows for every device the ACTIVE scenario involves.
+
+        Active-only by design: the desired state is defined by the *running* scenario
+        (on an inactive scenario the same gesture is just "start it"). Raises
+        ScenarioError('not_active') otherwise.
+        """
+        scenario = self._active_scenario_by_id(scenario_id)
+        if scenario is None:
+            raise ScenarioError(
+                f"Scenario '{scenario_id}' is not active", "not_active", False
+            )
+        return build_reconcile_preview(
+            scenario.definition, self.topology, self.device_manager.devices
+        )
+
+    async def force_reconcile_device(
+        self, scenario_id: str, device_id: str
+    ) -> Tuple[ReconcilePlan, ExecutionResult]:
+        """Force ONE device into the active scenario's desired state (SCN-11).
+
+        Builds the single-device forced plan (diff skipped, ``force`` injected,
+        toggles claim their target via ``assume_state``) and runs it through the
+        normal executor — per-capability gates and polls included. The user picking
+        the row is the feedback channel the optimistic model lacks.
+        """
+        scenario = self._active_scenario_by_id(scenario_id)
+        if scenario is None:
+            raise ScenarioError(
+                f"Scenario '{scenario_id}' is not active", "not_active", False
+            )
+        devices = self.device_manager.devices
+        plan = build_forced_device_plan(
+            scenario.definition, self.topology, devices, device_id
+        )
+        if not plan.actions:
+            reason = "; ".join(plan.warnings) or f"no reconcilable actions for '{device_id}'"
+            raise ScenarioError(reason, "nothing_to_force", False)
+        logger.info(
+            "force-reconcile '%s' in scenario '%s': %d action(s)",
+            device_id, scenario_id, len(plan.actions),
+        )
+        result = await execute_plan(plan, devices)
+        return plan, result
 
     async def execute_role_action(self, role: str, command: str, params: Dict[str, Any]) -> Any:
         """

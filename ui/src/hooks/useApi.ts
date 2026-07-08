@@ -17,6 +17,8 @@ import type {
   DeviceState,
   MQTTPublishResponse,
   PersistedStatesResponse,
+  ReconcilePreviewResponse,
+  ForceReconcileResponse,
 } from '../types/api';
 import { BaseDeviceState } from '../types/BaseDeviceState';
 import { collectUiEvidence, recordApiCall } from '../lib/reportEvidence';
@@ -360,6 +362,34 @@ export const useShutdownScenario = () => {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['scenario', 'state'] });
       void queryClient.invalidateQueries({ queryKey: ['devices'] });
+    },
+  });
+};
+
+// SCN-11: the scenario force-reconcile dialog. The preview is a pure read
+// (believed-vs-desired per involved device + the forced chain a confirm would run);
+// `enabled` gates it to the dialog being open on the ACTIVE scenario (409 otherwise).
+export const useReconcilePreview = (scenarioId: string, enabled: boolean) => {
+  return useQuery({
+    queryKey: ['scenario', scenarioId, 'reconcile-preview'],
+    queryFn: () =>
+      api.get<ReconcilePreviewResponse>(`/scenario/${scenarioId}/reconcile_preview`).then(res => res.data),
+    enabled: enabled && !!scenarioId,
+    staleTime: 0, // believed state moves under us — refetch on every dialog open
+  });
+};
+
+// Forces ONE device into the active scenario's desired state (diff skipped, driver
+// idempotence guards bypassed, toggles claim their target). The call runs the device's
+// full gated chain server-side — worst case a poll timeout, so it can take seconds.
+export const useForceReconcileDevice = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ scenarioId, deviceId }: { scenarioId: string; deviceId: string }) =>
+      api.post<ForceReconcileResponse>(`/scenario/${scenarioId}/force_reconcile`, { device_id: deviceId }).then(res => res.data),
+    onSuccess: (_resp, { scenarioId, deviceId }) => {
+      void queryClient.invalidateQueries({ queryKey: ['scenario', scenarioId, 'reconcile-preview'] });
+      void queryClient.invalidateQueries({ queryKey: ['devices', deviceId, 'state'] });
     },
   });
 };

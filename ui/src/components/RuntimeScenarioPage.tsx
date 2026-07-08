@@ -5,12 +5,13 @@
 // tuple and the BRIDGE resolves role -> device at fire time (no stale-manifest targeting).
 // Controls without a canonical annotation (e.g. list queries) fall back to the legacy
 // per-device /action dispatch via sourceDeviceId.
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLogStore } from '../stores/useLogStore';
 import { useExecuteCanonicalAction, useExecuteDeviceAction, useScenarioLayout, useScenarioState, useSwitchScenario, useShutdownScenario } from '../hooks/useApi';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import { useRoomStore } from '../stores/useRoomStore';
 import { RemoteControlLayout } from './RemoteControlLayout';
+import { ForceReconcileDialog } from './ForceReconcileDialog';
 import { manifestToDeviceStructure } from '../lib/layoutManifestAdapter';
 
 export function RuntimeScenarioPage({ scenarioId }: { scenarioId: string }) {
@@ -31,6 +32,9 @@ export function RuntimeScenarioPage({ scenarioId }: { scenarioId: string }) {
   // Layout.tsx. See ui_backend_contract.md "Scenario lifecycle (power zone) active-state".
   const { data: activeScenarioState } = useScenarioState();
   const lifecycleActive = activeScenarioState?.scenario_id === scenarioId;
+  // SCN-11: the per-device force-reconcile dialog — active scenario only (the desired
+  // state is defined by the RUNNING scenario; on an inactive page the gesture is "start").
+  const [reconcileOpen, setReconcileOpen] = useState(false);
 
   useEffect(() => {
     selectScenario(scenarioId);
@@ -151,6 +155,21 @@ export function RuntimeScenarioPage({ scenarioId }: { scenarioId: string }) {
         // active one (viewing an inactive scenario's page must NOT show another
         // scenario's prompts).
         manualSteps={lifecycleActive ? activeScenarioState?.manual_steps ?? [] : []}
+      />
+      {lifecycleActive && (
+        <div className="mt-3 flex justify-center">
+          <button
+            className="px-3 py-1.5 text-xs rounded-md border border-border text-muted-foreground hover:bg-accent"
+            onClick={() => setReconcileOpen(true)}
+          >
+            ⚡ Device states…
+          </button>
+        </div>
+      )}
+      <ForceReconcileDialog
+        scenarioId={scenarioId}
+        open={reconcileOpen}
+        onClose={() => setReconcileOpen(false)}
       />
     </div>
   );

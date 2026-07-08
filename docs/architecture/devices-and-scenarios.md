@@ -42,11 +42,14 @@ sent and *assumes* the device followed (Harmony's "optimistic state" model).
 
 Trade-off: cheap and reliable to fire, but the driver can be *wrong* about the device
 (someone used the real remote, the device timed out into standby, etc.), and its own
-"skip if already there" check would then swallow the correcting command. The way out is
-on the device page: when a press is skipped because the bridge believes the device is
-already in that state, the button offers a short "tap again to send anyway" window — the
-second tap bypasses the check and fires the code regardless. That's a deliberate trade —
-borrowed straight from Harmony, with a human as the missing feedback channel.
+"skip if already there" check would then swallow the correcting command. Two ways out,
+both with a human as the missing feedback channel: on the **device page**, a press that
+was skipped because the bridge believes the device is already in that state offers a
+short "tap again to send anyway" window — the second tap bypasses the check and fires
+the code regardless; and on a **running scenario's page**, the "Device states…" dialog
+lists every participating device (believed vs wanted state) and lets you re-send any
+one device's commands, waits included. That's a deliberate trade — borrowed straight
+from Harmony.
 
 ### WB-passthrough driver (1) — addresses existing Wirenboard controls
 

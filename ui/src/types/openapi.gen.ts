@@ -997,6 +997,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/scenario/{id}/force_reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Force Reconcile Device
+         * @description SCN-11: force ONE device into the active scenario's desired state — the
+         *     believed-vs-desired diff is skipped (the belief may be wrong; the user picking the
+         *     row is the feedback channel), driver idempotence guards are bypassed via the
+         *     reserved `force` param, and toggle power claims the plan target (`assume_state`).
+         *     Runs the device's chain through the normal executor (gates + polls); worst case a
+         *     poll-timeout wait, so the call can take seconds.
+         */
+        post: operations["force_reconcile_device_scenario__id__force_reconcile_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/scenario/{id}/layout": {
         parameters: {
             query?: never;
@@ -1012,6 +1037,29 @@ export interface paths {
          *     role is intentionally not rendered (reconciler-derived). Spec: scenario_system_redesign.md §6.
          */
         get: operations["get_scenario_layout_scenario__id__layout_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scenario/{id}/reconcile_preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Reconcile Preview
+         * @description SCN-11: believed-vs-desired per involved device of the ACTIVE scenario, plus the
+         *     forced chain a confirm would run. 404 unknown scenario; 409 when it isn't the active
+         *     one (the desired state is only defined by the running scenario — on an inactive page
+         *     the same gesture is just "start it").
+         */
+        get: operations["get_reconcile_preview_scenario__id__reconcile_preview_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2077,6 +2125,29 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** ForceReconcileFailure */
+        ForceReconcileFailure: {
+            /** Command */
+            command: string;
+            /** Error */
+            error: string;
+        };
+        /** ForceReconcileRequest */
+        ForceReconcileRequest: {
+            /** Device Id */
+            device_id: string;
+        };
+        /** ForceReconcileResponse */
+        ForceReconcileResponse: {
+            /** Device Id */
+            device_id: string;
+            /** Executed */
+            executed: components["schemas"]["ReconcilePlanStep"][];
+            /** Failures */
+            failures: components["schemas"]["ForceReconcileFailure"][];
+            /** Success */
+            success: boolean;
+        };
         /**
          * GroupMemberResult
          * @description Per-member outcome of a room group action (§10.4). `skipped` = the member's
@@ -2467,6 +2538,79 @@ export interface components {
              * @enum {string}
              */
             type: "range" | "string" | "integer" | "boolean";
+        };
+        /**
+         * ReconcileDomainComparison
+         * @description Believed vs desired for one capability domain of one device. `believed` is the
+         *     bridge's optimistic state — it may be WRONG, which is the whole reason the dialog
+         *     exists; the user standing in the room is the missing feedback channel.
+         */
+        ReconcileDomainComparison: {
+            /** Believed */
+            believed?: unknown;
+            /** Desired */
+            desired?: unknown;
+            /** Domain */
+            domain: string;
+            /** In Sync */
+            in_sync: boolean;
+        };
+        /**
+         * ReconcilePlanStep
+         * @description One step of the forced chain a confirm would run (shown in the expanded row).
+         */
+        ReconcilePlanStep: {
+            /** Command */
+            command: string;
+            /**
+             * Delay Ms
+             * @default 0
+             */
+            delay_ms: number;
+            /** Domain */
+            domain: string;
+            /**
+             * Feedback
+             * @default false
+             */
+            feedback: boolean;
+            /** Poll Timeout Ms */
+            poll_timeout_ms?: number | null;
+            /**
+             * Pre Delay Ms
+             * @default 0
+             */
+            pre_delay_ms: number;
+            /** Target */
+            target?: unknown;
+        };
+        /** ReconcilePreviewResponse */
+        ReconcilePreviewResponse: {
+            /** Devices */
+            devices: components["schemas"]["ReconcilePreviewRow"][];
+            /** Scenario Id */
+            scenario_id: string;
+        };
+        /**
+         * ReconcilePreviewRow
+         * @description One device row of the force-reconcile dialog. NB `in_sync: true` rows are
+         *     exactly where force matters — "in sync" only means the *believed* state matches.
+         */
+        ReconcilePreviewRow: {
+            /** Comparisons */
+            comparisons: components["schemas"]["ReconcileDomainComparison"][];
+            /** Device Id */
+            device_id: string;
+            /** Device Name */
+            device_name: string;
+            /** Eta Ms */
+            eta_ms: number;
+            /** In Sync */
+            in_sync: boolean;
+            /** Reconcilable */
+            reconcilable: boolean;
+            /** Steps */
+            steps: components["schemas"]["ReconcilePlanStep"][];
         };
         /**
          * ReloadResponse
@@ -4199,6 +4343,41 @@ export interface operations {
             };
         };
     };
+    force_reconcile_device_scenario__id__force_reconcile_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForceReconcileRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForceReconcileResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_scenario_layout_scenario__id__layout_get: {
         parameters: {
             query?: never;
@@ -4217,6 +4396,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LayoutManifest"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_reconcile_preview_scenario__id__reconcile_preview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconcilePreviewResponse"];
                 };
             };
             /** @description Validation Error */

@@ -1964,6 +1964,71 @@
         "title": "EvidenceEnvelope",
         "type": "object"
       },
+      "ForceReconcileFailure": {
+        "properties": {
+          "command": {
+            "title": "Command",
+            "type": "string"
+          },
+          "error": {
+            "title": "Error",
+            "type": "string"
+          }
+        },
+        "required": [
+          "command",
+          "error"
+        ],
+        "title": "ForceReconcileFailure",
+        "type": "object"
+      },
+      "ForceReconcileRequest": {
+        "properties": {
+          "device_id": {
+            "title": "Device Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "device_id"
+        ],
+        "title": "ForceReconcileRequest",
+        "type": "object"
+      },
+      "ForceReconcileResponse": {
+        "properties": {
+          "device_id": {
+            "title": "Device Id",
+            "type": "string"
+          },
+          "executed": {
+            "items": {
+              "$ref": "#/components/schemas/ReconcilePlanStep"
+            },
+            "title": "Executed",
+            "type": "array"
+          },
+          "failures": {
+            "items": {
+              "$ref": "#/components/schemas/ForceReconcileFailure"
+            },
+            "title": "Failures",
+            "type": "array"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "device_id",
+          "executed",
+          "failures"
+        ],
+        "title": "ForceReconcileResponse",
+        "type": "object"
+      },
       "GroupMemberResult": {
         "description": "Per-member outcome of a room group action (§10.4). `skipped` = the member's\nmatching capability lacks the requested action (reported, never an error);\n`no_op` = already at target; `failed` carries the member's error in `detail`.",
         "properties": {
@@ -2918,6 +2983,150 @@
           "required"
         ],
         "title": "ProcessedParameter",
+        "type": "object"
+      },
+      "ReconcileDomainComparison": {
+        "description": "Believed vs desired for one capability domain of one device. `believed` is the\nbridge's optimistic state — it may be WRONG, which is the whole reason the dialog\nexists; the user standing in the room is the missing feedback channel.",
+        "properties": {
+          "believed": {
+            "title": "Believed"
+          },
+          "desired": {
+            "title": "Desired"
+          },
+          "domain": {
+            "title": "Domain",
+            "type": "string"
+          },
+          "in_sync": {
+            "title": "In Sync",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "domain",
+          "in_sync"
+        ],
+        "title": "ReconcileDomainComparison",
+        "type": "object"
+      },
+      "ReconcilePlanStep": {
+        "description": "One step of the forced chain a confirm would run (shown in the expanded row).",
+        "properties": {
+          "command": {
+            "title": "Command",
+            "type": "string"
+          },
+          "delay_ms": {
+            "default": 0,
+            "title": "Delay Ms",
+            "type": "integer"
+          },
+          "domain": {
+            "title": "Domain",
+            "type": "string"
+          },
+          "feedback": {
+            "default": false,
+            "title": "Feedback",
+            "type": "boolean"
+          },
+          "poll_timeout_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poll Timeout Ms"
+          },
+          "pre_delay_ms": {
+            "default": 0,
+            "title": "Pre Delay Ms",
+            "type": "integer"
+          },
+          "target": {
+            "title": "Target"
+          }
+        },
+        "required": [
+          "command",
+          "domain"
+        ],
+        "title": "ReconcilePlanStep",
+        "type": "object"
+      },
+      "ReconcilePreviewResponse": {
+        "properties": {
+          "devices": {
+            "items": {
+              "$ref": "#/components/schemas/ReconcilePreviewRow"
+            },
+            "title": "Devices",
+            "type": "array"
+          },
+          "scenario_id": {
+            "title": "Scenario Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scenario_id",
+          "devices"
+        ],
+        "title": "ReconcilePreviewResponse",
+        "type": "object"
+      },
+      "ReconcilePreviewRow": {
+        "description": "One device row of the force-reconcile dialog. NB `in_sync: true` rows are\nexactly where force matters — \"in sync\" only means the *believed* state matches.",
+        "properties": {
+          "comparisons": {
+            "items": {
+              "$ref": "#/components/schemas/ReconcileDomainComparison"
+            },
+            "title": "Comparisons",
+            "type": "array"
+          },
+          "device_id": {
+            "title": "Device Id",
+            "type": "string"
+          },
+          "device_name": {
+            "title": "Device Name",
+            "type": "string"
+          },
+          "eta_ms": {
+            "title": "Eta Ms",
+            "type": "integer"
+          },
+          "in_sync": {
+            "title": "In Sync",
+            "type": "boolean"
+          },
+          "reconcilable": {
+            "title": "Reconcilable",
+            "type": "boolean"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/ReconcilePlanStep"
+            },
+            "title": "Steps",
+            "type": "array"
+          }
+        },
+        "required": [
+          "device_id",
+          "device_name",
+          "comparisons",
+          "in_sync",
+          "reconcilable",
+          "steps",
+          "eta_ms"
+        ],
+        "title": "ReconcilePreviewRow",
         "type": "object"
       },
       "ReloadResponse": {
@@ -5763,6 +5972,59 @@
         ]
       }
     },
+    "/scenario/{id}/force_reconcile": {
+      "post": {
+        "description": "SCN-11: force ONE device into the active scenario's desired state — the\nbelieved-vs-desired diff is skipped (the belief may be wrong; the user picking the\nrow is the feedback channel), driver idempotence guards are bypassed via the\nreserved `force` param, and toggle power claims the plan target (`assume_state`).\nRuns the device's chain through the normal executor (gates + polls); worst case a\npoll-timeout wait, so the call can take seconds.",
+        "operationId": "force_reconcile_device_scenario__id__force_reconcile_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForceReconcileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForceReconcileResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Force Reconcile Device",
+        "tags": [
+          "Scenarios"
+        ]
+      }
+    },
     "/scenario/{id}/layout": {
       "get": {
         "description": "Layer-3 layout manifest for a scenario — the composite remote (one renderer, role-assembled\ncontrols tagged with sourceDeviceId; the power zone is the scenario lifecycle). Built from the\nscenario definition + the role devices' capability maps by the placement engine. The `inputs`\nrole is intentionally not rendered (reconciler-derived). Spec: scenario_system_redesign.md §6.",
@@ -5801,6 +6063,49 @@
           }
         },
         "summary": "Get Scenario Layout",
+        "tags": [
+          "Scenarios"
+        ]
+      }
+    },
+    "/scenario/{id}/reconcile_preview": {
+      "get": {
+        "description": "SCN-11: believed-vs-desired per involved device of the ACTIVE scenario, plus the\nforced chain a confirm would run. 404 unknown scenario; 409 when it isn't the active\none (the desired state is only defined by the running scenario — on an inactive page\nthe same gesture is just \"start it\").",
+        "operationId": "get_reconcile_preview_scenario__id__reconcile_preview_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconcilePreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Reconcile Preview",
         "tags": [
           "Scenarios"
         ]

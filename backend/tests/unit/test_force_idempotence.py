@@ -137,6 +137,50 @@ async def test_ir_power_off_skip_and_force(ir_device):
     assert ir_device.state.power == "off"
 
 
+# --- toggle power: assume_state claims the target (SCN-11) --------------------
+
+
+def _ir_toggle_config() -> WirenboardIRDeviceConfig:
+    return WirenboardIRDeviceConfig(
+        device_id="test_ir_toggle",
+        names={"ru": "Test IR Toggle", "en": "Test IR Toggle"},
+        device_class="WirenboardIRDevice",
+        config_class="WirenboardIRDeviceConfig",
+        commands={"power": IRCommandConfig(
+            action="power",
+            topic="/devices/test_ir_toggle/controls/power",
+            location="wb-msw-v3_207",
+            rom_position="26",
+            group="power",
+            description="power toggle",
+        )},
+    )
+
+
+@pytest.mark.asyncio
+async def test_toggle_assume_state_claims_target_not_flip():
+    """A forced reconcile (SCN-11) sends the toggle with `assume_state` = the plan
+    target. Without it, forcing a desynced toggle device (believed on, actually off,
+    desired on) would flip the device ON but claim OFF — the desync mirrored, and a
+    second tap would power the device back off."""
+    mqtt = MagicMock()
+    mqtt.publish = AsyncMock(return_value=True)
+    d = WirenboardIRDevice(_ir_toggle_config(), mqtt)
+    await d.setup()
+
+    # Desync: believed on, desired on. Forced toggle claims the TARGET.
+    d.update_state(power="on")
+    result = await d.execute_action("power", {"force": True, "assume_state": "on"})
+    assert result["success"] is True
+    mqtt.publish.assert_awaited_once()  # the IR frame went out
+    assert d.state.power == "on"  # claimed the target, NOT the blind complement "off"
+
+    # Without assume_state the legacy blind flip is unchanged.
+    result = await d.execute_action("power", {})
+    assert result["success"] is True
+    assert d.state.power == "off"
+
+
 # --- EMotivaXMC2 ---------------------------------------------------------------
 
 

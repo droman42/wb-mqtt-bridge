@@ -26,3 +26,8 @@ export type SystemInfo = S['SystemInfo'];
 export type SystemConfigResponse = S['SystemConfigResponse'];
 export type ReloadResponse = S['ReloadResponse'];
 export type PersistedStatesResponse = S['PersistedStatesResponse'];
+// SCN-11: the scenario force-reconcile dialog (believed-vs-desired + forced chains).
+export type ReconcilePreviewResponse = S['ReconcilePreviewResponse'];
+export type ReconcilePreviewRow = S['ReconcilePreviewRow'];
+export type ReconcilePlanStep = S['ReconcilePlanStep'];
+export type ForceReconcileResponse = S['ForceReconcileResponse'];

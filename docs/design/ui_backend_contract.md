@@ -429,6 +429,28 @@ contract:
   SAME control re-dispatches with `params.force = true`; any other control or the timeout
   disarms. The escape hatch materializes exactly when the guard bites.
 
+### Scenario force-reconcile dialog (SCN-11) — SHIPPED (2026-07-08)
+The scenario-level face of the same escape hatch: the desync *symptom* usually surfaces as
+"some device in the running scenario isn't in the expected state". Contract:
+- **`GET /scenario/{id}/reconcile_preview`** (active scenario only — 409 `not active`,
+  404 unknown id): per involved device, `comparisons` (believed vs desired per capability
+  domain; zoned power renders as per-zone dicts), `in_sync`, `reconcilable`, the forced
+  chain `steps` a confirm would run, and a worst-case `eta_ms`. Pure read — nothing is
+  commanded. NB the inversion: `in_sync: true` rows are exactly where force matters
+  ("in sync" only means the *believed* state matches).
+- **`POST /scenario/{id}/force_reconcile` `{device_id}`**: builds the single-device
+  FORCED plan — the believed-vs-desired diff is skipped, every action carries
+  `force: true` (DRV-5), and **toggle power carries `assume_state` = the plan target**
+  (a forced toggle must claim the target, not blind-flip the possibly-wrong belief) —
+  then runs it through the normal executor with its gates and polls (the call can take
+  seconds; worst case a poll timeout). Cross-device ordering edges drop out correctly
+  (the other devices are presumed settled). Response: `executed` steps + `failures`.
+- **UI:** a "Device states…" button under the remote on the **active** scenario page
+  opens the dialog (`ForceReconcileDialog`): out-of-sync rows highlighted, in-sync rows
+  calm, non-reconcilable greyed; tapping a row expands to the derived chain + ETA
+  (nothing fires on the row tap — fat-finger safety); **Send anyway** runs the forced
+  plan with per-row progress and result.
+
 ### Manual instructions — DECIDED (2026-05-24)
 - **Baseline — Option B (rides the manifest; in the remote, scenarios-only):** add a **top-level
   `manualInstructions?: { startup: string[], shutdown: string[] }`** to the manifest. `build_scenario_manifest`

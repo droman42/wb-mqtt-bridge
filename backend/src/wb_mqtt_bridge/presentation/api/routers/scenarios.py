@@ -80,6 +80,56 @@ class ShutdownScenarioRequest(BaseModel):
     id: str
     graceful: bool = True
 
+
+# --- SCN-11: per-device force-reconcile DTOs ---------------------------------
+
+class ReconcileDomainComparison(BaseModel):
+    """Believed vs desired for one capability domain of one device. `believed` is the
+    bridge's optimistic state — it may be WRONG, which is the whole reason the dialog
+    exists; the user standing in the room is the missing feedback channel."""
+    domain: str
+    believed: Any = None
+    desired: Any = None
+    in_sync: bool
+
+class ReconcilePlanStep(BaseModel):
+    """One step of the forced chain a confirm would run (shown in the expanded row)."""
+    command: str
+    domain: str
+    target: Any = None
+    pre_delay_ms: int = 0
+    delay_ms: int = 0
+    poll_timeout_ms: Optional[int] = None
+    feedback: bool = False
+
+class ReconcilePreviewRow(BaseModel):
+    """One device row of the force-reconcile dialog. NB `in_sync: true` rows are
+    exactly where force matters — "in sync" only means the *believed* state matches."""
+    device_id: str
+    device_name: str
+    comparisons: List[ReconcileDomainComparison]
+    in_sync: bool
+    reconcilable: bool
+    steps: List[ReconcilePlanStep]
+    eta_ms: int
+
+class ReconcilePreviewResponse(BaseModel):
+    scenario_id: str
+    devices: List[ReconcilePreviewRow]
+
+class ForceReconcileRequest(BaseModel):
+    device_id: str
+
+class ForceReconcileFailure(BaseModel):
+    command: str
+    error: str
+
+class ForceReconcileResponse(BaseModel):
+    success: bool
+    device_id: str
+    executed: List[ReconcilePlanStep]
+    failures: List[ForceReconcileFailure]
+
 def check_initialized():
     """Check if the router is properly initialized with required dependencies."""
     if not scenario_manager:
@@ -123,6 +173,91 @@ async def get_scenario_layout(id: str):
         return build_scenario_manifest(sdef, scenario_manager.device_manager)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to build scenario layout manifest: {e}")
+
+def _plan_step(action: Any) -> ReconcilePlanStep:
+    return ReconcilePlanStep(
+        command=action.command,
+        domain=action.domain,
+        target=action.target,
+        pre_delay_ms=action.pre_delay_ms,
+        delay_ms=action.delay_ms,
+        poll_timeout_ms=action.poll_timeout_ms,
+        feedback=action.feedback,
+    )
+
+
+def _eta_ms(actions: List[Any]) -> int:
+    """Worst-case wall clock for a forced chain: pre-delays + per-action gate
+    (feedback devices may poll up to poll_timeout_ms; no-feedback wait delay_ms)."""
+    total = 0
+    for a in actions:
+        total += a.pre_delay_ms
+        total += a.poll_timeout_ms if (a.feedback and a.poll_timeout_ms) else a.delay_ms
+    return total
+
+
+@router.get("/scenario/{id}/reconcile_preview", response_model=ReconcilePreviewResponse)
+async def get_reconcile_preview(id: str):
+    """SCN-11: believed-vs-desired per involved device of the ACTIVE scenario, plus the
+    forced chain a confirm would run. 404 unknown scenario; 409 when it isn't the active
+    one (the desired state is only defined by the running scenario — on an inactive page
+    the same gesture is just "start it")."""
+    mgr = _require_scenario_manager()
+    if id not in mgr.scenario_definitions:
+        raise HTTPException(status_code=404, detail=f"Scenario '{id}' not found")
+    try:
+        previews = mgr.reconcile_preview(id)
+    except ScenarioError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+    rows: List[ReconcilePreviewRow] = []
+    for p in previews:
+        device = mgr.device_manager.devices.get(p.device_id)
+        name_fn = getattr(device, "get_name", None)
+        rows.append(ReconcilePreviewRow(
+            device_id=p.device_id,
+            device_name=str(name_fn()) if callable(name_fn) else p.device_id,
+            comparisons=[
+                ReconcileDomainComparison(
+                    domain=c.domain, believed=c.believed, desired=c.desired, in_sync=c.in_sync
+                )
+                for c in p.comparisons
+            ],
+            in_sync=p.in_sync,
+            reconcilable=bool(p.plan.actions),
+            steps=[_plan_step(a) for a in p.plan.actions],
+            eta_ms=_eta_ms(p.plan.actions),
+        ))
+    return ReconcilePreviewResponse(scenario_id=id, devices=rows)
+
+
+@router.post("/scenario/{id}/force_reconcile", response_model=ForceReconcileResponse)
+async def force_reconcile_device(id: str, data: ForceReconcileRequest):
+    """SCN-11: force ONE device into the active scenario's desired state — the
+    believed-vs-desired diff is skipped (the belief may be wrong; the user picking the
+    row is the feedback channel), driver idempotence guards are bypassed via the
+    reserved `force` param, and toggle power claims the plan target (`assume_state`).
+    Runs the device's chain through the normal executor (gates + polls); worst case a
+    poll-timeout wait, so the call can take seconds."""
+    mgr = _require_scenario_manager()
+    if id not in mgr.scenario_definitions:
+        raise HTTPException(status_code=404, detail=f"Scenario '{id}' not found")
+    try:
+        plan, result = await mgr.force_reconcile_device(id, data.device_id)
+    except ScenarioError as e:
+        status = 409 if e.error_type == "not_active" else 404
+        raise HTTPException(status_code=status, detail=str(e))
+
+    return ForceReconcileResponse(
+        success=result.success,
+        device_id=data.device_id,
+        executed=[_plan_step(a) for a in result.executed],
+        failures=[
+            ForceReconcileFailure(command=a.command, error=err)
+            for a, err in result.failures
+        ],
+    )
+
 
 @router.post("/scenario/switch", response_model=ScenarioResponse)
 async def switch_scenario(data: SwitchScenarioRequest):

@@ -1208,12 +1208,15 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
                 if default is not None:
                     result[param_name] = default
 
-        # `force` is a RESERVED cross-cutting param (DRV-5, idempotence-guard
-        # bypass) — never declared in command configs, so it would otherwise be
-        # dropped whenever a command declares params (only declared names are
-        # copied into `result` above).
+        # `force` (DRV-5, idempotence-guard bypass) and `assume_state` (SCN-11,
+        # forced-toggle claim override) are RESERVED cross-cutting params — never
+        # declared in command configs, so they would otherwise be dropped whenever
+        # a command declares params (only declared names are copied into `result`
+        # above).
         if "force" in provided_params and "force" not in result:
             result["force"] = bool(provided_params["force"])
+        if "assume_state" in provided_params and "assume_state" not in result:
+            result["assume_state"] = provided_params["assume_state"]
 
         return result
     
