@@ -612,57 +612,6 @@ endpoint).
 
   **Gate:** do this on a quiet day, NOT before a hardware verification session (dep bumps add a confounder to whatever you're actually trying to debug at the rack). Re-pull the Dependabot count after the PR to confirm the drop.
 
-- [ ] **OPS-8** `[P1]` `[release]` — **Lifecycle-robustness leftovers (deferred from the 2026-05-22 hardware session).** The
-   lifecycle cluster (Bug 2 non-fatal load · keep failed-setup devices registered · hardware-
-   transparent shutdown + assumed-state persistence) shipped; these lower-value tails were
-   deferred here:
-   - **Defensive startup-failure cleanup.** The lifespan startup isn't wrapped, so a *rare/
-     unexpected* error during startup (not the now-handled device/scenario cases) leaks partial
-     resources (sockets/ports → a hung process). Wrap startup → best-effort release on failure +
-     re-raise. (The common zombie cause — `load_scenarios` `SystemExit` — is already fixed.)
-   - **Teardown noise → SUPERSEDED 2026-05-27 evening by §5.1 #8** (full root-cause diagnosis + 2-part fix path). Kept here for historical context; §5.1 #8 is the actionable item. Originally
-     classified cosmetic (`Task was destroyed but it is pending` from pyatv `CompanionAPI.
-     disconnect` not awaited to completion; `_GatheringFuture exception was never retrieved`
-     from the 2 s cancel-gather). **Field-observed during the LG TV HW pass on 2026-05-27**
-     while stopping the backend with Ctrl-C: user had to press Ctrl-C **three times**; the
-     process hung for **~50 seconds** between the first cancel signal and the eventual force
-     exit. Log analysis (`backend/logs/service.log`, 14:13:57 → 14:14:47) shows the **entire
-     bootstrap lifespan shutdown phase (`bootstrap.py:285-357`, the code after `yield`) never
-     executed** — none of its INFO lines (`"System shutting down..."`, `"Shutting down devices..."`,
-     `"Disconnecting MQTT client..."`, `"System shutdown complete"`, etc.) appear. What logged
-     instead: uvicorn's signal handler cancelling background tasks directly (SSE generators,
-     pymotivaxmc2 dispatcher, MQTT client task), then 50 s silence, then **2 `Unclosed client
-     session` aiohttp errors from GC** — almost certainly the 2 pyatv (Apple TV) instances
-     whose `CompanionAPI.disconnect` doesn't drain on cancel. So the cluster of issues is:
-     (a) lifespan shutdown phase is being **bypassed**, not just made noisy — uvicorn's
-     SIGINT handler cancels the lifespan generator without resuming the after-`yield` block;
-     (b) pyatv teardown keeps the loop alive for ~50 s before GC; (c) the orchestrated cleanup
-     (state-store close, WB virtual-device offline marking, device.shutdown() per device,
-     including the LG TV's `_teardown_subscriptions` added in `5a09fd1`) **is never reached**.
-     **NOT caused by today's commits** — `_teardown_subscriptions` only runs from inside
-     `LgTv.shutdown()` which only runs inside `shutdown_devices()` which is part of the
-     bypassed lifespan phase. State integrity preserved (writes are transactional through
-     the operating life of the process, not buffered until shutdown). **Workaround at the
-     rack today:** `kill -TERM <pid>` (often handled differently by uvicorn) or accept the
-     Ctrl-C-x3 dance — no data loss. **When fixing:** (1) register an explicit SIGINT/SIGTERM
-     handler in the entry point that drives the lifespan shutdown explicitly before uvicorn's
-     cancel cascade; (2) wrap `atv.disconnect()` in `asyncio.wait_for(..., timeout=2.0)` with
-     per-device timeout logging; (3) investigate whether the FastAPI/uvicorn version we run
-     has the lifespan-cancel-bypass regression that's been reported upstream in uvicorn 0.27+.
-     Also tune the 2 s background-task cancellation if needed.
-   - **Device auto-reconnect/retry** for devices that failed setup (kept registered as
-     disconnected) — so an off-at-boot eMotiva becomes controllable once it powers on, without a
-     restart. (Follow-up to keep-registered.)
-   - **Apple TV driver hygiene:** dead `device_update` / `device_error` methods (not part of any
-     registered pyatv listener); the app-list fetch logs at ERROR + writes `state.error` when the
-     device is merely asleep — defer the fetch until the device is awake (ties to §15 tvOS
-     "Who's watching?").
-   - **WB virtual device offline on shutdown.** Only *scenario* WB devices are torn down at
-     bootstrap shutdown; regular-device WB virtual devices keep `meta/available=1` on the broker
-     after the bridge stops, so their cards look live in the WB UI. Wire regular-device WB cleanup
-     (mark `available=0`) into bootstrap shutdown. (Deferred companion to the empty-retained-value
-     fix, 2026-05-22.)
-
 - [ ] **OPS-11** `[P2]` `[deferred]` — **Multi-arch images: add `linux/arm64` (aarch64, next-gen Wirenboard) alongside `linux/arm/v7`.** Filed 2026-07-02 off a chat analysis (sister-repo prompt: `wb-mqtt-voice` builds armv7 + aarch64 + standalone). **Unlike the voice repo** (per-target Dockerfiles + arch-suffixed image names, forced by per-platform ML profiles), the bridge's images are identical on both arches → use buildx **multi-platform manifests**: `platforms: linux/arm/v7,linux/arm64` in both image jobs of `.github/workflows/build-arm.yml` yields ONE manifest list per existing tag — WB7 pulls armv7, WB8 pulls arm64 from the same `ghcr.io/...:latest`; `ops/` (compose / `update.sh` / INSTALL.md flow) unchanged. **Work items:** (1) workflow: extend `platforms`, **drop the `ARCH=arm32v7` build-arg** — the Dockerfile's `${ARCH:+$ARCH/}python` prefix predates platform-aware buildx and would force the arm32 base into the arm64 leg (Dockerfile itself needs no change; `ARG ARCH=` defaults empty); (2) `ui/Dockerfile`: stage 1 → `FROM --platform=$BUILDPLATFORM node:20 AS builder` — the `dist/` bundle is arch-independent, so the ~14-min QEMU node build runs natively on the amd64 runner once and only the small nginx stage builds per-arch (bonus: the *existing* armv7 UI build should drop to ~2-3 min); (3) docs: a sentence each in `ops/INSTALL.md` + the READMEs noting the images are multi-arch. **Notes:** piwheels extra-index is armv7-only but harmless on arm64 (PyPI aarch64 cp311 wheel coverage is good — likely a faster leg than armv7); that `/etc/pip/pip.conf` is probably vestigial anyway since the image installs via `uv`, which doesn't read pip config — verify/drop while in there. WB8's Cortex-A5x could in principle run the armv7 image via AArch32 compat, but native arm64 is the clean path at ~6 lines of diff. **Verification:** QEMU build smoke in CI; real run gated on actual WB8 hardware (hence `[later]`).
 
 ### CORE — Backend core / architecture

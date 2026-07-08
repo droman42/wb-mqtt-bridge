@@ -21,6 +21,22 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-08, evening (OPS-8 DONE — reconciled, narrowed, shipped; THE DESK IS CLEAR)** —
+  the user's "might be greatly outdated" was right: of the five 2026-05-22 sub-items, the
+  teardown-hang one was OPS-6 (done 2026-05-28) and auto-reconnect had been addressed piecewise
+  by the drivers' own evolution (eMotiva on-command setup, Apple TV `_ensure_connected`, LG
+  health loop + WoL, Auralic probe/halt). Narrowed interactively to items 1+5+4-lite and shipped:
+  **(1)** lifespan startup wrapped — unexpected mid-startup failure now releases the acquired
+  resources (`_release_partial_startup`, each step guarded, 3 tests) and re-raises instead of
+  leaking a hung process; reindent verified pure-whitespace. **(5)** `cleanup_wb_device_state()`
+  had ZERO callers — WB device cards kept retained `available=1` forever after a bridge stop
+  (the "Last Will" is a misnomer, no actual will); now wired into bootstrap shutdown BEFORE the
+  MQTT disconnect. **(4-lite)** Apple TV app-list failure demoted ERROR→WARNING, no more
+  `state.error` for a box that's merely asleep. Suite **652**, pyright 0, contracts 6/6, no API
+  change; overview.md lifecycle updated. Commit `ea9f1f8` + the ledger move. **With DRV-5,
+  SCN-11 and OPS-8 all closed today, no software-only release task remains** — everything left
+  (REL-2 → VWB-13 → REL-3 → REL-4 → tag, VWB-16 x-repo) starts at the rack.
+
 - **2026-07-08, later (SCN-11 DONE — the scenario force-reconcile dialog, same desk session)** —
   filed in the morning, shipped by the same sitting. Domain: `build_forced_device_plan` (single-
   device forced plan; diff skipped, `force` injected, cross-device ordering edges drop out — the
