@@ -35,6 +35,6 @@
     "aiosqlite": "INFO"
   },
   "reports": {
-    "enabled": false
+    "enabled": true
   }
 }
