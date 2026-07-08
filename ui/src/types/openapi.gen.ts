@@ -1500,6 +1500,11 @@ export interface components {
              * @default false
              */
             no_op: boolean;
+            /**
+             * Skipped Reason
+             * @description Structured skip marker (DRV-5). 'idempotence' = an optimistic-state guard swallowed the command (nothing was sent — the believed state may be wrong); the UI offers a re-tap that re-sends with params.force=true. Distinct from plain no_op, which reflects a feedback-verified value.
+             */
+            skipped_reason?: string | null;
             /** State */
             state?: {
                 [key: string]: unknown;

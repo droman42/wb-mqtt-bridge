@@ -516,15 +516,24 @@ async def dispatch_device_canonical(
             if step.delay_after_ms and i < total - 1:
                 await asyncio.sleep(step.delay_after_ms / 1000)
 
+        # The guarded handlers run synchronously inside perform_action, so the
+        # idempotence-skip marker (DRV-5) is available on `result.data` even in
+        # wait:false mode. Single-step only — same restriction as the no_op branch.
+        result_data = (result.get("data") or {}) if total == 1 else {}
+        skipped_reason = result_data.get("skipped_reason")
+
         # wait:false (SCN-7 — the UI's mash-click mode): fire-and-return-current-state.
         # No echo wait, no reachability verdict — the UI reads live state via SSE anyway,
         # and serializing rapid button presses on ~500ms echo waits would wreck the UX.
+        # The skip marker still rides along so the UI can arm its re-tap-to-force offer.
         if not payload.wait:
             state = device.state.model_dump() if hasattr(device.state, "model_dump") else dict(device.state)
             return CanonicalActionResponse(
                 success=True, device_id=response_device_id,
                 capability=payload.capability, action=payload.action,
                 state=state, error=None, executed_on=executed_on,
+                no_op=bool(result_data.get("no_op")),
+                skipped_reason=skipped_reason,
             )
 
         # No-op short-circuit (single-step actions only — the WB-passthrough semantics).
@@ -532,13 +541,14 @@ async def dispatch_device_canonical(
         # value -- the publish goes out but no echo lands, so waiting would 503
         # ("включи свет" when it's already on). Return success with the current state
         # immediately. AV devices don't set this flag and keep going through the echo wait.
-        if total == 1 and (result.get("data") or {}).get("no_op"):
+        if result_data.get("no_op"):
             state = device.state.model_dump() if hasattr(device.state, "model_dump") else dict(device.state)
             return CanonicalActionResponse(
                 success=True, device_id=response_device_id,
                 capability=payload.capability, action=payload.action,
                 state=state, error=None, executed_on=executed_on,
                 no_op=True,  # VWB-23: group fan-out reports this member as already-at-target
+                skipped_reason=skipped_reason,  # DRV-5: idempotence skips flow through here too
             )
 
         try:

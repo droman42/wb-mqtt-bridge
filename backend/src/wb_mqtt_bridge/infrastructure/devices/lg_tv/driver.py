@@ -1194,14 +1194,31 @@ class LgTv(BaseDevice[LgTvState]):
         Returns:
             CommandResult: Result of the command execution
         """
-        success = await self.power_on()
+        # Idempotence guard surfaced at the handler (DRV-5) so the skip marker
+        # reaches the caller; power_on() keeps its own belt for future callers.
+        skip = self.idempotence_skip(
+            params,
+            bool(self.client and self.state.connected and self.state.power == "on"),
+            "TV already on and connected — power_on skipped",
+        )
+        if skip is not None:
+            logger.info("TV is already on and connected — power_on is a no-op")
+            self.update_state(last_command=LastCommand(
+                action="power_on",
+                source="api",
+                timestamp=datetime.now(),
+                params={"method": "already_on"},
+            ))
+            return skip
+
+        success = await self.power_on(force=bool((params or {}).get("force")))
         return self.create_command_result(
             success=success,
             message="TV powered on successfully" if success else None,
             error="Failed to power on TV" if not success else None
         )
-        
-    async def power_on(self) -> bool:
+
+    async def power_on(self, force: bool = False) -> bool:
         """Power on the TV (if supported).
         
         This method tries two approaches to power on the TV:
@@ -1221,8 +1238,9 @@ class LgTv(BaseDevice[LgTvState]):
             # code down the WoL fallback + boot wait + full reconnect — ~20 s of
             # churn for a no-op. state.power is trustworthy here (the power_state
             # subscription delivers physical-remote transitions in <1 s), so treat
-            # already-on as success. NB for DRV-5: this guard must honor `force`.
-            if self.client and self.state.connected and self.state.power == "on":
+            # already-on as success. Honors `force` (DRV-5) — the reported skip
+            # lives in handle_power_on; this belt covers future direct callers.
+            if not force and self.client and self.state.connected and self.state.power == "on":
                 logger.info("TV is already on and connected — power_on is a no-op")
                 self.update_state(last_command=LastCommand(
                     action="power_on",

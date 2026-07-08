@@ -165,6 +165,13 @@ class CanonicalActionResponse(BaseModel):
                     "no_op short-circuit) — succeeded without actuating. VWB-23 surfaces this "
                     "so group fan-out results can report members honestly.",
     )
+    skipped_reason: Optional[str] = Field(
+        default=None,
+        description="Structured skip marker (DRV-5). 'idempotence' = an optimistic-state "
+                    "guard swallowed the command (nothing was sent — the believed state may "
+                    "be wrong); the UI offers a re-tap that re-sends with params.force=true. "
+                    "Distinct from plain no_op, which reflects a feedback-verified value.",
+    )
 
 
 # ---- POST /rooms/{room_id}/canonical (VWB-23, canonical_first.md §10) -------------

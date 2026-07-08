@@ -11,7 +11,7 @@ import { useDeviceState as useDeviceStateQuery } from '../hooks/useApi';
 import { createActionTooltip } from '../utils/tooltipUtils';
 
 // Power Zone - 3-button layout with EMotiva special case
-const PowerZone = ({ zone, deviceStructure, onAction, className, isActionPending = false, lastAction, lifecycleActive }: { zone?: RemoteZone; deviceStructure: RemoteDeviceStructure; onAction: (action: string, payload?: any, targetDeviceId?: string) => void; className?: string; isActionPending?: boolean; lastAction?: string; lifecycleActive?: boolean }) => {
+const PowerZone = ({ zone, deviceStructure, onAction, className, isActionPending = false, lastAction, lifecycleActive, forceOfferAction }: { zone?: RemoteZone; deviceStructure: RemoteDeviceStructure; onAction: (action: string, payload?: any, targetDeviceId?: string) => void; className?: string; isActionPending?: boolean; lastAction?: string; lifecycleActive?: boolean; forceOfferAction?: string }) => {
   // Get device state for zone2 power coloring (eMotiva). A scenario lifecycle power zone
   // (lifecycleActive defined) has no device state — its entity id is the scenario, not a device, so
   // querying it would 404 on the real backend. Disable the query there (empty id → enabled:false).
@@ -89,6 +89,13 @@ const PowerZone = ({ zone, deviceStructure, onAction, className, isActionPending
     return 'text-white';
   };
 
+  // Force re-tap offer (DRV-5): the button whose command was just swallowed by an
+  // idempotence guard pulses amber while the offer is armed — re-tap = send forced.
+  const armedClass = (button: PowerButtonConfig) =>
+    forceOfferAction === button.action.actionName
+      ? ' ring-2 ring-amber-400 animate-pulse'
+      : '';
+
   return (
     <div className={cn("zone-power", className)}>
       {/* Left Position */}
@@ -98,7 +105,7 @@ const PowerZone = ({ zone, deviceStructure, onAction, className, isActionPending
           size="sm"
           onClick={() => handlePowerAction(leftButton)}
           disabled={isActionPending}
-          className="h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
+          className={"h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200" + armedClass(leftButton)}
           title={createEnhancedTooltip(leftButton)}
         >
           {isActionPending && lastAction === leftButton.action.actionName ? (
@@ -130,7 +137,7 @@ const PowerZone = ({ zone, deviceStructure, onAction, className, isActionPending
           size="sm"
           onClick={() => handlePowerAction(middleButton)}
           disabled={isActionPending}
-          className="h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
+          className={"h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200" + armedClass(middleButton)}
           title={createEnhancedTooltip(middleButton)}
         >
           {isActionPending && lastAction === middleButton.action.actionName ? (
@@ -162,7 +169,7 @@ const PowerZone = ({ zone, deviceStructure, onAction, className, isActionPending
           size="sm"
           onClick={() => handlePowerAction(rightButton)}
           disabled={isActionPending}
-          className="h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200"
+          className={"h-8 bg-transparent border border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-200" + armedClass(rightButton)}
           title={createEnhancedTooltip(rightButton)}
         >
           {isActionPending && lastAction === rightButton.action.actionName ? (
@@ -1034,6 +1041,11 @@ interface RemoteControlLayoutProps {
   // steps section opens automatically so the user sees the load-bearing prompts. Source:
   // ScenarioState.manual_steps from /scenario/state (§5.1 #1).
   manualSteps?: ManualStep[];
+  // Device pages only (DRV-5): an armed re-tap-to-force offer. The last command was
+  // swallowed by an idempotence guard (skipped_reason='idempotence'); a banner explains,
+  // and the matching power button pulses until the offer expires (~8 s) or another
+  // control is pressed. Re-tapping the same control re-sends with params.force=true.
+  forceOffer?: { actionName: string; targetDeviceId: string; message: string } | null;
 }
 
 export function RemoteControlLayout({
@@ -1044,7 +1056,8 @@ export function RemoteControlLayout({
   lastAction,
   className,
   lifecycleActive,
-  manualSteps
+  manualSteps,
+  forceOffer
 }: RemoteControlLayoutProps) {
   const { deviceName, remoteZones } = deviceStructure;
   
@@ -1089,6 +1102,17 @@ export function RemoteControlLayout({
           </h1>
         </div>
 
+        {/* Force re-tap offer (DRV-5): the last command was skipped by an idempotence
+            guard — nothing was sent. Explains the silence and offers the escape hatch. */}
+        {forceOffer && (
+          <div
+            className="mx-2 mb-2 rounded-md border border-amber-400/60 bg-amber-500/15 px-3 py-2 text-xs text-amber-200"
+            role="status"
+          >
+            ⚡ {forceOffer.message}
+          </div>
+        )}
+
         {/* Zone Layout */}
         <div className="remote-zones">
           {/* Power Zone (①) - Show/Hide */}
@@ -1101,6 +1125,7 @@ export function RemoteControlLayout({
               isActionPending={isActionPending}
               lastAction={lastAction}
               lifecycleActive={lifecycleActive}
+              forceOfferAction={forceOffer?.actionName}
             />
           )}
 

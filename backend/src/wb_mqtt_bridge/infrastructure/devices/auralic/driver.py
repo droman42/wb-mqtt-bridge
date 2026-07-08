@@ -740,14 +740,17 @@ class AuralicDevice(BaseDevice[AuralicDeviceState]):
             logger.info("Device in standby mode, using OpenHome API to wake")
             
             try:
-                # Get current standby state to check if we need to do anything
+                # Idempotence guard (honors `force` — DRV-5; live-query based, so
+                # LOW force value, but forcing SetStandby(false) is harmless —
+                # idempotent target). NB the _deep_sleep_mode check above is an
+                # AVAILABILITY branch, never force-bypassed.
                 in_standby = await self.openhome_device.is_in_standby()
-                if not in_standby:
+                skip = self.idempotence_skip(
+                    params, not in_standby, "Device is already powered on"
+                )
+                if skip is not None:
                     logger.info("Device already powered on")
-                    return self.create_command_result(
-                        success=True,
-                        message="Device is already powered on"
-                    )
+                    return skip
                     
                 # Wake the device from standby
                 await self.openhome_device.set_standby(False)

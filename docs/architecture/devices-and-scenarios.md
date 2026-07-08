@@ -40,9 +40,13 @@ sent and *assumes* the device followed (Harmony's "optimistic state" model).
 | `WirenboardIRDevice` | MQTT publish to a Wirenboard IR blaster (`wb-msw-v3` IR codes by name) | The IR fleet: `mf_amplifier`, `ld_player`, `vhs_player`, `video`, `upscaler`. |
 | `BroadlinkKitchenHood` | RF codes fired by a Broadlink RM (`broadlink` Python lib) | One appliance today — the kitchen hood — but the pattern is reusable. |
 
-Trade-off: cheap and reliable to fire, but the *only* way to recover from drift (someone
-used the real remote, the device timed out into standby, etc.) is the manual resync
-button on the device page. That's a deliberate trade — borrowed straight from Harmony.
+Trade-off: cheap and reliable to fire, but the driver can be *wrong* about the device
+(someone used the real remote, the device timed out into standby, etc.), and its own
+"skip if already there" check would then swallow the correcting command. The way out is
+on the device page: when a press is skipped because the bridge believes the device is
+already in that state, the button offers a short "tap again to send anyway" window — the
+second tap bypasses the check and fires the code regardless. That's a deliberate trade —
+borrowed straight from Harmony, with a human as the missing feedback channel.
 
 ### WB-passthrough driver (1) — addresses existing Wirenboard controls
 

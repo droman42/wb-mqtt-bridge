@@ -770,6 +770,18 @@
             "title": "No Op",
             "type": "boolean"
           },
+          "skipped_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Structured skip marker (DRV-5). 'idempotence' = an optimistic-state guard swallowed the command (nothing was sent — the believed state may be wrong); the UI offers a re-tap that re-sends with params.force=true. Distinct from plain no_op, which reflects a feedback-verified value.",
+            "title": "Skipped Reason"
+          },
           "state": {
             "anyOf": [
               {

@@ -405,6 +405,30 @@ Voice keeps the default `wait: true` (a speakable post-action result). Other rul
 - Un-annotated controls keep the native `/action` fallback (the internal/dev door;
   its demotion decision is acceptance-gate material).
 
+### Force re-tap — the idempotence-skip escape hatch (DRV-5) — SHIPPED (2026-07-08)
+Drivers with **idempotence guards** ("skip if optimistic state already at target" — the two
+WirenboardIR power guards, the eMotiva power/input/volume/ARC guards, the Auralic and LG
+power_on guards) can trap the user when the believed state is wrong (someone used the
+physical remote): the command is swallowed, nothing is sent, the desync is unfixable. The
+contract:
+- **The skip is structured, not prose:** a guarded skip returns success with
+  `data: { no_op: true, skipped_reason: "idempotence" }` (chokepoint:
+  `BaseDevice.idempotence_skip(...)`). `CanonicalActionResponse` surfaces both fields —
+  including in **`wait:false`** mode (the guard runs synchronously inside `perform_action`,
+  so the marker is available without the echo wait) — and the native `/action` response
+  carries them under `data`. Side effect: a `wait:true` canonical call on an
+  already-at-target guarded device now returns `no_op` instead of a spurious 503
+  (an idempotence skip never fires `update_state`, so no echo ever lands).
+- **`force` is a reserved cross-cutting param**, never declared in command configs: the
+  canonical expansion passes it through by name, `_resolve_and_validate_params` preserves
+  it alongside declared params, and every idempotence guard proceeds when it is truthy.
+  Availability guards ("device unreachable") are NEVER force-bypassed.
+- **The UI affordance is reactive** (no standing chrome, no manifest change): on a
+  `skipped_reason: "idempotence"` response, `RuntimeDevicePage` arms an ~8 s re-tap offer —
+  an amber banner in the remote plus a pulse on the matching power button; re-tapping the
+  SAME control re-dispatches with `params.force = true`; any other control or the timeout
+  disarms. The escape hatch materializes exactly when the guard bites.
+
 ### Manual instructions — DECIDED (2026-05-24)
 - **Baseline — Option B (rides the manifest; in the remote, scenarios-only):** add a **top-level
   `manualInstructions?: { startup: string[], shutdown: string[] }`** to the manifest. `build_scenario_manifest`

@@ -82,7 +82,7 @@ bottom panel**. Each is optional.
 
 | Zone | Shape | What it renders |
 |---|---|---|
-| ① `power` | `PowerButtonConfig[]` (left / middle / right) | Up to three power buttons (`power-off`, `power-on`, `power-toggle`, `zone2-power`). |
+| ① `power` | `PowerButtonConfig[]` (left / middle / right) | Up to three power buttons (`power-off`, `power-on`, `power-toggle`, `zone2-power`). If a press is skipped because the bridge believes the device is already in that state, the button pulses and a banner offers a few seconds to tap again — the second tap sends the command anyway (the escape hatch for a device switched behind the bridge's back). |
 | ② `media-stack` | `inputs` (Dropdown) + `playback` (actions row) + `tracks` (actions row) | Source selection + transport. Dropdown options are either fetched at runtime (devices that can report their list, like a TV's inputs) or baked into the manifest as a fixed set (IR/relay-style); either way, picking an option issues the same "set the input" command through the canonical endpoint. |
 | ③ `screen` | Vertical button stack | Menu, home, back, info — the buttons that live to the left of the D-pad. |
 | ④ `menu` | Nav cluster | The D-pad + OK. Always rendered, even if all five slots are empty (it anchors the layout visually). |

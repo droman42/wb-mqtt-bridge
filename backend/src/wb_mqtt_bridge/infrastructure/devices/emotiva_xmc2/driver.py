@@ -438,7 +438,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         idx = self._source_index_by_name.get(self._norm_source_name(name))
         return f"source{idx}" if idx is not None else name_str
 
-    async def _power_cycle_for_arc(self) -> CommandResult:
+    async def _power_cycle_for_arc(self, params: Optional[Dict[str, Any]] = None) -> CommandResult:
         """Power-cycle the eMotiva to force HDMI ARC re-engagement.
 
         HDMI ARC engages on power-up when CEC is enabled and the TV is broadcasting
@@ -455,11 +455,15 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         sent set_input_source(arc) (which translates to handle_home in the LG driver)
         before this power-cycle is dispatched.
         """
-        if self.state.input_source == "arc":
+        # Idempotence guard (honors `force` — DRV-5): ARC engagement is exactly the
+        # kind of believed state that goes stale; force re-runs the off→on cycle.
+        skip = self.idempotence_skip(
+            params, self.state.input_source == "arc",
+            "Input already set to arc (ARC engaged)", input="arc",
+        )
+        if skip is not None:
             await self.emit_progress("Input already set to arc (ARC engaged)", "action_progress")
-            return self.create_command_result(
-                success=True, message="Input already set to arc (ARC engaged)", input="arc"
-            )
+            return skip
         if self.client is None:
             return self.create_command_result(success=False, error="Not connected to processor")
         logger.info(f"set_input(arc): power-cycling {self.get_name()} to engage HDMI ARC")
@@ -794,14 +798,14 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 logger.warning(f"Failed to synchronize state for zone {zone_id}: {str(e)}")
                 # Continue with power on attempt even if we couldn't verify state
         
-        # Check if already powered on
-        if current_power == PowerState.ON:
+        # Idempotence guard (honors `force` — DRV-5: useful when an ack was missed).
+        skip = self.idempotence_skip(
+            params, current_power == PowerState.ON,
+            f"Zone {zone_id} is already powered on", zone=zone_id,
+        )
+        if skip is not None:
             logger.debug(f"Zone {zone_id} is already powered on, skipping command")
-            return self.create_command_result(
-                success=True,
-                message=f"Zone {zone_id} is already powered on",
-                zone=zone_id
-            )
+            return skip
         
         try:
             # Power on the specified zone.
@@ -949,13 +953,14 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         elif zone == Zone.ZONE2:
             current_power = self.state.zone2_power
                 
-        if current_power == PowerState.OFF:
+        # Idempotence guard (honors `force` — DRV-5).
+        skip = self.idempotence_skip(
+            params, current_power == PowerState.OFF,
+            f"Zone {zone_id} is already powered off", zone=zone_id,
+        )
+        if skip is not None:
             logger.debug(f"Zone {zone_id} is already powered off, skipping command")
-            return self.create_command_result(
-                success=True,
-                message=f"Zone {zone_id} is already powered off",
-                zone=zone_id
-            )
+            return skip
             
         # If state is None, request an update
         if current_power is None:
@@ -971,14 +976,14 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                     
                 logger.debug(f"Synchronized power state for zone {zone_id} before power off: {current_power}")
                     
-                # Check again if already off
-                if current_power == PowerState.OFF:
+                # Check again if already off (idempotence guard, honors `force` — DRV-5).
+                skip = self.idempotence_skip(
+                    params, current_power == PowerState.OFF,
+                    f"Zone {zone_id} is already powered off (verified)", zone=zone_id,
+                )
+                if skip is not None:
                     logger.debug(f"Zone {zone_id} is already powered off (verified), skipping command")
-                    return self.create_command_result(
-                        success=True,
-                        message=f"Zone {zone_id} is already powered off (verified)",
-                        zone=zone_id
-                    )
+                    return skip
             except Exception as e:
                 logger.warning(f"Failed to get current power state for zone {zone_id}: {str(e)}")
                 # Continue with power off attempt even if we couldn't verify state
@@ -1123,7 +1128,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         # state is orchestrated upstream by topology ordering + the LG TV's own
         # set_input_source(arc) → handle_home.
         if str(raw_value).strip().lower() == "arc":
-            return await self._power_cycle_for_arc()
+            return await self._power_cycle_for_arc(params)
 
         index = self._source_index_from_token(raw_value)
         if index is None:
@@ -1151,10 +1156,14 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                     power=self.state.power if self.state.power else "off",
                 )
 
-        # Already on this source?
-        if self.state.input_source == token:
+        # Already on this source? (Idempotence guard, honors `force` — DRV-5.)
+        skip = self.idempotence_skip(
+            params, self.state.input_source == token,
+            f"Input already set to {token}", input=token,
+        )
+        if skip is not None:
             await self.emit_progress(f"Input already set to {token}", "action_progress")
-            return self.create_command_result(success=True, message=f"Input already set to {token}", input=token)
+            return skip
 
         if self.client is None:
             return self.create_command_result(success=False, error="Not connected to processor")
@@ -1261,14 +1270,16 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                     # Continue with volume setting even if we couldn't verify state
                 
         # If volume is already at the requested level, skip setting it
-        if current_volume is not None and abs(current_volume - level) < 0.1:  # Small tolerance for float comparison
+        # (idempotence guard with float tolerance, honors `force` — DRV-5).
+        skip = self.idempotence_skip(
+            params,
+            current_volume is not None and abs(current_volume - level) < 0.1,
+            f"Volume for zone {zone_id} already at {level} dB",
+            volume=level, zone=zone_id,
+        )
+        if skip is not None:
             logger.debug(f"Volume for zone {zone_id} already at {level} dB, skipping command")
-            return self.create_command_result(
-                success=True,
-                message=f"Volume for zone {zone_id} already at {level} dB",
-                volume=level,
-                zone=zone_id
-            )
+            return skip
         
         if self.client is None:
             return self.create_command_result(success=False, error="Not connected to processor")

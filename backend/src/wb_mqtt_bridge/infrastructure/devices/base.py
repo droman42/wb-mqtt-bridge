@@ -248,9 +248,42 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
         # Add any additional fields
         for key, value in extra_fields.items():
             result[key] = value
-            
+
         return result
-        
+
+    def idempotence_skip(
+        self,
+        params: Optional[Dict[str, Any]],
+        already_at_target: bool,
+        message: str,
+        **extra_fields,
+    ) -> Optional[CommandResult]:
+        """IDEMPOTENCE guard chokepoint (DRV-5) — the one way to skip a command
+        because optimistic state says the device is already at the target.
+
+        Returns the skip result when the guard should fire, or None when the
+        handler must proceed: either the device isn't at the target, or the
+        caller passed the reserved ``force`` param (the UI escape hatch for
+        optimistic-state desync — state claims 'on' but someone used the
+        physical remote).
+
+        The skip result carries ``data.no_op`` (the established already-at-target
+        flag the canonical endpoint short-circuits on instead of 503-ing the echo
+        wait) and ``data.skipped_reason = "idempotence"`` (the structured marker
+        the UI's re-tap-to-force affordance keys on).
+
+        AVAILABILITY guards ("device unreachable / no client") must NOT use this
+        helper — force never bypasses those.
+        """
+        if not already_at_target or (params or {}).get("force"):
+            return None
+        return self.create_command_result(
+            success=True,
+            message=message,
+            data={"no_op": True, "skipped_reason": "idempotence"},
+            **extra_fields,
+        )
+
     def set_error(self, error_message: str) -> None:
         """Set an error message in the device state.
         
@@ -1174,7 +1207,14 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
                 # Optional parameter, use default if available
                 if default is not None:
                     result[param_name] = default
-                    
+
+        # `force` is a RESERVED cross-cutting param (DRV-5, idempotence-guard
+        # bypass) — never declared in command configs, so it would otherwise be
+        # dropped whenever a command declares params (only declared names are
+        # copied into `result` above).
+        if "force" in provided_params and "force" not in result:
+            result["force"] = bool(provided_params["force"])
+
         return result
     
     def create_mqtt_command_result(

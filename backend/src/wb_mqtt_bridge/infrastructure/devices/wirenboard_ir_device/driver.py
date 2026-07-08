@@ -235,16 +235,16 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
             logger.debug(f"Executing power on for {self.device_name}")
             
             try:
-                # Check current power state
-                if self.state.power == "on":
-                    # Already on, skip execution
+                # Idempotence guard (honors `force` — the only escape from an
+                # optimistic-state desync on a one-way IR channel, DRV-5).
+                skip = self.idempotence_skip(
+                    params, self.state.power == "on", "Device already on, command skipped"
+                )
+                if skip is not None:
                     logger.info(f"{self.device_name}: Device already on, skipping power_on command")
-                    return self.create_command_result(
-                        success=True, 
-                        message="Device already on, command skipped"
-                    )
-                
-                # Device is off, execute the IR command
+                    return skip
+
+                # Device is off (or force), execute the IR command
                 result = await self._execute_ir_command(action_name, original_cmd_config, params)
                 
                 if result.get("success"):
@@ -270,16 +270,15 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
             logger.debug(f"Executing power off for {self.device_name}")
             
             try:
-                # Check current power state
-                if self.state.power == "off":
-                    # Already off, skip execution
+                # Idempotence guard (honors `force` — DRV-5, see power_on).
+                skip = self.idempotence_skip(
+                    params, self.state.power == "off", "Device already off, command skipped"
+                )
+                if skip is not None:
                     logger.info(f"{self.device_name}: Device already off, skipping power_off command")
-                    return self.create_command_result(
-                        success=True, 
-                        message="Device already off, command skipped"
-                    )
-                
-                # Device is on, execute the IR command
+                    return skip
+
+                # Device is on (or force), execute the IR command
                 result = await self._execute_ir_command(action_name, original_cmd_config, params)
                 
                 if result.get("success"):

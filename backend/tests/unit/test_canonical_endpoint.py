@@ -351,6 +351,65 @@ def test_no_op_false_still_waits_for_echo(faked):
     assert r.json()["state"]["mirrored"] == {"power": "1"}
 
 
+# ----- DRV-5: idempotence-skip marker + reserved force param -----------------
+
+
+def test_idempotence_skip_marker_rides_wait_false(faked):
+    """An idempotence-guard skip (`data.skipped_reason='idempotence'`) must surface in
+    the wait:false response — the UI's mash-click mode is exactly where the re-tap-to-
+    force offer arms. The reserved `force` param must also pass through the canonical
+    expansion untouched (names absent from param_map pass through by name)."""
+    dev = FakeDevice("ir_amp", _light_switch_cap_map(), {"power": "on", "reachable": True})
+    faked.devices["ir_amp"] = dev
+    seen_params = {}
+
+    async def handler(d, cmd, params):
+        seen_params.update(params or {})
+        return {
+            "success": True, "device_id": "ir_amp", "action": cmd,
+            "state": {}, "data": {"no_op": True, "skipped_reason": "idempotence"},
+        }
+
+    faked.handlers["ir_amp"] = handler
+    r = faked.client.post(
+        "/devices/ir_amp/canonical",
+        json={"capability": "power", "action": "on", "params": {"force": True}, "wait": False},
+    )
+    assert r.status_code == 200, r.json()
+    body = r.json()
+    assert body["success"] is True
+    assert body["no_op"] is True
+    assert body["skipped_reason"] == "idempotence"
+    assert seen_params.get("force") is True  # reserved param reached the handler
+
+
+def test_idempotence_skip_short_circuits_echo_wait(faked):
+    """wait:true + an idempotence skip: the guard fires no update_state, so no echo will
+    ever land — the no_op short-circuit must return success (with the marker) instead of
+    a spurious 503 device_unreachable. This is the voice path for «включи» on an IR
+    device the bridge already believes is on."""
+    dev = FakeDevice("ir_amp", _light_switch_cap_map(), {"power": "on", "reachable": True})
+    faked.devices["ir_amp"] = dev
+
+    async def handler(d, cmd, params):
+        # Critically: no d._notify() — the endpoint would 503 if it waited.
+        return {
+            "success": True, "device_id": "ir_amp", "action": cmd,
+            "state": {}, "data": {"no_op": True, "skipped_reason": "idempotence"},
+        }
+
+    faked.handlers["ir_amp"] = handler
+    r = faked.client.post(
+        "/devices/ir_amp/canonical",
+        json={"capability": "power", "action": "on"},
+    )
+    assert r.status_code == 200, r.json()
+    body = r.json()
+    assert body["success"] is True
+    assert body["no_op"] is True
+    assert body["skipped_reason"] == "idempotence"
+
+
 # ----- Resolution detail: param_map renames canonical -> native ------------
 
 
