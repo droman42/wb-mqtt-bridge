@@ -210,6 +210,14 @@ class MQTTClient(MessageBusPort):
                     self._connection_event.set()  # Signal that connection is established
                     logger.info(f"Connected to MQTT broker at {self.host}:{self.port}")
 
+                    # CORE-9: a successful connection resets the retry budget, so
+                    # `max_retries` bounds retries PER disconnect episode, not per process
+                    # lifetime. Without this, N transient drops over a long-running
+                    # controller's life accumulate and the loop permanently gives up on
+                    # MQTT after the 5th lifetime blip — the house goes uncontrollable
+                    # until a manual restart.
+                    retry_count = 0
+
                     # Subscribe to every topic with a registered handler. This is the union
                     # of `topics_to_subscribe` (passed by `connect_and_subscribe`) AND any
                     # handlers queued via `subscribe()` *before* the connection came up

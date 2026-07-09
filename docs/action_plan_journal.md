@@ -21,6 +21,12 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-09 — CORE-9 DONE (REL-5 #2 P0 fix: MQTT reconnect budget per-episode)** — `_run_mqtt_client`
+  reset `retry_count = 0` on each successful connect, so `max_retries` bounds retries within one
+  failed-to-connect episode instead of across the process lifetime (five lifetime blips no longer
+  permanently kill MQTT). New `test_mqtt_reconnect.py` (connect-then-drop 8× > max_retries, asserts the
+  loop keeps reconnecting). pyright 0, import-linter 6/6.
+
 - **2026-07-09 — REL-5 DONE (pre-tag code review) + 11 remediation tasks filed** — the code-review
   half of the release gate, split out of REL-3 and run off the rack. A multi-agent review (7 subsystem
   reviewers × 4 dimensions, every finding adversarially re-verified — 27 agents, 0 errors) over the
