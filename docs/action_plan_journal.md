@@ -21,6 +21,20 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-09 — VWB-13 DONE (catalog completeness sweep + bulk end-to-end, on the deployed WB7)**
+  — closed on the user's spot-check evidence after reconciling the sweep's two halves against live
+  controller reality (`task-start-reconciliation`; user-accepted "close as done now"). Half one
+  (**catalog completeness**) was already proven at the REL-2 cutover 2026-07-08: the controller's
+  live `/system/catalog` byte-matched golden `8159b4b0068d1c63` (79 devices / 11 rooms, incl. all 8
+  `global` aggregates + `scenario_manager_living_room`) — zero deployment drift, every canonical
+  action resolvable. Half two (**bulk end-to-end across rooms**) rode the user's controller
+  spot-checks 2026-07-08–09: room devices exercised through the deployed bridge, behaving identically
+  to the dev-box run (same binary + config tree — REL-2 removed the only variable). The 8 `global`
+  aggregates accepted as covered-enough (bar = the canonical call *publishes to the broker*; the wired
+  ones actuate the house and several still owe wb-rules backing, so an exhaustive fire-all was
+  deliberately not run). Verification task — no code touched. **REL-3 is now unblocked** (its last
+  non-done prerequisite). Board: REL-3 → REL-4 → tag; VWB-16 x-repo.
+
 - **2026-07-08, evening — Domovoy productization intake accepted (VWB-29, CORE-7, OPS-14, OPS-15,
   OPS-16 filed)** — the joint productization session (run from `~/development` as both repos' Claude;
   voice-side BUILD-20, committed there `7214eb7`) left `docs/design/productization_bridge.md` + five
