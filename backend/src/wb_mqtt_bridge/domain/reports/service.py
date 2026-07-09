@@ -13,6 +13,7 @@ import json
 import logging
 import tarfile
 import time
+import uuid
 from base64 import b64encode
 from collections import deque
 from datetime import datetime, timezone
@@ -199,7 +200,11 @@ class ReportService:
 
         ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         room = self._room_of(entity_id) or "house"
-        report_id = f"{ts}-bridge-ui-{room}"
+        # VWB-30 (#15): the timestamp is second-granular, so two reports filed in the
+        # same second + room collided — the report_id doubles as the spool filename, so a
+        # collision silently overwrote one bundle / left it permanently undeliverable. A
+        # short random suffix makes the id (and the spool file) unique.
+        report_id = f"{ts}-bridge-ui-{room}-{uuid.uuid4().hex[:8]}"
 
         bundle = self._build_bundle(evidence, context, ui_evidence)
         title = f"[bridge-ui] {redact_text(free_text.strip())[:60]}"

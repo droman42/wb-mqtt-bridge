@@ -78,6 +78,40 @@ def test_redact_text_masks_assignments():
     assert "normal line stays" in red
 
 
+def test_redact_mapping_masks_secret_container_leaves():
+    """VWB-30 #13: a credential-shaped key holding a container used to recurse and leak
+    any leaf that lacked its own secret-shaped key."""
+    obj = {
+        "credentials": {"primary": "SECRET1", "secondary": ["SECRET2", {"deep": "SECRET3"}]},
+        "auth": {"username": "admin", "password": "x"},
+        "device_id": "amp",
+    }
+    red = redact_mapping(obj)
+    # every leaf under a credential-shaped key is masked, structure preserved
+    assert red["credentials"] == {"primary": "***", "secondary": ["***", {"deep": "***"}]}
+    assert red["auth"] == {"username": "***", "password": "***"}
+    assert red["device_id"] == "amp"  # non-secret key still passes through
+
+
+def test_redact_text_masks_url_embedded_credentials():
+    """VWB-30 #14: a broker URL carries no keyword before the password."""
+    red = redact_text("connecting to mqtt://admin:t6uxESDN@192.168.110.250:1883")
+    assert "t6uxESDN" not in red
+    assert "admin" in red and "192.168.110.250" in red  # user + host stay diagnostic
+
+
+@pytest.mark.asyncio
+async def test_file_report_ids_are_unique(tmp_path):
+    """VWB-30 #15: report_id doubles as the spool filename — two reports in the same
+    second + room must not collide (silent overwrite / undeliverable)."""
+    sink = _RecordingSink()
+    svc = _service(tmp_path, sink=sink)
+    await svc.file_report("first", context={"entity_id": "amp"})
+    await svc.file_report("second", context={"entity_id": "amp"})
+    ids = [f.report_id for f in sink.filings]
+    assert len(ids) == 2 and ids[0] != ids[1]
+
+
 # --- service fakes --------------------------------------------------------------
 
 

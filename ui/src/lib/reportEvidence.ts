@@ -88,7 +88,9 @@ export function collectUiEvidence(): Record<string, unknown> {
       language: navigator.language,
       collectedAt: new Date().toISOString(),
     },
-    actionLog: useLogStore.getState().entries.slice(-RING_MAX),
+    // VWB-30 (#16): useLogStore unshifts new entries (newest at index 0), so slice(0, N)
+    // takes the most recent N — the bug-relevant ones. slice(-N) took the OLDEST N.
+    actionLog: useLogStore.getState().entries.slice(0, RING_MAX),
     console: [...consoleRing],
     apiCalls: [...apiRing],
     sse: { ...sseHealth },
