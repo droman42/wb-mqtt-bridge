@@ -21,6 +21,27 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-09, night — the HVAC-cards incident: root cause pinned (bridge exonerated); DRV-26 + DRV-27
+  + VWB-32 filed** — all three WB-UI «Кондиционер» cards showed valueless controls (sliders pegged at
+  max, blank setpoint, red ⊗); initial suspicion fell on the day's DRV-23/25 deploys. Investigation
+  (live broker forensics + container logs + the `../mitsubishi2wb` firmware source): **the controller
+  rebooted at 14:37 MSK and mosquitto runs WITHOUT persistence → every retained message was wiped.**
+  Everything that actively republishes recovered (wb-mqtt-serial poll, wb-rules, ESP32 `meta` + periodic
+  `room_temperature`); the mitsubishi2wb ESP32s republish interactive control values **only on change**
+  (`mqttConnect()` re-sends meta only — confirmed in source), so their cards stayed empty until poked
+  (living room self-healed after voice's command; children via panel power-cycle; bedroom = the still-
+  broken witness that proved it: meta intact, values absent). The bridge's total output to HVAC topics
+  all day: ONE non-retained `power/on: 0`. **Decisions:** mosquitto persistence stays OFF (user, per WB
+  community advice) → robustness moves above the broker. **Found en route, filed:** **DRV-26** `[P1]
+  [release]` — the VWB-14 HVAC value tables have label-string wire values but the firmware speaks
+  numeric indices AND silently drops non-numeric commands ⇒ HVAC mode/fan/vane/widevane control is
+  currently DEAD both directions (definitive numeric tables extracted from `hpSettingsChanged()`);
+  **DRV-27** `[P2] [deferred]` — dedicated ESP32-HVAC driver design (typed declared state → restore-at-
+  boot covers the wipe; firmware tables in code; optional bridge-owned labeled WB card; the VWB-11-
+  anticipated migration, user-directed); **VWB-32** `[P1] [release]` — `bridge/catalog/version` is only
+  published from `/reload`, so the wipe left it MISSING on the live broker (voice's staleness gate reads
+  it) — publish retained at startup + on reconnect. No code in this entry — investigation + filings.
+
 - **2026-07-09 — DRV-25 DONE (WB-passthrough state → top-level fields; switch `power` readable)** —
   pulled forward from `[deferred]` (maintainer: a nasty bug that must not ship in release 1). Retired
   the `mirrored` bucket: `WbPassthroughState` is `extra="allow"`, `_on_value_message` sets each coerced
