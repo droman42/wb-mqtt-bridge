@@ -235,8 +235,6 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   bench (fallback = the rejected container batch). Depends on DRV-19 (the launch path); expect a
   backend/UI split into subtasks when picked up (`config-ui-stays-functional` applies throughout).
 
-- [ ] **DRV-21** `[P1]` `[release]` — **Canonical select-form `set` drops the reserved `force`/`assume_state` → the force escape hatch is dead for AV inputs** (REL-5 #3, `docs/review/rel5_pretag_review.md`). `presentation/api/routers/devices.py:454` — select-form dispatch extracts only `value` and calls `cap.select.expand(value)`, discarding the reserved params; the actions-form path forwards them fine and the reconciler already manually re-injects `force` (`reconciler.py:303`), but canonical dispatch never got the equivalent overlay. Effect: an input desync on Emotiva/LG/Auralic can't be recovered through the UI re-tap-to-force. Fix: overlay the reserved params onto the expanded `NativeStep`(s) (mirror `_resolve_and_validate_params`). Extends DRV-5; add a regression test.
-
 - [ ] **DRV-22** `[P2]` `[deferred]` — **IR device `last_command` detail overwritten by the base chokepoint** (REL-5 #10). `wirenboard_ir_device/driver.py:319` sets `command_topic`/`command_payload` that `BaseDevice.update_state` immediately overwrites — cosmetic, no functional impact. Cleanup.
 
 ### SCN — Scenarios / topology / reconciler

@@ -332,3 +332,80 @@ def test_catalog_does_not_duplicate_authored_set():
     caps = _project_capability_actions(cap_map)
     (input_cap,) = caps
     assert [a.name for a in (input_cap.actions or [])].count("set") == 1
+
+
+# ----- DRV-21: reserved cross-cutting params survive select-form dispatch ----
+# The actions-form path forwards ALL incoming params through CapabilityAction.expand,
+# but select-form expand takes only `value`. Before the fix the reserved force/
+# assume_state params were dropped, so the UI's re-tap-to-force escape hatch was dead
+# for AV inputs (Emotiva/LG/Auralic) and an input desync could never be recovered.
+
+
+def test_canonical_set_parametric_forwards_force(faked):
+    """`input.set {value, force}` -> the handler must see force alongside the renamed
+    native value on the parametric (LG/Emotiva/Auralic) path."""
+    dev = FakeDevice("lg_tv", _parametric_input_map(), {"input_source": "home"})
+    faked.devices["lg_tv"] = dev
+    seen: Dict[str, Any] = {}
+
+    async def handler(d, cmd, params):
+        seen["cmd"], seen["params"] = cmd, params
+        d.state.input_source = "hdmi2"
+        d._notify()
+        return {"success": True}
+
+    faked.handlers["lg_tv"] = handler
+    r = faked.client.post(
+        "/devices/lg_tv/canonical",
+        json={"capability": "input", "action": "set",
+              "params": {"value": "hdmi2", "force": True}},
+    )
+    assert r.status_code == 200, r.json()
+    assert seen["cmd"] == "set_input_source"
+    assert seen["params"] == {"source": "hdmi2", "force": True}
+
+
+def test_canonical_set_by_value_forwards_force(faked):
+    """`input.set {value, force}` -> the by_value (IR amp) step is `input_cd {}`, so the
+    handler sees exactly {force: True}."""
+    dev = FakeDevice("mf_amplifier", _by_value_input_map(), {"input": "aux1"})
+    faked.devices["mf_amplifier"] = dev
+    seen: Dict[str, Any] = {}
+
+    async def handler(d, cmd, params):
+        seen["cmd"], seen["params"] = cmd, params
+        d.state.input = "cd"
+        d._notify()
+        return {"success": True}
+
+    faked.handlers["mf_amplifier"] = handler
+    r = faked.client.post(
+        "/devices/mf_amplifier/canonical",
+        json={"capability": "input", "action": "set",
+              "params": {"value": "cd", "force": True}},
+    )
+    assert r.status_code == 200, r.json()
+    assert seen["cmd"] == "input_cd"
+    assert seen["params"] == {"force": True}
+
+
+def test_canonical_set_forwards_assume_state(faked):
+    """The other reserved param (assume_state, SCN-11) rides through select-form too."""
+    dev = FakeDevice("mf_amplifier", _by_value_input_map(), {"input": "aux1"})
+    faked.devices["mf_amplifier"] = dev
+    seen: Dict[str, Any] = {}
+
+    async def handler(d, cmd, params):
+        seen["params"] = params
+        d.state.input = "cd"
+        d._notify()
+        return {"success": True}
+
+    faked.handlers["mf_amplifier"] = handler
+    r = faked.client.post(
+        "/devices/mf_amplifier/canonical",
+        json={"capability": "input", "action": "set",
+              "params": {"value": "cd", "assume_state": "cd"}},
+    )
+    assert r.status_code == 200, r.json()
+    assert seen["params"] == {"assume_state": "cd"}

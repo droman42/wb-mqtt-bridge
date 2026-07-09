@@ -20,6 +20,7 @@ from wb_mqtt_bridge.presentation.api.schemas import (
 from wb_mqtt_bridge.presentation.api.layout_engine import build_device_manifest
 from wb_mqtt_bridge.presentation.api.layout_manifest import LayoutManifest
 from wb_mqtt_bridge.domain.devices.types import CommandResponse
+from wb_mqtt_bridge.domain.capabilities.models import RESERVED_PARAMS
 
 
 # §P3.7 #15: how long the canonical endpoint waits for a value-topic echo before
@@ -452,6 +453,20 @@ async def dispatch_device_canonical(
             raise HTTPException(status_code=400, detail=resp.model_dump())
         try:
             steps = cap.select.expand(value)
+            # DRV-21: select-form `expand` takes only `value`, so the reserved
+            # cross-cutting params (force/assume_state) would be dropped — killing the
+            # UI's re-tap-to-force escape hatch for input desync on AV inputs. Overlay
+            # them onto each expanded step (step params win any conflict), mirroring how
+            # the actions-form path forwards them via CapabilityAction.expand.
+            reserved = {
+                k: v for k, v in (payload.params or {}).items()
+                if k in RESERVED_PARAMS and v is not None
+            }
+            if reserved:
+                steps = [
+                    step.model_copy(update={"params": {**reserved, **step.params}})
+                    for step in steps
+                ]
         except ValueError as e:
             resp = _err_response(
                 response_device_id, payload.capability, payload.action,

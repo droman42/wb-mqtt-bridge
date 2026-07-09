@@ -21,6 +21,13 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-09 — DRV-21 DONE (REL-5 #3 P1 fix: select-form forwards force/assume_state)** — canonical
+  select-form `set` dropped the reserved cross-cutting params (`CapabilitySelect.expand` takes only
+  `value`), so the UI re-tap-to-force escape hatch was dead for AV inputs. New domain constant
+  `RESERVED_PARAMS`; the dispatcher overlays force/assume_state onto each expanded select-form step
+  (mirrors the actions-form path; step params win). 3 tests in `test_select_canonical.py`; pyright 0,
+  import-linter 6/6 (presentation→domain only).
+
 - **2026-07-09 — CORE-9 DONE (REL-5 #2 P0 fix: MQTT reconnect budget per-episode)** — `_run_mqtt_client`
   reset `retry_count = 0` on each successful connect, so `max_retries` bounds retries within one
   failed-to-connect episode instead of across the process lifetime (five lifetime blips no longer

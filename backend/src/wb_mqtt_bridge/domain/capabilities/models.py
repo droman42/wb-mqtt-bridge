@@ -16,6 +16,15 @@ from wb_mqtt_bridge.domain.devices.config import LocalizedName, ValueLabel, _nor
 
 CapabilityFieldType = Literal["str", "int", "float", "bool", "rgb", "enum"]
 
+# Reserved cross-cutting params that ride alongside a canonical call rather than being
+# declared per-command: ``force`` (DRV-5 — bypass the idempotence guard) and
+# ``assume_state`` (SCN-11 — forced-toggle claim override). They are preserved through
+# ``BaseDevice._resolve_and_validate_params`` at the driver, and must survive canonical
+# expansion too — the actions-form path forwards them naturally (all incoming params flow
+# through ``CapabilityAction.expand``), but select-form ``expand`` takes only ``value``, so
+# the dispatcher overlays them onto the expanded steps (DRV-21).
+RESERVED_PARAMS = frozenset({"force", "assume_state"})
+
 
 class CapabilityAction(BaseModel):
     """How to invoke one canonical action: a native ``command`` (or a ``sequence``
