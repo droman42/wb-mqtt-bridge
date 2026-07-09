@@ -21,6 +21,19 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-09 — REL-5 DONE (pre-tag code review) + 11 remediation tasks filed** — the code-review
+  half of the release gate, split out of REL-3 and run off the rack. A multi-agent review (7 subsystem
+  reviewers × 4 dimensions, every finding adversarially re-verified — 27 agents, 0 errors) over the
+  release-critical backend + UI. **20 raw → 19 confirmed (1 refuted): 2 P0, 5 P1, 12 P2.** Frozen
+  evidence: `docs/review/rel5_pretag_review.md`. Two P0s stand out — the broker password committed in
+  `system.json` and served unauthenticated on the LAN (#1), and the MQTT reconnect counter that never
+  resets so the bridge permanently loses MQTT after 5 lifetime disconnects (#2). Findings triaged with
+  the user and filed as fresh tasks: tag-blocking **CORE-9, DRV-21, SCN-12, UI-13** + pulled-forward
+  `[release]` **VWB-30** (reports hardening), **UI-14** (UI nits); deferred **CORE-8** (broker/device
+  secret handling — owner scoped it to productization, house on a trusted LAN; password rotation is a
+  separate near-term op), **VWB-31, DRV-22, OPS-18, UI-15**. P0/P1 remediation lands before the tag.
+  Board now: REL-3 (rack) ∥ {CORE-9/DRV-21/SCN-12/UI-13/VWB-30/UI-14 fixes} → REL-4 → tag.
+
 - **2026-07-09 — OPS-17 DONE (both containers run non-root as uid 1000 `domovoy`)** — user-flagged
   from the voice deployment work ("we run the containers as root, which is wrong"); mirrors the voice
   repo's BUILD-15 uid fix. Backend `Dockerfile`: `useradd -m -u 1000 domovoy` + chown /app + `USER`
