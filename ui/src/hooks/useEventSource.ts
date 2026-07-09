@@ -2,6 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { runtimeConfig, getSSEUrl } from '@/config/runtime';
 import { reportSseState } from '../lib/reportEvidence';
 
+// UI-13: after the fast back-off budget is spent, keep a slow keepalive reconnect at
+// this interval forever — a stream must never give up permanently (a wall panel would
+// otherwise freeze on stale device state until a full page reload).
+const SLOW_KEEPALIVE_MS = 60_000;
+
 export interface SSEOptions {
   withCredentials?: boolean;
   headers?: Record<string, string>;
@@ -105,6 +110,7 @@ export function useEventSource<T = any>(
               // Reset reconnection counters on successful event
               reconnectAttemptsRef.current = 0;
               setReconnectAttempts(0);
+              retryRef.current = retryInterval;  // UI-13: reset the back-off budget too
               
               // Update state with event data and type
               setData({ ...eventData, eventType });
@@ -132,20 +138,28 @@ export function useEventSource<T = any>(
           setConnected(false);
           es.close();
           
-          // 🔧 FIX: Use ref values to avoid stale closure issues
-          if (!cancelledRef.current && reconnectAttemptsRef.current < maxRetries) {
-            reconnectAttemptsRef.current++;
-            setReconnectAttempts(reconnectAttemptsRef.current);
-            
-            // Exponential back-off with jitter
+          // 🔧 Use ref values to avoid stale closure issues
+          if (cancelledRef.current) return;
+
+          // UI-13: never give up permanently. Fast exponential back-off for the first
+          // `maxRetries` attempts (covers a transient blip quickly), then a slow
+          // keepalive reconnect forever — so when a longer outage ends, the stream
+          // recovers on its own instead of staying dead until a page reload.
+          reconnectAttemptsRef.current++;
+          setReconnectAttempts(reconnectAttemptsRef.current);
+
+          let delay: number;
+          if (reconnectAttemptsRef.current <= maxRetries) {
             const jitter = Math.random() * 1000; // 0-1s jitter
-            const delay = Math.min(retryRef.current + jitter, 60_000);
+            delay = Math.min(retryRef.current + jitter, 60_000);
             retryRef.current = Math.min(retryRef.current * 1.5, 30_000);
-            
-            reconnectTimeoutRef.current = setTimeout(() => {
-              if (!cancelledRef.current) connect();
-            }, delay);
+          } else {
+            delay = SLOW_KEEPALIVE_MS;
           }
+
+          reconnectTimeoutRef.current = setTimeout(() => {
+            if (!cancelledRef.current) connect();
+          }, delay);
         };
 
       } catch (connectError) {
