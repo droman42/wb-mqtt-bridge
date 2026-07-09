@@ -53,6 +53,7 @@ export function ForceReconcileDialog({ scenarioId, open, onClose }: Props) {
   const close = () => {
     setExpanded(null);
     setResults({});
+    setPending(null);  // UI-14 (#19): clear in-flight state so a quick reopen isn't stranded
     onClose();
   };
 

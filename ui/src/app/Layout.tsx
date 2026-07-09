@@ -91,10 +91,9 @@ function Layout({ children }: LayoutProps) {
           }
             
           default:
-            // 🐛 TEMPORARY DEBUG: Show all unknown event types in progress
-            console.log(`[Layout] Unknown device event type: ${eventType}`);
-            progressMessage = `${eventType}: ${message || 'Event received'}`;
-            shouldAddToProgress = true; // 🐛 Changed from false to true for debugging
+            // UI-14 (#17): unknown event types are ignored, not surfaced in the progress
+            // feed (a shipped TEMPORARY-DEBUG branch used to log + show every one).
+            shouldAddToProgress = false;
         }
         
         if (shouldAddToProgress) {
