@@ -259,8 +259,6 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   `delay_ms`. Post-release: the 5 s settle serves the house fine.
 
 
-- [ ] **SCN-12** `[P1]` `[release]` — **Teardown ignores `reconcile:false` — the reconciler drives a capability it is contractually forbidden to touch** (REL-5 #6, `docs/review/rel5_pretag_review.md`). `domain/scenarios/reconciler.py:278` — `build_power_off_plan` has no `reconcile` guard (unlike `build_plan`), so on `POST /scenario/shutdown` / a graceful switch it emits an IR `power_off` to a `reconcile:false` device (the `upscaler`, which auto-powers with the LD). Benign end-state for the upscaler but a racing unwanted emission, and any future `reconcile:false` power sink (always-on / toggle-power) would be actively mis-driven. Fix: `if power_cap is None or not power_cap.reconcile: continue` in `build_power_off_plan`, mirroring `build_plan`. Add a test.
-
 ### VWB — Voice-integration + native WB onboarding
 
 **Context (the P3.7 push — design narrative preserved from the former phase section):**

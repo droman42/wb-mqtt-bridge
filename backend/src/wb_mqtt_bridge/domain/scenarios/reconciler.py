@@ -273,7 +273,13 @@ def build_power_off_plan(device_ids, devices: Dict[str, Any]) -> ReconcilePlan:
             continue
         cap_map = getattr(device, "capabilities", None)
         power_cap = cap_map.get("power") if cap_map else None
-        if power_cap is None:
+        # SCN-12: honour reconcile:false on teardown too — mirror build_plan's power-on
+        # guard (line ~406). A reconcile:false power capability (e.g. the upscaler, which
+        # auto-powers with the LD) is exposed on the page/WB/HTTP but the reconciler must
+        # not drive it; without this guard a graceful switch / shutdown emitted an
+        # unwanted IR power_off to it, and any future always-on / toggle-power sink would
+        # be actively mis-driven.
+        if power_cap is None or not power_cap.reconcile:
             continue
         plan.actions.extend(_power_off_actions(device_id, power_cap, device.get_current_state()))
     return plan

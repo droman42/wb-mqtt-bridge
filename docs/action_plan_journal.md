@@ -21,6 +21,11 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-09 — SCN-12 DONE (REL-5 #6 P1 fix: teardown honours reconcile:false)** — `build_power_off_plan`
+  gained the `reconcile` guard `build_plan` already had, so a graceful switch/shutdown no longer emits an
+  IR `power_off` to a `reconcile:false` device (the upscaler). One-line fix + test (upscaler ON → empty
+  power-off plan). pyright 0, import-linter 6/6.
+
 - **2026-07-09 — DRV-21 DONE (REL-5 #3 P1 fix: select-form forwards force/assume_state)** — canonical
   select-form `set` dropped the reserved cross-cutting params (`CapabilitySelect.expand` takes only
   `value`), so the UI re-tap-to-force escape hatch was dead for AV inputs. New domain constant

@@ -298,6 +298,15 @@ def test_build_power_off_plan_skips_already_off():
     assert plan.actions == []
 
 
+def test_build_power_off_plan_skips_reconcile_false_power():
+    """SCN-12: teardown must honour reconcile:false, mirroring build_plan's power-on
+    guard. The upscaler's power capability is reconcile:false (it auto-powers with the
+    LD) — even when it is ON, a shutdown/switch must not emit a power_off to it."""
+    devices = {"upscaler": _device("WirenboardIRDevice", "upscaler", power="on")}
+    plan = build_power_off_plan(["upscaler"], devices)
+    assert plan.actions == []
+
+
 # --- all four scenarios, end to end -----------------------------------------
 
 
