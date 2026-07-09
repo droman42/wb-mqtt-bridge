@@ -21,6 +21,16 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-09 — DRV-24 DONE (design) + DRV-25 filed — WB-passthrough readable/authoritative power** —
+  follow-on to DRV-23 from the voice side's live re-test. Design (`docs/design/wb_passthrough_readable_power.md`)
+  for making `state.power` authoritative + readable on the 39 momentary-power WB-passthrough switch devices
+  (`light_switch`×24, `dimmable_light`×13, `power_switch`×2): (D1) profiles' power → stateful readable with a
+  `'1'↔'on'` value table; (D2) load-time enrichment so a device's bare `state_topics[field]` inherits the
+  profile field's type/values (declare once; also fixes the DRV-23 `mode` raw-`'0'` sibling); (D3)
+  `_on_value_message` sets the declared top-level `power` from the coerced canonical value. Scope pinned to the
+  WB-passthrough power capability only. Golden re-pin on implementation (cross-repo). Implementation = **DRV-25**
+  (`[P2][deferred]`, picks up with the voice features that need it — no release-1 gate).
+
 - **2026-07-09 — DRV-23 DONE (voice-filed; WB-passthrough state projected to top-level)** — filed by the
   voice repo per `cross-repo-source-of-truth`; verified against live code + the running WB7, reframed, and
   fixed same session. **Read path was genuinely broken:** WbPassthrough wrote feedback only into
