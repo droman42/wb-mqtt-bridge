@@ -62,6 +62,26 @@ def _dimmer_config() -> WbPassthroughDeviceConfig:
     )
 
 
+def _sensor_config() -> WbPassthroughDeviceConfig:
+    """A device whose catalog-advertised readable field (a float sensor) lands in mirrored —
+    the DRV-23 shape: voice reads top-level `state.room_temperature`, not `mirrored`."""
+    return WbPassthroughDeviceConfig(
+        device_id="cabinet_floor",
+        names={"ru": "Пол", "en": "Floor"},
+        device_class="WbPassthroughDevice",
+        config_class="WbPassthroughDeviceConfig",
+        room="cabinet",
+        commands={
+            "mode_on": WbPassthroughCommandConfig(
+                action="mode_on", topic="/devices/wb-mr6cu_31/controls/K5/on", value="1"),
+        },
+        state_topics={
+            "room_temperature": StateTopicSpec(
+                topic="/devices/wb-m1w2_56/controls/External Sensor 1", type="float"),
+        },
+    )
+
+
 @pytest.fixture
 def mqtt() -> MagicMock:
     m = MagicMock()
@@ -179,6 +199,30 @@ async def test_value_topic_echo_mirrors_into_state(device):
     await device._on_value_message("power", "/devices/wb-mr6c_51/controls/K4", "1")
     assert device.state.mirrored == {"power": "1"}
     assert device.state.reachable is True
+
+
+@pytest.mark.asyncio
+async def test_drv23_mirrored_field_projects_to_top_level(mqtt):
+    """DRV-23: a catalog-advertised readable field that lands in `mirrored` must appear at
+    top-level `state.<field>` — voice reads the top level, not `mirrored`. Before the fix
+    the value existed only in `mirrored` and every spoken sensor query returned None."""
+    dev = WbPassthroughDevice(_sensor_config(), mqtt_client=mqtt)
+    assert "room_temperature" not in dev.state.model_dump()  # nothing echoed yet
+    await dev._on_value_message(
+        "room_temperature", "/devices/wb-m1w2_56/controls/External Sensor 1", "24.125")
+    d = dev.state.model_dump()
+    assert "room_temperature" in d                                       # projected to top level
+    assert d["room_temperature"] == d["mirrored"]["room_temperature"]    # == the value voice reads
+
+
+@pytest.mark.asyncio
+async def test_drv23_projection_never_shadows_declared_field(device):
+    """A mirrored `power` echo must NOT overwrite the declared top-level `power` field
+    (which carries the capability's on/off sense, not the raw wire value)."""
+    await device._on_value_message("power", "/devices/wb-mr6c_51/controls/K4", "1")
+    d = device.state.model_dump()
+    assert d["power"] == "off"            # declared field wins over the mirror key
+    assert d["mirrored"]["power"] == "1"  # mirror still reflects the wire echo
 
 
 @pytest.mark.asyncio

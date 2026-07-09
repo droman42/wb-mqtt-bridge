@@ -553,3 +553,23 @@ class WbPassthroughState(BaseDeviceState):
     mirrored: Dict[str, Any] = Field(default_factory=dict)
     reachable: bool = True
     error_flags: Dict[str, str] = Field(default_factory=dict)
+
+    def model_dump(self, **kwargs: Any) -> Dict[str, Any]:  # type: ignore[override]
+        """DRV-23: project mirrored feedback onto top-level ``state.<field>`` in the
+        serialized view.
+
+        Voice (and any state reader) consumes **top-level** ``state.<field>`` per the ARCH-8
+        contract — ``mirrored`` is a bridge-internal cache it never learns. But for
+        WB-passthrough devices the real feedback (a floor's ``room_temperature``, a dimmer's
+        ``level``, a cover's ``position``…) lands only in ``mirrored``, so those
+        catalog-advertised readable fields read as ``None`` at the top level and every spoken
+        sensor query failed. Here each mirrored value is lifted to a top-level key of the same
+        (catalog-advertised) name — SERIALIZED-view only: ``mirrored`` stays the single source
+        of truth (the driver's idempotence guard reads ``self.state.mirrored`` directly,
+        unaffected; the reconstructed state never gains these as real attributes), and a
+        declared base field like ``power`` is never shadowed (already-present keys win)."""
+        data = super().model_dump(**kwargs)
+        for name, value in (self.mirrored or {}).items():
+            if name not in data:
+                data[name] = value
+        return data

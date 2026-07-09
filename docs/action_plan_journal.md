@@ -21,6 +21,18 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-09 — DRV-23 DONE (voice-filed; WB-passthrough state projected to top-level)** — filed by the
+  voice repo per `cross-repo-source-of-truth`; verified against live code + the running WB7, reframed, and
+  fixed same session. **Read path was genuinely broken:** WbPassthrough wrote feedback only into
+  `state.mirrored`, so voice reading top-level `state.<field>` (ARCH-8 contract) got `None` — «какая
+  температура в кабинете» failed though `room_temperature=24.125` sat in `mirrored`. **Write-path claim
+  disproven** by a live on→off→off repro (`power.off` fired, `no_op:false`; idempotence already uses
+  `mirrored`). **Scope: WbPassthrough-only, 39/65 devices** (live sweep; `mirrored` exists only on that
+  state class; all other classes clean). **Fix:** `model_dump` override on `WbPassthroughState` lifts each
+  mirrored value to a top-level key (serialized-view only — mirrored stays the source of truth, declared
+  fields like `power` not shadowed). +2 tests, suite 662, pyright 0, contracts 6/6, OpenAPI byte-identical.
+  Live re-verify owed to the redeploy.
+
 - **2026-07-09 — VWB-30 DONE (REL-5 reports hardening #13/#14/#15/#16, pulled forward)** — reports is
   live on the WB7, so four gaps fixed: redaction now masks the whole value under a credential-shaped key
   (was leaking non-secret-keyed leaves), `redact_text` masks URL-embedded creds (`scheme://user:pass@`),
