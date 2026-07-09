@@ -21,6 +21,20 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-09 — VWB-30 DONE (REL-5 reports hardening #13/#14/#15/#16, pulled forward)** — reports is
+  live on the WB7, so four gaps fixed: redaction now masks the whole value under a credential-shaped key
+  (was leaking non-secret-keyed leaves), `redact_text` masks URL-embedded creds (`scheme://user:pass@`),
+  `report_id` gained a uuid suffix (spool-filename collisions), and the browser `actionLog` takes the
+  newest N not the oldest (`slice(0,N)` — the store unshifts). +3 backend tests; pyright 0, 6/6, UI green.
+
+- **2026-07-09 — UI-13 DONE (REL-5 #7 P1 fix: SSE never gives up)** — `useEventSource` now falls back to a
+  60 s keepalive reconnect after the fast back-off budget is spent (was dead-until-reload after ~10
+  attempts, freezing wall-panel device state). UI check + build green.
+
+- **2026-07-09 — UI-14 DONE (REL-5 #17/#19, pulled forward)** — removed the shipped TEMPORARY-DEBUG branch
+  that surfaced every unknown SSE event into the progress feed; `ForceReconcileDialog.close()` now clears
+  `pending` so a quick reopen during an in-flight force isn't stranded. UI check + build green.
+
 - **2026-07-09 — SCN-12 DONE (REL-5 #6 P1 fix: teardown honours reconcile:false)** — `build_power_off_plan`
   gained the `reconcile` guard `build_plan` already had, so a graceful switch/shutdown no longer emits an
   IR `power_off` to a `reconcile:false` device (the upscaler). One-line fix + test (upscaler ON → empty

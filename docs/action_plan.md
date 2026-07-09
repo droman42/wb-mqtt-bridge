@@ -554,8 +554,6 @@ endpoint).
   major). Design: `docs/design/productization_bridge.md` §2 + the shared spec
   `wb-mqtt-voice/docs/design/productization.md` D-11.
 
-- [ ] **VWB-30** `[P2]` `[release]` — **Reports evidence hardening** (pull-forward — reports is LIVE on the WB7; REL-5 #13/#14/#15/#16, `docs/review/rel5_pretag_review.md`). Four gaps on the live problem-report path: **(#13)** `redact_mapping` skips masking when a credential-shaped key holds a container — a nested `auth` dict slips through unmasked (`domain/reports/redaction.py:32`); **(#14)** `redact_text` only masks `key=value` assignments, so bare / URL-embedded secrets pass through (`redaction.py:19`); **(#15)** `report_id` has only second granularity → two reports in the same second collide, overwriting a spool file / leaving one permanently undeliverable (`service.py:202`) — add sub-second/counter/uuid entropy; **(#16)** the browser `actionLog` captures the OLDEST 200 entries, dropping the most recent (bug-relevant) ~800 (`ui/src/lib/reportEvidence.ts:91`) — take the newest. Tests for the redaction shapes + spool uniqueness.
-
 - [ ] **VWB-31** `[P2]` `[deferred]` — **Canonical handler-availability failure mis-surfaces as `internal_error` (500) instead of `device_unreachable` (503) to voice** (REL-5 #8). `presentation/api/routers/devices.py:503`. Deferred — no live voice consumer yet; fix maps availability failures to a speakable 503.
 
 ### UI — config-ui
@@ -612,10 +610,6 @@ endpoint).
   layout as today). Decide during implementation whether pure-sensor instances belong in either
   list at all.
 
-
-- [ ] **UI-13** `[P1]` `[release]` — **SSE connection dies permanently after `maxRetries` → live device state goes silently stale** (REL-5 #7, `docs/review/rel5_pretag_review.md`). `ui/src/hooks/useEventSource.ts:136` — after ~10 backoff retries (only a few minutes) no further reconnect is scheduled and nothing re-arms; `useDeviceState` deliberately doesn't poll, so the wall-panel freezes at last-known power/volume/input until a full page reload. A user acting on stale state double-actuates / powers the wrong gear. Fix: a slow keepalive reconnect (e.g. every 60 s indefinitely) after exhaustion, or a hard "disconnected — reload" banner on every page so stale can never read as live.
-
-- [ ] **UI-14** `[P2]` `[release]` — **UI runtime nits** (pull-forward; REL-5 #17/#19). **(#17)** a shipped `TEMPORARY DEBUG` default branch spams the progress UI for every unrecognized device SSE event (`ui/src/app/Layout.tsx:94`) — remove; **(#19)** `ForceReconcileDialog.close()` resets `expanded`/`results` but not `pending`, stranding the dialog on a quick reopen during an in-flight force (`ui/src/components/ForceReconcileDialog.tsx:53`) — reset `pending` too.
 
 - [ ] **UI-15** `[P2]` `[deferred]` — **Force re-tap arms non-power controls but only PowerZone buttons show the armed pulse** (REL-5 #18, PLAUSIBLE). `ui/src/components/RemoteControlLayout.tsx:1128`. Deferred — minor UX; fold the visual feel-check into the REL-3 rack pass.
 
