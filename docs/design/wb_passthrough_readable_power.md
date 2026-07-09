@@ -62,9 +62,18 @@ readable capability:
 ```
 
 The `fields[]` entry is what makes the catalog advertise `power` as a readable field with the
-`on`/`off` vocabulary (same mechanism HVAC uses to advertise `mode`). `state_field: "power"` also
-gives the reconciler a believed value (harmless — these profiles are `reconcile:false` by config
-today, unchanged here).
+`on`/`off` vocabulary (same mechanism HVAC uses to advertise `mode`).
+
+**Reconciler side-effect — must be handled, not incidental.** `Capability.reconcile` defaults to
+`True`, and these profiles do **not** override it — today their power is `momentary` with
+`state_field: None`, so the reconciler has no believed value to diff. Turning power `stateful` +
+`state_field: "power"` *gives* the reconciler a believed value, so it would begin driving
+believed-vs-desired power diffs on all 39 devices — a behaviour change beyond this read-path fix.
+DRV-25 must set `reconcile` **explicitly** on the three profiles to preserve intent: default to
+`reconcile: false` (keep lights/plugs out of scenario reconciliation exactly as today; the change
+here is purely "power is now readable/queryable"), unless a specific scenario is found that should
+drive these devices — in which case that's a deliberate, separately-verified opt-in. This is the one
+place the `momentary → stateful` flip is not free.
 
 ### D2 — Where the wire→canonical `'1'↔'on'` mapping lives (the real decision)
 
