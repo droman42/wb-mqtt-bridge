@@ -40,6 +40,13 @@ images are small enough for `/mnt/data` as long as `update.sh`'s prune step
 keeps running (it removes each replaced `:latest` on every update). The SD card
 holds only the repo clone — plain files, which exFAT handles fine.
 
+Both containers run **non-root**, as uid 1000. The writable runtime directories
+(`data/`, `logs/`) must therefore be owned by 1000 — `update.sh` chowns them on
+every run, so this is automatic. `config/` is mounted read-only and stays as the
+rsync leaves it. If you ever start the containers by hand without `update.sh`
+first, chown those two directories yourself, or the backend can't write its state
+DB and logs.
+
 ## First install (one-time, takes ~5 min)
 
 Prereqs: WB has Docker installed (it does, via WB's own setup). You have shell

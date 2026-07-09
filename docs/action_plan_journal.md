@@ -21,6 +21,19 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-09 — OPS-17 DONE (both containers run non-root as uid 1000 `domovoy`)** — user-flagged
+  from the voice deployment work ("we run the containers as root, which is wrong"); mirrors the voice
+  repo's BUILD-15 uid fix. Backend `Dockerfile`: `useradd -m -u 1000 domovoy` + chown /app + `USER`
+  (clean — deps already in `/opt/venv`). UI `Dockerfile` (`nginx:alpine`): `adduser -D -u 1000`
+  (BusyBox, not Debian `useradd`) + chown the paths nginx writes at start/run + `USER`; pid redirected
+  to `/tmp/nginx.pid` in `nginx.conf.template` (non-root can't write `/run/nginx.pid`). `update.sh`
+  chowns the writable mounts (`data/`,`logs/`) to 1000 before `up` (it runs as root; container would
+  else EACCES). Name is provisional (tracks the Domovoy decision); the UID is the real identity.
+  Verified: a stage-2-only UI build booted nginx master+worker as `domovoy`, pid in `/tmp`, HTTP 200.
+  Activation owed to the rack — inert until images rebuilt + `git pull && ./ops/update.sh` (chown and
+  the new non-root images land together in that one command). `sh -n` + `compose config` clean; no
+  Python change. Docs: `ops/INSTALL.md` non-root note.
+
 - **2026-07-09 — VWB-13 DONE (catalog completeness sweep + bulk end-to-end, on the deployed WB7)**
   — closed on the user's spot-check evidence after reconciling the sweep's two halves against live
   controller reality (`task-start-reconciliation`; user-accepted "close as done now"). Half one

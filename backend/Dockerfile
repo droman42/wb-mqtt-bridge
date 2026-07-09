@@ -130,6 +130,15 @@ RUN if [ "$LEAN" = "true" ]; then \
     echo "Lean optimization complete - removed development files, tests, docs, and build artifacts"; \
     fi
 
+# Non-root by design: a compromised process must not be able to write host paths
+# as uid 0. The NAME tracks the product (provisional — it changes with the final
+# name decision); the UID is what actually crosses the container boundary, so
+# ops/update.sh chowns the bind-mounted runtime tree (data/, logs/) to 1000 and
+# the two must stay in step. Runtime deps live in /opt/venv (world-readable), so
+# nothing here needs root. Mirrors the voice repo's BUILD-15 pattern.
+RUN useradd -m -u 1000 domovoy && chown -R domovoy:domovoy /app
+USER domovoy
+
 # Expose port
 EXPOSE 8000
 

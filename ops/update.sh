@@ -30,6 +30,16 @@ rsync -a --delete "$(cd ../backend/config && pwd)/" "$RUNTIME/config/"
 echo ">>> deploy docker-compose.yml -> $RUNTIME"
 cp docker-compose.yml "$RUNTIME/docker-compose.yml"
 
+# The container runs non-root as uid 1000 (`USER domovoy` in the Dockerfiles), but
+# this script runs as root on the controller. The writable bind mounts must be
+# owned by 1000 or the container hits EACCES (state DB, reports spool, logs). The
+# :ro config mount is left alone — it is world-readable straight from the rsync.
+# uid 1000 is unassigned on a stock Wirenboard; on an existing box this migrates
+# the tree's prior ownership. Runs before `up` so the new image starts on 1000-owned dirs.
+echo ">>> chown runtime data+logs -> 1000:1000 (non-root container user)"
+mkdir -p "$RUNTIME/data" "$RUNTIME/logs"
+chown -R 1000:1000 "$RUNTIME/data" "$RUNTIME/logs" 2>/dev/null || true
+
 cd "$RUNTIME"
 echo ">>> docker compose pull"
 docker compose pull

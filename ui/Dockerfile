@@ -41,6 +41,16 @@ COPY ui/nginx.conf.template /etc/nginx/nginx.conf.template
 COPY ui/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
+# Non-root by design (same rationale as the backend image — matches uid 1000 so
+# the product runs under one identity). nginx as uid 1000 needs write access to
+# the paths it touches at start/run: the entrypoint's envsubst renders
+# /etc/nginx/nginx.conf and /usr/share/nginx/html/runtime-config.js, and nginx
+# itself writes the temp/cache and error-log trees. The pid file is redirected to
+# /tmp in nginx.conf.template. listen :3000 is >1024, so no root is needed to bind.
+RUN adduser -D -u 1000 domovoy && \
+    chown -R domovoy:domovoy /var/cache/nginx /var/log/nginx /etc/nginx /usr/share/nginx/html
+USER domovoy
+
 EXPOSE 3000
 
 # 127.0.0.1 explicitly: busybox wget resolves `localhost` to ::1 first, and
