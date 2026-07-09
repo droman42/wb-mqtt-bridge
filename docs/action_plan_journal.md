@@ -21,6 +21,15 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-09 — DRV-24 design REVISED (converged: retire `mirrored`)** — maintainer review of the first
+  cut ("why mirror stateful values — isn't it duplication?") landed: the `mirrored` bucket is the generic
+  driver's substitute for typed fields, and the driver never holds a logical value apart from the mirror,
+  so for passthrough the mirror *is* the state and the projection was a workaround. Revised D3 to **retire
+  `mirrored`** — passthrough state moves to top-level dynamic fields (`extra="allow"`, the AV-driver shape),
+  subsuming DRV-23's `model_dump` projection and dropping the `power` duplication. Now an openapi + golden
+  change + a UI `HvacPanel` migration. `docs/design/wb_passthrough_readable_power.md` + the DRV-25 entry
+  updated to the converged scope. No code (design only).
+
 - **2026-07-09 — DRV-24 DONE (design) + DRV-25 filed — WB-passthrough readable/authoritative power** —
   follow-on to DRV-23 from the voice side's live re-test. Design (`docs/design/wb_passthrough_readable_power.md`)
   for making `state.power` authoritative + readable on the 39 momentary-power WB-passthrough switch devices
