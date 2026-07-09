@@ -197,32 +197,33 @@ async def test_set_brightness_without_param_fails_cleanly(mqtt):
 @pytest.mark.asyncio
 async def test_value_topic_echo_mirrors_into_state(device):
     await device._on_value_message("power", "/devices/wb-mr6c_51/controls/K4", "1")
-    assert device.state.mirrored == {"power": "1"}
+    assert getattr(device.state, "power") == "1"
     assert device.state.reachable is True
 
 
 @pytest.mark.asyncio
-async def test_drv23_mirrored_field_projects_to_top_level(mqtt):
-    """DRV-23: a catalog-advertised readable field that lands in `mirrored` must appear at
-    top-level `state.<field>` — voice reads the top level, not `mirrored`. Before the fix
-    the value existed only in `mirrored` and every spoken sensor query returned None."""
+async def test_readable_field_lands_at_top_level(mqtt):
+    """DRV-23/DRV-25: a catalog-advertised readable field appears at top-level `state.<field>`
+    — voice reads the top level. DRV-25: it IS a top-level field (no `mirrored` bucket)."""
     dev = WbPassthroughDevice(_sensor_config(), mqtt_client=mqtt)
     assert "room_temperature" not in dev.state.model_dump()  # nothing echoed yet
     await dev._on_value_message(
         "room_temperature", "/devices/wb-m1w2_56/controls/External Sensor 1", "24.125")
     d = dev.state.model_dump()
-    assert "room_temperature" in d                                       # projected to top level
-    assert d["room_temperature"] == d["mirrored"]["room_temperature"]    # == the value voice reads
+    assert "room_temperature" in d                # top-level — what voice reads
+    assert float(d["room_temperature"]) == 24.125
+    assert "mirrored" not in d                    # DRV-25: no bucket
 
 
 @pytest.mark.asyncio
-async def test_drv23_projection_never_shadows_declared_field(device):
-    """A mirrored `power` echo must NOT overwrite the declared top-level `power` field
-    (which carries the capability's on/off sense, not the raw wire value)."""
+async def test_power_echo_sets_declared_top_level_field(device):
+    """DRV-25: a `power` echo sets the declared top-level `state.power` directly (no bucket).
+    (This un-enriched slice config carries no value table, so the raw wire value lands;
+    production configs enrich `power` to canonical `on`/`off`.)"""
     await device._on_value_message("power", "/devices/wb-mr6c_51/controls/K4", "1")
     d = device.state.model_dump()
-    assert d["power"] == "off"            # declared field wins over the mirror key
-    assert d["mirrored"]["power"] == "1"  # mirror still reflects the wire echo
+    assert d["power"] == "1"        # top-level, from the echo
+    assert "mirrored" not in d      # no bucket
 
 
 @pytest.mark.asyncio
@@ -267,7 +268,7 @@ async def test_publish_flags_no_op_when_mirror_already_matches(device, mqtt):
     out (we keep the WB layer informed; cheap) but the result is flagged `no_op: True` so
     the canonical endpoint can short-circuit its echo wait. Otherwise voice would get a
     500 ms timeout + 503 on a routine "включи свет" when the light is already on."""
-    device.state.mirrored = {"power": "1"}  # echo from a previous successful power_on
+    setattr(device.state, "power", "1")  # echo from a previous successful power_on
     result = await device.execute_action("power_on", {}, source="api")
     assert result["success"] is True
     assert result["data"]["no_op"] is True
@@ -278,7 +279,7 @@ async def test_publish_flags_no_op_when_mirror_already_matches(device, mqtt):
 async def test_publish_no_op_false_on_real_change(device, mqtt):
     """The flag must be False (not just missing) when the publish IS a real change so
     the endpoint knows to wait for the echo."""
-    device.state.mirrored = {"power": "0"}
+    setattr(device.state, "power", "0")
     result = await device.execute_action("power_on", {}, source="api")
     assert result["success"] is True
     assert result["data"]["no_op"] is False
@@ -291,7 +292,7 @@ async def test_publish_no_op_false_when_mirror_unseen_yet(device, mqtt):
     echo. (Limitation: if the device really is already at the target it won't echo and
     the wait will 503 -- documented as a known cold-start edge case until retained-message
     handling lands.)"""
-    assert device.state.mirrored == {}
+    assert device.state.power == "off"  # default, no echo seeded yet
     result = await device.execute_action("power_on", {}, source="api")
     assert result["success"] is True
     assert result["data"]["no_op"] is False
@@ -403,7 +404,7 @@ async def test_rgb_mirror_inverse_parses_into_typed_dict(mqtt):
     `{r:255,g:128,b:0}` dict via the `encoding` template (state_topics → rgb)."""
     dev = WbPassthroughDevice(_rgb_config(), mqtt_client=mqtt)
     await dev._on_value_message("color", "/devices/wb-mrgbw-d-fw3_10/controls/RGB Strip", "255;128;0")
-    assert dev.state.mirrored == {"color": {"r": 255, "g": 128, "b": 0}}
+    assert getattr(dev.state, "color") == {"r": 255, "g": 128, "b": 0}
     assert dev.state.reachable is True
 
 
@@ -415,10 +416,10 @@ async def test_sensor_float_payloads_coerce_to_typed_state(mqtt):
     dev = WbPassthroughDevice(_sensor_config(), mqtt_client=mqtt)
     await dev._on_value_message("temperature", "/devices/wb-msw-v3_207/controls/Temperature", "21.5")
     await dev._on_value_message("co2", "/devices/wb-msw-v3_207/controls/CO2", "650")
-    assert dev.state.mirrored["temperature"] == 21.5
-    assert isinstance(dev.state.mirrored["temperature"], float)
-    assert dev.state.mirrored["co2"] == 650
-    assert isinstance(dev.state.mirrored["co2"], int)
+    assert getattr(dev.state, "temperature") == 21.5
+    assert isinstance(getattr(dev.state, "temperature"), float)
+    assert getattr(dev.state, "co2") == 650
+    assert isinstance(getattr(dev.state, "co2"), int)
 
 
 @pytest.mark.asyncio
@@ -432,7 +433,7 @@ async def test_malformed_typed_payload_logs_and_mirrors_raw_without_changing_rea
     caplog.set_level(logging.WARNING)
     await dev._on_value_message("co2", "/devices/wb-msw-v3_207/controls/CO2", "not-a-number")
     # Raw string preserved (lets downstream code see what arrived; no `None` surprise).
-    assert dev.state.mirrored["co2"] == "not-a-number"
+    assert getattr(dev.state, "co2") == "not-a-number"
     # No WB-protocol flag fabricated.
     assert "co2" not in dev.state.error_flags
     assert dev.state.reachable is True
@@ -446,8 +447,8 @@ async def test_slice_bare_string_state_topic_still_mirrors_as_string(device):
     keep mirroring `"1"` / `"0"` as raw strings (StateTopicSpec normalises with type=str).
     Tests against the existing slice fixture so the cabinet_spots install doesn't change."""
     await device._on_value_message("power", "/devices/wb-mr6c_51/controls/K4", "1")
-    assert device.state.mirrored == {"power": "1"}
-    assert isinstance(device.state.mirrored["power"], str)
+    assert getattr(device.state, "power") == "1"
+    assert isinstance(getattr(device.state, "power"), str)
 
 
 def test_state_topic_spec_normalises_bare_string_form():
@@ -599,7 +600,7 @@ async def test_invert_inbound_mirror_stores_natural_sense(mqtt):
     await dev._on_value_message(
         "position", "/devices/dooya_dm35eq_x_test/controls/Position", "75"
     )
-    assert dev.state.mirrored == {"position": 25}
+    assert getattr(dev.state, "position") == 25
     assert dev.state.reachable is True
 
 
@@ -615,7 +616,7 @@ async def test_invert_roundtrip_set_then_mirror_consistent(mqtt):
     await dev._on_value_message(
         "position", "/devices/dooya_dm35eq_x_test/controls/Position", "75"
     )
-    assert dev.state.mirrored["position"] == 25
+    assert getattr(dev.state, "position") == 25
     # 3) repeat the same call -> no_op
     mqtt.publish.reset_mock()
     result = await dev.execute_action("set_position", {"pct": 25}, source="api")
@@ -634,7 +635,7 @@ async def test_invert_does_not_affect_non_inverted_field(mqtt):
     mqtt.publish.assert_awaited_once_with("/devices/wb-mr6c_51/controls/K4/on", "1")
     await dev._on_value_message("power", "/devices/wb-mr6c_51/controls/K4", "1")
     # power state_topic is bare-string (type=str), so mirror keeps the raw "1".
-    assert dev.state.mirrored["power"] == "1"
+    assert getattr(dev.state, "power") == "1"
 
 
 # --- invert flag: bool type (inverted heating actuators) ---------------------
@@ -705,7 +706,7 @@ async def test_invert_bool_inbound_wire_zero_stores_true_natural_sense(mqtt):
     await dev._on_value_message(
         "mode", "/devices/wb-gpio/controls/EXT3_TEST", "0"
     )
-    assert dev.state.mirrored == {"mode": True}
+    assert getattr(dev.state, "mode") == True
 
 
 @pytest.mark.asyncio
@@ -714,7 +715,7 @@ async def test_invert_bool_inbound_wire_one_stores_false_natural_sense(mqtt):
     await dev._on_value_message(
         "mode", "/devices/wb-gpio/controls/EXT3_TEST", "1"
     )
-    assert dev.state.mirrored == {"mode": False}
+    assert getattr(dev.state, "mode") == False
 
 
 @pytest.mark.asyncio
@@ -726,7 +727,7 @@ async def test_invert_bool_roundtrip_mode_on_then_echo_then_no_op(mqtt):
     await dev.execute_action("mode_on", {}, source="api")
     # 2) device echoes wire "0"
     await dev._on_value_message("mode", "/devices/wb-gpio/controls/EXT3_TEST", "0")
-    assert dev.state.mirrored["mode"] is True
+    assert getattr(dev.state, "mode") is True
     # 3) repeat -> no_op (mirror already True, target also "on")
     mqtt.publish.reset_mock()
     result = await dev.execute_action("mode_on", {}, source="api")
@@ -759,7 +760,7 @@ async def test_invert_bool_does_not_apply_to_non_inverted_str_field(mqtt):
     raw "1"."""
     dev = WbPassthroughDevice(_slice_config(), mqtt_client=mqtt)
     await dev._on_value_message("power", "/devices/wb-mr6c_51/controls/K4", "1")
-    assert dev.state.mirrored["power"] == "1"  # still raw string, not toggled
+    assert getattr(dev.state, "power") == "1"  # still raw string, not toggled
 
 
 # --- §P3.7 #26: value-label translation (canonical ↔ wire for enum fields) -----
@@ -817,7 +818,7 @@ async def test_value_label_inbound_wire_echo_stores_canonical_in_state(mqtt):
     same identifier the catalog declared + that voice sends back."""
     dev = WbPassthroughDevice(_hvac_mode_config(), mqtt_client=mqtt)
     await dev._on_value_message("mode", "/devices/wb-mr3lv12_x/controls/Mode", "2")
-    assert dev.state.mirrored == {"mode": "cool"}
+    assert getattr(dev.state, "mode") == "cool"
 
 
 @pytest.mark.asyncio
@@ -830,7 +831,7 @@ async def test_value_label_roundtrip_canonical_set_then_wire_echo_then_no_op(mqt
     await dev.execute_action("set_mode", {"mode": "cool"}, source="api")
     # 2) device echoes wire "2"
     await dev._on_value_message("mode", "/devices/wb-mr3lv12_x/controls/Mode", "2")
-    assert dev.state.mirrored["mode"] == "cool"
+    assert getattr(dev.state, "mode") == "cool"
     # 3) repeat -> no_op
     mqtt.publish.reset_mock()
     result = await dev.execute_action("set_mode", {"mode": "cool"}, source="api")
@@ -874,7 +875,7 @@ async def test_value_label_inbound_unknown_wire_falls_back_to_raw(mqtt, caplog):
     dev = WbPassthroughDevice(_hvac_mode_config(), mqtt_client=mqtt)
     with caplog.at_level("WARNING"):
         await dev._on_value_message("mode", "/devices/wb-mr3lv12_x/controls/Mode", "9")
-    assert dev.state.mirrored["mode"] == "9"
+    assert getattr(dev.state, "mode") == "9"
     assert any("failed to parse 'mode'" in r.message for r in caplog.records)
 
 
@@ -908,7 +909,7 @@ async def test_value_label_bare_string_back_compat_acts_as_identity(mqtt):
     await dev.execute_action("set_mode", {"mode": "cool"}, source="api")
     mqtt.publish.assert_awaited_once_with("/devices/wb-x/controls/Mode/on", "cool")
     await dev._on_value_message("mode", "/devices/wb-x/controls/Mode", "heat")
-    assert dev.state.mirrored["mode"] == "heat"
+    assert getattr(dev.state, "mode") == "heat"
 
 
 @pytest.mark.asyncio
@@ -917,4 +918,4 @@ async def test_value_label_no_table_acts_as_identity_for_str_field(mqtt):
     helpers must be a pure identity so existing devices keep mirroring raw strings."""
     dev = WbPassthroughDevice(_slice_config(), mqtt_client=mqtt)
     await dev._on_value_message("power", "/devices/wb-mr6c_51/controls/K4", "1")
-    assert dev.state.mirrored["power"] == "1"
+    assert getattr(dev.state, "power") == "1"

@@ -21,6 +21,19 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-09 — DRV-25 DONE (WB-passthrough state → top-level fields; switch `power` readable)** —
+  pulled forward from `[deferred]` (maintainer: a nasty bug that must not ship in release 1). Retired
+  the `mirrored` bucket: `WbPassthroughState` is `extra="allow"`, `_on_value_message` sets each coerced
+  value as a top-level field, `BaseDeviceState.model_dump` merges `__pydantic_extra__`, idempotence reads
+  `getattr(state, field)`, + a collision guard. `light_switch`/`dimmable_light`/`power_switch` `power` →
+  stateful+readable+`reconcile:false`+`'1'↔'on'` value table; a loader step enriches bare
+  `state_topics[field]` from the profile field. `HvacPanel` migrated off `state.mirrored.*`. **Contract:
+  golden `8159b4b0068d1c63` → `16eee0f2f7832995`** (power readable); openapi byte-identical (the `/state`
+  endpoints aren't openapi-typed, so `WbPassthroughState` isn't in the schema) — only golden+stamp moved,
+  **voice re-pins to `16eee0f2f7832995`.** Suite
+  662, pyright 0, import-linter 6/6, UI check+build green. Doc: `devices-and-scenarios.md` (state
+  surfaces top-level). Supersedes DRV-23's projection. Live re-verify owed to the redeploy.
+
 - **2026-07-09 — DRV-24 design REVISED (converged: retire `mirrored`)** — maintainer review of the first
   cut ("why mirror stateful values — isn't it duplication?") landed: the `mirrored` bucket is the generic
   driver's substitute for typed fields, and the driver never holds a logical value apart from the mirror,

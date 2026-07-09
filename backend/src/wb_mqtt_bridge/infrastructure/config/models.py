@@ -224,20 +224,30 @@ class WbPassthroughDeviceConfig(BaseDeviceConfig):
         default_factory=dict,
         description="Map of state-field name → typed StateTopicSpec. Bare-string form "
                     "(`\"field\": \"/topic\"`) is back-compat: it normalises to "
-                    "`StateTopicSpec(topic=value, type=\"str\")`. The driver mirrors each topic's "
-                    "payload into `state.mirrored[name]` (typed per the spec) and subscribes to "
-                    "`<topic>/meta/error` for the per-control error flag (`r`/`w`/`p`).",
+                    "`StateTopicSpec(topic=value, type=\"str\")`. The driver sets each topic's "
+                    "payload as a TOP-LEVEL state field (typed per the spec; DRV-25) and "
+                    "subscribes to `<topic>/meta/error` for the per-control error flag.",
     )
 
     @field_validator("state_topics", mode="before")
     @classmethod
     def _normalise_state_topics(cls, v: Any) -> Any:
         """Back-compat: accept bare-string `field: topic` entries and widen them to
-        `StateTopicSpec(topic=..., type="str")`. Untouched if already a dict/StateTopicSpec."""
+        `StateTopicSpec(topic=..., type="str")`. Untouched if already a dict/StateTopicSpec.
+
+        DRV-25 collision guard: a state field is set as a top-level attribute on the device
+        state, so a `state_topics` key may not shadow a reserved base field (`power` is the
+        one intended overlap — a relay switch's readback — and is allowed)."""
         if not isinstance(v, dict):
             return v
+        reserved = {"device_id", "device_name", "last_command", "error", "reachable", "error_flags"}
         out: Dict[str, Any] = {}
         for k, raw in v.items():
+            if k in reserved:
+                raise ValueError(
+                    f"state_topics key {k!r} shadows a reserved device-state field "
+                    f"(reserved: {sorted(reserved)}) — rename it"
+                )
             if isinstance(raw, str):
                 out[k] = {"topic": raw, "type": "str"}
             else:

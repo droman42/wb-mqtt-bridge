@@ -111,10 +111,12 @@ export function HvacPanel() {
     return <div className="p-6 text-center text-muted-foreground">No climate capability for {deviceId}.</div>;
   }
 
-  const mirrored = (state as { mirrored?: Record<string, unknown> })?.mirrored ?? {};
-  const power = String(mirrored.power ?? '') === '1';
-  const setpoint = typeof mirrored.temperature === 'number' ? mirrored.temperature : undefined;
-  const roomTemp = typeof mirrored.room_temperature === 'number' ? mirrored.room_temperature : undefined;
+  // DRV-25: WB-passthrough state fields are top-level (no `mirrored` bucket); enum fields
+  // (mode/fan/…) already carry canonical values via their state-topic value tables.
+  const st = (state ?? {}) as unknown as Record<string, unknown>;
+  const power = String(st.power ?? '') === '1';
+  const setpoint = typeof st.temperature === 'number' ? st.temperature : undefined;
+  const roomTemp = typeof st.room_temperature === 'number' ? st.room_temperature : undefined;
   const pending = execute.isPending;
 
   const dispatch = (action: string, params?: Record<string, unknown>) => {
@@ -137,7 +139,7 @@ export function HvacPanel() {
   const renderEnumGrid = (fieldName: string) => {
     const f = enumField(fieldName);
     if (!f?.values?.length) return null;
-    const raw = mirrored[fieldName];
+    const raw = st[fieldName];
     const current = typeof raw === 'string' ? raw : undefined;
     const glyphs = SECTION_GLYPHS[fieldName] ?? {};
     const actionName = FIELD_TO_ACTION[fieldName];

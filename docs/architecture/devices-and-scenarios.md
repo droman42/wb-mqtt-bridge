@@ -72,7 +72,10 @@ Two structural details set it apart:
   its `…/meta/error` companion (a Wirenboard MQTT convention combining `r`/`w`/`p`
   error codes). Every incoming value flows through `update_state()` — the single
   chokepoint that triggers SQLite persistence + SSE callbacks. The broker is the
-  truth; the bridge mirrors.
+  truth; the bridge mirrors. Each value surfaces as a **top-level `state.<field>`**
+  (named by the `state_topics` key) — the same flat shape a voice assistant or the UI
+  reads for any device, so a floor's temperature or a relay's on/off is queryable
+  without out-of-band knowledge.
 
 This driver is what makes "Irene controls the whole house through one catalog"
 plausible: a native WB heating actuator and a non-WB LG TV are both visible through the

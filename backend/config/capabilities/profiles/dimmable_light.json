@@ -1,6 +1,9 @@
 {
   "power": {
-    "kind": "momentary",
+    "kind": "stateful",
+    "feedback": true,
+    "state_field": "power",
+    "reconcile": false,
     "group": "light",
     "actions": {
       "on": {
@@ -9,7 +12,18 @@
       "off": {
         "command": "power_off"
       }
-    }
+    },
+    "fields": [
+      {
+        "name": "power",
+        "type": "enum",
+        "values": [
+          { "wire": "1", "canonical": "on" },
+          { "wire": "0", "canonical": "off" }
+        ],
+        "labels": { "ru": "питание", "en": "power" }
+      }
+    ]
   },
   "brightness": {
     "kind": "stateful",

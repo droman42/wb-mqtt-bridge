@@ -130,11 +130,12 @@ representation, every consumer reads top-level.
   only, so dynamic fields are skipped on restore and **re-seeded from the retained value topics at
   `setup()`** (correct — a persisted sensor reading is stale; the live retained value wins). `power`
   (declared) restores normally.
-- **Contract** — `/state` and `persisted_state` change shape (`mirrored` gone, fields top-level), so
-  **openapi changes, not just the golden catalog**. `WbPassthroughState` is part of the persisted-state
-  discriminated union; `extra="allow"` surfaces as `additionalProperties`. Regenerate `contracts/`
-  (openapi + golden + stamp) and `ui/src/types/*` (`gen:api-types`); **the voice side re-pins**. Land the
-  two pins together.
+- **Contract** — `/state` and `persisted_state` change *runtime* shape (`mirrored` gone, fields
+  top-level), but **only the golden catalog changes, not openapi** — the state endpoints are typed as an
+  empty schema (`{}`) in openapi, so `WbPassthroughState` never appears there and the shape change is
+  invisible to it (verified at implementation; the first-cut prediction of an openapi change was wrong).
+  So: regenerate the golden + stamp; openapi + `ui/src/types/*` are byte-identical no-ops. **The voice
+  side re-pins to the new golden.**
 
 ## 6. Test plan
 

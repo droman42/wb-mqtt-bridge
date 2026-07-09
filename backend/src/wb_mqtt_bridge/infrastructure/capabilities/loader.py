@@ -67,6 +67,31 @@ def load_capability_map(
     return CapabilityMap.model_validate(merged)
 
 
+def enrich_state_topics_from_map(device: Any) -> None:
+    """DRV-25: a device's bare ``state_topics[field]`` inherits its capability map's
+    ``fields[].{type, values}`` so the driver coerces enum/typed feedback into the canonical
+    vocabulary the catalog advertises (e.g. a relay `power` echo `'1'` → `'on'`), without
+    repeating the value table across every device config. Device-explicit type/values always
+    win — a spec left at the bare-string default (`type == "str"`, no `values`) is enriched;
+    anything the device declared itself is untouched. No-op for devices without a capability
+    map or ``state_topics``.
+    """
+    cfg = getattr(device, "config", None)
+    state_topics = getattr(cfg, "state_topics", None)
+    cap_map = getattr(device, "capabilities", None)
+    if not state_topics or cap_map is None:
+        return
+    for cap in cap_map.root.values():
+        for field in (cap.fields or []):
+            spec = state_topics.get(field.name)
+            if spec is None:
+                continue
+            if getattr(field, "type", None) and spec.type == "str" and field.type != "str":
+                spec.type = field.type
+            if spec.values is None and getattr(field, "values", None):
+                spec.values = field.values
+
+
 def attach_capability_maps(devices: Dict[str, Any], capabilities_dir: Path) -> None:
     """Resolve and attach a ``CapabilityMap`` to each device in ``devices``.
 
@@ -80,6 +105,7 @@ def attach_capability_maps(devices: Dict[str, Any], capabilities_dir: Path) -> N
             capabilities_dir,
             getattr(device.config, "capability_profile", None),
         )
+        enrich_state_topics_from_map(device)
 
 
 def referenced_commands(cap_map: CapabilityMap) -> Set[str]:

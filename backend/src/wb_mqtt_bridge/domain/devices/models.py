@@ -1,5 +1,5 @@
 from typing import Dict, Any, List, Literal, Optional, Union, Set
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 from enum import Enum
 import json
@@ -67,8 +67,11 @@ class BaseDeviceState(BaseModel):
         # Create base dictionary with class attributes
         data = {}
         
-        # Get class fields 
-        for field_name, field_value in self.__dict__.items():
+        # Get class fields + any extra (dynamic) fields. DRV-25: WB-passthrough state carries
+        # its per-device fields as `extra="allow"` attributes, which Pydantic v2 stores in
+        # `__pydantic_extra__`, not `__dict__` — merge them so they serialize at the top level.
+        all_fields = {**self.__dict__, **(getattr(self, "__pydantic_extra__", None) or {})}
+        for field_name, field_value in all_fields.items():
             # Handle nested objects (like LastCommand)
             if hasattr(field_value, 'model_dump'):
                 data[field_name] = field_value.model_dump(
@@ -542,34 +545,19 @@ class TvActionType(str, Enum):
 class WbPassthroughState(BaseDeviceState):
     """Runtime state for a WB-passthrough device.
 
-    `mirrored` carries the last value seen on each subscribed value topic (keyed by the
-    state-field name from `state_topics`). Values are **typed per `StateTopicSpec.type`**
-    (§P3.7 #19) -- a `float` sensor lands as `21.5`, an `rgb` field lands as
-    `{r:255,g:128,b:0}`, etc.; bare-string state_topics land as raw strings (back-compat).
-    `reachable` flips False as soon as ANY state topic's per-control `meta/error` carries
-    an `r` flag (Wirenboard MQTT convention -- see §P3.7 A3); `error_flags` records the
-    raw per-field flag string so callers can see which control(s) are sick.
+    DRV-25: each subscribed value topic's last value is a **top-level field**, keyed by the
+    state-field name from `state_topics` — the shape the bespoke AV drivers use, just dynamic.
+    Values are **typed per `StateTopicSpec.type`** (§P3.7 #19): a `float` sensor lands as
+    `21.5`, an `enum` power field as its canonical `"on"`/`"off"`, an `rgb` field as
+    `{r:255,g:128,b:0}`; bare-string state_topics land as raw strings. Because the field set
+    varies per device, they are carried via `extra="allow"` (Pydantic keeps them in
+    `__pydantic_extra__`; `BaseDeviceState.model_dump` merges them, and the config loader
+    guards against a state-topic key shadowing a reserved base field). The declared `power`
+    base field is the one intended overlap — a relay switch's `state_topics.power` writes it.
+    `reachable` flips False as soon as ANY state topic's per-control `meta/error` carries an
+    `r` flag (Wirenboard MQTT convention -- see §P3.7 A3); `error_flags` records the raw
+    per-field flag string so callers can see which control(s) are sick.
     """
-    mirrored: Dict[str, Any] = Field(default_factory=dict)
+    model_config = ConfigDict(extra="allow")
     reachable: bool = True
     error_flags: Dict[str, str] = Field(default_factory=dict)
-
-    def model_dump(self, **kwargs: Any) -> Dict[str, Any]:  # type: ignore[override]
-        """DRV-23: project mirrored feedback onto top-level ``state.<field>`` in the
-        serialized view.
-
-        Voice (and any state reader) consumes **top-level** ``state.<field>`` per the ARCH-8
-        contract — ``mirrored`` is a bridge-internal cache it never learns. But for
-        WB-passthrough devices the real feedback (a floor's ``room_temperature``, a dimmer's
-        ``level``, a cover's ``position``…) lands only in ``mirrored``, so those
-        catalog-advertised readable fields read as ``None`` at the top level and every spoken
-        sensor query failed. Here each mirrored value is lifted to a top-level key of the same
-        (catalog-advertised) name — SERIALIZED-view only: ``mirrored`` stays the single source
-        of truth (the driver's idempotence guard reads ``self.state.mirrored`` directly,
-        unaffected; the reconstructed state never gains these as real attributes), and a
-        declared base field like ``power`` is never shadowed (already-present keys win)."""
-        data = super().model_dump(**kwargs)
-        for name, value in (self.mirrored or {}).items():
-            if name not in data:
-                data[name] = value
-        return data

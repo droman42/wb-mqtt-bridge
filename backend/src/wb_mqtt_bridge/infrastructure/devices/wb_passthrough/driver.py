@@ -210,16 +210,15 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
             self.config.state_topics.get(state_field) if state_field else None
         )
 
-        # Idempotency check BEFORE publishing. If we already see the device at the target
-        # value via the mirror, the publish is a no-op as far as state is concerned -- the
-        # device won't echo, and even if it did, update_state would filter the no-change.
-        # We still publish so the WB layer sees the command (cheap; harmless on relays);
-        # the canonical endpoint reads `no_op` to skip its echo wait.
-        # Compare in the field's TYPED space so a bool mirror (`True`) matches a config-
-        # side `"1"` and an int mirror (25) matches a config-side `"25"`. Falls back to
-        # plain string compare when no spec is available (side-channel command, or first
-        # echo before mirror seeded).
-        current = self.state.mirrored.get(state_field) if state_field else None
+        # Idempotency check BEFORE publishing. If the device is already at the target value
+        # (per the last-seen feedback, now the top-level state field — DRV-25), the publish is
+        # a no-op as far as state is concerned -- the device won't echo, and even if it did,
+        # update_state would filter the no-change. We still publish so the WB layer sees the
+        # command (cheap; harmless on relays); the canonical endpoint reads `no_op` to skip its
+        # echo wait. Compare in the field's TYPED space so a bool feedback (`True`) matches a
+        # config-side `"1"` and an int (25) matches `"25"`. Falls back to plain string compare
+        # when no spec is available (side-channel command, or first echo not yet seeded).
+        current = getattr(self.state, state_field, None) if state_field else None
         if current is None:
             no_op = False
         elif target_spec is not None:
@@ -476,16 +475,19 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
             return raw
 
     async def _on_value_message(self, field: str, topic: str, payload: str) -> None:
-        """A value-topic echo arrived. Coerce per the field's spec, mirror the typed value
-        into state, and clear the field's error flag on a successful read."""
+        """A value-topic echo arrived. Coerce per the field's spec, set it as a TOP-LEVEL
+        state field, and clear the field's error flag on a successful read."""
         typed = self._coerce_mirror(field, payload)
-        new_mirrored = {**self.state.mirrored, field: typed}
         # Clear the per-field error flag on a successful read (per the convention spec the
         # broker would do the same; this keeps our snapshot consistent without a re-subscribe).
         new_errors = {k: v for k, v in self.state.error_flags.items() if k != field}
         new_reachable = not any("r" in v for v in new_errors.values())
+        # DRV-25: the coerced value IS the state — set it as a top-level field (the declared
+        # `power`, or an `extra="allow"` dynamic field like `room_temperature`). Voice + the
+        # UI read `state.<field>` directly; there is no separate `mirrored` bucket. The config
+        # loader guards `field` against colliding with a reserved base field.
         self.update_state(
-            mirrored=new_mirrored,
+            **{field: typed},
             error_flags=new_errors,
             reachable=new_reachable,
         )
