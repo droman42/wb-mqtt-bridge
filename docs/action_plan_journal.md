@@ -21,6 +21,18 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-10 — RELEASE 1 CUT: v0.6.0. VWB-16 → `[deferred]`; every `[release]` task now closed.** —
+  the owner's call at the tag: VWB-16 (the voice-crossover consumer contract test) waits on the voice
+  repo's TEST-18 fixtures, so it moved `[release]` → `[deferred]` — release 1 doesn't hang on a sibling
+  repo (it lands whenever the fixtures do; golden `5622ba7a` is stable). With that, **every `[release]`
+  task is `[x]`** and the scope gate is clean. Version bumped **0.5.0 → 0.6.0** across all nine
+  touch-points (pyproject, `__version__.py`, uv.lock, ui/package.json, README, openapi ×2, STAMP,
+  ui types); golden catalog unchanged (version-independent → no voice re-pin). Annotated tag **`v0.6.0`
+  — "the house runs on the controller"** cut on the release commit. Structure mirrors the voice repo
+  (0.x pre-1.0, annotated descriptive tag). The bridge's first real release since the year-old,
+  pre-transformation `v0.5.0` — 651 commits of hexagonal rebuild, canonical-first, scenarios, the
+  HVAC driver, and WB7 production deployment.
+
 - **2026-07-10 — REL-4 DONE (the release docs pass — the last critical-path gate before the tag)** —
   user-facing docs made true at the release version, in the voice project's spirit, and scrubbed of
   ALL internal tracking language. Scope reconciled with the owner mid-task: the master-doc/governance
