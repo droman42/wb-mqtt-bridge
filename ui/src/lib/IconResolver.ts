@@ -244,4 +244,59 @@ export class IconResolver {
     
     return null;
   }
+
+  // ---------------------------------------------------------------------------
+  // UI-16: enum-VALUE icons (approved in the 3-iteration icon review, 2026-07-10).
+  // Same philosophy as action icons — resolved UI-side by stable canonical names —
+  // extended to capability values. Lookup order: scoped `capability.value` first
+  // (collision-proof: vane.swing and widevane.swing differ), then the bare value.
+  // `color` is the review's rule: dry/cool/heat carry a fixed color (the firmware
+  // shows colored emoji); every other icon stays theme ink via currentColor.
+  // ---------------------------------------------------------------------------
+  private valueIconMappings: Record<string, { material: string; custom: string; fallback: string; color?: string }> = {
+    // power (the AV remotes' exact pair)
+    'power.on':  { material: 'PowerSettingsNew', custom: '', fallback: 'power' },
+    'power.off': { material: '', custom: 'power-off', fallback: 'power' },
+    // one custom ♻ for every auto (mode/fan/vane)
+    'auto': { material: '', custom: 'auto-recycle', fallback: 'repeat' },
+    // mode — the colored trio + fan_only
+    'mode.dry':  { material: 'WaterDrop', custom: '', fallback: 'water', color: '#42A5F5' },
+    'mode.cool': { material: 'AcUnit', custom: '', fallback: 'cool', color: '#4FC3F7' },
+    'mode.heat': { material: 'WbSunny', custom: '', fallback: 'heat', color: '#FFB300' },
+    'mode.fan_only': { material: '', custom: 'fan', fallback: 'fan' },
+    // fan — quiet is the AC-remote moon convention; speeds are the number ladder
+    'fan.quiet': { material: 'Nightlight', custom: '', fallback: 'quiet' },
+    'speed_1': { material: '', custom: 'number-1', fallback: '1' },
+    'speed_2': { material: '', custom: 'number-2', fallback: '2' },
+    'speed_3': { material: '', custom: 'number-3', fallback: '3' },
+    'speed_4': { material: '', custom: 'number-4', fallback: '4' },
+    // swing — orientation-aware detached-ray pair (iteration 3)
+    'vane.swing': { material: '', custom: 'swing-v', fallback: 'swing' },
+    'widevane.swing': { material: '', custom: 'swing-h', fallback: 'swing' },
+    // vane positions — the number ladder
+    'pos_1': { material: '', custom: 'number-1', fallback: '1' },
+    'pos_2': { material: '', custom: 'number-2', fallback: '2' },
+    'pos_3': { material: '', custom: 'number-3', fallback: '3' },
+    'pos_4': { material: '', custom: 'number-4', fallback: '4' },
+    'pos_5': { material: '', custom: 'number-5', fallback: '5' },
+    // widevane directions — literal arrows + the keyboard | + split
+    'far_left':  { material: 'KeyboardDoubleArrowLeft', custom: '', fallback: 'arrow-left' },
+    'left':      { material: 'KeyboardArrowLeft', custom: '', fallback: 'arrow-left' },
+    'center':    { material: '', custom: 'center-bar', fallback: 'center' },
+    'right':     { material: 'KeyboardArrowRight', custom: '', fallback: 'arrow-right' },
+    'far_right': { material: 'KeyboardDoubleArrowRight', custom: '', fallback: 'arrow-right' },
+    'split':     { material: 'SyncAlt', custom: '', fallback: 'split' },
+  };
+
+  /** Resolve the icon for a capability's canonical enum value (UI-16). Returns null
+   * when no icon is mapped — callers fall back to their own rendering. */
+  resolveValueIcon(capability: string, value: string):
+      { library: 'material' | 'custom'; name: string; fallback: string; color?: string } | null {
+    const entry = this.valueIconMappings[`${capability}.${value}`]
+      ?? this.valueIconMappings[value];
+    if (!entry) return null;
+    if (entry.custom) return { library: 'custom', name: entry.custom, fallback: entry.fallback, color: entry.color };
+    if (entry.material) return { library: 'material', name: entry.material, fallback: entry.fallback, color: entry.color };
+    return null;
+  }
 } 

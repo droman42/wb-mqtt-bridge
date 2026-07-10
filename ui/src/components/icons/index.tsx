@@ -22,6 +22,10 @@ import { Fan } from './custom/Fan';
 import { AspectRatio } from './custom/AspectRatio';
 import { Letterbox } from './custom/Letterbox';
 import { PowerOff } from './custom/PowerOff';
+import { AutoRecycle } from './custom/AutoRecycle';
+import { SwingV } from './custom/SwingV';
+import { SwingH } from './custom/SwingH';
+import { CenterBar } from './custom/CenterBar';
 
 interface IconProps {
   library: 'material' | 'custom' | 'fallback';
@@ -45,6 +49,11 @@ const customIcons = {
   'number-5': NumberIcon5,
   'number-6': NumberIcon6,
   'fan': Fan,
+  // UI-16: HVAC enum-value icons (approved in the 3-iteration icon review)
+  'auto-recycle': AutoRecycle,
+  'swing-v': SwingV,
+  'swing-h': SwingH,
+  'center-bar': CenterBar,
   // Aspect ratio icons
   'aspect-16-9': (props: React.SVGProps<SVGSVGElement>) => <AspectRatio ratio="16:9" {...props} />,
   'aspect-4-3': (props: React.SVGProps<SVGSVGElement>) => <AspectRatio ratio="4:3" {...props} />,
@@ -103,6 +112,10 @@ export function Icon({ library, name, size = 'md', className, fallback }: IconPr
 // Export individual components for direct use if needed
 export { MaterialIcon, CustomIcon };
 export * from './custom/PlayPause';
+export * from './custom/AutoRecycle';
+export * from './custom/SwingV';
+export * from './custom/SwingH';
+export * from './custom/CenterBar';
 export * from './custom/TrayOpen';
 export * from './custom/TrayClose';
 export * from './custom/Number0';

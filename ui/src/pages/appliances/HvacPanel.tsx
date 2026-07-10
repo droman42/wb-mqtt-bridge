@@ -12,9 +12,10 @@
 // room_temperature. State fields are top-level canonical values (`state.mode === "cool"`,
 // `state.power === "on"`, `state.setpoint`).
 //
-// Mode/fan/vane glyphs reproduced from the firmware source (mitsubishi2wb
-// html_pages.h ~L137-179) — the same Unicode entities the firmware's HTML dropdowns
-// render. (UI-16 will replace this hardcoded map with the shared IconResolver.)
+// UI-16: value icons resolve through the shared IconResolver (the same mechanism AV
+// button icons use), keyed by canonical value — approved item-by-item in the
+// three-iteration icon review (2026-07-10). dry/cool/heat carry fixed colors (the
+// firmware shows colored emoji); everything else renders theme ink via currentColor.
 import { useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSystemCatalog, useExecuteCanonicalAction } from '../../hooks/useApi';
@@ -23,57 +24,32 @@ import { useSettingsStore } from '../../stores/useSettingsStore';
 import { useRoomStore } from '../../stores/useRoomStore';
 import { useLogStore } from '../../stores/useLogStore';
 import { Button } from '../../components/ui/button';
+import { Icon } from '../../components/icons';
+import { IconResolver } from '../../lib/IconResolver';
 import type { components } from '../../types/openapi.gen';
 
 type CatalogValueLabel = components['schemas']['CatalogValueLabel'];
 
-// Firmware glyphs per canonical (from mitsubishi2wb html_pages.h L137-179 — see file
-// header). Falls back to '·' if a future enum entry isn't mapped here.
-const MODE_GLYPH: Record<string, string> = {
-  auto:     '♻',           // ♻
-  dry:      '💧',     // 💧
-  cool:     '❄️',     // ❄️
-  heat:     '☀️',     // ☀️
-  fan_only: '❃',           // ❃
-};
-const FAN_GLYPH: Record<string, string> = {
-  auto:    '♻',  // ♻
-  quiet:   '....',
-  speed_1: '...:',
-  speed_2: '..::',
-  speed_3: '.:::',
-  speed_4: '::::',
-};
-const VANE_GLYPH: Record<string, string> = {
-  auto:  '♻',  // ♻
-  swing: '⚟',  // ⚟
-  pos_1: '➟',  // ➟
-  pos_2: '➟',
-  pos_3: '➟',
-  pos_4: '➟',
-  pos_5: '➟',
-};
-const WIDEVANE_GLYPH: Record<string, string> = {
-  swing:     '⚟',  // ⚟
-  far_left:  '<<',
-  left:      '<',
-  center:    '|',
-  right:     '>',
-  far_right: '>>',
-  split:     '<>',
-};
-
-const CAPABILITY_GLYPHS: Record<string, Record<string, string>> = {
-  mode: MODE_GLYPH,
-  fan: FAN_GLYPH,
-  vane: VANE_GLYPH,
-  widevane: WIDEVANE_GLYPH,
-};
+const iconResolver = new IconResolver();
 
 function labelOf(entry: CatalogValueLabel, language: 'en' | 'ru'): string {
   // Catalog labels are {ru, en, de, ...}; settings store carries en/ru today. Fall back
   // to en, then to the canonical identifier (legible) when labels are absent.
   return entry.labels?.[language] ?? entry.labels?.en ?? entry.canonical;
+}
+
+/** UI-16: one enum-value icon, resolver-driven. Fixed-color entries (dry/cool/heat)
+ * wrap the icon in a colored span — currentColor picks it up in every button state;
+ * everything else stays theme ink. Unmapped values fall back to a neutral dot. */
+function ValueIcon({ capability, value }: { capability: string; value: string }) {
+  const resolved = iconResolver.resolveValueIcon(capability, value);
+  if (!resolved) return <span className="text-lg leading-none">·</span>;
+  const icon = (
+    <Icon library={resolved.library} name={resolved.name} fallback={resolved.fallback} size="md" />
+  );
+  return resolved.color
+    ? <span style={{ color: resolved.color }} className="leading-none">{icon}</span>
+    : <span className="leading-none">{icon}</span>;
 }
 
 export function HvacPanel() {
@@ -130,7 +106,6 @@ export function HvacPanel() {
     if (!field?.values?.length) return null;
     const raw = st[capName];
     const current = typeof raw === 'string' ? raw : undefined;
-    const glyphs = CAPABILITY_GLYPHS[capName] ?? {};
     const title = field.labels?.[language] ?? field.labels?.en ?? capName;
     return (
       <section key={capName} className="rounded-lg border border-border p-4 space-y-3">
@@ -146,7 +121,7 @@ export function HvacPanel() {
                 onClick={() => dispatch(capName, 'set', { value: v.canonical })}
                 className="flex h-auto flex-col items-center gap-1 px-2 py-2 text-xs"
               >
-                <span className="text-lg leading-none">{glyphs[v.canonical] ?? '·'}</span>
+                <ValueIcon capability={capName} value={v.canonical} />
                 <span className="leading-tight text-center">{labelOf(v, language)}</span>
               </Button>
             );
@@ -173,8 +148,9 @@ export function HvacPanel() {
             variant={power ? 'default' : 'outline'}
             disabled={pending}
             onClick={() => dispatch('power', power ? 'off' : 'on')}
-            className="w-full"
+            className="w-full flex items-center justify-center gap-2"
           >
+            <ValueIcon capability="power" value={power ? 'off' : 'on'} />
             {power ? (language === 'ru' ? 'Включено' : 'On') : (language === 'ru' ? 'Выключено' : 'Off')}
           </Button>
         </section>

@@ -21,6 +21,19 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-10 — UI-16 DONE (enum-value icons via the shared IconResolver) — closed through a
+  three-iteration ARTIFACT review** — a live review page (per-icon approve/alternate/comment + a
+  general-instructions field; the user's exported review drove each next iteration, same URL
+  republished). All 27 HVAC values settled: Material 1:1s (AcUnit/WaterDrop/WbSunny/Nightlight/
+  arrows/SyncAlt), the custom number ladder for speeds+positions, the AV remotes' power pair, and
+  FOUR new custom SVGs from the review: `auto-recycle` (♻-faithful chasing arrows), `swing-v`/`swing-h`
+  (DETACHED-ray fans — the user rejected the joined pivot, matching ⚟'s implied convergence;
+  orientation-aware pair), `center-bar` (the "keyboard |"). Color rule pinned: dry/cool/heat carry
+  fixed colors (#42A5F5/#4FC3F7/#FFB300), everything else theme ink (currentColor). Code:
+  `IconResolver.valueIconMappings` + `resolveValueIcon()` (scoped `capability.value` → bare fallback),
+  4 custom components registered, `HvacPanel` glyph maps deleted → `ValueIcon` component. UI-only;
+  check+build green; rides the pending DRV-28 image rebuild.
+
 - **2026-07-10 — DRV-28 DONE (the `MitsubishiHvac` driver) — the ACs are bespoke devices** — the
   DRV-27 rev. 2 design implemented in one sitting: typed state + VWB-18 restore-at-boot (the
   broker-wipe fix), heartbeat reachability off the firmware's 45 s room_temperature publish (no LWT
