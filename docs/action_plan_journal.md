@@ -21,6 +21,15 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-10 — VWB-34 FILED (publish confirmation-timing in the contract — design, post-release)** —
+  off the DRV-29 post-mortem: "your HTTP timeout must exceed 15 s" is contract information delivered
+  out-of-band in a handover note — retune a gate and voice breaks silently again. Filed `[P2]`
+  `[deferred]`, cross-repo, intended for board delegation once board-as-outbox lands (voice co-owns
+  consumption; scenario startup as a durable action on the voice side is on the table). Three tiers
+  sketched: per-capability `confirm_timeout_ms` (the latency promise, not the internal gate), scenario
+  `max_duration_ms` as a derivable upper bound (diff-dependent duration means an estimate would lie;
+  progress belongs to SSE), and the async-job pattern for composites as the design's open call.
+
 - **2026-07-10 — DRV-29 DONE (voice-filed; canonical echo window honors the capability gate)** — the
   first DRV-28 live smoke («выключи кондиционер в детской») worked but 503'd: the flat 500 ms
   `CANONICAL_ECHO_TIMEOUT_S` vs the firmware's multi-second confirm rotation (~7 s observed). Fix:
