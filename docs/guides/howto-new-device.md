@@ -1,7 +1,7 @@
 # How-to — add a device with an existing driver
 
 This is the **config-only path**: a new physical device whose driver class
-already ships. The vast majority of devices land here — the eight shipped
+already ships. The vast majority of devices land here — the nine shipped
 driver classes between them cover most cases:
 
 - `WbPassthroughDevice` (one class, many configs) — every native Wirenboard
@@ -12,6 +12,8 @@ driver classes between them cover most cases:
   Broadlink-controlled appliance.
 - `LgTv`, `AppleTVDevice`, `AuralicDevice`, `EMotivaXMC2`,
   `RevoxA77ReelToReel` — one-off configs per physical unit.
+- `MitsubishiHvac` — the Mitsubishi air conditioners (a bespoke driver that
+  speaks the AC firmware's MQTT dialect directly); one config per unit.
 
 If the device needs a *new* driver class, read **[How-to: add a new driver
 with a native library](howto-new-driver.md)** instead.
@@ -24,7 +26,9 @@ with a native library](howto-new-driver.md)** instead.
 2. **Which capability profile** (only for `WbPassthroughDevice`) — pick from
    `backend/config/capabilities/profiles/`: `light_switch` (relay),
    `dimmable_light` (relay + brightness), `rgb_light`, `cover` (dooya),
-   `heating_loop`, `sensor_room`. (The Mitsubishi air conditioners are NOT
+   `heating_loop`, `sensor_room`, and the whole-house utility profiles
+   (`power_switch`, `water_supply`, `heating_control`, and more — the
+   directory is the full list). (The Mitsubishi air conditioners are NOT
    passthrough devices — they have their own `MitsubishiHvac` driver and class
    capability map.) If none fit, profile-extension is
    a small change covered in [the new-driver guide](howto-new-driver.md).
@@ -71,7 +75,7 @@ By driver flavor:
 - **WB-passthrough** → `backend/config/devices/wb-devices/<room_id>/<device_id>.json`.
   The subfolder is the bridge `room_id` (matching `rooms.json`), not the WB
   dashboard id.
-- **Everything else** (the seven AV driver classes) →
+- **Everything else** (the eight non-passthrough driver classes) →
   `backend/config/devices/<device_id>.json`.
 
 ## Per-flavor config shape — quick reference

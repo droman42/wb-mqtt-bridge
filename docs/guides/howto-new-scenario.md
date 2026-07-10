@@ -34,7 +34,7 @@ File: `backend/config/scenarios/movie_appletv.json`.
 ```json
 {
   "scenario_id": "movie_appletv",
-  "name": "Watch movies on Apple TV",
+  "names": { "ru": "Кино с Apple TV", "en": "Watch movies on Apple TV" },
   "description": "Setup for watching movies with optimal audio and video settings",
   "room_id": "living_room",
 
@@ -69,7 +69,7 @@ What each block does:
 
 | Block | What it does |
 |---|---|
-| `scenario_id`, `name`, `description` | Identity. `scenario_id` must match the filename. |
+| `scenario_id`, `names`, `description` | Identity. `scenario_id` must match the filename; `names` is a localized `{ru, en}` object. |
 | `room_id` | The room invariant — every device named below must live here. |
 | `source` / `display` / `audio` | The thin selection — the reconciler derives membership, input values, and order by DFS-ing the topology from `source` → `display` → `audio`. |
 | `roles` | Maps a UI / capability slot to the device that backs it on the scenario page. `volume` → the AVR (so the scenario's volume slider drives the amp, not the TV); `playback` → the source (transport keys belong to the Apple TV, not the AVR); etc. |
@@ -82,7 +82,7 @@ What each block does:
 ```json
 {
   "scenario_id": "movie_zappiti",
-  "name": "Watch movies on Zappiti",
+  "names": { "ru": "Кино с Zappiti", "en": "Watch movies on Zappiti" },
   "description": "Setup for watching movies with optimal audio and video settings",
   "room_id": "living_room",
 
@@ -121,7 +121,7 @@ For thin scenarios:
 | `display` | yes | The video sink; the path's end node. |
 | `audio` | yes | The audio device; binds the volume slider. |
 | `roles.volume` | recommended | Which device the volume slider drives (usually `audio`). |
-| `roles.playback` / `tracks` / `menu` / `pointer` / `apps` | optional | Per-zone routing on the scenario manifest — the manifest's `ProcessedAction` carries `sourceDeviceId` so the action dispatches to the role device, not the scenario id. |
+| `roles.playback` / `tracks` / `menu` / `pointer` / `apps` | optional | Per-zone routing on the scenario manifest — each control carries the canonical `(capability, action)` tuple it dispatches through the room's Scenario Manager entity, which resolves the role to the backing device at fire time. |
 | `roles.inputs` | optional | Which device the input dropdown selects on. Usually the AVR, not the source. |
 
 Omit a role and the corresponding manifest zone is empty. Don't list a
@@ -130,7 +130,7 @@ won't error, but it'll render an empty zone.
 
 ## What the reconciler does with the scenario
 
-When a caller hits `POST /scenario/movie_appletv/start`:
+When a caller hits `POST /scenario/start` (the scenario id in the request body):
 
 1. **Resolve targets** — DFS `appletv_living` → `living_room_tv` →
    `mf_amplifier` over the topology, collecting each link's destination
@@ -157,16 +157,17 @@ The full pipeline is in
    `room_id`) fails the suite — don't push past it.
 2. **Manifest projection**: `curl localhost:8000/scenario/movie_appletv/layout`
    returns the composite `LayoutManifest`. Every zone you wired in `roles`
-   should be populated with `ProcessedAction`s whose `sourceDeviceId`
-   points at the role device.
+   should be populated — the controls carry the canonical `(capability,
+   action)` tuple they dispatch through the room's Scenario Manager entity
+   (the bridge resolves the role to a device at fire time).
 3. **Catalog projection**: `curl localhost:8000/system/catalog` lists the
    scenario under its room.
-4. **Hardware activation**: `POST /scenario/movie_appletv/start` — devices
+4. **Hardware activation**: `POST /scenario/start` (id in the body) — devices
    power up in the right order, inputs route correctly, manual steps
    surface in the response if the path crosses a manual node.
 5. **Switch + deactivate**: from `movie_appletv` to `movie_zappiti`
    should diff cleanly (shared display + AVR stay on; only the source
-   changes). `POST /scenario/movie_appletv/shutdown` powers off the
+   changes). `POST /scenario/shutdown` (id in the body) powers off the
    scenario's involved devices.
 
 ## Common pitfalls
