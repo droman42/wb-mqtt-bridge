@@ -1,8 +1,15 @@
-# Project Vision — wb-mqtt-bridge
+# Project Vision — wb-mqtt-bridge  ·  ARCHIVED
 
-**Status:** current (2026-05-22). The intent behind the project — the part the code
-can't tell you. For *how* it's built see [`architecture.md`](architecture.md); for the
-UI↔backend seam see [`ui_backend_contract.md`](ui_backend_contract.md).
+> **ARCHIVED 2026-07-10 (REL-4).** This was an internal vision/intent note, not
+> user-facing documentation — the voice project keeps no equivalent, and its "master
+> doc set" framing (a `project.md`/`architecture.md`/`ui_backend_contract.md` triad) was
+> superseded: the master-doc convention is board-level cross-repo work, deferred with
+> VWB-33/34. Kept here for its intent history only. **User-facing docs live in
+> [`../architecture/overview.md`](../architecture/overview.md), [`../guides/`](../guides/),
+> the READMEs, and [`../QUICKSTART.md`](../QUICKSTART.md).** The links below are stale.
+
+**Status (as archived):** current (2026-05-22). The intent behind the project — the part
+the code can't tell you.
 
 ## Mission
 
