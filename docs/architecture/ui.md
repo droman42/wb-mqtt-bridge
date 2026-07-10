@@ -53,7 +53,7 @@ response is what changes; the UI bundle does not.
 | Category | Examples | UI |
 |---|---|---|
 | **`device`** | TV, AVR, Apple TV, streamer, IR fleet, reel-to-reel | **Harmony-style remote** — the layout manifest pattern above. |
-| **`appliance`** | kitchen hood, future Roborock | **Hand-written bespoke page** in `ui/src/pages/appliances/`. The manifest endpoint is not consumed. |
+| **`appliance`** | kitchen hood, the Mitsubishi air conditioners | **Hand-written bespoke page** in `ui/src/pages/appliances/`. The manifest endpoint is not consumed. |
 
 The split is deliberate. A remote-style layout works for the canonical AV stack
 (power, source, channel-up, volume, menu, transport, apps, pointer) — there's a
@@ -63,9 +63,10 @@ and a room picker, an oven is a temperature + timer + cycle. Forcing them throug
 the remote vocabulary would constrain expression; giving each its own page makes
 it cheap to author one and ignore the others.
 
-Today the **kitchen hood** is the only shipped appliance; the appliance page
-slot (`ui/src/pages/appliances/`) and the `/appliance/:id` route are still in
-design — see [the planned doc](../planned/appliance-pages.md).
+Shipped appliances today: the **kitchen hood** and the **three Mitsubishi air
+conditioners** (a native climate panel). They render from `ui/src/pages/appliances/`,
+reached through the normal `/devices/:deviceId` route — the page is chosen from a
+registry keyed by device id. (Full detail at the bottom of this page.)
 
 ## Anatomy of a layout manifest
 
@@ -137,7 +138,7 @@ Every renderable button is a `ProcessedAction`:
 `GET /scenario/{id}/layout` returns the same `LayoutManifest` type, composed from
 the scenario's role devices — the `display` device contributes the screen and menu
 zones, the `audio` device the volume slider, and so on. But since the canonical-first
-cutover (SCN-6/7) the manifest is a **pure render projection**: it decides *what
+cutover the manifest is a **pure render projection**: it decides *what
 controls appear where*, not *where commands go*. Every inheritable control carries a
 canonical `(capability, action)` tuple plus the manifest's `canonicalEntityId`, and
 the UI dispatches it **canonically against the per-room Scenario Manager entity**
@@ -148,8 +149,7 @@ active activity's audio" reaches the AVR because the *entity* knows which device
 the `volume` role right now — not because the button was pre-addressed to it. Scenario
 manifests deliberately render **no** input-selection control (inputs are a setup-time
 concern, not a running-activity one). The one exception is non-inheritable, list-backed
-domains like Apple TV **apps**, which still resolve against the role device directly
-(UI-9).
+domains like Apple TV **apps**, which still resolve against the role device directly.
 
 This is what makes scenario pages feel like one Harmony activity: it's a remote
 for the *whole stack*, assembled from the right pieces of each participating
@@ -204,7 +204,7 @@ value vocabulary and `/events/devices` for live state. How it's wired today:
 
 Shipped today: the **three Mitsubishi air conditioners** (`bedroom_hvac`,
 `living_room_hvac`, `children_room_hvac`) via `HvacPanel.tsx` — a native mode/fan/vane
-grid with enum-value icons resolved through the shared icon layer (DRV-28 / UI-16) — and
+grid with enum-value icons resolved through the shared icon layer — and
 the **kitchen hood**. See **[Planned: appliance pages](../planned/appliance-pages.md)**
 for the appliance UI's design history and what's still on the roadmap.
 

@@ -47,7 +47,7 @@ domains being `power`, `input`, `volume`, `brightness`, `climate`, `sensor`, etc
   device's `select` declares `source_modes`, the reconciler will engage the source's
   own output mode if the topology routes through it (e.g. LG TV `arc` → "be in
   internal mode" via `handle_home`).
-- **`fields`** *(P3.7 addition)* — read-only state surfaces (`sensor.temperature`,
+- **`fields`** — read-only state surfaces (`sensor.temperature`,
   `climate.room_temperature`, `brightness.level`) with typed coercion and catalog
   metadata; drives parsing in the WB-passthrough driver and per-field display in the
   UI / voice catalog.
