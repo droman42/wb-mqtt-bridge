@@ -3168,7 +3168,7 @@ export interface components {
             scenarios?: string[];
             /**
              * Version
-             * @default 0.5.0
+             * @default 0.6.0
              */
             version: string;
         };

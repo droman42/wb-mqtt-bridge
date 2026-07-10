@@ -5,6 +5,8 @@ Wirenboard MQTT ecosystem, runs Logitech-Harmony-style **scenarios** across them
 and pairs with the [Irene](https://github.com/droman42/wb-mqtt-voice) voice assistant
 as the home's single device catalog and actuation backend.
 
+Version 0.6.0 · Python 3.11+ · MIT.
+
 > **Status — deployed, single home.** The bridge runs the house from a Wirenboard 7
 > controller: the hexagonal backend, the typed config + state models, and the scenario
 > reconciler are settled and hardware-verified. The React UI ships an iPad-portrait
