@@ -21,6 +21,16 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-10 — DRV-27 DONE again (design rev. 2: six capabilities + explicit topics)** — the
+  reopened discussion settled all three forks (user-pinned): **six per-domain capabilities**
+  (power/mode/fan/vane/widevane/temperature — the AV action-group shape, 1:1 with the firmware's
+  controls; `reconcile:false` explicit); **`{value}` param convention** on every enum/float `set`
+  (mirrors VWB-19 select-form — one shape for voice); **today's config schema kept** (explicit
+  per-action `commands` + bare `state_topics`, tables in the class map via the DRV-25 enrichment),
+  the 3 configs moving out of `wb-devices/` to `config/devices/` root, driver validates completeness
+  at load. Owned consequences: canonical HVAC vocabulary changes (golden bump, single voice re-pin
+  after DRV-28) + `HvacPanel.tsx` rework. Design doc rewritten (rev. 2); DRV-28 amended to match.
+
 - **2026-07-10 — DRV-27 REOPENED (design review: decomposition + explicit topics)** — the user read the
   design doc and rejected (1) the single `climate` capability — must decompose into per-domain action
   groups like LgTv/kitchen-hood/eMotiva, and (2) topic derivation from one `mqtt_device` field — device
