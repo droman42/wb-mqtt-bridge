@@ -79,23 +79,23 @@
       "type": "enum",
       "values": [
         {
-          "wire": "AUTO",
+          "wire": "0",
           "canonical": "auto"
         },
         {
-          "wire": "DRY",
+          "wire": "1",
           "canonical": "dry"
         },
         {
-          "wire": "COOL",
+          "wire": "2",
           "canonical": "cool"
         },
         {
-          "wire": "HEAT",
+          "wire": "3",
           "canonical": "heat"
         },
         {
-          "wire": "FAN",
+          "wire": "4",
           "canonical": "fan_only"
         }
       ]
@@ -105,27 +105,27 @@
       "type": "enum",
       "values": [
         {
-          "wire": "AUTO",
+          "wire": "0",
           "canonical": "auto"
         },
         {
-          "wire": "QUIET",
+          "wire": "1",
           "canonical": "quiet"
         },
         {
-          "wire": "1",
+          "wire": "2",
           "canonical": "speed_1"
         },
         {
-          "wire": "2",
+          "wire": "3",
           "canonical": "speed_2"
         },
         {
-          "wire": "3",
+          "wire": "4",
           "canonical": "speed_3"
         },
         {
-          "wire": "4",
+          "wire": "5",
           "canonical": "speed_4"
         }
       ]
@@ -135,31 +135,31 @@
       "type": "enum",
       "values": [
         {
-          "wire": "AUTO",
+          "wire": "0",
           "canonical": "auto"
         },
         {
-          "wire": "SWING",
+          "wire": "1",
           "canonical": "swing"
         },
         {
-          "wire": "1",
+          "wire": "2",
           "canonical": "pos_1"
         },
         {
-          "wire": "2",
+          "wire": "3",
           "canonical": "pos_2"
         },
         {
-          "wire": "3",
+          "wire": "4",
           "canonical": "pos_3"
         },
         {
-          "wire": "4",
+          "wire": "5",
           "canonical": "pos_4"
         },
         {
-          "wire": "5",
+          "wire": "6",
           "canonical": "pos_5"
         }
       ]
@@ -169,31 +169,31 @@
       "type": "enum",
       "values": [
         {
-          "wire": "SWING",
+          "wire": "0",
           "canonical": "swing"
         },
         {
-          "wire": "<<",
+          "wire": "1",
           "canonical": "far_left"
         },
         {
-          "wire": "<",
+          "wire": "2",
           "canonical": "left"
         },
         {
-          "wire": "|",
+          "wire": "3",
           "canonical": "center"
         },
         {
-          "wire": ">",
+          "wire": "4",
           "canonical": "right"
         },
         {
-          "wire": ">>",
+          "wire": "5",
           "canonical": "far_right"
         },
         {
-          "wire": "<>",
+          "wire": "6",
           "canonical": "split"
         }
       ]

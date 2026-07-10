@@ -21,6 +21,17 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-10 — DRV-26 DONE (HVAC value tables → firmware numeric wire; control revived)** — the
+  VWB-14 tables carried label strings as `wire`, but mitsubishi2wb speaks numeric indices and silently
+  drops anything else — HVAC mode/fan/vane/widevane was dead in both directions. Fix: `wire =
+  str(position)` (declaration order already equals the firmware index) in the `hvac` profile + the 3
+  device configs; canonical vocab + labels unchanged. Drift-guard tests updated to the firmware truth
+  (+ a generalized every-table-is-indices guard); 2 both-direction tests on the real children config
+  (`'2'→'cool'` in, `cool→'2'` out). **Golden → `a4a2b1aed5f86447`** (openapi byte-identical) — voice
+  re-pins ONCE to this (covers DRV-25 + DRV-26). Suite 664, pyright 0, 6/6. DRV-27's firmware premise
+  amended (user reversed: REST-endpoints rewrite under research, bench-twin-gated, ESP8266 D1 Mini
+  confirmed). Live set_mode check rides REL-3.
+
 - **2026-07-09, night — the HVAC-cards incident: root cause pinned (bridge exonerated); DRV-26 + DRV-27
   + VWB-32 filed** — all three WB-UI «Кондиционер» cards showed valueless controls (sliders pegged at
   max, blank setpoint, red ⊗); initial suspicion fell on the day's DRV-23/25 deploys. Investigation

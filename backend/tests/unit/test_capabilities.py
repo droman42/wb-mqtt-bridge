@@ -245,14 +245,16 @@ def test_hvac_climate_actions_cover_mode_fan_vane_widevane_setpoint():
 
 
 def test_hvac_profile_mode_carries_firmware_wire_values_and_canonical_labels():
-    """Mode field's value table mirrors the firmware dropdown order (AUTO/DRY/COOL/HEAT/FAN
-    per mitsubishi2wb html_pages.h line ~137-141) and uses canonical `fan_only` for the
-    "FAN" wire mode to avoid colliding with the `fan` field name."""
+    """DRV-26: the wire side is the firmware's NUMERIC publish index, not the label string.
+    mitsubishi2wb publishes numbers on the MQTT wire and its command callback silently
+    ignores anything else (`mitsubishi2wb.ino` `hpSettingsChanged()`/`mqttCallback()`:
+    mode AUTO→0, DRY→1, COOL→2, HEAT→3, FAN→4). Canonical stays `fan_only` for the "FAN"
+    mode to avoid colliding with the `fan` field name."""
     m = load_capability_map("WbPassthroughDevice", "any_hvac",
                              capabilities_dir=CAPS, capability_profile="hvac")
     mode = next(f for f in m.get("climate").fields if f.name == "mode")
     assert mode.type == "enum"
-    assert [v.wire for v in mode.values] == ["AUTO", "DRY", "COOL", "HEAT", "FAN"]
+    assert [v.wire for v in mode.values] == ["0", "1", "2", "3", "4"]
     assert [v.canonical for v in mode.values] == ["auto", "dry", "cool", "heat", "fan_only"]
     # Every entry carries trilingual labels (the catalog surface for voice/UI).
     for v in mode.values:
@@ -261,17 +263,20 @@ def test_hvac_profile_mode_carries_firmware_wire_values_and_canonical_labels():
         assert getattr(v.labels, "de", None)
 
 
-def test_hvac_profile_widevane_carries_directional_canonical_for_firmware_symbols():
-    """Widevane wire values are firmware-internal symbols (`<<`, `<`, `|`, `>`, `>>`, `<>`,
-    `SWING`); canonical names are directional (`far_left`, `left`, `center`, `right`,
-    `far_right`, `split`, `swing`) for voice + UI ergonomics."""
+def test_hvac_profile_all_enum_wire_values_are_the_firmware_indices():
+    """DRV-26 drift-guard against the firmware contract: every HVAC enum table's wire side
+    is the numeric publish index from `mitsubishi2wb.ino` — in declaration order,
+    `wire == str(position)`. fan: AUTO,QUIET,1..4 → 0..5; vane: AUTO,SWING,1..5 → 0..6;
+    widevane: SWING,<<,<,|,>,>>,<> → 0..6 (canonical directional names kept for voice/UI)."""
     m = load_capability_map("WbPassthroughDevice", "any_hvac",
                              capabilities_dir=CAPS, capability_profile="hvac")
+    for field_name in ("mode", "fan", "vane", "widevane"):
+        field = next(f for f in m.get("climate").fields if f.name == field_name)
+        assert [v.wire for v in field.values] == [str(i) for i in range(len(field.values))], field_name
     widevane = next(f for f in m.get("climate").fields if f.name == "widevane")
-    assert {v.wire for v in widevane.values} == {"SWING", "<<", "<", "|", ">", ">>", "<>"}
-    assert {v.canonical for v in widevane.values} == {
+    assert [v.canonical for v in widevane.values] == [
         "swing", "far_left", "left", "center", "right", "far_right", "split",
-    }
+    ]
 
 
 def test_hvac_device_configs_state_topics_match_profile_value_tables():
