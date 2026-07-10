@@ -30,6 +30,23 @@ def _devices(calls):
 
         async def execute_action(command, params, source="unknown", _id=device_id):
             calls.append((_id, command))
+            # Reflect the command on believed state the way a real feedback device
+            # reports back — since SCN-14 an unconfirmed feedback gate is a FAILURE,
+            # so a static-state fake would (correctly) fail the switch.
+            p = params or {}
+            if command == "power_on":
+                st.power = "on"
+                if p.get("zone") == 2:
+                    st.zone2_power = "on"
+            elif command == "power":  # IR toggle: flip, or claim assume_state (SCN-11)
+                st.power = p.get("assume_state", "off" if st.power == "on" else "on")
+            elif command == "power_off":
+                if p.get("zone") == 2:
+                    st.zone2_power = "off"
+                else:
+                    st.power = "off"
+            elif command in ("set_input_source", "set_input"):
+                st.input_source = p.get("source") or p.get("input")
             return {"success": True}
 
         return SimpleNamespace(capabilities=caps, get_current_state=lambda _st=st: _st,
