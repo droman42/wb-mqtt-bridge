@@ -127,23 +127,33 @@ Every renderable button is a `ProcessedAction`:
 - `params` — *fixed* native params the UI must always send (e.g. the XMC-2's
   `power_off` always carries `{zone: 1}`; `set_volume` always carries
   `{zone: 2}`).
-- `sourceDeviceId` — used only on **scenario** manifests; it points the action
-  at the *role device*, not the scenario itself (see below).
+- `canonicalCapability` / `canonicalAction` — on **scenario** manifests, the
+  canonical `(capability, action)` tuple a control dispatches through the room's
+  Scenario Manager entity (see below); the bridge resolves it to the right role
+  device at fire time.
 
-## Scenario manifests — same shape, different routing
+## Scenario manifests — a render projection over the Scenario Manager
 
 `GET /scenario/{id}/layout` returns the same `LayoutManifest` type, composed from
-the scenario's role devices. The `source` device contributes the input-dropdown
-and transport actions; the `display` device contributes the screen and menu
-zones; the `audio` device contributes the volume slider. Every `ProcessedAction`
-on a scenario manifest carries a non-null `sourceDeviceId` — the UI dispatches
-the action against that device, not against the scenario id, so "volume up the
-active activity's audio" reaches the AVR even though the user pressed it on
-the scenario page.
+the scenario's role devices — the `display` device contributes the screen and menu
+zones, the `audio` device the volume slider, and so on. But since the canonical-first
+cutover (SCN-6/7) the manifest is a **pure render projection**: it decides *what
+controls appear where*, not *where commands go*. Every inheritable control carries a
+canonical `(capability, action)` tuple plus the manifest's `canonicalEntityId`, and
+the UI dispatches it **canonically against the per-room Scenario Manager entity**
+(`scenario_manager_<room>`) — the power zone as `scenario.set`/`scenario.off`, an
+inherited control as its capability tuple. The **bridge resolves the role → device at
+fire time**, so a stale manifest can never target the wrong device, and "volume up the
+active activity's audio" reaches the AVR because the *entity* knows which device holds
+the `volume` role right now — not because the button was pre-addressed to it. Scenario
+manifests deliberately render **no** input-selection control (inputs are a setup-time
+concern, not a running-activity one). The one exception is non-inheritable, list-backed
+domains like Apple TV **apps**, which still resolve against the role device directly
+(UI-9).
 
 This is what makes scenario pages feel like one Harmony activity: it's a remote
 for the *whole stack*, assembled from the right pieces of each participating
-device's manifest.
+device's manifest, all speaking to one entity.
 
 While a scenario is running, a small **"Device states…"** button under its remote
 opens a repair dialog: every participating device with what the bridge believes
@@ -180,17 +190,23 @@ defaults preserve `192.168.110.250` so existing deploys are unchanged.
 
 ## Appliance pages — the deliberate exception
 
-Appliances *do not* call `/devices/{id}/layout`; instead, they consume the
-backend's plain device endpoints (`/config/device/{id}`, `/devices/{id}/action`,
-`/devices/{id}/state`, `/events/devices`) and render through a hand-authored
-page. The intended structure (still in design):
+Appliances *do not* call `/devices/{id}/layout`; instead, they render through a
+hand-authored page and drive the device the same way every other page does — the
+canonical write path (`POST /devices/{id}/canonical`) plus `/system/catalog` for the
+value vocabulary and `/events/devices` for live state. How it's wired today:
 
-- One file per appliance under `ui/src/pages/appliances/<DeviceName>Page.tsx`.
-- An `index.ts` registry mapping `device_class` → page component.
-- A single `/appliance/:id` route that looks up the page from the registry.
+- One file per appliance kind under `ui/src/pages/appliances/` (e.g. `HvacPanel.tsx`,
+  the kitchen-hood page).
+- An `index.ts` registry mapping **`device_id` → page component**.
+- No separate `/appliance/:id` route: appliances are reached through the normal
+  `/devices/:deviceId` route, which looks the device up in the registry and renders its
+  bespoke page instead of the generic runtime remote.
 
-See **[Planned: appliance pages](../planned/appliance-pages.md)** for the
-intended shape — what exists today is the kitchen hood as a one-off.
+Shipped today: the **three Mitsubishi air conditioners** (`bedroom_hvac`,
+`living_room_hvac`, `children_room_hvac`) via `HvacPanel.tsx` — a native mode/fan/vane
+grid with enum-value icons resolved through the shared icon layer (DRV-28 / UI-16) — and
+the **kitchen hood**. See **[Planned: appliance pages](../planned/appliance-pages.md)**
+for the appliance UI's design history and what's still on the roadmap.
 
 ## Where to go next
 

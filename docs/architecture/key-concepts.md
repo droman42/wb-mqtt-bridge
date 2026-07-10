@@ -111,7 +111,8 @@ walks three files in this order (later wins; deep-merged):
    one-off tweak.
 
 Any of the three may be absent; an empty map means the device exposes nothing through
-the scenario layer (it remains reachable through `/devices/{id}/action`).
+the scenario layer (it stays directly controllable — its public write path is
+`POST /devices/{id}/canonical`, with `/action` as the documented internal door).
 
 ## The topology, in detail
 
@@ -191,14 +192,14 @@ without ambiguity.
 Three calls cover the lifecycle. All three run the *same* `build_plan` +
 `execute_plan` pipeline; the difference is what they diff against.
 
-- **Activate** (`POST /scenario/{id}/activate` when nothing's active) — diff the
+- **Activate** (`POST /scenario/start` when nothing's active in the room) — diff the
   scenario's target state against an "all-devices-off" baseline. Emits the full
-  startup sequence.
-- **Switch** (`POST /scenario/{id}/activate` while another is active) — diff against
+  startup sequence. (The scenario id travels in the request body, not the path.)
+- **Switch** (`POST /scenario/switch` while another is active in the room) — diff against
   the devices' *current* assumed state. The reconciler emits only the deltas; if
   scenario A and B share a display and an AVR, neither gets touched. This is the
   Harmony switching model.
-- **Deactivate** (`POST /scenario/{id}/deactivate`) — power-off plan for the
+- **Deactivate** (`POST /scenario/shutdown`) — power-off plan for the
   scenario's involved devices; topology ordering still applies in reverse.
 
 **Rooms are the concurrency unit**: each scenario belongs to a room, and every

@@ -32,8 +32,8 @@ client is regenerated without a Python dependency.
 |---|---|---|
 | `GET` | `/config/device/{id}` | The typed device config (the discriminated-union shape the UI codegen consumes). |
 | `GET` | `/config/devices` | All device configs, keyed by id. |
-| `POST` | `/devices/{id}/action` | The workhorse — dispatch an action through `DevicePort.execute_action`. Body: `{action, params, source}`. Returns `CommandResponse` (typed per device). |
-| `POST` | `/devices/{id}/canonical` | The capability-language dispatch — body `{capability, action, params, wait}`, resolved through the device's capability map to the native command (or the ordered steps of a sequence-form macro, inter-step delays included). Selection-style capabilities answer the reserved `set` action — `{"capability": "input", "action": "set", "params": {"value": "cd"}}` — whether the device switches inputs with one parametric command or a distinct command per input; the difference stays internal. With `wait` (the default) it holds briefly for the state echo and returns the post-action state — what a voice assistant speaks back; the web UI sends `wait: false` so rapid button presses fire-and-return. Also the seam the per-room Scenario Manager entities answer on. |
+| `POST` | `/devices/{id}/canonical` | **The public write path** — capability-language dispatch, the workhorse for "make a device do X" since the canonical-first cutover (both the web UI and a voice assistant drive it). Body `{capability, action, params, wait}`, resolved through the device's capability map to the native command (or the ordered steps of a sequence-form macro, inter-step delays included). Selection-style capabilities answer the reserved `set` action — `{"capability": "input", "action": "set", "params": {"value": "cd"}}` — whether the device switches inputs with one parametric command or a distinct command per input; the difference stays internal. With `wait` (the default) it holds briefly for the state echo and returns the post-action state — what a voice assistant speaks back; the web UI sends `wait: false` so rapid button presses fire-and-return. Also the seam the per-room Scenario Manager entities answer on. |
+| `POST` | `/devices/{id}/action` | **The documented internal door** — the native, per-device dispatch through `DevicePort.execute_action` that `/canonical` resolves down to. Body: `{action, params, source}`; returns `CommandResponse` (typed per device). Kept as the imperative escape hatch (and the reserved `force`/`assume_state` desync path); not the public write contract. |
 | `GET` | `/devices/{id}/options/{inputs\|apps}` | Option enumeration as a read: the available-inputs / installed-apps list, resolved through the capability's declared `list` query — or, for devices whose input set is fixed (one command per input, no list query), served straight from the capability map. Populates the UI dropdowns; keeps the action path purely imperative. |
 | `GET` | `/devices/{id}/layout` | The backend-served runtime **layout manifest** — what UI controls go where, in which zones, in what order. The UI renders it; nothing about placement is baked into the UI bundle. |
 
@@ -98,7 +98,7 @@ implementation) fans events out per channel. A driver never imports presentation
 
 `POST /publish` — arbitrary publish through `MessageBusPort`. Useful for one-off
 diagnostics or wb-rule-side triggers from a script that's already talking REST. The
-typed path for "make a device do X" is `POST /devices/{id}/action`, not this.
+typed path for "make a device do X" is `POST /devices/{id}/canonical`, not this.
 
 ## MQTT integration with Wirenboard
 

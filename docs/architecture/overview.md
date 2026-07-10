@@ -19,7 +19,7 @@ Read it inside-out:
   reaches none of the outer layers.
 - **Ports — `domain/ports.py`.** Five small abstract contracts: `MessageBusPort`,
   `DevicePort`, `StateRepositoryPort`, `EventPublisherPort`, `ReportSinkPort`. These are the seams.
-- **Driven adapters — `infrastructure/`.** The implementations: the eight device
+- **Driven adapters — `infrastructure/`.** The implementations: the nine device
   drivers (`BaseDevice` ⇒ `DevicePort`), the MQTT client (⇒ `MessageBusPort`), the
   SQLite store (⇒ `StateRepositoryPort`), the GitHub report sink (⇒ `ReportSinkPort`).
   Plus support code that doesn't sit on a port:
@@ -41,9 +41,12 @@ A driver depends on `DevicePort`, not the other way around; a manager depends on
 `infrastructure/` imports nothing from `presentation/`. One presentation→infrastructure
 back-edge remains, consciously accepted: the `POST /reload` task in
 `presentation/api/routers/system.py` constructs an MQTT client directly, because the
-clean fix touches live reconnect on real hardware and is deferred.
+clean fix touches live reconnect on real hardware and is deferred. The rule is enforced
+in CI — six `import-linter` contracts (`lint-imports` from `backend/`) fail the build on
+any new backwards or cross-layer import, with that one `/reload` back-edge the sole
+recorded exception.
 
-## The four ports
+## The five ports
 
 Defined in `domain/ports.py`; implemented by infrastructure (mostly) and one by
 presentation (`EventPublisherPort`).
@@ -51,9 +54,10 @@ presentation (`EventPublisherPort`).
 | Port | Shape (in one line) | Used by | Implemented by |
 |---|---|---|---|
 | `MessageBusPort` | `publish` / `subscribe` / `connect` / `disconnect` | `ScenarioManager`, WB virtual-device service | `infrastructure/mqtt/MQTTClient` (aiomqtt) |
-| `DevicePort` | the application-facing device contract: lifecycle, `execute_action`, state access, command introspection, message routing, room | `DeviceManager`, every `Scenario` | `infrastructure/devices/base.BaseDevice` (each of the 8 drivers subclasses it) |
+| `DevicePort` | the application-facing device contract: lifecycle, `execute_action`, state access, command introspection, message routing, room | `DeviceManager`, every `Scenario` | `infrastructure/devices/base.BaseDevice` (each of the 9 drivers subclasses it) |
 | `StateRepositoryPort` | `load` / `save` / `bulk_save` / `delete` / `list_entities` | `DeviceManager`, `ScenarioManager` | `infrastructure/persistence/sqlite.SQLiteStateStore` |
 | `EventPublisherPort` | `publish_device_event(event_type, data, event_id)` | every driver (`BaseDevice`) | `presentation/api/sse_manager.SSEManager` |
+| `ReportSinkPort` | `file_report(...)` — hand a problem report to an external tracker | `ReportService` (problem reports) | `infrastructure/reports/GitHubReportSink` |
 
 `DevicePort` is deliberately richer than a raw transport. The domain talks to a device
 as "execute this action, give me current state, tell me your room", not "send this byte
@@ -122,7 +126,7 @@ before the process exits, rather than leaking into a hung process.
 
 ## Where to go next
 
-- **[Devices and scenarios](devices-and-scenarios.md)** — the eight drivers, the
+- **[Devices and scenarios](devices-and-scenarios.md)** — the nine drivers, the
   IR / native-library / WB-passthrough distinction, and how scenarios sit on top.
 - **[Key concepts](key-concepts.md)** — topology, capability maps, configs, the
   reconciler; how the declarative pieces play together; scenario inheritance, startup
