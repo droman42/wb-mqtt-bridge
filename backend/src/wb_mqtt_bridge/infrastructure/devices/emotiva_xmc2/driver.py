@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import time
 from datetime import datetime
 from enum import Enum
 from typing import Dict, Any, Optional, Union, Tuple
@@ -52,9 +53,28 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         Property.AUDIO_INPUT,        # Audio input
         Property.VIDEO_INPUT,        # Video input
         Property.AUDIO_BITSTREAM,    # Audio bitstream format
-        Property.SELECTED_MODE       # Audio processing mode
+        Property.SELECTED_MODE,      # Audio processing mode
+        Property.KEEPALIVE,          # DRV-30: protocol V3 heartbeat (wedge/reboot detection)
     ]
-    
+
+    # --- DRV-30 timing (REL-3 rack findings, docs/review/rel3_rack_findings_2026-07-10.md) ---
+    # The transponder advertises the real keepAlive interval (7500 ms on the XMC-2);
+    # this is only the fallback if discovery info is unavailable.
+    KEEPALIVE_INTERVAL_FALLBACK_S = 7.5
+    # Missed beats before the device counts as unreachable. The 2026-07-10 wedge burned
+    # 2×9 s of blind command retries; three missed 7.5 s beats (~22 s) is the detection
+    # bound that replaces them with a fail-fast, speakable error.
+    KEEPALIVE_MISS_LIMIT = 3
+    # Post-power-on input readiness: a clean power-up delivers its full property burst
+    # in < 1 s (3 hardware samples 2026-07-10); 2 s of notification silence = settled.
+    INPUT_QUIESCENCE_S = 2.0
+    # Hard cap on the readiness hold — a lost packet must never deadlock a scenario.
+    # Also the FULL hold for the ARC-exit case: the incident proves 3.3 s of silence
+    # after the 'arc' claim was still inside the fatal window (the CEC handshake is
+    # invisible to us beyond notifications), so switching away from a fresh 'arc'
+    # waits the whole window. Tune at the DRV-32 bench.
+    INPUT_READY_TIMEOUT_S = 15.0
+
     def __init__(self, config: EmotivaXMC2DeviceConfig, mqtt_client=None):
         """Initialize the EMotivaXMC2 device.
         
@@ -73,6 +93,17 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         # index (1-8) -> {"name": str, "visible": bool}; normalized source name -> index.
         self._source_buttons: Dict[int, Dict[str, Any]] = {}
         self._source_index_by_name: Dict[str, int] = {}
+
+        # --- DRV-30: heartbeat watchdog + post-power-on readiness bookkeeping ---
+        # Monotonic timestamps: wall-clock jumps must not fake or mask a heartbeat.
+        self._last_notification_monotonic: Optional[float] = None
+        self._power_on_monotonic: Optional[float] = None
+        self._keepalive_interval_s: float = self.KEEPALIVE_INTERVAL_FALLBACK_S
+        self._keepalive_task: Optional[asyncio.Task] = None
+        # True after the watchdog declares the device gone (wedge / wall-unplug).
+        # Commands fail fast while set (force bypasses); the watchdog probes for
+        # recovery by re-subscribing — device-side subscriptions die with the device.
+        self._heartbeat_lost: bool = False
         
         # Initialize device state with Pydantic model
         self.state: EmotivaXMC2State = EmotivaXMC2State(
@@ -174,7 +205,7 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 try:
                     await self.client.subscribe(self.PROPERTIES_TO_MONITOR)
                     logger.info(f"Successfully subscribed to properties for {self.get_name()}")
-                    
+
                     # Update state with successful connection
                     self.clear_error()
                     self.update_state(
@@ -183,10 +214,22 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                         startup_complete=True,
                         notifications=True
                     )
-                    
+
+                    # DRV-30: start the heartbeat watchdog on the device-advertised
+                    # keepAlive interval (transponder packet; the library keeps it in
+                    # its discovery info — no public accessor yet, hence getattr).
+                    info = getattr(self.client, "_info", None) or {}
+                    ka_ms = info.get("keepAlive")
+                    if ka_ms:
+                        self._keepalive_interval_s = float(ka_ms) / 1000.0
+                    self._heartbeat_lost = False
+                    self._last_notification_monotonic = time.monotonic()
+                    if self._keepalive_task is None or self._keepalive_task.done():
+                        self._keepalive_task = asyncio.create_task(self._keepalive_watchdog())
+
                     # Publish connection status
                     await self.emit_progress(f"Connected to {self.get_name()} at {host}", "action_progress")
-                    
+
                     return True
                 except Exception as e:
                     # Handle subscription failure
@@ -234,7 +277,12 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             return True
             
         logger.info(f"Starting shutdown for eMotiva XMC2 device: {self.get_name()}")
-        
+
+        # DRV-30: stop the heartbeat watchdog before tearing the client down.
+        if self._keepalive_task is not None:
+            self._keepalive_task.cancel()
+            self._keepalive_task = None
+
         try:
             # Attempt to unsubscribe from notifications first
             try:
@@ -327,9 +375,32 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         """
         # DEBUG: Enhanced property change logging
         logger.debug(f"[EMOTIVA_DEBUG] Property change callback: {property_name} = {old_value} -> {new_value} (device={self.get_name()}, connected={self.state.connected})")
-        
+
+        # DRV-30: every notification is proof of life. Record it for the watchdog and
+        # the post-power-on quiescence gate; a notification arriving while the device
+        # is considered gone means it came back with subscriptions intact.
+        self._last_notification_monotonic = time.monotonic()
+        if self._heartbeat_lost:
+            self._heartbeat_lost = False
+            self.clear_error()
+            self.update_state(connected=True, notifications=True)
+            logger.info(f"{self.get_name()}: heartbeat recovered (notification received)")
+
+        # keepAlive carries no device state — it exists purely as the heartbeat.
+        if property_name == "keepalive":
+            return
+
         # Process the value with our helper
         processed_value = self._process_property_value(property_name, new_value)
+
+        # DRV-30: an Off→On transition (ours or external — front panel, CEC) anchors
+        # the post-power-on readiness window for input switching.
+        if (
+            property_name == "power"
+            and processed_value == PowerState.ON
+            and self.state.power != PowerState.ON
+        ):
+            self._power_on_monotonic = time.monotonic()
         
         # Map property changes to our state model
         updates = {}
@@ -362,6 +433,112 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             logger.debug(f"[EMOTIVA_DEBUG] Property change triggering state update: {updates} (device={self.get_name()})")
             self.update_state(**updates)
     
+    # --- DRV-30: heartbeat watchdog + readiness gate ---------------------------------
+
+    async def _watchdog_tick(self) -> None:
+        """One watchdog evaluation: declare the device gone after KEEPALIVE_MISS_LIMIT
+        silent intervals, and while gone, probe for recovery by re-subscribing.
+
+        Re-subscribe IS the correct probe: Emotiva subscriptions live in the DEVICE's
+        memory, so a wall-unplug/reboot orphans us silently (REL-3 finding F4 — the
+        bridge stayed deaf until restarted). Subscribing is idempotent per the protocol
+        spec ("no penalty for subscribing to the same notification multiple times"),
+        its ack proves liveness, and the subscribe response re-seeds state through the
+        registered callbacks."""
+        last = self._last_notification_monotonic
+        if last is None or self.client is None:
+            return
+        silent_s = time.monotonic() - last
+        limit_s = self.KEEPALIVE_MISS_LIMIT * self._keepalive_interval_s
+
+        if silent_s <= limit_s and not self._heartbeat_lost:
+            return
+
+        if not self._heartbeat_lost:
+            self._heartbeat_lost = True
+            self.update_state(connected=False, notifications=False)
+            self.set_error(
+                f"heartbeat lost: no notifications for {silent_s:.0f}s "
+                f"(keepAlive interval {self._keepalive_interval_s:.1f}s) — "
+                "device wedged, rebooted, or unplugged; probing for recovery"
+            )
+            logger.error(f"{self.get_name()}: heartbeat lost after {silent_s:.0f}s of silence")
+            await self.emit_progress(
+                f"{self.get_name()} is unreachable (heartbeat lost)", "action_error"
+            )
+
+        # Recovery probe (also re-establishes subscriptions after a device reboot).
+        try:
+            await self.client.subscribe(self.PROPERTIES_TO_MONITOR)
+        except Exception:
+            return  # still gone; next tick probes again
+        self._heartbeat_lost = False
+        self._last_notification_monotonic = time.monotonic()
+        self.clear_error()
+        self.update_state(connected=True, notifications=True)
+        logger.info(f"{self.get_name()}: heartbeat recovered (re-subscribed after outage)")
+        await self.emit_progress(f"{self.get_name()} is reachable again", "action_progress")
+
+    async def _keepalive_watchdog(self) -> None:
+        """Background heartbeat loop; one `_watchdog_tick` per keepAlive interval."""
+        try:
+            while True:
+                await asyncio.sleep(self._keepalive_interval_s)
+                try:
+                    await self._watchdog_tick()
+                except Exception as e:  # the watchdog itself must never die
+                    logger.warning(f"{self.get_name()}: watchdog tick failed: {e}")
+        except asyncio.CancelledError:
+            pass
+
+    def _heartbeat_guard(self, params: Optional[Dict[str, Any]]) -> Optional[CommandResult]:
+        """Fail fast while the heartbeat is lost (the 2026-07-10 teardown burned 2×9 s
+        of blind retries against a wedged device). The reserved `force` param bypasses
+        — the DRV-5 escape-hatch convention."""
+        if self._heartbeat_lost and not (params or {}).get("force"):
+            return self.create_command_result(
+                success=False,
+                error=f"{self.get_name()} is unreachable (heartbeat lost; watchdog is probing)",
+            )
+        return None
+
+    async def _await_input_ready(self, target: str) -> None:
+        """Hold an input switch until the device is safely past its power-on transition
+        (REL-3 finding F1: `set_input` fired 3.3 s into a CEC/ARC handshake wedged the
+        firmware — wall-unplug required).
+
+        Notification-driven, no blind delays: outside the ARC case, proceed once the
+        notification stream has been quiet for INPUT_QUIESCENCE_S (a clean power-up
+        burst measures < 1 s). Switching away from a fresh 'arc' is the known-fatal
+        window and the handshake's CEC traffic is invisible to us — that case holds
+        the full INPUT_READY_TIMEOUT_S. No power-on in sight → return immediately."""
+        anchor = self._power_on_monotonic
+        if anchor is None:
+            return
+        if time.monotonic() - anchor >= self.INPUT_READY_TIMEOUT_S:
+            return
+
+        held = False
+        while True:
+            now = time.monotonic()
+            since_power = now - anchor
+            if since_power >= self.INPUT_READY_TIMEOUT_S:
+                break
+            # Re-evaluated every loop: the 'arc' claim can land mid-hold.
+            arc_exit = self.state.input_source == "arc" and target != "arc"
+            if not arc_exit:
+                last = self._last_notification_monotonic or anchor
+                quiet = now - max(last, anchor)
+                if quiet >= self.INPUT_QUIESCENCE_S:
+                    break
+            held = True
+            await asyncio.sleep(0.2)
+        if held:
+            logger.info(
+                f"{self.get_name()}: held input switch to {target} for "
+                f"{time.monotonic() - anchor:.1f}s after power-on (readiness gate)"
+            )
+
     def _process_property_value(self, property_name: str, value: Any) -> Any:
         """
         Process and convert property values to the correct type.
@@ -730,6 +907,12 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         """
         # DEBUG: Log command start with full context
         logger.debug(f"[EMOTIVA_DEBUG] power_on command received: params={params}, connected={self.state.connected}, power={self.state.power} (device={self.get_name()})")
+
+        # DRV-30: fail fast while the heartbeat is lost (force bypasses).
+        unreachable = self._heartbeat_guard(params)
+        if unreachable is not None:
+            return unreachable
+
         
         # If client is not initialized or not connected, reconnect first
         if not self.client or not self.state.connected:
@@ -817,6 +1000,10 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             # verified 2026-05-30) triggers the same zone2_power notification.
             if zone == Zone.MAIN:
                 await self.client.power_on(zone=zone)
+                # DRV-30: anchor the post-power-on readiness window here as well as on
+                # the Off→On notification — the anchor must exist even if notifications
+                # are broken (that failure mode is exactly what the watchdog handles).
+                self._power_on_monotonic = time.monotonic()
                 logger.info("Main zone power_on command sent")
             elif zone == Zone.ZONE2:
                 await self.client.power_on(zone=zone)
@@ -905,6 +1092,12 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         """
         # DEBUG: Log command start with full context
         logger.debug(f"[EMOTIVA_DEBUG] power_off command received: params={params}, connected={self.state.connected}, power={self.state.power} (device={self.get_name()})")
+
+        # DRV-30: fail fast while the heartbeat is lost (force bypasses).
+        unreachable = self._heartbeat_guard(params)
+        if unreachable is not None:
+            return unreachable
+
         
         # If client is not initialized or not connected, reconnect first
         if not self.client or not self.state.connected:
@@ -1077,6 +1270,11 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         """Toggle Zone 2 power via the native eMotiva ``zone2_power`` command (pymotivaxmc2
         ``power_toggle(zone=ZONE2)``). The resulting zone2_power state arrives asynchronously via the
         device's property notification, so it is not set optimistically here."""
+
+        # DRV-30: fail fast while the heartbeat is lost (force bypasses).
+        unreachable = self._heartbeat_guard(params)
+        if unreachable is not None:
+            return unreachable
         logger.debug(f"[EMOTIVA_DEBUG] zone2_power_toggle received: connected={self.state.connected}, zone2_power={self.state.zone2_power} (device={self.get_name()})")
         if not self.client or not self.state.connected:
             logger.info(f"Device {self.get_name()} not connected, reconnecting before zone2 power toggle")
@@ -1101,6 +1299,12 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         device-name<->token translation lives here so the reconciler stays device-agnostic.
         """
         logger.debug(f"[EMOTIVA_DEBUG] set_input received: params={params}, connected={self.state.connected}, current_input={self.state.input_source} (device={self.get_name()})")
+
+        # DRV-30: fail fast while the heartbeat is lost (force bypasses).
+        unreachable = self._heartbeat_guard(params)
+        if unreachable is not None:
+            return unreachable
+
 
         if not self.client or not self.state.connected:
             try:
@@ -1167,6 +1371,11 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
 
         if self.client is None:
             return self.create_command_result(success=False, error="Not connected to processor")
+
+        # DRV-30 readiness gate: never switch input inside the post-power-on transition
+        # window — the 2026-07-10 wedge was set_input landing 3.3 s into an ARC handshake.
+        await self._await_input_ready(token)
+
         try:
             await self.client.select_source(index)
             self.update_state(input_source=token)  # optimistic; the SOURCE notification confirms
@@ -1187,6 +1396,11 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         Returns:
             Command execution result
         """
+
+        # DRV-30: fail fast while the heartbeat is lost (force bypasses).
+        unreachable = self._heartbeat_guard(params)
+        if unreachable is not None:
+            return unreachable
         # DEBUG: Log command start with full context  
         logger.debug(f"[EMOTIVA_DEBUG] set_volume command received: params={params}, connected={self.state.connected}, current_volume={self.state.volume} (device={self.get_name()})")
         
@@ -1332,6 +1546,11 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         Returns:
             Command execution result
         """
+
+        # DRV-30: fail fast while the heartbeat is lost (force bypasses).
+        unreachable = self._heartbeat_guard(params)
+        if unreachable is not None:
+            return unreachable
         # DEBUG: Log command start with full context
         logger.debug(f"[EMOTIVA_DEBUG] mute_toggle command received: params={params}, connected={self.state.connected}, current_mute={self.state.mute} (device={self.get_name()})")
         

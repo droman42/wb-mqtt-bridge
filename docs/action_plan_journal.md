@@ -21,6 +21,18 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-10 — DRV-30 DONE (eMotiva hardening: readiness gate + keepAlive watchdog + re-subscribe
+  on recovery)** — the wedge class is closed at the driver, notification-driven throughout:
+  `set_input` holds inside the post-power-on window (2 s quiescence normally; the **ARC-exit case
+  holds the full 15 s** — design sharpened mid-implementation: the incident wedged 3.3 s of silence
+  AFTER the `'arc'` claim, so quiescence alone is provably insufficient); `Property.KEEPALIVE`
+  subscribed with the device-advertised 7500 ms interval — 3 missed beats → `connected=False` +
+  speakable fail-fast on all six handlers (`force` bypasses) instead of blind 9 s retry burns; the
+  recovery probe IS a re-subscribe (device-side subscriptions die with the device — the F4 deafness),
+  ack re-seeds state. No new state field — contracts byte-identical. +9 tests; suite 595, pyright 0,
+  6/6. Pre-release mandate complete (with SCN-14): scenario startup is safe as-if-ARC-worked; the
+  ARC bench itself rides DRV-32 post-release.
+
 - **2026-07-10 — SCN-14 DONE (reconciler gates: canonical comparison + timeout = failed step)** — the
   gate now translates the device's reported state through the capability's value table (carried on
   `PlannedAction`) with a normalized-comparison fallback for tableless drivers — the LG's

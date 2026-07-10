@@ -321,3 +321,152 @@ def test_handle_property_change_zone2_volume_space_padded(device: EMotivaXMC2):
 
 def test_process_property_value_unparseable_volume_falls_back(device: EMotivaXMC2):
     assert device._process_property_value("volume", "garbage") == 0.0
+
+
+# --- DRV-30: heartbeat watchdog + post-power-on readiness gate ----------------
+# REL-3 rack findings F1+F4 (docs/review/rel3_rack_findings_2026-07-10.md):
+# set_input fired 3.3 s into a CEC/ARC handshake → firmware wedge; the wall-unplug
+# then orphaned the device-side subscriptions and the bridge stayed deaf until
+# restarted. Timings here are shrunk via instance-attribute overrides.
+
+import time as _time
+from unittest.mock import AsyncMock as _AsyncMock
+
+
+def test_notification_records_heartbeat_and_keepalive_is_stateless(device: EMotivaXMC2):
+    """Every notification is proof of life; keepAlive updates NO state field."""
+    device._last_notification_monotonic = None
+    before = dict(device.state.model_dump())
+    device._handle_property_change("keepalive", None, "7500")
+    assert device._last_notification_monotonic is not None
+    after = dict(device.state.model_dump())
+    assert before == after  # heartbeat carries no device state
+
+
+def test_power_off_to_on_transition_anchors_readiness_window(device: EMotivaXMC2):
+    """An observed Off→On (ours or external — front panel, CEC) starts the
+    post-power-on readiness window for input switching."""
+    device.state.power = PowerState.OFF
+    device._power_on_monotonic = None
+    device._handle_property_change("power", None, "On")
+    assert device._power_on_monotonic is not None
+    # already-On repeats must NOT re-anchor
+    anchor = device._power_on_monotonic
+    device._handle_property_change("power", None, "On")
+    assert device._power_on_monotonic == anchor
+
+
+def test_notification_while_lost_recovers_heartbeat(device: EMotivaXMC2):
+    """A notification arriving while the device is considered gone means it came
+    back with subscriptions intact — recover in place."""
+    device._heartbeat_lost = True
+    device.state.connected = False
+    device._handle_property_change("volume", None, "-30.0")
+    assert device._heartbeat_lost is False
+    assert device.state.connected is True
+
+
+@pytest.mark.asyncio
+async def test_watchdog_marks_unreachable_and_resubscribe_recovers(device: EMotivaXMC2):
+    """Silence beyond KEEPALIVE_MISS_LIMIT intervals → unreachable + error; the
+    recovery probe is a re-subscribe (device-side subscriptions die with the
+    device), whose ack proves liveness."""
+    device._keepalive_interval_s = 0.01
+    device._last_notification_monotonic = _time.monotonic() - 1.0  # way past 3 misses
+    device.client.subscribe = _AsyncMock()  # probe will succeed immediately
+
+    await device._watchdog_tick()
+
+    # marked lost first, then the successful probe recovered it in the same tick
+    assert device._heartbeat_lost is False
+    assert device.state.connected is True
+    device.client.subscribe.assert_awaited_once_with(device.PROPERTIES_TO_MONITOR)
+
+
+@pytest.mark.asyncio
+async def test_watchdog_stays_lost_while_probe_fails(device: EMotivaXMC2):
+    device._keepalive_interval_s = 0.01
+    device._last_notification_monotonic = _time.monotonic() - 1.0
+    device.client.subscribe = _AsyncMock(side_effect=TimeoutError("no ack"))
+
+    await device._watchdog_tick()
+
+    assert device._heartbeat_lost is True
+    assert device.state.connected is False
+    assert device.state.error and "heartbeat lost" in device.state.error
+
+
+@pytest.mark.asyncio
+async def test_commands_fail_fast_while_heartbeat_lost(device: EMotivaXMC2):
+    """No more 2×9 s blind retry burns against a wedged device: commands return a
+    speakable error immediately; the reserved `force` param bypasses (DRV-5)."""
+    device._heartbeat_lost = True
+    device.state.power = PowerState.ON
+
+    result = await device.handle_set_input(
+        device.config.commands["set_input"], {"input": "source2"}
+    )
+    assert result["success"] is False and "unreachable" in result["error"]
+    device.client.select_source.assert_not_called()
+
+    result = await device.handle_power_off(device.config.commands["power_off"], {"zone": 1})
+    assert result["success"] is False and "unreachable" in result["error"]
+
+    # force bypasses the guard and reaches the client call
+    device.client.select_source = _AsyncMock()
+    device._power_on_monotonic = None  # no readiness hold in this test
+    result = await device.handle_set_input(
+        device.config.commands["set_input"], {"input": "source2", "force": True}
+    )
+    device.client.select_source.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_input_ready_quiesces_after_power_on(device: EMotivaXMC2):
+    """Within the post-power-on window, set_input holds until the notification
+    stream has been quiet for INPUT_QUIESCENCE_S — then proceeds."""
+    device.INPUT_QUIESCENCE_S = 0.05
+    device.INPUT_READY_TIMEOUT_S = 2.0
+    now = _time.monotonic()
+    device._power_on_monotonic = now
+    device._last_notification_monotonic = now
+    device.state.input_source = "source2"  # not arc — normal quiescence path
+
+    start = _time.monotonic()
+    await device._await_input_ready("source1")
+    held = _time.monotonic() - start
+    assert held >= 0.04  # actually waited for the quiet window
+    assert held < 1.0    # …and did not run to the hard cap
+
+
+@pytest.mark.asyncio
+async def test_input_ready_arc_exit_holds_the_full_window(device: EMotivaXMC2):
+    """Switching away from a fresh 'arc' is the known-fatal window (the incident
+    wedged 3.3 s in, AFTER the stream went quiet) — that case holds the full
+    INPUT_READY_TIMEOUT_S, not just quiescence."""
+    device.INPUT_QUIESCENCE_S = 0.02
+    device.INPUT_READY_TIMEOUT_S = 0.3
+    now = _time.monotonic()
+    device._power_on_monotonic = now
+    device._last_notification_monotonic = now
+    device.state.input_source = "arc"
+
+    start = _time.monotonic()
+    await device._await_input_ready("source1")
+    held = _time.monotonic() - start
+    assert held >= 0.25  # full window, quiescence alone must not release it
+
+
+@pytest.mark.asyncio
+async def test_input_ready_no_hold_long_after_power_on(device: EMotivaXMC2):
+    """A device that powered on long ago (or whose power-on we never saw) is not
+    held — the gate only guards the transition window."""
+    device.INPUT_READY_TIMEOUT_S = 0.2
+    device._power_on_monotonic = _time.monotonic() - 10.0
+
+    start = _time.monotonic()
+    await device._await_input_ready("source1")
+    assert _time.monotonic() - start < 0.05
+
+    device._power_on_monotonic = None
+    await device._await_input_ready("source1")  # no anchor → immediate return
