@@ -1,7 +1,24 @@
 # ADR 0006 — Dependency pinning policy: immutable git refs, bounded PyPI, lockfile as record
 
-- **Status:** Accepted
+- **Status:** Accepted · **Amended 2026-07-10 (REL-4 docs pass)**
 - **Date:** 2026-05-20
+
+> **Amendment 2026-07-10 — the four rules stand; concrete facts below have moved, and one
+> Rule 2 compliance gap is now open.** This ADR is an immutable record; the body is kept as
+> written and corrected here.
+> - **Rule 1 versions (stale examples):** the owner's PyPI libraries are now
+>   `pymotivaxmc2==0.7.0` and `asyncwebostv==0.4.0` (were 0.6.7 / 0.2.7). Still exact `==` pins —
+>   rule intact.
+> - **Rule 2 current exception (moved):** `openhomedevice` is now pinned at fork SHA
+>   `819b16102fb71e68c4f593af4d49c66a344d300a` (upstream 2.3.1 minus lxml, plus the
+>   HardwareConfig-halt branch — DRV-14, 2026-07-07). Same owner-controlled fork, same rationale.
+> - **Rule 2 gap (open — the "only remaining git source" claim is now false):** `pyatv` is again
+>   a git source — SHA-pinned (`postlund/pyatv@9177803…`, immutable, so the reproducibility half
+>   holds) but **not** mirrored under the owner's account, which Rule 2 requires for repos the
+>   owner does not control. The build is reproducible today; the residual risk is an upstream
+>   force-push/deletion. The mirror-vs-accepted-exception decision is tracked as **OPS-19**
+>   (deferred). A dev-only git dep `py-dev-gates@v0.1.1` is tag-pinned (owner-controlled;
+>   noted, not urgent).
 
 ## Context
 
