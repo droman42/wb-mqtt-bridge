@@ -444,3 +444,65 @@ def test_param_map_renames_canonical_param_to_native(faked):
     assert captured["cmd"] == "set_input_source"
     # `input` (canonical) was renamed to `source` (native) before perform_action saw it.
     assert captured["params"] == {"source": "hdmi2"}
+
+
+# ----- DRV-29: the echo window honors the capability's gate ------------------
+# The mitsubishi2wb ACs confirm on a multi-second packet rotation (settings read-back:
+# PACKET_SENT_INTERVAL 1 s + 6 info packets x 2 s), so the flat 500 ms window 503'd
+# every AC command while it succeeded. Capabilities now declare gate.poll_timeout_ms
+# (the same per-capability timing the reconciler has always honored) and the canonical
+# endpoint waits that long; ungated capabilities keep the 500 ms relay default.
+
+
+def _slow_confirm_cap_map(poll_timeout_ms) -> CapabilityMap:
+    return CapabilityMap.model_validate({
+        "mode": {
+            "kind": "stateful",
+            "feedback": True,
+            "state_field": "mode",
+            "gate": {"poll_timeout_ms": poll_timeout_ms},
+            "actions": {"set": {"command": "set_mode", "param_map": {"value": "mode"}}},
+        }
+    })
+
+
+def test_slow_echo_succeeds_when_gate_extends_the_window(faked):
+    """Echo lands at ~0.8 s — beyond the 500 ms default, inside the 3 s gate. Before
+    DRV-29 this returned 503 device_unreachable for a command that worked."""
+    dev = FakeDevice("children_room_hvac", _slow_confirm_cap_map(3000), {"mode": "cool"})
+    faked.devices["children_room_hvac"] = dev
+
+    async def handler(d, cmd, params):
+        async def late_echo():
+            await asyncio.sleep(0.8)
+            d.state.mode = "heat"
+            d._notify()
+        asyncio.get_running_loop().create_task(late_echo())
+        return {"success": True, "data": {"no_op": False}}
+
+    faked.handlers["children_room_hvac"] = handler
+    r = faked.client.post(
+        "/devices/children_room_hvac/canonical",
+        json={"capability": "mode", "action": "set", "params": {"value": "heat"}},
+    )
+    assert r.status_code == 200, r.json()
+    assert r.json()["state"]["mode"] == "heat"
+
+
+def test_slow_echo_still_503s_when_no_gate(faked):
+    """An ungated capability keeps the 500 ms default — the relay fleet's behavior is
+    byte-identical to before DRV-29."""
+    dev = FakeDevice("children_room_hvac", _slow_confirm_cap_map(None), {"mode": "cool"})
+    faked.devices["children_room_hvac"] = dev
+
+    async def handler(d, cmd, params):
+        return {"success": True, "data": {"no_op": False}}  # no echo ever
+
+    faked.handlers["children_room_hvac"] = handler
+    r = faked.client.post(
+        "/devices/children_room_hvac/canonical",
+        json={"capability": "mode", "action": "set", "params": {"value": "heat"}},
+    )
+    assert r.status_code == 503
+    assert r.json()["detail"]["error"]["code"] == "device_unreachable"
+    assert "500 ms" in r.json()["detail"]["error"]["message"]

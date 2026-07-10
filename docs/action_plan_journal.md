@@ -21,6 +21,17 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-10 — DRV-29 DONE (voice-filed; canonical echo window honors the capability gate)** — the
+  first DRV-28 live smoke («выключи кондиционер в детской») worked but 503'd: the flat 500 ms
+  `CANONICAL_ECHO_TIMEOUT_S` vs the firmware's multi-second confirm rotation (~7 s observed). Fix:
+  the endpoint now waits `cap.gate.poll_timeout_ms` when set (the per-capability timing the
+  reconciler always honored; LgTv 8000 benefits too), else the 500 ms relay default. The 15 s HVAC
+  window is DERIVED from the firmware source (1 s packet gate + 6×2 s info rotation ≈ 13 s worst
+  case), not guessed — user requirement. Gates set on all six MitsubishiHvac capabilities. NO
+  contract change (gates aren't catalog surface — no re-pin). +2 endpoint tests; suite 682, pyright
+  0, 6/6. Voice's wait:true now speaks truth ~7 s late (their client timeout must exceed 15 s) or
+  they opt into wait:false — their call. Backend-only rebuild owed.
+
 - **2026-07-10 — VWB-32 DONE (retained catalog-version published at startup + on reconnect)** — the
   topic was `/reload`-only, so the persistence-less broker's restarts left it missing (voice's
   staleness gate blind). New generic `on_connect_callbacks` seam on `MQTTClient` (fires after each

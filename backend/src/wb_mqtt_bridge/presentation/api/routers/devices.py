@@ -27,6 +27,12 @@ from wb_mqtt_bridge.domain.capabilities.models import RESERVED_PARAMS
 # declaring `device_unreachable`. Synchronous devices (AV) settle their state during
 # perform_action so the wait completes immediately; WB-passthrough publishes-and-returns
 # and the bridge subscription mirrors the echo into state, firing the waiter callback.
+# Default echo window for the canonical dispatch. Right for the relay fleet
+# (wb-mqtt-serial echoes in milliseconds); capabilities whose devices confirm slower
+# override it via their capability map's `gate.poll_timeout_ms` (DRV-29) — the same
+# per-capability timing the reconciler has always honored (LgTv power: 8000 ms;
+# MitsubishiHvac: 15000 ms, derived from the mitsubishi2wb/HeatPump packet cadence —
+# PACKET_SENT_INTERVAL 1 s + INFOMODE_LEN 6 × PACKET_INFO_INTERVAL 2 s + margin).
 CANONICAL_ECHO_TIMEOUT_S = 0.5
 
 
@@ -566,13 +572,21 @@ async def dispatch_device_canonical(
                 skipped_reason=skipped_reason,  # DRV-5: idempotence skips flow through here too
             )
 
+        # DRV-29: the echo window honors the capability's gate — slow-confirm devices
+        # (the mitsubishi2wb ACs read back on a multi-second packet rotation) declare
+        # `gate.poll_timeout_ms` in their capability map; everything else keeps the
+        # 500 ms relay default. Before this, every AC command 503'd while succeeding.
+        echo_timeout_s = (
+            cap.gate.poll_timeout_ms / 1000.0
+            if cap.gate.poll_timeout_ms else CANONICAL_ECHO_TIMEOUT_S
+        )
         try:
-            await asyncio.wait_for(state_changed.wait(), timeout=CANONICAL_ECHO_TIMEOUT_S)
+            await asyncio.wait_for(state_changed.wait(), timeout=echo_timeout_s)
         except asyncio.TimeoutError:
             resp = _err_response(
                 response_device_id, payload.capability, payload.action,
                 CanonicalErrorCode.DEVICE_UNREACHABLE,
-                f"No state echo within {int(CANONICAL_ECHO_TIMEOUT_S * 1000)} ms",
+                f"No state echo within {int(echo_timeout_s * 1000)} ms",
             )
             raise HTTPException(status_code=503, detail=resp.model_dump())
 

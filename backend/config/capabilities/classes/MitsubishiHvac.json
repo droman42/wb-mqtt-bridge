@@ -4,16 +4,45 @@
     "feedback": true,
     "reconcile": false,
     "state_field": "power",
+    "gate": {
+      "poll_timeout_ms": 15000
+    },
     "actions": {
-      "on":  { "command": "power_on" },
-      "off": { "command": "power_off" }
+      "on": {
+        "command": "power_on"
+      },
+      "off": {
+        "command": "power_off"
+      }
     },
     "fields": [
-      { "name": "power", "type": "enum",
-        "labels": { "ru": "питание", "en": "power", "de": "Betrieb" },
+      {
+        "name": "power",
+        "type": "enum",
+        "labels": {
+          "ru": "питание",
+          "en": "power",
+          "de": "Betrieb"
+        },
         "values": [
-          { "wire": "1", "canonical": "on",  "labels": { "ru": "вкл",  "en": "on",  "de": "ein" } },
-          { "wire": "0", "canonical": "off", "labels": { "ru": "выкл", "en": "off", "de": "aus" } }
+          {
+            "wire": "1",
+            "canonical": "on",
+            "labels": {
+              "ru": "вкл",
+              "en": "on",
+              "de": "ein"
+            }
+          },
+          {
+            "wire": "0",
+            "canonical": "off",
+            "labels": {
+              "ru": "выкл",
+              "en": "off",
+              "de": "aus"
+            }
+          }
         ]
       }
     ]
@@ -23,18 +52,72 @@
     "feedback": true,
     "reconcile": false,
     "state_field": "mode",
+    "gate": {
+      "poll_timeout_ms": 15000
+    },
     "actions": {
-      "set": { "command": "set_mode", "param_map": { "value": "mode" } }
+      "set": {
+        "command": "set_mode",
+        "param_map": {
+          "value": "mode"
+        }
+      }
     },
     "fields": [
-      { "name": "mode", "type": "enum",
-        "labels": { "ru": "режим", "en": "mode", "de": "Modus" },
+      {
+        "name": "mode",
+        "type": "enum",
+        "labels": {
+          "ru": "режим",
+          "en": "mode",
+          "de": "Modus"
+        },
         "values": [
-          { "wire": "0", "canonical": "auto",     "labels": { "ru": "авто",       "en": "auto", "de": "Automatik"   } },
-          { "wire": "1", "canonical": "dry",      "labels": { "ru": "осушение",   "en": "dry",  "de": "Entfeuchten" } },
-          { "wire": "2", "canonical": "cool",     "labels": { "ru": "охлаждение", "en": "cool", "de": "Kühlen"      } },
-          { "wire": "3", "canonical": "heat",     "labels": { "ru": "обогрев",    "en": "heat", "de": "Heizen"      } },
-          { "wire": "4", "canonical": "fan_only", "labels": { "ru": "вентилятор", "en": "fan",  "de": "Lüften"      } }
+          {
+            "wire": "0",
+            "canonical": "auto",
+            "labels": {
+              "ru": "авто",
+              "en": "auto",
+              "de": "Automatik"
+            }
+          },
+          {
+            "wire": "1",
+            "canonical": "dry",
+            "labels": {
+              "ru": "осушение",
+              "en": "dry",
+              "de": "Entfeuchten"
+            }
+          },
+          {
+            "wire": "2",
+            "canonical": "cool",
+            "labels": {
+              "ru": "охлаждение",
+              "en": "cool",
+              "de": "Kühlen"
+            }
+          },
+          {
+            "wire": "3",
+            "canonical": "heat",
+            "labels": {
+              "ru": "обогрев",
+              "en": "heat",
+              "de": "Heizen"
+            }
+          },
+          {
+            "wire": "4",
+            "canonical": "fan_only",
+            "labels": {
+              "ru": "вентилятор",
+              "en": "fan",
+              "de": "Lüften"
+            }
+          }
         ]
       }
     ]
@@ -44,19 +127,81 @@
     "feedback": true,
     "reconcile": false,
     "state_field": "fan",
+    "gate": {
+      "poll_timeout_ms": 15000
+    },
     "actions": {
-      "set": { "command": "set_fan", "param_map": { "value": "speed" } }
+      "set": {
+        "command": "set_fan",
+        "param_map": {
+          "value": "speed"
+        }
+      }
     },
     "fields": [
-      { "name": "fan", "type": "enum",
-        "labels": { "ru": "вентилятор", "en": "fan", "de": "Lüfter" },
+      {
+        "name": "fan",
+        "type": "enum",
+        "labels": {
+          "ru": "вентилятор",
+          "en": "fan",
+          "de": "Lüfter"
+        },
         "values": [
-          { "wire": "0", "canonical": "auto",    "labels": { "ru": "авто",       "en": "auto",    "de": "Automatik" } },
-          { "wire": "1", "canonical": "quiet",   "labels": { "ru": "тихий",      "en": "quiet",   "de": "Leise"     } },
-          { "wire": "2", "canonical": "speed_1", "labels": { "ru": "скорость 1", "en": "speed 1", "de": "Stufe 1"   } },
-          { "wire": "3", "canonical": "speed_2", "labels": { "ru": "скорость 2", "en": "speed 2", "de": "Stufe 2"   } },
-          { "wire": "4", "canonical": "speed_3", "labels": { "ru": "скорость 3", "en": "speed 3", "de": "Stufe 3"   } },
-          { "wire": "5", "canonical": "speed_4", "labels": { "ru": "скорость 4", "en": "speed 4", "de": "Stufe 4"   } }
+          {
+            "wire": "0",
+            "canonical": "auto",
+            "labels": {
+              "ru": "авто",
+              "en": "auto",
+              "de": "Automatik"
+            }
+          },
+          {
+            "wire": "1",
+            "canonical": "quiet",
+            "labels": {
+              "ru": "тихий",
+              "en": "quiet",
+              "de": "Leise"
+            }
+          },
+          {
+            "wire": "2",
+            "canonical": "speed_1",
+            "labels": {
+              "ru": "скорость 1",
+              "en": "speed 1",
+              "de": "Stufe 1"
+            }
+          },
+          {
+            "wire": "3",
+            "canonical": "speed_2",
+            "labels": {
+              "ru": "скорость 2",
+              "en": "speed 2",
+              "de": "Stufe 2"
+            }
+          },
+          {
+            "wire": "4",
+            "canonical": "speed_3",
+            "labels": {
+              "ru": "скорость 3",
+              "en": "speed 3",
+              "de": "Stufe 3"
+            }
+          },
+          {
+            "wire": "5",
+            "canonical": "speed_4",
+            "labels": {
+              "ru": "скорость 4",
+              "en": "speed 4",
+              "de": "Stufe 4"
+            }
+          }
         ]
       }
     ]
@@ -66,20 +211,90 @@
     "feedback": true,
     "reconcile": false,
     "state_field": "vane",
+    "gate": {
+      "poll_timeout_ms": 15000
+    },
     "actions": {
-      "set": { "command": "set_vane", "param_map": { "value": "angle" } }
+      "set": {
+        "command": "set_vane",
+        "param_map": {
+          "value": "angle"
+        }
+      }
     },
     "fields": [
-      { "name": "vane", "type": "enum",
-        "labels": { "ru": "жалюзи", "en": "vane", "de": "Lamelle" },
+      {
+        "name": "vane",
+        "type": "enum",
+        "labels": {
+          "ru": "жалюзи",
+          "en": "vane",
+          "de": "Lamelle"
+        },
         "values": [
-          { "wire": "0", "canonical": "auto",  "labels": { "ru": "авто",        "en": "auto",       "de": "Automatik"  } },
-          { "wire": "1", "canonical": "swing", "labels": { "ru": "качание",     "en": "swing",      "de": "Schwingen"  } },
-          { "wire": "2", "canonical": "pos_1", "labels": { "ru": "положение 1", "en": "position 1", "de": "Position 1" } },
-          { "wire": "3", "canonical": "pos_2", "labels": { "ru": "положение 2", "en": "position 2", "de": "Position 2" } },
-          { "wire": "4", "canonical": "pos_3", "labels": { "ru": "положение 3", "en": "position 3", "de": "Position 3" } },
-          { "wire": "5", "canonical": "pos_4", "labels": { "ru": "положение 4", "en": "position 4", "de": "Position 4" } },
-          { "wire": "6", "canonical": "pos_5", "labels": { "ru": "положение 5", "en": "position 5", "de": "Position 5" } }
+          {
+            "wire": "0",
+            "canonical": "auto",
+            "labels": {
+              "ru": "авто",
+              "en": "auto",
+              "de": "Automatik"
+            }
+          },
+          {
+            "wire": "1",
+            "canonical": "swing",
+            "labels": {
+              "ru": "качание",
+              "en": "swing",
+              "de": "Schwingen"
+            }
+          },
+          {
+            "wire": "2",
+            "canonical": "pos_1",
+            "labels": {
+              "ru": "положение 1",
+              "en": "position 1",
+              "de": "Position 1"
+            }
+          },
+          {
+            "wire": "3",
+            "canonical": "pos_2",
+            "labels": {
+              "ru": "положение 2",
+              "en": "position 2",
+              "de": "Position 2"
+            }
+          },
+          {
+            "wire": "4",
+            "canonical": "pos_3",
+            "labels": {
+              "ru": "положение 3",
+              "en": "position 3",
+              "de": "Position 3"
+            }
+          },
+          {
+            "wire": "5",
+            "canonical": "pos_4",
+            "labels": {
+              "ru": "положение 4",
+              "en": "position 4",
+              "de": "Position 4"
+            }
+          },
+          {
+            "wire": "6",
+            "canonical": "pos_5",
+            "labels": {
+              "ru": "положение 5",
+              "en": "position 5",
+              "de": "Position 5"
+            }
+          }
         ]
       }
     ]
@@ -89,20 +304,90 @@
     "feedback": true,
     "reconcile": false,
     "state_field": "widevane",
+    "gate": {
+      "poll_timeout_ms": 15000
+    },
     "actions": {
-      "set": { "command": "set_widevane", "param_map": { "value": "direction" } }
+      "set": {
+        "command": "set_widevane",
+        "param_map": {
+          "value": "direction"
+        }
+      }
     },
     "fields": [
-      { "name": "widevane", "type": "enum",
-        "labels": { "ru": "горизонтальные жалюзи", "en": "wide vane", "de": "Horizontallamelle" },
+      {
+        "name": "widevane",
+        "type": "enum",
+        "labels": {
+          "ru": "горизонтальные жалюзи",
+          "en": "wide vane",
+          "de": "Horizontallamelle"
+        },
         "values": [
-          { "wire": "0", "canonical": "swing",     "labels": { "ru": "качание",       "en": "swing",     "de": "Schwingen"   } },
-          { "wire": "1", "canonical": "far_left",  "labels": { "ru": "крайне влево",  "en": "far left",  "de": "ganz links"  } },
-          { "wire": "2", "canonical": "left",      "labels": { "ru": "влево",         "en": "left",      "de": "links"       } },
-          { "wire": "3", "canonical": "center",    "labels": { "ru": "центр",         "en": "center",    "de": "Mitte"       } },
-          { "wire": "4", "canonical": "right",     "labels": { "ru": "вправо",        "en": "right",     "de": "rechts"      } },
-          { "wire": "5", "canonical": "far_right", "labels": { "ru": "крайне вправо", "en": "far right", "de": "ganz rechts" } },
-          { "wire": "6", "canonical": "split",     "labels": { "ru": "разделено",     "en": "split",     "de": "geteilt"     } }
+          {
+            "wire": "0",
+            "canonical": "swing",
+            "labels": {
+              "ru": "качание",
+              "en": "swing",
+              "de": "Schwingen"
+            }
+          },
+          {
+            "wire": "1",
+            "canonical": "far_left",
+            "labels": {
+              "ru": "крайне влево",
+              "en": "far left",
+              "de": "ganz links"
+            }
+          },
+          {
+            "wire": "2",
+            "canonical": "left",
+            "labels": {
+              "ru": "влево",
+              "en": "left",
+              "de": "links"
+            }
+          },
+          {
+            "wire": "3",
+            "canonical": "center",
+            "labels": {
+              "ru": "центр",
+              "en": "center",
+              "de": "Mitte"
+            }
+          },
+          {
+            "wire": "4",
+            "canonical": "right",
+            "labels": {
+              "ru": "вправо",
+              "en": "right",
+              "de": "rechts"
+            }
+          },
+          {
+            "wire": "5",
+            "canonical": "far_right",
+            "labels": {
+              "ru": "крайне вправо",
+              "en": "far right",
+              "de": "ganz rechts"
+            }
+          },
+          {
+            "wire": "6",
+            "canonical": "split",
+            "labels": {
+              "ru": "разделено",
+              "en": "split",
+              "de": "geteilt"
+            }
+          }
         ]
       }
     ]
@@ -112,14 +397,38 @@
     "feedback": true,
     "reconcile": false,
     "state_field": "setpoint",
+    "gate": {
+      "poll_timeout_ms": 15000
+    },
     "actions": {
-      "set": { "command": "set_setpoint", "param_map": { "value": "temp" } }
+      "set": {
+        "command": "set_setpoint",
+        "param_map": {
+          "value": "temp"
+        }
+      }
     },
     "fields": [
-      { "name": "setpoint", "type": "float", "unit": "°C",
-        "labels": { "ru": "уставка", "en": "setpoint", "de": "Sollwert" } },
-      { "name": "room_temperature", "type": "float", "unit": "°C",
-        "labels": { "ru": "температура в комнате", "en": "room temperature", "de": "Raumtemperatur" } }
+      {
+        "name": "setpoint",
+        "type": "float",
+        "unit": "°C",
+        "labels": {
+          "ru": "уставка",
+          "en": "setpoint",
+          "de": "Sollwert"
+        }
+      },
+      {
+        "name": "room_temperature",
+        "type": "float",
+        "unit": "°C",
+        "labels": {
+          "ru": "температура в комнате",
+          "en": "room temperature",
+          "de": "Raumtemperatur"
+        }
+      }
     ]
   }
 }
