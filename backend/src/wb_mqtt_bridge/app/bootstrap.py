@@ -497,6 +497,31 @@ def create_app() -> FastAPI:
             events.initialize()  # Initialize SSE events router
             reports.initialize(report_service)
 
+            # VWB-32: publish the retained catalog version at STARTUP and on every MQTT
+            # (re)connect — previously it was published only from POST /reload, so a
+            # broker restart (the WB7 runs mosquitto WITHOUT persistence — every restart
+            # wipes ALL retained messages) left `bridge/catalog/version` missing until
+            # the next reload, blinding the voice side's catalog-staleness gate. The
+            # on-connect callback makes the bridge self-healing mid-run; the immediate
+            # call covers this boot (the first connect already happened above).
+            async def _publish_catalog_version() -> None:
+                if mqtt_client is None:
+                    return
+                try:
+                    catalog = build_catalog(device_manager, room_manager, scenario_proxy)
+                    await mqtt_client.publish(
+                        system.CATALOG_VERSION_TOPIC, catalog.version, retain=True
+                    )
+                    logger.info(
+                        f"Published catalog version {catalog.version!r} to "
+                        f"{system.CATALOG_VERSION_TOPIC} (retained)"
+                    )
+                except Exception as e:  # never let the nudge break startup/reconnect
+                    logger.warning(f"Failed to publish retained catalog version: {e}")
+
+            mqtt_client.on_connect_callbacks.append(_publish_catalog_version)
+            await _publish_catalog_version()
+
             logger.info("System startup complete")
 
         except Exception:

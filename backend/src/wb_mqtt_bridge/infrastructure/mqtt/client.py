@@ -68,6 +68,11 @@ class MQTTClient(MessageBusPort):
         self.connected = False
         self.tasks: List[asyncio.Task] = []
         self._connection_event = asyncio.Event()
+        # VWB-32: callbacks fired after every (re)connect completes its subscriptions —
+        # the seam for re-publishing retained state a broker restart wipes (the WB7 runs
+        # mosquitto WITHOUT persistence, so retained topics like `bridge/catalog/version`
+        # vanish on every broker restart; these callbacks make the bridge self-healing).
+        self.on_connect_callbacks: List[Callable[[], Any]] = []
     
     async def wait_for_connection(self, timeout: float = 30.0) -> bool:
         """
@@ -234,6 +239,17 @@ class MQTTClient(MessageBusPort):
                         for topic in self.guard.subscription_topics():
                             await client.subscribe(topic)
                             logger.info(f"Subscribed to guard topic: {topic}")
+
+                    # VWB-32: (re)connect complete — let registered callbacks restore
+                    # retained state (catalog version, ...). Isolated: a failing callback
+                    # must never take down the receive loop.
+                    for cb in list(self.on_connect_callbacks):
+                        try:
+                            result = cb()
+                            if asyncio.iscoroutine(result):
+                                await result
+                        except Exception:  # noqa: BLE001 — see above
+                            logger.exception("on-connect callback failed")
 
                     # Process incoming messages
                     async for message in client.messages:

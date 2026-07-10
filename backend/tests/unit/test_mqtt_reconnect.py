@@ -75,3 +75,58 @@ async def test_reconnect_survives_more_than_max_retries_lifetime_drops():
     # max_retries and only stops on the injected CancelledError at episode DROPS+1.
     # Without the reset it would give up after exactly max_retries (5) episodes.
     assert episodes["n"] == DROPS + 1
+
+
+@pytest.mark.asyncio
+async def test_on_connect_callbacks_fire_on_every_reconnect():
+    """VWB-32: `on_connect_callbacks` run after each (re)connect completes its
+    subscriptions — the self-healing seam for retained state a broker restart wipes
+    (the WB7 broker keeps no persistence; `bridge/catalog/version` etc. vanish on
+    every restart). One drop → the callback must have fired twice (initial + re)."""
+    c = _client()
+    episodes = {"n": 0}
+    fired = {"n": 0}
+
+    async def on_connect():
+        fired["n"] += 1
+
+    c.on_connect_callbacks.append(on_connect)
+
+    with patch(
+        "wb_mqtt_bridge.infrastructure.mqtt.client.Client",
+        side_effect=lambda *a, **k: _ConnectThenDrop(episodes, 1),
+    ), patch(
+        "wb_mqtt_bridge.infrastructure.mqtt.client.asyncio.sleep", new=AsyncMock()
+    ):
+        await c._run_mqtt_client({"hostname": "h", "port": 1883}, [])
+
+    assert episodes["n"] == 2   # initial connect + one reconnect
+    assert fired["n"] == 2      # callback fired on both
+
+
+@pytest.mark.asyncio
+async def test_failing_on_connect_callback_does_not_break_the_loop():
+    """A raising callback is isolated: the receive loop keeps running and the next
+    (re)connect still fires the remaining callbacks."""
+    c = _client()
+    episodes = {"n": 0}
+    fired = {"n": 0}
+
+    def bad_callback():
+        raise RuntimeError("boom")
+
+    async def good_callback():
+        fired["n"] += 1
+
+    c.on_connect_callbacks.extend([bad_callback, good_callback])
+
+    with patch(
+        "wb_mqtt_bridge.infrastructure.mqtt.client.Client",
+        side_effect=lambda *a, **k: _ConnectThenDrop(episodes, 1),
+    ), patch(
+        "wb_mqtt_bridge.infrastructure.mqtt.client.asyncio.sleep", new=AsyncMock()
+    ):
+        await c._run_mqtt_client({"hostname": "h", "port": 1883}, [])
+
+    assert episodes["n"] == 2
+    assert fired["n"] == 2      # good callback fired both times despite the bad one

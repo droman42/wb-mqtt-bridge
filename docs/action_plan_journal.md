@@ -21,6 +21,14 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-10 — VWB-32 DONE (retained catalog-version published at startup + on reconnect)** — the
+  topic was `/reload`-only, so the persistence-less broker's restarts left it missing (voice's
+  staleness gate blind). New generic `on_connect_callbacks` seam on `MQTTClient` (fires after each
+  (re)connect's subscriptions, failure-isolated — the reusable home for wipe-surviving retained
+  state); bootstrap registers the catalog-version publish + calls it once at boot; `/reload` publish
+  kept. +2 tests (fires on connect + reconnect; raising callback isolated). Suite 680, pyright 0,
+  6/6. Rides the pending image rebuild.
+
 - **2026-07-10 — UI-16 DONE (enum-value icons via the shared IconResolver) — closed through a
   three-iteration ARTIFACT review** — a live review page (per-icon approve/alternate/comment + a
   general-instructions field; the user's exported review drove each next iteration, same URL
