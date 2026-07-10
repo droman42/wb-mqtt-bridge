@@ -21,6 +21,17 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-10 — REL-3 DONE (the converged rack pass — two sittings, one critical bug found and
+  killed, house verified)** — closed on owner confirmation that the SCN-11 dialog reads in sync after
+  the SCN-15 redeploy. Two sittings the same day: #1 flagged the eMotiva ARC-window wedge (the
+  headline finding the whole mock-tested suite structurally couldn't reach) → DRV-30 + SCN-14 shipped;
+  #2 proved the wedge gesture now passes and closed its lone flag with DRV-33 + SCN-15. Verified live:
+  bridge healthy + non-root + golden `5622ba7a1a78102a` byte-match, the full scenario lifecycle on
+  hardware, the HVAC live pass, force/reconcile, mf_amplifier mute, end-to-end after cleanup, CI green.
+  Deferred-not-gating items enumerated in the DONE entry; `tv_on_speakers` expected-fail until DRV-32.
+  Five fixes were born and shipped from this one pass (DRV-30, SCN-14, DRV-33, SCN-15 + the DRV-31/32
+  filings) — the rack paid for itself many times over. Only REL-4 (+ VWB-33) now stands before the tag.
+
 - **2026-07-10 — SCN-15 DONE (all comparison sites unified on `_satisfies` — the DRV-33 flag's tail)** —
   post-DRV-33 the SCN-11 dialog still called the TV "out of sync" (`'HDMI_2'` vs `'hdmi2'`, owner
   screenshot): SCN-14 had canonicalized only the execution gate; the build_plan diffs and the
