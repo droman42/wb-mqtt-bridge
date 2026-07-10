@@ -2215,8 +2215,14 @@ class LgTv(BaseDevice[LgTvState]):
                 result = await self.input_control.set_input(input_id)
 
                 if result.get("returnValue", False):
-                    # Update state
-                    self.update_state(input_source=input_name)
+                    # Optimistic write uses the input ID — the SAME vocabulary the
+                    # foreground-app subscription writes (`app_id_to_input_id` → 'HDMI_2').
+                    # Writing the user-assigned LABEL here ("Emotiva XMC") poisoned the
+                    # believed state whenever the TV was already on the target (no event
+                    # to correct it): every scenario switch re-dispatched the TV input as
+                    # a phantom diff and its gate reported a false failed step (REL-3
+                    # sitting #2 flag, DRV-33).
+                    self.update_state(input_source=input_id)
                     await self._update_last_command("set_input_source", params, "api")
                     return self.create_command_result(
                         success=True,

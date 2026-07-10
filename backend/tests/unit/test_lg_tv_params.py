@@ -282,7 +282,27 @@ async def test_set_input_source_action_resolves_and_switches(device):
 
     assert result["success"] is True, result
     device.input_control.set_input.assert_awaited_once_with("HDMI_2")
-    assert device.state.input_source == "Emotiva XMC"
+    # DRV-33: the optimistic write must use the input ID — the same vocabulary the
+    # foreground-app subscription events write. The label ("Emotiva XMC") poisoned
+    # believed state whenever the TV was already on the target (no correcting event):
+    # phantom re-dispatch + a false failed gate on every scenario switch.
+    assert device.state.input_source == "HDMI_2"
+
+
+@pytest.mark.asyncio
+async def test_set_input_source_when_already_on_target_keeps_id_vocabulary(device):
+    """DRV-33 regression (REL-3 sitting #2): switching to the input the TV is already
+    on produces NO webOS foreground-app event, so the optimistic write is the ONLY
+    writer — it must leave state in the id vocabulary the reconciler gate can match
+    ('HDMI_2' normalizes to the canonical 'hdmi2'; 'Emotiva XMC' never does)."""
+    device._cached_input_sources = [{"id": "HDMI_2", "label": "Emotiva XMC"}]
+    device.input_control.set_input = AsyncMock(return_value={"returnValue": True})
+    device.state.input_source = "HDMI_2"  # already there — believed state is honest
+
+    result = await device.execute_action("set_input_source", {"source": "hdmi2"}, source="scenario")
+
+    assert result["success"] is True, result
+    assert device.state.input_source == "HDMI_2"  # not clobbered into label form
 
 
 # --- DRV-10: trust the library's validated-response contract -----------------

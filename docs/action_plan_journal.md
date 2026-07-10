@@ -21,6 +21,18 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-10 — REL-3 sitting #2: 21 ok · 1 flag · 11 not run — THE WEDGE GESTURE PASSED; the one
+  flag root-caused and fixed same hour (DRV-33)** — START `movie_zappiti` with the TV already ON
+  (yesterday's rack-killer) ran clean end-to-end; both switches executed against a live eMotiva for
+  the first time; END + restart-survival green; force/reconcile station mostly green. The single
+  flag (SCN-11 force on the TV showing believed input `Emotiva XMC` + a gate timeout) decoded from
+  logs: the LG driver's optimistic input write stored the user-assigned input LABEL while the webOS
+  event path writes the ID — with the TV already on target there's no correcting event, so the label
+  stuck, every switch re-dispatched the TV input as a phantom diff, and SCN-14's honest gate
+  faithfully reported the pre-existing lie (actuation itself always worked). One-line fix
+  (`input_id` in the optimistic write) + pinned-behavior test corrected + an already-on-target
+  regression. Full tree 696, pyright 0, 6/6. Remaining not-run items ride sitting #3 / owner triage.
+
 - **2026-07-10 — DRV-30 DONE (eMotiva hardening: readiness gate + keepAlive watchdog + re-subscribe
   on recovery)** — the wedge class is closed at the driver, notification-driven throughout:
   `set_input` holds inside the post-power-on window (2 s quiescence normally; the **ARC-exit case
