@@ -370,6 +370,43 @@ async def test_gate_timeout_is_a_failed_step(monkeypatch):
     assert action.target == "arc" and "gate timeout" in err
 
 
+def test_preview_in_sync_across_wire_canonical_vocabularies():
+    """REL-3 sitting #2 follow-up (DRV-33's tail): the SCN-11 dialog showed the TV
+    'out of sync' with believed 'HDMI_2' vs desired 'hdmi2' — the preview compared
+    raw equality while the execution gate normalized. All comparison sites share
+    `_satisfies` now; a TV honestly on HDMI_2 must read in sync."""
+    from wb_mqtt_bridge.domain.scenarios.reconciler import build_reconcile_preview
+
+    devices = {
+        "living_room_tv": _device("LgTv", "living_room_tv", power="on", input_source="HDMI_2"),
+        "processor": _device("EMotivaXMC2", "processor", power="on", zone2_power="on",
+                             input_source="source1"),
+        "mf_amplifier": _device("WirenboardIRDevice", "mf_amplifier", power="on", input="aux2"),
+        "video": _device("WirenboardIRDevice", "video", power="on"),
+    }
+    rows = {p.device_id: p for p in
+            build_reconcile_preview(_scenario("movie_zappiti"), TOPOLOGY, devices)}
+    tv = rows["living_room_tv"]
+    assert tv.in_sync, [f"{c.domain}: {c.believed!r} vs {c.desired!r}" for c in tv.comparisons]
+
+
+def test_plan_diff_skips_wire_form_already_satisfied():
+    """Same vocabulary rule in the build_plan diff: a TV already on 'HDMI_2' gets NO
+    input action for target 'hdmi2' (before this, every switch re-dispatched the TV
+    input as a phantom diff)."""
+    devices = {
+        "living_room_tv": _device("LgTv", "living_room_tv", power="on", input_source="HDMI_2"),
+        "processor": _device("EMotivaXMC2", "processor", power="on", zone2_power="on",
+                             input_source="source1"),
+        "mf_amplifier": _device("WirenboardIRDevice", "mf_amplifier", power="on", input="aux2"),
+        "video": _device("WirenboardIRDevice", "video", power="on"),
+    }
+    plan = build_plan(_scenario("movie_zappiti"), TOPOLOGY, devices)
+    assert not [a for a in plan.actions if a.device_id == "living_room_tv"], \
+        [f"{a.device_id}.{a.domain}" for a in plan.actions]
+    assert "living_room_tv.input" in plan.already_satisfied
+
+
 @pytest.mark.asyncio
 async def test_gate_timeout_only_gates_feedback_steps(monkeypatch):
     """Feedback-less steps keep the optimistic path — an IR toggle has nothing to

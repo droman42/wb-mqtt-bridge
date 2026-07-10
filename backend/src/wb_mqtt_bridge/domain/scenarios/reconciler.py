@@ -167,6 +167,30 @@ def _state_value(state: Any, field_name: Optional[str]) -> Any:
     return getattr(state, field_name, None) if field_name else None
 
 
+def _norm_value(v: Any) -> str:
+    """Vocabulary-insensitive form for state-vs-target comparison: lowercase,
+    alphanumerics only. Bridges canonical targets to raw driver state where no enum
+    table exists — 'hdmi2' == 'HDMI2' == 'HDMI_2' (the LG webOS forms; REL-3 finding
+    F2: exact comparison meant the TV-input gate NEVER confirmed)."""
+    return "".join(ch for ch in str(v).lower() if ch.isalnum())
+
+
+def _satisfies(observed: Any, target: Any, value_table: Optional[Dict[str, str]] = None) -> bool:
+    """Does an observed state value satisfy a plan target? (SCN-14, extended to ALL
+    comparison sites by DRV-33's sitting-#2 follow-up: the diff in `_input_action`/
+    `_power_actions` and the SCN-11 preview must agree with the execution gate —
+    'HDMI_2' vs 'hdmi2' read as out-of-sync in the dialog while the gate matched.)
+    Exact match first; then the capability's wire→canonical table when declared;
+    then normalized comparison as the tableless fallback."""
+    if observed is None:
+        return target is None
+    if observed == target:
+        return True
+    if value_table and value_table.get(str(observed)) == target:
+        return True
+    return _norm_value(observed) == _norm_value(target)
+
+
 def _wire_table(cap: Any, field_name: Optional[str]) -> Optional[Dict[str, str]]:
     """wire -> canonical map for the capability field backing ``field_name`` (SCN-14).
 
@@ -197,7 +221,8 @@ def _power_actions(device_id, cap, state, warnings, force: bool = False) -> List
 
     if cap.zones:
         for zone_key, zone in cap.zones.items():
-            if not force and _state_value(state, zone.state_field) == zone.on_value:
+            if not force and _satisfies(_state_value(state, zone.state_field), zone.on_value,
+                                        _wire_table(cap, zone.state_field)):
                 continue
             act = zone.actions.get("on")
             if not act:
@@ -215,7 +240,8 @@ def _power_actions(device_id, cap, state, warnings, force: bool = False) -> List
             ))
         return out
 
-    if not force and _state_value(state, cap.state_field) == cap.on_value:
+    if not force and _satisfies(_state_value(state, cap.state_field), cap.on_value,
+                                _wire_table(cap, cap.state_field)):
         return out
     act = cap.actions.get("on") or cap.actions.get("toggle")
     if not act:
@@ -254,7 +280,8 @@ def _power_off_actions(device_id, cap, state) -> List[PlannedAction]:
     gate = cap.gate
     if cap.zones:
         for zone_key, zone in cap.zones.items():
-            if _state_value(state, zone.state_field) != zone.on_value:
+            if not _satisfies(_state_value(state, zone.state_field), zone.on_value,
+                              _wire_table(cap, zone.state_field)):
                 continue  # already off
             act = zone.actions.get("off") or zone.actions.get("toggle")
             if not act:
@@ -268,7 +295,8 @@ def _power_off_actions(device_id, cap, state) -> List[PlannedAction]:
             ))
         return out
 
-    if _state_value(state, cap.state_field) != cap.on_value:
+    if not _satisfies(_state_value(state, cap.state_field), cap.on_value,
+                      _wire_table(cap, cap.state_field)):
         return out  # already off
     act = cap.actions.get("off") or cap.actions.get("toggle")
     if not act:
@@ -306,7 +334,8 @@ def build_power_off_plan(device_ids, devices: Dict[str, Any]) -> ReconcilePlan:
 
 
 def _input_action(device_id, cap, state, target_value, warnings, force: bool = False) -> Optional[PlannedAction]:
-    if not force and _state_value(state, cap.state_field) == target_value:
+    if not force and _satisfies(_state_value(state, cap.state_field), target_value,
+                                _wire_table(cap, cap.state_field)):
         return None
     sel = cap.select
     if sel is None:
@@ -580,12 +609,22 @@ def build_reconcile_preview(scenario, topology: Topology, devices: Dict[str, Any
             else:
                 believed = _state_value(state, power_cap.state_field)
                 desired = power_cap.on_value
-            comparisons.append(DomainComparison("power", believed, desired, believed == desired))
+            if power_cap.zones:
+                power_ok = all(
+                    _satisfies(believed.get(zk), z.on_value, _wire_table(power_cap, z.state_field))
+                    for zk, z in power_cap.zones.items()
+                )
+            else:
+                power_ok = _satisfies(believed, desired, _wire_table(power_cap, power_cap.state_field))
+            comparisons.append(DomainComparison("power", believed, desired, power_ok))
 
         input_cap, target = _device_input_target(device_id, cap_map, input_targets, source_targets)
         if input_cap is not None and target is not None:
             believed = _state_value(state, input_cap.state_field)
-            comparisons.append(DomainComparison("input", believed, target, believed == target))
+            comparisons.append(DomainComparison(
+                "input", believed, target,
+                _satisfies(believed, target, _wire_table(input_cap, input_cap.state_field)),
+            ))
 
         previews.append(DevicePreview(
             device_id=device_id,
@@ -617,25 +656,13 @@ def _response_ok(resp: Any) -> Tuple[bool, Optional[str]]:
     return bool(getattr(resp, "success", True)), getattr(resp, "error", None)
 
 
-def _norm_value(v: Any) -> str:
-    """Vocabulary-insensitive form for gate comparison: lowercase, alphanumerics only.
-    Bridges canonical targets to raw driver state where no enum table exists —
-    'hdmi2' == 'HDMI2' == 'HDMI_2' (the LG webOS forms; REL-3 finding F2: the exact
-    comparison meant the TV-input gate NEVER confirmed)."""
-    return "".join(ch for ch in str(v).lower() if ch.isalnum())
-
-
 def _gate_reached(observed: Any, action: PlannedAction) -> bool:
     """Does the device's reported state satisfy the plan's canonical target? (SCN-14)
-    Exact match first; then the capability's wire→canonical table when declared;
-    then normalized comparison as the tableless fallback."""
+    Delegates to the shared `_satisfies` — the diff, the SCN-11 preview, and this
+    gate must never disagree about what "reached" means."""
     if observed is None:
         return False
-    if observed == action.target:
-        return True
-    if action.value_table and action.value_table.get(str(observed)) == action.target:
-        return True
-    return _norm_value(observed) == _norm_value(action.target)
+    return _satisfies(observed, action.target, action.value_table)
 
 
 async def _gate(device: Any, action: PlannedAction, poll_interval_ms: int) -> bool:

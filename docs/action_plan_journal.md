@@ -21,6 +21,16 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-10 — SCN-15 DONE (all comparison sites unified on `_satisfies` — the DRV-33 flag's tail)** —
+  post-DRV-33 the SCN-11 dialog still called the TV "out of sync" (`'HDMI_2'` vs `'hdmi2'`, owner
+  screenshot): SCN-14 had canonicalized only the execution gate; the build_plan diffs and the
+  preview's `in_sync` still compared raw. One shared `_satisfies()` (exact → value table →
+  normalized) now serves the gate, all five diff sites, and both preview comparisons — the dialog
+  reads honest wire-form state as in-sync and plans stop emitting phantom TV-input steps at the
+  source. Fresh logs confirmed zero gate timeouts since the DRV-33 redeploy (the execution side was
+  already clean). +2 tests (the screenshot case; diff already-satisfied across vocabularies). Full
+  tree 698, pyright 0, 6/6.
+
 - **2026-07-10 — REL-3 sitting #2: 21 ok · 1 flag · 11 not run — THE WEDGE GESTURE PASSED; the one
   flag root-caused and fixed same hour (DRV-33)** — START `movie_zappiti` with the TV already ON
   (yesterday's rack-killer) ran clean end-to-end; both switches executed against a live eMotiva for
