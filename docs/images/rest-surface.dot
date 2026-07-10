@@ -21,13 +21,13 @@ digraph rest_surface {
           label="system.py\nGET  /\nGET  /system\nGET  /config/system\nGET  /system/catalog\nPOST /reload"];
 
   devices [shape=note, fillcolor="#e3f2fd", color="#1976d2",
-           label="devices.py\nGET  /config/device/{id}\nGET  /config/devices\nPOST /devices/{id}/action\nGET  /devices/{id}/layout"];
+           label="devices.py\nGET  /config/device/{id}\nGET  /config/devices\nPOST /devices/{id}/canonical  (write path)\nPOST /devices/{id}/action  (internal door)\nGET  /devices/{id}/options/{kind}\nGET  /devices/{id}/layout"];
 
   scenarios [shape=note, fillcolor="#e3f2fd", color="#1976d2",
              label="scenarios.py\nGET  /scenario/definition\nGET  /scenario/definition/{id}\nGET  /scenario/{id}/layout\nPOST /scenario/start\nPOST /scenario/switch\nPOST /scenario/shutdown\nPOST /scenario/role_action"];
 
   rooms [shape=note, fillcolor="#e3f2fd", color="#1976d2",
-         label="rooms.py\nGET /room/list\nGET /room/{id}"];
+         label="rooms.py\nGET  /room/list\nGET  /room/{id}\nPOST /rooms/{id}/canonical"];
 
   state [shape=note, fillcolor="#e3f2fd", color="#1976d2",
          label="state.py\nGET /devices/{id}/state\nGET /devices/{id}/persisted_state\nGET /devices/persisted_states\nGET /scenario/state\nGET /scenario/{id}/state"];

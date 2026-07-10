@@ -48,24 +48,28 @@ digraph ui_architecture {
                    fillcolor="#e3f2fd", color="#1976d2"];
     sse [label="GET /events/{devices,scenarios}\nlive state-change events",
          fillcolor="#e3f2fd", color="#1976d2"];
+    canonical_write [label="POST /devices/{id}/canonical  (write path)\nscenario controls → per-room Scenario Manager\n(bridge resolves role → device at fire time)",
+                     fillcolor="#e3f2fd", color="#1976d2"];
 
     backend_engine -> manifest_api [color="#ef6c00"];
-    manifest_api -> runtime_page [label="fetch", color="#1976d2"];
+    manifest_api -> runtime_page [label="fetch (read)", color="#1976d2"];
     runtime_page -> adapter [color="#1976d2"];
     adapter -> remote_layout [color="#1976d2"];
     sse -> runtime_page [style=dashed, label="live state", color="#1976d2"];
+    runtime_page -> canonical_write [label="dispatch (write)", color="#1976d2"];
   }
 
   // ============================================================
   // Appliance bypass
   // ============================================================
-  appliance [label="ui/src/pages/appliances/*\nhand-written bespoke pages\n(planned: kitchen hood, Roborock, …)",
+  appliance [label="ui/src/pages/appliances/*\nhand-written bespoke pages\n(kitchen hood, Mitsubishi HVAC)",
              fillcolor="#fff3e0", color="#ef6c00", style="filled,rounded,dashed"];
 
   // build-time types are consumed by both UIs
   types -> runtime_page [style=dotted, label="DTO types", color="#1976d2", fontcolor="#1976d2"];
   types -> appliance    [style=dotted, label="DTO types", color="#1976d2", fontcolor="#1976d2"];
 
-  // appliances do not consume the layout manifest
+  // appliances do not consume the layout manifest, but they DO use the canonical write path
   manifest_api -> appliance [style=dashed, color="#bdbdbd", label="not used\n(device_category=\"appliance\")"];
+  appliance -> canonical_write [style=dotted, color="#1976d2", label="dispatch (write)", fontcolor="#1976d2"];
 }
