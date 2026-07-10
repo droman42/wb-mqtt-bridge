@@ -21,6 +21,16 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-10 — VWB-33 re-tagged `[release]` → `[deferred]` (owner: doesn't belong in release 1)** —
+  at the start of the VWB-33 design session (scope/plan explained; reconciliation confirmed the
+  analysis — labels are en/ru fleet-wide except HVAC's de/en/ru, aliases ru-only 35/78, names carry
+  de on 65/78), the owner stopped it: the language-data convention is **half the voice side's** (the
+  verbs-are-donations rule binds their repo), so it's a **board-level cross-repo design session** —
+  one of the first tasks after the Domovoy board is established, sibling to VWB-34. Not a release-1
+  gate. Effect on the board: **REL-4 is now the SOLE remaining `[release]` gate before the tag**
+  (VWB-16 waits on voice TEST-18 fixtures, off the critical path). Critical path collapses to
+  **REL-4 → tag**.
+
 - **2026-07-10 — REL-3 DONE (the converged rack pass — two sittings, one critical bug found and
   killed, house verified)** — closed on owner confirmation that the SCN-11 dialog reads in sync after
   the SCN-15 redeploy. Two sittings the same day: #1 flagged the eMotiva ARC-window wedge (the
