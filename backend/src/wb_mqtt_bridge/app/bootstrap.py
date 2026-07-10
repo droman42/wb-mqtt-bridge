@@ -22,6 +22,7 @@ from wb_mqtt_bridge.domain.devices.models import (
     AppleTVState,
     AuralicDeviceState,
     EmotivaXMC2State,
+    MitsubishiHvacState,
 )
 from wb_mqtt_bridge.infrastructure.config.manager import ConfigManager
 from wb_mqtt_bridge.domain.devices.service import DeviceManager
@@ -653,6 +654,7 @@ OPENAPI_EXTRA_MODELS = [
     AppleTVState,
     AuralicDeviceState,
     EmotivaXMC2State,
+    MitsubishiHvacState,
 ]
 
 

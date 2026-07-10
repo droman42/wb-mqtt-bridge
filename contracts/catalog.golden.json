@@ -1,5 +1,5 @@
 {
-  "version": "a4a2b1aed5f86447",
+  "version": "5622ba7a1a78102a",
   "rooms": [
     {
       "id": "bathroom",
@@ -1156,11 +1156,11 @@
           "кондей"
         ]
       },
-      "device_class": "WbPassthroughDevice",
+      "device_class": "MitsubishiHvac",
       "room": "bedroom",
       "capabilities": [
         {
-          "name": "climate",
+          "name": "power",
           "actions": [
             {
               "name": "on",
@@ -1169,12 +1169,51 @@
             {
               "name": "off",
               "params": null
-            },
+            }
+          ],
+          "fields": [
             {
-              "name": "set_mode",
+              "name": "power",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "1",
+                  "canonical": "on",
+                  "labels": {
+                    "ru": "вкл",
+                    "en": "on",
+                    "de": "ein"
+                  }
+                },
+                {
+                  "wire": "0",
+                  "canonical": "off",
+                  "labels": {
+                    "ru": "выкл",
+                    "en": "off",
+                    "de": "aus"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "питание",
+                "en": "power",
+                "de": "Betrieb"
+              }
+            }
+          ],
+          "group": "power"
+        },
+        {
+          "name": "mode",
+          "actions": [
+            {
+              "name": "set",
               "params": [
                 {
-                  "name": "mode",
+                  "name": "value",
                   "type": "string",
                   "required": true,
                   "default": null,
@@ -1232,12 +1271,78 @@
                   "options_from": null
                 }
               ]
-            },
+            }
+          ],
+          "fields": [
             {
-              "name": "set_fan",
+              "name": "mode",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "0",
+                  "canonical": "auto",
+                  "labels": {
+                    "ru": "авто",
+                    "en": "auto",
+                    "de": "Automatik"
+                  }
+                },
+                {
+                  "wire": "1",
+                  "canonical": "dry",
+                  "labels": {
+                    "ru": "осушение",
+                    "en": "dry",
+                    "de": "Entfeuchten"
+                  }
+                },
+                {
+                  "wire": "2",
+                  "canonical": "cool",
+                  "labels": {
+                    "ru": "охлаждение",
+                    "en": "cool",
+                    "de": "Kühlen"
+                  }
+                },
+                {
+                  "wire": "3",
+                  "canonical": "heat",
+                  "labels": {
+                    "ru": "обогрев",
+                    "en": "heat",
+                    "de": "Heizen"
+                  }
+                },
+                {
+                  "wire": "4",
+                  "canonical": "fan_only",
+                  "labels": {
+                    "ru": "вентилятор",
+                    "en": "fan",
+                    "de": "Lüften"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "режим",
+                "en": "mode",
+                "de": "Modus"
+              }
+            }
+          ],
+          "group": "mode"
+        },
+        {
+          "name": "fan",
+          "actions": [
+            {
+              "name": "set",
               "params": [
                 {
-                  "name": "fan",
+                  "name": "value",
                   "type": "string",
                   "required": true,
                   "default": null,
@@ -1304,12 +1409,87 @@
                   "options_from": null
                 }
               ]
-            },
+            }
+          ],
+          "fields": [
             {
-              "name": "set_vane",
+              "name": "fan",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "0",
+                  "canonical": "auto",
+                  "labels": {
+                    "ru": "авто",
+                    "en": "auto",
+                    "de": "Automatik"
+                  }
+                },
+                {
+                  "wire": "1",
+                  "canonical": "quiet",
+                  "labels": {
+                    "ru": "тихий",
+                    "en": "quiet",
+                    "de": "Leise"
+                  }
+                },
+                {
+                  "wire": "2",
+                  "canonical": "speed_1",
+                  "labels": {
+                    "ru": "скорость 1",
+                    "en": "speed 1",
+                    "de": "Stufe 1"
+                  }
+                },
+                {
+                  "wire": "3",
+                  "canonical": "speed_2",
+                  "labels": {
+                    "ru": "скорость 2",
+                    "en": "speed 2",
+                    "de": "Stufe 2"
+                  }
+                },
+                {
+                  "wire": "4",
+                  "canonical": "speed_3",
+                  "labels": {
+                    "ru": "скорость 3",
+                    "en": "speed 3",
+                    "de": "Stufe 3"
+                  }
+                },
+                {
+                  "wire": "5",
+                  "canonical": "speed_4",
+                  "labels": {
+                    "ru": "скорость 4",
+                    "en": "speed 4",
+                    "de": "Stufe 4"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "вентилятор",
+                "en": "fan",
+                "de": "Lüfter"
+              }
+            }
+          ],
+          "group": "fan"
+        },
+        {
+          "name": "vane",
+          "actions": [
+            {
+              "name": "set",
               "params": [
                 {
-                  "name": "vane",
+                  "name": "value",
                   "type": "string",
                   "required": true,
                   "default": null,
@@ -1385,256 +1565,9 @@
                   "options_from": null
                 }
               ]
-            },
-            {
-              "name": "set_widevane",
-              "params": [
-                {
-                  "name": "widevane",
-                  "type": "string",
-                  "required": true,
-                  "default": null,
-                  "min": null,
-                  "max": null,
-                  "description": "",
-                  "unit": null,
-                  "values": [
-                    {
-                      "wire": "0",
-                      "canonical": "swing",
-                      "labels": {
-                        "ru": "качание",
-                        "en": "swing",
-                        "de": "Schwingen"
-                      }
-                    },
-                    {
-                      "wire": "1",
-                      "canonical": "far_left",
-                      "labels": {
-                        "ru": "крайне влево",
-                        "en": "far left",
-                        "de": "ganz links"
-                      }
-                    },
-                    {
-                      "wire": "2",
-                      "canonical": "left",
-                      "labels": {
-                        "ru": "влево",
-                        "en": "left",
-                        "de": "links"
-                      }
-                    },
-                    {
-                      "wire": "3",
-                      "canonical": "center",
-                      "labels": {
-                        "ru": "центр",
-                        "en": "center",
-                        "de": "Mitte"
-                      }
-                    },
-                    {
-                      "wire": "4",
-                      "canonical": "right",
-                      "labels": {
-                        "ru": "вправо",
-                        "en": "right",
-                        "de": "rechts"
-                      }
-                    },
-                    {
-                      "wire": "5",
-                      "canonical": "far_right",
-                      "labels": {
-                        "ru": "крайне вправо",
-                        "en": "far right",
-                        "de": "ganz rechts"
-                      }
-                    },
-                    {
-                      "wire": "6",
-                      "canonical": "split",
-                      "labels": {
-                        "ru": "разделено",
-                        "en": "split",
-                        "de": "geteilt"
-                      }
-                    }
-                  ],
-                  "options_from": null
-                }
-              ]
-            },
-            {
-              "name": "set_setpoint",
-              "params": [
-                {
-                  "name": "temp",
-                  "type": "float",
-                  "required": true,
-                  "default": null,
-                  "min": 16.0,
-                  "max": 31.0,
-                  "description": "",
-                  "unit": "°C",
-                  "values": null,
-                  "options_from": null
-                }
-              ]
             }
           ],
           "fields": [
-            {
-              "name": "temperature",
-              "type": "float",
-              "encoding": null,
-              "values": null,
-              "unit": "°C",
-              "labels": {
-                "ru": "уставка",
-                "en": "setpoint",
-                "de": "Sollwert"
-              }
-            },
-            {
-              "name": "room_temperature",
-              "type": "float",
-              "encoding": null,
-              "values": null,
-              "unit": "°C",
-              "labels": {
-                "ru": "температура в комнате",
-                "en": "room temperature",
-                "de": "Raumtemperatur"
-              }
-            },
-            {
-              "name": "mode",
-              "type": "enum",
-              "encoding": null,
-              "values": [
-                {
-                  "wire": "0",
-                  "canonical": "auto",
-                  "labels": {
-                    "ru": "авто",
-                    "en": "auto",
-                    "de": "Automatik"
-                  }
-                },
-                {
-                  "wire": "1",
-                  "canonical": "dry",
-                  "labels": {
-                    "ru": "осушение",
-                    "en": "dry",
-                    "de": "Entfeuchten"
-                  }
-                },
-                {
-                  "wire": "2",
-                  "canonical": "cool",
-                  "labels": {
-                    "ru": "охлаждение",
-                    "en": "cool",
-                    "de": "Kühlen"
-                  }
-                },
-                {
-                  "wire": "3",
-                  "canonical": "heat",
-                  "labels": {
-                    "ru": "обогрев",
-                    "en": "heat",
-                    "de": "Heizen"
-                  }
-                },
-                {
-                  "wire": "4",
-                  "canonical": "fan_only",
-                  "labels": {
-                    "ru": "вентилятор",
-                    "en": "fan",
-                    "de": "Lüften"
-                  }
-                }
-              ],
-              "unit": null,
-              "labels": {
-                "ru": "режим",
-                "en": "mode",
-                "de": "Modus"
-              }
-            },
-            {
-              "name": "fan",
-              "type": "enum",
-              "encoding": null,
-              "values": [
-                {
-                  "wire": "0",
-                  "canonical": "auto",
-                  "labels": {
-                    "ru": "авто",
-                    "en": "auto",
-                    "de": "Automatik"
-                  }
-                },
-                {
-                  "wire": "1",
-                  "canonical": "quiet",
-                  "labels": {
-                    "ru": "тихий",
-                    "en": "quiet",
-                    "de": "Leise"
-                  }
-                },
-                {
-                  "wire": "2",
-                  "canonical": "speed_1",
-                  "labels": {
-                    "ru": "скорость 1",
-                    "en": "speed 1",
-                    "de": "Stufe 1"
-                  }
-                },
-                {
-                  "wire": "3",
-                  "canonical": "speed_2",
-                  "labels": {
-                    "ru": "скорость 2",
-                    "en": "speed 2",
-                    "de": "Stufe 2"
-                  }
-                },
-                {
-                  "wire": "4",
-                  "canonical": "speed_3",
-                  "labels": {
-                    "ru": "скорость 3",
-                    "en": "speed 3",
-                    "de": "Stufe 3"
-                  }
-                },
-                {
-                  "wire": "5",
-                  "canonical": "speed_4",
-                  "labels": {
-                    "ru": "скорость 4",
-                    "en": "speed 4",
-                    "de": "Stufe 4"
-                  }
-                }
-              ],
-              "unit": null,
-              "labels": {
-                "ru": "вентилятор",
-                "en": "fan",
-                "de": "Lüfter"
-              }
-            },
             {
               "name": "vane",
               "type": "enum",
@@ -1710,7 +1643,96 @@
                 "en": "vane",
                 "de": "Lamelle"
               }
-            },
+            }
+          ],
+          "group": "vane"
+        },
+        {
+          "name": "widevane",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "value",
+                  "type": "string",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": "",
+                  "unit": null,
+                  "values": [
+                    {
+                      "wire": "0",
+                      "canonical": "swing",
+                      "labels": {
+                        "ru": "качание",
+                        "en": "swing",
+                        "de": "Schwingen"
+                      }
+                    },
+                    {
+                      "wire": "1",
+                      "canonical": "far_left",
+                      "labels": {
+                        "ru": "крайне влево",
+                        "en": "far left",
+                        "de": "ganz links"
+                      }
+                    },
+                    {
+                      "wire": "2",
+                      "canonical": "left",
+                      "labels": {
+                        "ru": "влево",
+                        "en": "left",
+                        "de": "links"
+                      }
+                    },
+                    {
+                      "wire": "3",
+                      "canonical": "center",
+                      "labels": {
+                        "ru": "центр",
+                        "en": "center",
+                        "de": "Mitte"
+                      }
+                    },
+                    {
+                      "wire": "4",
+                      "canonical": "right",
+                      "labels": {
+                        "ru": "вправо",
+                        "en": "right",
+                        "de": "rechts"
+                      }
+                    },
+                    {
+                      "wire": "5",
+                      "canonical": "far_right",
+                      "labels": {
+                        "ru": "крайне вправо",
+                        "en": "far right",
+                        "de": "ganz rechts"
+                      }
+                    },
+                    {
+                      "wire": "6",
+                      "canonical": "split",
+                      "labels": {
+                        "ru": "разделено",
+                        "en": "split",
+                        "de": "geteilt"
+                      }
+                    }
+                  ],
+                  "options_from": null
+                }
+              ]
+            }
+          ],
+          "fields": [
             {
               "name": "widevane",
               "type": "enum",
@@ -1788,7 +1810,56 @@
               }
             }
           ],
-          "group": "climate"
+          "group": "widevane"
+        },
+        {
+          "name": "temperature",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "value",
+                  "type": "float",
+                  "required": true,
+                  "default": null,
+                  "min": 16.0,
+                  "max": 31.0,
+                  "description": "",
+                  "unit": "°C",
+                  "values": null,
+                  "options_from": null
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "setpoint",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "уставка",
+                "en": "setpoint",
+                "de": "Sollwert"
+              }
+            },
+            {
+              "name": "room_temperature",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "температура в комнате",
+                "en": "room temperature",
+                "de": "Raumtemperatur"
+              }
+            }
+          ],
+          "group": "temperature"
         }
       ]
     },
@@ -2967,11 +3038,11 @@
           "кондей"
         ]
       },
-      "device_class": "WbPassthroughDevice",
+      "device_class": "MitsubishiHvac",
       "room": "children_room",
       "capabilities": [
         {
-          "name": "climate",
+          "name": "power",
           "actions": [
             {
               "name": "on",
@@ -2980,12 +3051,51 @@
             {
               "name": "off",
               "params": null
-            },
+            }
+          ],
+          "fields": [
             {
-              "name": "set_mode",
+              "name": "power",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "1",
+                  "canonical": "on",
+                  "labels": {
+                    "ru": "вкл",
+                    "en": "on",
+                    "de": "ein"
+                  }
+                },
+                {
+                  "wire": "0",
+                  "canonical": "off",
+                  "labels": {
+                    "ru": "выкл",
+                    "en": "off",
+                    "de": "aus"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "питание",
+                "en": "power",
+                "de": "Betrieb"
+              }
+            }
+          ],
+          "group": "power"
+        },
+        {
+          "name": "mode",
+          "actions": [
+            {
+              "name": "set",
               "params": [
                 {
-                  "name": "mode",
+                  "name": "value",
                   "type": "string",
                   "required": true,
                   "default": null,
@@ -3043,12 +3153,78 @@
                   "options_from": null
                 }
               ]
-            },
+            }
+          ],
+          "fields": [
             {
-              "name": "set_fan",
+              "name": "mode",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "0",
+                  "canonical": "auto",
+                  "labels": {
+                    "ru": "авто",
+                    "en": "auto",
+                    "de": "Automatik"
+                  }
+                },
+                {
+                  "wire": "1",
+                  "canonical": "dry",
+                  "labels": {
+                    "ru": "осушение",
+                    "en": "dry",
+                    "de": "Entfeuchten"
+                  }
+                },
+                {
+                  "wire": "2",
+                  "canonical": "cool",
+                  "labels": {
+                    "ru": "охлаждение",
+                    "en": "cool",
+                    "de": "Kühlen"
+                  }
+                },
+                {
+                  "wire": "3",
+                  "canonical": "heat",
+                  "labels": {
+                    "ru": "обогрев",
+                    "en": "heat",
+                    "de": "Heizen"
+                  }
+                },
+                {
+                  "wire": "4",
+                  "canonical": "fan_only",
+                  "labels": {
+                    "ru": "вентилятор",
+                    "en": "fan",
+                    "de": "Lüften"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "режим",
+                "en": "mode",
+                "de": "Modus"
+              }
+            }
+          ],
+          "group": "mode"
+        },
+        {
+          "name": "fan",
+          "actions": [
+            {
+              "name": "set",
               "params": [
                 {
-                  "name": "fan",
+                  "name": "value",
                   "type": "string",
                   "required": true,
                   "default": null,
@@ -3115,12 +3291,87 @@
                   "options_from": null
                 }
               ]
-            },
+            }
+          ],
+          "fields": [
             {
-              "name": "set_vane",
+              "name": "fan",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "0",
+                  "canonical": "auto",
+                  "labels": {
+                    "ru": "авто",
+                    "en": "auto",
+                    "de": "Automatik"
+                  }
+                },
+                {
+                  "wire": "1",
+                  "canonical": "quiet",
+                  "labels": {
+                    "ru": "тихий",
+                    "en": "quiet",
+                    "de": "Leise"
+                  }
+                },
+                {
+                  "wire": "2",
+                  "canonical": "speed_1",
+                  "labels": {
+                    "ru": "скорость 1",
+                    "en": "speed 1",
+                    "de": "Stufe 1"
+                  }
+                },
+                {
+                  "wire": "3",
+                  "canonical": "speed_2",
+                  "labels": {
+                    "ru": "скорость 2",
+                    "en": "speed 2",
+                    "de": "Stufe 2"
+                  }
+                },
+                {
+                  "wire": "4",
+                  "canonical": "speed_3",
+                  "labels": {
+                    "ru": "скорость 3",
+                    "en": "speed 3",
+                    "de": "Stufe 3"
+                  }
+                },
+                {
+                  "wire": "5",
+                  "canonical": "speed_4",
+                  "labels": {
+                    "ru": "скорость 4",
+                    "en": "speed 4",
+                    "de": "Stufe 4"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "вентилятор",
+                "en": "fan",
+                "de": "Lüfter"
+              }
+            }
+          ],
+          "group": "fan"
+        },
+        {
+          "name": "vane",
+          "actions": [
+            {
+              "name": "set",
               "params": [
                 {
-                  "name": "vane",
+                  "name": "value",
                   "type": "string",
                   "required": true,
                   "default": null,
@@ -3196,256 +3447,9 @@
                   "options_from": null
                 }
               ]
-            },
-            {
-              "name": "set_widevane",
-              "params": [
-                {
-                  "name": "widevane",
-                  "type": "string",
-                  "required": true,
-                  "default": null,
-                  "min": null,
-                  "max": null,
-                  "description": "",
-                  "unit": null,
-                  "values": [
-                    {
-                      "wire": "0",
-                      "canonical": "swing",
-                      "labels": {
-                        "ru": "качание",
-                        "en": "swing",
-                        "de": "Schwingen"
-                      }
-                    },
-                    {
-                      "wire": "1",
-                      "canonical": "far_left",
-                      "labels": {
-                        "ru": "крайне влево",
-                        "en": "far left",
-                        "de": "ganz links"
-                      }
-                    },
-                    {
-                      "wire": "2",
-                      "canonical": "left",
-                      "labels": {
-                        "ru": "влево",
-                        "en": "left",
-                        "de": "links"
-                      }
-                    },
-                    {
-                      "wire": "3",
-                      "canonical": "center",
-                      "labels": {
-                        "ru": "центр",
-                        "en": "center",
-                        "de": "Mitte"
-                      }
-                    },
-                    {
-                      "wire": "4",
-                      "canonical": "right",
-                      "labels": {
-                        "ru": "вправо",
-                        "en": "right",
-                        "de": "rechts"
-                      }
-                    },
-                    {
-                      "wire": "5",
-                      "canonical": "far_right",
-                      "labels": {
-                        "ru": "крайне вправо",
-                        "en": "far right",
-                        "de": "ganz rechts"
-                      }
-                    },
-                    {
-                      "wire": "6",
-                      "canonical": "split",
-                      "labels": {
-                        "ru": "разделено",
-                        "en": "split",
-                        "de": "geteilt"
-                      }
-                    }
-                  ],
-                  "options_from": null
-                }
-              ]
-            },
-            {
-              "name": "set_setpoint",
-              "params": [
-                {
-                  "name": "temp",
-                  "type": "float",
-                  "required": true,
-                  "default": null,
-                  "min": 16.0,
-                  "max": 31.0,
-                  "description": "",
-                  "unit": "°C",
-                  "values": null,
-                  "options_from": null
-                }
-              ]
             }
           ],
           "fields": [
-            {
-              "name": "temperature",
-              "type": "float",
-              "encoding": null,
-              "values": null,
-              "unit": "°C",
-              "labels": {
-                "ru": "уставка",
-                "en": "setpoint",
-                "de": "Sollwert"
-              }
-            },
-            {
-              "name": "room_temperature",
-              "type": "float",
-              "encoding": null,
-              "values": null,
-              "unit": "°C",
-              "labels": {
-                "ru": "температура в комнате",
-                "en": "room temperature",
-                "de": "Raumtemperatur"
-              }
-            },
-            {
-              "name": "mode",
-              "type": "enum",
-              "encoding": null,
-              "values": [
-                {
-                  "wire": "0",
-                  "canonical": "auto",
-                  "labels": {
-                    "ru": "авто",
-                    "en": "auto",
-                    "de": "Automatik"
-                  }
-                },
-                {
-                  "wire": "1",
-                  "canonical": "dry",
-                  "labels": {
-                    "ru": "осушение",
-                    "en": "dry",
-                    "de": "Entfeuchten"
-                  }
-                },
-                {
-                  "wire": "2",
-                  "canonical": "cool",
-                  "labels": {
-                    "ru": "охлаждение",
-                    "en": "cool",
-                    "de": "Kühlen"
-                  }
-                },
-                {
-                  "wire": "3",
-                  "canonical": "heat",
-                  "labels": {
-                    "ru": "обогрев",
-                    "en": "heat",
-                    "de": "Heizen"
-                  }
-                },
-                {
-                  "wire": "4",
-                  "canonical": "fan_only",
-                  "labels": {
-                    "ru": "вентилятор",
-                    "en": "fan",
-                    "de": "Lüften"
-                  }
-                }
-              ],
-              "unit": null,
-              "labels": {
-                "ru": "режим",
-                "en": "mode",
-                "de": "Modus"
-              }
-            },
-            {
-              "name": "fan",
-              "type": "enum",
-              "encoding": null,
-              "values": [
-                {
-                  "wire": "0",
-                  "canonical": "auto",
-                  "labels": {
-                    "ru": "авто",
-                    "en": "auto",
-                    "de": "Automatik"
-                  }
-                },
-                {
-                  "wire": "1",
-                  "canonical": "quiet",
-                  "labels": {
-                    "ru": "тихий",
-                    "en": "quiet",
-                    "de": "Leise"
-                  }
-                },
-                {
-                  "wire": "2",
-                  "canonical": "speed_1",
-                  "labels": {
-                    "ru": "скорость 1",
-                    "en": "speed 1",
-                    "de": "Stufe 1"
-                  }
-                },
-                {
-                  "wire": "3",
-                  "canonical": "speed_2",
-                  "labels": {
-                    "ru": "скорость 2",
-                    "en": "speed 2",
-                    "de": "Stufe 2"
-                  }
-                },
-                {
-                  "wire": "4",
-                  "canonical": "speed_3",
-                  "labels": {
-                    "ru": "скорость 3",
-                    "en": "speed 3",
-                    "de": "Stufe 3"
-                  }
-                },
-                {
-                  "wire": "5",
-                  "canonical": "speed_4",
-                  "labels": {
-                    "ru": "скорость 4",
-                    "en": "speed 4",
-                    "de": "Stufe 4"
-                  }
-                }
-              ],
-              "unit": null,
-              "labels": {
-                "ru": "вентилятор",
-                "en": "fan",
-                "de": "Lüfter"
-              }
-            },
             {
               "name": "vane",
               "type": "enum",
@@ -3521,7 +3525,96 @@
                 "en": "vane",
                 "de": "Lamelle"
               }
-            },
+            }
+          ],
+          "group": "vane"
+        },
+        {
+          "name": "widevane",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "value",
+                  "type": "string",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": "",
+                  "unit": null,
+                  "values": [
+                    {
+                      "wire": "0",
+                      "canonical": "swing",
+                      "labels": {
+                        "ru": "качание",
+                        "en": "swing",
+                        "de": "Schwingen"
+                      }
+                    },
+                    {
+                      "wire": "1",
+                      "canonical": "far_left",
+                      "labels": {
+                        "ru": "крайне влево",
+                        "en": "far left",
+                        "de": "ganz links"
+                      }
+                    },
+                    {
+                      "wire": "2",
+                      "canonical": "left",
+                      "labels": {
+                        "ru": "влево",
+                        "en": "left",
+                        "de": "links"
+                      }
+                    },
+                    {
+                      "wire": "3",
+                      "canonical": "center",
+                      "labels": {
+                        "ru": "центр",
+                        "en": "center",
+                        "de": "Mitte"
+                      }
+                    },
+                    {
+                      "wire": "4",
+                      "canonical": "right",
+                      "labels": {
+                        "ru": "вправо",
+                        "en": "right",
+                        "de": "rechts"
+                      }
+                    },
+                    {
+                      "wire": "5",
+                      "canonical": "far_right",
+                      "labels": {
+                        "ru": "крайне вправо",
+                        "en": "far right",
+                        "de": "ganz rechts"
+                      }
+                    },
+                    {
+                      "wire": "6",
+                      "canonical": "split",
+                      "labels": {
+                        "ru": "разделено",
+                        "en": "split",
+                        "de": "geteilt"
+                      }
+                    }
+                  ],
+                  "options_from": null
+                }
+              ]
+            }
+          ],
+          "fields": [
             {
               "name": "widevane",
               "type": "enum",
@@ -3599,7 +3692,56 @@
               }
             }
           ],
-          "group": "climate"
+          "group": "widevane"
+        },
+        {
+          "name": "temperature",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "value",
+                  "type": "float",
+                  "required": true,
+                  "default": null,
+                  "min": 16.0,
+                  "max": 31.0,
+                  "description": "",
+                  "unit": "°C",
+                  "values": null,
+                  "options_from": null
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "setpoint",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "уставка",
+                "en": "setpoint",
+                "de": "Sollwert"
+              }
+            },
+            {
+              "name": "room_temperature",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "температура в комнате",
+                "en": "room temperature",
+                "de": "Raumtemperatur"
+              }
+            }
+          ],
+          "group": "temperature"
         }
       ]
     },
@@ -5321,11 +5463,11 @@
           "кондей"
         ]
       },
-      "device_class": "WbPassthroughDevice",
+      "device_class": "MitsubishiHvac",
       "room": "living_room",
       "capabilities": [
         {
-          "name": "climate",
+          "name": "power",
           "actions": [
             {
               "name": "on",
@@ -5334,12 +5476,51 @@
             {
               "name": "off",
               "params": null
-            },
+            }
+          ],
+          "fields": [
             {
-              "name": "set_mode",
+              "name": "power",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "1",
+                  "canonical": "on",
+                  "labels": {
+                    "ru": "вкл",
+                    "en": "on",
+                    "de": "ein"
+                  }
+                },
+                {
+                  "wire": "0",
+                  "canonical": "off",
+                  "labels": {
+                    "ru": "выкл",
+                    "en": "off",
+                    "de": "aus"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "питание",
+                "en": "power",
+                "de": "Betrieb"
+              }
+            }
+          ],
+          "group": "power"
+        },
+        {
+          "name": "mode",
+          "actions": [
+            {
+              "name": "set",
               "params": [
                 {
-                  "name": "mode",
+                  "name": "value",
                   "type": "string",
                   "required": true,
                   "default": null,
@@ -5397,12 +5578,78 @@
                   "options_from": null
                 }
               ]
-            },
+            }
+          ],
+          "fields": [
             {
-              "name": "set_fan",
+              "name": "mode",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "0",
+                  "canonical": "auto",
+                  "labels": {
+                    "ru": "авто",
+                    "en": "auto",
+                    "de": "Automatik"
+                  }
+                },
+                {
+                  "wire": "1",
+                  "canonical": "dry",
+                  "labels": {
+                    "ru": "осушение",
+                    "en": "dry",
+                    "de": "Entfeuchten"
+                  }
+                },
+                {
+                  "wire": "2",
+                  "canonical": "cool",
+                  "labels": {
+                    "ru": "охлаждение",
+                    "en": "cool",
+                    "de": "Kühlen"
+                  }
+                },
+                {
+                  "wire": "3",
+                  "canonical": "heat",
+                  "labels": {
+                    "ru": "обогрев",
+                    "en": "heat",
+                    "de": "Heizen"
+                  }
+                },
+                {
+                  "wire": "4",
+                  "canonical": "fan_only",
+                  "labels": {
+                    "ru": "вентилятор",
+                    "en": "fan",
+                    "de": "Lüften"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "режим",
+                "en": "mode",
+                "de": "Modus"
+              }
+            }
+          ],
+          "group": "mode"
+        },
+        {
+          "name": "fan",
+          "actions": [
+            {
+              "name": "set",
               "params": [
                 {
-                  "name": "fan",
+                  "name": "value",
                   "type": "string",
                   "required": true,
                   "default": null,
@@ -5469,12 +5716,87 @@
                   "options_from": null
                 }
               ]
-            },
+            }
+          ],
+          "fields": [
             {
-              "name": "set_vane",
+              "name": "fan",
+              "type": "enum",
+              "encoding": null,
+              "values": [
+                {
+                  "wire": "0",
+                  "canonical": "auto",
+                  "labels": {
+                    "ru": "авто",
+                    "en": "auto",
+                    "de": "Automatik"
+                  }
+                },
+                {
+                  "wire": "1",
+                  "canonical": "quiet",
+                  "labels": {
+                    "ru": "тихий",
+                    "en": "quiet",
+                    "de": "Leise"
+                  }
+                },
+                {
+                  "wire": "2",
+                  "canonical": "speed_1",
+                  "labels": {
+                    "ru": "скорость 1",
+                    "en": "speed 1",
+                    "de": "Stufe 1"
+                  }
+                },
+                {
+                  "wire": "3",
+                  "canonical": "speed_2",
+                  "labels": {
+                    "ru": "скорость 2",
+                    "en": "speed 2",
+                    "de": "Stufe 2"
+                  }
+                },
+                {
+                  "wire": "4",
+                  "canonical": "speed_3",
+                  "labels": {
+                    "ru": "скорость 3",
+                    "en": "speed 3",
+                    "de": "Stufe 3"
+                  }
+                },
+                {
+                  "wire": "5",
+                  "canonical": "speed_4",
+                  "labels": {
+                    "ru": "скорость 4",
+                    "en": "speed 4",
+                    "de": "Stufe 4"
+                  }
+                }
+              ],
+              "unit": null,
+              "labels": {
+                "ru": "вентилятор",
+                "en": "fan",
+                "de": "Lüfter"
+              }
+            }
+          ],
+          "group": "fan"
+        },
+        {
+          "name": "vane",
+          "actions": [
+            {
+              "name": "set",
               "params": [
                 {
-                  "name": "vane",
+                  "name": "value",
                   "type": "string",
                   "required": true,
                   "default": null,
@@ -5550,256 +5872,9 @@
                   "options_from": null
                 }
               ]
-            },
-            {
-              "name": "set_widevane",
-              "params": [
-                {
-                  "name": "widevane",
-                  "type": "string",
-                  "required": true,
-                  "default": null,
-                  "min": null,
-                  "max": null,
-                  "description": "",
-                  "unit": null,
-                  "values": [
-                    {
-                      "wire": "0",
-                      "canonical": "swing",
-                      "labels": {
-                        "ru": "качание",
-                        "en": "swing",
-                        "de": "Schwingen"
-                      }
-                    },
-                    {
-                      "wire": "1",
-                      "canonical": "far_left",
-                      "labels": {
-                        "ru": "крайне влево",
-                        "en": "far left",
-                        "de": "ganz links"
-                      }
-                    },
-                    {
-                      "wire": "2",
-                      "canonical": "left",
-                      "labels": {
-                        "ru": "влево",
-                        "en": "left",
-                        "de": "links"
-                      }
-                    },
-                    {
-                      "wire": "3",
-                      "canonical": "center",
-                      "labels": {
-                        "ru": "центр",
-                        "en": "center",
-                        "de": "Mitte"
-                      }
-                    },
-                    {
-                      "wire": "4",
-                      "canonical": "right",
-                      "labels": {
-                        "ru": "вправо",
-                        "en": "right",
-                        "de": "rechts"
-                      }
-                    },
-                    {
-                      "wire": "5",
-                      "canonical": "far_right",
-                      "labels": {
-                        "ru": "крайне вправо",
-                        "en": "far right",
-                        "de": "ganz rechts"
-                      }
-                    },
-                    {
-                      "wire": "6",
-                      "canonical": "split",
-                      "labels": {
-                        "ru": "разделено",
-                        "en": "split",
-                        "de": "geteilt"
-                      }
-                    }
-                  ],
-                  "options_from": null
-                }
-              ]
-            },
-            {
-              "name": "set_setpoint",
-              "params": [
-                {
-                  "name": "temp",
-                  "type": "float",
-                  "required": true,
-                  "default": null,
-                  "min": 16.0,
-                  "max": 31.0,
-                  "description": "",
-                  "unit": "°C",
-                  "values": null,
-                  "options_from": null
-                }
-              ]
             }
           ],
           "fields": [
-            {
-              "name": "temperature",
-              "type": "float",
-              "encoding": null,
-              "values": null,
-              "unit": "°C",
-              "labels": {
-                "ru": "уставка",
-                "en": "setpoint",
-                "de": "Sollwert"
-              }
-            },
-            {
-              "name": "room_temperature",
-              "type": "float",
-              "encoding": null,
-              "values": null,
-              "unit": "°C",
-              "labels": {
-                "ru": "температура в комнате",
-                "en": "room temperature",
-                "de": "Raumtemperatur"
-              }
-            },
-            {
-              "name": "mode",
-              "type": "enum",
-              "encoding": null,
-              "values": [
-                {
-                  "wire": "0",
-                  "canonical": "auto",
-                  "labels": {
-                    "ru": "авто",
-                    "en": "auto",
-                    "de": "Automatik"
-                  }
-                },
-                {
-                  "wire": "1",
-                  "canonical": "dry",
-                  "labels": {
-                    "ru": "осушение",
-                    "en": "dry",
-                    "de": "Entfeuchten"
-                  }
-                },
-                {
-                  "wire": "2",
-                  "canonical": "cool",
-                  "labels": {
-                    "ru": "охлаждение",
-                    "en": "cool",
-                    "de": "Kühlen"
-                  }
-                },
-                {
-                  "wire": "3",
-                  "canonical": "heat",
-                  "labels": {
-                    "ru": "обогрев",
-                    "en": "heat",
-                    "de": "Heizen"
-                  }
-                },
-                {
-                  "wire": "4",
-                  "canonical": "fan_only",
-                  "labels": {
-                    "ru": "вентилятор",
-                    "en": "fan",
-                    "de": "Lüften"
-                  }
-                }
-              ],
-              "unit": null,
-              "labels": {
-                "ru": "режим",
-                "en": "mode",
-                "de": "Modus"
-              }
-            },
-            {
-              "name": "fan",
-              "type": "enum",
-              "encoding": null,
-              "values": [
-                {
-                  "wire": "0",
-                  "canonical": "auto",
-                  "labels": {
-                    "ru": "авто",
-                    "en": "auto",
-                    "de": "Automatik"
-                  }
-                },
-                {
-                  "wire": "1",
-                  "canonical": "quiet",
-                  "labels": {
-                    "ru": "тихий",
-                    "en": "quiet",
-                    "de": "Leise"
-                  }
-                },
-                {
-                  "wire": "2",
-                  "canonical": "speed_1",
-                  "labels": {
-                    "ru": "скорость 1",
-                    "en": "speed 1",
-                    "de": "Stufe 1"
-                  }
-                },
-                {
-                  "wire": "3",
-                  "canonical": "speed_2",
-                  "labels": {
-                    "ru": "скорость 2",
-                    "en": "speed 2",
-                    "de": "Stufe 2"
-                  }
-                },
-                {
-                  "wire": "4",
-                  "canonical": "speed_3",
-                  "labels": {
-                    "ru": "скорость 3",
-                    "en": "speed 3",
-                    "de": "Stufe 3"
-                  }
-                },
-                {
-                  "wire": "5",
-                  "canonical": "speed_4",
-                  "labels": {
-                    "ru": "скорость 4",
-                    "en": "speed 4",
-                    "de": "Stufe 4"
-                  }
-                }
-              ],
-              "unit": null,
-              "labels": {
-                "ru": "вентилятор",
-                "en": "fan",
-                "de": "Lüfter"
-              }
-            },
             {
               "name": "vane",
               "type": "enum",
@@ -5875,7 +5950,96 @@
                 "en": "vane",
                 "de": "Lamelle"
               }
-            },
+            }
+          ],
+          "group": "vane"
+        },
+        {
+          "name": "widevane",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "value",
+                  "type": "string",
+                  "required": true,
+                  "default": null,
+                  "min": null,
+                  "max": null,
+                  "description": "",
+                  "unit": null,
+                  "values": [
+                    {
+                      "wire": "0",
+                      "canonical": "swing",
+                      "labels": {
+                        "ru": "качание",
+                        "en": "swing",
+                        "de": "Schwingen"
+                      }
+                    },
+                    {
+                      "wire": "1",
+                      "canonical": "far_left",
+                      "labels": {
+                        "ru": "крайне влево",
+                        "en": "far left",
+                        "de": "ganz links"
+                      }
+                    },
+                    {
+                      "wire": "2",
+                      "canonical": "left",
+                      "labels": {
+                        "ru": "влево",
+                        "en": "left",
+                        "de": "links"
+                      }
+                    },
+                    {
+                      "wire": "3",
+                      "canonical": "center",
+                      "labels": {
+                        "ru": "центр",
+                        "en": "center",
+                        "de": "Mitte"
+                      }
+                    },
+                    {
+                      "wire": "4",
+                      "canonical": "right",
+                      "labels": {
+                        "ru": "вправо",
+                        "en": "right",
+                        "de": "rechts"
+                      }
+                    },
+                    {
+                      "wire": "5",
+                      "canonical": "far_right",
+                      "labels": {
+                        "ru": "крайне вправо",
+                        "en": "far right",
+                        "de": "ganz rechts"
+                      }
+                    },
+                    {
+                      "wire": "6",
+                      "canonical": "split",
+                      "labels": {
+                        "ru": "разделено",
+                        "en": "split",
+                        "de": "geteilt"
+                      }
+                    }
+                  ],
+                  "options_from": null
+                }
+              ]
+            }
+          ],
+          "fields": [
             {
               "name": "widevane",
               "type": "enum",
@@ -5953,7 +6117,56 @@
               }
             }
           ],
-          "group": "climate"
+          "group": "widevane"
+        },
+        {
+          "name": "temperature",
+          "actions": [
+            {
+              "name": "set",
+              "params": [
+                {
+                  "name": "value",
+                  "type": "float",
+                  "required": true,
+                  "default": null,
+                  "min": 16.0,
+                  "max": 31.0,
+                  "description": "",
+                  "unit": "°C",
+                  "values": null,
+                  "options_from": null
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "setpoint",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "уставка",
+                "en": "setpoint",
+                "de": "Sollwert"
+              }
+            },
+            {
+              "name": "room_temperature",
+              "type": "float",
+              "encoding": null,
+              "values": null,
+              "unit": "°C",
+              "labels": {
+                "ru": "температура в комнате",
+                "en": "room temperature",
+                "de": "Raumtemperatur"
+              }
+            }
+          ],
+          "group": "temperature"
         }
       ]
     },

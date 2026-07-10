@@ -1,22 +1,32 @@
 {
-  "climate": {
+  "power": {
     "kind": "stateful",
     "feedback": true,
+    "reconcile": false,
     "state_field": "power",
     "actions": {
-      "on":           { "command": "power_on" },
-      "off":          { "command": "power_off" },
-      "set_mode":     { "command": "set_mode",     "param_map": { "mode": "mode" } },
-      "set_fan":      { "command": "set_fan",      "param_map": { "fan": "speed" } },
-      "set_vane":     { "command": "set_vane",     "param_map": { "vane": "angle" } },
-      "set_widevane": { "command": "set_widevane", "param_map": { "widevane": "direction" } },
-      "set_setpoint": { "command": "set_setpoint", "param_map": { "temp": "temp" } }
+      "on":  { "command": "power_on" },
+      "off": { "command": "power_off" }
     },
     "fields": [
-      { "name": "temperature", "type": "float", "unit": "°C",
-        "labels": { "ru": "уставка", "en": "setpoint", "de": "Sollwert" } },
-      { "name": "room_temperature", "type": "float", "unit": "°C",
-        "labels": { "ru": "температура в комнате", "en": "room temperature", "de": "Raumtemperatur" } },
+      { "name": "power", "type": "enum",
+        "labels": { "ru": "питание", "en": "power", "de": "Betrieb" },
+        "values": [
+          { "wire": "1", "canonical": "on",  "labels": { "ru": "вкл",  "en": "on",  "de": "ein" } },
+          { "wire": "0", "canonical": "off", "labels": { "ru": "выкл", "en": "off", "de": "aus" } }
+        ]
+      }
+    ]
+  },
+  "mode": {
+    "kind": "stateful",
+    "feedback": true,
+    "reconcile": false,
+    "state_field": "mode",
+    "actions": {
+      "set": { "command": "set_mode", "param_map": { "value": "mode" } }
+    },
+    "fields": [
       { "name": "mode", "type": "enum",
         "labels": { "ru": "режим", "en": "mode", "de": "Modus" },
         "values": [
@@ -26,7 +36,18 @@
           { "wire": "3", "canonical": "heat",     "labels": { "ru": "обогрев",    "en": "heat", "de": "Heizen"      } },
           { "wire": "4", "canonical": "fan_only", "labels": { "ru": "вентилятор", "en": "fan",  "de": "Lüften"      } }
         ]
-      },
+      }
+    ]
+  },
+  "fan": {
+    "kind": "stateful",
+    "feedback": true,
+    "reconcile": false,
+    "state_field": "fan",
+    "actions": {
+      "set": { "command": "set_fan", "param_map": { "value": "speed" } }
+    },
+    "fields": [
       { "name": "fan", "type": "enum",
         "labels": { "ru": "вентилятор", "en": "fan", "de": "Lüfter" },
         "values": [
@@ -37,7 +58,18 @@
           { "wire": "4", "canonical": "speed_3", "labels": { "ru": "скорость 3", "en": "speed 3", "de": "Stufe 3"   } },
           { "wire": "5", "canonical": "speed_4", "labels": { "ru": "скорость 4", "en": "speed 4", "de": "Stufe 4"   } }
         ]
-      },
+      }
+    ]
+  },
+  "vane": {
+    "kind": "stateful",
+    "feedback": true,
+    "reconcile": false,
+    "state_field": "vane",
+    "actions": {
+      "set": { "command": "set_vane", "param_map": { "value": "angle" } }
+    },
+    "fields": [
       { "name": "vane", "type": "enum",
         "labels": { "ru": "жалюзи", "en": "vane", "de": "Lamelle" },
         "values": [
@@ -49,7 +81,18 @@
           { "wire": "5", "canonical": "pos_4", "labels": { "ru": "положение 4", "en": "position 4", "de": "Position 4" } },
           { "wire": "6", "canonical": "pos_5", "labels": { "ru": "положение 5", "en": "position 5", "de": "Position 5" } }
         ]
-      },
+      }
+    ]
+  },
+  "widevane": {
+    "kind": "stateful",
+    "feedback": true,
+    "reconcile": false,
+    "state_field": "widevane",
+    "actions": {
+      "set": { "command": "set_widevane", "param_map": { "value": "direction" } }
+    },
+    "fields": [
       { "name": "widevane", "type": "enum",
         "labels": { "ru": "горизонтальные жалюзи", "en": "wide vane", "de": "Horizontallamelle" },
         "values": [
@@ -62,6 +105,21 @@
           { "wire": "6", "canonical": "split",     "labels": { "ru": "разделено",     "en": "split",     "de": "geteilt"     } }
         ]
       }
+    ]
+  },
+  "temperature": {
+    "kind": "stateful",
+    "feedback": true,
+    "reconcile": false,
+    "state_field": "setpoint",
+    "actions": {
+      "set": { "command": "set_setpoint", "param_map": { "value": "temp" } }
+    },
+    "fields": [
+      { "name": "setpoint", "type": "float", "unit": "°C",
+        "labels": { "ru": "уставка", "en": "setpoint", "de": "Sollwert" } },
+      { "name": "room_temperature", "type": "float", "unit": "°C",
+        "labels": { "ru": "температура в комнате", "en": "room temperature", "de": "Raumtemperatur" } }
     ]
   }
 }

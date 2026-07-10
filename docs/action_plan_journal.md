@@ -21,6 +21,23 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-10 — DRV-28 DONE (the `MitsubishiHvac` driver) — the ACs are bespoke devices** — the
+  DRV-27 rev. 2 design implemented in one sitting: typed state + VWB-18 restore-at-boot (the
+  broker-wipe fix), heartbeat reachability off the firmware's 45 s room_temperature publish (no LWT
+  exists), canonical→numeric-wire commands via the attached class map through `idempotence_skip`,
+  and — the user's hard requirement, twice-enforced and test-pinned — **never creates a WB virtual
+  device** (the firmware owns its card). Translation stack extracted to the shared
+  `value_translation` module (passthrough delegates; the `independence` contract stays clean, the new
+  package added to it). Configs moved to `config/devices/` root (explicit commands, bare
+  state_topics, `temperature`→`setpoint`); `profiles/hvac.json` deleted; `classes/MitsubishiHvac.json`
+  = six capabilities. Catalog derivation extended: `set {value}` params inherit the state-field table
+  (VWB-24's zero-round-trip property preserved under the new convention). HvacPanel reworked;
+  device-state-mapping + OPENAPI_EXTRA_MODELS registered (user catch). **Golden → `5622ba7a1a78102a`,
+  openapi +1 schema — voice re-pins ONCE (DRV-25+26+28), and their intent mapping must follow the new
+  six-capability vocabulary, not just the hash.** Suite 678, pyright 0, 6/6, UI green, eval cli 4/4.
+  Docs: devices-and-scenarios (nine drivers), README, howto-new-device. Owed: image rebuild + WB7
+  redeploy; HW check rides REL-3.
+
 - **2026-07-10 — DRV-27 DONE again (design rev. 2: six capabilities + explicit topics)** — the
   reopened discussion settled all three forks (user-pinned): **six per-domain capabilities**
   (power/mode/fan/vane/widevane/temperature — the AV action-group shape, 1:1 with the firmware's

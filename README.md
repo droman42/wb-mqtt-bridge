@@ -26,8 +26,8 @@ as the home's single device catalog and actuation backend.
   purpose-built pages. Per-device layouts are *backend-served manifests* rendered at
   runtime — no UI rebuild on config change.
 - **Native WB gear, addressed the same way.** A `wb-passthrough` driver turns existing
-  Wirenboard controls (`wb-mr6c`, `wb-mdm3`, `wb-mrgbw-d`, `dooya`, `wb-gpio`,
-  `hvac_*`, …) into first-class devices in the bridge's catalog — same API, same room
+  Wirenboard controls (`wb-mr6c`, `wb-mdm3`, `wb-mrgbw-d`, `dooya`, `wb-gpio`, …)
+  into first-class devices in the bridge's catalog — same API, same room
   + capability metadata, so the voice assistant addresses the whole house through one
   surface.
 - **Strongly typed end-to-end.** Pydantic device configs, per-device state models, an

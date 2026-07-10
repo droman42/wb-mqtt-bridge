@@ -1,5 +1,5 @@
-from typing import Dict, Any, List, Literal, Optional, Union
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import Any, ClassVar, Dict, List, Literal, Optional, Union
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 import os
 
 # Device-config base models are pure domain data — they live in the domain layer
@@ -264,6 +264,44 @@ class WbPassthroughDeviceConfig(BaseDeviceConfig):
                 raise ValueError(f"WB-passthrough command {cmd_name} missing required field: topic")
             processed[cmd_name] = WbPassthroughCommandConfig(**cmd_config)
         return processed
+
+
+class MitsubishiHvacConfig(WbPassthroughDeviceConfig):
+    """Configuration for a mitsubishi2wb-firmware HVAC unit (DRV-28).
+
+    Same explicit-wiring schema as the passthrough (per-action `commands` with MQTT
+    topics + bare `state_topics`; value tables come from the `MitsubishiHvac` class
+    capability map via the loader enrichment), but the expected command and state-field
+    sets are the FIRMWARE's fixed contract — a gap is a loud config error at load, not
+    silent degradation (`docs/design/mitsubishi_hvac_driver.md` D4).
+    """
+
+    REQUIRED_COMMANDS: ClassVar[frozenset] = frozenset({
+        "power_on", "power_off", "set_mode", "set_fan", "set_vane",
+        "set_widevane", "set_setpoint",
+    })
+    REQUIRED_STATE_FIELDS: ClassVar[frozenset] = frozenset({
+        "power", "mode", "fan", "vane", "widevane", "setpoint", "room_temperature",
+    })
+
+    @model_validator(mode="after")
+    def _validate_firmware_contract_complete(self) -> "MitsubishiHvacConfig":
+        missing_cmds = self.REQUIRED_COMMANDS - set(self.commands)
+        missing_fields = self.REQUIRED_STATE_FIELDS - set(self.state_topics)
+        problems = []
+        if missing_cmds:
+            problems.append(f"missing commands: {sorted(missing_cmds)}")
+        if missing_fields:
+            problems.append(f"missing state_topics: {sorted(missing_fields)}")
+        if problems:
+            raise ValueError(
+                f"MitsubishiHvac config {self.device_id!r} is incomplete — "
+                + "; ".join(problems)
+                + " (the mitsubishi2wb firmware contract is fixed; see "
+                  "docs/design/mitsubishi_hvac_driver.md §2)"
+            )
+        return self
+
 
 # Device-specific parameter models
 class RevoxA77ReelToReelParams(BaseModel):

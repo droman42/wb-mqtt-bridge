@@ -47,48 +47,20 @@ from wb_mqtt_bridge.domain.devices.types import ActionHandler, CommandResult
 logger = logging.getLogger(__name__)
 
 
-_PLACEHOLDER_RE = re.compile(r"\{([a-zA-Z_][a-zA-Z0-9_]*)\}")
-
-
-def _toggle_bool_wire_form(payload: str) -> str:
-    """Flip a boolean-on-the-wire payload, preserving the surface form so the result
-    matches adjacent commands' static values byte-for-byte. WB controls publish `"0"`/
-    `"1"` overwhelmingly, but the WB-passthrough config schema doesn't FORCE that --
-    if someone writes a bool command with `value: "on"`, the inverted form should be
-    `"off"`, not `"1"`. Unknown forms (numeric strings outside 0/1, arbitrary text)
-    pass through unchanged -- safer than guessing."""
-    s = payload.strip()
-    pairs = (("0", "1"), ("false", "true"), ("off", "on"))
-    for low, high in pairs:
-        if s.lower() == low:
-            return high if s.islower() or not s.isalpha() else high.capitalize()
-        if s.lower() == high:
-            return low if s.islower() or not s.isalpha() else low.capitalize()
-    return payload
-
-
-def _parse_template(template: str, raw: str, coerce: Any = str) -> Dict[str, Any]:
-    """Invert a `"{a};{b};{c}"`-style template against a concrete payload, producing the
-    dict `{a: ..., b: ..., c: ...}`. Used for composite encodings like RGB
-    (`"{r};{g};{b}"` + `"255;128;0"` → `{r: 255, g: 128, b: 0}`).
-
-    Raises ValueError on a payload that doesn't match the template's literal separators
-    or whose parts can't be coerced.
-    """
-    names = _PLACEHOLDER_RE.findall(template)
-    if not names:
-        raise ValueError(f"template {template!r} has no `{{name}}` placeholders")
-    # Build a regex from the template: literal separators escaped, placeholders -> capture groups.
-    pattern = re.escape(template)
-    for n in names:
-        pattern = pattern.replace(re.escape("{" + n + "}"), "([^;,/\\s]+)", 1)
-    m = re.fullmatch(pattern, raw)
-    if not m:
-        raise ValueError(f"{raw!r} does not match template {template!r}")
-    parts = m.groups()
-    if len(parts) != len(names):
-        raise ValueError(f"template {template!r} expects {len(names)} groups, got {len(parts)}")
-    return {n: coerce(p) for n, p in zip(names, parts)}
+# DRV-28: the wire<->typed<->canonical translation stack moved to the shared
+# `value_translation` module so sibling drivers (MitsubishiHvac) can use it without
+# cross-importing this package (the import-linter `independence` contract). The
+# module-level aliases keep this driver's public/test surface unchanged.
+from wb_mqtt_bridge.infrastructure.devices.value_translation import (  # noqa: E402
+    apply_inversion as _shared_apply_inversion,
+    coerce_state_value as _shared_coerce_state_value,
+    invert_wire_payload as _shared_invert_wire_payload,
+    parse_template as _parse_template,
+    parse_value as _shared_parse_value,
+    toggle_bool_wire_form as _toggle_bool_wire_form,
+    translate_inbound as _shared_translate_inbound,
+    translate_outbound as _shared_translate_outbound,
+)
 
 
 class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
@@ -320,159 +292,26 @@ class WbPassthroughDevice(BaseDevice[WbPassthroughState]):
 
     # -- mirror path (incoming MQTT) -----------------------------------------
 
-    @staticmethod
-    def _parse_value(raw: str, spec: StateTopicSpec) -> Any:
-        """Coerce a raw wire payload into its declared type. Raises ValueError on a
-        malformed payload — caller is `_coerce_mirror`, which records a `parse` error
-        flag instead of dropping the value silently. For `enum`, the payload is
-        accepted if it matches EITHER `wire` OR `canonical` of any ValueLabel entry:
-        inbound echoes arrive in wire space (`"2"`), outbound idempotency callers
-        come through in canonical space (`"cool"`). Translation to canonical happens
-        in `_translate_inbound`; this method only validates + returns `raw`."""
-        t = spec.type
-        if t == "str":
-            return raw
-        if t == "int":
-            return int(raw)
-        if t == "float":
-            return float(raw)
-        if t == "bool":
-            return raw.strip().lower() in ("1", "true", "on")
-        if t == "enum":
-            if spec.values is not None:
-                allowed = {v.wire for v in spec.values} | {v.canonical for v in spec.values}
-                if raw not in allowed:
-                    raise ValueError(
-                        f"{raw!r} not in enum values (wire/canonical: {sorted(allowed)})"
-                    )
-            return raw
-        if t == "rgb":
-            return _parse_template(spec.encoding or "{r};{g};{b}", raw, coerce=int)
-        raise ValueError(f"unknown StateTopicSpec.type {t!r}")
+    # Shared translation stack (value_translation module) -- signatures preserved.
+    _parse_value = staticmethod(_shared_parse_value)
 
-    @staticmethod
-    def _apply_inversion(value: Any, spec: StateTopicSpec) -> Any:
-        """If `spec.invert` is True, apply the wire-orientation flip on the INBOUND
-        mirror path (after _parse_value) so `state.mirrored` always carries the natural-
-        sense value regardless of device-family orientation. Symmetric counterpart for
-        outbound writes is `_invert_wire_payload`.
+    _apply_inversion = staticmethod(_shared_apply_inversion)
 
-        Inversion semantics per type:
-          - int/float: `100 - value` (percentage-like fields; e.g. cabinet rollers'
-            inverted position).
-          - bool: `not value` (toggle; e.g. inverted-valve heating actuators where
-            wire 0=heating-on, 1=heating-off).
-          - str/enum/rgb: no-op (inversion has no obvious meaning).
-        """
-        if not spec.invert:
-            return value
-        if spec.type == "bool":
-            return not value if isinstance(value, bool) else value
-        if spec.type in ("int", "float"):
-            try:
-                return type(value)(100 - value)
-            except (TypeError, ValueError):
-                return value
-        return value
+    _translate_outbound = staticmethod(_shared_translate_outbound)
 
-    @staticmethod
-    def _translate_outbound(payload: str, spec: StateTopicSpec) -> str:
-        """OUTBOUND value-label translation (canonical → wire) for enum fields with a
-        value table (§P3.7 #26). Symmetric counterpart of `_translate_inbound`.
+    _translate_inbound = staticmethod(_shared_translate_inbound)
 
-        * Non-enum / no value table: identity (returns payload unchanged).
-        * Match on `canonical` → return that entry's `wire`.
-        * Match on `wire` already → identity (lets internal callers pass wire through
-          unchanged; harmless for back-compat bare-string form where wire==canonical).
-        * No match: warn and pass through. Lets a bad voice utterance surface on the
-          bus rather than 500-ing the canonical endpoint — the WB layer will reject
-          the bogus payload itself, with its own error semantics."""
-        if spec.type != "enum" or not spec.values:
-            return payload
-        for v in spec.values:
-            if v.canonical == payload:
-                return v.wire
-        for v in spec.values:
-            if v.wire == payload:
-                return payload
-        logger.warning(
-            f"value {payload!r} not in canonical or wire list for enum spec; "
-            f"passing through unchanged"
-        )
-        return payload
-
-    @staticmethod
-    def _translate_inbound(value: Any, spec: StateTopicSpec) -> Any:
-        """INBOUND value-label translation (wire → canonical) for enum fields with a
-        value table (§P3.7 #26). Called after `_parse_value` + `_apply_inversion` so
-        `state.mirrored` always holds the canonical identifier — what voice / UI
-        send back via /devices/{id}/canonical and what the catalog declared.
-
-        * Non-enum / no value table / non-string value: identity.
-        * Match on `wire` → return that entry's `canonical`.
-        * No match: identity (parse-time validation already caught the truly invalid
-          payloads; if we got here with no wire match, value was a canonical and
-          state is already in canonical space — leave it)."""
-        if spec.type != "enum" or not spec.values or not isinstance(value, str):
-            return value
-        for v in spec.values:
-            if v.wire == value:
-                return v.canonical
-        return value
-
-    @staticmethod
-    def _invert_wire_payload(payload: str, spec: StateTopicSpec) -> str:
-        """OUTBOUND counterpart of `_apply_inversion`: parse the natural-sense payload
-        string, apply the type-appropriate flip, render back to string. Called by
-        `_publish_command` just before the MQTT publish so the wire format respects the
-        device-family quirk (cabinet rollers' 0=open / 100=closed; inverted heating
-        actuators' 0=on / 1=off) while configs + voice + state stay in natural sense.
-
-        Type handling matches `_apply_inversion`:
-          - int: `str(100 - int(payload))`
-          - float: `str(100.0 - float(payload))` (integer-valued rendered without `.0`
-            to match WB UI convention; see `_resolve_payload`)
-          - bool: toggle the canonical wire form -- `"1"`↔`"0"`, `"true"`↔`"false"`,
-            `"on"`↔`"off"` (preserves the input's surface form so the wire bytes look
-            consistent with adjacent commands' static values)
-          - str/enum/rgb or parse failure: pass through unchanged
-        """
-        if not spec.invert:
-            return payload
-        if spec.type == "bool":
-            return _toggle_bool_wire_form(payload)
-        if spec.type in ("int", "float"):
-            try:
-                if spec.type == "int":
-                    return str(100 - int(payload))
-                v = 100.0 - float(payload)
-                return str(int(v)) if v.is_integer() else str(v)
-            except (TypeError, ValueError):
-                return payload
-        return payload
+    _invert_wire_payload = staticmethod(_shared_invert_wire_payload)
 
     def _coerce_mirror(self, field: str, raw: str) -> Any:
-        """Look up `field`'s StateTopicSpec, parse the raw payload to its typed form, apply
-        the `invert` transform if set, and return the typed value. On parse failure: log a
-        warning and return the raw string unchanged. We deliberately do NOT touch
-        `state.error_flags` -- that's reserved for WB-protocol per-control flags
-        (`r`/`w`/`p`) and conflating it with internal parse errors would mis-fire the
-        `reachable` check (the device IS talking; WE just can't decode this one payload)."""
+        """Full inbound stack for `field`: parse -> invert -> translate-to-canonical,
+        warn-and-pass-through on parse failure (see value_translation.coerce_state_value).
+        We deliberately do NOT touch `state.error_flags` -- that's reserved for
+        WB-protocol per-control flags."""
         spec = self.config.state_topics.get(field)
         if spec is None:
             return raw
-        try:
-            typed = self._parse_value(raw, spec)
-            inverted = self._apply_inversion(typed, spec)
-            # Final transform: wire → canonical for enum fields with a value table
-            # (§P3.7 #26). state.mirrored always holds canonical so voice/UI compares
-            # against catalog-declared identifiers rather than wire payloads.
-            return self._translate_inbound(inverted, spec)
-        except (ValueError, TypeError) as e:
-            logger.warning(
-                f"[{self.device_name}] failed to parse {field!r} payload {raw!r} as {spec.type}: {e}"
-            )
-            return raw
+        return _shared_coerce_state_value(field, raw, spec, self.device_name)
 
     async def _on_value_message(self, field: str, topic: str, payload: str) -> None:
         """A value-topic echo arrived. Coerce per the field's spec, set it as a TOP-LEVEL

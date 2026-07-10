@@ -1,16 +1,20 @@
-// Native HVAC panel (§P3.7 #26 Phase 3). Mirrors the mitsubishi2wb firmware's /control
-// page — mode/fan/vane/widevane button grids, setpoint number input, read-only room
-// temperature. Reads value-label tables from /system/catalog so dropdown options are
-// self-describing (wire payload + canonical identifier + per-locale label); posts
-// canonical action names back via POST /devices/{id}/canonical. Same generic component
+// Native HVAC panel (§P3.7 #26 Phase 3; reshaped for DRV-28). Mirrors the mitsubishi2wb
+// firmware's /control page — mode/fan/vane/widevane button grids, setpoint number input,
+// read-only room temperature. Reads value-label tables from /system/catalog so the option
+// grids are self-describing (wire payload + canonical identifier + per-locale label);
+// posts canonical actions back via POST /devices/{id}/canonical. Same generic component
 // services all 3 Mitsubishi HVAC instances (bedroom / living_room / children_room) —
 // the device_id comes from the React-router param, and each device's catalog entry
-// supplies the right wire vocabulary.
+// supplies the vocabulary.
+//
+// DRV-28 contract shape: SIX per-domain capabilities — power {on,off} ·
+// mode/fan/vane/widevane {set {value}} · temperature {set {value}} + readonly
+// room_temperature. State fields are top-level canonical values (`state.mode === "cool"`,
+// `state.power === "on"`, `state.setpoint`).
 //
 // Mode/fan/vane glyphs reproduced from the firmware source (mitsubishi2wb
 // html_pages.h ~L137-179) — the same Unicode entities the firmware's HTML dropdowns
-// render, so users see consistent iconography between the bridge UI and the firmware's
-// own /control page.
+// render. (UI-16 will replace this hardcoded map with the shared IconResolver.)
 import { useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSystemCatalog, useExecuteCanonicalAction } from '../../hooks/useApi';
@@ -59,26 +63,16 @@ const WIDEVANE_GLYPH: Record<string, string> = {
   split:     '<>',
 };
 
-const SECTION_GLYPHS: Record<string, Record<string, string>> = {
+const CAPABILITY_GLYPHS: Record<string, Record<string, string>> = {
   mode: MODE_GLYPH,
   fan: FAN_GLYPH,
   vane: VANE_GLYPH,
   widevane: WIDEVANE_GLYPH,
 };
 
-const FIELD_TO_ACTION: Record<string, string> = {
-  mode: 'set_mode',
-  fan: 'set_fan',
-  vane: 'set_vane',
-  widevane: 'set_widevane',
-};
-// Canonical param names equal the field names (the contract guarantees the
-// correspondence — that's how the catalog derives each param's value table).
-
 function labelOf(entry: CatalogValueLabel, language: 'en' | 'ru'): string {
   // Catalog labels are {ru, en, de, ...}; settings store carries en/ru today. Fall back
-  // to en, then to the canonical identifier (legible) when labels are absent (bare-
-  // string back-compat profiles never reach this panel — but defend anyway).
+  // to en, then to the canonical identifier (legible) when labels are absent.
   return entry.labels?.[language] ?? entry.labels?.en ?? entry.canonical;
 }
 
@@ -95,10 +89,12 @@ export function HvacPanel() {
     if (deviceId) selectDevice(deviceId);
   }, [deviceId, selectDevice]);
 
-  const climate = useMemo(() => {
+  // DRV-28: six per-domain capabilities, keyed by name.
+  const caps = useMemo(() => {
     if (!catalog.data || !deviceId) return undefined;
     const dev = catalog.data.devices.find(d => d.id === deviceId);
-    return dev?.capabilities?.find(c => c.name === 'climate');
+    if (!dev?.capabilities) return undefined;
+    return new Map(dev.capabilities.map(c => [c.name, c]));
   }, [catalog.data, deviceId]);
 
   if (!deviceId) {
@@ -107,55 +103,47 @@ export function HvacPanel() {
   if (catalog.isLoading) {
     return <div className="p-6 text-center text-muted-foreground">Loading…</div>;
   }
-  if (!climate) {
-    return <div className="p-6 text-center text-muted-foreground">No climate capability for {deviceId}.</div>;
+  if (!caps?.has('mode') || !caps.has('power')) {
+    return <div className="p-6 text-center text-muted-foreground">No HVAC capabilities for {deviceId}.</div>;
   }
 
-  // DRV-25: WB-passthrough state fields are top-level (no `mirrored` bucket); enum fields
-  // (mode/fan/…) already carry canonical values via their state-topic value tables.
+  // State fields are top-level CANONICAL values (MitsubishiHvacState).
   const st = (state ?? {}) as unknown as Record<string, unknown>;
-  const power = String(st.power ?? '') === '1';
-  const setpoint = typeof st.temperature === 'number' ? st.temperature : undefined;
+  const power = st.power === 'on';
+  const setpoint = typeof st.setpoint === 'number' ? st.setpoint : undefined;
   const roomTemp = typeof st.room_temperature === 'number' ? st.room_temperature : undefined;
   const pending = execute.isPending;
 
-  const dispatch = (action: string, params?: Record<string, unknown>) => {
+  const dispatch = (capability: string, action: string, params?: Record<string, unknown>) => {
     if (!deviceId) return;
     execute.mutate({
       deviceId,
       // wait:true — the panel merges the echoed post-action state into the cache.
-      request: { capability: 'climate', action, params: params ?? null, wait: true },
+      request: { capability, action, params: params ?? null, wait: true },
     });
-    addLog({ level: 'info', message: `climate.${action} -> ${deviceId}`, details: params });
+    addLog({ level: 'info', message: `${capability}.${action} -> ${deviceId}`, details: params });
   };
 
-  const fields = climate.fields ?? [];
-  const enumField = (name: string) => fields.find(f => f.name === name);
-  const enumLabel = (name: string) => {
-    const f = enumField(name);
-    return f?.labels?.[language] ?? f?.labels?.en ?? name;
-  };
-
-  const renderEnumGrid = (fieldName: string) => {
-    const f = enumField(fieldName);
-    if (!f?.values?.length) return null;
-    const raw = st[fieldName];
+  const renderEnumGrid = (capName: string) => {
+    const cap = caps.get(capName);
+    const field = cap?.fields?.find(f => f.name === capName);
+    if (!field?.values?.length) return null;
+    const raw = st[capName];
     const current = typeof raw === 'string' ? raw : undefined;
-    const glyphs = SECTION_GLYPHS[fieldName] ?? {};
-    const actionName = FIELD_TO_ACTION[fieldName];
-    const paramName = fieldName;
+    const glyphs = CAPABILITY_GLYPHS[capName] ?? {};
+    const title = field.labels?.[language] ?? field.labels?.en ?? capName;
     return (
-      <section key={fieldName} className="rounded-lg border border-border p-4 space-y-3">
-        <div className="text-sm font-medium">{enumLabel(fieldName)}</div>
+      <section key={capName} className="rounded-lg border border-border p-4 space-y-3">
+        <div className="text-sm font-medium">{title}</div>
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-7">
-          {f.values.map(v => {
+          {field.values.map(v => {
             const selected = current === v.canonical;
             return (
               <Button
                 key={v.canonical}
                 variant={selected ? 'default' : 'outline'}
                 disabled={pending}
-                onClick={() => dispatch(actionName, { [paramName]: v.canonical })}
+                onClick={() => dispatch(capName, 'set', { value: v.canonical })}
                 className="flex h-auto flex-col items-center gap-1 px-2 py-2 text-xs"
               >
                 <span className="text-lg leading-none">{glyphs[v.canonical] ?? '·'}</span>
@@ -168,8 +156,9 @@ export function HvacPanel() {
     );
   };
 
-  const setpointField = fields.find(f => f.name === 'temperature');
-  const roomTempField = fields.find(f => f.name === 'room_temperature');
+  const temperatureCap = caps.get('temperature');
+  const setpointField = temperatureCap?.fields?.find(f => f.name === 'setpoint');
+  const roomTempField = temperatureCap?.fields?.find(f => f.name === 'room_temperature');
   const minSetpoint = 16, maxSetpoint = 31;  // mitsubishi2wb firmware default range
 
   return (
@@ -183,7 +172,7 @@ export function HvacPanel() {
           <Button
             variant={power ? 'default' : 'outline'}
             disabled={pending}
-            onClick={() => dispatch(power ? 'off' : 'on')}
+            onClick={() => dispatch('power', power ? 'off' : 'on')}
             className="w-full"
           >
             {power ? (language === 'ru' ? 'Включено' : 'On') : (language === 'ru' ? 'Выключено' : 'Off')}
@@ -204,11 +193,11 @@ export function HvacPanel() {
               step={0.5}
               disabled={pending}
               defaultValue={setpoint}
-              key={setpoint}  // re-mount when mirror-side echo arrives so the input reflects it
+              key={setpoint}  // re-mount when the state echo arrives so the input reflects it
               onBlur={(e) => {
                 const v = parseFloat(e.target.value);
                 if (!Number.isNaN(v) && v !== setpoint) {
-                  dispatch('set_setpoint', { temp: v });
+                  dispatch('temperature', 'set', { value: v });
                 }
               }}
               className="w-24 rounded-md border border-input bg-background px-3 py-2 text-sm"

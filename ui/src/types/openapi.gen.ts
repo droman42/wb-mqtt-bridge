@@ -2424,6 +2424,70 @@ export interface components {
              */
             node: string;
         };
+        /**
+         * MitsubishiHvacState
+         * @description Runtime state for a mitsubishi2wb-firmware HVAC unit (DRV-28).
+         *
+         *     All enum fields hold CANONICAL identifiers (`"cool"`, `"swing"`, …) — the driver
+         *     translates the firmware's numeric wire indices via its class map's value tables.
+         *     The base `power` field carries `"on"`/`"off"`. Declared fields ride the standard
+         *     restore-at-boot (VWB-18), which is what survives the WB7's persistence-less broker
+         *     across reboots; `room_temperature` doubles as a liveness heartbeat (the firmware
+         *     publishes it every 45 s unconditionally), driving `reachable`.
+         */
+        MitsubishiHvacState: {
+            /** Device Id */
+            device_id: string;
+            /** Device Name */
+            device_name: string;
+            /**
+             * Error
+             * @default null
+             */
+            error: string | null;
+            /**
+             * Fan
+             * @default null
+             */
+            fan: string | null;
+            /** @default null */
+            last_command: components["schemas"]["LastCommand"] | null;
+            /**
+             * Mode
+             * @default null
+             */
+            mode: string | null;
+            /**
+             * Power
+             * @default off
+             */
+            power: string;
+            /**
+             * Reachable
+             * @default true
+             */
+            reachable: boolean;
+            /**
+             * Room Temperature
+             * @default null
+             */
+            room_temperature: number | null;
+            /**
+             * Setpoint
+             * @default null
+             */
+            setpoint: number | null;
+            /**
+             * Vane
+             * @default null
+             */
+            vane: string | null;
+            /**
+             * Widevane
+             * @default null
+             */
+            widevane: string | null;
+        };
         /** NavigationClusterConfig */
         NavigationClusterConfig: {
             aux1Action?: components["schemas"]["ProcessedAction"] | null;

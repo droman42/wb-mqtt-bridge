@@ -105,6 +105,7 @@ broadlink_hood = "wb_mqtt_bridge.infrastructure.devices.broadlink_kitchen_hood.d
 wirenboard_ir = "wb_mqtt_bridge.infrastructure.devices.wirenboard_ir_device.driver:WirenboardIRDevice"
 revox_a77 = "wb_mqtt_bridge.infrastructure.devices.revox_a77_reel_to_reel.driver:RevoxA77ReelToReel"
 wb_passthrough = "wb_mqtt_bridge.infrastructure.devices.wb_passthrough.driver:WbPassthroughDevice"
+mitsubishi_hvac = "wb_mqtt_bridge.infrastructure.devices.mitsubishi_hvac.driver:MitsubishiHvac"
 
 [tool.setuptools]
 
@@ -208,6 +209,7 @@ modules = [
     "wb_mqtt_bridge.infrastructure.devices.broadlink_kitchen_hood",
     "wb_mqtt_bridge.infrastructure.devices.emotiva_xmc2",
     "wb_mqtt_bridge.infrastructure.devices.lg_tv",
+    "wb_mqtt_bridge.infrastructure.devices.mitsubishi_hvac",
     "wb_mqtt_bridge.infrastructure.devices.revox_a77_reel_to_reel",
     "wb_mqtt_bridge.infrastructure.devices.wb_passthrough",
     "wb_mqtt_bridge.infrastructure.devices.wirenboard_ir_device",

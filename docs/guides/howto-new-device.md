@@ -24,7 +24,9 @@ with a native library](howto-new-driver.md)** instead.
 2. **Which capability profile** (only for `WbPassthroughDevice`) — pick from
    `backend/config/capabilities/profiles/`: `light_switch` (relay),
    `dimmable_light` (relay + brightness), `rgb_light`, `cover` (dooya),
-   `heating_loop`, `hvac`, `sensor_room`. If none fit, profile-extension is
+   `heating_loop`, `sensor_room`. (The Mitsubishi air conditioners are NOT
+   passthrough devices — they have their own `MitsubishiHvac` driver and class
+   capability map.) If none fit, profile-extension is
    a small change covered in [the new-driver guide](howto-new-driver.md).
 3. **Which room** — must match a `room_id` in `backend/config/rooms.json`
    (see [Architecture: rooms](../architecture/rooms.md)).
@@ -128,10 +130,9 @@ profile picked, the WB control topic(s), and any non-obvious decision
   a profile extension is the right move (small Pydantic change, see the
   new-driver guide).
 - **Type mismatch between `state_topics` and the profile's `fields[]`** →
-  the §P3.7 #26 value-label translation layer is the planned fix; today
-  the workaround is dropping the offending field from the profile's
-  `fields[]` list (this is how `heating_loop.mode` and `hvac.mode` are
-  shipped today).
+  declare the field once in the profile with its `type` and (for enums) a
+  `{wire, canonical, labels}` value table — bare per-device `state_topics`
+  inherit it automatically at load.
 - **WB-UI dashboard id ≠ bridge `room_id`** → the subfolder is the bridge
   `room_id`. The `description` field in `rooms.json` documents the WB
   dashboard mapping for the importer.

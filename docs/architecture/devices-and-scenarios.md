@@ -10,14 +10,14 @@ hexagon: a driver is a *driven adapter* (it implements `DevicePort`); a scenario
 
 ![Three driver flavors](../images/driver-flavors.png)
 
-There are eight driver classes registered as entry-points in `pyproject.toml`. They
+There are nine driver classes registered as entry-points in `pyproject.toml`. They
 fall into three flavors, and each flavor exists because the *underlying* world
 behaves differently — not because the architecture wanted variety.
 
-### Native-library drivers (5) — speak the device's own protocol
+### Native-protocol drivers (6) — speak the device's own protocol
 
-The device has its own API; we use a Python library that speaks it. State comes back
-real, not assumed.
+The device has its own API; we speak it directly (usually via a Python library).
+State comes back real, not assumed.
 
 | Driver | Library / protocol | Notes |
 |---|---|---|
@@ -26,6 +26,7 @@ real, not assumed.
 | `AppleTVDevice` | `pyatv` (MRP + Companion) | Pairing tokens persisted; app-launching planned. |
 | `AuralicDevice` | `openhomedevice` (UPnP / OpenHome) | OpenHome, not DLNA — Roon is the only alternative and needs a Core. |
 | `RevoxA77ReelToReel` | serial GPIO via a tiny purpose-built board | Custom transport, but the same `DevicePort` contract. |
+| `MitsubishiHvac` | the mitsubishi2wb ESP firmware's MQTT dialect | Typed state restored at boot; the firmware's 45 s room-temperature publish doubles as a reachability heartbeat; never creates a WB card (the firmware owns its own). |
 
 Trade-off: each one needs its own connection lifecycle (auth, reconnect, subscriptions);
 state-reflection costs almost nothing because the protocol pushes events.
@@ -56,9 +57,12 @@ from Harmony.
 This one is special. Wirenboard already exposes every native control as
 `/devices/{wb-device}/controls/{ctrl}`; the bridge doesn't need to "own" those
 devices — it needs to *speak about them*. `WbPassthroughDevice` is a single driver
-class fanned out by config: ~57 device configs across the house's 10 rooms, each
+class fanned out by config: ~60 device configs across the house's 10 rooms, each
 pointing at a real WB control (`wb-mr6c`, `wb-mdm3`, `wb-mrgbw-d`, `dooya` cover
-motors, `wb-gpio` heating actuators, `hvac_*`, …).
+motors, `wb-gpio` heating actuators, …). The Mitsubishi air conditioners graduated
+out of this flavor into their own `MitsubishiHvac` driver — typed state that survives
+a restart, heartbeat-based reachability, and the firmware's numeric wire vocabulary
+translated once, in one place.
 
 Two structural details set it apart:
 

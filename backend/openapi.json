@@ -2621,6 +2621,130 @@
         "title": "ManualStep",
         "type": "object"
       },
+      "MitsubishiHvacState": {
+        "description": "Runtime state for a mitsubishi2wb-firmware HVAC unit (DRV-28).\n\nAll enum fields hold CANONICAL identifiers (`\"cool\"`, `\"swing\"`, …) — the driver\ntranslates the firmware's numeric wire indices via its class map's value tables.\nThe base `power` field carries `\"on\"`/`\"off\"`. Declared fields ride the standard\nrestore-at-boot (VWB-18), which is what survives the WB7's persistence-less broker\nacross reboots; `room_temperature` doubles as a liveness heartbeat (the firmware\npublishes it every 45 s unconditionally), driving `reachable`.",
+        "properties": {
+          "device_id": {
+            "title": "Device Id",
+            "type": "string"
+          },
+          "device_name": {
+            "title": "Device Name",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Error"
+          },
+          "fan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Fan"
+          },
+          "last_command": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LastCommand"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mode"
+          },
+          "power": {
+            "default": "off",
+            "title": "Power",
+            "type": "string"
+          },
+          "reachable": {
+            "default": true,
+            "title": "Reachable",
+            "type": "boolean"
+          },
+          "room_temperature": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Room Temperature"
+          },
+          "setpoint": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Setpoint"
+          },
+          "vane": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Vane"
+          },
+          "widevane": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Widevane"
+          }
+        },
+        "required": [
+          "device_id",
+          "device_name"
+        ],
+        "title": "MitsubishiHvacState",
+        "type": "object"
+      },
       "NavigationClusterConfig": {
         "additionalProperties": false,
         "properties": {

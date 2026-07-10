@@ -1,0 +1,89 @@
+{
+  "device_id": "children_room_hvac",
+  "names": {
+    "ru": "Кондиционер",
+    "en": "Air Conditioner",
+    "de": "Klimaanlage"
+  },
+  "device_class": "MitsubishiHvac",
+  "config_class": "MitsubishiHvacConfig",
+  "device_category": "appliance",
+  "room": "children_room",
+  "aliases": {
+    "ru": [
+      "кондей"
+    ]
+  },
+  "commands": {
+    "power_on": {
+      "topic": "/devices/hvac_children/controls/power/on",
+      "value": "1"
+    },
+    "power_off": {
+      "topic": "/devices/hvac_children/controls/power/on",
+      "value": "0"
+    },
+    "set_mode": {
+      "topic": "/devices/hvac_children/controls/mode/on",
+      "params": [
+        {
+          "name": "mode",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    "set_fan": {
+      "topic": "/devices/hvac_children/controls/fan/on",
+      "params": [
+        {
+          "name": "speed",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    "set_vane": {
+      "topic": "/devices/hvac_children/controls/vane/on",
+      "params": [
+        {
+          "name": "angle",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    "set_widevane": {
+      "topic": "/devices/hvac_children/controls/widevane/on",
+      "params": [
+        {
+          "name": "direction",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    "set_setpoint": {
+      "topic": "/devices/hvac_children/controls/temperature/on",
+      "params": [
+        {
+          "name": "temp",
+          "type": "float",
+          "min": 16,
+          "max": 31,
+          "required": true,
+          "units": "°C"
+        }
+      ]
+    }
+  },
+  "state_topics": {
+    "power": "/devices/hvac_children/controls/power",
+    "mode": "/devices/hvac_children/controls/mode",
+    "fan": "/devices/hvac_children/controls/fan",
+    "vane": "/devices/hvac_children/controls/vane",
+    "widevane": "/devices/hvac_children/controls/widevane",
+    "setpoint": "/devices/hvac_children/controls/temperature",
+    "room_temperature": "/devices/hvac_children/controls/room_temperature"
+  }
+}

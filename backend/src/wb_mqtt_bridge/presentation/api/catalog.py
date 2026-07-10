@@ -85,6 +85,13 @@ def _project_capability_actions(
                 params = [CatalogParam(**d) for d in raw]
                 for p in params:
                     table = enum_tables.get(p.name)
+                    if table is None and p.name == "value" and cap.state_field:
+                        # DRV-28: the `set {value}` convention (VWB-19's shape on
+                        # command-form actions) — the canonical `value` param sets the
+                        # capability's state field, so it inherits THAT field's table
+                        # (MitsubishiHvac mode/fan/vane/widevane). The by-name rule
+                        # above stays for the legacy same-named-param shape.
+                        table = enum_tables.get(cap.state_field)
                     if table is not None and p.type == "string" and p.values is None:
                         p.values = [
                             CatalogValueLabel(

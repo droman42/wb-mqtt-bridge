@@ -47,6 +47,14 @@
       "devices/reel_to_reel.json"
     ]
   },
+  "MitsubishiHvac": {
+    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:MitsubishiHvacState",
+    "deviceConfigs": [
+      "devices/bedroom_hvac.json",
+      "devices/children_room_hvac.json",
+      "devices/living_room_hvac.json"
+    ]
+  },
   "ScenarioDevice": {
     "stateClassImport": "wb_mqtt_bridge.infrastructure.scenarios.models:ScenarioWBConfig",
     "scenarioConfigPath": "scenarios",
