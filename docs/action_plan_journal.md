@@ -21,6 +21,19 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-10 — DRV-27 DONE (design: `MitsubishiHvac` dedicated driver) + DRV-28/UI-16 filed** —
+  interactive design session (`docs/design/mitsubishi_hvac_driver.md`). User-pinned decisions: name
+  **MitsubishiHvac** (not "ESP32ManagedDevice" — the modules are ESP8266 and the contract is the
+  mitsubishi2wb firmware dialect); capability map `profiles/hvac.json` → `classes/MitsubishiHvac.json`
+  (profile dies, `reconcile:false` explicit); **tables in the class map ONLY** (driver translates via
+  its attached capability map — amends the tables-in-code premise); device configs shrink to identity +
+  `mqtt_device`; typed state → VWB-18 restore-at-boot + **heartbeat reachability** (the firmware's
+  unconditional 45 s room_temperature publish; no LWT exists); NO bridge-owned WB card (the ESP32's raw
+  card "is fine like it is"); enum-value icons = the AV IconResolver mechanism → **UI-16**
+  `[P2][deferred]`. **DRV-28** filed `[P1][release]` (user pulled the implementation into the release
+  run; the voice golden re-pin consolidates on its landing). REST-firmware horizon recorded in §8
+  (bench-twin-gated, unfiled). No code.
+
 - **2026-07-10 — DRV-26 DONE (HVAC value tables → firmware numeric wire; control revived)** — the
   VWB-14 tables carried label strings as `wire`, but mitsubishi2wb speaks numeric indices and silently
   drops anything else — HVAC mode/fan/vane/widevane was dead in both directions. Fix: `wire =
