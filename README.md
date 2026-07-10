@@ -43,6 +43,8 @@ as the home's single device catalog and actuation backend.
 
 ## Documentation
 
+- **[Quickstart & tester guide](docs/QUICKSTART.md)** — install, see what the bridge
+  exposes (broker-free), run the tests, and run it locally without touching the house.
 - **[Architecture overview](docs/architecture/overview.md)** — the hexagon, its ports
   and seams, how the pieces fit.
   - **[Devices and scenarios](docs/architecture/devices-and-scenarios.md)** — drivers,
