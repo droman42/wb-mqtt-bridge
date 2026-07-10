@@ -21,6 +21,13 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-10 — DRV-27 REOPENED (design review: decomposition + explicit topics)** — the user read the
+  design doc and rejected (1) the single `climate` capability — must decompose into per-domain action
+  groups like LgTv/kitchen-hood/eMotiva, and (2) topic derivation from one `mqtt_device` field — device
+  configs must carry explicit MQTT topics per action, and the 3 HVAC configs move out of `wb-devices/`
+  to `config/devices/` root (bespoke home). Settled decisions stand (name, class-map-only tables, no WB
+  card, UI-16 icons, heartbeat, restore). Discussion continues; DRV-28 amended on re-close.
+
 - **2026-07-10 — DRV-27 DONE (design: `MitsubishiHvac` dedicated driver) + DRV-28/UI-16 filed** —
   interactive design session (`docs/design/mitsubishi_hvac_driver.md`). User-pinned decisions: name
   **MitsubishiHvac** (not "ESP32ManagedDevice" — the modules are ESP8266 and the contract is the
