@@ -219,6 +219,14 @@ async def test_execute_plan_runs_actions_in_plan_order(monkeypatch):
 
     monkeypatch.setattr(rec.asyncio, "sleep", _nosleep)
 
+    # This test pins dispatch ORDER; the fakes' static states never reach the
+    # targets, and since SCN-14 an unconfirmed feedback gate is a failure — so
+    # neutralize gating here (dedicated gate tests live below).
+    async def _gate_ok(*a, **k):
+        return True
+
+    monkeypatch.setattr(rec, "_gate", _gate_ok)
+
     calls: list = []
 
     def fake(device_id, caps, **state):
@@ -277,6 +285,108 @@ async def test_execute_plan_surfaces_failure_and_continues(monkeypatch):
     assert not result.success
     assert len(result.failures) == 1 and result.failures[0][1] == "boom"
     assert len(result.executed) == 1  # d2 still ran (failures don't abort by default)
+
+
+# --- SCN-14: gate comparison canonicalization + timeout-as-failure ------------
+# REL-3 rack findings F2+F3 (docs/review/rel3_rack_findings_2026-07-10.md): the
+# gate compared the canonical target to the raw wire state ('hdmi2' vs the LG's
+# 'HDMI_2') and could NEVER confirm, and a timeout was advisory — tv_on_speakers
+# reported success twice while ARC never engaged.
+
+
+def _feedback_action(target: str, state_field: str = "input_source", **kw) -> PlannedAction:
+    return PlannedAction(
+        "d", "input", target, "set_input",
+        feedback=True, state_field=state_field, poll_timeout_ms=1000, **kw,
+    )
+
+
+def _static_device(**state):
+    st = SimpleNamespace(**state)
+
+    async def execute_action(command, params, source="unknown"):
+        return {"success": True}
+
+    return SimpleNamespace(get_current_state=lambda: st, execute_action=execute_action)
+
+
+@pytest.mark.asyncio
+async def test_gate_confirms_wire_state_via_normalization(monkeypatch):
+    """The LG stores 'HDMI_2'/'HDMI2'; the plan targets canonical 'hdmi2' — the gate
+    must confirm instead of burning its full poll window (F2)."""
+    import wb_mqtt_bridge.domain.scenarios.reconciler as rec
+
+    async def _nosleep(*a, **k):
+        return None
+
+    monkeypatch.setattr(rec.asyncio, "sleep", _nosleep)
+
+    for wire in ("HDMI_2", "HDMI2", "hdmi2"):
+        devices = {"d": _static_device(input_source=wire)}
+        plan = ReconcilePlan(actions=[_feedback_action("hdmi2")])
+        result = await execute_plan(plan, devices)
+        assert result.success, f"gate must confirm wire form {wire!r}"
+        assert not result.failures
+
+
+@pytest.mark.asyncio
+async def test_gate_confirms_via_value_table(monkeypatch):
+    """A capability enum table (wire->canonical) translates the observed state before
+    comparison — numeric-wire devices gate correctly."""
+    import wb_mqtt_bridge.domain.scenarios.reconciler as rec
+
+    async def _nosleep(*a, **k):
+        return None
+
+    monkeypatch.setattr(rec.asyncio, "sleep", _nosleep)
+
+    devices = {"d": _static_device(mode="1")}
+    plan = ReconcilePlan(actions=[
+        _feedback_action("heat", state_field="mode", value_table={"1": "heat", "3": "cool"}),
+    ])
+    result = await execute_plan(plan, devices)
+    assert result.success and not result.failures
+
+
+@pytest.mark.asyncio
+async def test_gate_timeout_is_a_failed_step(monkeypatch):
+    """F3: a feedback:true step whose reported state never reaches the target is a
+    FAILURE in the result (it stays in `executed` — it was dispatched and acked)."""
+    import wb_mqtt_bridge.domain.scenarios.reconciler as rec
+
+    async def _nosleep(*a, **k):
+        return None
+
+    monkeypatch.setattr(rec.asyncio, "sleep", _nosleep)
+
+    devices = {"d": _static_device(input_source="source2")}  # never reaches 'arc'
+    plan = ReconcilePlan(actions=[_feedback_action("arc")])
+    result = await execute_plan(plan, devices)
+
+    assert not result.success
+    assert len(result.executed) == 1          # dispatched fine
+    assert len(result.failures) == 1          # …but never confirmed
+    action, err = result.failures[0]
+    assert action.target == "arc" and "gate timeout" in err
+
+
+@pytest.mark.asyncio
+async def test_gate_timeout_only_gates_feedback_steps(monkeypatch):
+    """Feedback-less steps keep the optimistic path — an IR toggle has nothing to
+    report, so no gate failure can exist for it."""
+    import wb_mqtt_bridge.domain.scenarios.reconciler as rec
+
+    async def _nosleep(*a, **k):
+        return None
+
+    monkeypatch.setattr(rec.asyncio, "sleep", _nosleep)
+
+    devices = {"d": _static_device(power="off")}  # state never changes
+    plan = ReconcilePlan(actions=[
+        PlannedAction("d", "power", "on", "power", feedback=False, delay_ms=500),
+    ])
+    result = await execute_plan(plan, devices)
+    assert result.success and not result.failures
 
 
 def test_build_power_off_plan_powers_off_on_devices():

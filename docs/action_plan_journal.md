@@ -21,6 +21,16 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-10 — SCN-14 DONE (reconciler gates: canonical comparison + timeout = failed step)** — the
+  gate now translates the device's reported state through the capability's value table (carried on
+  `PlannedAction`) with a normalized-comparison fallback for tableless drivers — the LG's
+  `'HDMI_2'`/`'HDMI2'` finally satisfy a `'hdmi2'` target instead of burning 3 s per activation
+  (F2, the gate had NEVER confirmed); and a `feedback:true` gate timeout is a **failed step** in the
+  result (dispatched-and-acked stays in `executed`, unconfirmed lands in `failures`) — no more
+  `tv_on_speakers` false successes (F3). Feedback-less steps stay optimistic. +4 gate tests; the
+  force-endpoint fakes now reflect commands into state (honest gates correctly fail static fakes).
+  Suite 586, pyright 0, 6/6; contracts untouched. `tv_on_speakers` now honestly fails until DRV-32.
+
 - **2026-07-10 — REL-3 sitting #1: the eMotiva ARC-window wedge — investigated live, findings frozen,
   DRV-30/SCN-14 (P0) + DRV-31/DRV-32 filed** — the first rack pass (13 ok · 4 flagged · 14 not run)
   flagged a critical: START `movie_zappiti` with the TV already on wedged the XMC-2 hard

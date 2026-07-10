@@ -34,6 +34,16 @@ def _fake_device(calls, device_class, device_id, **state):
 
     async def execute_action(command, params, source="unknown", _id=device_id):
         calls.append((_id, command, dict(params or {})))
+        # Reflect the command on believed state the way a real feedback device
+        # reports back — since SCN-14 an unconfirmed feedback gate is a FAILURE,
+        # so a static-state fake would (correctly) fail the plan.
+        p = params or {}
+        if command in ("power_on", "power"):
+            st.power = p.get("assume_state", "on")
+        elif command == "power_off":
+            st.power = "off"
+        elif command in ("set_input_source", "set_input"):
+            st.input_source = p.get("source") or p.get("input")
         return {"success": True}
 
     return SimpleNamespace(

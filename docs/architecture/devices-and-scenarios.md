@@ -140,7 +140,13 @@ The pipeline runs in `build_plan` + `execute_plan`
 5. **Execute.** For each `PlannedAction`, call `device.execute_action(action, params)`
    through the port. Success is *checked* — a failed step records the failure and
    does not block the rest; gated waits (poll for feedback / fixed IR delay) give a
-   device time to actually transition before the next action arrives.
+   device time to actually transition before the next action arrives. For a device
+   that reports its state (`feedback: true`), the gate compares the reported value
+   against the plan's target — translating through the capability's value table
+   where one is declared, and tolerating vocabulary differences (`HDMI_2` vs
+   `hdmi2`) where not — and a gate that never confirms is recorded as a **failed
+   step**: the command was sent and acknowledged, but the device never reported
+   reaching the target, and the switch result says so.
 
 The result is an `ExecutionResult { executed, failures, manual_steps }`. The scenario's
 own state (active / inactive, last switch time, last failure reason) is persisted

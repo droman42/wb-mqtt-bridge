@@ -44,6 +44,7 @@ class PlannedAction:
     pre_delay_ms: int = 0  # extra wait before this action (from a topology ordering edge)
     zone: Optional[str] = None  # multi-zone power
     reason: str = ""
+    value_table: Optional[Dict[str, str]] = None  # state_field wire -> canonical (SCN-14)
 
 
 @dataclass
@@ -166,6 +167,21 @@ def _state_value(state: Any, field_name: Optional[str]) -> Any:
     return getattr(state, field_name, None) if field_name else None
 
 
+def _wire_table(cap: Any, field_name: Optional[str]) -> Optional[Dict[str, str]]:
+    """wire -> canonical map for the capability field backing ``field_name`` (SCN-14).
+
+    Attached to the PlannedAction so the execution gate can compare the device's
+    *reported* (wire) state against the plan's *canonical* target. None when the
+    capability declares no enum table for the field — the gate then falls back to
+    normalized comparison."""
+    if not field_name:
+        return None
+    for f in getattr(cap, "fields", None) or []:
+        if f.name == field_name and f.values:
+            return {str(v.wire): str(v.canonical) for v in f.values}
+    return None
+
+
 def _power_actions(device_id, cap, state, warnings, force: bool = False) -> List[PlannedAction]:
     """Emit power actions to bring a device ON (multi-zone aware, toggle aware).
 
@@ -195,6 +211,7 @@ def _power_actions(device_id, cap, state, warnings, force: bool = False) -> List
                 command=act.command, params=params, feedback=cap.feedback,
                 state_field=zone.state_field, poll_timeout_ms=gate.poll_timeout_ms,
                 delay_ms=gate.delay_ms, zone=zone_key, reason=f"power zone {zone_key} on",
+                value_table=_wire_table(cap, zone.state_field),
             ))
         return out
 
@@ -215,6 +232,7 @@ def _power_actions(device_id, cap, state, warnings, force: bool = False) -> List
         command=act.command, params=params, feedback=cap.feedback,
         state_field=cap.state_field, poll_timeout_ms=gate.poll_timeout_ms,
         delay_ms=gate.delay_ms, reason="power on (toggle)" if is_toggle else "power on",
+        value_table=_wire_table(cap, cap.state_field),
     ))
     return out
 
@@ -246,6 +264,7 @@ def _power_off_actions(device_id, cap, state) -> List[PlannedAction]:
                 command=act.command, params=dict(act.params), feedback=cap.feedback,
                 state_field=zone.state_field, poll_timeout_ms=gate.poll_timeout_ms,
                 delay_ms=gate.delay_ms, zone=zone_key, reason=f"power zone {zone_key} off",
+                value_table=_wire_table(cap, zone.state_field),
             ))
         return out
 
@@ -259,6 +278,7 @@ def _power_off_actions(device_id, cap, state) -> List[PlannedAction]:
         command=act.command, params=dict(act.params), feedback=cap.feedback,
         state_field=cap.state_field, poll_timeout_ms=gate.poll_timeout_ms,
         delay_ms=gate.delay_ms, reason="power off",
+        value_table=_wire_table(cap, cap.state_field),
     ))
     return out
 
@@ -315,6 +335,7 @@ def _input_action(device_id, cap, state, target_value, warnings, force: bool = F
         params=params, feedback=cap.feedback, state_field=cap.state_field,
         poll_timeout_ms=gate.poll_timeout_ms, delay_ms=gate.delay_ms,
         reason=f"input -> {target_value}",
+        value_table=_wire_table(cap, cap.state_field),
     )
 
 
@@ -596,20 +617,38 @@ def _response_ok(resp: Any) -> Tuple[bool, Optional[str]]:
     return bool(getattr(resp, "success", True)), getattr(resp, "error", None)
 
 
+def _norm_value(v: Any) -> str:
+    """Vocabulary-insensitive form for gate comparison: lowercase, alphanumerics only.
+    Bridges canonical targets to raw driver state where no enum table exists —
+    'hdmi2' == 'HDMI2' == 'HDMI_2' (the LG webOS forms; REL-3 finding F2: the exact
+    comparison meant the TV-input gate NEVER confirmed)."""
+    return "".join(ch for ch in str(v).lower() if ch.isalnum())
+
+
+def _gate_reached(observed: Any, action: PlannedAction) -> bool:
+    """Does the device's reported state satisfy the plan's canonical target? (SCN-14)
+    Exact match first; then the capability's wire→canonical table when declared;
+    then normalized comparison as the tableless fallback."""
+    if observed is None:
+        return False
+    if observed == action.target:
+        return True
+    if action.value_table and action.value_table.get(str(observed)) == action.target:
+        return True
+    return _norm_value(observed) == _norm_value(action.target)
+
+
 async def _gate(device: Any, action: PlannedAction, poll_interval_ms: int) -> bool:
     """Wait for an action to take effect: poll feedback devices to the target value (up to
     ``poll_timeout_ms``); otherwise wait the fixed ``delay_ms``. Returns False on poll timeout."""
     if action.feedback and action.state_field and action.poll_timeout_ms:
         elapsed = 0
         while elapsed < action.poll_timeout_ms:
-            if getattr(device.get_current_state(), action.state_field, None) == action.target:
+            observed = getattr(device.get_current_state(), action.state_field, None)
+            if _gate_reached(observed, action):
                 return True
             await asyncio.sleep(poll_interval_ms / 1000)
             elapsed += poll_interval_ms
-        logger.warning(
-            "gate timeout: %s.%s did not reach %r within %dms (proceeding optimistically)",
-            action.device_id, action.domain, action.target, action.poll_timeout_ms,
-        )
         return False
     if action.delay_ms:
         await asyncio.sleep(action.delay_ms / 1000)
@@ -624,7 +663,14 @@ async def execute_plan(
     poll_interval_ms: int = 200,
 ) -> ExecutionResult:
     """Execute an ordered plan: honor pre-delays, dispatch the native command, check success
-    (failures are surfaced, not swallowed -- fixes RC2), then gate before the next step."""
+    (failures are surfaced, not swallowed -- fixes RC2), then gate before the next step.
+
+    SCN-14: a gate timeout on a ``feedback: true`` step is a FAILURE, not noise — the
+    device reported state and it never reached the target (REL-3 finding F3:
+    ``tv_on_speakers`` reported success twice while ARC never engaged). Such a step
+    appears in BOTH ``executed`` (it was dispatched and acked) and ``failures`` (it
+    did not take effect); ``success`` keys off ``failures``. Feedback-less steps keep
+    the optimistic path — there is nothing to know."""
     result = ExecutionResult(manual_steps=list(plan.manual_steps))
 
     for action in plan.actions:
@@ -655,6 +701,15 @@ async def execute_plan(
             continue
 
         result.executed.append(action)
-        await _gate(device, action, poll_interval_ms)
+        if not await _gate(device, action, poll_interval_ms):
+            err = (
+                f"gate timeout: {action.domain} did not reach {action.target!r} "
+                f"within {action.poll_timeout_ms}ms (device reported state never confirmed)"
+            )
+            result.failures.append((action, err))
+            logger.error("scenario step not confirmed: %s %s -> %s",
+                         action.device_id, action.command, err)
+            if abort_on_failure:
+                break
 
     return result
