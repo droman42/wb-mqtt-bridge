@@ -21,6 +21,21 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-10 — REL-4 DONE (the release docs pass — the last critical-path gate before the tag)** —
+  user-facing docs made true at the release version, in the voice project's spirit, and scrubbed of
+  ALL internal tracking language. Scope reconciled with the owner mid-task: the master-doc/governance
+  half descoped to the board (with VWB-33/34); `project.md` archived (not user-facing); `docs/planned/*`
+  ruled not-user-facing (excluded, and user-facing docs no longer link into them). Method: a four-way
+  parallel doc audit against reality (architecture/guides/READMEs/ADRs) — 8 accurate, 11 fixed. Fixed
+  the driver count (8→9), canonical-first framing (`/canonical` public, `/action` internal), DOC-11
+  (ui.md scenario-manifest → render-projection-over-Scenario-Manager), the deployed/HVAC/reports status
+  in the READMEs, contracts realism-check; added `docs/QUICKSTART.md` (safe-by-construction tester
+  guide); amended ADR 0006 + filed OPS-19 (unmirrored pyatv git source); regenerated the 2 stale
+  diagrams (canonical write path). A hard lesson mid-pass, owner-flagged twice: **user-facing docs must
+  NEVER carry task IDs / `§P3.7` refs / plan pointers** — I'd leaked three into ui.md; the final sweep
+  verifies the whole set clean. No code, no contract change. Board: **only VWB-16 (voice fixtures,
+  off critical path) now stands between here and the tag.**
+
 - **2026-07-10 — VWB-33 re-tagged `[release]` → `[deferred]` (owner: doesn't belong in release 1)** —
   at the start of the VWB-33 design session (scope/plan explained; reconciliation confirmed the
   analysis — labels are en/ru fleet-wide except HVAC's de/en/ru, aliases ru-only 35/78, names carry
