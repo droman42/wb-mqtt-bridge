@@ -5,12 +5,14 @@ Wirenboard MQTT ecosystem, runs Logitech-Harmony-style **scenarios** across them
 and pairs with the [Irene](https://github.com/droman42/wb-mqtt-voice) voice assistant
 as the home's single device catalog and actuation backend.
 
-> **Status — pre-release, single home.** The hexagonal backend, the typed config + state
-> models, and the scenario reconciler are settled and hardware-verified on a Wirenboard
-> 7. The React UI ships an iPad-portrait Harmony-style remote with backend-served runtime
-> layouts. Voice-assistant pairing and the per-device setup pages are in active
-> development; appliance pages, the topology setup page, and the Wirenboard 8 / arm64
-> image are planned. Today it runs one home, one user, LAN only.
+> **Status — deployed, single home.** The bridge runs the house from a Wirenboard 7
+> controller: the hexagonal backend, the typed config + state models, and the scenario
+> reconciler are settled and hardware-verified. The React UI ships an iPad-portrait
+> Harmony-style remote with backend-served runtime layouts, plus native panels for the
+> air conditioners and the kitchen hood. It pairs with the [Irene](https://github.com/droman42/wb-mqtt-voice)
+> voice assistant as the house's device catalog and actuation backend, and files its own
+> bug reports. Still one home, one user, LAN only; the device- and topology-setup admin
+> pages and the Wirenboard 8 / arm64 image are on the roadmap.
 
 ## What it does
 
@@ -57,15 +59,10 @@ as the home's single device catalog and actuation backend.
 - **[Report a problem](docs/guides/report-a-problem.md)** — the bug button: describe
   an issue in your own words; states, logs, and recent commands ride along
   automatically (credentials scrubbed), into a private tracker.
-- **Planned features** — designed-but-not-built admin surfaces:
-  - **[Device setup](docs/planned/device-setup.md)** — WB-cell importer + IR-learning
-    sub-page (with public IR-code database support).
-  - **[Topology setup](docs/planned/topology-setup.md)** — graph editor for the signal
-    topology, with path-preview + interactive validator.
-  - **[Appliance + room pages](docs/planned/appliance-pages.md)** — per-class
-    appliance UIs (HVAC, Roborock, …) + per-room iPad-portrait dashboards.
-  - **[Voice setup](docs/planned/voice-setup.md)** — bridge-side readiness surface
-    for the Irene pairing.
+- **On the roadmap** — designed but not yet built: a device-setup admin page (WB-cell
+  importer + IR learning with public IR-code database support), a topology-setup graph
+  editor (path preview + interactive validator), more per-room dashboard pages, and the
+  Wirenboard 8 / arm64 image.
 - **[Contributing](CONTRIBUTING.md)** — developer setup, conventions, the gates each
   commit must clear. How-tos: [add a device with an existing
   driver](docs/guides/howto-new-device.md), [add a new device driver with a native

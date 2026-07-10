@@ -160,5 +160,3 @@ configurations) genuinely don't have a room until the topology assigns one.
 - **[Key concepts](key-concepts.md)** — where `room_id` lives in
   `ScenarioDefinition` and how the catalog uses it.
 - **[Interfaces](interfaces.md)** — the `/room/*` and `/system/catalog` endpoints.
-- **[Planned: voice setup](../planned/voice-setup.md)** — the voice-assistant
-  integration that consumes rooms.

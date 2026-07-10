@@ -61,10 +61,15 @@ normal backend test job and fails if the committed copies are stale — any conf
 capability-map, or API change that alters the contract without a re-dump breaks CI
 with the one-command fix above.
 
-## Realism check (pending)
+## Realism check
 
-Once the bridge is deployed on the WB7 controller (the `ops/` compose cutover), a
-live dump — `curl http://<wb7>:8000/system/catalog` — diffed against
-`catalog.golden.json` verifies the *deployed* bridge serves what the repo says
-(deployment drift, not config drift). Until the cutover, the golden alone is the
-contract.
+The bridge runs on the WB7 controller, and its live catalog has been verified a
+byte-for-byte match against `catalog.golden.json` — so the *deployed* bridge serves
+exactly what the repo says (no deployment drift). To re-check at any time, dump the
+live catalog and diff it against the golden:
+
+```bash
+curl -s http://<wb7>:8000/system/catalog | diff - catalog.golden.json
+```
+
+An empty diff means the deployed bridge and the committed contract agree.

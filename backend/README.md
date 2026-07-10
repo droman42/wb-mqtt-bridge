@@ -22,6 +22,8 @@ A Python-based web service that integrates as an MQTT client with Wirenboard wb-
   - Revox A77 Reel-to-Reel tape recorder
   - eMotiva XMC2 Device - using [pymotivaxmc2](https://github.com/droman42/pymotivaxmc2) library
   - Auralic Altair G1 - using [openhomedevice](https://github.com/bazwilliams/openhomedevice) library in combination with Wirenboard MSW V3 IR interface
+  - Native Wirenboard controls - relays, dimmers, RGBW, covers, heating valves, multi-sensors via the config-driven WB-passthrough driver
+  - Mitsubishi air conditioners - via the AC firmware's MQTT dialect (bespoke driver)
 
   **Planned (not yet implemented):** Roborock S8 vacuum cleaner ([python-roborock](https://github.com/Python-roborock/python-roborock)).
 
@@ -291,7 +293,7 @@ The system organizes device actions into functional groups for easier management
 
 ### Supported Device Types
 
-Seven device drivers ship today, each under `src/wb_mqtt_bridge/infrastructure/devices/<name>/driver.py`:
+Nine device drivers ship today, each under `src/wb_mqtt_bridge/infrastructure/devices/<name>/driver.py`:
 
 1. **LG TV** (`lg_tv/driver.py`, class `LgTv`) — webOS TV over WebSocket (asyncwebostv); power, volume, app launching, input switching, pointer.
 2. **eMotiva XMC2** (`emotiva_xmc2/driver.py`, class `EMotivaXMC2`) — dual-zone AV processor (pymotivaxmc2); power/Zone-2 power, volume, input, notifications.
@@ -300,6 +302,8 @@ Seven device drivers ship today, each under `src/wb_mqtt_bridge/infrastructure/d
 5. **Broadlink Kitchen Hood** (`broadlink_kitchen_hood/driver.py`, class `BroadlinkKitchenHood`) — RF light + fan-speed control via a Broadlink hub.
 6. **Wirenboard IR Device** (`wirenboard_ir_device/driver.py`, class `WirenboardIRDevice`) — generic IR over the Wirenboard MQTT interface.
 7. **Revox A77 Reel-to-Reel** (`revox_a77_reel_to_reel/driver.py`, class `RevoxA77ReelToReel`) — transport control for the tape deck (IR via Wirenboard).
+8. **WB Passthrough** (`wb_passthrough/driver.py`, class `WbPassthroughDevice`) — one config-driven class fronting every native Wirenboard control (relays, dimmers, RGBW, covers, heating valves, multi-sensors) as a first-class device.
+9. **Mitsubishi HVAC** (`mitsubishi_hvac/driver.py`, class `MitsubishiHvac`) — the Mitsubishi air conditioners, speaking the AC firmware's MQTT dialect directly; typed climate state with restore-at-boot.
 
 ## Creating New Device Implementations
 
@@ -369,7 +373,7 @@ Version `0.5.0 Alpha`. The codebase has completed its move to a hexagonal
 configs and per-device state models:
 
 - ✅ Optional/required parameter handling with validation
-- ✅ Standardized handler signatures across all 7 drivers
+- ✅ Standardized handler signatures across all 9 drivers
 - ✅ Strongly-typed configuration models (`device_class` + `config_class`)
 - ✅ Per-device Pydantic state models, persisted to SQLite
 - ✅ Scenario system + Wirenboard virtual-device emulation

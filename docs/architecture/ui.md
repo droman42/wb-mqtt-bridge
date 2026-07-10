@@ -205,15 +205,11 @@ value vocabulary and `/events/devices` for live state. How it's wired today:
 Shipped today: the **three Mitsubishi air conditioners** (`bedroom_hvac`,
 `living_room_hvac`, `children_room_hvac`) via `HvacPanel.tsx` — a native mode/fan/vane
 grid with enum-value icons resolved through the shared icon layer — and
-the **kitchen hood**. See **[Planned: appliance pages](../planned/appliance-pages.md)**
-for the appliance UI's design history and what's still on the roadmap.
+the **kitchen hood**. More per-class appliance pages and per-room dashboards are on
+the roadmap.
 
 ## Where to go next
 
 - **[Interfaces](interfaces.md)** — the REST + SSE endpoints the UI consumes.
 - **[Devices and scenarios](devices-and-scenarios.md)** — how the capability
   map feeds the layout engine.
-- **[Planned: device setup](../planned/device-setup.md)** — the not-yet-built
-  device admin UI.
-- **[Planned: appliance pages](../planned/appliance-pages.md)** — the
-  appliance UI shape.
