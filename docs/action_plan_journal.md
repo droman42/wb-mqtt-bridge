@@ -21,6 +21,24 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-10 — REL-3 sitting #1: the eMotiva ARC-window wedge — investigated live, findings frozen,
+  DRV-30/SCN-14 (P0) + DRV-31/DRV-32 filed** — the first rack pass (13 ok · 4 flagged · 14 not run)
+  flagged a critical: START `movie_zappiti` with the TV already on wedged the XMC-2 hard
+  (wall-unplug). Same-day forensics (owner-copied container logs + five controlled power-ups + a
+  remote OSD probe over the protocol's menu system, `scripts/emotiva_menu_probe.py`): the bridge
+  fired `set_input` **3.3 s into a CEC/ARC handshake its own state already showed**
+  (`input_source='arc'` at power-on +0.4 s); the safety spacing between `processor.power` and
+  `processor.input` was only ever accidental (edges collapse on a warm TV + the TV gate burns a
+  dead 3 s — the gate compares canonical `'hdmi2'` to wire `'HDMI_2'` and has NEVER confirmed);
+  `tv_on_speakers` reported success twice while ARC never engaged (gate timeout is advisory);
+  the wedge+unplug also wiped the device-side subscriptions (bridge deaf until restart) AND
+  **reset the XMC-2's CEC config to disabled** (panel read: Enable + Audio to TV off) — the
+  afternoon's "ARC is dead" mystery. Evidence: `docs/review/rel3_rack_findings_2026-07-10.md`.
+  Filed: **DRV-30** (readiness gate + keepAlive 7500 ms watchdog + re-subscribe on recovery,
+  P0 release), **SCN-14** (gate canonicalization + timeout→failed-step, P0 release), DRV-31
+  (Zappiti IR toggle miss, deferred), DRV-32 (CEC restoration + ARC bench, deferred HW-GATED —
+  owner decision: post-release). REL-3 sitting #2 after the P0s land.
+
 - **2026-07-10 — SCN-13 FILED; the two-room drill leaves REL-3 (user catch on the checklist)** —
   the REL-3 checklist still carried the SCN-6-owed two-room concurrency drill, but second-room
   scenarios went post-release at the 2026-07-04 SCN-4/SCN-6 amendment ("a future round") and the
