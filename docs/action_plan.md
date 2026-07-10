@@ -29,8 +29,9 @@ This document captures the project state and a prioritized action plan, revised 
    → **REL-2**.
 2. **Everything works on hardware** — the per-driver pass completes (**DRV-1**, incl. the
    mf_amplifier re-check), Apple TV app launching (**DRV-2**), the four music scenarios (**SCN-3**),
-   plus the converged rack pass (**REL-3**: WB scenario cards + two-room drill, HVAC canonical
-   check, end-to-end re-verification — absorbs acceptance-gate item 5).
+   plus the converged rack pass (**REL-3**: WB scenario cards, HVAC live pass, end-to-end
+   re-verification — absorbs acceptance-gate item 5; the two-room drill rides SCN-13
+   post-release with the second scenario set).
 3. **Voice contract proven both ways** — `contracts/` pinned by the voice side (their TEST-17) +
    the crossover consumer test green (**VWB-16**); catalog completeness sweep (**VWB-13**).
 4. **Operational quality** — the IR desync escape hatch (**DRV-5**); no shutdown hang / startup
@@ -257,6 +258,16 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   confirmation. SCN-10 is therefore reconciler-only logic plus at most one optional
   topology-edge field (confirm-vs-delay semantics); `feedback: false` firsts fall back to
   `delay_ms`. Post-release: the 5 s settle serves the house fine.
+
+- [ ] **SCN-13** `[P2]` `[deferred]` — **Second-room scenario set + the live two-room concurrency
+  drill.** Filed 2026-07-10 when the drill was pulled out of REL-3: the SCN-6 per-room mechanism
+  shipped and is mock-verified (14-test two-room proxy suite), but **every configured scenario is
+  `living_room`** — the children-room set was declared "a future round" at the SCN-4/SCN-6
+  amendment (journal 2026-07-04) and never became scope, so the drill has nothing to run against
+  and cannot gate release 1. Scope when picked up: author the children-room scenarios (the room
+  already carries `children_room_tv` + `appletv_children`), then the HW verification SCN-6 recorded
+  as owed — both rooms' scenarios active concurrently, per-room Scenario Manager isolation (no
+  cross-talk, both WB «Сценарии» cards correct, in-room-only transition diffs).
 
 
 ### VWB — Voice-integration + native WB onboarding
@@ -723,7 +734,7 @@ all done; DOC-7 folded into DOC-9.
 
 ### REL — Release
 
-- [ ] **REL-3** `[P0]` `[release]` `HW-GATED` — **The converged release verification pass (rack session).** Single convergence point for every HW verification owed by closed tasks (the voice repo's ARCH-25 pattern): WB scenario cards + the live two-room concurrency drill (owed by SCN-6), the HVAC canonical HW check (owed by the VWB-14/24 chain), **the DRV-1 close residuals (updated through the 2026-07-07 sitting): all three suspect ROMs re-learned same day (zappiti power ROM26 + subtitles ROM38 verified; mf_amplifier mute ROM20 re-learned, functional re-check rides the music sitting), + the optional LG reconnect-cycle test + a movie_zappiti re-activation feel-check of the 5 s `processor.input → video.power` settle (mechanism proven, the edge itself untraversed since the delay landed),** plus the DRV-5 force re-tap feel-check and the SCN-11 reconcile dialog on real hardware, plus the **end-to-end re-verification after cleanup** (absorbs acceptance-gate item 5), closed by a `check_scope.py` + CI green-light. Runs AFTER REL-2 (needs the bridge live on the controller) and alongside/after DRV-1's per-driver rows. **The code-review half of acceptance-gate item 4 was split out to REL-5 (2026-07-09) — it needs neither the rack nor the deployed bridge.** Exit-criteria items 2 + 5.
+- [ ] **REL-3** `[P0]` `[release]` `HW-GATED` — **The converged release verification pass (rack session).** Single convergence point for every HW verification owed by closed tasks (the voice repo's ARCH-25 pattern): WB scenario cards (living room — **the two-room concurrency drill moved to SCN-13 2026-07-10:** second-room scenarios are post-release, every configured scenario is `living_room`, so the drill has nothing to run against), the HVAC live pass (the DRV-26/28/29 driver arc superseded the old VWB-14/24 read-path watch), **the DRV-1 close residuals (updated through the 2026-07-07 sitting): all three suspect ROMs re-learned same day (zappiti power ROM26 + subtitles ROM38 verified; mf_amplifier mute ROM20 re-learned, functional re-check rides the music sitting), + the optional LG reconnect-cycle test + a movie_zappiti re-activation feel-check of the 5 s `processor.input → video.power` settle (mechanism proven, the edge itself untraversed since the delay landed),** plus the DRV-5 force re-tap feel-check and the SCN-11 reconcile dialog on real hardware, plus the **end-to-end re-verification after cleanup** (absorbs acceptance-gate item 5), closed by a `check_scope.py` + CI green-light. Runs AFTER REL-2 (needs the bridge live on the controller) and alongside/after DRV-1's per-driver rows. **The code-review half of acceptance-gate item 4 was split out to REL-5 (2026-07-09) — it needs neither the rack nor the deployed bridge.** Exit-criteria items 2 + 5.
 
 - [ ] **REL-4** `[P1]` `[release]` — **Release docs pass — project-wide doc reconciliation + master-doc handover.** The §0 recorded promise ("the redesign specs fully retire to history… a project-wide doc reconciliation formalizes the handover"): shift the project from plan-driven to architecture-driven (`project.md` / `architecture.md` / `ui_backend_contract.md` as the master set), verify every user-facing doc (`docs/architecture/*`, `docs/guides/*`, READMEs, `contracts/README.md`) tells the truth at the release version, regenerate stale diagrams. **DOC-11 folds in here** (the ui.md canonical-dispatch narrative — DOC-7→DOC-9 precedent). Exit-criteria item 6. **Gated by REL-3 + REL-5** (both the rack pass and review remediation may change what the docs must describe); last task before the tag — see the Ordering table in the definition.
 

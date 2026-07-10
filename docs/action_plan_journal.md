@@ -21,6 +21,16 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-10 — SCN-13 FILED; the two-room drill leaves REL-3 (user catch on the checklist)** —
+  the REL-3 checklist still carried the SCN-6-owed two-room concurrency drill, but second-room
+  scenarios went post-release at the 2026-07-04 SCN-4/SCN-6 amendment ("a future round") and the
+  move never propagated into REL-3's entry or the release-definition item 2 — and every configured
+  scenario is `living_room`, so the drill has nothing to run against. Fixed all three places:
+  REL-3 entry + definition item 2 now point at SCN-13 (`[P2]` `[deferred]`: author the
+  children-room set, then the concurrency drill SCN-6 recorded as owed); the rack-checklist
+  artifact dropped the station (same URL). REL-3's HVAC line also refreshed — the DRV-26/28/29
+  driver arc superseded the old VWB-14/24 read-path watch.
+
 - **2026-07-10 — VWB-34 FILED (publish confirmation-timing in the contract — design, post-release)** —
   off the DRV-29 post-mortem: "your HTTP timeout must exceed 15 s" is contract information delivered
   out-of-band in a handover note — retune a gate and voice breaks silently again. Filed `[P2]`
