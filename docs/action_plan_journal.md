@@ -21,6 +21,12 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-11 — OPS-21 controller cutover CONFIRMED on hardware.** Owner flipped the new GHCR packages
+  public (org-policy fix: allow public package creation) and ran `ops/migrate-to-locveil.sh` on the WB7:
+  migration successful — `locveil-bridge` + `locveil-bridge-ui` running from
+  `/mnt/data/locveil-bridge-config` under `locveil-bridge.service`. No wb-mqtt naming left on the box
+  (the WB system services `wb-mqtt-serial`/`wb-rules` are Wirenboard's own, not ours).
+
 - **2026-07-11 — OPS-21: deployment identity renamed — after the migration script runs, nothing on the
   controller says wb-mqtt.** Second act of the rename day, coordinated with voice BUILD-29 (owner call:
   finish the re-pointing down to the metal). Images → `locveil-bridge` + `locveil-bridge-ui`, containers,
