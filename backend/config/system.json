@@ -35,6 +35,7 @@
     "aiosqlite": "INFO"
   },
   "reports": {
-    "enabled": true
+    "enabled": true,
+    "repo": "locveil/locveil-reports"
   }
 }

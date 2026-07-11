@@ -3431,7 +3431,7 @@
         "type": "object"
       },
       "ReportsConfigResponse": {
-        "description": "Problem-reporting settings as served (the PAT itself never appears — only\nthe name of the env var holding it).",
+        "description": "Problem-reporting settings as served (the PAT itself never appears — only\nthe name of the env var holding it). `repo` mirrors the config: no default,\nabsent unless configured.",
         "properties": {
           "dispatch_ring_depth": {
             "default": 50,
@@ -3464,9 +3464,15 @@
             "type": "integer"
           },
           "repo": {
-            "default": "droman42/wb-user-reports",
-            "title": "Repo",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repo"
           },
           "token_env": {
             "default": "WB_REPORTS_TOKEN",

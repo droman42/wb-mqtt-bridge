@@ -30,9 +30,9 @@ class EvidenceEnvelope(BaseModel):
 
 @dataclass
 class ReportsSettings:
-    """Plain settings handed to the domain service (built from the infra config in bootstrap)."""
+    """Plain settings handed to the domain service (built from the infra config in bootstrap).
+    The target repo is the sink's concern (see ``GitHubReportSink``), not the domain's."""
     enabled: bool = False
-    repo: str = "droman42/wb-user-reports"
     max_reports_per_hour: int = 3
     max_reports_per_day: int = 10
     log_file: Optional[Path] = None

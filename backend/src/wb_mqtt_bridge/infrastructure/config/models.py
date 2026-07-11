@@ -445,15 +445,22 @@ class MaintenanceConfig(BaseModel):
 class ReportsConfig(BaseModel):
     """Problem-reporting configuration (problem_reports_bridge.md B-6/B-8/B-9).
     Filing is opt-in (`enabled`); the evidence endpoint and rings are always on.
-    The GitHub PAT is NEVER in config — only the name of the env var holding it."""
+    The GitHub PAT is NEVER in config — only the name of the env var holding it.
+    `repo` carries no default: enabling filing requires naming the repo explicitly."""
     enabled: bool = Field(default=False, description="Enable filing reports to the reports repo")
-    repo: str = Field(default="droman42/wb-user-reports", description="GitHub repo receiving tickets + bundles")
+    repo: Optional[str] = Field(default=None, description="GitHub repo receiving tickets + bundles (owner/name; required when enabled)")
     token_env: str = Field(default="WB_REPORTS_TOKEN", description="Env var holding the fine-grained PAT")
     max_reports_per_hour: int = Field(default=3, description="Client-side rate limit (mirror of the voice D-7)")
     max_reports_per_day: int = Field(default=10, description="Client-side rate limit (mirror of the voice D-7)")
     dispatch_ring_depth: int = Field(default=50, description="Dispatch evidence ring depth (B-9)")
     mqtt_window_seconds: int = Field(default=60, description="MQTT evidence window age cap (B-9)")
     mqtt_window_max_messages: int = Field(default=500, description="MQTT evidence window size cap (B-9)")
+
+    @model_validator(mode="after")
+    def _repo_required_when_enabled(self) -> "ReportsConfig":
+        if self.enabled and not self.repo:
+            raise ValueError("reports.enabled requires an explicit reports.repo (owner/name)")
+        return self
 
 
 class SystemConfig(BaseModel):

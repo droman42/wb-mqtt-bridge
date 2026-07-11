@@ -447,15 +447,17 @@ def create_app() -> FastAPI:
             import platform as _platform
             assert state_store is not None  # set earlier in this lifespan; narrows for the closure below
             _report_state_store = state_store
-            report_sink = GitHubReportSink(
-                repo=reports_cfg.repo,
-                token_env=reports_cfg.token_env,
-                spool_dir=Path("data/reports"),
-            )
+            report_sink = None
+            if reports_cfg.enabled:
+                assert reports_cfg.repo is not None  # ReportsConfig validator: enabled requires repo
+                report_sink = GitHubReportSink(
+                    repo=reports_cfg.repo,
+                    token_env=reports_cfg.token_env,
+                    spool_dir=Path("data/reports"),
+                )
             report_service = ReportService(
                 settings=ReportsSettings(
                     enabled=reports_cfg.enabled,
-                    repo=reports_cfg.repo,
                     max_reports_per_hour=reports_cfg.max_reports_per_hour,
                     max_reports_per_day=reports_cfg.max_reports_per_day,
                     log_file=Path(system_config.log_file) if system_config.log_file else None,
@@ -475,11 +477,12 @@ def create_app() -> FastAPI:
             # B-7 spool retry: once at startup, then hourly (only meaningful when filing
             # is enabled — a disabled bridge never spools). (report_retry_task is
             # predeclared above the try so the failure cleanup can reference it.)
-            if reports_cfg.enabled:
+            if report_sink is not None:
+                _retry_sink = report_sink
                 async def _report_retry_loop() -> None:
                     while True:
                         try:
-                            delivered = await report_sink.retry_spooled()
+                            delivered = await _retry_sink.retry_spooled()
                             if delivered:
                                 logger.info(f"Delivered {delivered} spooled problem report(s)")
                         except Exception as e:

@@ -76,7 +76,7 @@ The clone is re-pullable "garbage" — it goes on the roomy SD card, keeping
 
 ```bash
 cd /mnt/sdcard
-sudo git clone https://github.com/droman42/locveil-bridge locveil-bridge
+sudo git clone https://github.com/locveil/locveil-bridge locveil-bridge
 ```
 
 The existing `/mnt/data/locveil-bridge-config/{config,data,logs}` tree stays exactly
@@ -203,9 +203,10 @@ EOF
 chmod 600 /mnt/data/locveil-bridge-config/.env
 ```
 
-Then set `"reports": {"enabled": true, ...}` in the repo's
-`backend/config/system.json` (commit it — the repo is the config source of
-truth), run `update.sh` (or restart:
+Then set `"reports": {"enabled": true, "repo": "<owner>/<reports-repo>", ...}` in
+the repo's `backend/config/system.json` (commit it — the repo is the config source
+of truth). The target repo must be named explicitly — enabling reports without a
+`repo` refuses to start. Run `update.sh` (or restart:
 `sudo systemctl restart locveil-bridge.service`). Both start paths — the systemd
 unit and `update.sh` — read the same `.env` file, so the token survives updates.
 Without the file, reporting simply stays disabled; nothing else is affected.
@@ -218,7 +219,7 @@ The first time the CI workflow pushes images to `ghcr.io/locveil/locveil-bridge`
 and `ghcr.io/locveil/locveil-bridge-ui`, they're created **private** by default. To
 let the WB pull them anonymously (no PAT):
 
-1. Go to https://github.com/users/droman42/packages and find each package.
+1. Go to https://github.com/orgs/locveil/packages and find each package.
 2. Package settings → Danger Zone → "Change visibility" → Public.
 
 Do this once per package; future pushes inherit the visibility.

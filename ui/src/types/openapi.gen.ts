@@ -2756,7 +2756,8 @@ export interface components {
         /**
          * ReportsConfigResponse
          * @description Problem-reporting settings as served (the PAT itself never appears — only
-         *     the name of the env var holding it).
+         *     the name of the env var holding it). `repo` mirrors the config: no default,
+         *     absent unless configured.
          */
         ReportsConfigResponse: {
             /**
@@ -2789,11 +2790,8 @@ export interface components {
              * @default 60
              */
             mqtt_window_seconds: number;
-            /**
-             * Repo
-             * @default droman42/wb-user-reports
-             */
-            repo: string;
+            /** Repo */
+            repo?: string | null;
             /**
              * Token Env
              * @default WB_REPORTS_TOKEN

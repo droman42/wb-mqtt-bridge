@@ -7,8 +7,10 @@ placement + look) decided interactively the same day, pre-VWB-28.**
 
 The bridge's half of the cross-repo problem-reporting loop designed in
 `locveil-voice/docs/design/problem_reports.md` (ARCH-30, AGREED 2026-07-06). The shared pieces —
-the private `wb-user-reports` triage home, the one-Claude-two-lenses choreography, the envelope —
-are defined THERE and consumed here unchanged. This document decides only what is the bridge's
+the private `locveil/locveil-reports` triage home (named `droman42/wb-user-reports` until the
+2026-07-11 org transfer, PROD-14/HK-3), the one-Claude-two-lenses choreography, the envelope —
+are defined THERE and consumed here unchanged; since HK-3 the wire-visible surface is the
+versioned machine core `locveil-commons/process/report-protocol/` (pinned here, VWB-37). This document decides only what is the bridge's
 own: what a UI-originated report collects, how it is assembled and delivered, and what new
 evidence infrastructure v1 builds.
 
@@ -42,10 +44,11 @@ evidence infrastructure v1 builds.
   at household volume.
 - **B-8 — Endpoint + token.** `POST /reports` takes `{free_text, context, ui_evidence}`; the
   backend assembles Tiers A+B (§3), merges the UI's Tier C, redacts, packages, and files the
-  shared envelope (one issue + one bundle commit in `wb-user-reports`; title
+  shared envelope (one issue + one bundle commit in `locveil/locveil-reports`; title
   `[bridge-ui] <first 60 chars>`; labels `problem-report`, `lens:bridge`, `new`). The
-  fine-grained PAT (issues + contents on `wb-user-reports` ONLY) lives in the controller's
-  environment — never in the browser.
+  fine-grained PAT (issues + contents on `locveil/locveil-reports` ONLY) lives in the
+  controller's environment — never in the browser. The target repo is an explicit
+  `system.json` `reports.repo` value — the schema carries no default (HK-3 q4).
 - **B-9 — Ring parameters** (tunable defaults): dispatch ring depth 50; MQTT window filtered to
   `/devices/#` with per-topic last-value dedup, capped at ~60 s / 500 messages (tames sensor
   churn); browser rings ~200 entries each.
@@ -129,8 +132,8 @@ bundle link, report id.
 
 | Where | What |
 |---|---|
-| controller env (`ops/` compose) | fine-grained PAT → `wb-user-reports` only |
-| `system.json` | `reports` section: `enabled`, `repo`, rate limits (B-6), ring tunables (B-9) |
+| controller env (`ops/` compose) | fine-grained PAT → `locveil/locveil-reports` only |
+| `system.json` | `reports` section: `enabled`, `repo` (explicit — no schema default; required when enabled), rate limits (B-6), ring tunables (B-9) |
 | browser | nothing — the UI only ever talks to `POST /reports` |
 
 ## 7. Implementation

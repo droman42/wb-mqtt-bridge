@@ -1,6 +1,6 @@
 ---
 name: inbox
-description: Review the problem-report queue one item at a time — fix PRs on this repo and owner-escalated tickets from wb-user-reports (VWB-26). Invoke when the user asks to review reports, check the inbox, or triage the queue, or when a session-start reminder flags pending items.
+description: Review the problem-report queue one item at a time — fix PRs on this repo and owner-escalated tickets from locveil-reports (VWB-26). Invoke when the user asks to review reports, check the inbox, or triage the queue, or when a session-start reminder flags pending items.
 ---
 
 # /inbox — problem-report owner review (bridge lens)
@@ -8,12 +8,12 @@ description: Review the problem-report queue one item at a time — fix PRs on t
 The interactive review loop for the problem-reporting system (the cross-repo design in
 `locveil-voice/docs/design/problem_reports.md` §8; the bridge's participation is
 `docs/design/problem_reports_bridge.md`). Reports land as tickets in the **private**
-`droman42/wb-user-reports` repo; a GitHub-hosted Claude triages each one and leaves it in one of
+`locveil/locveil-reports` repo; a GitHub-hosted Claude triages each one and leaves it in one of
 two states that need the owner: a **fix PR open on this repo**, or an **escalated ticket**
 (`needs-owner`). This skill walks that queue **one item at a time**, with the owner deciding each.
 
 The reports repo is the source of truth for the queue — not this repo's PR list. Every actionable
-item has a `wb-user-reports` ticket; a fix PR is linked from its ticket.
+item has a `locveil-reports` ticket; a fix PR is linked from its ticket.
 
 ## 1. Gather the queue
 
@@ -21,11 +21,11 @@ Two buckets, bridge lens only (the voice twin is the voice repo's `/inbox`):
 
 ```bash
 # fix PRs awaiting review (ticket carries the PR link)
-gh issue list --repo droman42/wb-user-reports --label fix-pr-open --label lens:bridge \
+gh issue list --repo locveil/locveil-reports --label fix-pr-open --label lens:bridge \
   --state open --json number,title,url
 
 # escalations awaiting an owner decision or reply
-gh issue list --repo droman42/wb-user-reports --label needs-owner --label lens:bridge \
+gh issue list --repo locveil/locveil-reports --label needs-owner --label lens:bridge \
   --state open --json number,title,url
 ```
 
@@ -39,7 +39,7 @@ owner says skip.
 
 ### A `fix-pr-open` ticket
 
-1. Read the ticket + the triage comment (`gh issue view <n> --repo droman42/wb-user-reports --comments`).
+1. Read the ticket + the triage comment (`gh issue view <n> --repo locveil/locveil-reports --comments`).
    A handed-over ticket carries the voice lens's handover comment — what they already ruled out.
 2. Open the linked PR here (`gh pr view <pr> --json title,body,files,additions,deletions`;
    `gh pr diff <pr>`).
@@ -55,7 +55,7 @@ owner says skip.
 5. On the owner's call:
    - **merge** → `gh pr merge <pr> --squash --delete-branch` (removes the triage's remote branch;
      also delete any local review branch you created, e.g. `git branch -D pr-<n>-review`);
-     close the ticket with a note (`gh issue close <n> --repo droman42/wb-user-reports --comment "..."`);
+     close the ticket with a note (`gh issue close <n> --repo locveil/locveil-reports --comment "..."`);
      then do the ledger's half yourself: the merged fix is work — file/complete it per
      `every-task-in-the-ledger` + `read-at-start-record-at-completion` (journal entry; DONE row at
      sorted position — the ledger-discipline triad applies).

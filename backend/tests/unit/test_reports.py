@@ -100,6 +100,17 @@ def test_redact_text_masks_url_embedded_credentials():
     assert "admin" in red and "192.168.110.250" in red  # user + host stay diagnostic
 
 
+def test_reports_config_requires_explicit_repo_when_enabled():
+    """VWB-35 (HK-3 q4): the schema carries no repo default — enabling filing
+    without naming the repo must refuse to load; disabled stays valid repo-less."""
+    from wb_mqtt_bridge.infrastructure.config.models import ReportsConfig
+    assert ReportsConfig().repo is None
+    assert ReportsConfig(enabled=False).enabled is False
+    with pytest.raises(ValueError, match="reports.repo"):
+        ReportsConfig(enabled=True)
+    assert ReportsConfig(enabled=True, repo="locveil/locveil-reports").repo == "locveil/locveil-reports"
+
+
 @pytest.mark.asyncio
 async def test_file_report_ids_are_unique(tmp_path):
     """VWB-30 #15: report_id doubles as the spool filename — two reports in the same

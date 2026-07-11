@@ -1,7 +1,8 @@
 """GitHub report sink (problem_reports_bridge.md B-7/B-8): files one report as an
-issue + a bundle commit in the private ``wb-user-reports`` repo, per the shared §5
-envelope. Owns the offline spool — a failed delivery lands in ``data/reports/``
-and is retried at startup + hourly; the port contract is "never lose a report"."""
+issue + a bundle commit in the private reports repo (``system.json``
+``reports.repo`` — ``locveil/locveil-reports``), per the shared §5 envelope. Owns
+the offline spool — a failed delivery lands in ``data/reports/`` and is retried
+at startup + hourly; the port contract is "never lose a report"."""
 
 import json
 import logging

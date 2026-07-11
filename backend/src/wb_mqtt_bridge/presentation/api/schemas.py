@@ -35,10 +35,11 @@ class MaintenanceConfigResponse(BaseModel):
 
 class ReportsConfigResponse(BaseModel):
     """Problem-reporting settings as served (the PAT itself never appears — only
-    the name of the env var holding it)."""
+    the name of the env var holding it). `repo` mirrors the config: no default,
+    absent unless configured."""
     model_config = ConfigDict(from_attributes=True)
     enabled: bool = False
-    repo: str = "droman42/wb-user-reports"
+    repo: Optional[str] = None
     token_env: str = "WB_REPORTS_TOKEN"
     max_reports_per_hour: int = 3
     max_reports_per_day: int = 10

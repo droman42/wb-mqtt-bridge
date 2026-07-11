@@ -135,11 +135,11 @@ the board, never in chat.
   docs too:** update the source (`docs/images/*.dot`) and regenerate the PNG in the existing visual style.
   _Pairs with `config-ui-stays-functional` (the user-facing **app**; this is the user-facing **docs**)._
 - **`problem-report-inbox`** — problem reports land as tickets in the private
-  `droman42/wb-user-reports` repo (cross-repo design: `locveil-voice/docs/design/problem_reports.md`;
+  `locveil/locveil-reports` repo (cross-repo design: `locveil-voice/docs/design/problem_reports.md`;
   the bridge side: `docs/design/problem_reports_bridge.md`); a cloud Claude triages each and leaves it
   needing the owner (a fix PR open on this repo, or a `needs-owner` escalation). **At the start of a new
   or resumed session, do a quick, non-blocking check** —
-  `gh issue list --repo droman42/wb-user-reports --label needs-owner --label lens:bridge --state open`
+  `gh issue list --repo locveil/locveil-reports --label needs-owner --label lens:bridge --state open`
   plus the `fix-pr-open` variant — and if anything is waiting, **mention the count in one line** and
   offer `/inbox`. Never auto-enter the review; the owner decides when. (Skill: `.claude/skills/inbox/`.
   A `gh` failure — no network, no auth — is silently skipped; this check must never block or noise up a
