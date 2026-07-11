@@ -687,6 +687,23 @@ endpoint).
 
 - [ ] **OPS-19** `[P2]` `[deferred]` — **`pyatv` git source is unmirrored — Rule 2 compliance gap (ADR 0006).** Surfaced by the REL-4 ADR review. `pyatv` is pinned to `git+https://github.com/postlund/pyatv@9177803…` — SHA-pinned (immutable, so the build is reproducible today) but **not** mirrored under the owner's account, which ADR 0006 Rule 2 requires for repos the owner doesn't control; the ADR's "only remaining git source" claim is now false (annotated 2026-07-10). Residual risk: an upstream force-push/deletion of `postlund/pyatv` breaks recovery. **Decision + small op:** either mirror `postlund/pyatv` → `droman42/pyatv` and repoint the pin (comply), OR record an accepted exception in ADR 0006 with rationale. Not a release gate (reproducible now). Minor sibling: the dev-only `py-dev-gates@v0.1.1` is tag-pinned (owner-controlled) — fold in or leave.
 
+- [ ] **OPS-22** `[P1]` — **Scope-guard cutover: vendor the commons ledger guard at `scope-v1`, retire
+  `scripts/check_scope.py`** (board delegation, `locveil-commons` PROD-13 / HK-1 council decision
+  2026-07-11; normative convention `locveil-commons/process/ledger-discipline.md`; verified against
+  live code at intake — tool + `examples/bridge.scope-guard.toml` run green on this tree, tag matches
+  HEAD). Scope: (1) vendor `scope_guard.py` at tag `scope-v1` into `scripts/` + author
+  `.scope-guard.toml` from the verified example (aliases + tombstones stay ON); (2) retire
+  `scripts/check_scope.py` after the vendored tool proves green, re-point the `ledger-guard` job +
+  `ledger` paths-filter in `.github/workflows/build-arm.yml`; (3) install the committed-hooks
+  mechanism (`hooks/pre-commit` + one-time `git config core.hooksPath hooks`) running the check
+  pre-commit — with `work-on-main`, the hook is the only pre-CI gate; (4) update the
+  `single-task-ledger` / `one-active-journal` invariant text in CLAUDE.md in the same change;
+  (5) adopt the DONE-ledger rotation rule (new for bridge, watermarks 3000/2000/4000) and run the
+  overdue journal rotation (1625 > 1500 high-water) via `--rotate` as its own commit. Intake
+  correction to note upstream: the spec/README say hooks run `--check`, but the tool has no such
+  flag — the bare invocation IS the check (rotation only via explicit `--rotate`). Write OPS-22
+  back into the PROD-13 board entry.
+
 
 ### CORE — Backend core / architecture
 
