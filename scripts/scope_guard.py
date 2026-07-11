@@ -26,12 +26,13 @@ Usage:  python3 scope_guard.py [--config .scope-guard.toml] [--root DIR] [--rota
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
 import sys
 import tomllib
 from pathlib import Path
 
-__version__ = "1.0.1"  # scope-v2 — --rotate journal fix (v1 wrote archives char-per-line) + explicit --check flag
+__version__ = "1.1.0"  # scope-v3 — claudemd pinned-block rule (HK-2/PROD-5) + --hash-blocks
 
 
 # ---------------------------------------------------------------- config
@@ -51,7 +52,19 @@ DEFAULTS = {
         "completion_crosscheck": False, "archive_pointer": True,
     },
     "board": {"delegation_writeback": False},
+    "claude": {"file": None, "blocks": []},
 }
+
+# Pinned shared blocks in CLAUDE.md (process/claude-md.md §2-3):
+#   <!-- locveil:begin <name> scope-vN -->  …  <!-- locveil:end <name> -->
+def find_block(text: str, name: str) -> str | None:
+    m = re.search(rf"<!-- locveil:begin {re.escape(name)}(?:\s[^>]*)? -->\n(.*?)\n?"
+                  rf"<!-- locveil:end {re.escape(name)} -->", text, re.S)
+    return m.group(1) if m else None
+
+
+def block_hash(content: str) -> str:
+    return hashlib.sha256(content.strip().encode("utf-8")).hexdigest()
 
 
 def load_config(path: Path) -> dict:
@@ -351,6 +364,26 @@ def check(root: Path, cfg: dict, rules: Rules) -> Report:
                 rep.error(f"DELEGATION without write-back: closed entry {tid} has {n_deleg} "
                           f"delegation(s) but fewer written-back local IDs")
 
+    # claudemd rule: pinned shared blocks present and byte-faithful (hash vs config pin).
+    # Fully local — staleness vs commons is a re-pin concern, not a check concern.
+    C = cfg["claude"]
+    if C["file"] and C["blocks"]:
+        ctext = read(root / C["file"])
+        if not ctext:
+            rep.error(f"CLAUDE-BLOCK: {C['file']} not found or empty")
+        else:
+            for b in C["blocks"]:
+                name, want = b.get("name", "?"), b.get("sha256", "")
+                content = find_block(ctext, name)
+                if content is None:
+                    rep.error(f"CLAUDE-BLOCK missing: no `locveil:begin {name}` … "
+                              f"`locveil:end {name}` markers in {C['file']}")
+                    continue
+                got = block_hash(content)
+                if got != want:
+                    rep.error(f"CLAUDE-BLOCK drift: '{name}' hash {got[:12]}… != pinned "
+                              f"{str(want)[:12]}… (edit in commons + re-pin; never edit in place)")
+
     # informational summary
     by_pfx: dict[str, list[int]] = {}
     for i, s in all_decls:
@@ -484,6 +517,9 @@ def main() -> int:
                     help="explicit read-only check (the default mode; what hooks and CI run)")
     ap.add_argument("--rotate", nargs="?", const="all", choices=["journal", "done", "all"],
                     help="execute rotation (default mode is a read-only check)")
+    ap.add_argument("--hash-blocks", action="store_true",
+                    help="print the current hash of every locveil block in [claude].file "
+                         "(re-pin helper) and exit")
     ap.add_argument("--version", action="version", version=f"scope-guard {__version__}")
     args = ap.parse_args()
     if args.check and args.rotate:
@@ -495,6 +531,16 @@ def main() -> int:
     root = Path(args.root).resolve() if args.root else cfg_path.parent
     cfg = load_config(cfg_path)
     rules = Rules(cfg)
+
+    if args.hash_blocks:
+        text = read(root / (cfg["claude"]["file"] or "CLAUDE.md"))
+        names = re.findall(r"<!-- locveil:begin ([\w-]+)", text)
+        if not names:
+            print("no locveil blocks found")
+            return 1
+        for n in names:
+            print(f"{n}: {block_hash(find_block(text, n) or '')}")
+        return 0
 
     print(f"== scope-guard {__version__} · root {root} ==\n")
 

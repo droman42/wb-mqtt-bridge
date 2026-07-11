@@ -71,7 +71,11 @@ commons restructuring lands. This document records the bridge-side consequences.
   keep bridge-local ones outside, adopt the drift-guard script beside `check_scope.py` in the
   `ledger-guard` CI job, and take the same-slug renames (`config-master-canonical` means the
   OPPOSITE here vs voice — it splits into two differently-named invariants; drift inventory:
-  shared design §2).
+  shared design §2). *(Annotation 2026-07-11: superseded by the HK-2 council decision —
+  `check_scope.py` was deleted by OPS-22, the drift rule lives INSIDE scope-guard from
+  scope-v3 rather than beside it, and the slug renamed apart per side (`config-master-tree`
+  here) instead of splitting in two. OPS-16 was redefined at intake accordingly; normative:
+  `locveil-commons/process/claude-md.md`.)*
 
 ## 3. Recorded for the maintainer (not tasks)
 

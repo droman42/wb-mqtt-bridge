@@ -1,8 +1,8 @@
 # locveil-bridge ledger-discipline config for the vendored scope-guard
-# (scripts/scope_guard.py, pinned at scope-v2; normative convention:
-# ../locveil-commons/process/ledger-discipline.md). Adopted by OPS-22 from the
-# PROD-13-verified starter. Behavior changes happen in commons — re-pin, don't edit
-# the vendored script.
+# (scripts/scope_guard.py, pinned at scope-v3; normative conventions:
+# ../locveil-commons/process/ledger-discipline.md + process/claude-md.md). Adopted by
+# OPS-22 from the PROD-13-verified starter; [claude] blocks by OPS-16 (PROD-5/HK-2).
+# Behavior changes happen in commons — re-pin, don't edit the vendored script.
 
 [ledger]
 active = "docs/action_plan.md"
@@ -31,3 +31,12 @@ low_water = 1000
 hard_ceiling = 2000
 completion_crosscheck = false            # predates the journal — would flag history
 archive_pointer = true
+
+[claude]
+file = "CLAUDE.md"
+[[claude.blocks]]
+name = "shared-invariants"
+sha256 = "8e295e7009a43ece59693cdf7876189c145d29694291ca2c07bbc88e8dddb214"
+[[claude.blocks]]
+name = "cross-repo-board"
+sha256 = "61769abd18b82a60c2024d419f90196a01856c8dd3b0db815c3480b033e9629d"

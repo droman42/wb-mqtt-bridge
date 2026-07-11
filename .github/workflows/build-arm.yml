@@ -68,12 +68,14 @@ jobs:
               - 'docs/**'
               - 'scripts/scope_guard.py'
               - '.scope-guard.toml'
+              # the guard's claudemd hash rule (OPS-16) checks the pinned blocks in here
+              - 'CLAUDE.md'
 
   # --------------------------------------------------- fast checks (gated) ---
   ledger-guard:
     # docs/action_plan.md{,_DONE} single-source-of-scope check (single-task-ledger
     # invariant; DOC-4, cut over to the commons scope-guard by OPS-22 — vendored at
-    # scope-v2, config in .scope-guard.toml). Standalone job: scope drift lives in
+    # scope-v3, config in .scope-guard.toml). Standalone job: scope drift lives in
     # docs/, and docs-only commits skip backend-test — the guard must not ride a job
     # that gets skipped.
     name: Ledger scope-drift guard
