@@ -1,0 +1,52 @@
+{
+  "$comment": "Locveil report-protocol machine core (HK-3/PROD-6). Commons-owned, tagged report-protocol-vN. Consumers PIN a copy and VALIDATE against it (one test per writer; the reports repo's bootstrap GENERATES its labels from it). The wire-visible surface ONLY — judgment/policy lives in process/problem-reports.md. Ticket TYPE is a first-class dimension (HK-3 extension check): v1 ships problem-report; feature-request arrives as a vN bump, not a schema break. Slugs state the TARGET truth: the reports repo consumes this at its PROD-14 phase-1 transfer.",
+  "protocol": 1,
+  "repos": {
+    "reports": "locveil/locveil-reports",
+    "code": {
+      "voice": "locveil/locveil-voice",
+      "bridge": "locveil/locveil-bridge"
+    }
+  },
+  "labels": [
+    { "name": "problem-report", "color": "d73a4a", "description": "Filed by a device/UI reporter" },
+    { "name": "lens:voice", "color": "1d76db", "description": "Triage against locveil-voice" },
+    { "name": "lens:bridge", "color": "0e8a16", "description": "Triage against locveil-bridge" },
+    { "name": "new", "color": "fbca04", "description": "Not yet triaged" },
+    { "name": "needs-owner", "color": "b60205", "description": "Waiting for the owner's decision/reply" },
+    { "name": "fix-pr-open", "color": "5319e7", "description": "A fix PR is open on a code repo" }
+  ],
+  "lenses": {
+    "voice": { "label": "lens:voice", "code_repo": "voice" },
+    "bridge": { "label": "lens:bridge", "code_repo": "bridge" }
+  },
+  "types": {
+    "problem-report": {
+      "label": "problem-report",
+      "title_prefixes": { "voice": "[voice]", "bridge": "[bridge-ui]" },
+      "filed_with": ["problem-report", "<lens label>", "new"],
+      "bundle_required": true,
+      "envelope_required": [
+        "free_text_verbatim",
+        "last_turns_synopsis",
+        "environment",
+        "bundle_link",
+        "report_id"
+      ],
+      "buckets": ["new", "needs-owner", "fix-pr-open"],
+      "transitions": {
+        "new": ["needs-owner", "fix-pr-open", "handover"],
+        "handover": "flip the lens label, post the handover comment, stay in triage",
+        "needs-owner": ["closed-by-owner"],
+        "fix-pr-open": ["closed-by-owner"]
+      },
+      "terminal": "owner closes the issue; the outcome bucket label STAYS as the record"
+    }
+  },
+  "ping_pong_max": 1,
+  "bundle_path": "reports/<utc_stamp>-<source>-<room>/bundle.tar.gz",
+  "handover_comment": {
+    "header": "### Handover: <from lens label> → <to lens label>",
+    "fields": ["Symptom", "Evidence", "Catalog", "Ruled out (<from>)", "Bundle"]
+  }
+}

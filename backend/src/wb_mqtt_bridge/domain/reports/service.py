@@ -33,6 +33,15 @@ from wb_mqtt_bridge.domain.scenarios.service import ScenarioManager
 
 logger = logging.getLogger(__name__)
 
+# The wire-visible filing surface — locked to the pinned Locveil report-protocol
+# core (repo-root ``report-protocol.pin.json``, tag ``report-protocol-v1``) by the
+# conformance test in ``tests/unit/test_report_protocol_pin.py``. Change the pin
+# first; the test keeps these from drifting silently (VWB-37 / PROD-6).
+REPORT_SOURCE = "bridge-ui"
+REPORT_TITLE_PREFIX = f"[{REPORT_SOURCE}]"
+REPORT_FILED_LABELS = ("problem-report", "lens:bridge", "new")
+REPORT_BUNDLE_NAME = "bundle.tar.gz"
+
 
 class RateLimited(Exception):
     """Raised when the B-6 client-side rate limit blocks a filing."""
@@ -204,17 +213,17 @@ class ReportService:
         # same second + room collided — the report_id doubles as the spool filename, so a
         # collision silently overwrote one bundle / left it permanently undeliverable. A
         # short random suffix makes the id (and the spool file) unique.
-        report_id = f"{ts}-bridge-ui-{room}-{uuid.uuid4().hex[:8]}"
+        report_id = f"{ts}-{REPORT_SOURCE}-{room}-{uuid.uuid4().hex[:8]}"
 
         bundle = self._build_bundle(evidence, context, ui_evidence)
-        title = f"[bridge-ui] {redact_text(free_text.strip())[:60]}"
+        title = f"{REPORT_TITLE_PREFIX} {redact_text(free_text.strip())[:60]}"
         body = self._issue_body(report_id, free_text, context, evidence)
         filing = ReportFiling(
             report_id=report_id,
             title=title,
             body=body,
-            labels=["problem-report", "lens:bridge", "new"],
-            bundle_name="bundle.tar.gz",
+            labels=list(REPORT_FILED_LABELS),
+            bundle_name=REPORT_BUNDLE_NAME,
             bundle_bytes=bundle,
         )
         result = await self._sink.file_report(filing)
