@@ -162,8 +162,11 @@ One workflow, path-filtered: a `changes` job detects which areas the push
 touched and gates everything downstream, so a commit only pays for the checks
 its files can break.
 
-- **`ledger-guard`** (docs/** or the guard script changed) —
-  `scripts/check_scope.py`, the single-task-ledger drift check.
+- **`ledger-guard`** (docs/** or the guard script/config changed) —
+  `scripts/scope_guard.py --config .scope-guard.toml`, the ledger-discipline
+  check (a vendored copy of the shared Locveil scope-guard). The same check
+  runs pre-commit via the committed hook — enable it once per clone with
+  `git config core.hooksPath hooks`.
 - **`backend-test`** (backend/** or contracts/** changed) — the three Python
   health gates (import-linter / no-TYPE_CHECKING / pyright) + `pytest -m "not
   requires_device"` on amd64. The suite includes the **contracts drift guard**

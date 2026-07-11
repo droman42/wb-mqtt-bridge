@@ -1,0 +1,33 @@
+# locveil-bridge ledger-discipline config for the vendored scope-guard
+# (scripts/scope_guard.py, pinned at scope-v1; normative convention:
+# ../locveil-commons/process/ledger-discipline.md). Adopted by OPS-22 from the
+# PROD-13-verified starter. Behavior changes happen in commons — re-pin, don't edit
+# the vendored script.
+
+[ledger]
+active = "docs/action_plan.md"
+done = "docs/action_plan_DONE.md"
+archive_dir = "docs/archive/ledger"      # created by the first DONE rotation
+aliases = "docs/action_plan_aliases.md"
+prefixes = ["DRV", "SCN", "VWB", "UI", "OPS", "CORE", "DOC", "REL"]
+open_statuses = [" ", "~"]
+require_sections = true
+sections_required_for_all = true         # bridge: every task row inside a PFX section
+tombstones = true
+high_water = 3000
+low_water = 2000
+hard_ceiling = 4000
+
+[evidence]
+dirs = ["docs/design", "docs/review"]
+index = false
+link_scan = true                         # ledger references docs/design|review paths
+
+[journal]
+active = "docs/action_plan_journal.md"
+archive_dir = "docs/archive/journal"
+high_water = 1500
+low_water = 1000
+hard_ceiling = 2000
+completion_crosscheck = false            # predates the journal — would flag history
+archive_pointer = true

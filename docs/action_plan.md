@@ -4,7 +4,7 @@
 **Scope:** The `locveil-bridge` **monorepo** (`backend/` + `ui/` + `wb-rules/` + `ops/` + `docs/`). The
 UI is no longer a separate repo — it was merged in during Phase 2.
 **Target:** milestone — **scope-complete** (release 1 ships when every `[release]` task is `[x]`;
-no calendar date; the gate is `scripts/check_scope.py` clean).
+no calendar date; the gate is the ledger guard — `scripts/scope_guard.py` since OPS-22 — clean).
 
 This document captures the project state and a prioritized action plan, revised as we work.
 
@@ -16,7 +16,8 @@ This document captures the project state and a prioritized action plan, revised 
 > is `[x]`**. Every open task carries an explicit `[release]` or `[deferred]` tag (these replaced
 > the `[house]`/`[later]`/`[parked]` milestone tags at the sign-off — `[house]` mapped to
 > `[release]`, `[later]`+`[parked]` to `[deferred]`, then each row was verified individually).
-> Run `scripts/check_scope.py` at each gate to prove nothing has drifted. The exit criteria below
+> Run the ledger guard (`python3 scripts/scope_guard.py --config .scope-guard.toml`, OPS-22 — was
+> `scripts/check_scope.py`) at each gate to prove nothing has drifted. The exit criteria below
 > are the human-readable summary of that gate.
 >
 > **The release artifact** = a version tag + the **armv7** GHCR images (backend + UI) **deployed on

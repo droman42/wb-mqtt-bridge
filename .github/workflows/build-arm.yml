@@ -66,20 +66,23 @@ jobs:
               - '.github/workflows/build-arm.yml'
             ledger:
               - 'docs/**'
-              - 'scripts/check_scope.py'
+              - 'scripts/scope_guard.py'
+              - '.scope-guard.toml'
 
   # --------------------------------------------------- fast checks (gated) ---
   ledger-guard:
     # docs/action_plan.md{,_DONE} single-source-of-scope check (single-task-ledger
-    # invariant; DOC-4). Standalone job: scope drift lives in docs/, and docs-only
-    # commits skip backend-test — the guard must not ride a job that gets skipped.
+    # invariant; DOC-4, cut over to the commons scope-guard by OPS-22 — vendored at
+    # scope-v1, config in .scope-guard.toml). Standalone job: scope drift lives in
+    # docs/, and docs-only commits skip backend-test — the guard must not ride a job
+    # that gets skipped.
     name: Ledger scope-drift guard
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.ledger == 'true' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v6
-      - run: python3 scripts/check_scope.py
+      - run: python3 scripts/scope_guard.py --config .scope-guard.toml
 
   backend-test:
     name: Backend tests (amd64)

@@ -63,17 +63,28 @@ plan/journal/review docs never break. (Mirrors `../locveil-voice/CLAUDE.md` — 
   - **Two-file split (initial split applied 2026-06-30 — §5.2 #2):** when `docs/action_plan.md` grows
     large, completed tasks move to a frozen `docs/action_plan_DONE.md` (by section) — one ledger, every ID
     in exactly one file, a task **moves** active → done on completion (same change as the journal entry).
+    The DONE ledger **rotates too** (OPS-22, per the shared convention): watermarks high ~3000 / low
+    ~2000 / hard-ceiling ~4000 lines; rotation moves the lowest-numbered completed entries per section
+    into `docs/archive/ledger/`, and **archived declarations stay in the guard's known-ID set** — old
+    IDs never become orphans (the hard ID-resolution guarantee).
   - **Ledger-discipline triad (DOC-12, ported from the voice repo 2026-07-06 — machine-enforced):**
     (1) completion **moves** the entry, never flips `[x]` in place (a `[x]` row in the active plan fails
     the gate); (2) a task row lives under the section matching its ID prefix, in **both** files — beware
     the insert-before-the-next-header slip that lands a row in the *preceding* section; (3) rows **ascend
     by ID within each section**, both files — completions are *inserted at sorted position*, not appended.
-  - A machine-checkable scope-drift guard enforces this: **`scripts/check_scope.py`** (DOC-4; discipline
-    triad added by DOC-12) flags duplicate/misplaced IDs, orphan findings (a `PREFIX-N` id in a
-    design/review doc not in the ledger), dead `docs/design`|`docs/review` links, phantom aliases,
-    **misfiled tasks** (prefix ≠ enclosing section), and **out-of-order IDs** (non-ascending within a
-    section). It runs in CI (the standalone `ledger-guard` job, path-gated on `docs/**` — OPS-10) and
-    standalone (`python3 scripts/check_scope.py`).
+  - A machine-checkable scope-drift guard enforces this: **`scripts/scope_guard.py`** — the
+    commons-owned **scope-guard**, vendored at a pinned `scope-vX` tag with the repo config
+    **`.scope-guard.toml`** (OPS-22, superseding the local `check_scope.py` of DOC-4/DOC-12; normative
+    convention: `../locveil-commons/process/ledger-discipline.md`, tool source
+    `../locveil-commons/packages/scope-guard/`). It flags duplicate/misplaced IDs, orphan findings (a
+    `PREFIX-N` id in a design/review doc not in the ledger), dead `docs/design`|`docs/review` links,
+    phantom aliases, **misfiled tasks** (prefix ≠ enclosing section), **out-of-order IDs**
+    (non-ascending within a section), and **journal/DONE watermarks** (over high-water warns, over
+    hard-ceiling fails). It runs **pre-commit** via the committed hook (`hooks/pre-commit`; one-time
+    `git config core.hooksPath hooks` — with `work-on-main` the hook is the only pre-CI gate), in CI
+    (the standalone `ledger-guard` job, path-gated on `docs/**` — OPS-10), and standalone
+    (`python3 scripts/scope_guard.py --config .scope-guard.toml`). **Behavior changes happen in
+    commons, never in the vendored copy** — the repo moves by re-pinning.
 - **`every-task-in-the-ledger`** — No work happens without an action-plan entry, **regardless of where the
   task came from** — a chat request, a GitHub issue, a code-review finding, a TODO spotted mid-task. The
   first action on any new piece of work is to file it: give it an ID *before* starting. External sources
@@ -99,15 +110,17 @@ plan/journal/review docs never break. (Mirrors `../locveil-voice/CLAUDE.md` — 
 - **`one-active-journal`** — `docs/action_plan_journal.md` is the only **active** chronological log
   (newest entries on top; the single place new entries are added). No competing live logs anywhere else.
   Entries reference task IDs but never assert status.
-  - **Archival (rule defined, not yet applied):** older entries are **frozen** into dated files under
-    `docs/archive/journal/` (append-only, never re-edited, greppable, **outside the default-read path**).
-    Only the active journal is read at task start; an archive is consulted when a
-    `task-start-reconciliation` grep points to it. Leave a pointer at the top of the active journal to the
-    newest archive.
-  - **When to rotate:** when the active journal exceeds **~1500 lines / ~40k tokens** (high-water), freeze
-    the **oldest whole dated sections** (never split a day — here, the *bottom* sections, since newest is
-    on top) into the newest `docs/archive/journal/` file until it is back under **~1000 lines / ~25k
-    tokens** (low-water), then update the pointer.
+  - **Archival:** older entries are **frozen** into dated files under `docs/archive/journal/`
+    (append-only, never re-edited, greppable, **outside the default-read path**). Only the active
+    journal is read at task start; an archive is consulted when a `task-start-reconciliation` grep
+    points to it. A pointer at the top of the active journal names the newest archive.
+  - **When to rotate:** when the active journal exceeds **~1500 lines** (high-water), freeze the
+    **oldest whole dated sections** (never split a day — here, the *bottom* sections, since newest is
+    on top) into a new `docs/archive/journal/` file until it is back under **~1000 lines** (low-water),
+    then update the pointer. **Rotation is executed only by `python3 scripts/scope_guard.py --rotate`**
+    (deterministic, in its own commit — hooks and CI never mutate the tree; the guard warns at
+    high-water and fails at the ~2000-line hard ceiling). Same mechanism rotates the DONE ledger at
+    its own watermarks (see `single-task-ledger`).
 - **`task-start-reconciliation`** — no stale, redundant, or mis-scoped work. Before starting **any** task,
   reconcile it against current reality — not just the plan/design/review doc
   (`read-at-start-record-at-completion`), but also `docs/action_plan_journal.md` (what actually landed)
