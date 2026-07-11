@@ -10,10 +10,13 @@ point at the dated entry below.
 `docs/action_plan.md` stays the master driving document (forward work + an index of recent
 journal entries in §6). This file is the long tail.
 
-**Archive pointer:** entries older than 2026-06-09 are frozen in
-[`docs/archive/journal/2026-05-23_2026-06-08.md`](archive/journal/2026-05-23_2026-06-08.md)
-(first rotation 2026-07-06, per the `one-active-journal` high-water rule; append-only, grep
-when a `task-start-reconciliation` trail points there).
+**Archive pointer:** entries older than 2026-07-05 are frozen in
+[`docs/archive/journal/`](archive/journal/) — newest archive
+[`2026-06-09_2026-07-04.md`](archive/journal/2026-06-09_2026-07-04.md) (second rotation
+2026-07-11, the first via `scope_guard.py --rotate`), oldest
+[`2026-05-23_2026-06-08.md`](archive/journal/2026-05-23_2026-06-08.md) (first rotation
+2026-07-06, manual). Per the `one-active-journal` high-water rule; append-only, grep when a
+`task-start-reconciliation` trail points there.
 
 ---
 
@@ -21,6 +24,24 @@ when a `task-start-reconciliation` trail points there).
 journal's **earlier dated entries keep their original positional refs** (`§P3.7 #19`, `§5.1 #7`, `P4 #7`,
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
+
+- **2026-07-11 — OPS-22: scope-guard cutover — the commons ledger guard is the law here now; found +
+  fixed a v1 rotation bug upstream (scope-v2).** Second board-as-outbox delegation consumed (PROD-13 /
+  HK-1, verified at intake: tool + starter config green on this tree, tag matched HEAD, retirement
+  targets where claimed). Cutover: `scripts/scope_guard.py` vendored + `.scope-guard.toml` (aliases +
+  tombstones ON), old `check_scope.py` deleted only after the vendored tool proved green, CI
+  `ledger-guard` + paths-filter re-pointed, committed pre-commit hook live (`core.hooksPath hooks` —
+  every commit in this session passed through it), CLAUDE.md invariants updated (scope-guard as
+  enforcer; DONE-ledger rotation rule new: 3000/2000/4000). **The first real `--rotate journal` run
+  caught a scope-v1 defect**: archives written character-per-line AND the kept journal silently
+  truncated (`rotate_journal` double-indexed the day-lines list after tuple unpacking — `s[1]` on an
+  already-unpacked list, so `join` iterated a string). No history lost (git restore). Fixed in commons
+  per the convention (never patch the vendored copy), validated on a copy of this tree with a
+  line-by-line diff (zero loss), tagged **scope-v2** = 1.0.1 — also adds the explicit `--check` flag
+  the docs promised but v1 lacked. Re-pinned here at v2; rotation then executed for real as its own
+  commit: 1625 → 990 lines, 6 day-sections (2026-06-09…07-04) frozen to `docs/archive/journal/`.
+  Board: OPS-22 written back into PROD-13; both delegations re-pointed at scope-v2 — **voice must pin
+  v2**, its own overdue rotation would have hit the identical bug. Guard fully green post-rotation.
 
 - **2026-07-11 — OPS-21 controller cutover CONFIRMED on hardware.** Owner flipped the new GHCR packages
   public (org-policy fix: allow public package creation) and ran `ops/migrate-to-locveil.sh` on the WB7:

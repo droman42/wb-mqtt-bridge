@@ -218,6 +218,26 @@ possible round-3.
   Gates: backend suite 698 passed on the renamed distribution, eval `make cli` 4/4, `sh -n`/`compose
   config` clean, check_scope green. Sequencing: CI publish must create + owner must make PUBLIC the new
   GHCR packages before the migration script runs on the WB7.
+
+- [x] **OPS-22** `[P1]` — **DONE 2026-07-11** (filed + executed same session; the second board-as-outbox
+  delegation consumed — `locveil-commons` PROD-13 / HK-1 council decision; normative convention
+  `locveil-commons/process/ledger-discipline.md`). **Scope-guard cutover: the commons ledger guard
+  vendored, `scripts/check_scope.py` retired.** Executed: `scripts/scope_guard.py` vendored +
+  `.scope-guard.toml` authored from the PROD-13-verified starter (aliases + tombstones ON); cutover
+  proof green BEFORE deleting the old checker; `ledger-guard` job + `ledger` paths-filter re-pointed
+  in `build-arm.yml`; committed-hooks mechanism live (`hooks/pre-commit` + `git config core.hooksPath
+  hooks` — with `work-on-main` the hook is the only pre-CI gate); `single-task-ledger` /
+  `one-active-journal` invariant text updated in the same change (DONE-ledger rotation rule new for
+  this repo: watermarks 3000/2000/4000, archived IDs stay in the known-ID set); overdue journal
+  rotation executed via `--rotate` as its own commit (1625 → 990 lines, 6 day-sections →
+  `docs/archive/journal/2026-06-09_2026-07-04.md`, zero content loss verified line-by-line).
+  **Found + fixed upstream:** the first real `--rotate journal` run caught a scope-v1 defect —
+  archives written character-per-line + silent truncation of the kept journal (double-indexing after
+  tuple unpacking in `rotate_journal`); journal restored from git, fixed in commons (2 lines,
+  validated on a copy of this tree), tagged **scope-v2** (1.0.1) — the final pin. v2 also adds the
+  explicit `--check` flag the docs already promised (v1 had none; the bare invocation was the check).
+  Both PROD-13 delegations re-pointed at scope-v2 (the voice cutover would have hit the same bug on
+  its own overdue rotation); OPS-22 written back into the PROD-13 board entry.
 ## CORE — Backend core / architecture
 
 - [x] **CORE-2** `[P1]` — **DONE 2026-07-04** (filed + executed same day; the acceptance-gate item-4 dead-code sweep, scoped against live code). **Removed:** the legacy imperative scenario path — `Scenario.initialize/execute_startup_sequence/execute_shutdown_sequence`, the shared-device `switch_scenario` legacy branch, the string-condition evaluator (`_evaluate_condition`/`_safe_evaluate_condition`/`_parse_condition_value`), `_validate_parameters` + the sequence/condition validators, `_is_power_command` (~330 lines out of `scenario.py`); the **`WB_SCENARIO_RECONCILER` kill-switch** (`switch_scenario`/`deactivate` are reconciler-only now; the already-active early return aligned to the reconciler result shape `{success, powered_off, failures}` — no consumer read the old keys); the **`CommandStep` model + `ScenarioDefinition.startup_sequence`/`shutdown_sequence` fields** (contract regenerated: `openapi.json` −76 lines, `CommandStep` schema gone; UI types regenerated, dead `CommandStep` alias dropped from `ui/src/types/api.ts`; `npm run check` + build green); the **vestigial `DeviceState.output`** field (scenarios model — **correction to the filing text**, which wrongly declared it already-gone after grepping only the devices models; no device state ever had an `output` field, so it was permanently `None`); the **Phase-B `log_migration_guidance()` shim**. **Added guard:** `validate_configuration` now requires a thin `source` selection (a sourceless scenario could never activate; rejected at load with the Bug-2 non-fatal skip). `_convert_device_state` uses `Scenario._safe_get_device_field` as a `@staticmethod` (temp-instance fallback dance removed). **Narrowed (not removed):** the wb_device **capability-less classification path** — the filing text called it the "`group` transitional fallback", but reconciliation showed the config `group` *field* is already extinct (no model defines it, no config carries it, nothing reads it); what remains is the `capabilities=None` branch, which is **live** for `kitchen_hood` (no capability map — the gate-item-1 coverage gap; mapping it is capability/catalog work for the DRV-1 kitchen_hood row or VWB-13, not dead-code removal) **and** for `_build_state_field_to_control_map`, which enumerates controls without capability context for every device. Stale "legacy config group" docstrings corrected in place; `_DOMAIN_GROUP_ALIAS` + the group-vocabulary heuristics stay (live, domain-keyed). **Tests:** legacy-path tests removed / rewritten to thin fixtures (`test_scenario.py`, `test_scenario_models.py`, `test_scenario_manager.py` — manager tests now assert manager-level behavior, transition content stays with `test_scenario_switch_reconciler.py`); new coverage: sourceless-scenario rejection. Suite 487 passing (was 502 — the delta is deleted legacy tests); import contracts 3/3; docs updated (`key-concepts.md` + `devices-and-scenarios.md` legacy-path passages removed). **Left for their owners:** `MQTTClient.stop()/start()` shims → CORE-1; piwheels `pip.conf` → OPS-11; gate item 4's "thorough code review" half + final contract audit remain part of the acceptance-gate pass itself.
