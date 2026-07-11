@@ -23,10 +23,10 @@ Fails the build (exit 1) on:
   6. MISFILED task       — a task's ID prefix does not match its enclosing workstream
                            section header, in either file (an insert placed before the
                            NEXT section header lands in the PRECEDING section — the
-                           classic slip; ported from wb-mqtt-voice, DOC-12).
+                           classic slip; ported from locveil-voice, DOC-12).
   7. OUT-OF-ORDER id     — entries must ascend by ID number within each workstream
                            section, both files: completions are INSERTED at sorted
-                           position, never appended (ported from wb-mqtt-voice, DOC-12).
+                           position, never appended (ported from locveil-voice, DOC-12).
 
 Informational (never fails): per-workstream open/done/partial summary.
 
@@ -54,7 +54,7 @@ TOMB_RE = re.compile(rf"^- ~~\*\*((?:{_PFX})-\d+)\*\*~~")
 # Any id reference (in prose / design docs).
 ID_RE = re.compile(rf"\b((?:{_PFX})-\d+)\b")
 # A repo-relative docs/design|docs/review markdown path. The negative lookbehind keeps it from
-# matching a sibling-repo path like `wb-mqtt-voice/docs/design/mqtt_integration.md` (that file is
+# matching a sibling-repo path like `locveil-voice/docs/design/mqtt_integration.md` (that file is
 # outside this repo and is expected to be absent here).
 EVID_RE = re.compile(r"(?<![\w/-])docs/(?:design|review)/[\w./-]+\.md")
 # Alias-table row:  | DRV-1 | §5.1 #7 | … |
@@ -139,7 +139,7 @@ def main() -> int:
             if m and m.group(1) not in known_ids:
                 errors.append(f"ALIAS phantom: alias target {m.group(1)} is not declared in the ledger")
 
-    # 6 + 7. MISFILED + OUT-OF-ORDER (ledger-discipline triad, ported from wb-mqtt-voice —
+    # 6 + 7. MISFILED + OUT-OF-ORDER (ledger-discipline triad, ported from locveil-voice —
     # DOC-12). Walk each file tracking the enclosing workstream section: a declaration's
     # prefix must match the section, and IDs must ascend within it (sorted insert, not append).
     def section_walk(path: Path, which: str) -> None:

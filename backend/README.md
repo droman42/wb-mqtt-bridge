@@ -82,8 +82,8 @@ src/wb_mqtt_bridge/
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/droman42/wb-mqtt-bridge.git
-cd wb-mqtt-bridge
+git clone https://github.com/locveil/locveil-bridge.git
+cd locveil-bridge
 ```
 
 2. Create a virtual environment and install dependencies:
@@ -119,8 +119,8 @@ GitHub Actions builds the ARM images and pushes them to the GitHub Container
 Registry (see `.github/workflows/build-arm.yml`; the slow ARM jobs run on manual
 workflow dispatch):
 
-- `ghcr.io/droman42/wb-mqtt-bridge` — this backend
-- `ghcr.io/droman42/wb-mqtt-ui` — the UI
+- `ghcr.io/locveil/wb-mqtt-bridge` — this backend
+- `ghcr.io/locveil/wb-mqtt-ui` — the UI
 
 Every build is tagged `latest`, `sha-<short>`, and `vYYYYMMDD-<short>` — the
 dated tags are what you pin for rollback. The packages are public, so the

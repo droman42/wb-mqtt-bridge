@@ -6,14 +6,14 @@
 #
 # The broker host is injected from the target profile via {{env.MQTT_HOST}} — never hard-coded.
 
-description: wb-mqtt-bridge — MQTT system tests (retained catalog/state)
+description: locveil-bridge — MQTT system tests (retained catalog/state)
 
 # mqtt_provider drives the I/O from its config; the prompt is a label only.
 prompts:
   - '{{topic}}'
 
 providers:
-  - id: file://../../eval-commons/eval_commons/providers/mqtt_provider.py
+  - id: file://../../locveil-commons/eval/eval_commons/providers/mqtt_provider.py
     label: mqtt
     config:
       host: "{{ env.MQTT_HOST | default('localhost') }}"

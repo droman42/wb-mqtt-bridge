@@ -178,7 +178,7 @@ space:
 
 ```bash
 sudo docker images                                            # see what's around
-sudo docker rmi ghcr.io/droman42/wb-mqtt-bridge:vYYYYMMDD-<short>  # drop a specific tag
+sudo docker rmi ghcr.io/locveil/wb-mqtt-bridge:vYYYYMMDD-<short>  # drop a specific tag
 # OR — nuke everything not currently in use (containers/images/networks/build cache):
 sudo docker system prune -a -f
 ```
@@ -214,8 +214,8 @@ Without the file, reporting simply stays disabled; nothing else is affected.
 
 ## Making the GHCR packages public (one-time, on first CI push)
 
-The first time the CI workflow pushes images to `ghcr.io/droman42/wb-mqtt-bridge`
-and `ghcr.io/droman42/wb-mqtt-ui`, they're created **private** by default. To
+The first time the CI workflow pushes images to `ghcr.io/locveil/wb-mqtt-bridge`
+and `ghcr.io/locveil/wb-mqtt-ui`, they're created **private** by default. To
 let the WB pull them anonymously (no PAT):
 
 1. Go to https://github.com/users/droman42/packages and find each package.
@@ -247,7 +247,7 @@ To pin to a known-good build, edit `ops/docker-compose.yml`:
 
 ```yaml
 backend:
-  image: ghcr.io/droman42/wb-mqtt-bridge:v20260526-abc1234
+  image: ghcr.io/locveil/wb-mqtt-bridge:v20260526-abc1234
 ```
 
 Then `sudo systemctl restart wb-mqtt-bridge.service`. To return to live updates,

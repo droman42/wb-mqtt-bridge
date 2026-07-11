@@ -1,7 +1,7 @@
-# Action Plan — wb-mqtt-bridge
+# Action Plan — locveil-bridge
 
 **Status:** Living master plan. Updated 2026-07-06.
-**Scope:** The `wb-mqtt-bridge` **monorepo** (`backend/` + `ui/` + `wb-rules/` + `ops/` + `docs/`). The
+**Scope:** The `locveil-bridge` **monorepo** (`backend/` + `ui/` + `wb-rules/` + `ops/` + `docs/`). The
 UI is no longer a separate repo — it was merged in during Phase 2.
 **Target:** milestone — **scope-complete** (release 1 ships when every `[release]` task is `[x]`;
 no calendar date; the gate is `scripts/check_scope.py` clean).
@@ -285,7 +285,7 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
 **Context (the P3.7 push — design narrative preserved from the former phase section):**
 
 **Driving doc:** `docs/design/voice_integration_contract_draft.md` (AGREED bridge ↔ Irene contract).
-Sister-project counterpart: `wb-mqtt-voice/docs/design/mqtt_integration.md` §10 (Irene's ARCH-8,
+Sister-project counterpart: `locveil-voice/docs/design/mqtt_integration.md` §10 (Irene's ARCH-8,
 **blocked on this**).
 
 **Strategic shift.** The bridge becomes the **single authoritative device catalog + actuation
@@ -562,9 +562,9 @@ endpoint).
 
 - [ ] **VWB-12** `[P2]` `[deferred]` — `wb-msw-v3_*` sensor side — decide unified config (IR + `sensor`) vs split entry; implement. **DEFERRED POST-RELEASE 2026-07-04 (user decision, both sides — the voice repo defers sensor state-queries equally).** Analysis done in chat (see journal 2026-07-04): recommendation = **split entry** — per-room sensor devices (`sensor_room` profile, partial mirrors per the sauna precedent), IR side stays transport plumbing referenced from AV configs (module-is-wiring precedent: `wb-mr6c_47` hosts 6 lights and is no device either); a module-level IR entity can be added *alongside* later if DRV-3 ever needs one, without touching the sensor devices. When picked up: classic paste session per room + **verify control names per module firmware** (the recorded firmware-doc cross-reference warning; MSW inventory today: `wb-msw-v3_207` living room, `218`, `220` children — all currently IR-only references).
 
-- [ ] **VWB-16** `[P2]` `[deferred]` — **Consumer contract test — crafted canonical `DeviceCommand` → native/echo** (cross-project; the consumer half of the bidirectional contract, pairs with `wb-mqtt-voice` TEST-18's producer half). **Re-tagged `[release]` → `[deferred]` 2026-07-10 (owner decision at the v0.6.0 cut):** it depends on the voice repo's TEST-18 crossover fixtures, which aren't ready — release 1 must not hang on a sibling repo. Lands whenever the fixtures do; the golden catalog it tests against (`5622ba7a1a78102a`) is stable, so no urgency. Drive the bridge from the shared **`{utterance → expected canonical command}` crossover fixtures** (using the canonical-command half only — the utterance is Irene's concern): feed each crafted canonical command and assert it dispatches the right native action / value-topic echo, resolved against the **same golden catalog** the voice side tests against (so device-ids/capabilities can't drift apart). Depends on VWB-15's committed artifact.
+- [ ] **VWB-16** `[P2]` `[deferred]` — **Consumer contract test — crafted canonical `DeviceCommand` → native/echo** (cross-project; the consumer half of the bidirectional contract, pairs with `locveil-voice` TEST-18's producer half). **Re-tagged `[release]` → `[deferred]` 2026-07-10 (owner decision at the v0.6.0 cut):** it depends on the voice repo's TEST-18 crossover fixtures, which aren't ready — release 1 must not hang on a sibling repo. Lands whenever the fixtures do; the golden catalog it tests against (`5622ba7a1a78102a`) is stable, so no urgency. Drive the bridge from the shared **`{utterance → expected canonical command}` crossover fixtures** (using the canonical-command half only — the utterance is Irene's concern): feed each crafted canonical command and assert it dispatches the right native action / value-topic echo, resolved against the **same golden catalog** the voice side tests against (so device-ids/capabilities can't drift apart). Depends on VWB-15's committed artifact.
   - **Sequence-form caveat — RESOLVED 2026-07-04 (VWB-17 DONE):** the canonical endpoint now routes `sequence`-form actions (shared `CapabilityAction.expand()` — per-step param translation, inter-step `delay_after_ms`, mid-sequence failure naming the step). Crossover fixtures may cover sequence-form actions freely.
-  - Spec: `wb-mqtt-voice/docs/design/mqtt_integration.md` §14.
+  - Spec: `locveil-voice/docs/design/mqtt_integration.md` §14.
 
 - [ ] **VWB-29** `[P2]` `[deferred]` — **Contract release tagging + artifacts** (INTAKE — filed
   uncommitted 2026-07-08 from the joint productization session, voice BUILD-20; verify per
@@ -573,11 +573,11 @@ endpoint).
   changes, tag `contract-vN` and attach `contracts/` artifacts (openapi, golden catalog, stamp) to a
   GitHub Release. Recommend deliberate cuts over tag-every-golden-change (additive = minor, breaking =
   major). Design: `docs/design/productization_bridge.md` §2 + the shared spec
-  `wb-mqtt-voice/docs/design/productization.md` D-11.
+  `../locveil-commons/docs/design/productization.md` D-11.
 
 - [ ] **VWB-31** `[P2]` `[deferred]` — **Canonical handler-availability failure mis-surfaces as `internal_error` (500) instead of `device_unreachable` (503) to voice** (REL-5 #8). `presentation/api/routers/devices.py:503`. Deferred — no live voice consumer yet; fix maps availability failures to a speakable 503.
 
-- [ ] **VWB-33** `[P1]` `[deferred]` — **Harmonise language-data contribution across all devices/capabilities — design** (`design-then-implement`; filed 2026-07-10 off the chat analysis of how devices contribute language-specific data to voice). **Post-release, board-level cross-repo (owner decision 2026-07-10 — re-tagged out of `[release]`):** the convention is **half the voice side's** (the verbs-are-donations rule binds their repo too), so this is a **board-as-outbox cross-repo design session** — one of the first tasks *after* the Domovoy board is established, alongside VWB-34 (both are board-delegated cross-repo designs; `domovoy-commons/process/` is the candidate shared-spec home). NOT a release-1 gate. The analysis established the ownership split — **the bridge catalog contributes the NOUNS** (device `names` ru/en/de, device/room `aliases`, field `labels`, enum `{wire, canonical, labels}` value labels — the voice side's matching surfaces: it matches utterance words against `labels` in the active locale and posts `canonical`), **the voice donations contribute the VERBS** (phrases/lemmas per handler method; `CatalogAction` deliberately carries NO labels), and **group tokens** (`light`/`cover`/`fan`…) are unlocalized identifiers whose spoken words live in donation choice surfaces. Found inconsistencies to resolve by design: **(1)** uneven label-language coverage (kitchen hood field/value labels are ru/en only; HVAC carries full ru/en/de; some fleet fields carry no labels at all) — decide the required set (ru/en/de?) and whether a guard enforces it (`check`-style test or catalog-build warning); **(2)** no recorded CONVENTION for which surfaces must be localized vs must stay canonical tokens — write it down (candidate home: `contracts/README.md` in user-facing voice + the capability-map authoring guidance), including the verbs-are-donations rule so nobody adds action labels to the catalog; **(3)** `CatalogParam.description`/`unit` are English-only prose — decide: keep as developer-facing (documented as such) or localize; **(4)** device `aliases` coverage is sparse and ru-only — decide whether aliases become part of the authoring checklist for new devices; **(5)** audit the full fleet against the decided convention and file the implementation follow-up(s) with the gap list. Deliverable: the design/convention document + filed follow-ups (a finding is not scope until it has an ID). Coordinate with the voice side (the convention is half theirs — donations); candidate shared-spec home per the Domovoy arc (`domovoy-commons/process/`) noted, not required for release 1.
+- [ ] **VWB-33** `[P1]` `[deferred]` — **Harmonise language-data contribution across all devices/capabilities — design** (`design-then-implement`; filed 2026-07-10 off the chat analysis of how devices contribute language-specific data to voice). **Post-release, board-level cross-repo (owner decision 2026-07-10 — re-tagged out of `[release]`):** the convention is **half the voice side's** (the verbs-are-donations rule binds their repo too), so this is a **board-as-outbox cross-repo design session** — one of the first tasks *after* the Locveil board is established, alongside VWB-34 (both are board-delegated cross-repo designs; `locveil-commons/process/` is the candidate shared-spec home). NOT a release-1 gate. The analysis established the ownership split — **the bridge catalog contributes the NOUNS** (device `names` ru/en/de, device/room `aliases`, field `labels`, enum `{wire, canonical, labels}` value labels — the voice side's matching surfaces: it matches utterance words against `labels` in the active locale and posts `canonical`), **the voice donations contribute the VERBS** (phrases/lemmas per handler method; `CatalogAction` deliberately carries NO labels), and **group tokens** (`light`/`cover`/`fan`…) are unlocalized identifiers whose spoken words live in donation choice surfaces. Found inconsistencies to resolve by design: **(1)** uneven label-language coverage (kitchen hood field/value labels are ru/en only; HVAC carries full ru/en/de; some fleet fields carry no labels at all) — decide the required set (ru/en/de?) and whether a guard enforces it (`check`-style test or catalog-build warning); **(2)** no recorded CONVENTION for which surfaces must be localized vs must stay canonical tokens — write it down (candidate home: `contracts/README.md` in user-facing voice + the capability-map authoring guidance), including the verbs-are-donations rule so nobody adds action labels to the catalog; **(3)** `CatalogParam.description`/`unit` are English-only prose — decide: keep as developer-facing (documented as such) or localize; **(4)** device `aliases` coverage is sparse and ru-only — decide whether aliases become part of the authoring checklist for new devices; **(5)** audit the full fleet against the decided convention and file the implementation follow-up(s) with the gap list. Deliverable: the design/convention document + filed follow-ups (a finding is not scope until it has an ID). Coordinate with the voice side (the convention is half theirs — donations); candidate shared-spec home per the Domovoy arc (`locveil-commons/process/`) noted, not required for release 1.
 
 - [ ] **VWB-34** `[P2]` `[deferred]` — **Publish confirmation-timing in the contract — design** (`design-then-implement`; filed 2026-07-10 off the DRV-29 post-mortem chat: "your HTTP timeout must exceed 15 s" is contract information currently delivered out-of-band in a handover note — the same coupling class DRV-29 fixed, one layer up: retune a gate to 30 s and voice's timeouts fire again with no signal in the pinned catalog). **Cross-repo** — intended for delegation to the board once board-as-outbox lands (Domovoy arc); the voice side co-owns the consumption design (example on the table: implement scenario startup as a *durable action* on the voice side). Three tiers established in the chat analysis, to be confirmed/refined by the design: **(1) capabilities** — publish a client-meaningful optional `confirm_timeout_ms` per capability (present only when gated), derived from but NOT exposing the internal `gate` object (the gate is implementation — reconciler polling cadence; the latency promise is contract — keeps internals re-tunable without a re-pin); consumers: voice sizes per-capability HTTP timeouts and can auto-choose `wait:false` + optimistic speech for slow capabilities instead of hardcoding device lists; the UI's HvacPanel shows an honest progress expectation; extends VWB-24's zero-round-trip philosophy (catalog says what's valid → now also what to expect). **(2) scenarios** — a static estimate would lie (switch duration is diff-dependent: warm shared devices ≈ seconds, cold start ≈ the critical path); the honest publishable fact is an **upper bound** `max_duration_ms`, mechanically derivable from the cold-start plan (step gates + IR delays along the critical path) — a ceiling for client timeouts, never exceeded, usually beaten; progress narration uses the existing SSE state stream, not a number. **(3) async composites** — the fully clean answer for long-running composites is the async-job pattern (`202 Accepted` + progress events + completion event, dissolving the timeout question; the durable-action idea lives here) — a real API redesign touching voice + UI both, deliberately the design's decision whether/when, NOT presumed. Contract cost when implemented: catalog model + derivation + golden/openapi re-pin + voice re-pin — batch with an adjacent deliberate contract cut (OPS-16 tagging discipline applies). Deliverable: design doc + filed implementation follow-up(s).
 
@@ -640,7 +640,7 @@ endpoint).
 
 ### OPS — Docker / CI-CD / deploy / ops
 
-- [ ] **OPS-11** `[P2]` `[deferred]` — **Multi-arch images: add `linux/arm64` (aarch64, next-gen Wirenboard) alongside `linux/arm/v7`.** Filed 2026-07-02 off a chat analysis (sister-repo prompt: `wb-mqtt-voice` builds armv7 + aarch64 + standalone). **Unlike the voice repo** (per-target Dockerfiles + arch-suffixed image names, forced by per-platform ML profiles), the bridge's images are identical on both arches → use buildx **multi-platform manifests**: `platforms: linux/arm/v7,linux/arm64` in both image jobs of `.github/workflows/build-arm.yml` yields ONE manifest list per existing tag — WB7 pulls armv7, WB8 pulls arm64 from the same `ghcr.io/...:latest`; `ops/` (compose / `update.sh` / INSTALL.md flow) unchanged. **Work items:** (1) workflow: extend `platforms`, **drop the `ARCH=arm32v7` build-arg** — the Dockerfile's `${ARCH:+$ARCH/}python` prefix predates platform-aware buildx and would force the arm32 base into the arm64 leg (Dockerfile itself needs no change; `ARG ARCH=` defaults empty); (2) `ui/Dockerfile`: stage 1 → `FROM --platform=$BUILDPLATFORM node:20 AS builder` — the `dist/` bundle is arch-independent, so the ~14-min QEMU node build runs natively on the amd64 runner once and only the small nginx stage builds per-arch (bonus: the *existing* armv7 UI build should drop to ~2-3 min); (3) docs: a sentence each in `ops/INSTALL.md` + the READMEs noting the images are multi-arch. **Notes:** piwheels extra-index is armv7-only but harmless on arm64 (PyPI aarch64 cp311 wheel coverage is good — likely a faster leg than armv7); that `/etc/pip/pip.conf` is probably vestigial anyway since the image installs via `uv`, which doesn't read pip config — verify/drop while in there. WB8's Cortex-A5x could in principle run the armv7 image via AArch32 compat, but native arm64 is the clean path at ~6 lines of diff. **Verification:** QEMU build smoke in CI; real run gated on actual WB8 hardware (hence `[later]`).
+- [ ] **OPS-11** `[P2]` `[deferred]` — **Multi-arch images: add `linux/arm64` (aarch64, next-gen Wirenboard) alongside `linux/arm/v7`.** Filed 2026-07-02 off a chat analysis (sister-repo prompt: `locveil-voice` builds armv7 + aarch64 + standalone). **Unlike the voice repo** (per-target Dockerfiles + arch-suffixed image names, forced by per-platform ML profiles), the bridge's images are identical on both arches → use buildx **multi-platform manifests**: `platforms: linux/arm/v7,linux/arm64` in both image jobs of `.github/workflows/build-arm.yml` yields ONE manifest list per existing tag — WB7 pulls armv7, WB8 pulls arm64 from the same `ghcr.io/...:latest`; `ops/` (compose / `update.sh` / INSTALL.md flow) unchanged. **Work items:** (1) workflow: extend `platforms`, **drop the `ARCH=arm32v7` build-arg** — the Dockerfile's `${ARCH:+$ARCH/}python` prefix predates platform-aware buildx and would force the arm32 base into the arm64 leg (Dockerfile itself needs no change; `ARG ARCH=` defaults empty); (2) `ui/Dockerfile`: stage 1 → `FROM --platform=$BUILDPLATFORM node:20 AS builder` — the `dist/` bundle is arch-independent, so the ~14-min QEMU node build runs natively on the amd64 runner once and only the small nginx stage builds per-arch (bonus: the *existing* armv7 UI build should drop to ~2-3 min); (3) docs: a sentence each in `ops/INSTALL.md` + the READMEs noting the images are multi-arch. **Notes:** piwheels extra-index is armv7-only but harmless on arm64 (PyPI aarch64 cp311 wheel coverage is good — likely a faster leg than armv7); that `/etc/pip/pip.conf` is probably vestigial anyway since the image installs via `uv`, which doesn't read pip config — verify/drop while in there. WB8's Cortex-A5x could in principle run the armv7 image via AArch32 compat, but native arm64 is the clean path at ~6 lines of diff. **Verification:** QEMU build smoke in CI; real run gated on actual WB8 hardware (hence `[later]`).
 
 - [ ] **OPS-13** `[P2]` `[deferred]` — **UI dev-toolchain migration: eslint 9 + @typescript-eslint 8 + vite 6/8.**
   Filed 2026-07-08 as the deliberate-successor half of the OPS-7 triage: the five then-open
@@ -658,7 +658,7 @@ endpoint).
   standing rule: bump build-chain deps only for a CVE in the actual runtime path).
 
 - [ ] **OPS-14** `[P2]` `[deferred]` — **Adopt the shared logging package from
-  `domovoy-commons/packages/core-py`, replacing the OPS-12 local implementation** (INTAKE — filed
+  `locveil-commons/packages/core-py`, replacing the OPS-12 local implementation** (INTAKE — filed
   uncommitted 2026-07-08, joint productization session; verify before accepting). OPS-12's scheme
   (startup rollover `service.log.<stamp>.log`, midnight rotation, 30-day prune) was hand-ported to the
   voice repo as their BUG-30 — two copies by design review. The voice side designs the extracted
@@ -668,7 +668,7 @@ endpoint).
 
 - [ ] **OPS-15** `[P2]` `[deferred]` — **Ops-spec conformance pass** (INTAKE — filed uncommitted
   2026-07-08, joint productization session; verify before accepting). Once the normative ops spec
-  exists in `domovoy-commons/process/` (shared spec D-12 — largely codifying THIS repo's REL-2 layout
+  exists in `locveil-commons/process/` (shared spec D-12 — largely codifying THIS repo's REL-2 layout
   as the reference pattern): walk `ops/` (update.sh shape, INSTALL.md structure, unit file, retention
   constants, naming) against the conformance checklist; fix dialects or record deliberate deviations
   in the spec. Sibling of the voice repo's narrowed BUILD-18. Design:
@@ -677,7 +677,7 @@ endpoint).
 - [ ] **OPS-16** `[P2]` `[deferred]` — **Shared CLAUDE.md invariant blocks + drift guard — bridge-side
   adoption** (INTAKE — filed uncommitted 2026-07-08, joint productization session; verify before
   accepting). Fence the shared invariants in CLAUDE.md between markers (normative source:
-  `domovoy-commons/process/`), keep bridge-local ones outside, adopt the drift-guard script beside
+  `locveil-commons/process/`), keep bridge-local ones outside, adopt the drift-guard script beside
   `check_scope.py` in the `ledger-guard` CI job, and take the same-slug renames — `config-master-canonical`
   means the OPPOSITE here vs the voice repo (JSON tree vs single TOML); it splits into two
   differently-named invariants (drift inventory: shared spec §2). Gated on the commons PROD task
@@ -686,6 +686,20 @@ endpoint).
 - [ ] **OPS-18** `[P2]` `[deferred]` — **Startup-failure cleanup omits WB-card offline marking (asymmetric with normal shutdown)** (REL-5 #11). `app/bootstrap.py:184` — `_release_partial_startup` doesn't call `cleanup_wb_device_state`, so a partial-startup failure leaves retained `available=1` on the WB cards. Edge path (only when startup fails midway); completes the OPS-8 shutdown-symmetry.
 
 - [ ] **OPS-19** `[P2]` `[deferred]` — **`pyatv` git source is unmirrored — Rule 2 compliance gap (ADR 0006).** Surfaced by the REL-4 ADR review. `pyatv` is pinned to `git+https://github.com/postlund/pyatv@9177803…` — SHA-pinned (immutable, so the build is reproducible today) but **not** mirrored under the owner's account, which ADR 0006 Rule 2 requires for repos the owner doesn't control; the ADR's "only remaining git source" claim is now false (annotated 2026-07-10). Residual risk: an upstream force-push/deletion of `postlund/pyatv` breaks recovery. **Decision + small op:** either mirror `postlund/pyatv` → `droman42/pyatv` and repoint the pin (comply), OR record an accepted exception in ADR 0006 with rationale. Not a release gate (reproducible now). Minor sibling: the dev-only `py-dev-gates@v0.1.1` is tag-pinned (owner-controlled) — fold in or leave.
+
+- [ ] **OPS-21** `[P2]` `[deferred]` — **Deployment-identity rename to Locveil** (OPS-20 residue;
+  owner-gated — every item touches the live WB7 deployment or a published surface; mirrors voice
+  BUILD-29, likely ONE joint session). OPS-20 deliberately kept the pre-rename runtime identifiers:
+  image basenames `wb-mqtt-bridge`/`wb-mqtt-ui` (build-arm.yml hardcodes them; only the owner
+  namespace is dynamic), `container_name: wb-mqtt-bridge|wb-mqtt-ui` + the `mqtt-bridge-config`
+  compose project, the systemd unit `wb-mqtt-bridge.service`, the controller clone at
+  `/mnt/sdcard/wb-mqtt-bridge` (update.sh header + the INSTALL.md flow incl. clone URL/dir), the
+  `wb-mqtt-bridge` Python distribution + console script (`backend/pyproject.toml` name/scripts), and
+  `docs/design/ui/deployment.md` (legacy split-repo UI flow — audit or archive while in there).
+  Rename coherently in ONE pass with a controller migration plan (rename the SD-card clone, re-enable
+  the unit under the new name, re-pull under new basenames) — coordinate with voice BUILD-29 and the
+  BUILD-28-adjacent single-compose design on the commons board (same deployment surface). Until then
+  the GHCR namespace is already `ghcr.io/locveil/*` with old basenames — a deliberate mixed state.
 
 ### CORE — Backend core / architecture
 
@@ -719,7 +733,7 @@ endpoint).
   DRV-1/SCN rack passes run off the UI + eval suite; this tool is a developer convenience, not a gate.
 
 - [ ] **CORE-7** `[P2]` `[deferred]` — **Adopt the shared dynamic code loader from
-  `domovoy-commons/packages/core-py`** (INTAKE — filed uncommitted 2026-07-08, joint productization
+  `locveil-commons/packages/core-py`** (INTAKE — filed uncommitted 2026-07-08, joint productization
   session; verify before accepting). The user wants the voice repo's loader pattern for the bridge
   (driver/module loading). Gated on the voice-side extraction design (their ARCH-42) + the core-py
   package existing (voice BUILD-21). At task start: reconcile against the bridge's actual loading
@@ -731,7 +745,7 @@ endpoint).
 
 **The ledger & documentation reconciliation series (DOC-4…DOC-10).** Filed 2026-06-30 from two
 chat-requested analyses: (1) a comparison of this plan's former positional `P0…P4 / #n` numbering
-against the sister repo's workstream-serial ledger (`../wb-mqtt-voice/docs/RELEASE_PLAN.md` + frozen
+against the sister repo's workstream-serial ledger (`../locveil-voice/docs/RELEASE_PLAN.md` + frozen
 `RELEASE_PLAN_DONE.md`), and (2) a read of the four scenario/Layer-3 design docs that doubled as
 ledgers. Both surfaced the same thing: design/planning docs accreted a *done* ledger half that
 diluted their reference half. The series executes the **handover §0 promises** ("the redesign specs

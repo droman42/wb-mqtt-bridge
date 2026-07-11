@@ -19,7 +19,7 @@ as SCN-4 mandated.
 
 **Related:** `docs/design/scenarios/scenario_system_redesign.md` (as-built scenario
 architecture this builds on) · `docs/design/ui_backend_contract.md` (Layer-3 manifest
-contract this revises in phase 1/2) · `../wb-mqtt-voice/docs/design/mqtt_integration.md`
+contract this revises in phase 1/2) · `../locveil-voice/docs/design/mqtt_integration.md`
 §5/§13/§14 (the Irene↔bridge REST contract this extends additively).
 
 ---
@@ -59,7 +59,7 @@ virtual device becomes Alisa-controllable for free once WB ships their bridge". 
 already qualify; scenarios only join if they exist as WB controls. A design without a WB
 representation forfeits «Алиса, включи кино» via that path permanently.
 
-**Irene (`wb-mqtt-voice`)** — actuates over REST canonical commands resolved against
+**Irene (`locveil-voice`)** — actuates over REST canonical commands resolved against
 `GET /system/catalog` (three interactions, all REST; see the voice repo's
 `mqtt_integration.md` §5). The catalog today is `{version, rooms, devices}` — scenarios
 are absent. The voice repo explicitly flags SCN-4 as able to "reshape what the catalog

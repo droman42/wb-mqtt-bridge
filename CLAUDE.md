@@ -1,4 +1,4 @@
-# wb-mqtt-bridge — agent notes
+# locveil-bridge — agent notes
 
 ## Development process — invariants (apply to EVERY task)
 
@@ -6,7 +6,7 @@ The always-on working discipline for development in this monorepo (the action pl
 effort, but these rules apply to any task). **Single source of truth** — they live here in `CLAUDE.md`
 because it's always in context = always enforced; a second copy anywhere would drift. Referenced by
 **name** (stable slug), never by number — names survive adding/removing/reordering, so references from the
-plan/journal/review docs never break. (Mirrors `../wb-mqtt-voice/CLAUDE.md` — same rules, bridge's dialect.)
+plan/journal/review docs never break. (Mirrors `../locveil-voice/CLAUDE.md` — same rules, bridge's dialect.)
 
 - **`work-on-main`** — Work on `main`; small, focused commits with detailed bodies pushed straight to main
   (no PRs). Branch only when explicitly asked.
@@ -37,13 +37,13 @@ plan/journal/review docs never break. (Mirrors `../wb-mqtt-voice/CLAUDE.md` — 
     strict ESLint + orphan check). _Pairs with `user-facing-docs-are-done` — `ui/` is the user-facing **app**._
 - **`cross-repo-source-of-truth`** — for any artifact **shared with a sibling repo** (the Irene↔bridge
   catalog contract, eval fixtures, a schema pin), **this** repo is the *generator / source of truth*: it
-  commits the reference copy **here** (e.g. `contracts/`) and **never writes into a sibling** (`eval-commons`,
-  `wb-mqtt-voice`). Sync is **one-way, outward, version-stamped** — the sibling *pins its own copy* (the
+  commits the reference copy **here** (e.g. `contracts/`) and **never writes into a sibling** (`locveil-commons`,
+  `locveil-voice`). Sync is **one-way, outward, version-stamped** — the sibling *pins its own copy* (the
   bridge does not push one). Mirror of the Testing-section rule from the other direction (test *execution
-  logic* lives in `../eval-commons`, changed there not here). When a sibling-repo design **files work into
+  logic* lives in `../locveil-commons/eval`, changed there not here). When a sibling-repo design **files work into
   this ledger**, it arrives uncommitted for review: **verify its technical claims against live code before
   accepting** (`task-start-reconciliation`), then it's a normal task needing an ID (`every-task-in-the-ledger`).
-  Detail: `wb-mqtt-voice/docs/design/mqtt_integration.md` §14 + the `voice-bridge-catalog-contract` memory.
+  Detail: `locveil-voice/docs/design/mqtt_integration.md` §14 + the `voice-bridge-catalog-contract` memory.
 - **`read-at-start-record-at-completion`** — AFFIRMATIVE & NON-NEGOTIABLE.
   - **At task START:** read **not only the action-plan item but also its related design/review doc(s)**
     (per the plan's document map) — the plan entry is a spine entry; the design/review doc holds the
@@ -133,7 +133,7 @@ plan/journal/review docs never break. (Mirrors `../wb-mqtt-voice/CLAUDE.md` — 
   docs too:** update the source (`docs/images/*.dot`) and regenerate the PNG in the existing visual style.
   _Pairs with `config-ui-stays-functional` (the user-facing **app**; this is the user-facing **docs**)._
 - **`problem-report-inbox`** — problem reports land as tickets in the private
-  `droman42/wb-user-reports` repo (cross-repo design: `wb-mqtt-voice/docs/design/problem_reports.md`;
+  `droman42/wb-user-reports` repo (cross-repo design: `locveil-voice/docs/design/problem_reports.md`;
   the bridge side: `docs/design/problem_reports_bridge.md`); a cloud Claude triages each and leaves it
   needing the owner (a fix PR open on this repo, or a `needs-owner` escalation). **At the start of a new
   or resumed session, do a quick, non-blocking check** —
@@ -149,7 +149,7 @@ Declarative tests (CLI contracts now; MQTT system tests pending a broker) live i
 **[`eval/`](eval/README.md) — read that README before touching anything test-related.**
 
 Key things it establishes (don't rediscover the hard way):
-- All test *execution logic* (providers, scorers) lives in the sibling repo **`../eval-commons`** —
+- All test *execution logic* (providers, scorers) lives in the sibling repo **`../locveil-commons/eval`** —
   this repo carries only YAML + a thin `eval/Makefile`. Change behavior there, not here.
 - Run tests via `make` from `eval/` (it wires the **backend** `uv` venv + global `promptfoo`):
   `make cli` (no prerequisites), `make mqtt TARGET=local|wb7`.

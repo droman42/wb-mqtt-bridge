@@ -6,7 +6,7 @@ a voice-side amendment (their ARCH-34), verified and accepted at intake. B-12 (b
 placement + look) decided interactively the same day, pre-VWB-28.**
 
 The bridge's half of the cross-repo problem-reporting loop designed in
-`wb-mqtt-voice/docs/design/problem_reports.md` (ARCH-30, AGREED 2026-07-06). The shared pieces —
+`locveil-voice/docs/design/problem_reports.md` (ARCH-30, AGREED 2026-07-06). The shared pieces —
 the private `wb-user-reports` triage home, the one-Claude-two-lenses choreography, the envelope —
 are defined THERE and consumed here unchanged. This document decides only what is the bridge's
 own: what a UI-originated report collects, how it is assembled and delivered, and what new

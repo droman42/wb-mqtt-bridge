@@ -1,4 +1,4 @@
-# The container runs nginx as the non-root `domovoy` user (uid 1000), which cannot
+# The container runs nginx as the non-root `locveil` user (uid 1000), which cannot
 # write the compiled-in default pid path (/run/nginx.pid). Point it at /tmp, which
 # is world-writable. No `user` directive: with a non-root master, workers inherit
 # the master's uid and the directive would only emit a harmless warning.

@@ -1,8 +1,8 @@
-# eval/ — declarative CLI & MQTT tests for wb-mqtt-bridge
+# eval/ — declarative CLI & MQTT tests for locveil-bridge
 
-Pure-YAML test cases. All execution logic lives in the shared **`eval-commons`** package
-(sibling repo: `../../eval-commons`) — see its `ARCHITECTURE.md`. This directory carries only
-YAML + a thin Makefile (deployment glue, no test logic). Mirrors `wb-mqtt-voice/eval/`.
+Pure-YAML test cases. All execution logic lives in the shared **`locveil-eval`** package
+(in the umbrella repo: `../../locveil-commons/eval`) — see its `ARCHITECTURE.md`. This directory carries only
+YAML + a thin Makefile (deployment glue, no test logic). Mirrors `locveil-voice/eval/`.
 
 ## Layout
 
@@ -33,7 +33,7 @@ eval/
 
 ## Conventions & gotchas (read before editing)
 
-- **Provider/assertion code lives in `../../eval-commons`, NOT here.** This dir is pure YAML +
+- **Provider/assertion code lives in `../../locveil-commons/eval`, NOT here.** This dir is pure YAML +
   the Makefile. Change *how* a test runs in the sibling repo; don't add Python here.
 - **promptfoo env substitution is `{{env.VAR}}` (Nunjucks, load-time) — NOT `${VAR}`** (the latter
   passes through literally and fails silently). The broker host always comes from `{{env.MQTT_HOST}}`.
@@ -50,7 +50,7 @@ eval/
 
 ```bash
 npm install -g promptfoo          # runner (global Node CLI)
-make setup                        # uv pip install -e ../../eval-commons into ../backend/.venv
+make setup                        # uv pip install -e ../../locveil-commons/eval into ../backend/.venv
 
 make cli                          # CLI contracts — runs today, no prerequisites
 make mqtt TARGET=local            # MQTT system tests vs a local broker + running bridge
@@ -64,7 +64,7 @@ make view                         # results UI
   the stack up (locally via `backend/`, or point `TARGET=wb7` at the controller) before `make mqtt`.
 - **CONFIG axis deferred.** Unlike voice (where the SUT config picks ASR/NLU models), the bridge's
   "config" is `config/system.json` + the device set. When a reason to vary it in-suite appears, add
-  `profiles/configs/*.env` (mount/select a config) exactly like `wb-mqtt-voice/eval/` — same
+  `profiles/configs/*.env` (mount/select a config) exactly like `locveil-voice/eval/` — same
   mechanism, no test changes.
 - **More CLI surfaces** can be added as cases here: `device-test <id> <command>` needs MQTT + a
   device config (a later scripted extension), and `mqtt-sniffer`/the server are long-running (not

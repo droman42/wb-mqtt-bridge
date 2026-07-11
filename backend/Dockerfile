@@ -136,8 +136,8 @@ RUN if [ "$LEAN" = "true" ]; then \
 # ops/update.sh chowns the bind-mounted runtime tree (data/, logs/) to 1000 and
 # the two must stay in step. Runtime deps live in /opt/venv (world-readable), so
 # nothing here needs root. Mirrors the voice repo's BUILD-15 pattern.
-RUN useradd -m -u 1000 domovoy && chown -R domovoy:domovoy /app
-USER domovoy
+RUN useradd -m -u 1000 locveil && chown -R locveil:locveil /app
+USER locveil
 
 # Expose port
 EXPOSE 8000

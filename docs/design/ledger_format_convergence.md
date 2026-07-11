@@ -6,7 +6,7 @@
 - **Scope:** `docs/action_plan.md` + `docs/action_plan_DONE.md` + `docs/action_plan_journal.md`
   (the bridge's ledger), and the CLAUDE.md invariants that reference them. No code.
 - **Why:** two 2026-06-30 analyses (chat-requested) — (1) this plan's positional `P0…P4 / #n / §5.1`
-  numbering vs the sister repo's workstream-serial ledger (`../wb-mqtt-voice/docs/RELEASE_PLAN.md` +
+  numbering vs the sister repo's workstream-serial ledger (`../locveil-voice/docs/RELEASE_PLAN.md` +
   frozen `RELEASE_PLAN_DONE.md` + `scripts/check_scope.py`), and (2) the scenario/Layer-3 design docs
   that doubled as ledgers — both surfaced the same defect: the ledger's *identity* scheme is
   positional, so IDs encode priority/order and **renumber** when tasks move (this plan renumbered
@@ -208,7 +208,7 @@ Ordered, each step its own commit; **gated on review of this doc** (taxonomy + `
    `PREFIX-N` scheme) and any `read-at-start-record-at-completion` ID examples; add the D4 milestone
    tags + D5 `HW-GATED` marker to the process vocabulary. Single source of truth — must stay honest.
 6. **Downstream:** the scope-drift guard (**DOC-4**) is now writable against a regular grammar
-   (`^[A-Z]+-\d+`), making `../wb-mqtt-voice/scripts/check_scope.py` a near-port rather than a rewrite.
+   (`^[A-Z]+-\d+`), making `../locveil-voice/scripts/check_scope.py` a near-port rather than a rewrite.
 
 **Boundary (what "full re-ID" does and does not touch):** it re-IDs the **live ledger** — the active
 plan and the DONE file (CLAUDE.md calls these "completed tasks"). The **journal stays frozen** as

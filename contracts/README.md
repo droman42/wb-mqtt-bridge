@@ -1,10 +1,10 @@
 # The Irene ↔ bridge contract artifacts
 
 This directory is the **contract of record** between the bridge and its non-UI
-consumers — first among them the `wb-mqtt-voice` assistant (Irene). The bridge is the
+consumers — first among them the `locveil-voice` assistant (Irene). The bridge is the
 *generator and source of truth*: artifacts are committed **here** and never pushed
 into a sibling repository. The voice side pins its own copy (into
-`eval-commons/contracts/`) — a one-way, outward, version-stamped sync.
+`locveil-commons/contracts/`) — a one-way, outward, version-stamped sync.
 
 ## Files
 

@@ -1,4 +1,4 @@
-# CLI contract tests: wb-mqtt-bridge's argparse console scripts.
+# CLI contract tests: locveil-bridge's argparse console scripts.
 # No running service, no broker, no hardware — the fastest green and the everyday CI gate.
 #
 #   make cli
@@ -8,13 +8,13 @@
 # backend venv's bin on PATH so wb-openapi / broadlink-cli resolve.
 # return_mode: full → output is JSON {stdout, stderr, exit_code, duration_ms}.
 
-description: wb-mqtt-bridge — CLI contract tests (argparse console scripts; no service/hardware)
+description: locveil-bridge — CLI contract tests (argparse console scripts; no service/hardware)
 
 prompts:
   - '{{cmd}}'
 
 providers:
-  - id: file://../../eval-commons/eval_commons/providers/cli_provider.py
+  - id: file://../../locveil-commons/eval/eval_commons/providers/cli_provider.py
     label: cli
     config:
       cwd: ../backend         # code root (pyproject + venv + config live here)

@@ -6,7 +6,7 @@ description: Review the problem-report queue one item at a time — fix PRs on t
 # /inbox — problem-report owner review (bridge lens)
 
 The interactive review loop for the problem-reporting system (the cross-repo design in
-`wb-mqtt-voice/docs/design/problem_reports.md` §8; the bridge's participation is
+`locveil-voice/docs/design/problem_reports.md` §8; the bridge's participation is
 `docs/design/problem_reports_bridge.md`). Reports land as tickets in the **private**
 `droman42/wb-user-reports` repo; a GitHub-hosted Claude triages each one and leaves it in one of
 two states that need the owner: a **fix PR open on this repo**, or an **escalated ticket**

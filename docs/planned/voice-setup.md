@@ -20,7 +20,7 @@ The full contract lives in `docs/design/voice_integration_contract_draft.md`
 | **B. Voice-friendly catalog read** | `GET /system/catalog` — flat capability-shaped projection of devices + rooms; **all locales**; sensors as one `sensor` capability with read-only `fields`; one device, one room. Retained `bridge/catalog/version` MQTT topic carries a content hash so Irene re-fetches only on real change. | **Shipped** (§P3.7 #17). |
 | **C. Native WB onboarding** | Generic data-driven WB-passthrough driver; composite payloads (RGB, HVAC) handled inside the driver via typed `state_topics` + `payload_template`; `global` is a regular room holding whole-house aggregates; loop guard on the state-sync chokepoint (no WB-publish callback for passthrough). | **Mostly shipped** (§P3.7 #13–#23 done). Tail open: #22 / #24 / #25 / #26 — see below. |
 
-The strategic decision the contract encodes: **`wb-mqtt-bridge` is the single
+The strategic decision the contract encodes: **`locveil-bridge` is the single
 authoritative device catalog + actuation backend for the whole house** — native
 WB gear *and* the AV stack. Irene owns voice; the bridge owns everything else.
 
@@ -110,7 +110,7 @@ Two endpoints + one new MQTT topic family the page needs:
 
 - **Per-room Irene satellites — what does "registration" look like?**
   Today the contract assumes one Irene-per-bridge; the per-room voice
-  satellite plan (`wb-mqtt-voice`'s ESP32 path) makes Irene a fleet. The
+  satellite plan (`locveil-voice`'s ESP32 path) makes Irene a fleet. The
   retained-heartbeat topic is one option; an explicit `POST /voice/register`
   is another (heavier but auditable).
 - **Auth + ACL between Irene and the bridge.** Today: nothing — LAN trust.
@@ -158,6 +158,6 @@ Two endpoints + one new MQTT topic family the page needs:
   — sibling admin surfaces. All four planned pages share the same admin
   shell + auth dependency.
 - **Sister project**:
-  [`wb-mqtt-voice`](https://github.com/droman42/wb-mqtt-voice) — Irene
+  [`locveil-voice`](https://github.com/locveil/locveil-voice) — Irene
   itself; its `docs/design/mqtt_integration.md` is the counterpart spec
   on the voice side.

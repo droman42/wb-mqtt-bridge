@@ -3,12 +3,12 @@
 **Status:** AGREED 2026-06-06; **amended 2026-06-15** to fold in the value-label translation layer
 (§P3.7 #26, implemented 2026-06-09 — see "Value-labels for controllable enum fields" in §B). Reconciled
 in the bridge session with the user. Originated as a draft from the **Irene voice-assistant** design
-session (sister repo `wb-mqtt-voice`, task ARCH-7); see prior revision in git history for the
+session (sister repo `locveil-voice`, task ARCH-7); see prior revision in git history for the
 open-question form. This is the contract Irene's ARCH-8 implementation builds against
-(`wb-mqtt-voice/docs/design/mqtt_integration.md` §10 — blocked on it).
+(`locveil-voice/docs/design/mqtt_integration.md` §10 — blocked on it).
 
 > Same author, two projects. The strategic decision is:
-> **wb-mqtt-bridge becomes the single authoritative device catalog + actuation backend for the
+> **locveil-bridge becomes the single authoritative device catalog + actuation backend for the
 > whole house — native Wirenboard gear *and* the AV devices it already bridges — and Irene
 > talks only to the bridge.** Irene owns voice; the bridge owns devices and all
 > MQTT/home-automation conventions. wb-rules retains all rule/automation logic on the
@@ -335,4 +335,4 @@ each backed by a wb-rules scene/group) + import `rooms.json` from the WB HomeUI 
 
 _With the contract agreed, the action plan (`docs/action_plan.md`) is updated separately to
 schedule the work. This document is the bridge ↔ Irene reference; Irene's ARCH-8
-implementation plan (`wb-mqtt-voice/docs/design/mqtt_integration.md` §10) builds against it._
+implementation plan (`locveil-voice/docs/design/mqtt_integration.md` §10) builds against it._

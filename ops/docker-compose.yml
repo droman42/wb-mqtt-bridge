@@ -27,7 +27,7 @@
 
 services:
   backend:
-    image: ghcr.io/droman42/wb-mqtt-bridge:latest
+    image: ghcr.io/locveil/wb-mqtt-bridge:latest
     container_name: wb-mqtt-bridge
     restart: unless-stopped
     network_mode: host                # reach WB mosquitto on localhost:1883
@@ -55,7 +55,7 @@ services:
         max-file: "3"
 
   ui:
-    image: ghcr.io/droman42/wb-mqtt-ui:latest
+    image: ghcr.io/locveil/wb-mqtt-ui:latest
     container_name: wb-mqtt-ui
     restart: unless-stopped
     network_mode: host

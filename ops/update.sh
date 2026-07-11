@@ -30,7 +30,7 @@ rsync -a --delete "$(cd ../backend/config && pwd)/" "$RUNTIME/config/"
 echo ">>> deploy docker-compose.yml -> $RUNTIME"
 cp docker-compose.yml "$RUNTIME/docker-compose.yml"
 
-# The container runs non-root as uid 1000 (`USER domovoy` in the Dockerfiles), but
+# The container runs non-root as uid 1000 (`USER locveil` in the Dockerfiles), but
 # this script runs as root on the controller. The writable bind mounts must be
 # owned by 1000 or the container hits EACCES (state DB, reports spool, logs). The
 # :ro config mount is left alone — it is world-readable straight from the rsync.

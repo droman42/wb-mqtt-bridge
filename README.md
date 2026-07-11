@@ -1,8 +1,8 @@
-# wb-mqtt-bridge
+# locveil-bridge
 
 A Wirenboard-side bridge that brings A/V equipment and other appliances into the
 Wirenboard MQTT ecosystem, runs Logitech-Harmony-style **scenarios** across them,
-and pairs with the [Irene](https://github.com/droman42/wb-mqtt-voice) voice assistant
+and pairs with the [Irene](https://github.com/locveil/locveil-voice) voice assistant
 as the home's single device catalog and actuation backend.
 
 Version 0.6.0 · Python 3.11+ · MIT.
@@ -11,7 +11,7 @@ Version 0.6.0 · Python 3.11+ · MIT.
 > controller: the hexagonal backend, the typed config + state models, and the scenario
 > reconciler are settled and hardware-verified. The React UI ships an iPad-portrait
 > Harmony-style remote with backend-served runtime layouts, plus native panels for the
-> air conditioners and the kitchen hood. It pairs with the [Irene](https://github.com/droman42/wb-mqtt-voice)
+> air conditioners and the kitchen hood. It pairs with the [Irene](https://github.com/locveil/locveil-voice)
 > voice assistant as the house's device catalog and actuation backend, and files its own
 > bug reports. Still one home, one user, LAN only; the device- and topology-setup admin
 > pages and the Wirenboard 8 / arm64 image are on the roadmap.
@@ -78,8 +78,8 @@ Version 0.6.0 · Python 3.11+ · MIT.
 - The A/V remote and scenarios are modelled on Logitech's discontinued **Harmony**
   remotes — the same idea of one-touch activities across many devices, brought into the
   Wirenboard environment.
-- The voice side is **[Irene](https://github.com/droman42/wb-mqtt-voice)** (sister
-  project, `wb-mqtt-voice`). Irene owns voice; this bridge owns devices and all WB /
+- The voice side is **[Irene](https://github.com/locveil/locveil-voice)** (sister
+  project, `locveil-voice`). Irene owns voice; this bridge owns devices and all WB /
   MQTT conventions.
 
 ## License

@@ -21,6 +21,21 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-11 — OPS-20: the repo is `locveil-bridge` now — first board-as-outbox delegation consumed;
+  OPS-21 filed.** The Locveil productization arc reached this repo: name locked (**Locveil**), org
+  `locveil`, all three repos + local dirs renamed, commons restructured (`locveil-commons@52126da`,
+  board live). The delegation was pulled from `locveil-commons/board/BOARD.md` PROD-2 (the mechanism
+  D-5 designed — this retires the uncommitted-filing pattern that VWB-29/CORE-7/OPS-14/15/16 used as
+  its deliberate last case), verified against live code, filed as OPS-20, executed: eval re-point to
+  `../../locveil-commons/eval` (cli 4/4), `backend/.venv` rebuilt (the dir rename had bricked every
+  console-script shebang — the voice session hit the identical failure), operative name sweep,
+  `domovoy`→`locveil` container user (inert until the next image rebuild), GHCR pull refs →
+  `ghcr.io/locveil/*` (**owner: run one CI publish before the next controller `update.sh`**, or the
+  compose pull 404s). Deployment identity (image basenames, container/unit names, controller paths,
+  the `wb-mqtt-bridge` distribution name) deliberately unchanged → OPS-21, to be coordinated with
+  voice BUILD-29. Backend suite 698 passed post-rebuild; `check_scope.py` green; OPS-20 written back
+  to the board (PROD-2 closes).
+
 - **2026-07-10 — RELEASE 1 CUT: v0.6.0. VWB-16 → `[deferred]`; every `[release]` task now closed.** —
   the owner's call at the tag: VWB-16 (the voice-crossover consumer contract test) waits on the voice
   repo's TEST-18 fixtures, so it moved `[release]` → `[deferred]` — release 1 doesn't hang on a sibling

@@ -1,5 +1,5 @@
-# eval/ — run wb-mqtt-bridge CLI & MQTT tests across the target axis.
-# Design: ../../eval-commons/ARCHITECTURE.md (memory: test-run-axes). Mirrors wb-mqtt-voice/eval.
+# eval/ — run locveil-bridge CLI & MQTT tests across the target axis.
+# Design: ../../locveil-commons/eval/ARCHITECTURE.md (memory: test-run-axes). Mirrors locveil-voice/eval.
 #
 #   make cli                 # CLI contract tests — no service/broker/hardware (fastest)
 #   make mqtt TARGET=local   # MQTT system tests against a local broker + running bridge
@@ -32,7 +32,7 @@ help:
 	@echo "TARGET=$(TARGET)  ->  MQTT_HOST=$(MQTT_HOST)  API_URL=$(API_URL)"
 
 setup:                        ## install the shared providers into the backend venv (uv)
-	uv pip install --python $(PROMPTFOO_PYTHON) -e ../../eval-commons
+	uv pip install --python $(PROMPTFOO_PYTHON) -e ../../locveil-commons/eval
 
 cli:                          ## CLI contract tests (console scripts) — no service/broker needed
 	$(PROMPTFOO) eval -c cli.promptfooconfig.yaml

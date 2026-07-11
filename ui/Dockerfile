@@ -47,9 +47,9 @@ RUN chmod +x /docker-entrypoint.sh
 # /etc/nginx/nginx.conf and /usr/share/nginx/html/runtime-config.js, and nginx
 # itself writes the temp/cache and error-log trees. The pid file is redirected to
 # /tmp in nginx.conf.template. listen :3000 is >1024, so no root is needed to bind.
-RUN adduser -D -u 1000 domovoy && \
-    chown -R domovoy:domovoy /var/cache/nginx /var/log/nginx /etc/nginx /usr/share/nginx/html
-USER domovoy
+RUN adduser -D -u 1000 locveil && \
+    chown -R locveil:locveil /var/cache/nginx /var/log/nginx /etc/nginx /usr/share/nginx/html
+USER locveil
 
 EXPOSE 3000
 

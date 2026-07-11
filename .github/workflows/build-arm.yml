@@ -144,8 +144,8 @@ jobs:
 
   # ----------------------- gated ARM image builds (slow; manual workflow_dispatch) ---
   # Builds linux/arm/v7 images for backend + UI and PUSHES them to GHCR.
-  #   ghcr.io/droman42/wb-mqtt-bridge:<tag>   (backend)
-  #   ghcr.io/droman42/wb-mqtt-ui:<tag>       (UI)
+  #   ghcr.io/locveil/wb-mqtt-bridge:<tag>   (backend)
+  #   ghcr.io/locveil/wb-mqtt-ui:<tag>       (UI)
   # Tags emitted per build: `latest`, `sha-<short>`, `vYYYYMMDD-<short>`.
   # Auth is the workflow's built-in GITHUB_TOKEN (no separate PAT). On first push,
   # the packages will be PRIVATE — flip to public in repo Settings → Packages so

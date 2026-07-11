@@ -3,7 +3,7 @@
 A modern, responsive web application for controlling smart home devices and
 scenarios. Built with React 18, TypeScript, and Tailwind CSS. It renders a
 remote-control-style page per device, generated at build time from the
-`wb-mqtt-bridge` backend's OpenAPI contract.
+`locveil-bridge` backend's OpenAPI contract.
 
 ## Features
 
@@ -59,8 +59,8 @@ One generator:
 ### Installation
 
 ```bash
-git clone https://github.com/droman42/wb-mqtt-bridge.git
-cd wb-mqtt-bridge/ui
+git clone https://github.com/locveil/locveil-bridge.git
+cd locveil-bridge/ui
 npm install
 
 # Generate API types from the backend's openapi.json (pages render at runtime — no page codegen)
@@ -147,7 +147,7 @@ src/
 ## Docker Deployment
 
 ARM v7 images are built via GitHub Actions for Wirenboard 7 (Node-only build, no
-Python) and pushed to `ghcr.io/droman42/wb-mqtt-ui` with `latest` / `sha-<short>`
+Python) and pushed to `ghcr.io/locveil/wb-mqtt-ui` with `latest` / `sha-<short>`
 / `vYYYYMMDD-<short>` tags. On the Wirenboard the UI runs from
 `ops/docker-compose.yml` alongside the backend — host network, nginx on port
 3000, proxying to the backend over loopback. See
@@ -160,7 +160,7 @@ To run the image standalone (outside compose):
 docker run -d --name wb-ui --restart unless-stopped -p 3000:3000 \
   -e BACKEND_HOST=192.168.110.250 -e BACKEND_PORT=8000 \
   -e MQTT_URL=ws://192.168.110.250:9001 \
-  ghcr.io/droman42/wb-mqtt-ui:latest
+  ghcr.io/locveil/wb-mqtt-ui:latest
 # Access at http://localhost:3000
 ```
 
