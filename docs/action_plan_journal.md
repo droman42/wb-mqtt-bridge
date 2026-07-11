@@ -25,6 +25,25 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-11 — OPS-16: CLAUDE.md harmonization — the shared process layer is pinned blocks now
+  (scope-v3).** Third board-as-outbox delegation (PROD-5 / HK-2), pre-assigned this ID with a REDEFINE
+  flag — reconciliation confirmed the old text stale on three counts (`check_scope.py` gone with
+  OPS-22; the separate-drift-guard-script plan dead — HK-2 put a `claudemd` hash rule INSIDE
+  scope-guard; the split-in-two rename superseded by rename-apart) — owner approved the redefine
+  before execution. Landed: both digest blocks (`shared-invariants`, `cross-repo-board`) inserted
+  byte-identical between `locveil:begin/end` markers; the ~55 lines of duplicated long-form
+  ledger/rotation/guard mechanics they replace came out, shared invariants now carry dialect-only
+  bullets — CLAUDE.md 175 → 164 lines (the HK-2 hard criterion: adoption must not grow the file).
+  Preamble de-lied (the "single source of truth = this file" claim was false since HK-1); the retired
+  uncommitted-intake clause in `cross-repo-source-of-truth` replaced with board-as-outbox vs
+  direct-operational-filing (and commons acknowledged as co-owned ground — the old "never write into
+  `locveil-commons`" wording contradicted the board convention). **`config-master-canonical` →
+  `config-master-tree`** (HK-2 rename-apart; frozen design-doc mention annotated, not rewritten).
+  Guard re-pinned at **scope-v3** (1.1.0): `[claude]` hashes match commons' pins exactly; tamper test
+  fails correctly (CLAUDE-BLOCK drift, exit 1); CLAUDE.md added to the CI `ledger` paths-filter. The
+  board block closes the "sessions search for the board process" gap HK-2 named. Consumption noted on
+  the board journal; PROD-5 stays `[>]` until voice's BUILD-23 lands.
+
 - **2026-07-11 — OPS-22: scope-guard cutover — the commons ledger guard is the law here now; found +
   fixed a v1 rotation bug upstream (scope-v2).** Second board-as-outbox delegation consumed (PROD-13 /
   HK-1, verified at intake: tool + starter config green on this tree, tag matched HEAD, retirement
