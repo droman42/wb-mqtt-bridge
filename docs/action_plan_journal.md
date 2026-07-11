@@ -25,6 +25,15 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-11 — VWB-36: lens-bridge.md re-reviewed — triage now knows the protocol pin.**
+  Board-as-outbox delegation (PROD-14 phase 2 (2); the VWB-26 co-ownership pattern; the board's
+  pre-named VWB-30 was stale — serial already consumed — re-serialed at intake). All existing
+  lens claims verified true against the live repo (test paths, gates, `$CROSS_REPO_TOKEN`,
+  ping-pong guard; slugs already clean from the phase-0 sweep); one addition landed on the
+  reports repo (`locveil-reports@6a5dc62`): §2 teaches the protocol-pinned filing surface
+  (VWB-37's pin + conformance test — wire-surface changes start with a commons re-pin, never
+  bridge-side) and the explicit no-default `reports.repo` (VWB-35). No bridge code touched.
+
 - **2026-07-11 — VWB-37: report-protocol-v1 consumed — the filing surface is pin-validated now.**
   Board-as-outbox delegation (PROD-14 phase 2 (3) / PROD-6, council HK-3), filed + executed same
   session alongside VWB-35/36. The commons machine core pinned byte-identical at the repo root
