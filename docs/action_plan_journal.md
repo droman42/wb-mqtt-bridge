@@ -25,6 +25,16 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-11 — VWB-35: reports-repo re-point complete — spool drained (trivially), the task closes.**
+  Board-as-outbox delegation (PROD-14 phase 2 (1), council HK-3); implementation had landed
+  (`0279ade` + `7f37dae`: slug sweep, explicit `reports.repo`, schema default dropped with the
+  fail-fast validator, regen chain, guide re-truthed) with the completion held on the one owner
+  check — the agent's SSH to the controller is permission-blocked by design. Owner verified:
+  `/mnt/data/locveil-bridge-config/data/` has **no `reports/` subdirectory** — the spool dir is
+  lazily created on first spool (`_spool` mkdir; `retry_spooled` handles absence), so nothing was
+  ever spooled = trivially drained, consistent with the phase-1 live smoke delivering directly.
+  All four scope items verified → completion triad. Suite 704, golden unchanged.
+
 - **2026-07-11 — VWB-36: lens-bridge.md re-reviewed — triage now knows the protocol pin.**
   Board-as-outbox delegation (PROD-14 phase 2 (2); the VWB-26 co-ownership pattern; the board's
   pre-named VWB-30 was stale — serial already consumed — re-serialed at intake). All existing
