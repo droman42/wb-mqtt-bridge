@@ -675,14 +675,23 @@ endpoint).
   in the spec. Sibling of the voice repo's narrowed BUILD-18. Design:
   `docs/design/productization_bridge.md` §2.
 
-- [ ] **OPS-16** `[P2]` `[deferred]` — **Shared CLAUDE.md invariant blocks + drift guard — bridge-side
-  adoption** (INTAKE — filed uncommitted 2026-07-08, joint productization session; verify before
-  accepting). Fence the shared invariants in CLAUDE.md between markers (normative source:
-  `locveil-commons/process/`), keep bridge-local ones outside, adopt the drift-guard script beside
-  `check_scope.py` in the `ledger-guard` CI job, and take the same-slug renames — `config-master-canonical`
-  means the OPPOSITE here vs the voice repo (JSON tree vs single TOML); it splits into two
-  differently-named invariants (drift inventory: shared spec §2). Gated on the commons PROD task
-  authoring the blocks. Design: `docs/design/productization_bridge.md` §2.
+- [ ] **OPS-16** `[P1]` — **CLAUDE.md harmonization — adopt the pinned shared blocks (scope-v3)**
+  (board delegation, `locveil-commons` PROD-5 / HK-2 council decision 2026-07-11, normative
+  `locveil-commons/process/claude-md.md`; **REDEFINED at intake 2026-07-11 with owner approval** —
+  the original 2026-07-08 uncommitted-intake text referenced `check_scope.py` (deleted by OPS-22),
+  planned a separate drift-guard script (dead — HK-2 put the rule inside scope-guard), and expected
+  the slug to split in two (HK-2 decided: single rename apart per side); original text preserved in
+  `docs/design/productization_bridge.md` §2, annotated). Scope: (1) insert the `shared-invariants` +
+  `cross-repo-board` blocks from `locveil-commons/process/claude-blocks/` between `locveil:begin/end`
+  markers in CLAUDE.md, byte-identical at `scope-v3`; delete the duplicated long-form ledger/board
+  mechanics they replace (bridge dialect stays outside the markers) — **net CLAUDE.md line count must
+  not grow** (HK-2 hard criterion); (2) re-pin `scripts/scope_guard.py` at `scope-v3` (1.1.0) + enable
+  the `[claude]` section in `.scope-guard.toml` with the `--hash-blocks` hashes; (3) rewrite the false
+  sovereignty preamble (shared rules are commons-normative since HK-1) and the retired
+  uncommitted-intake clause in `cross-repo-source-of-truth` (board-as-outbox vs direct operational
+  filings); (4) rename `config-master-canonical` → `config-master-tree` (CLAUDE.md definition;
+  annotate the frozen design-doc mention as superseded by HK-2). Bridge ID pre-written into the
+  PROD-5 board entry; note consumption in the board journal on completion.
 
 - [ ] **OPS-18** `[P2]` `[deferred]` — **Startup-failure cleanup omits WB-card offline marking (asymmetric with normal shutdown)** (REL-5 #11). `app/bootstrap.py:184` — `_release_partial_startup` doesn't call `cleanup_wb_device_state`, so a partial-startup failure leaves retained `available=1` on the WB cards. Edge path (only when startup fails midway); completes the OPS-8 shutdown-symmetry.
 
