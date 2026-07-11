@@ -61,7 +61,10 @@ on the controller) — never in the config file:
 WB_REPORTS_TOKEN=github_pat_...
 ```
 
-With the repo or token missing, the bridge starts normally and reporting simply stays off.
+Turning reporting on without naming the repository is a configuration error — the bridge
+refuses to start rather than guess where your reports should go. A missing token is gentler:
+the bridge starts normally, and any reports filed in the meantime wait on disk and are
+delivered once the token appears. With reporting left disabled, neither is needed.
 
 ## What happens to a report
 
