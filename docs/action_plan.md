@@ -582,6 +582,40 @@ endpoint).
 
 - [ ] **VWB-34** `[P2]` `[deferred]` — **Publish confirmation-timing in the contract — design** (`design-then-implement`; filed 2026-07-10 off the DRV-29 post-mortem chat: "your HTTP timeout must exceed 15 s" is contract information currently delivered out-of-band in a handover note — the same coupling class DRV-29 fixed, one layer up: retune a gate to 30 s and voice's timeouts fire again with no signal in the pinned catalog). **Cross-repo** — intended for delegation to the board once board-as-outbox lands (Domovoy arc); the voice side co-owns the consumption design (example on the table: implement scenario startup as a *durable action* on the voice side). Three tiers established in the chat analysis, to be confirmed/refined by the design: **(1) capabilities** — publish a client-meaningful optional `confirm_timeout_ms` per capability (present only when gated), derived from but NOT exposing the internal `gate` object (the gate is implementation — reconciler polling cadence; the latency promise is contract — keeps internals re-tunable without a re-pin); consumers: voice sizes per-capability HTTP timeouts and can auto-choose `wait:false` + optimistic speech for slow capabilities instead of hardcoding device lists; the UI's HvacPanel shows an honest progress expectation; extends VWB-24's zero-round-trip philosophy (catalog says what's valid → now also what to expect). **(2) scenarios** — a static estimate would lie (switch duration is diff-dependent: warm shared devices ≈ seconds, cold start ≈ the critical path); the honest publishable fact is an **upper bound** `max_duration_ms`, mechanically derivable from the cold-start plan (step gates + IR delays along the critical path) — a ceiling for client timeouts, never exceeded, usually beaten; progress narration uses the existing SSE state stream, not a number. **(3) async composites** — the fully clean answer for long-running composites is the async-job pattern (`202 Accepted` + progress events + completion event, dissolving the timeout question; the durable-action idea lives here) — a real API redesign touching voice + UI both, deliberately the design's decision whether/when, NOT presumed. Contract cost when implemented: catalog model + derivation + golden/openapi re-pin + voice re-pin — batch with an adjacent deliberate contract cut (OPS-16 tagging discipline applies). Deliverable: design doc + filed implementation follow-up(s).
 
+- [ ] **VWB-35** `[P1]` — **Reports-repo re-point → `locveil/locveil-reports`** (board-as-outbox intake
+  2026-07-11: PROD-14 phase-2 bridge delegation (1), council HK-3; verified at intake — stale slugs and
+  the schema default confirmed live). The reports repo transferred `droman42/wb-user-reports` →
+  `locveil/locveil-reports` (private; PROD-14 phase 1 complete, smoke green); no redirect reliance
+  anywhere (collectors POST; a 301 is not reliably replayed). **Scope:** (a) slug sweep —
+  `.claude/skills/inbox/SKILL.md` (all sites), the `problem-report-inbox` invariant's `gh` command in
+  CLAUDE.md (dialect section, repo-owned), `docs/design/problem_reports_bridge.md` operative refs,
+  `github_sink.py` docstring; plus the org-move leftovers in `ops/INSTALL.md` (clone URL, GHCR packages
+  link — images already publish to `ghcr.io/locveil/*`); (b) make `reports.repo` **explicit** in
+  `backend/config/system.json` and **DROP the slug schema default** (HK-3 q4 round 1): `ReportsConfig.repo`
+  → `Optional[str] = None` + fail-fast validator (`enabled: true` without `repo` refuses to load — filing
+  stays opt-in, a reports-less config stays valid), sink constructed only when enabled, the dead
+  `ReportsSettings.repo` removed, `ReportsConfigResponse.repo` de-defaulted; (c) the regen chain — openapi
+  regen + `contracts/` pin + STAMP + UI types regen (`config-ui-stays-functional`); voice's re-pin is the
+  voice side's own PROD-14 delegation, not pushed from here (`cross-repo-source-of-truth`);
+  (d) spool-drain verification post-cutover on the WB7. Journal/DONE/review-doc historical mentions stay
+  (frozen evidence).
+
+- [ ] **VWB-36** `[P1]` — **`lens-bridge.md` co-ownership re-review in `locveil/locveil-reports`**
+  (PROD-14 phase-2 bridge delegation (2); the VWB-26 pattern). The board pre-named this **VWB-30** —
+  stale at intake: that serial was consumed 2026-07-09 by the REL-5 reports-hardening remediation;
+  re-serialed per assigned-once (noted in the board write-back). Re-verify
+  `.github/claude/lens-bridge.md` against this repo post-rename/post-protocol (repo slugs, gates,
+  test paths, protocol-core references) and correct in a commit on the reports repo.
+
+- [ ] **VWB-37** `[P1]` — **`report-protocol-v1` consumption** (PROD-14 phase-2 bridge delegation (3) —
+  the PROD-6 half riding the PROD-14 record). Pin the commons machine core
+  (`../locveil-commons/process/report-protocol/report-protocol.json`, tag `report-protocol-v1`) as a
+  repo-local copy (`report-protocol.pin.json`, mirroring the reports repo's pin convention); add **one
+  conformance test** over the filing surface — the labels / title prefix / report-id shape emitted by
+  `domain/reports/service.py` (~`:210/:216`), the sink's bundle path, and `system.json`'s explicit
+  `reports.repo` vs the pin's `repos.reports`; retire the hardcodes into pin-validated constants
+  (constants stay in code, the test locks them to the pin).
+
 ### UI — config-ui
 
 - [ ] **UI-8** `[P2]` `[deferred]` — **UI `vite` 5 → 6 migration (deferred — deliberate major upgrade).** Filed 2026-06-27. Closes the remaining build-toolchain Dependabot alerts that couldn't be cleared by the lockfile-only `npm audit fix` (see journal 2026-06-27): **vite #113/#154/#155** (path traversal / dev-server) and **esbuild #81** (esbuild 0.25 rides vite 6). Does **NOT** cover the other 2 residual alerts — `minimatch` #101 (pinned by `@typescript-eslint@6`) and `js-yaml` #152 (pinned by `jest@29`); those are separate toolchain-major tasks (eslint 6→9 / jest upgrade), file them if/when pursued.
