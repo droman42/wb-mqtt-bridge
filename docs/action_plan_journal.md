@@ -25,6 +25,17 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-11 — VWB-37: report-protocol-v1 consumed — the filing surface is pin-validated now.**
+  Board-as-outbox delegation (PROD-14 phase 2 (3) / PROD-6, council HK-3), filed + executed same
+  session alongside VWB-35/36. The commons machine core pinned byte-identical at the repo root
+  (`report-protocol.pin.json`, tag verified before copy — the reports repo's pin convention);
+  the `service.py` filing hardcodes (labels, `[bridge-ui]` prefix, bundle name, id source token)
+  retired into `REPORT_*` constants; `test_report_protocol_pin.py` (5 tests) locks constants → pin,
+  including `system.json` `reports.repo` == `repos.reports` (chains the VWB-35 cutover value to the
+  protocol; the emitted-value half was already locked by the envelope test). Suite 704, pyright 0,
+  import-linter 6/6, no contract change. Protocol bumps: re-pin first, adjust until conformance
+  passes.
+
 - **2026-07-11 — OPS-16: CLAUDE.md harmonization — the shared process layer is pinned blocks now
   (scope-v3).** Third board-as-outbox delegation (PROD-5 / HK-2), pre-assigned this ID with a REDEFINE
   flag — reconciliation confirmed the old text stale on three counts (`check_scope.py` gone with

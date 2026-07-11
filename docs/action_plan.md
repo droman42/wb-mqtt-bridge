@@ -607,15 +607,6 @@ endpoint).
   `.github/claude/lens-bridge.md` against this repo post-rename/post-protocol (repo slugs, gates,
   test paths, protocol-core references) and correct in a commit on the reports repo.
 
-- [ ] **VWB-37** `[P1]` — **`report-protocol-v1` consumption** (PROD-14 phase-2 bridge delegation (3) —
-  the PROD-6 half riding the PROD-14 record). Pin the commons machine core
-  (`../locveil-commons/process/report-protocol/report-protocol.json`, tag `report-protocol-v1`) as a
-  repo-local copy (`report-protocol.pin.json`, mirroring the reports repo's pin convention); add **one
-  conformance test** over the filing surface — the labels / title prefix / report-id shape emitted by
-  `domain/reports/service.py` (~`:210/:216`), the sink's bundle path, and `system.json`'s explicit
-  `reports.repo` vs the pin's `repos.reports`; retire the hardcodes into pin-validated constants
-  (constants stay in code, the test locks them to the pin).
-
 ### UI — config-ui
 
 - [ ] **UI-8** `[P2]` `[deferred]` — **UI `vite` 5 → 6 migration (deferred — deliberate major upgrade).** Filed 2026-06-27. Closes the remaining build-toolchain Dependabot alerts that couldn't be cleared by the lockfile-only `npm audit fix` (see journal 2026-06-27): **vite #113/#154/#155** (path traversal / dev-server) and **esbuild #81** (esbuild 0.25 rides vite 6). Does **NOT** cover the other 2 residual alerts — `minimatch` #101 (pinned by `@typescript-eslint@6`) and `js-yaml` #152 (pinned by `jest@29`); those are separate toolchain-major tasks (eslint 6→9 / jest upgrade), file them if/when pursued.
