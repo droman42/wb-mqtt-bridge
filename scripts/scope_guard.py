@@ -31,7 +31,7 @@ import sys
 import tomllib
 from pathlib import Path
 
-__version__ = "1.0.0"  # scope-v1
+__version__ = "1.0.1"  # scope-v2 — --rotate journal fix (v1 wrote archives char-per-line) + explicit --check flag
 
 
 # ---------------------------------------------------------------- config
@@ -404,7 +404,7 @@ def rotate_journal(root: Path, cfg: dict) -> bool:
         print(f"journal rotation: {apath} already exists — refusing to overwrite")
         return False
     moved_sorted = sorted(moved, key=lambda s: s[0], reverse=True)
-    body = "\n".join("\n".join(s[1]).rstrip() + "\n" for _, s in moved_sorted)
+    body = "\n".join("\n".join(day).rstrip() + "\n" for _, day in moved_sorted)
     apath.write_text(
         f"# Journal archive {dates[0]} … {dates[-1]} (frozen — never re-edit)\n\n" + body,
         encoding="utf-8")
@@ -413,7 +413,7 @@ def rotate_journal(root: Path, cfg: dict) -> bool:
     new_header = list(header)
     insert_at = 1 if new_header and new_header[0].startswith("#") else 0
     new_header.insert(insert_at, pointer)
-    new_text = "\n".join(new_header) + "\n" + "\n".join("\n".join(s[1]) for _, s in kept) + "\n"
+    new_text = "\n".join(new_header) + "\n" + "\n".join("\n".join(day) for _, day in kept) + "\n"
     path.write_text(new_text, encoding="utf-8")
     print(f"journal rotated: {len(moved)} section(s) → {apath.relative_to(root)}; "
           f"{len(new_text.splitlines())} lines remain")
@@ -480,10 +480,14 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Locveil ledger/journal discipline guard")
     ap.add_argument("--config", default=".scope-guard.toml")
     ap.add_argument("--root", default=None, help="repo root (default: config file's directory)")
+    ap.add_argument("--check", action="store_true",
+                    help="explicit read-only check (the default mode; what hooks and CI run)")
     ap.add_argument("--rotate", nargs="?", const="all", choices=["journal", "done", "all"],
                     help="execute rotation (default mode is a read-only check)")
     ap.add_argument("--version", action="version", version=f"scope-guard {__version__}")
     args = ap.parse_args()
+    if args.check and args.rotate:
+        ap.error("--check and --rotate are mutually exclusive")
 
     cfg_path = Path(args.config).resolve()
     if not cfg_path.exists():
