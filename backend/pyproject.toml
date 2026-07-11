@@ -3,7 +3,7 @@ requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "wb-mqtt-bridge"
+name = "locveil-bridge"
 version = "0.6.0"
 description = "A Python-based web service that acts as an MQTT client to manage multiple devices using a plugin-based architecture"
 readme = "README.md"
@@ -87,7 +87,7 @@ Homepage = "https://github.com/locveil/locveil-bridge"
 Issues = "https://github.com/locveil/locveil-bridge/issues"
 
 [project.scripts]
-wb-mqtt-bridge = "wb_mqtt_bridge.app.main:main"
+locveil-bridge = "wb_mqtt_bridge.app.main:main"
 wb-api = "wb_mqtt_bridge.app.main:main"
 wb-openapi = "wb_mqtt_bridge.cli.dump_openapi:main"
 wb-catalog = "wb_mqtt_bridge.cli.dump_catalog:main"

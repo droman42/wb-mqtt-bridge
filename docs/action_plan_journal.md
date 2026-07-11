@@ -21,6 +21,17 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-11 — OPS-21: deployment identity renamed — after the migration script runs, nothing on the
+  controller says wb-mqtt.** Second act of the rename day, coordinated with voice BUILD-29 (owner call:
+  finish the re-pointing down to the metal). Images → `locveil-bridge` + `locveil-bridge-ui`, containers,
+  unit (`locveil-bridge.service`), runtime tree (`/mnt/data/locveil-bridge-config`), clone path, INSTALL
+  flow, and the Python distribution (`locveil-bridge`, alias script renamed, `wb-api` + import package
+  kept). New `ops/migrate-to-locveil.sh` performs the one-time controller cutover (old unit out → tree mv
+  with state/.env intact → update.sh under the new identity → new unit in → old images dropped).
+  Sequencing for the owner: dispatch one CI publish, flip the two new GHCR packages public, THEN run the
+  migration script on the WB7 (both repos' scripts, either order). Backend suite 698 on the renamed
+  distribution; eval cli 4/4; check_scope green.
+
 - **2026-07-11 — OPS-20: the repo is `locveil-bridge` now — first board-as-outbox delegation consumed;
   OPS-21 filed.** The Locveil productization arc reached this repo: name locked (**Locveil**), org
   `locveil`, all three repos + local dirs renamed, commons restructured (`locveil-commons@52126da`,

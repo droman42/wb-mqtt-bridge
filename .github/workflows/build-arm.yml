@@ -144,8 +144,8 @@ jobs:
 
   # ----------------------- gated ARM image builds (slow; manual workflow_dispatch) ---
   # Builds linux/arm/v7 images for backend + UI and PUSHES them to GHCR.
-  #   ghcr.io/locveil/wb-mqtt-bridge:<tag>   (backend)
-  #   ghcr.io/locveil/wb-mqtt-ui:<tag>       (UI)
+  #   ghcr.io/locveil/locveil-bridge:<tag>   (backend)
+  #   ghcr.io/locveil/locveil-bridge-ui:<tag>       (UI)
   # Tags emitted per build: `latest`, `sha-<short>`, `vYYYYMMDD-<short>`.
   # Auth is the workflow's built-in GITHUB_TOKEN (no separate PAT). On first push,
   # the packages will be PRIVATE — flip to public in repo Settings → Packages so
@@ -175,7 +175,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository_owner }}/wb-mqtt-bridge
+          images: ghcr.io/${{ github.repository_owner }}/locveil-bridge
           tags: |
             type=raw,value=latest
             type=sha,format=short
@@ -216,7 +216,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository_owner }}/wb-mqtt-ui
+          images: ghcr.io/${{ github.repository_owner }}/locveil-bridge-ui
           tags: |
             type=raw,value=latest
             type=sha,format=short

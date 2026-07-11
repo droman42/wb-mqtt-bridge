@@ -1,4 +1,4 @@
-# Deploying wb-mqtt-bridge on the Wirenboard
+# Deploying locveil-bridge on the Wirenboard
 
 Standard Docker tooling — **not** WB's native `docker_manager`. Trade-offs:
 - ✅ No GitHub PAT, no GitHub-API artifact dance, plain `docker pull`.
@@ -15,8 +15,8 @@ Standard Docker tooling — **not** WB's native `docker_manager`. Trade-offs:
 ## On-controller layout (two trees, deliberately)
 
 ```
-/mnt/sdcard/wb-mqtt-bridge/      <- this repo, cloned — needed ONLY at update time
-/mnt/data/mqtt-bridge-config/    <- the RUNTIME tree: everything the service needs at boot
+/mnt/sdcard/locveil-bridge/      <- this repo, cloned — needed ONLY at update time
+/mnt/data/locveil-bridge-config/    <- the RUNTIME tree: everything the service needs at boot
 ├── docker-compose.yml   deployed from the clone's ops/ by update.sh
 ├── .env                 reports token (user-created; update.sh never touches it)
 ├── config/              synced from the clone's backend/config by update.sh (:ro in container)
@@ -56,13 +56,13 @@ access to the WB.
 
 ```bash
 # Stop + remove the running containers (no-op if they're not running)
-sudo docker stop wb-mqtt-bridge wb-mqtt-ui 2>/dev/null || true
-sudo docker rm   wb-mqtt-bridge wb-mqtt-ui 2>/dev/null || true
+sudo docker stop locveil-bridge locveil-bridge-ui 2>/dev/null || true
+sudo docker rm   locveil-bridge locveil-bridge-ui 2>/dev/null || true
 
 # Remove the docker_manager-installed images — they were sideloaded from
 # tarballs, have no registry digest, and won't be reused. Critical: the WB
 # has limited flash and these would otherwise sit dangling forever.
-sudo docker rmi wb-mqtt-bridge:latest wb-mqtt-ui:latest 2>/dev/null || true
+sudo docker rmi locveil-bridge:latest locveil-bridge-ui:latest 2>/dev/null || true
 
 # If docker_manager is set up to auto-start them, remove these entries from
 # its config (e.g., /etc/docker_manager_config.json or similar — depends on
@@ -76,12 +76,12 @@ The clone is re-pullable "garbage" — it goes on the roomy SD card, keeping
 
 ```bash
 cd /mnt/sdcard
-sudo git clone https://github.com/droman42/wb-mqtt-bridge wb-mqtt-bridge
+sudo git clone https://github.com/droman42/locveil-bridge locveil-bridge
 ```
 
-The existing `/mnt/data/mqtt-bridge-config/{config,data,logs}` tree stays exactly
+The existing `/mnt/data/locveil-bridge-config/{config,data,logs}` tree stays exactly
 where it is — it becomes the runtime tree. (Fresh install without one:
-`sudo mkdir -p /mnt/data/mqtt-bridge-config/{config,data,logs}`.)
+`sudo mkdir -p /mnt/data/locveil-bridge-config/{config,data,logs}`.)
 
 ### 3. Initial sync into the runtime tree
 
@@ -91,11 +91,11 @@ whatever the old flow left in `config/` — the repo is the source of truth).
 Needs `rsync` (`sudo apt install rsync` if missing):
 
 ```bash
-sudo rsync -a --delete /mnt/sdcard/wb-mqtt-bridge/backend/config/ /mnt/data/mqtt-bridge-config/config/
-sudo cp /mnt/sdcard/wb-mqtt-bridge/ops/docker-compose.yml /mnt/data/mqtt-bridge-config/
+sudo rsync -a --delete /mnt/sdcard/locveil-bridge/backend/config/ /mnt/data/locveil-bridge-config/config/
+sudo cp /mnt/sdcard/locveil-bridge/ops/docker-compose.yml /mnt/data/locveil-bridge-config/
 ```
 
-The state DB (`/mnt/data/mqtt-bridge-config/data/state_store.sqlite`) holds your
+The state DB (`/mnt/data/locveil-bridge-config/data/state_store.sqlite`) holds your
 devices' last-good assumed state — preserve it across upgrades.
 
 ### 4. Taking over from a bridge running elsewhere (cutover)
@@ -110,24 +110,24 @@ machine (e.g. a development box), two things matter:
    `backend/data/state_store.sqlite` holds the *current* assumed state of every
    device — much fresher than anything already in this Wirenboard's `data/`
    (which predates the other instance taking over). After stopping it, copy that
-   file to `/mnt/data/mqtt-bridge-config/data/state_store.sqlite` here, so the
+   file to `/mnt/data/locveil-bridge-config/data/state_store.sqlite` here, so the
    takeover is seamless and no device gets re-commanded from stale assumptions.
 
 ### 5. Install the systemd unit
 
 ```bash
-sudo cp /mnt/sdcard/wb-mqtt-bridge/ops/wb-mqtt-bridge.service /etc/systemd/system/
+sudo cp /mnt/sdcard/locveil-bridge/ops/locveil-bridge.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable wb-mqtt-bridge.service
+sudo systemctl enable locveil-bridge.service
 ```
 
 ### 6. First start
 
 ```bash
-cd /mnt/data/mqtt-bridge-config
+cd /mnt/data/locveil-bridge-config
 sudo docker compose pull
-sudo systemctl start wb-mqtt-bridge.service
-sudo systemctl status wb-mqtt-bridge.service   # should be active (exited)
+sudo systemctl start locveil-bridge.service
+sudo systemctl status locveil-bridge.service   # should be active (exited)
 sudo docker compose ps                          # both containers Up
 sudo docker compose logs -f                     # watch boot
 ```
@@ -147,14 +147,14 @@ The web UI is then at `http://<wirenboard-ip>:3000/` from any browser on the LAN
 ## Update flow (no cable, no PAT)
 
 ```bash
-cd /mnt/sdcard/wb-mqtt-bridge
+cd /mnt/sdcard/locveil-bridge
 sudo git pull                  # config changes + scripts
 sudo ./ops/update.sh           # syncs config into the runtime tree + pulls
                                # latest images + restarts + cleans dangling
 ```
 
 `update.sh` first mirrors the clone's `backend/config` into
-`/mnt/data/mqtt-bridge-config/config` and deploys `docker-compose.yml` next to
+`/mnt/data/locveil-bridge-config/config` and deploys `docker-compose.yml` next to
 it (so a `git pull` is how both config and compose changes reach the runtime
 tree), then runs `docker image prune -f` at the end, which removes the
 **just-replaced** old `:latest` (now untagged) so the WB's flash doesn't
@@ -164,7 +164,7 @@ rollback) are NOT touched.
 To update just the images without `git pull`:
 
 ```bash
-cd /mnt/data/mqtt-bridge-config
+cd /mnt/data/locveil-bridge-config
 sudo docker compose pull
 sudo docker compose up -d
 sudo docker image prune -f     # don't forget — compose alone leaves dangling
@@ -178,7 +178,7 @@ space:
 
 ```bash
 sudo docker images                                            # see what's around
-sudo docker rmi ghcr.io/locveil/wb-mqtt-bridge:vYYYYMMDD-<short>  # drop a specific tag
+sudo docker rmi ghcr.io/locveil/locveil-bridge:vYYYYMMDD-<short>  # drop a specific tag
 # OR — nuke everything not currently in use (containers/images/networks/build cache):
 sudo docker system prune -a -f
 ```
@@ -197,16 +197,16 @@ repo (Issues + Contents read/write). The token reaches the container via an env
 file next to the compose file — it is gitignored and never committed:
 
 ```bash
-cat > /mnt/data/mqtt-bridge-config/.env <<'EOF'
+cat > /mnt/data/locveil-bridge-config/.env <<'EOF'
 WB_REPORTS_TOKEN=github_pat_XXXXXXXXXXXX
 EOF
-chmod 600 /mnt/data/mqtt-bridge-config/.env
+chmod 600 /mnt/data/locveil-bridge-config/.env
 ```
 
 Then set `"reports": {"enabled": true, ...}` in the repo's
 `backend/config/system.json` (commit it — the repo is the config source of
 truth), run `update.sh` (or restart:
-`sudo systemctl restart wb-mqtt-bridge.service`). Both start paths — the systemd
+`sudo systemctl restart locveil-bridge.service`). Both start paths — the systemd
 unit and `update.sh` — read the same `.env` file, so the token survives updates.
 Without the file, reporting simply stays disabled; nothing else is affected.
 
@@ -214,8 +214,8 @@ Without the file, reporting simply stays disabled; nothing else is affected.
 
 ## Making the GHCR packages public (one-time, on first CI push)
 
-The first time the CI workflow pushes images to `ghcr.io/locveil/wb-mqtt-bridge`
-and `ghcr.io/locveil/wb-mqtt-ui`, they're created **private** by default. To
+The first time the CI workflow pushes images to `ghcr.io/locveil/locveil-bridge`
+and `ghcr.io/locveil/locveil-bridge-ui`, they're created **private** by default. To
 let the WB pull them anonymously (no PAT):
 
 1. Go to https://github.com/users/droman42/packages and find each package.
@@ -231,8 +231,8 @@ If the upgrade wipes Docker state but preserves `/mnt/data/`:
 
 ```bash
 sudo systemctl daemon-reload                            # systemd unit survived
-sudo docker compose -f /mnt/data/mqtt-bridge-config/docker-compose.yml pull
-sudo systemctl start wb-mqtt-bridge.service
+sudo docker compose -f /mnt/data/locveil-bridge-config/docker-compose.yml pull
+sudo systemctl start locveil-bridge.service
 ```
 
 If the upgrade wipes `/mnt/data/` too: re-do steps 2-6 of First install. State
@@ -247,10 +247,10 @@ To pin to a known-good build, edit `ops/docker-compose.yml`:
 
 ```yaml
 backend:
-  image: ghcr.io/locveil/wb-mqtt-bridge:v20260526-abc1234
+  image: ghcr.io/locveil/locveil-bridge:v20260526-abc1234
 ```
 
-Then `sudo systemctl restart wb-mqtt-bridge.service`. To return to live updates,
+Then `sudo systemctl restart locveil-bridge.service`. To return to live updates,
 restore `:latest` and `update.sh` again.
 
 ---
@@ -261,6 +261,6 @@ restore `:latest` and `update.sh` again.
 |---|---|
 | `ops/manage_docker.sh` (1081 lines) | `ops/update.sh` (~10 lines) |
 | `ops/docker_manager_config.json` (with GitHub PAT) | `ops/docker-compose.yml` (no secrets) |
-| GitHub Actions artifact + `wb-mqtt-bridge-config.tar.gz` | Cloned repo on WB; `git pull` updates config |
+| GitHub Actions artifact + `wb-locveil-bridge-config.tar.gz` | Cloned repo on WB; `git pull` updates config |
 | `docker run …` per container with per-container args | `docker compose up -d` |
-| docker_manager lifecycle | `wb-mqtt-bridge.service` systemd unit |
+| docker_manager lifecycle | `locveil-bridge.service` systemd unit |

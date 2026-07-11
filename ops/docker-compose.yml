@@ -7,8 +7,8 @@
 # separate container.
 #
 # On-controller layout (two trees, deliberately):
-#   /mnt/sdcard/wb-mqtt-bridge/      — this repo, cloned; needed ONLY at update time
-#   /mnt/data/mqtt-bridge-config/    — the RUNTIME tree; everything boot needs
+#   /mnt/sdcard/locveil-bridge/      — this repo, cloned; needed ONLY at update time
+#   /mnt/data/locveil-bridge-config/    — the RUNTIME tree; everything boot needs
 #     ├── docker-compose.yml  <- THIS FILE, deployed there by update.sh
 #     ├── .env                <- reports token (user-created, never synced)
 #     ├── config/             <- synced from the clone's backend/config by update.sh
@@ -23,12 +23,12 @@
 # Stop:       docker compose down
 # Logs:       docker compose logs -f      ([backend|ui] to filter)
 #
-# A systemd unit (wb-mqtt-bridge.service) runs `up -d` on boot. See INSTALL.md.
+# A systemd unit (locveil-bridge.service) runs `up -d` on boot. See INSTALL.md.
 
 services:
   backend:
-    image: ghcr.io/locveil/wb-mqtt-bridge:latest
-    container_name: wb-mqtt-bridge
+    image: ghcr.io/locveil/locveil-bridge:latest
+    container_name: locveil-bridge
     restart: unless-stopped
     network_mode: host                # reach WB mosquitto on localhost:1883
     mem_limit: 256m
@@ -37,9 +37,9 @@ services:
       # The runtime tree (see the layout note at the top). config/ is read-only
       # and populated by update.sh's sync from the clone's backend/config — the
       # repo stays the single source of truth; `git pull` + update.sh delivers it.
-      - /mnt/data/mqtt-bridge-config/config:/app/config:ro
-      - /mnt/data/mqtt-bridge-config/data:/app/data
-      - /mnt/data/mqtt-bridge-config/logs:/app/logs
+      - /mnt/data/locveil-bridge-config/config:/app/config:ro
+      - /mnt/data/locveil-bridge-config/data:/app/data
+      - /mnt/data/locveil-bridge-config/logs:/app/logs
     environment:
       # Problem-report filing (when system.json enables reports): the fine-grained
       # GitHub PAT reaches the container via the `.env` file next to the DEPLOYED
@@ -55,8 +55,8 @@ services:
         max-file: "3"
 
   ui:
-    image: ghcr.io/locveil/wb-mqtt-ui:latest
-    container_name: wb-mqtt-ui
+    image: ghcr.io/locveil/locveil-bridge-ui:latest
+    container_name: locveil-bridge-ui
     restart: unless-stopped
     network_mode: host
     depends_on:

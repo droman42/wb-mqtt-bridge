@@ -1233,6 +1233,88 @@ wheels = [
 ]
 
 [[package]]
+name = "locveil-bridge"
+version = "0.6.0"
+source = { editable = "." }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "aiomqtt" },
+    { name = "aiosqlite" },
+    { name = "async-upnp-client" },
+    { name = "asyncwebostv" },
+    { name = "broadlink" },
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "jsonschema" },
+    { name = "openhomedevice" },
+    { name = "paho-mqtt" },
+    { name = "psutil" },
+    { name = "pyatv" },
+    { name = "pydantic" },
+    { name = "pymotivaxmc2" },
+    { name = "pyopenssl" },
+    { name = "python-dotenv" },
+    { name = "pyyaml" },
+    { name = "requests" },
+    { name = "typing-extensions" },
+    { name = "uvicorn" },
+    { name = "websockets" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "black" },
+    { name = "flake8" },
+    { name = "import-linter" },
+    { name = "mypy" },
+    { name = "py-dev-gates" },
+    { name = "pyright" },
+    { name = "pysqlite3-binary" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "pytest-mock" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiohttp", specifier = ">=3.8.1,<4" },
+    { name = "aiomqtt", specifier = ">=2.0,<3" },
+    { name = "aiosqlite", specifier = ">=0.19.0,<1" },
+    { name = "async-upnp-client", specifier = ">=0.40,<0.45" },
+    { name = "asyncwebostv", specifier = "==0.4.0" },
+    { name = "black", marker = "extra == 'dev'", specifier = ">=21.0" },
+    { name = "broadlink", specifier = ">=0.18.0,<1" },
+    { name = "fastapi", specifier = ">=0.103.0,<1" },
+    { name = "flake8", marker = "extra == 'dev'", specifier = ">=3.9" },
+    { name = "httpx", specifier = ">=0.27.0,<1" },
+    { name = "import-linter", marker = "extra == 'dev'", specifier = ">=2.0" },
+    { name = "jsonschema", specifier = ">=4.4.0,<5" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=0.9" },
+    { name = "openhomedevice", git = "https://github.com/droman42/openhomedevice.git?rev=819b16102fb71e68c4f593af4d49c66a344d300a" },
+    { name = "paho-mqtt", specifier = ">=1.6.1,<2" },
+    { name = "psutil", specifier = ">=7.0.0,<8" },
+    { name = "py-dev-gates", marker = "extra == 'dev'", git = "https://github.com/droman42/py-dev-gates?rev=v0.1.1" },
+    { name = "pyatv", git = "https://github.com/postlund/pyatv?rev=9177803dec6a165d4610d5d63fe09562820fccdb" },
+    { name = "pydantic", specifier = ">=2.11.0,<3" },
+    { name = "pymotivaxmc2", specifier = "==0.7.0" },
+    { name = "pyopenssl", specifier = ">=23.2.0,<27" },
+    { name = "pyright", marker = "extra == 'dev'", specifier = "==1.1.410" },
+    { name = "pysqlite3-binary", marker = "extra == 'dev'", specifier = ">=0.5.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.18.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=2.0" },
+    { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.7.0" },
+    { name = "python-dotenv", specifier = ">=1.0.0,<2" },
+    { name = "pyyaml", specifier = ">=6.0,<7" },
+    { name = "requests", specifier = ">=2.30.0,<3" },
+    { name = "typing-extensions", specifier = ">=4.7.0,<5" },
+    { name = "uvicorn", specifier = ">=0.23.2,<1" },
+    { name = "websockets", specifier = ">=15.0.1,<16" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "markdown-it-py"
 version = "4.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2543,88 +2625,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/92/f4/0738e6849858deae2
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d1/00/0e0da784245c93cf346150ab67634177bf277f93b7a162bb56c928c39c04/voluptuous-0.16.0-py3-none-any.whl", hash = "sha256:ee342095263e1b5afbd4d418cb5adc92810eebfd07696bb033a261210df33db4", size = 31931 },
 ]
-
-[[package]]
-name = "wb-mqtt-bridge"
-version = "0.6.0"
-source = { editable = "." }
-dependencies = [
-    { name = "aiohttp" },
-    { name = "aiomqtt" },
-    { name = "aiosqlite" },
-    { name = "async-upnp-client" },
-    { name = "asyncwebostv" },
-    { name = "broadlink" },
-    { name = "fastapi" },
-    { name = "httpx" },
-    { name = "jsonschema" },
-    { name = "openhomedevice" },
-    { name = "paho-mqtt" },
-    { name = "psutil" },
-    { name = "pyatv" },
-    { name = "pydantic" },
-    { name = "pymotivaxmc2" },
-    { name = "pyopenssl" },
-    { name = "python-dotenv" },
-    { name = "pyyaml" },
-    { name = "requests" },
-    { name = "typing-extensions" },
-    { name = "uvicorn" },
-    { name = "websockets" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "black" },
-    { name = "flake8" },
-    { name = "import-linter" },
-    { name = "mypy" },
-    { name = "py-dev-gates" },
-    { name = "pyright" },
-    { name = "pysqlite3-binary" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "pytest-mock" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "aiohttp", specifier = ">=3.8.1,<4" },
-    { name = "aiomqtt", specifier = ">=2.0,<3" },
-    { name = "aiosqlite", specifier = ">=0.19.0,<1" },
-    { name = "async-upnp-client", specifier = ">=0.40,<0.45" },
-    { name = "asyncwebostv", specifier = "==0.4.0" },
-    { name = "black", marker = "extra == 'dev'", specifier = ">=21.0" },
-    { name = "broadlink", specifier = ">=0.18.0,<1" },
-    { name = "fastapi", specifier = ">=0.103.0,<1" },
-    { name = "flake8", marker = "extra == 'dev'", specifier = ">=3.9" },
-    { name = "httpx", specifier = ">=0.27.0,<1" },
-    { name = "import-linter", marker = "extra == 'dev'", specifier = ">=2.0" },
-    { name = "jsonschema", specifier = ">=4.4.0,<5" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=0.9" },
-    { name = "openhomedevice", git = "https://github.com/droman42/openhomedevice.git?rev=819b16102fb71e68c4f593af4d49c66a344d300a" },
-    { name = "paho-mqtt", specifier = ">=1.6.1,<2" },
-    { name = "psutil", specifier = ">=7.0.0,<8" },
-    { name = "py-dev-gates", marker = "extra == 'dev'", git = "https://github.com/droman42/py-dev-gates?rev=v0.1.1" },
-    { name = "pyatv", git = "https://github.com/postlund/pyatv?rev=9177803dec6a165d4610d5d63fe09562820fccdb" },
-    { name = "pydantic", specifier = ">=2.11.0,<3" },
-    { name = "pymotivaxmc2", specifier = "==0.7.0" },
-    { name = "pyopenssl", specifier = ">=23.2.0,<27" },
-    { name = "pyright", marker = "extra == 'dev'", specifier = "==1.1.410" },
-    { name = "pysqlite3-binary", marker = "extra == 'dev'", specifier = ">=0.5.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.18.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=2.0" },
-    { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.7.0" },
-    { name = "python-dotenv", specifier = ">=1.0.0,<2" },
-    { name = "pyyaml", specifier = ">=6.0,<7" },
-    { name = "requests", specifier = ">=2.30.0,<3" },
-    { name = "typing-extensions", specifier = ">=4.7.0,<5" },
-    { name = "uvicorn", specifier = ">=0.23.2,<1" },
-    { name = "websockets", specifier = ">=15.0.1,<16" },
-]
-provides-extras = ["dev"]
 
 [[package]]
 name = "websockets"

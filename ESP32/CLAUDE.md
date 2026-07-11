@@ -1,6 +1,6 @@
 # ESP32/ — subproject guide for Claude (and future me)
 
-This directory is a **separate subproject** inside the wb-mqtt-bridge monorepo.
+This directory is a **separate subproject** inside the locveil-bridge monorepo.
 Different language (C++), different toolchain (PlatformIO + ESP-IDF), different
 operating constraints (embedded, no Python, no FastAPI). The action-plan's
 main-project conventions don't apply here.

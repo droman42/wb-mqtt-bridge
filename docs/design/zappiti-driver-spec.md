@@ -5,7 +5,7 @@
 2026-07-07** — browser-native indexer, bridge-owned catalog (§13).
 
 **Audience:** an implementing agent (Claude Code) building a Zappiti driver inside the
-`wb-mqtt-bridge` system. This is the authoritative hardware-facing contract.
+`locveil-bridge` system. This is the authoritative hardware-facing contract.
 
 **Conventions**
 - ✅ = tested live against the actual device. Anything not ✅ is inferred; every inferred item is

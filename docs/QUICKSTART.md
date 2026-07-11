@@ -81,7 +81,7 @@ cp -r config /tmp/wb-scratch-config
 
 # Run the service with the scratch config as its working config dir:
 cd /tmp/wb-scratch-config/.. && ln -sfn wb-scratch-config config   # the app reads ./config
-uv run --project /path/to/backend wb-mqtt-bridge
+uv run --project /path/to/backend locveil-bridge
 ```
 
 The API comes up on `http://localhost:8000` — try `http://localhost:8000/docs` (interactive

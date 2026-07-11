@@ -9,7 +9,7 @@
   (sequencing) — are **historical / as-built**: they record how it was decided and built, not open work.
 - **Supersedes:** the old scenario specs, now archived under `docs/archive/scenarios/` (including the
   session log `scenario_redesign_progress.md` (archived) for the as-it-happened record).
-- **Scope:** Backend (`wb-mqtt-bridge`). UI consumes the resulting contract; no UI design here beyond exposure notes.
+- **Scope:** Backend (`locveil-bridge`). UI consumes the resulting contract; no UI design here beyond exposure notes.
 
 This document is the agreed design from the redesign discussion. It defines **what** the
 scenario system is and the **contracts** (file schemas + runtime behavior). It is implemented —

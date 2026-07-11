@@ -1,6 +1,6 @@
 """Guard the OpenAPI contract that the UI build depends on.
 
-The sibling wb-mqtt-ui repo generates its TypeScript types and device pages from
+The sibling locveil-bridge-ui repo generates its TypeScript types and device pages from
 this app's /openapi.json. Device-state models are injected into the schema by
 bootstrap._install_openapi_with_state_models so the UI codegen can read state
 shapes from the contract instead of importing this package and AST-parsing the

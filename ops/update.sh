@@ -11,13 +11,13 @@
 # the lazily-mounted SD card.
 #
 # Usage on the Wirenboard:
-#   cd /mnt/sdcard/wb-mqtt-bridge
+#   cd /mnt/sdcard/locveil-bridge
 #   git pull                 # config + compose + this script
 #   ./ops/update.sh          # sync + pull images + restart + prune
 set -euo pipefail
 
 cd "$(dirname "$0")"
-RUNTIME=/mnt/data/mqtt-bridge-config
+RUNTIME=/mnt/data/locveil-bridge-config
 
 # Mirror the config source of truth into the runtime tree.
 echo ">>> rsync config -> $RUNTIME/config"

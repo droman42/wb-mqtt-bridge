@@ -147,7 +147,7 @@ src/
 ## Docker Deployment
 
 ARM v7 images are built via GitHub Actions for Wirenboard 7 (Node-only build, no
-Python) and pushed to `ghcr.io/locveil/wb-mqtt-ui` with `latest` / `sha-<short>`
+Python) and pushed to `ghcr.io/locveil/locveil-bridge-ui` with `latest` / `sha-<short>`
 / `vYYYYMMDD-<short>` tags. On the Wirenboard the UI runs from
 `ops/docker-compose.yml` alongside the backend — host network, nginx on port
 3000, proxying to the backend over loopback. See
@@ -160,7 +160,7 @@ To run the image standalone (outside compose):
 docker run -d --name wb-ui --restart unless-stopped -p 3000:3000 \
   -e BACKEND_HOST=192.168.110.250 -e BACKEND_PORT=8000 \
   -e MQTT_URL=ws://192.168.110.250:9001 \
-  ghcr.io/locveil/wb-mqtt-ui:latest
+  ghcr.io/locveil/locveil-bridge-ui:latest
 # Access at http://localhost:3000
 ```
 
@@ -168,7 +168,7 @@ For a local build, run from the **monorepo root** — the Dockerfile copies
 `backend/config` and `backend/openapi.json` out of the repo-root build context:
 
 ```bash
-docker build -t wb-mqtt-ui:local -f ui/Dockerfile .
+docker build -t locveil-bridge-ui:local -f ui/Dockerfile .
 ```
 
 ## Component Library

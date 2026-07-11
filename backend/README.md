@@ -99,7 +99,7 @@ pip install -e .
 ```
 
 After installation, the following console scripts will be available:
-- `wb-mqtt-bridge` / `wb-api` - Start the web service
+- `locveil-bridge` / `wb-api` - Start the web service
 - `mqtt-sniffer` - Monitor MQTT traffic
 - `device-test` - Test device configurations
 - `broadlink-cli` / `broadlink-discovery` - Broadlink utilities
@@ -119,8 +119,8 @@ GitHub Actions builds the ARM images and pushes them to the GitHub Container
 Registry (see `.github/workflows/build-arm.yml`; the slow ARM jobs run on manual
 workflow dispatch):
 
-- `ghcr.io/locveil/wb-mqtt-bridge` — this backend
-- `ghcr.io/locveil/wb-mqtt-ui` — the UI
+- `ghcr.io/locveil/locveil-bridge` — this backend
+- `ghcr.io/locveil/locveil-bridge-ui` — the UI
 
 Every build is tagged `latest`, `sha-<short>`, and `vYYYYMMDD-<short>` — the
 dated tags are what you pin for rollback. The packages are public, so the
@@ -135,7 +135,7 @@ stack up on boot, and `ops/update.sh` — pull the latest images, restart, prune
 the replaced ones:
 
 ```bash
-cd /mnt/data/mqtt-bridge-config
+cd /mnt/data/locveil-bridge-config
 sudo git pull                  # config changes travel with the repo
 sudo ./ops/update.sh           # pull images + restart + clean up dangling
 ```
@@ -150,16 +150,16 @@ the UI at port 3000.
 #### Volume Mounts and Data Persistence
 
 On the Wirenboard, two trees split the concerns: the repo clone lives on the
-roomy SD card (`/mnt/sdcard/wb-mqtt-bridge` — the source of truth, needed only
+roomy SD card (`/mnt/sdcard/locveil-bridge` — the source of truth, needed only
 at update time), while everything the service needs at boot — the deployed
 compose file, config, state — lives in the runtime tree on the small,
 early-mounted persistent partition:
 
-- **Configuration**: `/mnt/data/mqtt-bridge-config/config` → `/app/config`
+- **Configuration**: `/mnt/data/locveil-bridge-config/config` → `/app/config`
   (read-only; `update.sh` mirrors the clone's `backend/config` here, so
   `git pull` + `update.sh` is how config changes reach the container)
-- **Database**: `/mnt/data/mqtt-bridge-config/data` → `/app/data` (SQLite state store)
-- **Logs**: `/mnt/data/mqtt-bridge-config/logs` → `/app/logs`
+- **Database**: `/mnt/data/locveil-bridge-config/data` → `/app/data` (SQLite state store)
+- **Logs**: `/mnt/data/locveil-bridge-config/logs` → `/app/logs`
 
 The runtime tree is untouched by `git pull`, so device state and logs survive
 both image updates and config updates.
@@ -206,12 +206,12 @@ uv sync --frozen
 **5. Measuring Optimization Impact:**
 ```bash
 # Compare image sizes
-docker build -t wb-mqtt-bridge:full --build-arg LEAN=false .
-docker build -t wb-mqtt-bridge:lean --build-arg LEAN=true .
-docker images | grep wb-mqtt-bridge
+docker build -t locveil-bridge:full --build-arg LEAN=false .
+docker build -t locveil-bridge:lean --build-arg LEAN=true .
+docker images | grep locveil-bridge
 
 # Inspect what was removed
-docker run --rm wb-mqtt-bridge:lean find /opt/venv -name "test*" -o -name "doc*" | wc -l
+docker run --rm locveil-bridge:lean find /opt/venv -name "test*" -o -name "doc*" | wc -l
 ```
 
 ## Running the Application
@@ -220,7 +220,7 @@ Start the web service using the console script:
 
 ```bash
 # Using the main console script
-wb-mqtt-bridge
+locveil-bridge
 
 # Or using the API-specific script
 wb-api

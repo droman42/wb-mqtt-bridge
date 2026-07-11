@@ -1,6 +1,6 @@
 """Dump the FastAPI OpenAPI schema to a file (or stdout).
 
-This produces the API contract snapshot that the sibling `wb-mqtt-ui` repo
+This produces the API contract snapshot that the sibling `locveil-bridge-ui` repo
 consumes at build time:
 
   - `openapi-typescript` turns it into `src/types/api.gen.ts`

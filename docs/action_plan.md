@@ -687,19 +687,6 @@ endpoint).
 
 - [ ] **OPS-19** `[P2]` `[deferred]` — **`pyatv` git source is unmirrored — Rule 2 compliance gap (ADR 0006).** Surfaced by the REL-4 ADR review. `pyatv` is pinned to `git+https://github.com/postlund/pyatv@9177803…` — SHA-pinned (immutable, so the build is reproducible today) but **not** mirrored under the owner's account, which ADR 0006 Rule 2 requires for repos the owner doesn't control; the ADR's "only remaining git source" claim is now false (annotated 2026-07-10). Residual risk: an upstream force-push/deletion of `postlund/pyatv` breaks recovery. **Decision + small op:** either mirror `postlund/pyatv` → `droman42/pyatv` and repoint the pin (comply), OR record an accepted exception in ADR 0006 with rationale. Not a release gate (reproducible now). Minor sibling: the dev-only `py-dev-gates@v0.1.1` is tag-pinned (owner-controlled) — fold in or leave.
 
-- [ ] **OPS-21** `[P2]` `[deferred]` — **Deployment-identity rename to Locveil** (OPS-20 residue;
-  owner-gated — every item touches the live WB7 deployment or a published surface; mirrors voice
-  BUILD-29, likely ONE joint session). OPS-20 deliberately kept the pre-rename runtime identifiers:
-  image basenames `wb-mqtt-bridge`/`wb-mqtt-ui` (build-arm.yml hardcodes them; only the owner
-  namespace is dynamic), `container_name: wb-mqtt-bridge|wb-mqtt-ui` + the `mqtt-bridge-config`
-  compose project, the systemd unit `wb-mqtt-bridge.service`, the controller clone at
-  `/mnt/sdcard/wb-mqtt-bridge` (update.sh header + the INSTALL.md flow incl. clone URL/dir), the
-  `wb-mqtt-bridge` Python distribution + console script (`backend/pyproject.toml` name/scripts), and
-  `docs/design/ui/deployment.md` (legacy split-repo UI flow — audit or archive while in there).
-  Rename coherently in ONE pass with a controller migration plan (rename the SD-card clone, re-enable
-  the unit under the new name, re-pull under new basenames) — coordinate with voice BUILD-29 and the
-  BUILD-28-adjacent single-compose design on the commons board (same deployment surface). Until then
-  the GHCR namespace is already `ghcr.io/locveil/*` with old basenames — a deliberate mixed state.
 
 ### CORE — Backend core / architecture
 

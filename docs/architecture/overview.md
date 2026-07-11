@@ -1,6 +1,6 @@
 # Architecture overview
 
-`wb-mqtt-bridge` is built as a **hexagon** — ports and adapters. The point isn't dogma;
+`locveil-bridge` is built as a **hexagon** — ports and adapters. The point isn't dogma;
 it's that the parts that change often (device drivers, MQTT transport, persistence)
 can be swapped without touching the parts that shouldn't (the domain logic: managers,
 scenarios, capability maps, topology). Everything is wired by configuration and

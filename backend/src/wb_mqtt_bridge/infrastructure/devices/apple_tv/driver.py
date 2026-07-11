@@ -28,7 +28,7 @@ class AppleTVDevice(BaseDevice[AppleTVState]):
     config: AppleTVDeviceConfig
 
     """
-    Apple TV device integration for wb-mqtt-bridge.
+    Apple TV device integration for locveil-bridge.
     
     This class provides a standardized interface to control Apple TV devices through
     the BaseDevice framework using PyATV for the actual communication.
