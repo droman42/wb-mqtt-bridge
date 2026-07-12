@@ -19,8 +19,9 @@ on:
 # Job graph (OPS-10): a `changes` job detects which areas a push touched and gates the
 # fast checks — backend-test runs only when backend/** changed, ui-validate when ui/**
 # OR the backend contract files the UI consumes changed, ledger-guard when docs/** or
-# the guard script changed. Docs-only ledger commits (the most frequent kind) skip the
-# test suites entirely. The slow QEMU arm/v7 image builds (~14 min for the UI) remain
+# the guard script changed, contract-guard when contracts/** or its vendored script
+# changed. Docs-only ledger commits (the most frequent kind) skip the test suites
+# entirely. The slow QEMU arm/v7 image builds (~14 min for the UI) remain
 # MANUAL ONLY (`gh workflow run "Build ARM Docker Images (backend + ui)"` or the Actions
 # "Run workflow" button), now with per-image toggles; a dispatch also forces the matching
 # fast checks, since each image build `needs` its green gate.
@@ -40,6 +41,7 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       ui: ${{ steps.filter.outputs.ui }}
       ledger: ${{ steps.filter.outputs.ledger }}
+      contracts: ${{ steps.filter.outputs.contracts }}
     steps:
       # Full history: a multi-commit push must diff against the push base, not HEAD~1.
       - uses: actions/checkout@v6
@@ -70,6 +72,10 @@ jobs:
               - '.scope-guard.toml'
               # the guard's claudemd hash rule (OPS-16) checks the pinned blocks in here
               - 'CLAUDE.md'
+            contracts:
+              - 'contracts/**'
+              - 'scripts/contract_guard.py'
+              - '.github/workflows/build-arm.yml'
 
   # --------------------------------------------------- fast checks (gated) ---
   ledger-guard:
@@ -85,6 +91,20 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - run: python3 scripts/scope_guard.py --config .scope-guard.toml
+
+  contract-guard:
+    # Layer-1 contract coherence (OPS-23, PROD-16/HK-5; convention:
+    # locveil-commons/process/contracts.md §4 — vendored at contract-guard-v1, the
+    # scope-guard consumption model). Checks the contracts/ layout, STAMP/PIN cores,
+    # and pinned-copy hashes; semantics stay in the backend suite's conformance
+    # tests. Local-only by design — it never reaches across repos.
+    name: Contract coherence guard
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.contracts == 'true' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v6
+      - run: python3 scripts/contract_guard.py --check
 
   backend-test:
     name: Backend tests (amd64)

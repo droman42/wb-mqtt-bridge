@@ -1,5 +1,7 @@
 #!/bin/sh
-# Locveil pre-commit hook (locveil-commons/process/ledger-discipline.md §4): the
-# scope-guard check only — hooks never mutate the tree. With work-on-main this is
-# the only pre-CI gate. Install once:  git config core.hooksPath hooks
-exec python3 scripts/scope_guard.py --config .scope-guard.toml
+# Locveil pre-commit hook: the two vendored guards, check-only — hooks never mutate
+# the tree. scope-guard (locveil-commons/process/ledger-discipline.md §4) gates the
+# ledger; contract-guard (process/contracts.md §4) gates contract coherence. With
+# work-on-main this is the only pre-CI gate. Install once:  git config core.hooksPath hooks
+python3 scripts/scope_guard.py --config .scope-guard.toml || exit 1
+exec python3 scripts/contract_guard.py --check

@@ -25,6 +25,14 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-12 — OPS-23: contract-guard vendored @ `contract-guard-v1` — hook + CI, zero warnings
+  (PROD-16 / HK-5, bridge delegation (4); closes the bridge's PROD-16 arc).** `scripts/contract_guard.py`
+  byte-identical to the commons tag; `hooks/pre-commit` chains both vendored guards; `build-arm.yml`
+  gains the path-gated `contract-guard` job. First run on the finished layout: 0 failures, 0 warnings —
+  the bridge's contract surfaces (catalog owned, device-integration owned, report-protocol strict pin)
+  are fully convention-shaped. With VWB-29/40/41 this completes all four PROD-16 bridge delegation
+  items in one session; board write-back rode the intake (`commons ef751bf`).
+
 - **2026-07-12 — VWB-41: device-integration owner-side guard — committed example fixture + CI check +
   STAMP core (PROD-16 / HK-5, bridge delegation (3)).** The convention README's canonical descriptor
   example is now committed as `contracts/device-integration/example.descriptor.json` with byte-parity

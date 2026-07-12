@@ -705,14 +705,6 @@ endpoint).
 
 - [ ] **OPS-19** `[P2]` `[deferred]` — **`pyatv` git source is unmirrored — Rule 2 compliance gap (ADR 0006).** Surfaced by the REL-4 ADR review. `pyatv` is pinned to `git+https://github.com/postlund/pyatv@9177803…` — SHA-pinned (immutable, so the build is reproducible today) but **not** mirrored under the owner's account, which ADR 0006 Rule 2 requires for repos the owner doesn't control; the ADR's "only remaining git source" claim is now false (annotated 2026-07-10). Residual risk: an upstream force-push/deletion of `postlund/pyatv` breaks recovery. **Decision + small op:** either mirror `postlund/pyatv` → `droman42/pyatv` and repoint the pin (comply), OR record an accepted exception in ADR 0006 with rationale. Not a release gate (reproducible now). Minor sibling: the dev-only `py-dev-gates@v0.1.1` is tag-pinned (owner-controlled) — fold in or leave.
 
-- [ ] **OPS-23** `[P1]` — **Vendor contract-guard @ `contract-guard-v1`** (PROD-16 bridge delegation
-  (4); convention: `../locveil-commons/process/contracts.md` §4 layer 1 — the scope-guard consumption
-  model verbatim; the commons tag exists, so this is unblocked). Vendor
-  `packages/contract-guard/contract_guard.py` into `scripts/` at the pinned tag, chain it into
-  `hooks/pre-commit` after scope-guard (`--check` only, hooks never mutate), add the path-gated
-  `contract-guard` CI job (`contracts/**` + the vendored script + workflow). Guard-green requires the
-  VWB-29/VWB-40/VWB-41 layout — lands last. scope-guard stays ledger-only; the two tools version
-  independently.
 
 
 ### CORE — Backend core / architecture
