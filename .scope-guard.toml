@@ -1,5 +1,5 @@
 # locveil-bridge ledger-discipline config for the vendored scope-guard
-# (scripts/scope_guard.py, pinned at scope-v3; normative conventions:
+# (scripts/scope_guard.py, pinned at scope-v5; normative conventions:
 # ../locveil-commons/process/ledger-discipline.md + process/claude-md.md). Adopted by
 # OPS-22 from the PROD-13-verified starter; [claude] blocks by OPS-16 (PROD-5/HK-2).
 # Behavior changes happen in commons — re-pin, don't edit the vendored script.
@@ -17,6 +17,10 @@ tombstones = true
 high_water = 3000
 low_water = 2000
 hard_ceiling = 4000
+# docs-verdict rule (scope-v5, HK-6): completion entries dated on/after this date must
+# carry a `docs:` verdict line (process/user-docs.md §3). Set to the day AFTER the
+# PROD-17 cutover — same-day entries predate the manifest.
+docs_verdict_since = "2026-07-13"
 
 [evidence]
 dirs = ["docs/design", "docs/review"]
@@ -36,7 +40,7 @@ archive_pointer = true
 file = "CLAUDE.md"
 [[claude.blocks]]
 name = "shared-invariants"
-sha256 = "8e295e7009a43ece59693cdf7876189c145d29694291ca2c07bbc88e8dddb214"
+sha256 = "71d1c3bb3a6de0626a4c9ab8709f2e31166c866cede31c345fc93a58e4345218"
 [[claude.blocks]]
 name = "cross-repo-board"
 sha256 = "0f5e8f63b55c752ddfd542e112f06dd1a6d615c38f1b6f1d57dbeaee7dbdb86a"

@@ -32,7 +32,7 @@ import sys
 import tomllib
 from pathlib import Path
 
-__version__ = "1.1.0"  # scope-v3 — claudemd pinned-block rule (HK-2/PROD-5) + --hash-blocks
+__version__ = "1.2.0"  # scope-v5 — docs-verdict presence rule (HK-6) on completion entries
 
 
 # ---------------------------------------------------------------- config
@@ -44,6 +44,7 @@ DEFAULTS = {
         "require_sections": True, "sections_required_for_all": False,
         "required_tags": [], "tombstones": False,
         "high_water": 3000, "low_water": 2000, "hard_ceiling": 4000,
+        "docs_verdict_since": "",
     },
     "evidence": {"dirs": [], "index": False, "link_scan": False, "unindexed": "warn"},
     "journal": {
@@ -363,6 +364,22 @@ def check(root: Path, cfg: dict, rules: Rules) -> Report:
             if n_deleg and len(re.findall(r"ID:\s*(?:\*\*|_)?[A-Z]+-\d+", block)) < n_deleg:
                 rep.error(f"DELEGATION without write-back: closed entry {tid} has {n_deleg} "
                           f"delegation(s) but fewer written-back local IDs")
+
+    # docs-verdict rule (HK-6, process/user-docs.md §3): every completion entry newer
+    # than docs_verdict_since must record a docs verdict ("docs: <node-ids>" or
+    # "docs: none — <why>"). Presence/syntax only — correctness stays judgment (the
+    # per-repo manifest conformance test owns everything manifest-aware).
+    since = L.get("docs_verdict_since") or ""
+    if since:
+        date_re = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
+        verdict_re = re.compile(r"\bdocs:\s*\S")
+        for tid, s, block in entry_blocks(done, rules):
+            if s != "x":
+                continue
+            dates = date_re.findall(block)
+            if dates and max(dates) >= since and not verdict_re.search(block):
+                rep.error(f"DOCS-VERDICT missing: completion entry {tid} (dated >= "
+                          f"{since}) records no docs verdict (process/user-docs.md §3)")
 
     # claudemd rule: pinned shared blocks present and byte-faithful (hash vs config pin).
     # Fully local — staleness vs commons is a re-pin concern, not a check concern.

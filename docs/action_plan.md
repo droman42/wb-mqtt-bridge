@@ -705,17 +705,6 @@ endpoint).
 
 - [ ] **OPS-19** `[P2]` `[deferred]` — **`pyatv` git source is unmirrored — a dependency-policy Rule 2 compliance gap (policy home since DOC-15: `CONTRIBUTING.md` → Dependency policy; ex-ADR 0006, archived).** Surfaced by the REL-4 ADR review. `pyatv` is pinned to `git+https://github.com/postlund/pyatv@9177803…` — SHA-pinned (immutable, so the build is reproducible today) but **not** mirrored under the owner's account, which the policy's Rule 2 requires for repos the owner doesn't control; the old ADR's "only remaining git source" claim was already annotated false 2026-07-10. Residual risk: an upstream force-push/deletion of `postlund/pyatv` breaks recovery. **Decision + small op:** either mirror `postlund/pyatv` → `droman42/pyatv` and repoint the pin (comply), OR record an accepted exception in the CONTRIBUTING dependency-policy section with rationale. Not a release gate (reproducible now). Minor sibling: the dev-only `py-dev-gates@v0.1.1` is tag-pinned (owner-controlled) — fold in or leave.
 
-- [ ] **OPS-24** `[P1]` — **Re-pin scope-guard @ `scope-v5`** (PROD-17 bridge delegation (4),
-  council HK-6; the `process/claude-md.md` §3 flow + the OPS-22 vendoring lane). Three pieces, one
-  change: (a) vendored `scripts/scope_guard.py` → the commons tag `scope-v5` (1.2.0 — adds the
-  docs-verdict presence rule on completion entries newer than `docs_verdict_since`, ledger lane
-  only); (b) re-pin the `shared-invariants` CLAUDE.md block from the commons source (gains the
-  org-wide `user-facing-docs-are-done` invariant + `user-docs.md` companion ref) + update its
-  sha256 in `.scope-guard.toml`; (c) set `docs_verdict_since = "2026-07-13"` — the rule bites from
-  tomorrow's completions (today's already-frozen PROD-15/16 entries predate the manifest and stay
-  untouched; the PROD-17 entries carry verdicts voluntarily). Lands LAST — the verdict rule
-  presupposes the DOC-13 manifest.
-
 
 
 ### CORE — Backend core / architecture

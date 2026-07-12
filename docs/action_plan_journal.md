@@ -25,6 +25,15 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-12 — OPS-24: scope-guard re-pinned @ `scope-v5` — the docs-verdict rule is armed
+  (PROD-17 / HK-6, bridge delegation (4); closes the bridge's PROD-17 arc).** Vendored script →
+  1.2.0 (tag-verified); the `shared-invariants` block re-pinned with the org-wide
+  `user-facing-docs-are-done` invariant (the local bullet is now formally its dialect — the DOC-13
+  rewrite); `docs_verdict_since = 2026-07-13`, so every completion from tomorrow must carry a
+  `docs:` verdict (today's PROD-17 entries carry them voluntarily). With DOC-13/14/15 this completes
+  all four PROD-17 bridge delegation items in one session; board write-back rode the intake
+  (commons `5142a64`).
+
 - **2026-07-12 — DOC-15: ADR dissolution — the class is retired (PROD-17 / HK-6 q3, bridge
   delegation (3)).** ADR 0006's four dependency-pinning rules now live as `CONTRIBUTING.md` →
   "Dependency policy" (OPS-19 re-pointed at it); 0001–0005 verified in force (0005's voice half
