@@ -25,6 +25,21 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-12 — DRV-36: EspManagedDevice designed (design-only, owner decision) — DRV-37 filed
+  BLOCKED on the satellite's first descriptor.** Same-day continuation of the PROD-15 arc:
+  `docs/design/esp_managed_device.md` consumes the VWB-38 convention. One descriptor-native driver
+  class for every Locveil-built satellite device — new device = descriptor pin
+  (`config/descriptors/<id>.json`, byte-identical mirror, fail-fast load validation against the
+  convention pin) + thin device config; the descriptor's capability block translates mechanically
+  into the class-map dialect as the loader's third per-instance source, so catalog projection and
+  the DRV-29 gate honoring are unchanged code. Reachability finally rides an honest LWT
+  (`meta/online`) — no DRV-27-style heartbeat; the `meta/locveil` stamp surfaces `stale_pin`
+  monitor-only; broker-wipe self-heals firmware-side (announce-on-reconnect). `requires_arm` stays
+  firmware-enforced single-point; the deck transport vocabulary remains a deferred contract cut
+  batched with implementation. **DRV-37 filed:** implement per design, BLOCKED on satellite DES-4's
+  first conforming descriptor (the fixture); VWB-39 activates alongside; per-deck configs still wait
+  for first-light. Design-only — no code, no contract, golden untouched.
+
 - **2026-07-12 — VWB-38: device-integration convention v1 designed + shipped — the satellite
   boundary has its contract.** Interactive design session (PROD-15 item 2, HK-4's "convention down,
   descriptors up"). Deliverables: `docs/design/device_integration_convention.md` +

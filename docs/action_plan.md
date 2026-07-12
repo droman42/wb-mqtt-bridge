@@ -246,13 +246,20 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
     - **HDMI board generation (bench check, when powered on).** The wedging HDMI/CEC/ARC layer is a **discrete versioned board**: Menu → Information → **`HDMI Version`** reports it. `≥ 10.xx` = eARC-enabled board (eARC becomes usable once on 3.2); `< 10.xx` = no eARC board (a paid Emotiva hardware upgrade adds it). **NB the stability/CEC/ARC-reliability fixes in 3.2 are firmware and apply to ANY board** — a sub-10.xx reading is NOT a reason to skip 3.2. **Readable remotely via `scripts/emotiva_menu_probe.py`** — Information-menu rows render their values in `emotivaNotify` (unlike the blank leaf-editors), so `HDMI Version` can be captured without a panel visit when the unit is next on.
     - **3.2 install procedure (from the official 5/17/23 bulletin) — bridge-relevant bits.** USB FAT/FAT32 (exFAT ok; not NTFS/Apple), file in root, don't rename/unzip; the flash is **sandwiched between two Factory Resets** (before + after) + a mandatory TV AC power-cycle + Restore Settings — ~10–15 min flash, non-trivial. **(a) The double Factory Reset WIPES all config incl. CEC** → do the DRV-32 CEC-config decision fresh right here (the resets hand us a clean slate). **(b) After ANY power-off, wait a FULL 30 s before power-on** — the eMotiva's Ethernet port needs 30 s to reset or it returns with NO network (the bridge would then see it unreachable — DRV-30 would correctly report that; not a bridge bug). **(c)** config Restore may not survive the version jump → keep a written note of key settings. **(d)** new per-input **HDMI 1.4/2.0 compatibility** knob (bulletin note #8 flags HDMI-2.0↔1.4b generation mismatches as "many issues people face"). **CONCRETE for this rack (owner 2026-07-11):** the eMotiva bus mixes generations — **source1=Zappiti (4K/2.0)** + **source2=appletv_living (4K/2.0)** vs **source3=upscaler (HDMI 1.3 — older than the 1.4b cited)**. Set **source3 → HDMI 1.4-compat** (zero downside — the upscaler feeds LD/VHS, outputs ≤1080p, no 4K to lose), keep source1/source2 on **2.0**. Isolating the old 1.3 device on the compat mode is a strong, free candidate for the HDMI-subsystem instability behind both wedges — do it right after the 3.2 flash (which resets it anyway). No-downgrade-below-3.x (bricks). Refs in `contracts`-adjacent research: bulletin PDF `Official_RMC-1_RMC-1L_XMC-2_Firmware_v3.2_Bulletin_-_5_17_23.pdf` (Emotiva CDN).
 
-- [ ] **DRV-36** `[P2]` `[deferred]` — **Design: `EspManagedDevice` driver (PROD-15 bridge delegation,
-  item 3; `design-then-implement`).** Descriptor-native driven adapter for satellite-managed ESP
-  devices: consumes the device-integration-convention descriptors (VWB-38 — depends on it), one-time
-  openapi bump; golden catalog waits for the first deck config (per HK-4). Supersedes the parked
-  `ESP32ManagedDevice` concept (name + shape; see DRV-34 annotation). Deliverable: design doc under
-  `docs/design/`; on completion file the implementation follow-up(s). Per-deck cutover tasks stay
-  UNFILED until satellite first-light (HW-GATED, satellite-triggered — board instruction).
+- [ ] **DRV-37** `[P2]` `[deferred]` `BLOCKED` — **Implement `EspManagedDevice` per the DRV-36 design**
+  ([`docs/design/esp_managed_device.md`](design/esp_managed_device.md)). **BLOCKED on the satellite's
+  first conforming descriptor** (their DES-4 output for the first real device — the descriptor is the
+  implementation fixture; do not build against a hypothetical). Scope when it unblocks: the
+  `infrastructure/devices/esp_managed/` package (driver + `EspManagedDeviceConfig` + descriptor-pin
+  loading with fail-fast validation against the convention pin + the descriptor→class-map translation
+  as a tested pure function); `EspManagedDeviceState` into `OPENAPI_EXTRA_MODELS` +
+  `device-state-mapping.json` (the one-time openapi bump); entry point + import-linter independence
+  listing; the **deck vocabulary contract cut** (transport family per the satellite's repo-to-repo
+  vocabulary request, batched: capability vocabulary + catalog projection + golden bump + the single
+  voice re-pin); **VWB-39 activates alongside** (the descriptor-pin conformance test); UI types regen.
+  Per-deck device configs + rack cutover stay UNFILED until satellite first-light (HW-GATED,
+  satellite-triggered). The HVACs are out of scope permanently unless the owner reopens firmware
+  (`device_integration_convention.md` §2).
 
 ### SCN — Scenarios / topology / reconciler
 
