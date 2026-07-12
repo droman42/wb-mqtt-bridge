@@ -34,7 +34,7 @@ from wb_mqtt_bridge.domain.scenarios.service import ScenarioManager
 logger = logging.getLogger(__name__)
 
 # The wire-visible filing surface — locked to the pinned Locveil report-protocol
-# core (repo-root ``report-protocol.pin.json``, tag ``report-protocol-v1``) by the
+# core (``contracts/pins/report-protocol/``, tag ``report-protocol-v1``) by the
 # conformance test in ``tests/unit/test_report_protocol_pin.py``. Change the pin
 # first; the test keeps these from drifting silently (VWB-37 / PROD-6).
 REPORT_SOURCE = "bridge-ui"

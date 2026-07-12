@@ -2,9 +2,10 @@
 conform to the pinned Locveil report-protocol core.
 
 The commons repo owns the wire-visible surface as a small versioned machine core
-(`locveil-commons/process/report-protocol/report-protocol.json`, tags
-`report-protocol-vN`); this repo pins a copy at the repo root
-(`report-protocol.pin.json`) and this test locks the collector's emitted
+(`locveil-commons/contracts/report-protocol/report-protocol.json`, tags
+`report-protocol-vN`); this repo pins a copy at
+`contracts/pins/report-protocol/` (verbatim artifact + owner STAMP + PIN.json,
+the org pin shape) and this test locks the collector's emitted
 labels / title prefix / report-id shape / bundle path — the `REPORT_*` constants
 in `domain/reports/service.py` — plus `system.json`'s explicit `reports.repo`
 to that pin. On a protocol bump: re-pin first, then adjust the constants until
@@ -27,7 +28,10 @@ pytestmark = pytest.mark.unit
 
 BACKEND = Path(__file__).resolve().parents[2]
 REPO = BACKEND.parent
-PIN = json.loads((REPO / "report-protocol.pin.json").read_text(encoding="utf-8"))
+PIN = json.loads(
+    (REPO / "contracts" / "pins" / "report-protocol" / "report-protocol.json")
+    .read_text(encoding="utf-8")
+)
 PROBLEM_REPORT = PIN["types"]["problem-report"]
 
 

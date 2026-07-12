@@ -25,6 +25,13 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-12 — VWB-40: report-protocol pin → `contracts/pins/report-protocol/` (PROD-16 / HK-5 q3,
+  bridge delegation (2)).** The VWB-37 root pin moved into the org pin shape — verbatim artifact
+  (tag-verified `report-protocol-v1` bytes), the owner's STAMP sidecar verbatim, and a strict PIN.json
+  (files hash map + owner_commit + conformance pointer). Consuming paths re-taught: the conformance
+  test, the `REPORT_*` comment, the design doc, the registry, and the reports-repo `lens-bridge.md`
+  (which also learned VWB-29's `contracts/catalog/` paths). Wire surface untouched.
+
 - **2026-07-12 — VWB-29: the catalog contract's owner-side cut — `contracts/catalog/`, `CONTRACT_VERSION`,
   STAMP core, first family tag `catalog-v1.5` (PROD-16 / council HK-5, bridge delegation (1); rescoped at
   intake `17734d8` from the superseded GitHub-Release + `contract-vN` shape).** The catalog family now

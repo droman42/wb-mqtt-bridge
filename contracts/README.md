@@ -21,6 +21,7 @@ vendored `scripts/scope_guard.py`, enforced by the sha256 block rules in
 
 | Pin | Owner | Conformance guard |
 |---|---|---|
+| [`report-protocol`](pins/report-protocol/README.md) — the problem-report filing surface (labels, title prefix, report-id/bundle shape) | locveil-commons (tag `report-protocol-v1`) | `backend/tests/unit/test_report_protocol_pin.py` |
 
 Layer-1 coherence (layout, stamps, pin hashes) is checked by the vendored
 contract-guard; layer-2 conformance lives in the named tests above, inside the

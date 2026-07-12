@@ -602,20 +602,10 @@ endpoint).
 
 - [ ] **VWB-39** `[P2]` `[deferred]` — **Descriptor-pin conformance test (PROD-15 bridge delegation,
   item 4; the VWB-37 pattern).** Once VWB-38's versioned artifact exists: pin it (the
-  `report-protocol.pin.json` recipe — byte-identical copy, tag-verified) and lock the bridge-side
+  report-protocol pin recipe — byte-identical copy, tag-verified; org pin shape at
+  `contracts/pins/<name>/` since VWB-40) and lock the bridge-side
   consuming surface to the pin with a unit test (`test_report_protocol_pin.py` shape). Depends on
   VWB-38 (and on DRV-36's implementation for the consuming constants).
-
-- [ ] **VWB-40** `[P1]` — **Consumed-pin relocation: the report-protocol pin →
-  `contracts/pins/report-protocol/`** (PROD-16 bridge delegation (2), council HK-5 q3 — the uniform
-  layout is immediate, no grandfathering; normative: `../locveil-commons/process/contracts.md` §2).
-  Move the repo-root `report-protocol.pin.json` into the org pin shape: verbatim artifact copy
-  (`report-protocol.json`, byte-identical to the commons tag `report-protocol-v1`) + the owner's
-  STAMP.json verbatim + a strict `PIN.json` (files hash map, conformance pointer). Follow the path
-  everywhere it is taught: `test_report_protocol_pin.py`, the `REPORT_*` comment in
-  `domain/reports/service.py`, `docs/design/problem_reports_bridge.md`, the registry README, and the
-  reports-repo lens teaching note (`locveil-reports/.github/claude/lens-bridge.md`), which names the
-  old root path.
 
 - [ ] **VWB-41** `[P1]` — **Device-integration owner-side guard** (PROD-16 bridge delegation (3),
   council HK-5 — closes the convention model's own gap, pre-VWB-39: an owned machine schema ships a

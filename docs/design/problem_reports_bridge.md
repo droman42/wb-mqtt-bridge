@@ -10,7 +10,7 @@ The bridge's half of the cross-repo problem-reporting loop designed in
 the private `locveil/locveil-reports` triage home (named `droman42/wb-user-reports` until the
 2026-07-11 org transfer, PROD-14/HK-3), the one-Claude-two-lenses choreography, the envelope —
 are defined THERE and consumed here unchanged; since HK-3 the wire-visible surface is the
-versioned machine core `locveil-commons/process/report-protocol/` (pinned here, VWB-37). This document decides only what is the bridge's
+versioned machine core `locveil-commons/contracts/report-protocol/` (pinned at `contracts/pins/report-protocol/` — VWB-37, relocated to the org pin shape by VWB-40). This document decides only what is the bridge's
 own: what a UI-originated report collects, how it is assembled and delivered, and what new
 evidence infrastructure v1 builds.
 

@@ -139,7 +139,7 @@ catalog waits for the first deck config, so no vocabulary is added speculatively
   pinnable ref (the same discipline VWB-29 establishes for the catalog contract tags).
 - **Satellite side:** mirrors the schema into their `contracts/`, validates every descriptor
   under `boards/` against it in CI (their DES-4 + their `consumer-pins` invariant).
-- **Bridge side:** VWB-39 pins the artifact byte-identical (`report-protocol.pin.json`
+- **Bridge side:** VWB-39 pins the artifact byte-identical (the report-protocol pin
   recipe) and locks the DRV-36 consuming surface to the pin with a unit test. On a bump:
   re-pin first, then adjust until conformance passes.
 - **Runtime:** the `meta/locveil` stamp topic (§3) is the tripwire that a deployed device
