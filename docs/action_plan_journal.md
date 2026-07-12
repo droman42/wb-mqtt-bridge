@@ -25,6 +25,20 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-12 — DRV-35: `ESP32/` deleted, DRV-7 retired — the deck-bridge scaffold lives in
+  locveil-satellite now.** The satellite confirmed the import repo-to-repo (`c592733` into this
+  ledger): their DES-6 (`0d950a9`) copied the tree verbatim @ `a80322f` into `imports/bridge-esp32/`;
+  their DES-1 harmonization then absorbed the docs into `locveil-satellite/docs/devices/`
+  per-device dossiers + their DES-1 truth-pass review record and deleted the staging copy — owner verdict: the code was
+  reference-only, the docs were the value; single-image FR-1 stays retired (GPIO14 triple-booking,
+  recorded in their deck-common §5). Bridge side, one change: the 35-file tree removed (`git rm`),
+  **DRV-7 moved to DONE as RETIRED-exported** (never completed here — the bench fill-ins and
+  first-light verification belong to the satellite's FW phase now; everything resolvable in history
+  at `a80322f` and earlier). Pre-delete sweep found zero external references to the tree; VWB-38's
+  promotion source had already been re-pointed to the satellite's truth pass (`be774a8`), so the
+  delete strands nothing. PROD-15's bridge item 1 is fully discharged (1a rode DRV-34). Remaining on
+  this arc: **VWB-38** (convention design — the separate session, next), then DRV-36, then VWB-39.
+
 - **2026-07-12 — DRV-34: HK-4 supersession doc pass done — the chip discrepancy resolves AGAINST the
   plan narrative.** Same session as the PROD-15 intake below. The parked question closed with hard
   evidence: the HVAC modules are **ESP8266** (Wemos D1 Mini) — recorded at DRV-27 decision D1
