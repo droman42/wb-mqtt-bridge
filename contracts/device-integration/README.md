@@ -82,7 +82,11 @@ exists):
 ## The descriptor
 
 One JSON file per device, owned by the device's repo, valid against
-[`device-descriptor.schema.json`](device-descriptor.schema.json). In outline:
+[`device-descriptor.schema.json`](device-descriptor.schema.json). The example below is
+also committed beside the schema as
+[`example.descriptor.json`](example.descriptor.json) and machine-checked on every
+change: the schema must accept it, and this guide and the fixture are held to the same
+bytes — the guide can never teach a shape the schema rejects. In outline:
 
 ```json
 {
@@ -121,8 +125,8 @@ Rules that matter:
   to echo. Consumers size their confirmation windows from it. It is a promise, not a
   measurement channel.
 - **Capability and action names must already exist in the bridge's canonical vocabulary**
-  (exhibited by [`../catalog.golden.json`](../catalog.golden.json) and its
-  [README](../README.md)). A device that needs new vocabulary requests it from the bridge
+  (exhibited by [`../catalog/catalog.golden.json`](../catalog/catalog.golden.json) and its
+  [README](../catalog/README.md)). A device that needs new vocabulary requests it from the bridge
   side first; descriptors never invent canonical tokens.
 - **Names and labels ship in Russian and English; German is optional.**
 - Value tables use the `{wire, canonical, labels}` triplet form — the same convention the
@@ -138,3 +142,6 @@ Rules that matter:
   schema in CI. Pins are never hand-edited; a bump means re-pin, then reconcile.
 - The bridge validates the other direction: its consuming code is locked to the same pinned
   artifact by a conformance test, so neither side can drift silently.
+- **The owner's side is guarded too:** the committed example descriptor is validated against
+  the schema (and against this guide's example) in the bridge's normal test suite — the
+  schema never changes without a conforming exhibit changing with it.

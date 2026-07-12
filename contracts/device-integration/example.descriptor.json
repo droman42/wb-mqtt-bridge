@@ -1,0 +1,28 @@
+{
+  "convention": 1,
+  "descriptor_version": 1,
+  "profile": "wb-mqtt-v1",
+  "device_id": "revox_a77",
+  "names": {"ru": "Revox A77", "en": "Revox A77"},
+  "firmware": {"app": "revox-a77"},
+  "timing": {"confirm_latency_ms": 1000},
+  "controls": {
+    "play":       {"type": "pushbutton"},
+    "stop":       {"type": "pushbutton"},
+    "arm_record": {"type": "pushbutton"},
+    "record":     {"type": "pushbutton"}
+  },
+  "capabilities": {
+    "transport": {
+      "kind": "momentary",
+      "feedback": false,
+      "actions": {
+        "play": {"control": "play"},
+        "stop": {"control": "stop"}
+      }
+    }
+  },
+  "interlocks": [
+    {"type": "requires_arm", "action": "record", "arm_action": "arm_record", "window_ms": 8000}
+  ]
+}

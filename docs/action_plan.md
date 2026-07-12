@@ -607,17 +607,6 @@ endpoint).
   consuming surface to the pin with a unit test (`test_report_protocol_pin.py` shape). Depends on
   VWB-38 (and on DRV-36's implementation for the consuming constants).
 
-- [ ] **VWB-41** `[P1]` — **Device-integration owner-side guard** (PROD-16 bridge delegation (3),
-  council HK-5 — closes the convention model's own gap, pre-VWB-39: an owned machine schema ships a
-  committed schema-validating example fixture + CI check from day one, per
-  `../locveil-commons/process/contracts.md` §4 layer 2; no unguarded model layouts). Deliverables:
-  `contracts/device-integration/example.descriptor.json` (a fictional conforming descriptor
-  exercising the schema's surfaces — control types, stateful + momentary capabilities, triplet value
-  tables, the `requires_arm` interlock; canonical tokens drawn from the real pinned vocabulary), a
-  backend unit test (schema self-check + the fixture validates — rides the normal backend CI job,
-  which already triggers on `contracts/**`), STAMP.json normalized to the core fields (tag
-  `device-integration-v1` untouched — the commons report-protocol sidecar precedent), README teaches
-  the example.
 
 ### UI — config-ui
 

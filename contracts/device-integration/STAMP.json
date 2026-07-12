@@ -1,7 +1,9 @@
 {
-  "convention_version": 1,
+  "contract": "device-integration",
+  "version": "1",
   "tag": "device-integration-v1",
+  "date": "2026-07-12",
+  "owner_repo": "locveil-bridge",
   "profiles": ["wb-mqtt-v1"],
-  "rest_reserved": ["GET /api/status", "POST /api/control"],
-  "date": "2026-07-12"
+  "rest_reserved": ["GET /api/status", "POST /api/control"]
 }

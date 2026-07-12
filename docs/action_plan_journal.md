@@ -25,6 +25,14 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-12 — VWB-41: device-integration owner-side guard — committed example fixture + CI check +
+  STAMP core (PROD-16 / HK-5, bridge delegation (3)).** The convention README's canonical descriptor
+  example is now committed as `contracts/device-integration/example.descriptor.json` with byte-parity
+  enforced by a new 5-test backend suite (schema self-check, fixture validates, README==fixture,
+  en-only names rejected, full-surface in-test descriptor for the shapes the example doesn't reach).
+  STAMP normalized to the org core (tag `device-integration-v1` untouched, commons sidecar precedent).
+  Suite 708.
+
 - **2026-07-12 — VWB-40: report-protocol pin → `contracts/pins/report-protocol/` (PROD-16 / HK-5 q3,
   bridge delegation (2)).** The VWB-37 root pin moved into the org pin shape — verbatim artifact
   (tag-verified `report-protocol-v1` bytes), the owner's STAMP sidecar verbatim, and a strict PIN.json
