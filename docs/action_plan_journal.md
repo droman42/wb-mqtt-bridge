@@ -25,6 +25,25 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-12 — VWB-38: device-integration convention v1 designed + shipped — the satellite
+  boundary has its contract.** Interactive design session (PROD-15 item 2, HK-4's "convention down,
+  descriptors up"). Deliverables: `docs/design/device_integration_convention.md` +
+  `contracts/device-integration/` (guide, `device-descriptor.schema.json`, `STAMP.json`), tagged
+  **`device-integration-v1`**. wb-mqtt-v1 promotes the deck FR-text exactly as the satellite's
+  DES-1 truth pass dispositioned it (announce / LWT `meta/online` / `<control>/on` / echo-on-success
+  / `requires_arm` / STATIC `confirm_latency_ms`), cross-checked against the bridge's own WB
+  emulation and passthrough consumption — one dialect, both ends of the wire; plus the retained
+  `meta/locveil` stamp as the monitor-only stale-pin tripwire. Three owner decisions: descriptors
+  CARRY the canonical capability mapping (class-map dialect, `control` for `command`, gate derived
+  from the static latency — DRV-36 becomes truly descriptor-native, zero bridge authoring per new
+  device); REST leg = asset-plane URLs normative + `GET /api/status`/`POST /api/control` reserved
+  (full profile waits for the first real consumer); descriptor i18n ru+en required / de optional.
+  **Standing owner constraint recorded in the design §2: `MitsubishiHvac` stays untouched —
+  external firmware never retrofits; the only door is an owner-decided firmware rewrite** (the
+  HVAC design's §8 transport-swap horizon). Schema machine-verified (draft 2020-12 valid; the
+  guide's example validates; en-only names rejected). No code, no catalog/openapi change, no
+  re-pin owed. DRV-36 + VWB-39 (pre-filed) are the follow-ups; the satellite's DES-4 can now pin.
+
 - **2026-07-12 — DRV-35: `ESP32/` deleted, DRV-7 retired — the deck-bridge scaffold lives in
   locveil-satellite now.** The satellite confirmed the import repo-to-repo (`c592733` into this
   ledger): their DES-6 (`0d950a9`) copied the tree verbatim @ `a80322f` into `imports/bridge-esp32/`;

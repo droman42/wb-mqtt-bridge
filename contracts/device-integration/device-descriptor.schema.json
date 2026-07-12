@@ -1,0 +1,216 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://locveil.dev/contracts/device-integration/v1/device-descriptor.schema.json",
+  "title": "Locveil device descriptor (device-integration convention v1)",
+  "description": "One per Locveil-built device. Declares the device's wire surface (MQTT controls, wb-mqtt-v1) and its canonical capability mapping. Owned by the device's repo; validated against this schema in that repo's CI; consumed as-is by the bridge.",
+  "type": "object",
+  "required": ["convention", "descriptor_version", "profile", "device_id", "names", "firmware", "timing", "controls", "capabilities"],
+  "additionalProperties": false,
+  "properties": {
+    "convention": {
+      "description": "The device-integration convention version this descriptor conforms to.",
+      "const": 1
+    },
+    "descriptor_version": {
+      "description": "This descriptor's own revision; bump on any change.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "profile": {
+      "description": "The wire profile the device speaks. ha-mqtt and device-hosted REST are reserved for later convention versions.",
+      "enum": ["wb-mqtt-v1"]
+    },
+    "device_id": {
+      "description": "Wire-level MQTT device id: /devices/<device_id>/...",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "names": { "$ref": "#/$defs/labels" },
+    "firmware": {
+      "type": "object",
+      "required": ["app"],
+      "additionalProperties": false,
+      "properties": {
+        "app": {
+          "description": "The per-device firmware app name, as reported in the meta/locveil stamp.",
+          "type": "string"
+        },
+        "board": { "type": "string" }
+      }
+    },
+    "timing": {
+      "type": "object",
+      "required": ["confirm_latency_ms"],
+      "additionalProperties": false,
+      "properties": {
+        "confirm_latency_ms": {
+          "description": "STATIC worst-case time from command publish to echo, in milliseconds. A promise, not a measurement channel.",
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "controls": {
+      "description": "The MQTT control surface under /devices/<device_id>/controls/.",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*$": { "$ref": "#/$defs/control" }
+      }
+    },
+    "capabilities": {
+      "description": "Canonical capability mapping. Capability ids, action names, and canonical value tokens must already exist in the bridge's pinned vocabulary — descriptors never invent canonical tokens.",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*$": { "$ref": "#/$defs/capability" }
+      }
+    },
+    "interlocks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/interlock" }
+    },
+    "notes": {
+      "description": "Free-form device truth worth surfacing to an integrator (firmware-internal interlocks, quirks).",
+      "type": "string"
+    }
+  },
+  "$defs": {
+    "labels": {
+      "description": "Localized strings: ru + en required, de optional.",
+      "type": "object",
+      "required": ["ru", "en"],
+      "additionalProperties": false,
+      "properties": {
+        "ru": { "type": "string", "minLength": 1 },
+        "en": { "type": "string", "minLength": 1 },
+        "de": { "type": "string", "minLength": 1 }
+      }
+    },
+    "control": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "description": "WB control type. pushbutton = momentary (transient ack, not retained); the rest are stateful (retained value).",
+          "enum": ["pushbutton", "switch", "range", "value", "text"]
+        },
+        "readonly": { "type": "boolean", "default": false },
+        "units": { "type": "string" },
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "title": { "$ref": "#/$defs/labels" }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["stateful", "momentary"] },
+        "feedback": {
+          "description": "true when the device echoes state the bridge can gate on (stateful controls); false for fire-and-forget momentary surfaces.",
+          "type": "boolean",
+          "default": true
+        },
+        "reconcile": {
+          "description": "Whether the bridge's reconciler may drive this capability toward scenario targets.",
+          "type": "boolean",
+          "default": false
+        },
+        "state_field": {
+          "description": "The canonical state field this capability reads back, where stateful.",
+          "type": "string"
+        },
+        "actions": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[a-z][a-z0-9_]*$": { "$ref": "#/$defs/action" }
+          }
+        },
+        "fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/field" }
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "required": ["control"],
+      "additionalProperties": false,
+      "properties": {
+        "control": {
+          "description": "The MQTT control this canonical action writes (must name a key of controls).",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "payload": {
+          "description": "Static payload published to <control>/on; omitted for pushbuttons (the profile fires \"1\").",
+          "type": ["string", "number"]
+        },
+        "param_map": {
+          "description": "Canonical param name -> value placeholder mapping for parametric actions ({value} convention).",
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "field": {
+      "type": "object",
+      "required": ["name", "type", "labels"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "type": { "enum": ["enum", "number", "boolean", "string"] },
+        "labels": { "$ref": "#/$defs/labels" },
+        "control": {
+          "description": "The MQTT control this field mirrors (must name a key of controls). Defaults to the field name.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "unit": { "type": "string" },
+        "values": {
+          "description": "Enum value table in the catalog's {wire, canonical, labels} triplet form.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["wire", "canonical", "labels"],
+            "additionalProperties": false,
+            "properties": {
+              "wire": { "type": "string" },
+              "canonical": { "type": "string" },
+              "labels": { "$ref": "#/$defs/labels" }
+            }
+          }
+        }
+      }
+    },
+    "interlock": {
+      "type": "object",
+      "required": ["type", "action", "arm_action", "window_ms"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "requires_arm" },
+        "action": {
+          "description": "The guarded canonical action (e.g. record).",
+          "type": "string"
+        },
+        "arm_action": {
+          "description": "The arming action that must precede it (e.g. arm_record). The arm is consumed on use.",
+          "type": "string"
+        },
+        "window_ms": {
+          "description": "How long an arm stays valid.",
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

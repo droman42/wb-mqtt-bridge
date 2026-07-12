@@ -6,6 +6,12 @@ consumers — first among them the `locveil-voice` assistant (Irene). The bridge
 into a sibling repository. The voice side pins its own copy (into
 `locveil-commons/contracts/`) — a one-way, outward, version-stamped sync.
 
+A second contract family lives in
+[`device-integration/`](device-integration/README.md): the **device-integration
+convention** — how Locveil-built devices (the ESP32 satellite family) integrate with
+the bridge. Same generator rules, its own versioning (`device-integration-vN` tags),
+its own consumer (the satellite repo).
+
 ## Files
 
 | File | What it is |
