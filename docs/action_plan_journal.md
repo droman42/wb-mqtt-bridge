@@ -25,6 +25,22 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-12 — PROD-15 bridge delegation pulled: satellite-boundary tasks filed (DRV-34/35/36 + VWB-38/39).**
+  Board-as-outbox intake (council HK-4, locveil-satellite bootstrap; board entry PROD-15 in
+  `../locveil-commons/board/BOARD.md`). All five delegation items verified against the repo at intake
+  (`task-start-reconciliation`) — all valid: the `ESP32/` tree + DRV-7 + the ESP32ManagedDevice
+  narrative + the `productization_bridge.md` §3 "no bridge work filed" note + the VWB-37 pin pattern
+  are exactly as the delegation claims. Two reconciliation notes: the delegation's "§5.1 area" pointer
+  is old positional numbering — the superseded text actually lives in the VWB context narrative (plus
+  a stale "§5" back-pointer inside DRV-7); and the board says the HVACs run **ESP8266** while the plan
+  says **ESP32** — discrepancy parked into DRV-34 to resolve at execution. Filed 1:1 with the
+  delegation: **DRV-34** (HK-4 supersession doc pass — items 1a+5 folded, both dated-annotation work),
+  **DRV-35** (DELETE `ESP32/` + retire DRV-7; BLOCKED on satellite import confirmation — item 1b),
+  **DRV-36** (EspManagedDevice driver design — item 3), **VWB-38** (device-integration-convention
+  design — item 2; owner: separate session), **VWB-39** (descriptor-pin conformance test, VWB-37
+  pattern — item 4). Per-deck cutover tasks stay unfiled until satellite first-light, per the board.
+  IDs written back into the PROD-15 board entry (commons commit).
+
 - **2026-07-11 — VWB-35: reports-repo re-point complete — spool drained (trivially), the task closes.**
   Board-as-outbox delegation (PROD-14 phase 2 (1), council HK-3); implementation had landed
   (`0279ade` + `7f37dae`: slug sweep, explicit `reports.repo`, schema default dropped with the

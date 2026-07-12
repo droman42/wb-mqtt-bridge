@@ -248,6 +248,34 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
     - **HDMI board generation (bench check, when powered on).** The wedging HDMI/CEC/ARC layer is a **discrete versioned board**: Menu → Information → **`HDMI Version`** reports it. `≥ 10.xx` = eARC-enabled board (eARC becomes usable once on 3.2); `< 10.xx` = no eARC board (a paid Emotiva hardware upgrade adds it). **NB the stability/CEC/ARC-reliability fixes in 3.2 are firmware and apply to ANY board** — a sub-10.xx reading is NOT a reason to skip 3.2. **Readable remotely via `scripts/emotiva_menu_probe.py`** — Information-menu rows render their values in `emotivaNotify` (unlike the blank leaf-editors), so `HDMI Version` can be captured without a panel visit when the unit is next on.
     - **3.2 install procedure (from the official 5/17/23 bulletin) — bridge-relevant bits.** USB FAT/FAT32 (exFAT ok; not NTFS/Apple), file in root, don't rename/unzip; the flash is **sandwiched between two Factory Resets** (before + after) + a mandatory TV AC power-cycle + Restore Settings — ~10–15 min flash, non-trivial. **(a) The double Factory Reset WIPES all config incl. CEC** → do the DRV-32 CEC-config decision fresh right here (the resets hand us a clean slate). **(b) After ANY power-off, wait a FULL 30 s before power-on** — the eMotiva's Ethernet port needs 30 s to reset or it returns with NO network (the bridge would then see it unreachable — DRV-30 would correctly report that; not a bridge bug). **(c)** config Restore may not survive the version jump → keep a written note of key settings. **(d)** new per-input **HDMI 1.4/2.0 compatibility** knob (bulletin note #8 flags HDMI-2.0↔1.4b generation mismatches as "many issues people face"). **CONCRETE for this rack (owner 2026-07-11):** the eMotiva bus mixes generations — **source1=Zappiti (4K/2.0)** + **source2=appletv_living (4K/2.0)** vs **source3=upscaler (HDMI 1.3 — older than the 1.4b cited)**. Set **source3 → HDMI 1.4-compat** (zero downside — the upscaler feeds LD/VHS, outputs ≤1080p, no 4K to lose), keep source1/source2 on **2.0**. Isolating the old 1.3 device on the compat mode is a strong, free candidate for the HDMI-subsystem instability behind both wedges — do it right after the 3.2 flash (which resets it anyway). No-downgrade-below-3.x (bricks). Refs in `contracts`-adjacent research: bulletin PDF `Official_RMC-1_RMC-1L_XMC-2_Firmware_v3.2_Bulletin_-_5_17_23.pdf` (Emotiva CDN).
 
+- [ ] **DRV-34** `[P2]` `[deferred]` — **HK-4 supersession doc pass (PROD-15 bridge delegation, items 1a+5).**
+  The satellite council decision (HK-4, 2026-07-12; board `../locveil-commons/board/BOARD.md` PROD-15)
+  supersedes two recorded bridge positions — annotate, don't rewrite history: **(a)** the
+  `ESP32ManagedDevice` decision text in the VWB context narrative ("Decision locked 2026-06-08") is
+  superseded in name + shape by the descriptor-native **`EspManagedDevice`** design (DRV-36) — add the
+  dated supersession note; frozen journal/revision-log mentions stay untouched. **(b)** fix the stale
+  positional back-pointer inside DRV-7 ("see PARKED entry in §5"). **(c)** dated HK-4 amendment to
+  `docs/design/productization_bridge.md` §3 — the "satellite… no bridge work filed" note is now false;
+  record the two-layer shape (convention down, descriptors up; bridge = generator per regime 1) +
+  the filed IDs. **(d)** resolve at execution: the board says the HVACs are **ESP8266** while this plan's
+  VWB narrative says **ESP32** — check which is right and record it (charter trigger wording rides on it).
+
+- [ ] **DRV-35** `[P2]` `[deferred]` `BLOCKED` — **`ESP32/` tree handover: DELETE + retire DRV-7
+  (PROD-15 bridge delegation, item 1b).** BLOCKED on locveil-satellite confirming its import of the
+  tree (voice BUILD-22 migrates the corpus). Once confirmed: DELETE the top-level `ESP32/` tree in one
+  change (the 2026-07-08 verdict, reconfirmed by HK-4) + retire DRV-7 with a journal pointer to the
+  satellite repo as the new home. Until then the tree is the frozen import source — no edits to it.
+  NB VWB-38 promotes `ESP32/REQUIREMENTS.md` FR-text into wb-mqtt-v1 — if the delete lands first, the
+  design references the satellite's imported copy instead.
+
+- [ ] **DRV-36** `[P2]` `[deferred]` — **Design: `EspManagedDevice` driver (PROD-15 bridge delegation,
+  item 3; `design-then-implement`).** Descriptor-native driven adapter for satellite-managed ESP
+  devices: consumes the device-integration-convention descriptors (VWB-38 — depends on it), one-time
+  openapi bump; golden catalog waits for the first deck config (per HK-4). Supersedes the parked
+  `ESP32ManagedDevice` concept (name + shape; see DRV-34 annotation). Deliverable: design doc under
+  `docs/design/`; on completion file the implementation follow-up(s). Per-deck cutover tasks stay
+  UNFILED until satellite first-light (HW-GATED, satellite-triggered — board instruction).
+
 ### SCN — Scenarios / topology / reconciler
 
 - [ ] **SCN-10** `[P2]` `[deferred]` — **Feedback-gated topology ordering edges (wait for the
@@ -581,6 +609,26 @@ endpoint).
 - [ ] **VWB-33** `[P1]` `[deferred]` — **Harmonise language-data contribution across all devices/capabilities — design** (`design-then-implement`; filed 2026-07-10 off the chat analysis of how devices contribute language-specific data to voice). **Post-release, board-level cross-repo (owner decision 2026-07-10 — re-tagged out of `[release]`):** the convention is **half the voice side's** (the verbs-are-donations rule binds their repo too), so this is a **board-as-outbox cross-repo design session** — one of the first tasks *after* the Locveil board is established, alongside VWB-34 (both are board-delegated cross-repo designs; `locveil-commons/process/` is the candidate shared-spec home). NOT a release-1 gate. The analysis established the ownership split — **the bridge catalog contributes the NOUNS** (device `names` ru/en/de, device/room `aliases`, field `labels`, enum `{wire, canonical, labels}` value labels — the voice side's matching surfaces: it matches utterance words against `labels` in the active locale and posts `canonical`), **the voice donations contribute the VERBS** (phrases/lemmas per handler method; `CatalogAction` deliberately carries NO labels), and **group tokens** (`light`/`cover`/`fan`…) are unlocalized identifiers whose spoken words live in donation choice surfaces. Found inconsistencies to resolve by design: **(1)** uneven label-language coverage (kitchen hood field/value labels are ru/en only; HVAC carries full ru/en/de; some fleet fields carry no labels at all) — decide the required set (ru/en/de?) and whether a guard enforces it (`check`-style test or catalog-build warning); **(2)** no recorded CONVENTION for which surfaces must be localized vs must stay canonical tokens — write it down (candidate home: `contracts/README.md` in user-facing voice + the capability-map authoring guidance), including the verbs-are-donations rule so nobody adds action labels to the catalog; **(3)** `CatalogParam.description`/`unit` are English-only prose — decide: keep as developer-facing (documented as such) or localize; **(4)** device `aliases` coverage is sparse and ru-only — decide whether aliases become part of the authoring checklist for new devices; **(5)** audit the full fleet against the decided convention and file the implementation follow-up(s) with the gap list. Deliverable: the design/convention document + filed follow-ups (a finding is not scope until it has an ID). Coordinate with the voice side (the convention is half theirs — donations); candidate shared-spec home per the Domovoy arc (`locveil-commons/process/`) noted, not required for release 1.
 
 - [ ] **VWB-34** `[P2]` `[deferred]` — **Publish confirmation-timing in the contract — design** (`design-then-implement`; filed 2026-07-10 off the DRV-29 post-mortem chat: "your HTTP timeout must exceed 15 s" is contract information currently delivered out-of-band in a handover note — the same coupling class DRV-29 fixed, one layer up: retune a gate to 30 s and voice's timeouts fire again with no signal in the pinned catalog). **Cross-repo** — intended for delegation to the board once board-as-outbox lands (Domovoy arc); the voice side co-owns the consumption design (example on the table: implement scenario startup as a *durable action* on the voice side). Three tiers established in the chat analysis, to be confirmed/refined by the design: **(1) capabilities** — publish a client-meaningful optional `confirm_timeout_ms` per capability (present only when gated), derived from but NOT exposing the internal `gate` object (the gate is implementation — reconciler polling cadence; the latency promise is contract — keeps internals re-tunable without a re-pin); consumers: voice sizes per-capability HTTP timeouts and can auto-choose `wait:false` + optimistic speech for slow capabilities instead of hardcoding device lists; the UI's HvacPanel shows an honest progress expectation; extends VWB-24's zero-round-trip philosophy (catalog says what's valid → now also what to expect). **(2) scenarios** — a static estimate would lie (switch duration is diff-dependent: warm shared devices ≈ seconds, cold start ≈ the critical path); the honest publishable fact is an **upper bound** `max_duration_ms`, mechanically derivable from the cold-start plan (step gates + IR delays along the critical path) — a ceiling for client timeouts, never exceeded, usually beaten; progress narration uses the existing SSE state stream, not a number. **(3) async composites** — the fully clean answer for long-running composites is the async-job pattern (`202 Accepted` + progress events + completion event, dissolving the timeout question; the durable-action idea lives here) — a real API redesign touching voice + UI both, deliberately the design's decision whether/when, NOT presumed. Contract cost when implemented: catalog model + derivation + golden/openapi re-pin + voice re-pin — batch with an adjacent deliberate contract cut (OPS-16 tagging discipline applies). Deliverable: design doc + filed implementation follow-up(s).
+
+- [ ] **VWB-38** `[P2]` `[deferred]` — **Design: device-integration-convention (PROD-15 bridge
+  delegation, item 2; `design-then-implement`; owner decision 2026-07-12: separate session).** The
+  versioned "convention down, descriptors up" contract of HK-4 — the bridge OWNS it as generator
+  (`cross-repo-source-of-truth`); locveil-satellite pins its copy one-way (mirrored pins + CI
+  conformance). Deliverable: design doc under `docs/design/` + the artifacts — guide,
+  `device-descriptor.schema.json`, version stamp under `contracts/`. Scope per HK-4: **wb-mqtt-v1**
+  as promotion of the `ESP32/REQUIREMENTS.md` FR-text (the MQTT surface — announce/last-will/
+  subscribe/echo, FR-5…FR-8/FR-11) + REST URL conventions from day one + the capability vocabulary;
+  ha-mqtt-v1 later as a second profile; external-vs-Locveil ownership marked; satellite owns
+  conforming per-device descriptors with required timing/availability fields and STATIC
+  `confirm_latency_ms`; fully DESIGN-TIME (vocabulary reconciliation at the satellite DES gate, no
+  runtime negotiation, one retained firmware-version topic as the stale-pin tripwire). Blocks
+  satellite DES-4; DRV-36 + VWB-39 depend on it.
+
+- [ ] **VWB-39** `[P2]` `[deferred]` — **Descriptor-pin conformance test (PROD-15 bridge delegation,
+  item 4; the VWB-37 pattern).** Once VWB-38's versioned artifact exists: pin it (the
+  `report-protocol.pin.json` recipe — byte-identical copy, tag-verified) and lock the bridge-side
+  consuming surface to the pin with a unit test (`test_report_protocol_pin.py` shape). Depends on
+  VWB-38 (and on DRV-36's implementation for the consuming constants).
 
 ### UI — config-ui
 
