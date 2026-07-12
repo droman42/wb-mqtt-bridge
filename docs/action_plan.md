@@ -705,6 +705,17 @@ endpoint).
 
 - [ ] **OPS-19** `[P2]` `[deferred]` — **`pyatv` git source is unmirrored — Rule 2 compliance gap (ADR 0006).** Surfaced by the REL-4 ADR review. `pyatv` is pinned to `git+https://github.com/postlund/pyatv@9177803…` — SHA-pinned (immutable, so the build is reproducible today) but **not** mirrored under the owner's account, which ADR 0006 Rule 2 requires for repos the owner doesn't control; the ADR's "only remaining git source" claim is now false (annotated 2026-07-10). Residual risk: an upstream force-push/deletion of `postlund/pyatv` breaks recovery. **Decision + small op:** either mirror `postlund/pyatv` → `droman42/pyatv` and repoint the pin (comply), OR record an accepted exception in ADR 0006 with rationale. Not a release gate (reproducible now). Minor sibling: the dev-only `py-dev-gates@v0.1.1` is tag-pinned (owner-controlled) — fold in or leave.
 
+- [ ] **OPS-24** `[P1]` — **Re-pin scope-guard @ `scope-v5`** (PROD-17 bridge delegation (4),
+  council HK-6; the `process/claude-md.md` §3 flow + the OPS-22 vendoring lane). Three pieces, one
+  change: (a) vendored `scripts/scope_guard.py` → the commons tag `scope-v5` (1.2.0 — adds the
+  docs-verdict presence rule on completion entries newer than `docs_verdict_since`, ledger lane
+  only); (b) re-pin the `shared-invariants` CLAUDE.md block from the commons source (gains the
+  org-wide `user-facing-docs-are-done` invariant + `user-docs.md` companion ref) + update its
+  sha256 in `.scope-guard.toml`; (c) set `docs_verdict_since = "2026-07-13"` — the rule bites from
+  tomorrow's completions (today's already-frozen PROD-15/16 entries predate the manifest and stay
+  untouched; the PROD-17 entries carry verdicts voluntarily). Lands LAST — the verdict rule
+  presupposes the DOC-13 manifest.
+
 
 
 ### CORE — Backend core / architecture
@@ -763,6 +774,57 @@ all done; DOC-7 folded into DOC-9.
 - ~~**DOC-7**~~ — *adopt additive conventions; folded into DOC-9 (the legend/tags/priority-split land in the re-ID pass).*
 
 - ~~**DOC-11**~~ — *reconcile `docs/architecture/ui.md` with canonical-first dispatch; **folded into REL-4** at the release-1 sign-off (2026-07-06, DOC-7→DOC-9 precedent). The finding: the "Scenario manifests — same shape, different routing" section still describes pre-SCN-6 dispatch (controls posted at role devices; since SCN-6 they dispatch through the room's Scenario Manager entity) and claims the `source` device contributes an input-dropdown (scenario manifests deliberately render no inputs control); canonical dispatch as the UI's only write path is explained nowhere.*
+
+### DOC — Docs / ledger / process
+
+- [ ] **DOC-13** `[P1]` — **The docs manifest + coherence test + dialect update** (PROD-17 bridge
+  delegation (2), council HK-6; normative: `../locveil-commons/process/user-docs.md` §4 + the commons
+  schema `process/user-docs/manifest.schema.json` — the bridge is the convention's FIRST
+  implementation; commons/voice manifests pend in their own repos). Deliverables:
+  (a) `docs/manifest.json` — repo/roots/surfaces (≤10, repo-owned) + one node per user-facing doc
+  (READMEs, QUICKSTART, `ops/INSTALL.md`, architecture ×6, guides ×4, CONTRIBUTING, contract
+  READMEs as canonical-reference with their `{invariant, stamp, guard}` triple, every
+  `docs/images/*` `.dot`+render pair as a diagram node); floor classes all staffed (front-door,
+  quickstart, operator, end-user, canonical-reference); (b) `contracts/docs-manifest/` — STAMP core
+  @ `docs-manifest-v1` + pointer README + a verbatim copy of the commons schema (CI is hermetic —
+  the test can't read a sibling repo), registry row labeled INTERNAL; (c) the coherence test in the
+  backend suite (drift-guard pattern): schema-validates the manifest, node↔tree bijection over the
+  declared roots, floor-class presence, `.dot`↔render pairing, docs-verdict node-ids resolve
+  (falsifiability check — verdict `none` vs touched globs — needs per-entry diffs; documented as
+  the deferred slice, per the spec's promotion-at-rule-of-two note); (d) CLAUDE.md dialect: the
+  repo-local `user-facing-docs-are-done` bullet becomes the dialect of the incoming shared
+  invariant — points at the manifest as the scope authority (the prose doc-list stays as narrative).
+
+- [ ] **DOC-14** `[P1]` — **DOC staleness pass** (PROD-17 bridge delegation (1), council HK-6 —
+  live stale fixes named by the board + what the pass verifies alongside): (a) `CONTRIBUTING.md`
+  pre-VWB-29 contract paths (the regen command block still teaches `../contracts/catalog.golden.json`
+  + `../contracts/STAMP.json`; also drifted: "three import-linter contracts" vs the real 6 since
+  CORE-6, the CI-gates section missing the OPS-23 `contract-guard` job, the VWB-40 pin location);
+  (b) the OpenAPI field-description tracking language — task IDs (`SCN-7`, `VWB-23`, `DRV-5`,
+  `DRV-28`, …), `§`-refs and the `docs/design/scenarios/scenario_system_redesign.md §6` pointer in Pydantic
+  `Field`/docstring descriptions that surface in `openapi.json`, viewers, and generated UI types
+  (HK-6 style §2 explicitly extends the no-tracking rule to schema descriptions) — rewrite
+  reader-first, then regen `backend/openapi.json` + `contracts/catalog/openapi.json` + UI
+  `gen:api-types` in the same change (`config-ui-stays-functional`); artifact bytes move ⇒ a
+  deliberate minor contract cut: `CONTRACT_VERSION` → **1.6**, STAMP re-stamp + the §2
+  forward-requirement `artifacts` list, tag **`catalog-v1.6`** (golden hash unchanged — description
+  changes live in the schema only); (c) the 5 REL-4-unverified diagrams — REL-4 re-rendered
+  `rest-surface` + `ui-architecture` and left the rest of the flagged set unverified by owner scope
+  call (the flagged list itself wasn't recorded) ⇒ verify ALL 13 remaining `.dot` sources against
+  current code, update + re-render the stale ones in the existing visual style.
+
+- [ ] **DOC-15** `[P1]` — **ADR dissolution — one task** (PROD-17 bridge delegation (3), council
+  HK-6 q3: the ADR class is ABOLISHED org-wide — live content redistributes into
+  design/review/user/contributor docs, husks archive with supersession banners). (a) **0006**
+  (dependency pinning policy, the only one with live normative content) → a CONTRIBUTING.md
+  "Dependency policy" section (immutable git refs, bounded PyPI ranges, lockfile-as-record, the
+  mirror rule) + **OPS-19 re-pointed** (its entry cites "ADR 0006 Rule 2" as the policy source —
+  becomes the CONTRIBUTING section); (b) **0001–0005** verify-and-archive: check each against live
+  code (REL-4 audited them 2026-07-10 — expect in-force), move to `docs/archive/adr/` with dated
+  supersession banners naming where the living truth now sits; (c) retire `docs/adr/` + its README,
+  re-point the two CONTRIBUTING references and any other `docs/adr` links; manifest untouched (ADRs
+  were never nodes — abolished class).
+
 
 ### REL — Release
 
