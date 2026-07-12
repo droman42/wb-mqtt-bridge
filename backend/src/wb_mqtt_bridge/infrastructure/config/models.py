@@ -143,7 +143,7 @@ class StateTopicSpec(BaseModel):
     """Typed spec for one mirrored state field on a WB-passthrough device.
 
     Carries the MQTT value topic plus per-field metadata the driver uses to coerce the
-    raw payload into a typed value (§P3.7 #19). `type` defaults to `"str"` so the
+    raw payload into a typed value. `type` defaults to `"str"` so the
     bare-string config form (`"field": "topic"`) parses through this model unchanged
     via the `state_topics` validator. `encoding` (templates like `"{r};{g};{b}"`) and
     `values` (enum allowed list) are consulted only by the relevant `type` paths.
@@ -159,7 +159,7 @@ class StateTopicSpec(BaseModel):
     )
     values: Optional[List[ValueLabel]] = Field(
         None,
-        description="Value table for `type=\"enum\"` (§P3.7 #26): each entry carries `wire` "
+        description="Value table for `type=\"enum\"`: each entry carries `wire` "
                     "(the payload validated on inbound mirror), `canonical` (the identifier "
                     "stored in `state.mirrored` after translation and accepted in outbound "
                     "actions), and optional localized `labels`. Bare `[\"a\", \"b\"]` form is "
@@ -194,7 +194,7 @@ class WbPassthroughCommandConfig(BaseCommandConfig):
     (matches the WB convention — one slider → one publish). For composite payloads
     (multi-param like RGB `color.set(r,g,b)` → `"r;g;b"`) declare `payload_template`
     with `{name}` placeholders matching the param names; the driver formats it with the
-    invocation params (§P3.7 #19). See §P3.7 A1 for the slice `cabinet_spots.json` example.
+    invocation params. See `cabinet_spots.json` for a worked example.
     """
     topic: str = Field(..., description="MQTT topic to publish to (typically `/devices/<wb-device>/controls/<control>/on`).")
     value: Optional[str] = Field(None, description="Static payload published verbatim. Omit when `params` is set.")
@@ -212,7 +212,7 @@ class WbPassthroughDeviceConfig(BaseDeviceConfig):
     The bridge is NOT the owner of the underlying WB control — wb-mqtt-serial (and any
     wb-rules acting through it) is. This device class mirrors the control's state by
     subscribing to its value topic AND its per-control `meta/error` topic (Wiren Board
-    MQTT convention — see §P3.7 A3), and writes by publishing to the same `/on` topic
+    MQTT convention), and writes by publishing to the same `/on` topic
     when a canonical action lands. `enable_wb_emulation` defaults to False so the bridge
     skips its own WB virtual-device registration — that's the loop guard: no
     state-change callback re-publishes to the value topic (else we'd feedback-loop with
@@ -225,7 +225,7 @@ class WbPassthroughDeviceConfig(BaseDeviceConfig):
         description="Map of state-field name → typed StateTopicSpec. Bare-string form "
                     "(`\"field\": \"/topic\"`) is back-compat: it normalises to "
                     "`StateTopicSpec(topic=value, type=\"str\")`. The driver sets each topic's "
-                    "payload as a TOP-LEVEL state field (typed per the spec; DRV-25) and "
+                    "payload as a TOP-LEVEL state field (typed per the spec) and "
                     "subscribes to `<topic>/meta/error` for the per-control error flag.",
     )
 
@@ -267,7 +267,7 @@ class WbPassthroughDeviceConfig(BaseDeviceConfig):
 
 
 class MitsubishiHvacConfig(WbPassthroughDeviceConfig):
-    """Configuration for a mitsubishi2wb-firmware HVAC unit (DRV-28).
+    """Configuration for a mitsubishi2wb-firmware HVAC unit.
 
     Same explicit-wiring schema as the passthrough (per-action `commands` with MQTT
     topics + bare `state_topics`; value tables come from the `MitsubishiHvac` class
@@ -297,8 +297,7 @@ class MitsubishiHvacConfig(WbPassthroughDeviceConfig):
             raise ValueError(
                 f"MitsubishiHvac config {self.device_id!r} is incomplete — "
                 + "; ".join(problems)
-                + " (the mitsubishi2wb firmware contract is fixed; see "
-                  "docs/design/mitsubishi_hvac_driver.md §2)"
+                + " (the mitsubishi2wb firmware contract is fixed)"
             )
         return self
 

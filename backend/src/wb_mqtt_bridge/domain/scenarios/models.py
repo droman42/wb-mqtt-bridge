@@ -39,16 +39,14 @@ class ScenarioDefinition(BaseModel):
     input values, and ordering are derived from ``config/topology.json`` by the reconciler.
     The pre-redesign imperative format (explicit ``startup_sequence``/``shutdown_sequence``
     steps) was removed once every shipped scenario had migrated.
-
-    See docs/design/scenarios/scenario_system_redesign.md §6.
     """
     scenario_id: str = Field(..., min_length=1, description="Unique identifier for the scenario")
     names: LocalizedName = Field(
         ...,
         description="Localized display names (ru/en required, extra locales allowed) — the display "
                     "surface everywhere (UI navbar, manifest title) and the voice surface for "
-                    "scenario activation (VWB-20/G3: «включи кино» needs a Russian label). "
-                    "Replaces the legacy flat `name` (dropped in SCN-8, mirroring the device "
+                    "scenario activation («включи кино» needs a Russian label). "
+                    "Replaces the legacy flat `name` (mirroring the device "
                     "`device_name` → `names` migration).",
     )
     description: str = Field(default="", description="Description of the scenario's purpose")
@@ -142,7 +140,7 @@ class RoomDefinition(BaseModel):
     default_scenario: Optional[str] = Field(None, description="Default scenario ID for this room")
     group_defaults: Optional[Dict[str, str]] = Field(
         None,
-        description="Room-scoped group addressing (canonical_first.md §10.3): group name -> "
+        description="Room-scoped group addressing: group name -> "
                     "device_id of the room's DEFAULT device for that group — what the singular "
                     "«включи свет» (scope=auto) targets instead of fanning out. Validated by "
                     "RoomManager at load (device in room + member of the group; invalid entries "

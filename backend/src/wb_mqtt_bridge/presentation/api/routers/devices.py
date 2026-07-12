@@ -199,9 +199,8 @@ async def execute_device_action(
     
     * **move_cursor_relative** - Move cursor by dx,dy relative to current position.
       webOS exposes no absolute-positioning endpoint on its pointer socket — only
-      deltas are meaningful (see asyncwebostv docs/pointer_spec.md §4). The former
-      `move_cursor` (absolute 0–100 %) action was removed in the 2026-05-27 pointer
-      rewrite; it had never actually worked.
+      deltas are meaningful (see the asyncwebostv pointer protocol notes). An
+      absolute-coordinates action existed once but never worked and was removed.
       ```json
       {
         "action": "move_cursor_relative",
@@ -347,11 +346,11 @@ _HTTP_FOR_CODE = {
     },
 )
 async def execute_canonical_action(device_id: str, payload: CanonicalActionRequest):
-    """Voice-friendly canonical action endpoint (§P3.7 slice #15).
+    """Voice-friendly canonical action endpoint.
 
     Body: `{capability, action, params?}` -- the same canonical tuple Irene parses from
     an utterance. The bridge resolves it through the device's capability map
-    (class → profile → per-device override; see #14) and invokes the native command
+    (class → profile → per-device override) and invokes the native command
     via `perform_action`.
 
     Synchronous with a ~500 ms timeout: the response carries the **post-action**
@@ -620,7 +619,7 @@ _OPTIONS_KIND_TO_CAPABILITY = {"inputs": "input", "apps": "apps"}
 
 @router.get("/devices/{device_id}/options/{kind}", response_model=Dict[str, Any])
 async def get_device_options(device_id: str, kind: str):
-    """Option enumeration as a READ (SCN-7): the dropdown population that used to ride
+    """Option enumeration as a READ: the dropdown population that used to ride
     `POST /devices/{id}/action` (`get_available_inputs`/`get_available_apps`) moves to
     the read surface, keeping the canonical action path purely imperative. Resolves the
     capability's declared `list` query and executes it internally (`source="system"`,

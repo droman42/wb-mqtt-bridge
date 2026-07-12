@@ -30,7 +30,7 @@ digraph hexagon {
   // --- core + domain (center) ---
   subgraph cluster_core {
     label="Core"; fontsize=12; color="#90caf9"; style=rounded; margin=14;
-    ports    [label="ports (domain/ports.py)\nMessageBusPort · DevicePort\nStateRepositoryPort\nEventPublisherPort",
+    ports    [label="ports (domain/ports.py)\nMessageBusPort · DevicePort\nStateRepositoryPort · ReportSinkPort\nEventPublisherPort",
               fillcolor="#e3f2fd", color="#1976d2"];
     managers [label="domain managers\nDeviceManager · ScenarioManager\nRoomManager",
               fillcolor="#fff3e0", color="#ef6c00"];
@@ -41,11 +41,13 @@ digraph hexagon {
   // --- driven side (secondary / right): one node per port (collapses sibling adapters) ---
   subgraph cluster_driven {
     label="Driven adapters"; fontsize=12; color="#cfcfcf"; style=rounded; margin=12;
-    drivers [label="infrastructure/devices\n8 driver classes\n(BaseDevice ⇒ DevicePort)",
+    drivers [label="infrastructure/devices\n9 driver classes\n(BaseDevice ⇒ DevicePort)",
              fillcolor="#f3e5f5", color="#7b1fa2"];
     bus     [label="infrastructure/mqtt\nMQTTClient (aiomqtt)\n⇒ MessageBusPort",
              fillcolor="#f3e5f5", color="#7b1fa2"];
     store   [label="infrastructure/persistence\nSQLiteStateStore\n⇒ StateRepositoryPort",
+             fillcolor="#f3e5f5", color="#7b1fa2"];
+    sink    [label="infrastructure/reports\nGitHubReportSink\n⇒ ReportSinkPort",
              fillcolor="#f3e5f5", color="#7b1fa2"];
   }
 
@@ -66,6 +68,7 @@ digraph hexagon {
   ports -> drivers [label="drives\n(impl ⇒ DevicePort)", color="#7b1fa2", fontcolor="#7b1fa2"];
   ports -> bus     [label="drives\n(impl ⇒ MessageBusPort)", color="#7b1fa2", fontcolor="#7b1fa2"];
   ports -> store   [label="drives\n(impl ⇒ StateRepositoryPort)", color="#7b1fa2", fontcolor="#7b1fa2"];
+  ports -> sink    [label="drives\n(impl ⇒ ReportSinkPort)", color="#7b1fa2", fontcolor="#7b1fa2"];
 
   // EventPublisherPort: SSE (presentation) implements it; injected into devices at bootstrap
   // so a driver can surface state-changes without importing presentation.
@@ -85,6 +88,6 @@ digraph hexagon {
   // explicit rank pinning: driving < core < driven; foundation as a sink
   {rank=min; routers; sse; cli}
   {rank=same; ports; managers}
-  {rank=same; drivers; bus; store}
+  {rank=same; drivers; bus; store; sink}
   {rank=max; base}
 }

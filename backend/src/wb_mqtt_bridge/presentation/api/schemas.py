@@ -105,7 +105,7 @@ class DeviceActionsResponse(BaseModel):
 
 class CanonicalActionRequest(BaseModel):
     """Request to invoke a canonical (capability, action, params) tuple — the one
-    actuation grammar for voice AND the UI (canonical-first, SCN-7)."""
+    actuation grammar shared by voice and the UI (canonical-first)."""
     capability: str = Field(..., description="Canonical capability name (e.g. 'power', 'volume', 'cover').")
     action: str = Field(..., description="Action within the capability (e.g. 'on', 'set', 'up').")
     params: Optional[Dict[str, Any]] = Field(
@@ -163,12 +163,12 @@ class CanonicalActionResponse(BaseModel):
     no_op: bool = Field(
         default=False,
         description="True when the device was already at the requested value (the driver's "
-                    "no_op short-circuit) — succeeded without actuating. VWB-23 surfaces this "
-                    "so group fan-out results can report members honestly.",
+                    "no_op short-circuit) — succeeded without actuating. Surfaced so "
+                    "room-group fan-out results can report members honestly.",
     )
     skipped_reason: Optional[str] = Field(
         default=None,
-        description="Structured skip marker (DRV-5). 'idempotence' = an optimistic-state "
+        description="Structured skip marker. 'idempotence' = an optimistic-state "
                     "guard swallowed the command (nothing was sent — the believed state may "
                     "be wrong); the UI offers a re-tap that re-sends with params.force=true. "
                     "Distinct from plain no_op, which reflects a feedback-verified value.",
@@ -183,7 +183,8 @@ class CanonicalActionResponse(BaseModel):
 
 
 class RoomCanonicalRequest(BaseModel):
-    """Request to invoke a canonical action on a room GROUP (§10.1)."""
+    """Request to invoke a canonical action on a room GROUP — the third canonical
+    address form, for utterances that name a capability rather than a device."""
     group: str = Field(..., description="Semantic group name (e.g. 'light', 'cover') — a "
                                         "capability's group defaults to its domain name; "
                                         "profiles override (light_switch power → 'light').")
@@ -201,7 +202,7 @@ class RoomCanonicalRequest(BaseModel):
 
 
 class GroupMemberResult(BaseModel):
-    """Per-member outcome of a room group action (§10.4). `skipped` = the member's
+    """Per-member outcome of a room group action. `skipped` = the member's
     matching capability lacks the requested action (reported, never an error);
     `no_op` = already at target; `failed` carries the member's error in `detail`."""
     device_id: str
@@ -233,13 +234,13 @@ class RoomCanonicalResponse(BaseModel):
 
 
 class CatalogParam(BaseModel):
-    """One client-facing parameter of a canonical action (VWB-20/G1 — the schema of
-    record the voice side codes its parser against). Constraints come from the native
-    config specs through the §6 projection (canonical names via the reversed
-    `param_map`; capability-fixed params excluded). `values` carries the enum value
-    table where the choice set is bridge-known (e.g. the scenario enum);
-    `options_from` marks an intentionally OPEN set enumerable at runtime via
-    `GET /devices/{id}/options/{options_from}` (e.g. installed apps — VWB-20/G5)."""
+    """One client-facing parameter of a canonical action — the schema of record a
+    voice consumer codes its parser against. Constraints come from the same native
+    config specs the driver enforces (canonical names via the reversed `param_map`;
+    capability-fixed params excluded). `values` carries the enum value table where
+    the choice set is bridge-known (e.g. the scenario enum); `options_from` marks an
+    intentionally OPEN set enumerable at runtime via
+    `GET /devices/{id}/options/{options_from}` (e.g. installed apps)."""
     name: str
     type: str = "string"
     required: bool = False
@@ -255,17 +256,17 @@ class CatalogParam(BaseModel):
 class CatalogAction(BaseModel):
     """A canonical action a device supports under a capability. `params` is `None` for
     parameterless actions (`power.on`, `cover.open`) and a list of typed
-    :class:`CatalogParam` descriptors otherwise (since VWB-20; the #19 introspection
-    stub was filled by VWB-15 and typed here)."""
+    :class:`CatalogParam` descriptors otherwise."""
     name: str
     params: Optional[List[CatalogParam]] = None
 
 
 class CatalogValueLabel(BaseModel):
-    """One entry of an enum value table projected into the catalog (§P3.7 #26). Voice
-    (Irene) matches user utterances against `labels` in the active locale and posts
-    canonical actions back; UI renders dropdowns labelled per locale, sending `canonical`
-    on selection. `wire` is informational for clients but authoritative on the bus."""
+    """One entry of an enum value table projected into the catalog. A voice consumer
+    matches user utterances against `labels` in the active locale and posts
+    canonical actions back; the UI renders dropdowns labelled per locale, sending
+    `canonical` on selection. `wire` is informational for clients but authoritative
+    on the bus."""
     wire: str
     canonical: str
     labels: Optional[Dict[str, str]] = None
@@ -279,8 +280,7 @@ CatalogParam.model_rebuild()
 class CatalogField(BaseModel):
     """A read-only field on a capability (e.g. `sensor.temperature`, `brightness.level`).
     Mirrors the domain `CapabilityField` shape so voice/UI consumers can render and parse
-    values without out-of-band knowledge. Added §P3.7 #19; `values` widened to
-    `List[CatalogValueLabel]` in §P3.7 #26."""
+    values without out-of-band knowledge."""
     name: str
     type: str
     encoding: Optional[str] = None
@@ -299,7 +299,7 @@ class CatalogCapability(BaseModel):
     fields: Optional[List[CatalogField]] = None
     group: Optional[str] = Field(
         default=None,
-        description="Effective semantic group for room-scoped addressing (VWB-23, §10) — "
+        description="Effective semantic group for room-scoped addressing — "
                     "always explicit so consumers never reimplement the defaulting rule: "
                     "equals `name` unless the capability map overrides (a light switch's "
                     "'power' carries group 'light'); `null` = opted out of group addressing.",
@@ -307,15 +307,14 @@ class CatalogCapability(BaseModel):
 
 
 class CatalogDevice(BaseModel):
-    """A device in the catalog. `room` is the device's single room (per the §P3.7
-    single-room model), `null` for devices whose room isn't set yet (most existing
-    AV gear until they're voice-onboarded)."""
+    """A device in the catalog. `room` is the device's single room (a device belongs
+    to exactly one room), `null` for devices whose room isn't set yet."""
     id: str
     names: Dict[str, str]
     aliases: Optional[Dict[str, List[str]]] = Field(
         default=None,
-        description="Spoken alias surfaces per locale (VWB-20/G2 schema; vocabulary "
-                    "authored in VWB-21) — «люстра»/«подсветка» for the same fixture. "
+        description="Spoken alias surfaces per locale — «люстра»/«подсветка» for the "
+                    "same fixture. "
                     "None until authored.",
     )
     device_class: str
@@ -330,14 +329,14 @@ class CatalogRoom(BaseModel):
     names: Dict[str, str]
     aliases: Optional[Dict[str, List[str]]] = Field(
         default=None,
-        description="Spoken alias surfaces per locale (VWB-20/G2 schema; vocabulary "
-                    "authored in VWB-21) — «зал» for «гостиная». None until authored.",
+        description="Spoken alias surfaces per locale — «зал» for «гостиная». "
+                    "None until authored.",
     )
     devices: List[str] = Field(default_factory=list)
     group_defaults: Optional[Dict[str, str]] = Field(
         default=None,
-        description="Group name -> default device_id for room-scoped addressing "
-                    "(VWB-23, §10.3): what scope=auto targets instead of fanning out — "
+        description="Group name -> default device_id for room-scoped addressing: "
+                    "what scope=auto targets instead of fanning out — "
                     "the singular «включи свет». None = no defaults authored.",
     )
 

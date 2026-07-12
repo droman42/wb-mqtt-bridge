@@ -1,4 +1,4 @@
-// wb-mqtt-bridge — the three driver flavors. Render:
+// wb-mqtt-bridge — the four driver flavors. Render:
 //   dot -Tpng docs/images/driver-flavors.dot -o docs/images/driver-flavors.png
 // Palette: see hexagon.dot header.
 digraph driver_flavors {
@@ -7,7 +7,7 @@ digraph driver_flavors {
   splines=spline;
   nodesep=0.5; ranksep=0.7;
   fontname="Helvetica"; labelloc=t; fontsize=16;
-  label="wb-mqtt-bridge — three driver flavors, one DevicePort";
+  label="wb-mqtt-bridge — four driver flavors, one DevicePort";
 
   node [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.4];
   edge [fontname="Helvetica", fontsize=9, color="#9e9e9e", arrowsize=0.7];
@@ -35,9 +35,18 @@ digraph driver_flavors {
     label="WB-passthrough driver — addresses existing WB controls";
     fontsize=12; color="#cfcfcf"; style=rounded; margin=12;
     wb_list [shape=note, fillcolor="#f3e5f5", color="#7b1fa2",
-             label="WbPassthroughDevice (one class, many configs)\nfor wb-mr6c, wb-mdm3, wb-mrgbw-d,\ndooya, wb-gpio, hvac_*, …"];
+             label="WbPassthroughDevice (one class, many configs)\nfor wb-mr6c, wb-mdm3, wb-mrgbw-d,\ndooya, wb-gpio, …"];
     wb_props [shape=note, fillcolor="#fff8e1", color="#f57f17",
               label="state model: mirrored\n(subscribes value topics; wb-rules + bridge\nco-write, broker is the truth)\nWB emulation: OFF (loop guard)"];
+  }
+
+  subgraph cluster_mqttdialect {
+    label="Native MQTT-dialect driver — speaks a device firmware's own MQTT topics";
+    fontsize=12; color="#cfcfcf"; style=rounded; margin=12;
+    hvac_list [shape=note, fillcolor="#f3e5f5", color="#7b1fa2",
+               label="MitsubishiHvac  ⇒ mitsubishi2wb firmware dialect\n(one class, one config per AC unit)"];
+    hvac_props [shape=note, fillcolor="#fff8e1", color="#f57f17",
+                label="state model: feedback-driven over MQTT\n(canonical enums; numeric wire tables translated)\nexecute_action: publish to the firmware's topics\nfeedback: value-topic echo + temperature heartbeat"];
   }
 
   // --- the common contract ---
@@ -48,10 +57,12 @@ digraph driver_flavors {
   native_list  -> base [color="#7b1fa2"];
   ir_list      -> base [color="#7b1fa2"];
   wb_list      -> base [color="#7b1fa2"];
+  hvac_list    -> base [color="#7b1fa2"];
   native_props -> native_list [style=invis];
   ir_props     -> ir_list     [style=invis];
   wb_props     -> wb_list     [style=invis];
+  hvac_props   -> hvac_list   [style=invis];
 
-  {rank=same; native_list; ir_list; wb_list}
+  {rank=same; native_list; ir_list; wb_list; hvac_list}
   {rank=sink; base}
 }

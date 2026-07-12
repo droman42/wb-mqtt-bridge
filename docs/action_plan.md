@@ -777,24 +777,6 @@ all done; DOC-7 folded into DOC-9.
 
 ### DOC — Docs / ledger / process
 
-- [ ] **DOC-14** `[P1]` — **DOC staleness pass** (PROD-17 bridge delegation (1), council HK-6 —
-  live stale fixes named by the board + what the pass verifies alongside): (a) `CONTRIBUTING.md`
-  pre-VWB-29 contract paths (the regen command block still teaches `../contracts/catalog.golden.json`
-  + `../contracts/STAMP.json`; also drifted: "three import-linter contracts" vs the real 6 since
-  CORE-6, the CI-gates section missing the OPS-23 `contract-guard` job, the VWB-40 pin location);
-  (b) the OpenAPI field-description tracking language — task IDs (`SCN-7`, `VWB-23`, `DRV-5`,
-  `DRV-28`, …), `§`-refs and the `docs/design/scenarios/scenario_system_redesign.md §6` pointer in Pydantic
-  `Field`/docstring descriptions that surface in `openapi.json`, viewers, and generated UI types
-  (HK-6 style §2 explicitly extends the no-tracking rule to schema descriptions) — rewrite
-  reader-first, then regen `backend/openapi.json` + `contracts/catalog/openapi.json` + UI
-  `gen:api-types` in the same change (`config-ui-stays-functional`); artifact bytes move ⇒ a
-  deliberate minor contract cut: `CONTRACT_VERSION` → **1.6**, STAMP re-stamp + the §2
-  forward-requirement `artifacts` list, tag **`catalog-v1.6`** (golden hash unchanged — description
-  changes live in the schema only); (c) the 5 REL-4-unverified diagrams — REL-4 re-rendered
-  `rest-surface` + `ui-architecture` and left the rest of the flagged set unverified by owner scope
-  call (the flagged list itself wasn't recorded) ⇒ verify ALL 13 remaining `.dot` sources against
-  current code, update + re-render the stale ones in the existing visual style.
-
 - [ ] **DOC-15** `[P1]` — **ADR dissolution — one task** (PROD-17 bridge delegation (3), council
   HK-6 q3: the ADR class is ABOLISHED org-wide — live content redistributes into
   design/review/user/contributor docs, husks archive with supersession banners). (a) **0006**

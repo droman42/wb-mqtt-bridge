@@ -25,6 +25,17 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-12 — DOC-14: the docs staleness pass — CONTRIBUTING re-truthed, OpenAPI descriptions
+  scrubbed (⇒ `catalog-v1.6`), NINE diagrams fixed (PROD-17 / HK-6, bridge delegation (1)).**
+  CONTRIBUTING's pre-VWB-29 regen paths / 3-vs-6 import contracts / missing contract-guard job fixed;
+  every task-ID and §-ref scrubbed from the schema-surfacing descriptions (regex-verified CLEAN on the
+  regenerated schema), UI types regen'd — artifact bytes moved, so a deliberate minor cut:
+  `CONTRACT_VERSION` 1.6 + tag `catalog-v1.6` + the STAMP `artifacts` pin-completeness list (golden
+  hash unchanged; voice picks it up at their next re-pin). The REL-4 "5 flagged diagrams" (list never
+  recorded) resolved by verifying all 13 via three parallel agents: 9 stale — dead scenario endpoints,
+  a missing port and driver, planned-vs-shipped drift (HVAC panels, global aggregates), the dead
+  role-routing atom — all fixed + re-rendered; 4 accurate. Suite 717.
+
 - **2026-07-12 — DOC-13: the docs manifest lands — the org's first (PROD-17 / HK-6, bridge
   delegation (2)).** `docs/manifest.json` (36 nodes / 14 roots / 10 surfaces, floor fully staffed,
   canonical-reference triples on the contract READMEs, 15 diagram pairs as nodes) +

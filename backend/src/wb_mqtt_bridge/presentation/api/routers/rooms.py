@@ -143,8 +143,8 @@ async def _dispatch_member(member: GroupMember, payload: RoomCanonicalRequest) -
     },
 )
 async def execute_room_canonical_action(room_id: str, payload: RoomCanonicalRequest):
-    """Room-scoped group actuation — the THIRD canonical address form (VWB-23,
-    canonical_first.md §10). For utterances that name a capability, not a device
+    """Room-scoped group actuation — the third canonical address form.
+    For utterances that name a capability, not a device
     («включи свет», «закрой шторы»): the caller supplies room + group + action, the
     bridge owns membership (the `group` overlay on capability maps) and the
     default-vs-fan-out policy (`scope` + the room's `group_defaults`).

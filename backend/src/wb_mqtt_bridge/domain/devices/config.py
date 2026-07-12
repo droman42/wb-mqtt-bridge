@@ -22,8 +22,8 @@ class DeviceCategory(str, Enum):
 class LocalizedName(BaseModel):
     """Bilingual display name for a device or room. `ru` + `en` required; additional locales
     accepted (e.g. `de`, `fr`) and surfaced as-is via the catalog. Lives on `BaseDeviceConfig`
-    as `names` (replacing the previous flat `device_name`). Per §P3.7 voice-integration
-    contract: every entity carries names in every locale the catalog supports."""
+    as `names` (replacing the previous flat `device_name`). Every entity carries names
+    in every locale the catalog supports."""
     model_config = ConfigDict(extra="allow")
 
     ru: str
@@ -31,7 +31,7 @@ class LocalizedName(BaseModel):
 
 
 class ValueLabel(BaseModel):
-    """One entry of an enum value table — three layers per value (§P3.7 #26).
+    """One entry of an enum value table — three layers per value.
 
     * `wire` — what MQTT publishes / subscribes (e.g. `"2"` for HVAC mode "cool").
     * `canonical` — short identifier-safe English name used in canonical actions and
@@ -61,7 +61,7 @@ def _normalise_value_labels(v: Any) -> Any:
     `{wire: "a", canonical: "a"}`. Untouched when entries are already dicts/ValueLabels.
 
     Used by both `CapabilityField.values` and `StateTopicSpec.values` `mode="before"`
-    validators (§P3.7 #26 back-compat: bare strings keep parsing)."""
+    validators (back-compat: bare strings keep parsing)."""
     if v is None or not isinstance(v, list):
         return v
     out: List[Any] = []
@@ -85,7 +85,7 @@ class CommandParameterDefinition(BaseModel):
     units: Optional[str] = Field(
         None,
         description="Display/semantic unit of the value (°C, %, dB, min, …). Projected into the "
-                    "catalog's param descriptors (VWB-20/G4) and the WB control meta — voice needs "
+                    "catalog's param descriptors and the WB control meta — voice needs "
                     "it to parse «поставь двадцать два градуса» against a °C-shaped target.",
     )
 
@@ -117,8 +117,7 @@ class BaseDeviceConfig(BaseModel):
     aliases: Optional[Dict[str, List[str]]] = Field(
         None,
         description="Spoken alias surfaces per locale ({'ru': ['люстра', 'подсветка']}) — "
-                    "projected into the catalog for voice entity resolution (VWB-20/G2 "
-                    "schema; household vocabulary authored in VWB-21).",
+                    "projected into the catalog for voice entity resolution.",
     )
     capability_profile: Optional[str] = Field(
         None,
@@ -136,9 +135,9 @@ class BaseDeviceConfig(BaseModel):
                     "one** room. Aggregate whole-house controls (e.g. `all_lights`) live in the "
                     "special `global` room. Whole-house actions (\"выключи свет везде\") resolve "
                     "to a SINGLE canonical call against the matching aggregate device in `global` "
-                    "-- Irene does NOT iterate rooms; the bridge ships the aggregates the v1 "
-                    "voice command set needs (§P3.7 #22). `None` for AV gear that doesn't yet "
-                    "have a room (populated during bulk onboarding, §P3.7 #21+#23).",
+                    "-- Irene does NOT iterate rooms; the bridge ships the aggregates the "
+                    "voice command set needs. `None` for AV gear that doesn't yet "
+                    "have a room.",
     )
     device_category: DeviceCategory = Field(DeviceCategory.DEVICE, description="The category of the device (e.g., 'device' or 'appliance')")
     # New required fields for dynamic class loading

@@ -160,10 +160,11 @@ async def get_scenario_definition(id: str):
 
 @router.get("/scenario/{id}/layout", response_model=LayoutManifest, response_model_exclude_none=True)
 async def get_scenario_layout(id: str):
-    """Layer-3 layout manifest for a scenario — the composite remote (one renderer, role-assembled
-    controls tagged with sourceDeviceId; the power zone is the scenario lifecycle). Built from the
-    scenario definition + the role devices' capability maps by the placement engine. The `inputs`
-    role is intentionally not rendered (reconciler-derived). Spec: scenario_system_redesign.md §6."""
+    """Layer-3 layout manifest for a scenario — the composite remote (one renderer;
+    controls carry their canonical capability/action and dispatch against the manifest's
+    `canonicalEntityId`; the power zone is the scenario lifecycle). Built from the
+    scenario definition + the role devices' capability maps by the placement engine. The
+    `inputs` role is intentionally not rendered (reconciler-derived)."""
     check_initialized()
     assert scenario_manager is not None  # narrowed by check_initialized() above
     sdef = scenario_manager.scenario_definitions.get(id)
@@ -198,7 +199,7 @@ def _eta_ms(actions: List[Any]) -> int:
 
 @router.get("/scenario/{id}/reconcile_preview", response_model=ReconcilePreviewResponse)
 async def get_reconcile_preview(id: str):
-    """SCN-11: believed-vs-desired per involved device of the ACTIVE scenario, plus the
+    """Believed-vs-desired state per involved device of the ACTIVE scenario, plus the
     forced chain a confirm would run. 404 unknown scenario; 409 when it isn't the active
     one (the desired state is only defined by the running scenario — on an inactive page
     the same gesture is just "start it")."""
@@ -233,7 +234,7 @@ async def get_reconcile_preview(id: str):
 
 @router.post("/scenario/{id}/force_reconcile", response_model=ForceReconcileResponse)
 async def force_reconcile_device(id: str, data: ForceReconcileRequest):
-    """SCN-11: force ONE device into the active scenario's desired state — the
+    """Force ONE device into the active scenario's desired state — the
     believed-vs-desired diff is skipped (the belief may be wrong; the user picking the
     row is the feedback channel), driver idempotence guards are bypassed via the
     reserved `force` param, and toggle power claims the plan target (`assume_state`).

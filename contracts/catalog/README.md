@@ -17,7 +17,10 @@ machine-readable version authority: no contract version exists that is not in a
 stamp. The earlier v1.1–v1.4 lineage predates tagging and lives on as the prose
 "since contract vX" notes throughout this document — frozen history, not
 retro-tagged. v1.5 itself changed no contract surface: it is the convention cut that
-gave the family its layout, stamp core, and first tag. Additive changes bump the
+gave the family its layout, stamp core, and first tag. v1.6 (additive) rewrote the
+OpenAPI field descriptions reader-first — no structural change, no golden change —
+and the STAMP now enumerates the artifact set (`artifacts`) so a consumer's pin can
+be checked for completeness. Additive changes bump the
 minor version, breaking changes the major; the version is carried in code as the
 catalog projection's `CONTRACT_VERSION` constant and flows into the STAMP at
 regeneration. The golden's *content hash* is *not* a version — it moves whenever the

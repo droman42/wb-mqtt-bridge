@@ -1,4 +1,4 @@
-// wb-mqtt-bridge — scenario lifecycle: activate, switch, deactivate. Render:
+// wb-mqtt-bridge — scenario lifecycle: start, switch, shutdown. Render:
 //   dot -Tpng docs/images/scenario-lifecycle.dot -o docs/images/scenario-lifecycle.png
 // Palette: see hexagon.dot header.
 digraph lifecycle {
@@ -7,30 +7,30 @@ digraph lifecycle {
   splines=spline;
   nodesep=0.55; ranksep=1.0;
   fontname="Helvetica"; labelloc=t; fontsize=16;
-  label="wb-mqtt-bridge — scenario lifecycle (Harmony model: optimistic state, transparent shutdown)";
+  label="wb-mqtt-bridge — scenario lifecycle, room-scoped (Harmony model: optimistic state, transparent shutdown)";
 
   node [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.4];
   edge [fontname="Helvetica", fontsize=9, color="#1976d2", arrowsize=0.7];
 
   // --- runtime states (presentation-visible) ---
-  inactive [label="inactive\nno scenario active\nScenarioState.active = None",
+  inactive [label="inactive\nno scenario active in the room\nScenarioState.scenario_id = None",
             fillcolor="#e3f2fd", color="#1976d2"];
-  active_A [label="active: scenario A\nScenarioState.active = A\ndevice states: assumed",
+  active_A [label="active: scenario A\nScenarioState.scenario_id = A\ndevice states: assumed",
             fillcolor="#fff3e0", color="#ef6c00", penwidth=2];
-  active_B [label="active: scenario B\nScenarioState.active = B",
+  active_B [label="active: scenario B\nScenarioState.scenario_id = B",
             fillcolor="#fff3e0", color="#ef6c00", penwidth=2];
 
   // --- the three lifecycle calls ---
-  activate    [label="POST /scenario/A/activate\nbuild_plan(A) vs all-devices-off\nexecute_plan",
+  activate    [label="POST /scenario/start  {id: A}\nbuild_plan(A) vs the devices' believed state\nexecute_plan",
                fillcolor="#e8f5e8", color="#388e3c"];
-  switch      [label="POST /scenario/B/activate (while A is active)\nbuild_plan(B) vs current devices' assumed state\nemit only the deltas",
+  switch      [label="POST /scenario/switch  {id: B} (while A is active)\nbuild_plan(B) vs current devices' assumed state\nemit only the deltas",
                fillcolor="#e8f5e8", color="#388e3c"];
-  deactivate  [label="POST /scenario/A/deactivate\nbuild_power_off_plan(A.involved_devices)\nexecute_plan",
+  deactivate  [label="POST /scenario/shutdown (room's active scenario)\nbuild_power_off_plan(involved devices)\nexecute_plan",
                fillcolor="#e8f5e8", color="#388e3c"];
 
   // --- side effects: persistence + SSE ---
   persist [shape=note, fillcolor="#f3e5f5", color="#7b1fa2",
-           label="StateRepositoryPort\nentity_id = `scenario:active`\nentity_id = `device:<id>` (per device)\nflushed on shutdown"];
+           label="StateRepositoryPort\nentity_id = `active_scenario:<room_id>` (per room)\nentity_id = `device:<id>` (per device)\nflushed on shutdown"];
   sse [shape=note, fillcolor="#e3f2fd", color="#1976d2",
        label="EventPublisherPort (SSE)\nscenario events + device state-change events"];
 

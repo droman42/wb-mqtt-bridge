@@ -94,7 +94,7 @@ async def get_system_config():
 
 @router.get("/system/catalog", response_model=CatalogResponse)
 async def get_system_catalog():
-    """Voice-friendly catalog of devices + rooms (§P3.7 voice-integration slice #17).
+    """Voice-friendly catalog of devices + rooms.
 
     Flat capability-shaped projection of the whole house for any non-UI consumer
     (Irene first). All locales for both rooms and devices. The response carries a

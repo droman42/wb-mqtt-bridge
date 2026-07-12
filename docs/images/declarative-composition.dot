@@ -20,19 +20,19 @@ digraph composition {
         label="config/capabilities/\nresolution chain (deep-merged, later wins):\n1. classes/<device_class>.json     ← shared driver defaults\n2. profiles/<capability_profile>.json ← fixture-kind family\n3. devices/<device_id>.json        ← per-instance override"];
 
   topo [shape=note, fillcolor="#fff8e1", color="#f57f17",
-        label="config/topology.json\nnodes (manual)\nlinks: <node>:<port> → <node>:<port> (carries video/audio/arc)\nordering: first → then (+ delay_ms)"];
+        label="config/topology.json\nnodes (manual)\nlinks: <node>:<port> → <node>:<port> (carries video/audio)\nordering: first → then (+ delay_ms)"];
 
   scenarios [shape=note, fillcolor="#fff8e1", color="#f57f17",
              label="config/scenarios/*.json\nthin: source / display / audio\n+ room_id (membership invariant)"];
 
   // --- composition (domain) ---
-  bootstrap [label="bootstrap\nDeviceManager builds typed drivers\nattach_capability_maps(devices, caps)\nTopology.load(config/topology.json)\nScenarioManager.load(config/scenarios/)",
+  bootstrap [label="bootstrap\nDeviceManager builds typed drivers\nattach_capability_maps(devices, caps)\nload_topology(config/topology.json)\nScenarioManager.load_scenarios()",
              fillcolor="#e8f5e8", color="#388e3c", width=5.8];
 
   device_obj [label="device instance\n.config · .capabilities (CapabilityMap)\n.state (typed) · .execute_action / .get_current_state",
               fillcolor="#fff3e0", color="#ef6c00"];
 
-  reconciler [label="ScenarioManager.activate(scenario_id)\n→ build_plan(scenario, topology, devices)\n→ execute_plan(...)",
+  reconciler [label="ScenarioManager.switch_scenario(scenario_id)\n→ build_plan(scenario, topology, devices)\n→ execute_plan(...)",
               fillcolor="#fff3e0", color="#ef6c00", shape=hexagon, penwidth=2];
 
   // --- inheritance arrow note ---

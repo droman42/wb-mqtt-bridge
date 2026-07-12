@@ -497,7 +497,7 @@
                 "type": "null"
               }
             ],
-            "description": "Spoken alias surfaces per locale ({'ru': ['люстра', 'подсветка']}) — projected into the catalog for voice entity resolution (VWB-20/G2 schema; household vocabulary authored in VWB-21).",
+            "description": "Spoken alias surfaces per locale ({'ru': ['люстра', 'подсветка']}) — projected into the catalog for voice entity resolution.",
             "title": "Aliases"
           },
           "capability_profile": {
@@ -557,7 +557,7 @@
                 "type": "null"
               }
             ],
-            "description": "Room id (matches an entry in `rooms.json`). A device belongs to **exactly one** room. Aggregate whole-house controls (e.g. `all_lights`) live in the special `global` room. Whole-house actions (\"выключи свет везде\") resolve to a SINGLE canonical call against the matching aggregate device in `global` -- Irene does NOT iterate rooms; the bridge ships the aggregates the v1 voice command set needs (§P3.7 #22). `None` for AV gear that doesn't yet have a room (populated during bulk onboarding, §P3.7 #21+#23).",
+            "description": "Room id (matches an entry in `rooms.json`). A device belongs to **exactly one** room. Aggregate whole-house controls (e.g. `all_lights`) live in the special `global` room. Whole-house actions (\"выключи свет везде\") resolve to a SINGLE canonical call against the matching aggregate device in `global` -- Irene does NOT iterate rooms; the bridge ships the aggregates the voice command set needs. `None` for AV gear that doesn't yet have a room.",
             "title": "Room"
           },
           "wb_controls": {
@@ -689,7 +689,7 @@
         "type": "object"
       },
       "CanonicalActionRequest": {
-        "description": "Request to invoke a canonical (capability, action, params) tuple — the one\nactuation grammar for voice AND the UI (canonical-first, SCN-7).",
+        "description": "Request to invoke a canonical (capability, action, params) tuple — the one\nactuation grammar shared by voice and the UI (canonical-first).",
         "properties": {
           "action": {
             "description": "Action within the capability (e.g. 'on', 'set', 'up').",
@@ -766,7 +766,7 @@
           },
           "no_op": {
             "default": false,
-            "description": "True when the device was already at the requested value (the driver's no_op short-circuit) — succeeded without actuating. VWB-23 surfaces this so group fan-out results can report members honestly.",
+            "description": "True when the device was already at the requested value (the driver's no_op short-circuit) — succeeded without actuating. Surfaced so room-group fan-out results can report members honestly.",
             "title": "No Op",
             "type": "boolean"
           },
@@ -779,7 +779,7 @@
                 "type": "null"
               }
             ],
-            "description": "Structured skip marker (DRV-5). 'idempotence' = an optimistic-state guard swallowed the command (nothing was sent — the believed state may be wrong); the UI offers a re-tap that re-sends with params.force=true. Distinct from plain no_op, which reflects a feedback-verified value.",
+            "description": "Structured skip marker. 'idempotence' = an optimistic-state guard swallowed the command (nothing was sent — the believed state may be wrong); the UI offers a re-tap that re-sends with params.force=true. Distinct from plain no_op, which reflects a feedback-verified value.",
             "title": "Skipped Reason"
           },
           "state": {
@@ -867,7 +867,7 @@
         "type": "string"
       },
       "CatalogAction": {
-        "description": "A canonical action a device supports under a capability. `params` is `None` for\nparameterless actions (`power.on`, `cover.open`) and a list of typed\n:class:`CatalogParam` descriptors otherwise (since VWB-20; the #19 introspection\nstub was filled by VWB-15 and typed here).",
+        "description": "A canonical action a device supports under a capability. `params` is `None` for\nparameterless actions (`power.on`, `cover.open`) and a list of typed\n:class:`CatalogParam` descriptors otherwise.",
         "properties": {
           "name": {
             "title": "Name",
@@ -934,7 +934,7 @@
                 "type": "null"
               }
             ],
-            "description": "Effective semantic group for room-scoped addressing (VWB-23, §10) — always explicit so consumers never reimplement the defaulting rule: equals `name` unless the capability map overrides (a light switch's 'power' carries group 'light'); `null` = opted out of group addressing.",
+            "description": "Effective semantic group for room-scoped addressing — always explicit so consumers never reimplement the defaulting rule: equals `name` unless the capability map overrides (a light switch's 'power' carries group 'light'); `null` = opted out of group addressing.",
             "title": "Group"
           },
           "name": {
@@ -949,7 +949,7 @@
         "type": "object"
       },
       "CatalogDevice": {
-        "description": "A device in the catalog. `room` is the device's single room (per the §P3.7\nsingle-room model), `null` for devices whose room isn't set yet (most existing\nAV gear until they're voice-onboarded).",
+        "description": "A device in the catalog. `room` is the device's single room (a device belongs\nto exactly one room), `null` for devices whose room isn't set yet.",
         "properties": {
           "aliases": {
             "anyOf": [
@@ -966,7 +966,7 @@
                 "type": "null"
               }
             ],
-            "description": "Spoken alias surfaces per locale (VWB-20/G2 schema; vocabulary authored in VWB-21) — «люстра»/«подсветка» for the same fixture. None until authored.",
+            "description": "Spoken alias surfaces per locale — «люстра»/«подсветка» for the same fixture. None until authored.",
             "title": "Aliases"
           },
           "capabilities": {
@@ -1012,7 +1012,7 @@
         "type": "object"
       },
       "CatalogField": {
-        "description": "A read-only field on a capability (e.g. `sensor.temperature`, `brightness.level`).\nMirrors the domain `CapabilityField` shape so voice/UI consumers can render and parse\nvalues without out-of-band knowledge. Added §P3.7 #19; `values` widened to\n`List[CatalogValueLabel]` in §P3.7 #26.",
+        "description": "A read-only field on a capability (e.g. `sensor.temperature`, `brightness.level`).\nMirrors the domain `CapabilityField` shape so voice/UI consumers can render and parse\nvalues without out-of-band knowledge.",
         "properties": {
           "encoding": {
             "anyOf": [
@@ -1081,7 +1081,7 @@
         "type": "object"
       },
       "CatalogParam": {
-        "description": "One client-facing parameter of a canonical action (VWB-20/G1 — the schema of\nrecord the voice side codes its parser against). Constraints come from the native\nconfig specs through the §6 projection (canonical names via the reversed\n`param_map`; capability-fixed params excluded). `values` carries the enum value\ntable where the choice set is bridge-known (e.g. the scenario enum);\n`options_from` marks an intentionally OPEN set enumerable at runtime via\n`GET /devices/{id}/options/{options_from}` (e.g. installed apps — VWB-20/G5).",
+        "description": "One client-facing parameter of a canonical action — the schema of record a\nvoice consumer codes its parser against. Constraints come from the same native\nconfig specs the driver enforces (canonical names via the reversed `param_map`;\ncapability-fixed params excluded). `values` carries the enum value table where\nthe choice set is bridge-known (e.g. the scenario enum); `options_from` marks an\nintentionally OPEN set enumerable at runtime via\n`GET /devices/{id}/options/{options_from}` (e.g. installed apps).",
         "properties": {
           "default": {
             "anyOf": [
@@ -1224,7 +1224,7 @@
                 "type": "null"
               }
             ],
-            "description": "Spoken alias surfaces per locale (VWB-20/G2 schema; vocabulary authored in VWB-21) — «зал» for «гостиная». None until authored.",
+            "description": "Spoken alias surfaces per locale — «зал» for «гостиная». None until authored.",
             "title": "Aliases"
           },
           "devices": {
@@ -1246,7 +1246,7 @@
                 "type": "null"
               }
             ],
-            "description": "Group name -> default device_id for room-scoped addressing (VWB-23, §10.3): what scope=auto targets instead of fanning out — the singular «включи свет». None = no defaults authored.",
+            "description": "Group name -> default device_id for room-scoped addressing: what scope=auto targets instead of fanning out — the singular «включи свет». None = no defaults authored.",
             "title": "Group Defaults"
           },
           "id": {
@@ -1269,7 +1269,7 @@
         "type": "object"
       },
       "CatalogValueLabel": {
-        "description": "One entry of an enum value table projected into the catalog (§P3.7 #26). Voice\n(Irene) matches user utterances against `labels` in the active locale and posts\ncanonical actions back; UI renders dropdowns labelled per locale, sending `canonical`\non selection. `wire` is informational for clients but authoritative on the bus.",
+        "description": "One entry of an enum value table projected into the catalog. A voice consumer\nmatches user utterances against `labels` in the active locale and posts\ncanonical actions back; the UI renders dropdowns labelled per locale, sending\n`canonical` on selection. `wire` is informational for clients but authoritative\non the bus.",
         "properties": {
           "canonical": {
             "title": "Canonical",
@@ -1374,7 +1374,7 @@
                 "type": "null"
               }
             ],
-            "description": "Display/semantic unit of the value (°C, %, dB, min, …). Projected into the catalog's param descriptors (VWB-20/G4) and the WB control meta — voice needs it to parse «поставь двадцать два градуса» against a °C-shaped target.",
+            "description": "Display/semantic unit of the value (°C, %, dB, min, …). Projected into the catalog's param descriptors and the WB control meta — voice needs it to parse «поставь двадцать два градуса» against a °C-shaped target.",
             "title": "Units"
           }
         },
@@ -2030,7 +2030,7 @@
         "type": "object"
       },
       "GroupMemberResult": {
-        "description": "Per-member outcome of a room group action (§10.4). `skipped` = the member's\nmatching capability lacks the requested action (reported, never an error);\n`no_op` = already at target; `failed` carries the member's error in `detail`.",
+        "description": "Per-member outcome of a room group action. `skipped` = the member's\nmatching capability lacks the requested action (reported, never an error);\n`no_op` = already at target; `failed` carries the member's error in `detail`.",
         "properties": {
           "capability": {
             "description": "The member's OWN capability the action ran against (a light switch's 'power', the hood's 'light').",
@@ -2401,7 +2401,7 @@
       },
       "LocalizedName": {
         "additionalProperties": true,
-        "description": "Bilingual display name for a device or room. `ru` + `en` required; additional locales\naccepted (e.g. `de`, `fr`) and surfaced as-is via the catalog. Lives on `BaseDeviceConfig`\nas `names` (replacing the previous flat `device_name`). Per §P3.7 voice-integration\ncontract: every entity carries names in every locale the catalog supports.",
+        "description": "Bilingual display name for a device or room. `ru` + `en` required; additional locales\naccepted (e.g. `de`, `fr`) and surfaced as-is via the catalog. Lives on `BaseDeviceConfig`\nas `names` (replacing the previous flat `device_name`). Every entity carries names\nin every locale the catalog supports.",
         "properties": {
           "en": {
             "title": "En",
@@ -2622,7 +2622,7 @@
         "type": "object"
       },
       "MitsubishiHvacState": {
-        "description": "Runtime state for a mitsubishi2wb-firmware HVAC unit (DRV-28).\n\nAll enum fields hold CANONICAL identifiers (`\"cool\"`, `\"swing\"`, …) — the driver\ntranslates the firmware's numeric wire indices via its class map's value tables.\nThe base `power` field carries `\"on\"`/`\"off\"`. Declared fields ride the standard\nrestore-at-boot (VWB-18), which is what survives the WB7's persistence-less broker\nacross reboots; `room_temperature` doubles as a liveness heartbeat (the firmware\npublishes it every 45 s unconditionally), driving `reachable`.",
+        "description": "Runtime state for a mitsubishi2wb-firmware HVAC unit.\n\nAll enum fields hold CANONICAL identifiers (`\"cool\"`, `\"swing\"`, …) — the driver\ntranslates the firmware's numeric wire indices via its class map's value tables.\nThe base `power` field carries `\"on\"`/`\"off\"`. Declared fields ride the standard\nrestore-at-boot, which is what survives the WB7's persistence-less broker\nacross reboots; `room_temperature` doubles as a liveness heartbeat (the firmware\npublishes it every 45 s unconditionally), driving `reachable`.",
         "properties": {
           "device_id": {
             "title": "Device Id",
@@ -3536,7 +3536,7 @@
         "type": "object"
       },
       "RoomCanonicalRequest": {
-        "description": "Request to invoke a canonical action on a room GROUP (§10.1).",
+        "description": "Request to invoke a canonical action on a room GROUP — the third canonical\naddress form, for utterances that name a capability rather than a device.",
         "properties": {
           "action": {
             "description": "Action within each member's matching capability (e.g. 'on', 'off', 'open', 'close').",
@@ -3751,7 +3751,7 @@
         "type": "object"
       },
       "ScenarioDefinition": {
-        "description": "Declarative definition of a scenario.\n\nScenarios are **thin**: a ``source``/``display``/``audio`` selection. Device membership,\ninput values, and ordering are derived from ``config/topology.json`` by the reconciler.\nThe pre-redesign imperative format (explicit ``startup_sequence``/``shutdown_sequence``\nsteps) was removed once every shipped scenario had migrated.\n\nSee docs/design/scenarios/scenario_system_redesign.md §6.",
+        "description": "Declarative definition of a scenario.\n\nScenarios are **thin**: a ``source``/``display``/``audio`` selection. Device membership,\ninput values, and ordering are derived from ``config/topology.json`` by the reconciler.\nThe pre-redesign imperative format (explicit ``startup_sequence``/``shutdown_sequence``\nsteps) was removed once every shipped scenario had migrated.",
         "properties": {
           "audio": {
             "anyOf": [
@@ -3804,7 +3804,7 @@
           },
           "names": {
             "$ref": "#/components/schemas/LocalizedName",
-            "description": "Localized display names (ru/en required, extra locales allowed) — the display surface everywhere (UI navbar, manifest title) and the voice surface for scenario activation (VWB-20/G3: «включи кино» needs a Russian label). Replaces the legacy flat `name` (dropped in SCN-8, mirroring the device `device_name` → `names` migration)."
+            "description": "Localized display names (ru/en required, extra locales allowed) — the display surface everywhere (UI navbar, manifest title) and the voice surface for scenario activation («включи кино» needs a Russian label). Replaces the legacy flat `name` (mirroring the device `device_name` → `names` migration)."
           },
           "roles": {
             "additionalProperties": {
@@ -4923,7 +4923,7 @@
     },
     "/devices/{device_id}/action": {
       "post": {
-        "description": "Execute an action on a specific device.\n\nThis endpoint allows executing various actions on devices. The available actions depend on the device type.\n\n## LG TV Actions:\n\n* **move_cursor_relative** - Move cursor by dx,dy relative to current position.\n  webOS exposes no absolute-positioning endpoint on its pointer socket — only\n  deltas are meaningful (see asyncwebostv docs/pointer_spec.md §4). The former\n  `move_cursor` (absolute 0–100 %) action was removed in the 2026-05-27 pointer\n  rewrite; it had never actually worked.\n  ```json\n  {\n    \"action\": \"move_cursor_relative\",\n    \"params\": {\n      \"dx\": 10,\n      \"dy\": -5\n    }\n  }\n  ```\n\n* **click** - Click at the current cursor position. webOS's pointer click\n  protocol takes no coordinates; position the cursor with `move_cursor_relative`\n  first if needed.\n  ```json\n  {\n    \"action\": \"click\",\n    \"params\": {}\n  }\n  ```\n\n* **launch_app** - Launch an app by name\n  ```json\n  {\n    \"action\": \"launch_app\",\n    \"params\": {\n      \"app_name\": \"Netflix\"\n    }\n  }\n  ```\n\n* **wake_on_lan** - Wake the TV using Wake-on-LAN\n  ```json\n  {\n    \"action\": \"wake_on_lan\",\n    \"params\": {}\n  }\n  ```\n\n## Emotiva XMC2 Actions:\n\n* **power_on** - Turn the device on (supports zones)\n  ```json\n  {\n    \"action\": \"power_on\",\n    \"params\": {\n      \"zone\": 1  # 1 for main zone, 2 for zone2\n    }\n  }\n  ```\n\n* **power_off** - Turn the device off (supports zones)\n  ```json\n  {\n    \"action\": \"power_off\",\n    \"params\": {\n      \"zone\": 2  # This powers off zone 2\n    }\n  }\n  ```\n  \n* **set_volume** - Set volume level (supports zones)\n  ```json\n  {\n    \"action\": \"set_volume\",\n    \"params\": {\n      \"level\": -35.5,  # Volume in dB from -96.0 to 0.0\n      \"zone\": 1  # 1 for main zone, 2 for zone2\n    }\n  }\n  ```\n  \n* **mute_toggle** - Toggle mute state (supports zones)\n  ```json\n  {\n    \"action\": \"mute_toggle\",\n    \"params\": {\n      \"zone\": 2  # This toggles mute for zone 2\n    }\n  }\n  ```\n  \n* **set_input** - Change input source\n  ```json\n  {\n    \"action\": \"set_input\",\n    \"params\": {\n      \"input\": \"hdmi1\"  # Input name (hdmi1-hdmi8, optical1-optical4, etc.)\n    }\n  }\n  ```\n\n## Common Actions for Other Devices:\n* **power_on** - Turn the device on\n* **power_off** - Turn the device off\n* **set_volume** - Set device volume (params: volume)\n* **set_mute** - Set device mute state (params: mute)\n* **set_input_source** - Change input source (params: input_source)\n* **send_action** - Send remote control command (params: command)",
+        "description": "Execute an action on a specific device.\n\nThis endpoint allows executing various actions on devices. The available actions depend on the device type.\n\n## LG TV Actions:\n\n* **move_cursor_relative** - Move cursor by dx,dy relative to current position.\n  webOS exposes no absolute-positioning endpoint on its pointer socket — only\n  deltas are meaningful (see the asyncwebostv pointer protocol notes). An\n  absolute-coordinates action existed once but never worked and was removed.\n  ```json\n  {\n    \"action\": \"move_cursor_relative\",\n    \"params\": {\n      \"dx\": 10,\n      \"dy\": -5\n    }\n  }\n  ```\n\n* **click** - Click at the current cursor position. webOS's pointer click\n  protocol takes no coordinates; position the cursor with `move_cursor_relative`\n  first if needed.\n  ```json\n  {\n    \"action\": \"click\",\n    \"params\": {}\n  }\n  ```\n\n* **launch_app** - Launch an app by name\n  ```json\n  {\n    \"action\": \"launch_app\",\n    \"params\": {\n      \"app_name\": \"Netflix\"\n    }\n  }\n  ```\n\n* **wake_on_lan** - Wake the TV using Wake-on-LAN\n  ```json\n  {\n    \"action\": \"wake_on_lan\",\n    \"params\": {}\n  }\n  ```\n\n## Emotiva XMC2 Actions:\n\n* **power_on** - Turn the device on (supports zones)\n  ```json\n  {\n    \"action\": \"power_on\",\n    \"params\": {\n      \"zone\": 1  # 1 for main zone, 2 for zone2\n    }\n  }\n  ```\n\n* **power_off** - Turn the device off (supports zones)\n  ```json\n  {\n    \"action\": \"power_off\",\n    \"params\": {\n      \"zone\": 2  # This powers off zone 2\n    }\n  }\n  ```\n  \n* **set_volume** - Set volume level (supports zones)\n  ```json\n  {\n    \"action\": \"set_volume\",\n    \"params\": {\n      \"level\": -35.5,  # Volume in dB from -96.0 to 0.0\n      \"zone\": 1  # 1 for main zone, 2 for zone2\n    }\n  }\n  ```\n  \n* **mute_toggle** - Toggle mute state (supports zones)\n  ```json\n  {\n    \"action\": \"mute_toggle\",\n    \"params\": {\n      \"zone\": 2  # This toggles mute for zone 2\n    }\n  }\n  ```\n  \n* **set_input** - Change input source\n  ```json\n  {\n    \"action\": \"set_input\",\n    \"params\": {\n      \"input\": \"hdmi1\"  # Input name (hdmi1-hdmi8, optical1-optical4, etc.)\n    }\n  }\n  ```\n\n## Common Actions for Other Devices:\n* **power_on** - Turn the device on\n* **power_off** - Turn the device off\n* **set_volume** - Set device volume (params: volume)\n* **set_mute** - Set device mute state (params: mute)\n* **set_input_source** - Change input source (params: input_source)\n* **send_action** - Send remote control command (params: command)",
         "operationId": "execute_device_action_devices__device_id__action_post",
         "parameters": [
           {
@@ -4976,7 +4976,7 @@
     },
     "/devices/{device_id}/canonical": {
       "post": {
-        "description": "Voice-friendly canonical action endpoint (§P3.7 slice #15).\n\nBody: `{capability, action, params?}` -- the same canonical tuple Irene parses from\nan utterance. The bridge resolves it through the device's capability map\n(class → profile → per-device override; see #14) and invokes the native command\nvia `perform_action`.\n\nSynchronous with a ~500 ms timeout: the response carries the **post-action**\ndevice state once the value-topic echo arrives. For WB-passthrough devices the\necho flows through the MQTT subscription chain → `update_state` → registered\ncallbacks; we register a one-shot callback for the duration of the call so the\nhandler unblocks the instant the device acknowledges. AV drivers update state\nsynchronously inside `perform_action`, so the wait returns immediately for them.\n\nError codes (HTTP status mirrors `error.code`):\n  - `device_not_found` (404)\n  - `capability_not_supported` (404)\n  - `action_not_supported` (404)\n  - `param_invalid` (400) - currently mapped from any perform_action failure with\n    param-shaped error text; refined later if/when handlers distinguish cleanly.\n  - `device_unreachable` (503) - timeout OR `state.reachable` flipped False during\n    the wait (a per-control `meta/error` `r` flag landed; A3 convention).\n  - `internal_error` (500) - everything else.",
+        "description": "Voice-friendly canonical action endpoint.\n\nBody: `{capability, action, params?}` -- the same canonical tuple Irene parses from\nan utterance. The bridge resolves it through the device's capability map\n(class → profile → per-device override) and invokes the native command\nvia `perform_action`.\n\nSynchronous with a ~500 ms timeout: the response carries the **post-action**\ndevice state once the value-topic echo arrives. For WB-passthrough devices the\necho flows through the MQTT subscription chain → `update_state` → registered\ncallbacks; we register a one-shot callback for the duration of the call so the\nhandler unblocks the instant the device acknowledges. AV drivers update state\nsynchronously inside `perform_action`, so the wait returns immediately for them.\n\nError codes (HTTP status mirrors `error.code`):\n  - `device_not_found` (404)\n  - `capability_not_supported` (404)\n  - `action_not_supported` (404)\n  - `param_invalid` (400) - currently mapped from any perform_action failure with\n    param-shaped error text; refined later if/when handlers distinguish cleanly.\n  - `device_unreachable` (503) - timeout OR `state.reachable` flipped False during\n    the wait (a per-control `meta/error` `r` flag landed; A3 convention).\n  - `internal_error` (500) - everything else.",
         "operationId": "execute_canonical_action_devices__device_id__canonical_post",
         "parameters": [
           {
@@ -5112,7 +5112,7 @@
     },
     "/devices/{device_id}/options/{kind}": {
       "get": {
-        "description": "Option enumeration as a READ (SCN-7): the dropdown population that used to ride\n`POST /devices/{id}/action` (`get_available_inputs`/`get_available_apps`) moves to\nthe read surface, keeping the canonical action path purely imperative. Resolves the\ncapability's declared `list` query and executes it internally (`source=\"system\"`,\nso a dormant/`exposed:false` list command still answers). Returns the driver's\nresult envelope unchanged (`{success, data: [...]}`).",
+        "description": "Option enumeration as a READ: the dropdown population that used to ride\n`POST /devices/{id}/action` (`get_available_inputs`/`get_available_apps`) moves to\nthe read surface, keeping the canonical action path purely imperative. Resolves the\ncapability's declared `list` query and executes it internally (`source=\"system\"`,\nso a dormant/`exposed:false` list command still answers). Returns the driver's\nresult envelope unchanged (`{success, data: [...]}`).",
         "operationId": "get_device_options_devices__device_id__options__kind__get",
         "parameters": [
           {
@@ -5710,7 +5710,7 @@
     },
     "/rooms/{room_id}/canonical": {
       "post": {
-        "description": "Room-scoped group actuation — the THIRD canonical address form (VWB-23,\ncanonical_first.md §10). For utterances that name a capability, not a device\n(«включи свет», «закрой шторы»): the caller supplies room + group + action, the\nbridge owns membership (the `group` overlay on capability maps) and the\ndefault-vs-fan-out policy (`scope` + the room's `group_defaults`).\n\nMembers execute concurrently through the SAME per-device canonical dispatch the\ndevice endpoint uses (per-member no_op short-circuit, echo wait, `update_state`\nchokepoint — all unchanged). 200 even with partial member failures; the per-member\n`results` list is what makes the caller's confirmation honest.\n\nSpeakable errors:\n  - `404 no_group_members` — nothing in this room belongs to the group;\n  - `409 no_default_device` — scope=one but the room declares no default;\n  - `409 fanout_not_allowed` — a fan-out would be required but the group is not on\n    the allow-list (`light`, `cover`); consequential groups (`power`, …) need an\n    explicit device or scenario.",
+        "description": "Room-scoped group actuation — the third canonical address form.\nFor utterances that name a capability, not a device\n(«включи свет», «закрой шторы»): the caller supplies room + group + action, the\nbridge owns membership (the `group` overlay on capability maps) and the\ndefault-vs-fan-out policy (`scope` + the room's `group_defaults`).\n\nMembers execute concurrently through the SAME per-device canonical dispatch the\ndevice endpoint uses (per-member no_op short-circuit, echo wait, `update_state`\nchokepoint — all unchanged). 200 even with partial member failures; the per-member\n`results` list is what makes the caller's confirmation honest.\n\nSpeakable errors:\n  - `404 no_group_members` — nothing in this room belongs to the group;\n  - `409 no_default_device` — scope=one but the room declares no default;\n  - `409 fanout_not_allowed` — a fan-out would be required but the group is not on\n    the allow-list (`light`, `cover`); consequential groups (`power`, …) need an\n    explicit device or scenario.",
         "operationId": "execute_room_canonical_action_rooms__room_id__canonical_post",
         "parameters": [
           {
@@ -6104,7 +6104,7 @@
     },
     "/scenario/{id}/force_reconcile": {
       "post": {
-        "description": "SCN-11: force ONE device into the active scenario's desired state — the\nbelieved-vs-desired diff is skipped (the belief may be wrong; the user picking the\nrow is the feedback channel), driver idempotence guards are bypassed via the\nreserved `force` param, and toggle power claims the plan target (`assume_state`).\nRuns the device's chain through the normal executor (gates + polls); worst case a\npoll-timeout wait, so the call can take seconds.",
+        "description": "Force ONE device into the active scenario's desired state — the\nbelieved-vs-desired diff is skipped (the belief may be wrong; the user picking the\nrow is the feedback channel), driver idempotence guards are bypassed via the\nreserved `force` param, and toggle power claims the plan target (`assume_state`).\nRuns the device's chain through the normal executor (gates + polls); worst case a\npoll-timeout wait, so the call can take seconds.",
         "operationId": "force_reconcile_device_scenario__id__force_reconcile_post",
         "parameters": [
           {
@@ -6157,7 +6157,7 @@
     },
     "/scenario/{id}/layout": {
       "get": {
-        "description": "Layer-3 layout manifest for a scenario — the composite remote (one renderer, role-assembled\ncontrols tagged with sourceDeviceId; the power zone is the scenario lifecycle). Built from the\nscenario definition + the role devices' capability maps by the placement engine. The `inputs`\nrole is intentionally not rendered (reconciler-derived). Spec: scenario_system_redesign.md §6.",
+        "description": "Layer-3 layout manifest for a scenario — the composite remote (one renderer;\ncontrols carry their canonical capability/action and dispatch against the manifest's\n`canonicalEntityId`; the power zone is the scenario lifecycle). Built from the\nscenario definition + the role devices' capability maps by the placement engine. The\n`inputs` role is intentionally not rendered (reconciler-derived).",
         "operationId": "get_scenario_layout_scenario__id__layout_get",
         "parameters": [
           {
@@ -6200,7 +6200,7 @@
     },
     "/scenario/{id}/reconcile_preview": {
       "get": {
-        "description": "SCN-11: believed-vs-desired per involved device of the ACTIVE scenario, plus the\nforced chain a confirm would run. 404 unknown scenario; 409 when it isn't the active\none (the desired state is only defined by the running scenario — on an inactive page\nthe same gesture is just \"start it\").",
+        "description": "Believed-vs-desired state per involved device of the ACTIVE scenario, plus the\nforced chain a confirm would run. 404 unknown scenario; 409 when it isn't the active\none (the desired state is only defined by the running scenario — on an inactive page\nthe same gesture is just \"start it\").",
         "operationId": "get_reconcile_preview_scenario__id__reconcile_preview_get",
         "parameters": [
           {
@@ -6308,7 +6308,7 @@
     },
     "/system/catalog": {
       "get": {
-        "description": "Voice-friendly catalog of devices + rooms (§P3.7 voice-integration slice #17).\n\nFlat capability-shaped projection of the whole house for any non-UI consumer\n(Irene first). All locales for both rooms and devices. The response carries a\n`version` (short content hash) so callers can subscribe to retained\n`bridge/catalog/version` MQTT and only re-fetch when it differs from the last\nseen one. Stable independent of insertion order: rooms + devices are sorted by\nid before hashing so the same content always hashes to the same value.\n\nNOT the Layer-3 layout manifest -- that one is UI-shaped (panels, sliders,\npositions). The catalog is the contract for capability-aware callers.",
+        "description": "Voice-friendly catalog of devices + rooms.\n\nFlat capability-shaped projection of the whole house for any non-UI consumer\n(Irene first). All locales for both rooms and devices. The response carries a\n`version` (short content hash) so callers can subscribe to retained\n`bridge/catalog/version` MQTT and only re-fetch when it differs from the last\nseen one. Stable independent of insertion order: rooms + devices are sorted by\nid before hashing so the same content always hashes to the same value.\n\nNOT the Layer-3 layout manifest -- that one is UI-shaped (panels, sliders,\npositions). The catalog is the contract for capability-aware callers.",
         "operationId": "get_system_catalog_system_catalog_get",
         "responses": {
           "200": {

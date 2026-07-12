@@ -138,6 +138,7 @@ def main() -> int:
             "tag": f"catalog-v{CONTRACT_VERSION}",
             "date": datetime.date.today().isoformat(),
             "owner_repo": "locveil-bridge",
+            "artifacts": ["catalog.golden.json", "openapi.json", "README.md"],
             "bridge_commit": _git_commit(),
             "bridge_version": __version__,
             "catalog_version": catalog.version,

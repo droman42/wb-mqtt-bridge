@@ -20,10 +20,10 @@ digraph voice_setup {
             fillcolor="#fff3e0", color="#ef6c00"];
     pill_b [label="Pillar B: voice-friendly catalog\nGET /system/catalog\nall locales · capability-shaped\nretained bridge/catalog/version (refresh nudge)",
             fillcolor="#fff3e0", color="#ef6c00"];
-    pill_c [label="Pillar C: WB onboarding (the device fleet)\nWB-passthrough driver\n+ capability profiles\n+ 57 device configs across 10 rooms",
+    pill_c [label="Pillar C: WB onboarding (the device fleet)\nWB-passthrough driver\n+ capability profiles\n+ 78 device configs across 11 rooms",
             fillcolor="#fff3e0", color="#ef6c00"];
     pending [shape=note, fillcolor="#fff8e1", color="#f57f17",
-             label="still pending (§P3.7):\n#22 aggregate devices in `global` (all_lights, …)\n#24 wb-msw-v3 sensor side\n#25 catalog completeness sweep + bulk e2e\n#26 value-label translation layer"];
+             label="still pending:\nwb-msw-v3 sensor side\n(deferred post-release)"];
   }
 
   // --- the Irene side (sister project, shown for context) ---

@@ -12,9 +12,9 @@ them as the rules of the road, not aspirations.
 - **Detailed commit bodies explain the *why*** — what changed, what it
   fixes/removes, with file/line refs where useful. The body is the audit trail
   in lieu of PR descriptions.
-- AI-co-authored commits add the trailer
-  `Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>`; pass multi-line
-  messages via a HEREDOC.
+- AI-co-authored commits add a `Co-Authored-By: Claude <model>
+  <noreply@anthropic.com>` trailer naming the model that helped; pass
+  multi-line messages via a HEREDOC.
 - **Decisions land in `docs/action_plan.md`** (revision log) and the ADRs
   under `docs/adr/`. **Superseded docs move to `docs/archive/`** (or
   `docs/design/` / `docs/review/` if they remain authoritative or
@@ -51,12 +51,16 @@ The inward rule, no-TYPE_CHECKING discipline, and 0-error type-check are
 not conventions you have to remember. **CI hard-fails on all three** via
 the shared composite action `droman42/py-dev-gates/.github/actions/python-health`.
 
-1. **`import-linter`** — three contracts in
+1. **`import-linter`** — six contracts in
    `backend/pyproject.toml [tool.importlinter]`:
    1. Domain depends on nothing outward (no `infrastructure`,
       `presentation`, `app`, `cli`).
-   2. Infrastructure does not import presentation.
-   3. Presentation does not reach into infrastructure adapters — one
+   2. Infrastructure does not import presentation, the composition
+      root, or the CLI.
+   3. Presentation does not import the composition root or the CLI.
+   4. Utils (the foundation layer) depends on nothing upward.
+   5. Device drivers are independent of each other.
+   6. Presentation does not reach into infrastructure adapters — one
       exception, the `POST /reload` MQTTClient construction, is codified
       by path in `ignore_imports`.
 2. **`check-no-type-checking`** — AST-based gate forbidding
@@ -170,11 +174,16 @@ its files can break.
 - **`backend-test`** (backend/** or contracts/** changed) — the three Python
   health gates (import-linter / no-TYPE_CHECKING / pyright) + `pytest -m "not
   requires_device"` on amd64. The suite includes the **contracts drift guard**
-  (`test_contracts_golden.py`): the committed `contracts/` artifacts (golden
-  catalog + pinned openapi) are regenerated in-test and compared — if a config
-  or API change alters the contract, regenerate with
-  `uv run wb-catalog -o ../contracts/catalog.golden.json --stamp ../contracts/STAMP.json`
-  (and `wb-openapi` for the schema; see `contracts/README.md`).
+  (`test_contracts_golden.py`): the committed `contracts/catalog/` artifacts
+  (golden catalog + pinned openapi) are regenerated in-test and compared — if
+  a config or API change alters the contract, regenerate with
+  `uv run wb-catalog --stamp ../contracts/catalog/STAMP.json`
+  (and `wb-openapi` for the schema; see `contracts/catalog/README.md`).
+- **`contract-guard`** (contracts/** or its vendored script changed) —
+  `scripts/contract_guard.py --check`, the contract-coherence check (layout,
+  stamps, pinned-copy hashes; a vendored copy of the shared Locveil
+  contract-guard). It runs pre-commit too, via the same committed hook as the
+  ledger guard.
 - **`ui-validate`** (ui/** changed, **or** the backend contract the UI
   consumes: `backend/openapi.json`, `backend/config/**`) — `gen:api-types` +
   `check` (typecheck, strict lint, orphans) + `build`.
@@ -192,7 +201,7 @@ dispatch the slow workflow before relying on `:latest`.
 ## How-to references
 
 - **[Add a device with an existing driver](docs/guides/howto-new-device.md)**
-  — config-only, the WB-passthrough or one of the 7 AV driver classes.
+  — config-only: the WB-passthrough or one of the shipped driver classes.
 - **[Add a new device driver with a native library](docs/guides/howto-new-driver.md)**
   — Python-side: typed config + state, driver subclass, entry-point,
   capability map, tests.

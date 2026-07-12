@@ -142,9 +142,8 @@ export interface paths {
          *
          *     * **move_cursor_relative** - Move cursor by dx,dy relative to current position.
          *       webOS exposes no absolute-positioning endpoint on its pointer socket — only
-         *       deltas are meaningful (see asyncwebostv docs/pointer_spec.md §4). The former
-         *       `move_cursor` (absolute 0–100 %) action was removed in the 2026-05-27 pointer
-         *       rewrite; it had never actually worked.
+         *       deltas are meaningful (see the asyncwebostv pointer protocol notes). An
+         *       absolute-coordinates action existed once but never worked and was removed.
          *       ```json
          *       {
          *         "action": "move_cursor_relative",
@@ -262,11 +261,11 @@ export interface paths {
         put?: never;
         /**
          * Execute Canonical Action
-         * @description Voice-friendly canonical action endpoint (§P3.7 slice #15).
+         * @description Voice-friendly canonical action endpoint.
          *
          *     Body: `{capability, action, params?}` -- the same canonical tuple Irene parses from
          *     an utterance. The bridge resolves it through the device's capability map
-         *     (class → profile → per-device override; see #14) and invokes the native command
+         *     (class → profile → per-device override) and invokes the native command
          *     via `perform_action`.
          *
          *     Synchronous with a ~500 ms timeout: the response carries the **post-action**
@@ -328,7 +327,7 @@ export interface paths {
         };
         /**
          * Get Device Options
-         * @description Option enumeration as a READ (SCN-7): the dropdown population that used to ride
+         * @description Option enumeration as a READ: the dropdown population that used to ride
          *     `POST /devices/{id}/action` (`get_available_inputs`/`get_available_apps`) moves to
          *     the read surface, keeping the canonical action path purely imperative. Resolves the
          *     capability's declared `list` query and executes it internally (`source="system"`,
@@ -760,8 +759,8 @@ export interface paths {
         put?: never;
         /**
          * Execute Room Canonical Action
-         * @description Room-scoped group actuation — the THIRD canonical address form (VWB-23,
-         *     canonical_first.md §10). For utterances that name a capability, not a device
+         * @description Room-scoped group actuation — the third canonical address form.
+         *     For utterances that name a capability, not a device
          *     («включи свет», «закрой шторы»): the caller supplies room + group + action, the
          *     bridge owns membership (the `group` overlay on capability maps) and the
          *     default-vs-fan-out policy (`scope` + the room's `group_defaults`).
@@ -1008,7 +1007,7 @@ export interface paths {
         put?: never;
         /**
          * Force Reconcile Device
-         * @description SCN-11: force ONE device into the active scenario's desired state — the
+         * @description Force ONE device into the active scenario's desired state — the
          *     believed-vs-desired diff is skipped (the belief may be wrong; the user picking the
          *     row is the feedback channel), driver idempotence guards are bypassed via the
          *     reserved `force` param, and toggle power claims the plan target (`assume_state`).
@@ -1031,10 +1030,11 @@ export interface paths {
         };
         /**
          * Get Scenario Layout
-         * @description Layer-3 layout manifest for a scenario — the composite remote (one renderer, role-assembled
-         *     controls tagged with sourceDeviceId; the power zone is the scenario lifecycle). Built from the
-         *     scenario definition + the role devices' capability maps by the placement engine. The `inputs`
-         *     role is intentionally not rendered (reconciler-derived). Spec: scenario_system_redesign.md §6.
+         * @description Layer-3 layout manifest for a scenario — the composite remote (one renderer;
+         *     controls carry their canonical capability/action and dispatch against the manifest's
+         *     `canonicalEntityId`; the power zone is the scenario lifecycle). Built from the
+         *     scenario definition + the role devices' capability maps by the placement engine. The
+         *     `inputs` role is intentionally not rendered (reconciler-derived).
          */
         get: operations["get_scenario_layout_scenario__id__layout_get"];
         put?: never;
@@ -1054,7 +1054,7 @@ export interface paths {
         };
         /**
          * Get Reconcile Preview
-         * @description SCN-11: believed-vs-desired per involved device of the ACTIVE scenario, plus the
+         * @description Believed-vs-desired state per involved device of the ACTIVE scenario, plus the
          *     forced chain a confirm would run. 404 unknown scenario; 409 when it isn't the active
          *     one (the desired state is only defined by the running scenario — on an inactive page
          *     the same gesture is just "start it").
@@ -1129,7 +1129,7 @@ export interface paths {
         };
         /**
          * Get System Catalog
-         * @description Voice-friendly catalog of devices + rooms (§P3.7 voice-integration slice #17).
+         * @description Voice-friendly catalog of devices + rooms.
          *
          *     Flat capability-shaped projection of the whole house for any non-UI consumer
          *     (Irene first). All locales for both rooms and devices. The response carries a
@@ -1390,7 +1390,7 @@ export interface components {
         BaseDeviceConfig: {
             /**
              * Aliases
-             * @description Spoken alias surfaces per locale ({'ru': ['люстра', 'подсветка']}) — projected into the catalog for voice entity resolution (VWB-20/G2 schema; household vocabulary authored in VWB-21).
+             * @description Spoken alias surfaces per locale ({'ru': ['люстра', 'подсветка']}) — projected into the catalog for voice entity resolution.
              */
             aliases?: {
                 [key: string]: string[];
@@ -1431,7 +1431,7 @@ export interface components {
             names: components["schemas"]["LocalizedName"];
             /**
              * Room
-             * @description Room id (matches an entry in `rooms.json`). A device belongs to **exactly one** room. Aggregate whole-house controls (e.g. `all_lights`) live in the special `global` room. Whole-house actions ("выключи свет везде") resolve to a SINGLE canonical call against the matching aggregate device in `global` -- Irene does NOT iterate rooms; the bridge ships the aggregates the v1 voice command set needs (§P3.7 #22). `None` for AV gear that doesn't yet have a room (populated during bulk onboarding, §P3.7 #21+#23).
+             * @description Room id (matches an entry in `rooms.json`). A device belongs to **exactly one** room. Aggregate whole-house controls (e.g. `all_lights`) live in the special `global` room. Whole-house actions ("выключи свет везде") resolve to a SINGLE canonical call against the matching aggregate device in `global` -- Irene does NOT iterate rooms; the bridge ships the aggregates the voice command set needs. `None` for AV gear that doesn't yet have a room.
              */
             room?: string | null;
             /**
@@ -1500,7 +1500,7 @@ export interface components {
         /**
          * CanonicalActionRequest
          * @description Request to invoke a canonical (capability, action, params) tuple — the one
-         *     actuation grammar for voice AND the UI (canonical-first, SCN-7).
+         *     actuation grammar shared by voice and the UI (canonical-first).
          */
         CanonicalActionRequest: {
             /**
@@ -1544,13 +1544,13 @@ export interface components {
             executed_on?: string | null;
             /**
              * No Op
-             * @description True when the device was already at the requested value (the driver's no_op short-circuit) — succeeded without actuating. VWB-23 surfaces this so group fan-out results can report members honestly.
+             * @description True when the device was already at the requested value (the driver's no_op short-circuit) — succeeded without actuating. Surfaced so room-group fan-out results can report members honestly.
              * @default false
              */
             no_op: boolean;
             /**
              * Skipped Reason
-             * @description Structured skip marker (DRV-5). 'idempotence' = an optimistic-state guard swallowed the command (nothing was sent — the believed state may be wrong); the UI offers a re-tap that re-sends with params.force=true. Distinct from plain no_op, which reflects a feedback-verified value.
+             * @description Structured skip marker. 'idempotence' = an optimistic-state guard swallowed the command (nothing was sent — the believed state may be wrong); the UI offers a re-tap that re-sends with params.force=true. Distinct from plain no_op, which reflects a feedback-verified value.
              */
             skipped_reason?: string | null;
             /** State */
@@ -1585,8 +1585,7 @@ export interface components {
          * CatalogAction
          * @description A canonical action a device supports under a capability. `params` is `None` for
          *     parameterless actions (`power.on`, `cover.open`) and a list of typed
-         *     :class:`CatalogParam` descriptors otherwise (since VWB-20; the #19 introspection
-         *     stub was filled by VWB-15 and typed here).
+         *     :class:`CatalogParam` descriptors otherwise.
          */
         CatalogAction: {
             /** Name */
@@ -1608,7 +1607,7 @@ export interface components {
             fields?: components["schemas"]["CatalogField"][] | null;
             /**
              * Group
-             * @description Effective semantic group for room-scoped addressing (VWB-23, §10) — always explicit so consumers never reimplement the defaulting rule: equals `name` unless the capability map overrides (a light switch's 'power' carries group 'light'); `null` = opted out of group addressing.
+             * @description Effective semantic group for room-scoped addressing — always explicit so consumers never reimplement the defaulting rule: equals `name` unless the capability map overrides (a light switch's 'power' carries group 'light'); `null` = opted out of group addressing.
              */
             group?: string | null;
             /** Name */
@@ -1616,14 +1615,13 @@ export interface components {
         };
         /**
          * CatalogDevice
-         * @description A device in the catalog. `room` is the device's single room (per the §P3.7
-         *     single-room model), `null` for devices whose room isn't set yet (most existing
-         *     AV gear until they're voice-onboarded).
+         * @description A device in the catalog. `room` is the device's single room (a device belongs
+         *     to exactly one room), `null` for devices whose room isn't set yet.
          */
         CatalogDevice: {
             /**
              * Aliases
-             * @description Spoken alias surfaces per locale (VWB-20/G2 schema; vocabulary authored in VWB-21) — «люстра»/«подсветка» for the same fixture. None until authored.
+             * @description Spoken alias surfaces per locale — «люстра»/«подсветка» for the same fixture. None until authored.
              */
             aliases?: {
                 [key: string]: string[];
@@ -1645,8 +1643,7 @@ export interface components {
          * CatalogField
          * @description A read-only field on a capability (e.g. `sensor.temperature`, `brightness.level`).
          *     Mirrors the domain `CapabilityField` shape so voice/UI consumers can render and parse
-         *     values without out-of-band knowledge. Added §P3.7 #19; `values` widened to
-         *     `List[CatalogValueLabel]` in §P3.7 #26.
+         *     values without out-of-band knowledge.
          */
         CatalogField: {
             /** Encoding */
@@ -1666,13 +1663,13 @@ export interface components {
         };
         /**
          * CatalogParam
-         * @description One client-facing parameter of a canonical action (VWB-20/G1 — the schema of
-         *     record the voice side codes its parser against). Constraints come from the native
-         *     config specs through the §6 projection (canonical names via the reversed
-         *     `param_map`; capability-fixed params excluded). `values` carries the enum value
-         *     table where the choice set is bridge-known (e.g. the scenario enum);
-         *     `options_from` marks an intentionally OPEN set enumerable at runtime via
-         *     `GET /devices/{id}/options/{options_from}` (e.g. installed apps — VWB-20/G5).
+         * @description One client-facing parameter of a canonical action — the schema of record a
+         *     voice consumer codes its parser against. Constraints come from the same native
+         *     config specs the driver enforces (canonical names via the reversed `param_map`;
+         *     capability-fixed params excluded). `values` carries the enum value table where
+         *     the choice set is bridge-known (e.g. the scenario enum); `options_from` marks an
+         *     intentionally OPEN set enumerable at runtime via
+         *     `GET /devices/{id}/options/{options_from}` (e.g. installed apps).
          */
         CatalogParam: {
             /** Default */
@@ -1729,7 +1726,7 @@ export interface components {
         CatalogRoom: {
             /**
              * Aliases
-             * @description Spoken alias surfaces per locale (VWB-20/G2 schema; vocabulary authored in VWB-21) — «зал» for «гостиная». None until authored.
+             * @description Spoken alias surfaces per locale — «зал» for «гостиная». None until authored.
              */
             aliases?: {
                 [key: string]: string[];
@@ -1738,7 +1735,7 @@ export interface components {
             devices?: string[];
             /**
              * Group Defaults
-             * @description Group name -> default device_id for room-scoped addressing (VWB-23, §10.3): what scope=auto targets instead of fanning out — the singular «включи свет». None = no defaults authored.
+             * @description Group name -> default device_id for room-scoped addressing: what scope=auto targets instead of fanning out — the singular «включи свет». None = no defaults authored.
              */
             group_defaults?: {
                 [key: string]: string;
@@ -1752,10 +1749,11 @@ export interface components {
         };
         /**
          * CatalogValueLabel
-         * @description One entry of an enum value table projected into the catalog (§P3.7 #26). Voice
-         *     (Irene) matches user utterances against `labels` in the active locale and posts
-         *     canonical actions back; UI renders dropdowns labelled per locale, sending `canonical`
-         *     on selection. `wire` is informational for clients but authoritative on the bus.
+         * @description One entry of an enum value table projected into the catalog. A voice consumer
+         *     matches user utterances against `labels` in the active locale and posts
+         *     canonical actions back; the UI renders dropdowns labelled per locale, sending
+         *     `canonical` on selection. `wire` is informational for clients but authoritative
+         *     on the bus.
          */
         CatalogValueLabel: {
             /** Canonical */
@@ -1809,7 +1807,7 @@ export interface components {
             type: string;
             /**
              * Units
-             * @description Display/semantic unit of the value (°C, %, dB, min, …). Projected into the catalog's param descriptors (VWB-20/G4) and the WB control meta — voice needs it to parse «поставь двадцать два градуса» against a °C-shaped target.
+             * @description Display/semantic unit of the value (°C, %, dB, min, …). Projected into the catalog's param descriptors and the WB control meta — voice needs it to parse «поставь двадцать два градуса» against a °C-shaped target.
              */
             units?: string | null;
         };
@@ -2150,7 +2148,7 @@ export interface components {
         };
         /**
          * GroupMemberResult
-         * @description Per-member outcome of a room group action (§10.4). `skipped` = the member's
+         * @description Per-member outcome of a room group action. `skipped` = the member's
          *     matching capability lacks the requested action (reported, never an error);
          *     `no_op` = already at target; `failed` carries the member's error in `detail`.
          */
@@ -2300,8 +2298,8 @@ export interface components {
          * LocalizedName
          * @description Bilingual display name for a device or room. `ru` + `en` required; additional locales
          *     accepted (e.g. `de`, `fr`) and surfaced as-is via the catalog. Lives on `BaseDeviceConfig`
-         *     as `names` (replacing the previous flat `device_name`). Per §P3.7 voice-integration
-         *     contract: every entity carries names in every locale the catalog supports.
+         *     as `names` (replacing the previous flat `device_name`). Every entity carries names
+         *     in every locale the catalog supports.
          */
         LocalizedName: {
             /** En */
@@ -2426,12 +2424,12 @@ export interface components {
         };
         /**
          * MitsubishiHvacState
-         * @description Runtime state for a mitsubishi2wb-firmware HVAC unit (DRV-28).
+         * @description Runtime state for a mitsubishi2wb-firmware HVAC unit.
          *
          *     All enum fields hold CANONICAL identifiers (`"cool"`, `"swing"`, …) — the driver
          *     translates the firmware's numeric wire indices via its class map's value tables.
          *     The base `power` field carries `"on"`/`"off"`. Declared fields ride the standard
-         *     restore-at-boot (VWB-18), which is what survives the WB7's persistence-less broker
+         *     restore-at-boot, which is what survives the WB7's persistence-less broker
          *     across reboots; `room_temperature` doubles as a liveness heartbeat (the firmware
          *     publishes it every 45 s unconditionally), driving `reachable`.
          */
@@ -2824,7 +2822,8 @@ export interface components {
         };
         /**
          * RoomCanonicalRequest
-         * @description Request to invoke a canonical action on a room GROUP (§10.1).
+         * @description Request to invoke a canonical action on a room GROUP — the third canonical
+         *     address form, for utterances that name a capability rather than a device.
          */
         RoomCanonicalRequest: {
             /**
@@ -2941,8 +2940,6 @@ export interface components {
          *     input values, and ordering are derived from ``config/topology.json`` by the reconciler.
          *     The pre-redesign imperative format (explicit ``startup_sequence``/``shutdown_sequence``
          *     steps) was removed once every shipped scenario had migrated.
-         *
-         *     See docs/design/scenarios/scenario_system_redesign.md §6.
          */
         ScenarioDefinition: {
             /**
@@ -2968,7 +2965,7 @@ export interface components {
             display?: string | null;
             /** @description Instructions requiring human intervention */
             manual_instructions?: components["schemas"]["wb_mqtt_bridge__domain__scenarios__models__ManualInstructions"] | null;
-            /** @description Localized display names (ru/en required, extra locales allowed) — the display surface everywhere (UI navbar, manifest title) and the voice surface for scenario activation (VWB-20/G3: «включи кино» needs a Russian label). Replaces the legacy flat `name` (dropped in SCN-8, mirroring the device `device_name` → `names` migration). */
+            /** @description Localized display names (ru/en required, extra locales allowed) — the display surface everywhere (UI navbar, manifest title) and the voice surface for scenario activation («включи кино» needs a Russian label). Replaces the legacy flat `name` (mirroring the device `device_name` → `names` migration). */
             names: components["schemas"]["LocalizedName"];
             /**
              * Roles

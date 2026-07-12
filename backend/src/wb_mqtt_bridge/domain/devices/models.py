@@ -543,12 +543,12 @@ class TvActionType(str, Enum):
     WAKE_ON_LAN = "wake_on_lan" 
 
 class MitsubishiHvacState(BaseDeviceState):
-    """Runtime state for a mitsubishi2wb-firmware HVAC unit (DRV-28).
+    """Runtime state for a mitsubishi2wb-firmware HVAC unit.
 
     All enum fields hold CANONICAL identifiers (`"cool"`, `"swing"`, …) — the driver
     translates the firmware's numeric wire indices via its class map's value tables.
     The base `power` field carries `"on"`/`"off"`. Declared fields ride the standard
-    restore-at-boot (VWB-18), which is what survives the WB7's persistence-less broker
+    restore-at-boot, which is what survives the WB7's persistence-less broker
     across reboots; `room_temperature` doubles as a liveness heartbeat (the firmware
     publishes it every 45 s unconditionally), driving `reachable`.
     """

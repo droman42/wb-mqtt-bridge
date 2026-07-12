@@ -114,9 +114,11 @@ def test_stamp_carries_contract_core_and_names_a_bridge_build():
     build extras. The version triple — code constant, STAMP, tag string — must agree."""
     stamp = json.loads((CONTRACTS / "STAMP.json").read_text(encoding="utf-8"))
     assert set(stamp) == {
-        "contract", "version", "tag", "date", "owner_repo",
+        "contract", "version", "tag", "date", "owner_repo", "artifacts",
         "bridge_commit", "bridge_version", "catalog_version",
     }
+    # pin-completeness forward requirement: the artifact set a consumer's pin must copy
+    assert set(stamp["artifacts"]) == {"catalog.golden.json", "openapi.json", "README.md"}
     assert stamp["contract"] == "catalog"
     assert stamp["version"] == CONTRACT_VERSION, _REGEN_HINT
     assert stamp["tag"] == f"catalog-v{CONTRACT_VERSION}", _REGEN_HINT

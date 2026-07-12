@@ -13,7 +13,7 @@ digraph reconciler {
   edge [fontname="Helvetica", fontsize=9, color="#9e9e9e", arrowsize=0.7];
 
   // --- the trigger (driving side) ---
-  trigger [label="POST /scenario/{id}/activate\n(or voice / wb-rule / UI)",
+  trigger [label="POST /scenario/start | /scenario/switch\n(or voice / wb-rule / UI)",
            fillcolor="#e3f2fd", color="#1976d2"];
 
   // --- the pipeline (domain) ---

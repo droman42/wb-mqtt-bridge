@@ -41,7 +41,7 @@ digraph layout_manifest {
 
   // the action atom (referenced by every zone)
   action [shape=note, fillcolor="#fff8e1", color="#f57f17",
-          label="ProcessedAction (the atom)\n• actionName + displayName\n• parameters (typed; slider min/max/step)\n• icon (material / custom / fallback)\n• ui_hints (size / style / has_parameters)\n• sourceDeviceId  ← set on scenario manifests\n  to route through the role device"];
+          label="ProcessedAction (the atom)\n• actionName + displayName\n• parameters (typed; slider min/max/step)\n• icon (material / custom / fallback)\n• ui_hints (size / style / has_parameters)\n• canonicalCapability + canonicalAction\n  → dispatched via POST /devices/{canonicalEntityId}/canonical\n• sourceDeviceId (informational: which role device\n  contributed the control)"];
 
   source -> manifest [color="#ef6c00"];
   manifest -> zone_power;

@@ -29,7 +29,7 @@ digraph rooms_in_use {
     physical [shape=note, fillcolor="#fff8e1", color="#f57f17",
               label="10 physical rooms\nliving_room · children_room · kitchen ·\ncabinet · entrance · hall ·\nshower · bathroom · bedroom · wardrobe\n──────────────────────────\ndevices: every device that declared\n  `room: \"<id>\"` in its config"];
     global_room [shape=note, fillcolor="#fff8e1", color="#f57f17",
-                 label="`global` (planned aggregate slot)\n\"Whole House\" / \"Весь дом\"\n──────────────────────────\nhouses aggregate devices like\n  all_lights, all_covers, …\neach an explicit WbPassthroughDevice\npointed at a wb-rules scene topic\n(populated by P3.7 #22 — not yet built)"];
+                 label="`global` (whole-house aggregates)\n\"Whole House\" / \"Весь дом\"\n──────────────────────────\nhouses the aggregate devices:\n  all_lights, all_plugs, heating_control, …\neach an explicit WbPassthroughDevice\npointed at a wb-rules scene topic"];
   }
 
   // --- the invariants (one per consumer) ---
@@ -43,7 +43,7 @@ digraph rooms_in_use {
   scenario -> room_api [label="reads", color="#1976d2"];
   voice    -> room_api [label="reads", color="#1976d2"];
   room_api -> physical [color="#1976d2"];
-  room_api -> global_room [color="#1976d2", style=dashed, label="planned"];
+  room_api -> global_room [color="#1976d2"];
 
   scenario -> inv_scenario [style=dashed, color="#7b1fa2"];
   voice    -> inv_voice    [style=dashed, color="#7b1fa2"];
