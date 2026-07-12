@@ -29,9 +29,10 @@ this block in place — edit in commons, then re-pin (`process/claude-md.md` §3
   pre-commit hook + path-gated `ledger-guard` CI job; hooks and CI run `--check` only.
 <!-- locveil:end shared-invariants -->
 
-<!-- locveil:begin cross-repo-board scope-v3 -->
+<!-- locveil:begin cross-repo-board scope-v4 -->
 **Locveil cross-repo: the board.** The repos are SIBLINGS on disk — `../locveil-commons`
-(umbrella: board, `process/`, shared packages), `../locveil-voice`, `../locveil-bridge`.
+(umbrella: board, `process/`, shared packages), `../locveil-voice`, `../locveil-bridge`,
+`../locveil-satellite`.
 Cross-repo initiatives live at `../locveil-commons/board/BOARD.md` (`PROD-N`; council
 topics `HK-N`; completed entries in `BOARD_DONE.md`). Delegations arrive as board-as-outbox
 text committed inside a PROD entry: pull it, verify per `task-start-reconciliation`, file

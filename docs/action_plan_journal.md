@@ -25,6 +25,12 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-12 — `cross-repo-board` block re-pinned @ scope-v4 (PROD-15 close follow-through).** The
+  shared block now names `../locveil-satellite` as the fourth sibling; block text between the markers +
+  the `.scope-guard.toml` hash updated from the commons source per the `process/claude-md.md` §3 flow
+  (mechanical re-pin, no other content change — journal-line only, no ledger task). PROD-15 closed on
+  the board the same day.
+
 - **2026-07-12 — DRV-36: EspManagedDevice designed (design-only, owner decision) — DRV-37 filed
   BLOCKED on the satellite's first descriptor.** Same-day continuation of the PROD-15 arc:
   `docs/design/esp_managed_device.md` consumes the VWB-38 convention. One descriptor-native driver
