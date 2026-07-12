@@ -1,3 +1,9 @@
+> **ARCHIVED 2026-07-12 (ADR class retired; the POLICY LIVES ON).** The four pinning
+> rules moved verbatim in substance to **`CONTRIBUTING.md` → "Dependency policy"**, which
+> is now the normative home (kept current there; this file is frozen at its 2026-07-10
+> amendment, including the then-open pyatv mirror gap). Recovery runbook:
+> `docs/design/maintenance/dependency-recovery.md`.
+
 # ADR 0006 — Dependency pinning policy: immutable git refs, bounded PyPI, lockfile as record
 
 - **Status:** Accepted · **Amended 2026-07-10 (REL-4 docs pass)**

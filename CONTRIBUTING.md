@@ -15,10 +15,12 @@ them as the rules of the road, not aspirations.
 - AI-co-authored commits add a `Co-Authored-By: Claude <model>
   <noreply@anthropic.com>` trailer naming the model that helped; pass
   multi-line messages via a HEREDOC.
-- **Decisions land in `docs/action_plan.md`** (revision log) and the ADRs
-  under `docs/adr/`. **Superseded docs move to `docs/archive/`** (or
-  `docs/design/` / `docs/review/` if they remain authoritative or
-  informational), never deleted.
+- **Decisions land in `docs/action_plan.md`** (revision log) and, for anything
+  design-shaped, in `docs/design/`. **Superseded docs move to `docs/archive/`**
+  (or `docs/design/` / `docs/review/` if they remain authoritative or
+  informational), never deleted. (Historical decision records live frozen in
+  `docs/archive/adr/`; the class is retired — living policy belongs here or in
+  the design docs.)
 
 ## Backend — layering (hexagonal, enforced)
 
@@ -123,6 +125,30 @@ is the project's audit trail.
 - Don't name non-test helpers `test_*` — pytest will collect them. Rename
   CLI helpers to `_check_*` / `_run_*`.
 
+## Dependency policy (backend)
+
+Four rules keep the build reproducible; they govern every dependency decision:
+
+1. **Personal libraries: PyPI exact-pin.** Libraries the project owner authors
+   and publishes (`pymotivaxmc2`, `asyncwebostv`) come from PyPI with an exact
+   `==` specifier.
+2. **Third-party git sources: immutable ref only.** A git dependency must pin a
+   full commit SHA (`rev = "..."` in `[tool.uv.sources]`) — never a branch. If
+   the upstream repo is not under the owner's control, mirror it under the
+   owner's account so the build survives an upstream force-push or deletion;
+   when an acceptable PyPI release appears, migrate to it and drop the git
+   source. (The owner's `openhomedevice` fork exists because upstream's
+   mandatory `lxml` does not build on the ARMv7 deploy target.)
+3. **Direct PyPI dependencies: lower bound + next-major upper bound**
+   (`>=2.11.0,<3`). Minors and patches flow through a lockfile refresh; a
+   breaking major cannot arrive silently.
+4. **The committed `uv.lock` is the pin-of-record.** Deterministic restore is
+   `uv sync --frozen`; regenerate with `uv lock` only after an intentional
+   `pyproject.toml` change, then `uv sync` + a full test run before committing.
+
+Recovery runbook for the git-sourced deps:
+`docs/design/maintenance/dependency-recovery.md`.
+
 ## The OpenAPI contract (build-time discipline)
 
 The committed `backend/openapi.json` — *not* a running server — is what the
@@ -216,4 +242,5 @@ dispatch the slow workflow before relying on `:latest`.
   topology, capabilities, configs, reconciler.
 - **`docs/action_plan.md`** *(internal)* — the living revision log and
   open work.
-- **`docs/adr/`** — design decisions with their context.
+- **`docs/design/`** *(internal)* — design rationale; user docs derive from it.
+  Frozen decision records: `docs/archive/adr/`.

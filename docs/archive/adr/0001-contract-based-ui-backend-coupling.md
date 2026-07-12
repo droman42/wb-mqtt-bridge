@@ -1,3 +1,8 @@
+> **ARCHIVED 2026-07-12 (ADR class retired; decision verified in force at archival).**
+> The contract-based coupling is living practice: `CONTRIBUTING.md` ("The OpenAPI
+> contract") and `docs/architecture/ui.md` describe it; the drift guard and the UI type
+> generation enforce it. This file is frozen history.
+
 # ADR 0001 — Contract-based UI↔backend coupling; no Python in the UI build
 
 - **Status:** Accepted

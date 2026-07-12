@@ -1,3 +1,8 @@
+> **ARCHIVED 2026-07-12 (ADR class retired; decision verified in force at archival).**
+> Runtime URL configuration is living practice (`docker-entrypoint.sh`,
+> `window.RUNTIME_CONFIG`), described in `CONTRIBUTING.md` (UI conventions) and
+> `ops/INSTALL.md`. Frozen history.
+
 # ADR 0004 — Configure backend/MQTT URLs at container runtime, not build time
 
 - **Status:** Accepted

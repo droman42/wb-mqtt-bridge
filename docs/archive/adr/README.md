@@ -1,3 +1,10 @@
+> **ARCHIVED 2026-07-12 — the ADR class is retired org-wide.** Decision records are no
+> longer kept as a separate document class: living policy moved into the contributor and
+> user docs (see `CONTRIBUTING.md`), living design rationale lives in `docs/design/`, and
+> these files are frozen history. Each ADR below carries its own supersession banner
+> naming where its living content went. Verified against the code 2026-07-10 and again
+> at archival.
+
 # Architecture Decision Records (ADRs)
 
 Short records of significant decisions: the context, the decision, and its

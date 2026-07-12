@@ -103,7 +103,7 @@ Roles of the other docs **now** (they were "driving" during the redesign; they'v
 - `docs/archive/scenarios/layer3_step0_layout_analysis.md` — **archived 2026-06-30 (DOC-10)**; frozen
   Step-0 working artifact, now embodied in the as-built spec §17 + the placement engine.
 - `docs/archive/monorepo_migration_plan.md` — DONE → historical.
-- `project.md` / `architecture.md` / `conventions.md` / `docs/adr/*` — foundational project docs; the
+- `project.md` / `architecture.md` / `conventions.md` / `docs/archive/adr/*` (frozen since DOC-15 — class retired by HK-6) — foundational project docs; the
   eventual master *set* once the plan is exhausted.
 
 **Convention:** the project stays **plan-driven** (this file is master) until §P3.6 + §P4 land; then
@@ -703,7 +703,7 @@ endpoint).
 
 - [ ] **OPS-18** `[P2]` `[deferred]` — **Startup-failure cleanup omits WB-card offline marking (asymmetric with normal shutdown)** (REL-5 #11). `app/bootstrap.py:184` — `_release_partial_startup` doesn't call `cleanup_wb_device_state`, so a partial-startup failure leaves retained `available=1` on the WB cards. Edge path (only when startup fails midway); completes the OPS-8 shutdown-symmetry.
 
-- [ ] **OPS-19** `[P2]` `[deferred]` — **`pyatv` git source is unmirrored — Rule 2 compliance gap (ADR 0006).** Surfaced by the REL-4 ADR review. `pyatv` is pinned to `git+https://github.com/postlund/pyatv@9177803…` — SHA-pinned (immutable, so the build is reproducible today) but **not** mirrored under the owner's account, which ADR 0006 Rule 2 requires for repos the owner doesn't control; the ADR's "only remaining git source" claim is now false (annotated 2026-07-10). Residual risk: an upstream force-push/deletion of `postlund/pyatv` breaks recovery. **Decision + small op:** either mirror `postlund/pyatv` → `droman42/pyatv` and repoint the pin (comply), OR record an accepted exception in ADR 0006 with rationale. Not a release gate (reproducible now). Minor sibling: the dev-only `py-dev-gates@v0.1.1` is tag-pinned (owner-controlled) — fold in or leave.
+- [ ] **OPS-19** `[P2]` `[deferred]` — **`pyatv` git source is unmirrored — a dependency-policy Rule 2 compliance gap (policy home since DOC-15: `CONTRIBUTING.md` → Dependency policy; ex-ADR 0006, archived).** Surfaced by the REL-4 ADR review. `pyatv` is pinned to `git+https://github.com/postlund/pyatv@9177803…` — SHA-pinned (immutable, so the build is reproducible today) but **not** mirrored under the owner's account, which the policy's Rule 2 requires for repos the owner doesn't control; the old ADR's "only remaining git source" claim was already annotated false 2026-07-10. Residual risk: an upstream force-push/deletion of `postlund/pyatv` breaks recovery. **Decision + small op:** either mirror `postlund/pyatv` → `droman42/pyatv` and repoint the pin (comply), OR record an accepted exception in the CONTRIBUTING dependency-policy section with rationale. Not a release gate (reproducible now). Minor sibling: the dev-only `py-dev-gates@v0.1.1` is tag-pinned (owner-controlled) — fold in or leave.
 
 - [ ] **OPS-24** `[P1]` — **Re-pin scope-guard @ `scope-v5`** (PROD-17 bridge delegation (4),
   council HK-6; the `process/claude-md.md` §3 flow + the OPS-22 vendoring lane). Three pieces, one
@@ -773,21 +773,9 @@ all done; DOC-7 folded into DOC-9.
 
 - ~~**DOC-7**~~ — *adopt additive conventions; folded into DOC-9 (the legend/tags/priority-split land in the re-ID pass).*
 
-- ~~**DOC-11**~~ — *reconcile `docs/architecture/ui.md` with canonical-first dispatch; **folded into REL-4** at the release-1 sign-off (2026-07-06, DOC-7→DOC-9 precedent). The finding: the "Scenario manifests — same shape, different routing" section still describes pre-SCN-6 dispatch (controls posted at role devices; since SCN-6 they dispatch through the room's Scenario Manager entity) and claims the `source` device contributes an input-dropdown (scenario manifests deliberately render no inputs control); canonical dispatch as the UI's only write path is explained nowhere.*
-
 ### DOC — Docs / ledger / process
 
-- [ ] **DOC-15** `[P1]` — **ADR dissolution — one task** (PROD-17 bridge delegation (3), council
-  HK-6 q3: the ADR class is ABOLISHED org-wide — live content redistributes into
-  design/review/user/contributor docs, husks archive with supersession banners). (a) **0006**
-  (dependency pinning policy, the only one with live normative content) → a CONTRIBUTING.md
-  "Dependency policy" section (immutable git refs, bounded PyPI ranges, lockfile-as-record, the
-  mirror rule) + **OPS-19 re-pointed** (its entry cites "ADR 0006 Rule 2" as the policy source —
-  becomes the CONTRIBUTING section); (b) **0001–0005** verify-and-archive: check each against live
-  code (REL-4 audited them 2026-07-10 — expect in-force), move to `docs/archive/adr/` with dated
-  supersession banners naming where the living truth now sits; (c) retire `docs/adr/` + its README,
-  re-point the two CONTRIBUTING references and any other `docs/adr` links; manifest untouched (ADRs
-  were never nodes — abolished class).
+- ~~**DOC-11**~~ — *reconcile `docs/architecture/ui.md` with canonical-first dispatch; **folded into REL-4** at the release-1 sign-off (2026-07-06, DOC-7→DOC-9 precedent). The finding: the "Scenario manifests — same shape, different routing" section still describes pre-SCN-6 dispatch (controls posted at role devices; since SCN-6 they dispatch through the room's Scenario Manager entity) and claims the `source` device contributes an input-dropdown (scenario manifests deliberately render no inputs control); canonical dispatch as the UI's only write path is explained nowhere.*
 
 
 ### REL — Release

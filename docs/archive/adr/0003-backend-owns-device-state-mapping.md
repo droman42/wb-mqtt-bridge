@@ -1,3 +1,8 @@
+> **ARCHIVED 2026-07-12 (ADR class retired; decision verified in force at archival).**
+> `backend/config/device-state-mapping.json` remains backend-owned with
+> directory-relative paths; `docs/architecture/ui.md` describes the consumption. Frozen
+> history.
+
 # ADR 0003 — Backend owns `device-state-mapping.json` (directory-relative paths)
 
 - **Status:** Accepted

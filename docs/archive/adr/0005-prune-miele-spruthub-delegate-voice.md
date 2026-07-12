@@ -1,3 +1,8 @@
+> **ARCHIVED 2026-07-12 (ADR class retired).** The prune half (Miele, SprutHub) is done
+> and stays done. The voice half was overtaken by events: voice is NOT delegated to the
+> Wirenboard Alisa bridge — the shipped path is the catalog contract consumed by the
+> Locveil voice assistant (see `contracts/catalog/README.md`). Frozen history.
+
 # ADR 0005 — Drop Miele and SprutHub; delegate voice to Wirenboard's Alisa bridge
 
 - **Status:** Accepted

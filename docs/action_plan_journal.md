@@ -25,6 +25,13 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-12 — DOC-15: ADR dissolution — the class is retired (PROD-17 / HK-6 q3, bridge
+  delegation (3)).** ADR 0006's four dependency-pinning rules now live as `CONTRIBUTING.md` →
+  "Dependency policy" (OPS-19 re-pointed at it); 0001–0005 verified in force (0005's voice half
+  recorded as overtaken — Irene catalog contract, not the Alisa bridge) and all seven files archived
+  to `docs/archive/adr/` with dated supersession banners; every live `docs/adr` link re-pointed.
+  The manifest never carried ADR nodes, so no coverage change.
+
 - **2026-07-12 — DOC-14: the docs staleness pass — CONTRIBUTING re-truthed, OpenAPI descriptions
   scrubbed (⇒ `catalog-v1.6`), NINE diagrams fixed (PROD-17 / HK-6, bridge delegation (1)).**
   CONTRIBUTING's pre-VWB-29 regen paths / 3-vs-6 import contracts / missing contract-guard job fixed;

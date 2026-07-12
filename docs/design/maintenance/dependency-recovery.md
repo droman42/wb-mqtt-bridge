@@ -131,5 +131,5 @@ on PyPI that does **not** declare `lxml` as a dependency, migrate to PyPI:
 Monitor: check `https://pypi.org/project/openhomedevice/` for releases newer than
 `2.3.1` (the last lxml-carrying release as of 2026-05-20).
 
-See also: ADR 0006 (`docs/adr/0006-dependency-pinning-policy.md`) for the durable
+See also: the dependency policy in `CONTRIBUTING.md` (ex-ADR 0006, archived at `docs/archive/adr/`) for the durable
 policy governing these decisions.

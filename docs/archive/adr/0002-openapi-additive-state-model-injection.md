@@ -1,3 +1,7 @@
+> **ARCHIVED 2026-07-12 (ADR class retired; decision verified in force at archival).**
+> The additive `app.openapi()` override is living code (`OPENAPI_EXTRA_MODELS`), guarded
+> by the schema test; `docs/architecture/ui.md` carries the narrative. Frozen history.
+
 # ADR 0002 — Expose device-state models via an additive `app.openapi()` override
 
 - **Status:** Accepted
