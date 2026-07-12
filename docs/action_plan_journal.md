@@ -25,6 +25,15 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-12 — DOC-13: the docs manifest lands — the org's first (PROD-17 / HK-6, bridge
+  delegation (2)).** `docs/manifest.json` (36 nodes / 14 roots / 10 surfaces, floor fully staffed,
+  canonical-reference triples on the contract READMEs, 15 diagram pairs as nodes) +
+  `contracts/docs-manifest/` (STAMP @ docs-manifest-v1, INTERNAL, verbatim commons-schema copy for
+  hermetic CI) + the 8-test coherence suite (bijection passed on the first sweep) + the CLAUDE.md
+  dialect rewrite (manifest = scope authority, verdict-line rule). Falsifiability check documented
+  as the rule-of-two deferred slice. Upstream note: the schema rejects top-level `$comment`, which
+  the commons template skeleton carries. Suite 717. PROD-17 siblings DOC-14/DOC-15/OPS-24 follow.
+
 - **2026-07-12 — OPS-23: contract-guard vendored @ `contract-guard-v1` — hook + CI, zero warnings
   (PROD-16 / HK-5, bridge delegation (4); closes the bridge's PROD-16 arc).** `scripts/contract_guard.py`
   byte-identical to the commons tag; `hooks/pre-commit` chains both vendored guards; `build-arm.yml`

@@ -125,15 +125,18 @@ the board, never in chat.
   — `hexagonal-architecture`). The fix is to **break the cycle** (move the shared type to a lower layer /
   use a port), not hide it from the runtime. When touching a file that has such a block, remove it.
   _(`backend/` is currently clean — keep new code compliant from the start.)_
-- **`user-facing-docs-are-done`** — The user-facing docs — `docs/architecture/*`, `docs/guides/*`, and
-  top-level `README*` — are narrative explanations for a reader who does **not** know the codebase or the
-  action plan. **A non-root `README*`** (e.g. `eval/README.md`, `ui/README.md`) is also in scope, **but
-  only when the task touches code in that README's directory/subsystem** (the local README documents the
-  local code; don't audit every README on every task). For **every** task, before completion check whether
-  the change alters behavior any in-scope doc describes; if so, update them **in the same change**, matching
-  the document's voice — **no internal tracking language** (task IDs, plan/journal refs, file:line, raw
-  internal symbols/config keys) unless the doc already teaches them as user-facing names. **Diagrams are
-  docs too:** update the source (`docs/images/*.dot`) and regenerate the PNG in the existing visual style.
+- **`user-facing-docs-are-done`** (bridge dialect of the org invariant — normative:
+  `../locveil-commons/process/user-docs.md`; scope authority: **`docs/manifest.json`**, the machine
+  index of every user-facing doc, coherence-tested by `backend/tests/unit/test_docs_manifest.py`) —
+  For **every** task, before completion check whether the change alters behavior any manifest node
+  describes, and **record the docs verdict in the DONE entry**: `docs: <node-ids>` (updated same
+  change) or `docs: none — <why>` (scope-guard checks presence from `docs_verdict_since`). Caused
+  staleness is fixed in the same change; discovered staleness is FILED as a DOC task against the next
+  release gate. A new user-facing doc registers its manifest node in the same change (the coherence
+  test fails otherwise); nodes leave only by tombstone or filed supersession. Style: reader-first,
+  **no internal tracking language** (task IDs, plan/journal refs, file:line, raw internal symbols) —
+  this extends to **schema/OpenAPI field descriptions**. **Diagrams are docs too:** update the
+  source (`docs/images/*.dot`) and regenerate the PNG in the existing visual style, same change.
   _Pairs with `config-ui-stays-functional` (the user-facing **app**; this is the user-facing **docs**)._
 - **`problem-report-inbox`** — problem reports land as tickets in the private
   `locveil/locveil-reports` repo (cross-repo design: `locveil-voice/docs/design/problem_reports.md`;

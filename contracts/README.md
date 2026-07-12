@@ -11,6 +11,7 @@ the uniform org shape: `contracts/<name>/` owned, `contracts/pins/<name>/` consu
 |---|---|---|
 | [`catalog`](catalog/README.md) — the Irene ↔ bridge read contract: golden catalog + pinned OpenAPI schema | locveil-voice (pins into `locveil-commons/contracts/pins/catalog/`) | `catalog/STAMP.json` + tags `catalog-vN.M` (first: `catalog-v1.5`) |
 | [`device-integration`](device-integration/README.md) — how Locveil-built devices integrate with the bridge: convention doc + descriptor schema | locveil-satellite (pins the convention, authors conforming descriptors) | `device-integration/STAMP.json` + tags `device-integration-vN` |
+| [`docs-manifest`](docs-manifest/README.md) — **INTERNAL**: the docs manifest (`docs/manifest.json`) + the org schema copy it validates against | this repo only (no tag; repo-internal) | `docs-manifest/STAMP.json` (`docs-manifest-vN`, schema reshapes only) |
 
 Cross-reference (a consumed process contract on the **block-pin lane**, not
 relocated): the **scope kit** (`scope-vN`) — the pinned CLAUDE.md blocks and the

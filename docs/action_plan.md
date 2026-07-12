@@ -777,24 +777,6 @@ all done; DOC-7 folded into DOC-9.
 
 ### DOC — Docs / ledger / process
 
-- [ ] **DOC-13** `[P1]` — **The docs manifest + coherence test + dialect update** (PROD-17 bridge
-  delegation (2), council HK-6; normative: `../locveil-commons/process/user-docs.md` §4 + the commons
-  schema `process/user-docs/manifest.schema.json` — the bridge is the convention's FIRST
-  implementation; commons/voice manifests pend in their own repos). Deliverables:
-  (a) `docs/manifest.json` — repo/roots/surfaces (≤10, repo-owned) + one node per user-facing doc
-  (READMEs, QUICKSTART, `ops/INSTALL.md`, architecture ×6, guides ×4, CONTRIBUTING, contract
-  READMEs as canonical-reference with their `{invariant, stamp, guard}` triple, every
-  `docs/images/*` `.dot`+render pair as a diagram node); floor classes all staffed (front-door,
-  quickstart, operator, end-user, canonical-reference); (b) `contracts/docs-manifest/` — STAMP core
-  @ `docs-manifest-v1` + pointer README + a verbatim copy of the commons schema (CI is hermetic —
-  the test can't read a sibling repo), registry row labeled INTERNAL; (c) the coherence test in the
-  backend suite (drift-guard pattern): schema-validates the manifest, node↔tree bijection over the
-  declared roots, floor-class presence, `.dot`↔render pairing, docs-verdict node-ids resolve
-  (falsifiability check — verdict `none` vs touched globs — needs per-entry diffs; documented as
-  the deferred slice, per the spec's promotion-at-rule-of-two note); (d) CLAUDE.md dialect: the
-  repo-local `user-facing-docs-are-done` bullet becomes the dialect of the incoming shared
-  invariant — points at the manifest as the scope authority (the prose doc-list stays as narrative).
-
 - [ ] **DOC-14** `[P1]` — **DOC staleness pass** (PROD-17 bridge delegation (1), council HK-6 —
   live stale fixes named by the board + what the pass verifies alongside): (a) `CONTRIBUTING.md`
   pre-VWB-29 contract paths (the regen command block still teaches `../contracts/catalog.golden.json`

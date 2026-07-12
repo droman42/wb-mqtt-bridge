@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/locveil/locveil-commons/process/user-docs/manifest.schema.json",
+  "title": "Locveil docs manifest (HK-6; prose: process/user-docs.md §4)",
+  "type": "object",
+  "required": ["repo", "roots", "surfaces", "nodes"],
+  "additionalProperties": false,
+  "properties": {
+    "repo": { "type": "string" },
+    "roots": {
+      "description": "User-facing roots the coherence test sweeps for unregistered files",
+      "type": "array", "items": { "type": "string" }, "minItems": 1
+    },
+    "surfaces": {
+      "description": "Small (<=10), repo-owned surface->glob map; turns a diff into candidate nodes",
+      "type": "object", "maxProperties": 10,
+      "additionalProperties": { "type": "array", "items": { "type": "string" } }
+    },
+    "nodes": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "path", "class", "audience", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9/_-]*$" },
+          "path": { "type": "string",
+                    "description": "Repo-relative; MAY not exist yet iff status=pending-gate" },
+          "class": { "enum": ["front-door", "quickstart", "operator", "howto",
+                              "narrative", "end-user", "canonical-reference",
+                              "contributor", "diagram"] },
+          "audience": { "type": "array", "minItems": 1,
+                        "items": { "enum": ["end-user", "operator", "tester",
+                                            "integrator", "contributor"] } },
+          "covers": { "type": "array",
+                      "items": { "type": "string" },
+                      "description": "Surface names from the header map" },
+          "status": { "enum": ["ok", "banner", "pending-gate"] },
+          "phase": { "enum": ["DES", "PCB", "FW", "OPS"],
+                     "description": "Hardware repos: the phase that owns this node's truth" },
+          "hw_gated": { "type": "boolean" },
+          "gate": { "type": "string",
+                    "description": "Required when status=pending-gate: the task id or event (e.g. 'first light') that unblocks the node" },
+          "derives_from": { "type": "array", "items": { "type": "string" },
+                            "description": "Leaf-truth sources this doc derives from, never duplicates" },
+          "diagram": { "type": "string",
+                       "description": "Basename under docs/images/ — .dot source + render are one unit" },
+          "canonical": {
+            "type": "object",
+            "required": ["invariant", "stamp", "guard"],
+            "additionalProperties": false,
+            "properties": {
+              "invariant": { "type": "string" },
+              "stamp": { "type": "string" },
+              "guard": { "type": "string" }
+            },
+            "description": "Marks a canonical reference: style carve-out applies; the doc is version-stamped and conformance-tested"
+          },
+          "note": { "type": "string" }
+        },
+        "if": { "properties": { "status": { "const": "pending-gate" } } },
+        "then": { "required": ["id", "path", "class", "audience", "status", "gate"] }
+      }
+    }
+  }
+}
