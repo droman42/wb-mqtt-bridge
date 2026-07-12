@@ -84,7 +84,16 @@ commons restructuring lands. This document records the bridge-side consequences.
   "voice must RE-PIN" line in the plan-status memory was corrected at this session.
 - The satellite becomes a third product repo (`locveil-satellite`, voice BUILD-22) — no
   bridge work filed; if the satellite ever grows a bridge-facing surface, the bridge is the
-  generator on that boundary per regime 1.
+  generator on that boundary per regime 1. *(Amendment 2026-07-12, council HK-4 / board
+  PROD-15: the satellite DID grow a bridge-facing surface, and it landed exactly as regime 1
+  anticipated — two layers, both bridge-generated: the versioned
+  **device-integration-convention** ("convention down, descriptors up" — guide +
+  `device-descriptor.schema.json` + version stamp under `contracts/`; wb-mqtt-v1 first,
+  ha-mqtt-v1 later as a second profile; the satellite owns conforming per-device descriptors
+  and pins the convention one-way, mirrored pins + CI conformance, fully design-time) and the
+  descriptor-native **`EspManagedDevice`** driver consuming those descriptors. Bridge work is
+  now filed: VWB-38 (convention design), DRV-36 (driver design), VWB-39 (descriptor-pin
+  conformance test), DRV-34/35 (supersession annotations + the gated `ESP32/` handover).)*
 - Future PROD design worth anticipating: **Home Assistant support in parallel to Wirenboard**
   (shared design D-4's stress test) — expected shape: a new driven adapter behind the
   existing ports + at most a contract minor bump; if it demands voice-side changes, the

@@ -158,7 +158,7 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   - **If the functional test FAILS** → back to wb-rules: the jittery banks aren't reproducing usable codes → investigate write fidelity / an alternate write path / re-learn those banks.
   - **If it PASSES** → byte-exact verification is the wrong bar for learned multi-repeat codes → byte-exact was already replaced by the jitter-tolerant `--tol` compare in the cleanup (no further script work). **Cleanup itself is DONE regardless of the play result** (it was the right refactor either way); a *failing* play test would reopen the FAILS branch (write fidelity / re-learn), not the scripts. See [[wb-msw-ir-restore-supported]]; commits `a7d7e5f`/`f2dbfc8`/`b46a8f3`/`f0213af`/`34fd1ee`.
 
-- [ ] **DRV-7** `[P2]` `[deferred]` `PARKED` — **PARKED: ESP32 firmware scaffold for the 4 transport-source bridges** (Revox A77 + Revox B215 + Pioneer CLD-D925 + Panasonic NV-FS90). Lives at `ESP32/` (PIO layout: `include/` + `src/` + `docs/`) — single image, identity selected at runtime via NVS + MQTT `/provision`. ~95% shared core (Wi-Fi auto-light-sleep + Wirenboard MQTT + MQTT-triggered `esp_https_ota` + record-arming + reel-motion interlock); 3 drivers cover 4 decks (Pioneer + Panasonic share `driver_ir.cpp` as baseband IR). **2026-05-26: rewritten from the original Arduino scaffold to pure ESP-IDF (C++17, framework=espidf, no Arduino libs); custom dual-OTA partition table (1.5 MB app slots); builds clean end-to-end from `pio run -t fullclean`** (RAM 11.2%, Flash 59.6% of 1.5 MB). Authoritative spec: `ESP32/REQUIREMENTS.md`. Subproject conventions + setup gotchas: `ESP32/CLAUDE.md`. Per-device hardware handoffs: `ESP32/docs/`. Deferred: bench fill-ins (IR codes, B215 frame values, GPIO/timing tuning) and first-light hardware verification, until **"everything works in my home"**. **Not in the active workstream** — do not pull into pre-P4 unless the user reactivates it.
+- [ ] **DRV-7** `[P2]` `[deferred]` `PARKED` — **PARKED: ESP32 firmware scaffold for the 4 transport-source bridges** (Revox A77 + Revox B215 + Pioneer CLD-D925 + Panasonic NV-FS90). Lives at `ESP32/` (PIO layout: `include/` + `src/` + `docs/`) — single image, identity selected at runtime via NVS + MQTT `/provision`. ~95% shared core (Wi-Fi auto-light-sleep + Wirenboard MQTT + MQTT-triggered `esp_https_ota` + record-arming + reel-motion interlock); 3 drivers cover 4 decks (Pioneer + Panasonic share `driver_ir.cpp` as baseband IR). **2026-05-26: rewritten from the original Arduino scaffold to pure ESP-IDF (C++17, framework=espidf, no Arduino libs); custom dual-OTA partition table (1.5 MB app slots); builds clean end-to-end from `pio run -t fullclean`** (RAM 11.2%, Flash 59.6% of 1.5 MB). Authoritative spec: `ESP32/REQUIREMENTS.md`. Subproject conventions + setup gotchas: `ESP32/CLAUDE.md`. Per-device hardware handoffs: `ESP32/docs/`. Deferred: bench fill-ins (IR codes, B215 frame values, GPIO/timing tuning) and first-light hardware verification, until **"everything works in my home"**. **Not in the active workstream** — do not pull into pre-P4 unless the user reactivates it. *(Destiny changed 2026-07-12 — council HK-4 / PROD-15, noted by DRV-34: the scaffold moves to the new `locveil-satellite` repo, which reworks it as shared ESP-IDF components + per-device apps — the single-image FR-1 approach was retired there (the GPIO14 double-booking). The `ESP32/` tree is now a frozen import source — no edits; DRV-35 deletes it and retires this entry once the satellite confirms the import. Do not reactivate here.)*
 
 - [ ] **DRV-8** `[P2]` `[deferred]` — **Roborock S7 vacuum — review & finish the design (DESIGN task).** The
   bridge's first **interactive-map appliance** (live state *plus* an interactive map — unlike the AV gear's
@@ -247,18 +247,6 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   - **FIRMWARE LEAD (bench step 0, do BEFORE the CEC design work).** The unit is the **original XMC-2** (transponder model `XMC-2`, not `XMC-2+`), confirmed running **3.1 (`EmotivaUpdate-3_1-2022_11_14`)**. The latest downloadable firmware for the original XMC-2 (shared with RMC-1/RMC-1L) is **3.2 (2023-05-11)** — Emotiva's "CURRENT VERSION"; the `+`-model 5.x line does NOT apply. So the unit is **exactly one release behind — on the version immediately before the HDMI rewrite** (3.2's notes explicitly cite improvements "over v3.1"). Its changelog is exactly this failure's subsystem: a **completely rewritten HDMI firmware layer**, "better HDMI-CEC and ARC support reliability", "enhanced HDMI switching stability", "significant improvements in overall system stability" (+ eARC, needs an enabled board). **Recommendation: flash 3.2 as step 0** — it may resolve both the morning ARC-handshake wedge and the spontaneous standby death; only if it still wedges on 3.2 is this a hardware/RMA fault. Refs: `emotiva.com/pages/firmware-downloads`, `emotiva.com/blogs/news/rmc-1-rmc-1l-and-xmc-2-firmware-3-2-now-available`. No bridge change warranted either way — DRV-30 detection is the correct permanent posture.
     - **HDMI board generation (bench check, when powered on).** The wedging HDMI/CEC/ARC layer is a **discrete versioned board**: Menu → Information → **`HDMI Version`** reports it. `≥ 10.xx` = eARC-enabled board (eARC becomes usable once on 3.2); `< 10.xx` = no eARC board (a paid Emotiva hardware upgrade adds it). **NB the stability/CEC/ARC-reliability fixes in 3.2 are firmware and apply to ANY board** — a sub-10.xx reading is NOT a reason to skip 3.2. **Readable remotely via `scripts/emotiva_menu_probe.py`** — Information-menu rows render their values in `emotivaNotify` (unlike the blank leaf-editors), so `HDMI Version` can be captured without a panel visit when the unit is next on.
     - **3.2 install procedure (from the official 5/17/23 bulletin) — bridge-relevant bits.** USB FAT/FAT32 (exFAT ok; not NTFS/Apple), file in root, don't rename/unzip; the flash is **sandwiched between two Factory Resets** (before + after) + a mandatory TV AC power-cycle + Restore Settings — ~10–15 min flash, non-trivial. **(a) The double Factory Reset WIPES all config incl. CEC** → do the DRV-32 CEC-config decision fresh right here (the resets hand us a clean slate). **(b) After ANY power-off, wait a FULL 30 s before power-on** — the eMotiva's Ethernet port needs 30 s to reset or it returns with NO network (the bridge would then see it unreachable — DRV-30 would correctly report that; not a bridge bug). **(c)** config Restore may not survive the version jump → keep a written note of key settings. **(d)** new per-input **HDMI 1.4/2.0 compatibility** knob (bulletin note #8 flags HDMI-2.0↔1.4b generation mismatches as "many issues people face"). **CONCRETE for this rack (owner 2026-07-11):** the eMotiva bus mixes generations — **source1=Zappiti (4K/2.0)** + **source2=appletv_living (4K/2.0)** vs **source3=upscaler (HDMI 1.3 — older than the 1.4b cited)**. Set **source3 → HDMI 1.4-compat** (zero downside — the upscaler feeds LD/VHS, outputs ≤1080p, no 4K to lose), keep source1/source2 on **2.0**. Isolating the old 1.3 device on the compat mode is a strong, free candidate for the HDMI-subsystem instability behind both wedges — do it right after the 3.2 flash (which resets it anyway). No-downgrade-below-3.x (bricks). Refs in `contracts`-adjacent research: bulletin PDF `Official_RMC-1_RMC-1L_XMC-2_Firmware_v3.2_Bulletin_-_5_17_23.pdf` (Emotiva CDN).
-
-- [ ] **DRV-34** `[P2]` `[deferred]` — **HK-4 supersession doc pass (PROD-15 bridge delegation, items 1a+5).**
-  The satellite council decision (HK-4, 2026-07-12; board `../locveil-commons/board/BOARD.md` PROD-15)
-  supersedes two recorded bridge positions — annotate, don't rewrite history: **(a)** the
-  `ESP32ManagedDevice` decision text in the VWB context narrative ("Decision locked 2026-06-08") is
-  superseded in name + shape by the descriptor-native **`EspManagedDevice`** design (DRV-36) — add the
-  dated supersession note; frozen journal/revision-log mentions stay untouched. **(b)** fix the stale
-  positional back-pointer inside DRV-7 ("see PARKED entry in §5"). **(c)** dated HK-4 amendment to
-  `docs/design/productization_bridge.md` §3 — the "satellite… no bridge work filed" note is now false;
-  record the two-layer shape (convention down, descriptors up; bridge = generator per regime 1) +
-  the filed IDs. **(d)** resolve at execution: the board says the HVACs are **ESP8266** while this plan's
-  VWB narrative says **ESP32** — check which is right and record it (charter trigger wording rides on it).
 
 - [ ] **DRV-35** `[P2]` `[deferred]` `BLOCKED` — **`ESP32/` tree handover: DELETE + retire DRV-7
   (PROD-15 bridge delegation, item 1b).** BLOCKED on locveil-satellite confirming its import of the
@@ -422,14 +410,28 @@ author over the slice + bulk (matches §P3.7 A2's composite-control shapes):
 | `sensor_room` | `sensor` with fields | wb-msw-v3 sensor sides — ~9 |
 
 The 3 HVAC units run on ESP32 and **will** be modeled as **`ESP32ManagedDevice`** — a new
-device class (alongside future ESP32 work in this project, see PARKED entry in §5 for the
-firmware scaffold). **At v1 ship, `ESP32ManagedDevice` is behaviourally identical to
+device class (alongside future ESP32 work in this project, see PARKED entry **DRV-7** for the
+firmware scaffold — pointer fixed from the old positional "§5", DRV-34). **At v1 ship,
+`ESP32ManagedDevice` is behaviourally identical to
 `WbPassthroughDevice`** (subscribes to value topics, publishes to `/on`, type-coerces via the
 profile metadata) — the `hvac` profile drives both. The distinct class exists so the HVAC
 units have a stable identity to grow into: future versions will expose **additional
 ESP32-specific capabilities to the system, specifically to the UI** (e.g. provisioning state,
 OTA progress, NVS-stored identity, sleep/wake telemetry, firmware version) that don't belong
 on a generic WB-passthrough device. Decision locked 2026-06-08.
+
+> **SUPERSEDED 2026-07-12 (DRV-34; council HK-4 / board PROD-15) — preserved as the design
+> narrative of its day; both halves of the paragraph above have since been overtaken:**
+> **(1) The HVACs never became this class.** They run **ESP8266** (Wemos D1 Mini — the board's
+> HK-4 text is right, this paragraph's "run on ESP32" was wrong; recorded at DRV-27 decision D1)
+> and graduated 2026-07-10 to the bespoke **`MitsubishiHvac`** driver (design DRV-27
+> rev. 2, live since DRV-28) — the contract is the *mitsubishi2wb firmware's*, not a chip's.
+> HVAC drivers/configs stay bridge-side ALWAYS (HK-4 charter). **(2) The ESP-managed class
+> arrives under a new name and shape:** **`EspManagedDevice`** (design task DRV-36) —
+> descriptor-native, consuming the device-integration-convention descriptors (VWB-38) of
+> satellite-managed devices (the `ESP32/` deck bridges move to `locveil-satellite`; DRV-35).
+> The grow-into-UI-surfaces intent (provisioning state, OTA progress, firmware version …)
+> carries over to that design.
 
 **`rooms.json` additions**:
 

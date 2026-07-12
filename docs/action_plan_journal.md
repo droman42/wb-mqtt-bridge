@@ -25,6 +25,21 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-12 — DRV-34: HK-4 supersession doc pass done — the chip discrepancy resolves AGAINST the
+  plan narrative.** Same session as the PROD-15 intake below. The parked question closed with hard
+  evidence: the HVAC modules are **ESP8266** (Wemos D1 Mini) — recorded at DRV-27 decision D1
+  ("renamed, since the modules are ESP8266 and the contract is the firmware's, not a chip's"),
+  `docs/design/mitsubishi_hvac_driver.md` + `docs/wb_device_authoring_log.md` concur — so the VWB
+  context narrative's "run on ESP32" was wrong and the board's HK-4 charter wording ("HVAC ESP8266
+  firmware rewrite" as the escalation trigger) is right. Executed: dated SUPERSEDED block under the
+  2026-06-08 ESP32ManagedDevice paragraph (the HVACs graduated to `MitsubishiHvac` via DRV-27/28
+  instead; the ESP-managed class returns descriptor-native as `EspManagedDevice`, DRV-36); the stale
+  "§5" positional pointer fixed to DRV-7; DRV-7 annotated (frozen import source, FR-1 single-image
+  retired satellite-side, retirement rides DRV-35, no reactivation here); `productization_bridge.md`
+  §3 amended in the doc's own annotation style (regime 1 vindicated — the satellite grew a
+  bridge-facing surface and the bridge generates both layers). Frozen history untouched; user-facing
+  docs + code grep-clean of the old name. Docs-only change.
+
 - **2026-07-12 — PROD-15 bridge delegation pulled: satellite-boundary tasks filed (DRV-34/35/36 + VWB-38/39).**
   Board-as-outbox intake (council HK-4, locveil-satellite bootstrap; board entry PROD-15 in
   `../locveil-commons/board/BOARD.md`). All five delegation items verified against the repo at intake
