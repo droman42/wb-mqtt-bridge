@@ -627,6 +627,14 @@ endpoint).
   `confirm_latency_ms`; fully DESIGN-TIME (vocabulary reconciliation at the satellite DES gate, no
   runtime negotiation, one retained firmware-version topic as the stale-pin tripwire). Blocks
   satellite DES-4; DRV-36 + VWB-39 depend on it.
+  *(Source re-point 2026-07-12 — repo-to-repo filing by the satellite session, satellite DES-1: the
+  `ESP32/REQUIREMENTS.md` FR-text has been TRUTH-PASSED satellite-side — full FR/NFR/C/EI
+  disposition in `locveil-satellite/docs/review/des1-truth-pass.md` §2 (which FRs are wb-mqtt-v1
+  promotion material vs retired single-image artifacts), per-device command surfaces in
+  `locveil-satellite/docs/devices/<slug>.md` (slugs: revox-a77, revox-b215, pioneer-cld925,
+  panasonic-fs90). The satellite's imported `ESP32/` copy is deleted (absorbed); promote from the
+  truth pass, not from `ESP32/REQUIREMENTS.md` — relevant regardless of when DRV-35's delete
+  lands.)*
 
 - [ ] **VWB-39** `[P2]` `[deferred]` — **Descriptor-pin conformance test (PROD-15 bridge delegation,
   item 4; the VWB-37 pattern).** Once VWB-38's versioned artifact exists: pin it (the
