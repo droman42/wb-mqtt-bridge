@@ -1,0 +1,10 @@
+{
+  "contract": "catalog",
+  "version": "1.5",
+  "tag": "catalog-v1.5",
+  "date": "2026-07-12",
+  "owner_repo": "locveil-bridge",
+  "bridge_commit": "17734d8d3e1cd37ba30800a1da113c8085c03bc8",
+  "bridge_version": "0.6.0",
+  "catalog_version": "5622ba7a1a78102a"
+}

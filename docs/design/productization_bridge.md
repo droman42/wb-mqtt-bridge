@@ -37,6 +37,13 @@ commons restructuring lands. This document records the bridge-side consequences.
 
 ## 2. Proposed bridge tasks (verify + accept, then normal discipline)
 
+  > **SUPERSEDED 2026-07-12 (council HK-5 / PROD-16, normative `locveil-commons/process/contracts.md`):**
+  > the release-attachment + bare `contract-vN` scheme below was replaced by the org-wide
+  > contract convention — family-named tags (`catalog-vN.M`, first tag `catalog-v1.5`),
+  > the uniform `contracts/catalog/` owned surface with a STAMP core, and in-repo
+  > artifacts (no GitHub-Release attachment). VWB-29 was rescoped accordingly at the
+  > 2026-07-12 intake; voice BUILD-24 re-pins against the final layout.
+
 - **VWB-29** `[P2]` `[deferred]` — **Contract release tagging + artifacts** (shared design
   D-11; pairs with voice BUILD-24, which is gated on this). Today the contract artifacts
   (`contracts/openapi.json`, `catalog.golden.json`, `STAMP.json`, content-hash version) are

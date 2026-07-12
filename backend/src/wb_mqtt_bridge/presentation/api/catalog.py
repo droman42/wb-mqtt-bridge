@@ -39,6 +39,12 @@ from wb_mqtt_bridge.presentation.api.schemas import (
     CatalogValueLabel,
 )
 
+# The catalog contract's version (family tags `catalog-vN.M`, process/contracts.md in
+# locveil-commons): distinct from the content-hash `CatalogResponse.version`, which moves
+# on config changes with zero contract change. Bump on deliberate contract cuts only
+# (additive = minor, breaking = major); the STAMP.json beside the golden carries it.
+CONTRACT_VERSION = "1.5"
+
 
 def _project_capability_actions(
     cap_map: Optional[CapabilityMap],

@@ -46,7 +46,7 @@ owner says skip.
 3. **Verify the finding independently — do not trust the triage.** The cloud triage reasons from a
    bundle it cannot re-run against live hardware, and a report is often triggered by a transient or
    a dev-session artifact. Reproduce or refute: run the affected tests (from `backend/`:
-   `uv run pytest tests/ -q`), check the catalog claim against `contracts/catalog.golden.json`,
+   `uv run pytest tests/ -q`), check the catalog claim against `contracts/catalog/catalog.golden.json`,
    read the cited code. Hold the PR to this repo's gates: suite green, `uv run pyright` 0,
    `uv run lint-imports` clean (`hexagonal-architecture`), `cd ui && npm run check && npm run build`
    if `ui/` is touched, and the contract drift test if it changes the catalog/OpenAPI surface.

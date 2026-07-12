@@ -121,7 +121,7 @@ One JSON per device, satellite-authored, validated against
 ## 6. Vocabulary reconciliation — the satellite DES gate
 
 The canonical capability vocabulary (capability ids, action names, canonical value tokens) is
-**bridge-owned**; the catalog contract (`contracts/catalog.golden.json` + its README) is its
+**bridge-owned**; the catalog contract (`contracts/catalog/catalog.golden.json` + its README) is its
 exhibit of record. A descriptor may only use vocabulary the bridge recognizes. When a new
 device needs vocabulary that doesn't exist yet — the decks will: a transport surface in the
 `stop/play/ff/rewind` family plus `record`/`arm_record` — the flow is: the satellite's design

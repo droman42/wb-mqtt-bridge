@@ -25,6 +25,17 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-12 — VWB-29: the catalog contract's owner-side cut — `contracts/catalog/`, `CONTRACT_VERSION`,
+  STAMP core, first family tag `catalog-v1.5` (PROD-16 / council HK-5, bridge delegation (1); rescoped at
+  intake `17734d8` from the superseded GitHub-Release + `contract-vN` shape).** The catalog family now
+  lives on the org's uniform owned surface: artifacts + contract README under `contracts/catalog/`, a
+  direction-labeled registry at `contracts/README.md`, the version carried in code
+  (`presentation/api/catalog.py::CONTRACT_VERSION`) and stamped into the STAMP core alongside the build
+  extras. Golden byte-identical (`5622ba7a1a78102a`) — a versioning/layout cut, no surface change, no
+  voice re-pin owed beyond their own BUILD-24. En-passant find: `test_contracts_golden.py` had its whole
+  module pasted twice (shadowing hid it); deduplicated. Same-session siblings: VWB-40 (pin relocation),
+  VWB-41 (device-integration guard), OPS-23 (vendor contract-guard).
+
 - **2026-07-12 — `cross-repo-board` block re-pinned @ scope-v4 (PROD-15 close follow-through).** The
   shared block now names `../locveil-satellite` as the fourth sibling; block text between the markers +
   the `.scope-guard.toml` hash updated from the commons source per the `process/claude-md.md` §3 flow

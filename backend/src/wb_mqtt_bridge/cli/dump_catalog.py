@@ -6,15 +6,17 @@ no broker — so the dump is deterministic and CI-runnable. This is the same pro
 `GET /system/catalog` serves at runtime (one code path: ``build_catalog``); devices
 are sorted by id so the emitted JSON and its content-hash are stable across runs.
 
-The committed artifact set (repo-root ``contracts/``) is the Irene↔bridge contract
+The committed artifact set (``contracts/catalog/``) is the Irene↔bridge contract
 of record: the voice side pins its own copy (one-way, outward — the bridge never
-writes into a sibling repo). ``--stamp`` additionally records which bridge build
-generated the artifacts (the content-hash tracks config drift; the commit stamp
-tracks the code build; neither substitutes for the other).
+writes into a sibling repo). ``--stamp`` additionally records the STAMP core
+(contract/version/tag/date/owner_repo, from ``CONTRACT_VERSION``) plus which bridge
+build generated the artifacts (the content-hash tracks config drift; the commit
+stamp tracks the code build; neither substitutes for the other).
 """
 
 import argparse
 import asyncio
+import datetime
 import json
 import subprocess
 import sys
@@ -28,7 +30,7 @@ from wb_mqtt_bridge.domain.scenarios.proxy import ScenarioProxy
 from wb_mqtt_bridge.domain.scenarios.service import ScenarioManager
 from wb_mqtt_bridge.infrastructure.capabilities.loader import attach_capability_maps
 from wb_mqtt_bridge.infrastructure.config.manager import ConfigManager
-from wb_mqtt_bridge.presentation.api.catalog import build_catalog
+from wb_mqtt_bridge.presentation.api.catalog import CONTRACT_VERSION, build_catalog
 
 
 class _NullStore(StateRepositoryPort):
@@ -107,12 +109,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Dump the golden catalog contract artifact (offline, deterministic)."
     )
-    parser.add_argument("-o", "--output", default="../contracts/catalog.golden.json",
-                        help="Golden catalog output path (default: ../contracts/catalog.golden.json)")
+    parser.add_argument("-o", "--output", default="../contracts/catalog/catalog.golden.json",
+                        help="Golden catalog output path (default: ../contracts/catalog/catalog.golden.json)")
     parser.add_argument("--config-dir", default="config",
                         help="Config directory to project (default: config)")
     parser.add_argument("--stamp", default=None,
-                        help="Also write a build-stamp JSON (bridge commit + version + catalog hash)")
+                        help="Also write the STAMP.json (contract core + bridge build + catalog hash)")
     parser.add_argument("--stdout", action="store_true", help="Print the catalog instead of writing")
     args = parser.parse_args()
 
@@ -131,6 +133,11 @@ def main() -> int:
 
     if args.stamp:
         stamp = {
+            "contract": "catalog",
+            "version": CONTRACT_VERSION,
+            "tag": f"catalog-v{CONTRACT_VERSION}",
+            "date": datetime.date.today().isoformat(),
+            "owner_repo": "locveil-bridge",
             "bridge_commit": _git_commit(),
             "bridge_version": __version__,
             "catalog_version": catalog.version,
