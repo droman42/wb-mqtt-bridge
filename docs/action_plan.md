@@ -594,14 +594,19 @@ endpoint).
   - **Sequence-form caveat — RESOLVED 2026-07-04 (VWB-17 DONE):** the canonical endpoint now routes `sequence`-form actions (shared `CapabilityAction.expand()` — per-step param translation, inter-step `delay_after_ms`, mid-sequence failure naming the step). Crossover fixtures may cover sequence-form actions freely.
   - Spec: `locveil-voice/docs/design/mqtt_integration.md` §14.
 
-- [ ] **VWB-29** `[P2]` `[deferred]` — **Contract release tagging + artifacts** (INTAKE — filed
-  uncommitted 2026-07-08 from the joint productization session, voice BUILD-20; verify per
-  `cross-repo-source-of-truth` before accepting). Make a "contract release" machine-readable for the
-  voice side's scripted re-pin + staleness gate (their BUILD-24, gated on this): on deliberate contract
-  changes, tag `contract-vN` and attach `contracts/` artifacts (openapi, golden catalog, stamp) to a
-  GitHub Release. Recommend deliberate cuts over tag-every-golden-change (additive = minor, breaking =
-  major). Design: `docs/design/productization_bridge.md` §2 + the shared spec
-  `../locveil-commons/docs/design/productization.md` D-11.
+- [ ] **VWB-29** `[P1]` — **The catalog contract's owner-side cut** (RESCOPED 2026-07-12 by council
+  HK-5 / PROD-16 — normative: `../locveil-commons/process/contracts.md`; the 2026-07-08 intake text
+  is superseded: no GitHub-Release attachment, no bare `contract-vN` global counter — family-named
+  tags + in-repo artifacts won). Execute the org contract convention on the catalog family:
+  (1) artifacts move to the uniform owned surface `contracts/catalog/` (golden, openapi, STAMP, the
+  contract README; a registry README replaces it at `contracts/README.md`, direction-labeled);
+  (2) a code-level `CONTRACT_VERSION` constant in the catalog projection, surfaced into the STAMP;
+  (3) STAMP.json gains the core `{contract, version, tag, date, owner_repo}` (existing extras stay);
+  (4) first family tag **`catalog-v1.5`** — lineage continues from the prose v1.1–v1.4 history
+  (frozen, not retro-tagged); the README's narrative stays, but STAMP + tag are the machine-readable
+  version authority from this tag on; (5) drift-guard + regen paths follow the move
+  (`test_contracts_golden.py`, `wb-catalog` defaults). Golden bytes must not change — this is a
+  versioning/layout cut, not a surface change. Voice's BUILD-24 re-pins against this final layout.
 
 - [ ] **VWB-31** `[P2]` `[deferred]` — **Canonical handler-availability failure mis-surfaces as `internal_error` (500) instead of `device_unreachable` (503) to voice** (REL-5 #8). `presentation/api/routers/devices.py:503`. Deferred — no live voice consumer yet; fix maps availability failures to a speakable 503.
 
@@ -614,6 +619,29 @@ endpoint).
   `report-protocol.pin.json` recipe — byte-identical copy, tag-verified) and lock the bridge-side
   consuming surface to the pin with a unit test (`test_report_protocol_pin.py` shape). Depends on
   VWB-38 (and on DRV-36's implementation for the consuming constants).
+
+- [ ] **VWB-40** `[P1]` — **Consumed-pin relocation: the report-protocol pin →
+  `contracts/pins/report-protocol/`** (PROD-16 bridge delegation (2), council HK-5 q3 — the uniform
+  layout is immediate, no grandfathering; normative: `../locveil-commons/process/contracts.md` §2).
+  Move the repo-root `report-protocol.pin.json` into the org pin shape: verbatim artifact copy
+  (`report-protocol.json`, byte-identical to the commons tag `report-protocol-v1`) + the owner's
+  STAMP.json verbatim + a strict `PIN.json` (files hash map, conformance pointer). Follow the path
+  everywhere it is taught: `test_report_protocol_pin.py`, the `REPORT_*` comment in
+  `domain/reports/service.py`, `docs/design/problem_reports_bridge.md`, the registry README, and the
+  reports-repo lens teaching note (`locveil-reports/.github/claude/lens-bridge.md`), which names the
+  old root path.
+
+- [ ] **VWB-41** `[P1]` — **Device-integration owner-side guard** (PROD-16 bridge delegation (3),
+  council HK-5 — closes the convention model's own gap, pre-VWB-39: an owned machine schema ships a
+  committed schema-validating example fixture + CI check from day one, per
+  `../locveil-commons/process/contracts.md` §4 layer 2; no unguarded model layouts). Deliverables:
+  `contracts/device-integration/example.descriptor.json` (a fictional conforming descriptor
+  exercising the schema's surfaces — control types, stateful + momentary capabilities, triplet value
+  tables, the `requires_arm` interlock; canonical tokens drawn from the real pinned vocabulary), a
+  backend unit test (schema self-check + the fixture validates — rides the normal backend CI job,
+  which already triggers on `contracts/**`), STAMP.json normalized to the core fields (tag
+  `device-integration-v1` untouched — the commons report-protocol sidecar precedent), README teaches
+  the example.
 
 ### UI — config-ui
 
@@ -711,6 +739,15 @@ endpoint).
 - [ ] **OPS-18** `[P2]` `[deferred]` — **Startup-failure cleanup omits WB-card offline marking (asymmetric with normal shutdown)** (REL-5 #11). `app/bootstrap.py:184` — `_release_partial_startup` doesn't call `cleanup_wb_device_state`, so a partial-startup failure leaves retained `available=1` on the WB cards. Edge path (only when startup fails midway); completes the OPS-8 shutdown-symmetry.
 
 - [ ] **OPS-19** `[P2]` `[deferred]` — **`pyatv` git source is unmirrored — Rule 2 compliance gap (ADR 0006).** Surfaced by the REL-4 ADR review. `pyatv` is pinned to `git+https://github.com/postlund/pyatv@9177803…` — SHA-pinned (immutable, so the build is reproducible today) but **not** mirrored under the owner's account, which ADR 0006 Rule 2 requires for repos the owner doesn't control; the ADR's "only remaining git source" claim is now false (annotated 2026-07-10). Residual risk: an upstream force-push/deletion of `postlund/pyatv` breaks recovery. **Decision + small op:** either mirror `postlund/pyatv` → `droman42/pyatv` and repoint the pin (comply), OR record an accepted exception in ADR 0006 with rationale. Not a release gate (reproducible now). Minor sibling: the dev-only `py-dev-gates@v0.1.1` is tag-pinned (owner-controlled) — fold in or leave.
+
+- [ ] **OPS-23** `[P1]` — **Vendor contract-guard @ `contract-guard-v1`** (PROD-16 bridge delegation
+  (4); convention: `../locveil-commons/process/contracts.md` §4 layer 1 — the scope-guard consumption
+  model verbatim; the commons tag exists, so this is unblocked). Vendor
+  `packages/contract-guard/contract_guard.py` into `scripts/` at the pinned tag, chain it into
+  `hooks/pre-commit` after scope-guard (`--check` only, hooks never mutate), add the path-gated
+  `contract-guard` CI job (`contracts/**` + the vendored script + workflow). Guard-green requires the
+  VWB-29/VWB-40/VWB-41 layout — lands last. scope-guard stays ledger-only; the two tools version
+  independently.
 
 
 ### CORE — Backend core / architecture
