@@ -8,7 +8,7 @@ import pytest
 from locveil_bridge.domain.topology.loader import load_topology
 from locveil_bridge.domain.topology.models import Topology
 
-TOPOLOGY = Path(__file__).resolve().parents[2] / "config" / "topology.json"
+TOPOLOGY = Path(__file__).resolve().parents[3] / "config" / "topology.json"
 
 
 def test_real_topology_loads():

@@ -19,7 +19,7 @@ isn't in `config/topology.json`, extend that file (the schema is in
    `display` (the video sink, usually the TV), `audio` (the device that
    plays the sound). These are required for any thin scenario.
 2. **The room** — `room_id` must match a `room_id` in
-   `backend/config/rooms.json`. **Every device named by the scenario must
+   `config/rooms.json`. **Every device named by the scenario must
    live in that same room** — the bridge hard-fails at load on mismatch.
 3. **Any manual steps** — passive switches in the audio path (an RCA
    hub), tape decks, turntables, anything the user has to touch by hand.
@@ -29,7 +29,7 @@ isn't in `config/topology.json`, extend that file (the schema is in
 
 ## Worked example — Apple TV in the living room
 
-File: `backend/config/scenarios/movie_appletv.json`.
+File: `config/scenarios/movie_appletv.json`.
 
 ```json
 {
@@ -77,7 +77,7 @@ What each block does:
 
 ## A simpler example — Zappiti video player
 
-`backend/config/scenarios/movie_zappiti.json`:
+`config/scenarios/movie_zappiti.json`:
 
 ```json
 {
@@ -108,7 +108,7 @@ the manifest simply omits the corresponding zone.
 
 ## Where to put the file
 
-`backend/config/scenarios/<scenario_id>.json`. Flat directory — no
+`config/scenarios/<scenario_id>.json`. Flat directory — no
 per-room subfolders. The filename must match `scenario_id` exactly.
 
 ## The required and optional roles

@@ -24,7 +24,7 @@ with a native library](howto-new-driver.md)** instead.
    shape already covered (a light, a dimmer, a cover, a heating loop),
    that's `WbPassthroughDevice`.
 2. **Which capability profile** (only for `WbPassthroughDevice`) — pick from
-   `backend/config/capabilities/profiles/`: `light_switch` (relay),
+   `config/capabilities/profiles/`: `light_switch` (relay),
    `dimmable_light` (relay + brightness), `rgb_light`, `cover` (dooya),
    `heating_loop`, `sensor_room`, and the whole-house utility profiles
    (`power_switch`, `water_supply`, `heating_control`, and more — the
@@ -32,12 +32,12 @@ with a native library](howto-new-driver.md)** instead.
    passthrough devices — they have their own `MitsubishiHvac` driver and class
    capability map.) If none fit, profile-extension is
    a small change covered in [the new-driver guide](howto-new-driver.md).
-3. **Which room** — must match a `room_id` in `backend/config/rooms.json`
+3. **Which room** — must match a `room_id` in `config/rooms.json`
    (see [Architecture: rooms](../architecture/rooms.md)).
 
 ## Worked example — a WB relay light
 
-File: `backend/config/devices/wb-devices/cabinet/cabinet_spots.json`. The
+File: `config/devices/wb-devices/cabinet/cabinet_spots.json`. The
 template every WB-passthrough light follows:
 
 ```json
@@ -72,11 +72,11 @@ What each line does:
 
 By driver flavor:
 
-- **WB-passthrough** → `backend/config/devices/wb-devices/<room_id>/<device_id>.json`.
+- **WB-passthrough** → `config/devices/wb-devices/<room_id>/<device_id>.json`.
   The subfolder is the bridge `room_id` (matching `rooms.json`), not the WB
   dashboard id.
 - **Everything else** (the eight non-passthrough driver classes) →
-  `backend/config/devices/<device_id>.json`.
+  `config/devices/<device_id>.json`.
 
 ## Per-flavor config shape — quick reference
 

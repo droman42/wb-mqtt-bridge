@@ -23,7 +23,7 @@ from locveil_bridge.presentation.api.routers import scenarios as scenarios_route
 
 pytestmark = pytest.mark.integration
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 CAPS = ROOT / "config" / "capabilities"
 TOPOLOGY = load_topology(ROOT / "config" / "topology.json")
 

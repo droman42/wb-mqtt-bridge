@@ -19,7 +19,7 @@ Standard Docker tooling — **not** WB's native `docker_manager`. Trade-offs:
 /mnt/data/locveil-bridge-config/    <- the RUNTIME tree: everything the service needs at boot
 ├── docker-compose.yml   deployed from the clone's ops/ by update.sh
 ├── .env                 reports token (user-created; update.sh never touches it)
-├── config/              synced from the clone's backend/config by update.sh (:ro in container)
+├── config/              synced from the clone's config by update.sh (:ro in container)
 ├── data/                SQLite state store — survives updates
 └── logs/                service logs
 ```
@@ -31,7 +31,7 @@ The card matters only when you run `update.sh`.
 The runtime tree keeps the historical layout this Wirenboard has always used
 (the pre-compose flow used the same three directories), so nothing about where
 state and logs live changes across the migration. The repo clone is the config
-**source of truth**: `git pull` + `update.sh` mirrors `backend/config` into the
+**source of truth**: `git pull` + `update.sh` mirrors `config` into the
 runtime tree on every update.
 
 Docker's image store stays at its existing location (`/mnt/data/.docker`): the
@@ -91,7 +91,7 @@ whatever the old flow left in `config/` — the repo is the source of truth).
 Needs `rsync` (`sudo apt install rsync` if missing):
 
 ```bash
-sudo rsync -a --delete /mnt/sdcard/locveil-bridge/backend/config/ /mnt/data/locveil-bridge-config/config/
+sudo rsync -a --delete /mnt/sdcard/locveil-bridge/config/ /mnt/data/locveil-bridge-config/config/
 sudo cp /mnt/sdcard/locveil-bridge/ops/docker-compose.yml /mnt/data/locveil-bridge-config/
 ```
 
@@ -153,7 +153,7 @@ sudo ./ops/update.sh           # syncs config into the runtime tree + pulls
                                # latest images + restarts + cleans dangling
 ```
 
-`update.sh` first mirrors the clone's `backend/config` into
+`update.sh` first mirrors the clone's `config` into
 `/mnt/data/locveil-bridge-config/config` and deploys `docker-compose.yml` next to
 it (so a `git pull` is how both config and compose changes reach the runtime
 tree), then runs `docker image prune -f` at the end, which removes the
@@ -204,7 +204,7 @@ chmod 600 /mnt/data/locveil-bridge-config/.env
 ```
 
 Then set `"reports": {"enabled": true, "repo": "<owner>/<reports-repo>", ...}` in
-the repo's `backend/config/system.json` (commit it — the repo is the config source
+the repo's `config/system.json` (commit it — the repo is the config source
 of truth). The target repo must be named explicitly — enabling reports without a
 `repo` refuses to start. Run `update.sh` (or restart:
 `sudo systemctl restart locveil-bridge.service`). Both start paths — the systemd

@@ -24,7 +24,7 @@ There is no UI for topology. The current process is:
    can't infer (TV must be on before the AVR for ARC handshake; the upscaler
    needs ~4500 ms after the LD's IR power-on); the assistant proposes
    `ordering[]` entries with `first → then` and optional `delay_ms`.
-4. **Write + validate.** The assistant writes `backend/config/topology.json`;
+4. **Write + validate.** The assistant writes `config/topology.json`;
    bootstrap validation runs at next reload.
 
 The schema this targets is defined in **[scenario_system_redesign §4](../design/scenarios/scenario_system_redesign.md)**
@@ -63,7 +63,7 @@ A single `/setup/topology` route, organised in three panes:
 | **Right — path-preview + validator** | At the top: a tiny `source / display / audio` selector + the resolved `PlannedAction` list (read-only — no execute). Below it: the validator output — errors block save, warnings annotate the canvas. |
 
 The page does *not* manipulate live hardware. It edits a JSON file in the
-repo (`backend/config/topology.json`); a topology reload happens at bridge
+repo (`config/topology.json`); a topology reload happens at bridge
 restart or via the existing `POST /reload`. The runtime contract is
 unchanged.
 

@@ -18,7 +18,7 @@ from locveil_bridge.domain.topology.loader import load_topology
 
 pytestmark = pytest.mark.integration
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 CAPS = ROOT / "config" / "capabilities"
 TOPOLOGY = load_topology(ROOT / "config" / "topology.json")
 

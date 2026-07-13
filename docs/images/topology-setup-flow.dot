@@ -26,7 +26,7 @@ digraph topology_setup {
 
   // --- output ---
   cfg [shape=note, fillcolor="#fff8e1", color="#f57f17",
-       label="backend/config/topology.json\n──────────────────────────\nnodes (manual)  ·  links  ·  ordering\nthe typed Topology the bridge already consumes"];
+       label="config/topology.json\n──────────────────────────\nnodes (manual)  ·  links  ·  ordering\nthe typed Topology the bridge already consumes"];
 
   // --- today's flow as a faded parallel ---
   interview [label="TODAY: Claude wiring-interview\nuser describes the rack →\nassistant proposes nodes + links + ordering →\nuser corrects → assistant writes topology.json",

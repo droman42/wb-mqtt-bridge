@@ -179,7 +179,7 @@ the navbar and the global toast lane.
 
 The UI ships as a static React/Vite bundle served by nginx. Two contract files
 travel with the build: `backend/openapi.json` (for types) and
-`backend/config/device-state-mapping.json` (a tiny lookup used by the codegen).
+`config/device-state-mapping.json` (a tiny lookup used by the codegen).
 The build resolves them from `../backend` when run from `ui/`, or from
 `backend/` when run inside a Docker build context that's the repo root.
 

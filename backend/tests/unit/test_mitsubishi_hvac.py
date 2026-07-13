@@ -24,9 +24,9 @@ from locveil_bridge.infrastructure.config.models import MitsubishiHvacConfig
 from locveil_bridge.infrastructure.devices.mitsubishi_hvac import driver as hvac_driver
 from locveil_bridge.infrastructure.devices.mitsubishi_hvac.driver import MitsubishiHvac
 
-BACKEND = Path(__file__).resolve().parents[2]
-CAPS = BACKEND / "config" / "capabilities"
-CONFIG = BACKEND / "config" / "devices" / "children_room_hvac.json"
+REPO = Path(__file__).resolve().parents[3]
+CAPS = REPO / "config" / "capabilities"
+CONFIG = REPO / "config" / "devices" / "children_room_hvac.json"
 
 
 @pytest.fixture

@@ -11,7 +11,7 @@
 #   /mnt/data/locveil-bridge-config/    — the RUNTIME tree; everything boot needs
 #     ├── docker-compose.yml  <- THIS FILE, deployed there by update.sh
 #     ├── .env                <- reports token (user-created, never synced)
-#     ├── config/             <- synced from the clone's backend/config by update.sh
+#     ├── config/             <- synced from the clone's root config/ by update.sh
 #     ├── data/               <- SQLite state store (survives updates)
 #     └── logs/               <- service logs
 # The systemd unit runs compose FROM the runtime tree so a reboot never depends
@@ -35,7 +35,7 @@ services:
     cpus: 0.5
     volumes:
       # The runtime tree (see the layout note at the top). config/ is read-only
-      # and populated by update.sh's sync from the clone's backend/config — the
+      # and populated by update.sh's sync from the clone's root config/ — the
       # repo stays the single source of truth; `git pull` + update.sh delivers it.
       - /mnt/data/locveil-bridge-config/config:/app/config:ro
       - /mnt/data/locveil-bridge-config/data:/app/data

@@ -69,6 +69,6 @@ def test_bundle_path_shape_matches_pin():
 
 
 def test_system_json_repo_matches_pin():
-    system = json.loads((BACKEND / "config" / "system.json").read_text(encoding="utf-8"))
+    system = json.loads((REPO / "config" / "system.json").read_text(encoding="utf-8"))
     assert system["reports"]["repo"] == PIN["repos"]["reports"]
     assert PIN["repos"]["code"]["bridge"] == "locveil/locveil-bridge"

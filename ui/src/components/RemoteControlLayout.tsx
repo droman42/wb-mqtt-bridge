@@ -990,7 +990,7 @@ const PointerZone = ({ zone, deviceStructure, onAction, className, isActionPendi
       // Use sourceDeviceId if available (for inherited actions), otherwise use scenario device
       const targetDeviceId = pointerPad.moveAction.sourceDeviceId || deviceStructure.deviceId;
       // Param keys MUST match the backend action's param_map (see e.g.
-      // backend/config/capabilities/classes/LgTv.json pointer.actions.move →
+      // config/capabilities/classes/LgTv.json pointer.actions.move →
       // move_cursor_relative with {dx, dy}). The previous `{deltaX, deltaY}`
       // were rejected at backend validation; the absolute `move_cursor` action
       // was also dropped in the 2026-05-27 pointer rewrite — webOS has no

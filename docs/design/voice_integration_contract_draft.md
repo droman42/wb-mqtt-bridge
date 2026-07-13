@@ -262,9 +262,9 @@ config is the source of truth — no automatic mapping to HA.
   canonical call; Irene does NOT iterate rooms or synthesize a cross-room group. So whole-house
   group control is just normal per-device actuation against an aggregate device — the bridge
   must **provide** these aggregate devices in `global` for the group commands voice should support.
-- **Directory layout** for WB-passthrough configs: `backend/config/devices/wb-devices/<room>/<device_id>.json`
+- **Directory layout** for WB-passthrough configs: `config/devices/wb-devices/<room>/<device_id>.json`
   (one config file per logical device, grouped by its room). Existing AV configs stay
-  flat at `backend/config/devices/*.json`. The config scanner recurses into subdirectories.
+  flat at `config/devices/*.json`. The config scanner recurses into subdirectories.
 
 ### C.6 Devices to onboard
 

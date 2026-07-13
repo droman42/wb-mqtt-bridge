@@ -202,8 +202,9 @@ its files can break.
   requires_device"` on amd64. The suite includes the **contracts drift guard**
   (`test_contracts_golden.py`): the committed `contracts/catalog/` artifacts
   (golden catalog + pinned openapi) are regenerated in-test and compared — if
-  a config or API change alters the contract, regenerate with
-  `uv run locveil-catalog --stamp ../contracts/catalog/STAMP.json`
+  a config or API change alters the contract, regenerate **from the repo root**
+  (device cert paths in `config/` resolve relative to it) with
+  `uv run --project backend locveil-catalog --stamp contracts/catalog/STAMP.json`
   (and `locveil-openapi` for the schema; see `contracts/catalog/README.md`).
 - **`contract-guard`** (contracts/** or its vendored script changed) —
   `scripts/contract_guard.py --check`, the contract-coherence check (layout,
@@ -211,7 +212,7 @@ its files can break.
   contract-guard). It runs pre-commit too, via the same committed hook as the
   ledger guard.
 - **`ui-validate`** (ui/** changed, **or** the backend contract the UI
-  consumes: `backend/openapi.json`, `backend/config/**`) — `gen:api-types` +
+  consumes: `backend/openapi.json`, `config/**`) — `gen:api-types` +
   `check` (typecheck, strict lint, orphans) + `build`.
 - **Slow (manual)** — QEMU `arm/v7` Docker image builds for backend + UI.
   Triggered via `gh workflow run "Build ARM Docker Images (backend + ui)"`

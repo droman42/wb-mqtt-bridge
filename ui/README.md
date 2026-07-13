@@ -34,9 +34,9 @@ from the monorepo's `backend/` directory (`../backend` from here):
 
 - `backend/openapi.json` — the committed OpenAPI snapshot (device-state model
   shapes live in `components.schemas`).
-- `backend/config/device-state-mapping.json` — maps each device class to its
+- `config/device-state-mapping.json` — maps each device class to its
   state model + device config files (owned by the backend).
-- `backend/config/devices/*.json` — device configurations.
+- `config/devices/*.json` — device configurations.
 
 One generator:
 
@@ -80,7 +80,7 @@ The application will be available at `http://localhost:3000`.
 ### Device-state mapping (owned by the backend)
 
 The mapping lives on the **backend** side at
-`backend/config/device-state-mapping.json`. Paths inside it are resolved
+`config/device-state-mapping.json`. Paths inside it are resolved
 relative to the mapping file's own directory, so the same file works for both
 the local monorepo layout and the CI/Docker build context. Format:
 
@@ -165,7 +165,7 @@ docker run -d --name wb-ui --restart unless-stopped -p 3000:3000 \
 ```
 
 For a local build, run from the **monorepo root** — the Dockerfile copies
-`backend/config` and `backend/openapi.json` out of the repo-root build context:
+`config` and `backend/openapi.json` out of the repo-root build context:
 
 ```bash
 docker build -t locveil-bridge-ui:local -f ui/Dockerfile .

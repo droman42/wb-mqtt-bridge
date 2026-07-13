@@ -28,16 +28,21 @@ REPO = BACKEND.parent
 CONTRACTS = REPO / "contracts" / "catalog"
 
 _REGEN_HINT = (
-    "contract artifact stale — regenerate: "
-    "`uv run locveil-catalog --stamp ../contracts/catalog/STAMP.json` "
-    "(and `uv run locveil-openapi -o openapi.json && cp openapi.json "
-    "../contracts/catalog/openapi.json` for the API schema)"
+    "contract artifact stale — regenerate FROM THE REPO ROOT: "
+    "`uv run --project backend locveil-catalog --stamp contracts/catalog/STAMP.json` "
+    "(and `uv run --project backend locveil-openapi -o backend/openapi.json && "
+    "cp backend/openapi.json contracts/catalog/openapi.json` for the API schema)"
 )
 
 
-def test_golden_catalog_matches_configs():
+def test_golden_catalog_matches_configs(monkeypatch):
+    # The offline build resolves device cert paths (config/devices/certs/*.pem) relative to
+    # CWD = the deployment root, which since CORE-11 is the repo root (config/ lives there,
+    # mirroring the container's /app + the /app/config mount). Build from there, exactly like
+    # the real regeneration command.
+    monkeypatch.chdir(REPO)
     committed = json.loads((CONTRACTS / "catalog.golden.json").read_text(encoding="utf-8"))
-    regenerated = build_offline_catalog(str(BACKEND / "config")).model_dump()
+    regenerated = build_offline_catalog("config").model_dump()
     assert regenerated == committed, _REGEN_HINT
 
 

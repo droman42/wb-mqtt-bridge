@@ -17,12 +17,12 @@ Two flows are live, neither of them a *page*:
   proposes a typed config (device_id, localised names, capability profile, WB
   control topics, `state_topics` spec); the user confirms or corrects; the
   assistant writes the file under
-  `backend/config/devices/wb-devices/<room>/<id>.json`. The full as-run record of
+  `config/devices/wb-devices/<room>/<id>.json`. The full as-run record of
   this — every per-device decision, the cross-room rules that accumulated, the
   friction points, the automation opportunities — lives in
   `docs/wb_device_authoring_log.md` and is the **source of truth for what the
   setup page must do** when it lands.
-- **AV devices** — authored by hand in `backend/config/devices/<name>.json`. No
+- **AV devices** — authored by hand in `config/devices/<name>.json`. No
   importer; the 13 shipped AV configs predate the WB onboarding work.
 
 There is also one historical artefact, `docs/device_setup/broadlink-device-setup.ipynb`,
@@ -71,7 +71,7 @@ A single `/setup/devices` route, organised in three panes:
 
 The page does *not* edit the controller. It reads `/etc/wb-webui.conf` (over
 SSH today, over a future controller-side helper later) and writes
-`backend/config/devices/wb-devices/<room>/<device_id>.json` in the repo.
+`config/devices/wb-devices/<room>/<device_id>.json` in the repo.
 "Apply" is a commit; nothing is mutable at the broker.
 
 ### The IR-learning sub-page
@@ -188,7 +188,7 @@ Things the implementation will need to answer, not papered over:
 
 | Part | Status today |
 |---|---|
-| Capability profiles (the proposals' destination) | **Built.** `backend/config/capabilities/profiles/*.json` (7 profiles: `light_switch`, `dimmable_light`, `rgb_light`, `cover`, `heating_loop`, `hvac`, `sensor_room`). |
+| Capability profiles (the proposals' destination) | **Built.** `config/capabilities/profiles/*.json` (7 profiles: `light_switch`, `dimmable_light`, `rgb_light`, `cover`, `heating_loop`, `hvac`, `sensor_room`). |
 | `WbPassthroughDeviceConfig` (the typed shape the importer writes) | **Built.** `backend/src/locveil_bridge/infrastructure/config/models.py`. |
 | Room metadata + derived membership | **Built.** See [Rooms](../architecture/rooms.md). |
 | `Broadlink` discovery + capture (low-level) | **Available** via the `broadlink` Python lib; demonstrated in the archived `broadlink-device-setup.ipynb`. |

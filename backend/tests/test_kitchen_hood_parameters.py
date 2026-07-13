@@ -16,9 +16,12 @@ methods to verify:
 """
 import base64
 import json
+from pathlib import Path
 import pytest
 import pytest_asyncio
 from unittest.mock import MagicMock, patch
+
+REPO = Path(__file__).resolve().parents[2]
 
 from locveil_bridge.infrastructure.devices.broadlink_kitchen_hood.driver import BroadlinkKitchenHood
 from locveil_bridge.infrastructure.config.models import BroadlinkKitchenHoodConfig
@@ -30,7 +33,7 @@ pytestmark = pytest.mark.integration
 @pytest.fixture
 def kitchen_hood_config():
     """Parse the real kitchen_hood.json through the current Pydantic schema."""
-    with open('config/devices/kitchen_hood.json', 'r') as f:
+    with open(REPO / "config" / "devices" / "kitchen_hood.json", 'r') as f:
         data = json.load(f)
     return BroadlinkKitchenHoodConfig.model_validate(data)
 

@@ -53,6 +53,10 @@ jobs:
           filters: |
             backend:
               - 'backend/**'
+              # the config tree (root config/ since CORE-11) feeds the backend suite's
+              # drift guard (test_contracts_golden) + config-consuming tests, so a
+              # config change must run the backend job.
+              - 'config/**'
               # committed contract artifacts (VWB-15): the backend suite carries the
               # drift guard (test_contracts_golden), so a hand-edit of contracts/
               # must run it.
@@ -64,7 +68,7 @@ jobs:
               # contract change must re-validate the UI (config-ui-stays-functional).
               - 'ui/**'
               - 'backend/openapi.json'
-              - 'backend/config/**'
+              - 'config/**'
               - '.github/workflows/build-arm.yml'
             ledger:
               - 'docs/**'

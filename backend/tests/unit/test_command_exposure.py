@@ -20,7 +20,7 @@ def _config_dir() -> Path:
     for parent in Path(__file__).resolve().parents:
         if (parent / "config" / "devices").is_dir():
             return parent / "config"
-    raise RuntimeError("backend/config not found")
+    raise RuntimeError("config/ not found (walked up from tests)")
 
 
 CONFIG = _config_dir()

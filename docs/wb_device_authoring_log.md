@@ -33,7 +33,7 @@ to do; this will be an interactive session room-by-room, device-by-device."
 2. Assistant surfaces the open decisions tightly (device_id, ru/en/de names, WB topics,
    profile choice, edge cases like state mirroring).
 3. User confirms or corrects, often very terse.
-4. Assistant writes the file (`backend/config/devices/wb-devices/<room>/<device_id>.json`),
+4. Assistant writes the file (`config/devices/wb-devices/<room>/<device_id>.json`),
    smoke-tests parse + capability resolution, reports outcome.
 5. Move to next device.
 
@@ -918,7 +918,7 @@ all 19 would have been invisible to voice/UI as room members despite existing wi
 `room: <id>` set on the device configs.
 
 **Compounding problem**: AV configs (the 13 pre-§P3.7 devices in
-`backend/config/devices/*.json`) **have no `room` field set at all** — their room
+`config/devices/*.json`) **have no `room` field set at all** — their room
 membership lives ONLY in rooms.json. So today the system has TWO sources of truth:
 
 - **WB-passthrough side**: `room` field on the device config (forward direction)

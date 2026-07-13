@@ -22,7 +22,7 @@ RUNTIME=/mnt/data/locveil-bridge-config
 # Mirror the config source of truth into the runtime tree.
 echo ">>> rsync config -> $RUNTIME/config"
 mkdir -p "$RUNTIME/config"
-rsync -a --delete "$(cd ../backend/config && pwd)/" "$RUNTIME/config/"
+rsync -a --delete "$(cd ../config && pwd)/" "$RUNTIME/config/"
 
 # The compose file also deploys into the runtime tree (the systemd unit runs
 # compose from there — boot must not depend on the SD card). The .env next to

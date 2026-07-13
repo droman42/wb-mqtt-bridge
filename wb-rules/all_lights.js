@@ -1,7 +1,7 @@
 // All-lights aggregate (VWB-10, 2026-07-04).
 //
 // Implements the controller side of the bridge contract defined in
-// backend/config/devices/wb-devices/global/all_lights.json: the bridge (and the
+// config/devices/wb-devices/global/all_lights.json: the bridge (and the
 // WB UI / future Alisa) writes 1/0 to /devices/all_lights/controls/power/on;
 // this rule fans the command out to every true light in the flat.
 //

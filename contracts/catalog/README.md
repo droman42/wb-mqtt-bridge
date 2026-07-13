@@ -33,17 +33,18 @@ house config changes, with zero contract change.
 
 | File | What it is |
 |---|---|
-| `catalog.golden.json` | The golden catalog sample — the full house as `GET /system/catalog` serves it: rooms, devices (including the `global` aggregates and the per-room `scenario_manager_*` entities), capabilities with action **param descriptors** (typed `CatalogParam`: name/type/required/default/min/max/`unit`/`values`/`options_from` — the schema of record for param parsing) and `{wire, canonical, labels}` enum value tables. Generated offline and deterministically from `backend/config/` — same projection code path as the live endpoint. |
+| `catalog.golden.json` | The golden catalog sample — the full house as `GET /system/catalog` serves it: rooms, devices (including the `global` aggregates and the per-room `scenario_manager_*` entities), capabilities with action **param descriptors** (typed `CatalogParam`: name/type/required/default/min/max/`unit`/`values`/`options_from` — the schema of record for param parsing) and `{wire, canonical, labels}` enum value tables. Generated offline and deterministically from `config/` — same projection code path as the live endpoint. |
 | `openapi.json` | The pinned API schema of record — carries `CatalogResponse`, the canonical action request/response shapes, and (since contract v1.4) the problem-report surface: `EvidenceEnvelope`, the shape `GET /reports/evidence` returns — the bridge-side evidence a voice-filed problem report embeds when the smart home is involved. Byte-identical to `backend/openapi.json` (the UI-consumed copy). |
 | `STAMP.json` | The version stamp: the contract core (`contract`, `version`, `tag`, `date`, `owner_repo` — since contract v1.5) plus the build record — which bridge commit + version last generated these artifacts, and the golden's content-hash. The content-hash tracks *config* drift (Irene re-fetches when the retained `bridge/catalog/version` topic changes); the commit stamp tracks the *code build* the voice side coded against. Neither substitutes for the other. The commit named is the build the artifacts were generated **from** (i.e. the parent of the commit that lands them). |
 
 ## Regeneration
 
-From `backend/`:
+From the **repo root** — device cert paths in `config/` resolve relative to it (the same
+way the container resolves them from its `/app` workdir):
 
 ```bash
-uv run locveil-catalog --stamp ../contracts/catalog/STAMP.json
-uv run locveil-openapi -o openapi.json && cp openapi.json ../contracts/catalog/openapi.json
+uv run --project backend locveil-catalog --stamp contracts/catalog/STAMP.json
+uv run --project backend locveil-openapi -o backend/openapi.json && cp backend/openapi.json contracts/catalog/openapi.json
 ```
 
 `locveil-catalog` builds the catalog **offline** — typed configs + capability maps +

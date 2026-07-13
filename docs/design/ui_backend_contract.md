@@ -11,8 +11,8 @@ The UI consumes the backend as a **contract**, not by importing Python. There ar
 contract surfaces:
 
 - **Build-time** (UI codegen): the UI reads the sibling `backend/` directory —
-  `backend/openapi.json`, `backend/config/device-state-mapping.json`,
-  `backend/config/devices/*.json` — to generate its TypeScript types and per-device pages.
+  `backend/openapi.json`, `config/device-state-mapping.json`,
+  `config/devices/*.json` — to generate its TypeScript types and per-device pages.
   No Python, no `pip install`. *(Layer-3 note: the per-device **page** generator dies at the
   Step-4 cutover; the **TypeScript type** generator — `openapi.json` → `api.gen.ts` — stays. See
   "Build-time contract" + the archived rollout record.)*

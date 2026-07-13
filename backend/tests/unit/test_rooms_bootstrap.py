@@ -1,6 +1,6 @@
 """§P3.7 #21 — pin the on-disk rooms.json after the bootstrap.
 
-These tests intentionally hit the REAL `backend/config/rooms.json` (not a mock), so the
+These tests intentionally hit the REAL `config/rooms.json` (not a mock), so the
 authored room set surfaces in tests as soon as it diverges from what voice + the catalog
 were promised. The full WB-UI room sweep (10 dashboards + `global`) lands here; the
 device-side onboarding (each room's `devices` list filling in) lands in §P3.7 #22+#23.
@@ -12,7 +12,7 @@ from pathlib import Path
 
 from locveil_bridge.domain.scenarios.models import RoomDefinition
 
-ROOMS_JSON = Path(__file__).resolve().parents[2] / "config" / "rooms.json"
+ROOMS_JSON = Path(__file__).resolve().parents[3] / "config" / "rooms.json"
 
 # The full WB-UI dashboard sweep (per A2 findings) plus `global` for whole-house
 # aggregate devices (§P3.7 #22). `living_room` and `children_room` keep their
@@ -84,7 +84,7 @@ def test_global_room_metadata_present():
 
 def test_every_device_config_declares_a_known_room():
     """Forward-direction drift guard (replaces the legacy reverse-direction one that
-    walked rooms.json devices lists). Every device config in `backend/config/devices/`
+    walked rooms.json devices lists). Every device config in `config/devices/`
     -- WB-passthrough subtree AND flat AV configs -- must declare a `room` matching an
     entry in `rooms.json`. (`room: null` is allowed for genuinely unassigned devices,
     though after the §P3.7 #23 backfill there shouldn't be any.) Catches the situation

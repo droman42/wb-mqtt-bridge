@@ -24,7 +24,7 @@ from locveil_bridge.domain.scenarios.reconciler import (
 from locveil_bridge.domain.topology.loader import load_topology
 from locveil_bridge.domain.topology.models import Topology
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 CAPS = ROOT / "config" / "capabilities"
 TOPOLOGY = load_topology(ROOT / "config" / "topology.json")
 

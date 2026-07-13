@@ -2,7 +2,7 @@
 
 Pins four things end-to-end against the actual committed slice configs:
 
-1. The cabinet_spots.json device config under `backend/config/devices/wb-devices/cabinet/`
+1. The cabinet_spots.json device config under `config/devices/wb-devices/cabinet/`
    parses into a WbPassthroughDeviceConfig (Pydantic) — the names+room+capability_profile+
    commands+state_topics shape is exactly what the driver expects.
 2. The recursive config scanner (utils/validation.py, switched to glob `**/*.json` for the
@@ -27,9 +27,9 @@ from locveil_bridge.infrastructure.config.models import WbPassthroughDeviceConfi
 from locveil_bridge.infrastructure.config.validation import discover_config_files
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-DEVICE_CFG = REPO_ROOT / "backend" / "config" / "devices" / "wb-devices" / "cabinet" / "cabinet_spots.json"
-CAPS_DIR = REPO_ROOT / "backend" / "config" / "capabilities"
-ROOMS_JSON = REPO_ROOT / "backend" / "config" / "rooms.json"
+DEVICE_CFG = REPO_ROOT / "config" / "devices" / "wb-devices" / "cabinet" / "cabinet_spots.json"
+CAPS_DIR = REPO_ROOT / "config" / "capabilities"
+ROOMS_JSON = REPO_ROOT / "config" / "rooms.json"
 
 
 def test_cabinet_spots_json_parses_as_wb_passthrough_config():
@@ -61,14 +61,14 @@ def test_recursive_scanner_finds_config_under_wb_devices_room_subdir():
     """The §P3.7 directory convention puts WB-passthrough configs at
     `wb-devices/<room>/<device_id>.json`. The scanner MUST recurse, else the device is
     invisible to ConfigManager."""
-    files = discover_config_files(str(REPO_ROOT / "backend" / "config" / "devices"))
+    files = discover_config_files(str(REPO_ROOT / "config" / "devices"))
     assert str(DEVICE_CFG) in files, (
         f"cabinet_spots.json under wb-devices/cabinet/ was not discovered. "
         f"Found {len(files)} configs; check utils/validation.discover_config_files is "
         f"using recursive glob."
     )
     # Existing flat AV configs MUST still be found (no regression).
-    assert str(REPO_ROOT / "backend" / "config" / "devices" / "lg_tv_living.json") in files
+    assert str(REPO_ROOT / "config" / "devices" / "lg_tv_living.json") in files
 
 
 def test_light_switch_profile_resolves_power_on_off_to_native_commands():

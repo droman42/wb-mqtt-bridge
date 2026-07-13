@@ -8,7 +8,7 @@ import pytest
 from locveil_bridge.infrastructure.capabilities.loader import load_capability_map
 from locveil_bridge.domain.capabilities.models import Capability
 
-CAPS = Path(__file__).resolve().parents[2] / "config" / "capabilities"
+CAPS = Path(__file__).resolve().parents[3] / "config" / "capabilities"
 
 
 def test_lgtv_class_map_loads_and_translates_input():

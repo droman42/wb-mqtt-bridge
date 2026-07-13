@@ -255,7 +255,7 @@ exact secrets-path convention.
 
 ### 4.4 Capability profile
 
-`backend/config/capabilities/profiles/vacuum_cleaner.json`:
+`config/capabilities/profiles/vacuum_cleaner.json`:
 
 ```jsonc
 {
@@ -429,7 +429,7 @@ principle; revisit if TS implementation cost becomes prohibitive.
 ### 7.1 Storage
 
 `RoborockVacuumConfig.zones: List[RoborockZone]` — persisted in the device
-config JSON (`backend/config/devices/<vacuum_id>.json`). Same pattern as
+config JSON (`config/devices/<vacuum_id>.json`). Same pattern as
 existing config-side data (commands, state_topics, etc.).
 
 Each zone:

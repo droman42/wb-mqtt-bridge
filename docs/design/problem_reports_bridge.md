@@ -99,7 +99,7 @@ variant, B-7; or the rate-limit message, B-6). No draft state, no attachments UI
 | live device states — **all devices** | `get_current_state()` | includes `last_command` + `error` per device (B-1) |
 | persisted-vs-live state diff — scoped set | `state_store.sqlite` vs live | the optimistic-desync detector |
 | active scenario per room + manual steps | scenario state | |
-| configs — scoped set | `backend/config/` | device configs + capability maps + topology slice + redacted `system.json` |
+| configs — scoped set | `config/` | device configs + capability maps + topology slice + redacted `system.json` |
 | catalog version hash, bridge version, platform/arch | retained version topic, system info | the stale-contract detector — same role as in the voice bundle |
 
 ### Tier B — backend rings (new, B-2/B-9)

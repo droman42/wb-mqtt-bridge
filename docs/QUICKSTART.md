@@ -9,9 +9,12 @@ new contributor doing a first pass.
 > with zero-risk, broker-free exploration; the one step that runs the full service is
 > explicitly scoped to a *local* broker, with the reasons spelled out.
 
-> **Run the backend commands from `backend/`.** All paths below are relative to it unless
-> noted. Real deployment onto a Wirenboard controller is a separate story — see
-> [`../ops/INSTALL.md`](../ops/INSTALL.md).
+> **Where to run commands.** Install steps run from `backend/` (the venv + `pyproject.toml`
+> live there). The commands that read the config tree run from the **repo root** — `config/`
+> sits at the root (device cert paths resolve relative to it, exactly as the deployed
+> container resolves them from its workdir); `uv run --project backend` points uv at the
+> backend venv. Each block below says which. Real deployment onto a Wirenboard controller is
+> a separate story — see [`../ops/INSTALL.md`](../ops/INSTALL.md).
 
 ---
 
@@ -27,14 +30,15 @@ uv sync --extra dev                               # creates the venv + installs 
 
 Two commands read the config and print the bridge's public surfaces without connecting to
 anything. This is the fastest way to understand what the bridge *is* before running it.
+Run them **from the repo root** (they read `config/`):
 
 ```bash
-uv run locveil-catalog -o catalog.json    # the device catalog: every device, room, capability,
-                                     # and value vocabulary — what the UI and the voice
+uv run --project backend locveil-catalog -o catalog.json    # the device catalog: every device, room,
+                                     # capability, and value vocabulary — what the UI and the voice
                                      # assistant consume. Prints "N devices, M rooms, version …".
 
-uv run locveil-openapi -o openapi.json    # the full REST + SSE contract (the same file the UI
-                                     # generates its TypeScript types from).
+uv run --project backend locveil-openapi -o openapi.json    # the full REST + SSE contract (the same
+                                     # file the UI generates its TypeScript types from).
 ```
 
 Open `catalog.json` to see the house as the bridge presents it — rooms, devices, and the
@@ -63,7 +67,7 @@ bridge and are covered in [`../eval/README.md`](../eval/README.md).
 If you want the live REST API and the runtime UI behaviour, run the service against a
 **local** MQTT broker with a **scratch** config. Do **not** run it against the house.
 
-> **Why the caution.** The committed `backend/config/` is the *real house* configuration —
+> **Why the caution.** The committed `config/` is the *real house* configuration —
 > its `system.json` points at the production broker. Two bridges on one broker collide on
 > the shared MQTT client id, and a second bridge carrying its own state database can
 > *restore-actuate* real devices on startup. So a local run uses its own broker and its own

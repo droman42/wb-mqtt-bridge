@@ -109,10 +109,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Dump the golden catalog contract artifact (offline, deterministic)."
     )
-    parser.add_argument("-o", "--output", default="../contracts/catalog/catalog.golden.json",
-                        help="Golden catalog output path (default: ../contracts/catalog/catalog.golden.json)")
+    parser.add_argument("-o", "--output", default="contracts/catalog/catalog.golden.json",
+                        help="Golden catalog output path (default: contracts/catalog/catalog.golden.json). "
+                             "Run from the repo root — device cert paths in config/ resolve relative to it.")
     parser.add_argument("--config-dir", default="config",
-                        help="Config directory to project (default: config)")
+                        help="Config directory to project (default: config, relative to the repo root)")
     parser.add_argument("--stamp", default=None,
                         help="Also write the STAMP.json (contract core + bridge build + catalog hash)")
     parser.add_argument("--stdout", action="store_true", help="Print the catalog instead of writing")

@@ -53,7 +53,9 @@ the board, never in chat.
 - **`work-on-main`** — Work on `main`; small, focused commits with detailed bodies pushed straight to main
   (no PRs). Branch only when explicitly asked.
 - **`config-master-tree`** (renamed from `config-master-canonical` by HK-2 — the voice repo's counterpart
-  is `config-master-file`; no repo keeps the bare slug) — The live **`backend/config/` JSON tree** is the
+  is `config-master-file`; no repo keeps the bare slug) — The live **root `config/` JSON tree** (moved
+  from `backend/config/` to the repo root by CORE-11, per HK-8 python-layout — product data lives at the
+  root, and the name matches the WB7 runtime tree `/mnt/data/locveil-bridge-config/config/`) is the
   canonical config reference: `system.json`, `rooms.json`, `topology.json`, `devices/*.json`,
   `scenarios/*.json`. Their schema is the Pydantic config models (surfaced via `backend/openapi.json`).
   There is no single config-master file and no shipped `config-example*` — a release-time example is a

@@ -156,7 +156,7 @@ compose file, config, state — lives in the runtime tree on the small,
 early-mounted persistent partition:
 
 - **Configuration**: `/mnt/data/locveil-bridge-config/config` → `/app/config`
-  (read-only; `update.sh` mirrors the clone's `backend/config` here, so
+  (read-only; `update.sh` mirrors the clone's `config` here, so
   `git pull` + `update.sh` is how config changes reach the container)
 - **Database**: `/mnt/data/locveil-bridge-config/data` → `/app/data` (SQLite state store)
 - **Logs**: `/mnt/data/locveil-bridge-config/logs` → `/app/logs`

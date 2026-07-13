@@ -38,7 +38,7 @@ digraph device_setup {
 
   // --- the artefacts produced ---
   cfg [shape=note, fillcolor="#fff8e1", color="#f57f17",
-       label="backend/config/devices/wb-devices/<room>/<id>.json\nor backend/config/devices/<id>.json (AV)\n──────────────────────────────────\nthe typed config the bridge already consumes"];
+       label="config/devices/wb-devices/<room>/<id>.json\nor config/devices/<id>.json (AV)\n──────────────────────────────────\nthe typed config the bridge already consumes"];
 
   // --- claude-interactive flow today (parallel lane) ---
   claude [label="TODAY: Claude-interactive\nuser pastes widget JSON →\nassistant proposes config →\nuser confirms / corrects →\nassistant writes the file",
