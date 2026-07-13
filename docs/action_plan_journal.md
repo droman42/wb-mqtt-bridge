@@ -69,6 +69,19 @@ entries use the new IDs.
   are fully convention-shaped. With VWB-29/40/41 this completes all four PROD-16 bridge delegation
   items in one session; board write-back rode the intake (`commons ef751bf`).
 
+- **2026-07-13 — DRV-38 (a)+(b): the eMotiva readiness hold moved to the dispatch seam; the
+  topology-layer review lands — SCN-16/SCN-17 filed.** The 2026-07-12 wedge trigger
+  (`power_on {zone:2}` acked mid-ARC-handshake, then silence) is closed at the only layer that
+  covers emergent plan shapes: `execute_action` itself, zone-aware (main-zone power exempt as the
+  window starter, zone 2 gated — same action name, the zone decides), fresh-`arc` = full hold for
+  ANY command, `force` no bypass. Review (three parallel lanes, frozen in
+  `docs/review/topology_readiness_review_2026-07-13.md`): eMotiva is the fleet's only
+  hardware-wedge risk; the executor honors driver-side holds without eating the gate budget
+  (validating the seam as the pattern — base-class hook waits for rule-of-two); zone2 fired
+  ungated in all five AV scenarios and spuriously in ld/vhs → SCN-16 (zone-aware power planning)
+  + SCN-17 (bound dispatch) filed. DRV-38 stays `[~]` HW-GATED on the rack replay + the DRV-32
+  CEC re-check.
+
 - **2026-07-12 — VWB-41: device-integration owner-side guard — committed example fixture + CI check +
   STAMP core (PROD-16 / HK-5, bridge delegation (3)).** The convention README's canonical descriptor
   example is now committed as `contracts/device-integration/example.descriptor.json` with byte-parity

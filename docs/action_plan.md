@@ -261,8 +261,21 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   satellite-triggered). The HVACs are out of scope permanently unless the owner reopens firmware
   (`device_integration_convention.md` §2).
 
-- [ ] **DRV-38** `[P1]` — **eMotiva wedge #2 (2026-07-12, `movie_appletv`): close the DRV-30
-  coverage gap + REVIEW the topology layer's protection model.** Evidence (frozen):
+- [~] **DRV-38** `[P1]` `HW-GATED` — **eMotiva wedge #2 (2026-07-12, `movie_appletv`): close the
+  DRV-30 coverage gap + REVIEW the topology layer's protection model.** **(a) DONE 2026-07-13
+  (`b4407bc`):** the readiness hold moved to the dispatch seam — `EMotivaXMC2.execute_action`
+  override gates EVERY command (zone-aware exemption: `power_on` zone 1 exempt, zone 2 — the
+  wedge command — gated; recovery paths exempt; `force` does NOT bypass); fresh-`arc` full-window
+  hold now applies to any command; wedge-replay regression test through real dispatch; suite 719.
+  **(b) DONE 2026-07-13:** the topology-layer review —
+  [`docs/review/topology_readiness_review_2026-07-13.md`](review/topology_readiness_review_2026-07-13.md)
+  (three lanes: only the eMotiva is HARD-RISK fleet-wide; the executor honors a driver-side hold
+  and the gate clock starts after it; zone2 fired ungated in all 5 AV scenarios, spuriously in
+  ld/vhs). Remediations filed: **SCN-16** (zone-aware power planning), **SCN-17** (executor
+  dispatch bound). **REMAINING (the HW gate): the rack replay** — start `movie_appletv` with the
+  TV on against the recovered eMotiva (expect the zone-2 hold in the log: "held power_on … after
+  power-on (readiness gate)"), plus the DRV-32 CEC re-check (the wedge unplug likely reset it
+  again). Original finding: Evidence (frozen):
   [`docs/review/emotiva_wedge_20260712.md`](review/emotiva_wedge_20260712.md) — the device's
   last-ever packet was its ack to an **ungated `zone2_power_on`** fired 2.3 s into a
   bridge-visible ARC handshake (`input_source` was already `'arc'` in the driver's own state);
@@ -319,6 +332,30 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   cross-talk, both WB «Сценарии» cards correct, in-room-only transition diffs).
 
 
+
+- [ ] **SCN-16** `[P1]` — **Zone-aware power planning — don't power zones off the used audio
+  path** (DRV-38(b) review remediation; evidence:
+  [`docs/review/topology_readiness_review_2026-07-13.md`](review/topology_readiness_review_2026-07-13.md)
+  lane R3). `_power_actions` emits a `power_on` for EVERY zone a device's power capability
+  declares, unconditionally — so `movie_ld`/`movie_vhs` power the eMotiva's zone 2 although
+  their audio path is Dodocus RCA → amp and never traverses `processor:zone2`; the 2026-07-12
+  wedge trigger fires for zero functional benefit. Scope: the resolver already walks the used
+  topology links — collect used ports per device and emit non-main zone power only when the
+  zone's port is on the path (zone→port mapping declared in the capability map, e.g. the
+  eMotiva zone 2 ↔ port `zone2`; the main zone always powers — it IS the device). Effect:
+  ld/vhs drop the spurious zone-2 step; appletv/zappiti/tv_on_speakers keep it (their audio
+  path uses it). Teardown untouched (powering OFF an already-off zone is idempotent and safe).
+  Reconciler tests: path-includes vs path-excludes zone planning.
+
+- [ ] **SCN-17** `[P2]` — **Executor defense-in-depth: bound `execute_action` dispatch**
+  (DRV-38(b) review remediation; evidence: the same review, lane R2). Nothing wraps
+  `await device.execute_action(...)` in `execute_plan` — a buggy, never-returning driver hold
+  hangs the entire switch (steps are globally serialized). The DRV-38(a) hold is hard-capped
+  at 15 s, so this is a guard rail, not a live bug. Scope: `asyncio.wait_for` around the
+  per-step dispatch with a generous module-level bound (must exceed any legitimate driver
+  hold + slow command — the Auralic's 25 s gate era says be generous, 60 s); timeout → the
+  step fails like an exception does (SCN-14 semantics: recorded in `failures`, plan
+  continues). Test: a device stub whose dispatch never returns → step failed, next step runs.
 
 ### VWB — Voice-integration + native WB onboarding
 
