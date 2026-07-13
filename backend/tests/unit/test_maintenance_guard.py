@@ -15,8 +15,8 @@ Time is driven through a fake `time.monotonic` so every boundary is exact.
 
 import pytest
 
-from wb_mqtt_bridge.infrastructure.maintenance import wirenboard_guard
-from wb_mqtt_bridge.infrastructure.maintenance.wirenboard_guard import (
+from locveil_bridge.infrastructure.maintenance import wirenboard_guard
+from locveil_bridge.infrastructure.maintenance.wirenboard_guard import (
     WirenboardMaintenanceGuard,
 )
 

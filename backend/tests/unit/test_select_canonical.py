@@ -19,9 +19,9 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from wb_mqtt_bridge.domain.capabilities.models import CapabilityMap, CapabilitySelect
-from wb_mqtt_bridge.presentation.api.catalog import _project_capability_actions
-from wb_mqtt_bridge.presentation.api.routers import devices as devices_router
+from locveil_bridge.domain.capabilities.models import CapabilityMap, CapabilitySelect
+from locveil_bridge.presentation.api.catalog import _project_capability_actions
+from locveil_bridge.presentation.api.routers import devices as devices_router
 
 
 # ----- Test doubles (test_canonical_endpoint.py pattern) --------------------

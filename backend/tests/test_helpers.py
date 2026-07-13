@@ -4,7 +4,7 @@ This allows us to run tests that use dictionary configuration with code that exp
 """
 
 from typing import Dict, Any, List, Optional, TypeVar
-from wb_mqtt_bridge.infrastructure.config.models import (
+from locveil_bridge.infrastructure.config.models import (
     BaseDeviceConfig,
     BaseCommandConfig,
     StandardCommandConfig,
@@ -23,10 +23,10 @@ from wb_mqtt_bridge.infrastructure.config.models import (
 )
 # Import additional models that might be used
 try:
-    from wb_mqtt_bridge.infrastructure.config.models import RevoxA77ReelToReelParams
+    from locveil_bridge.infrastructure.config.models import RevoxA77ReelToReelParams
 except ImportError:
     # This might be in a different location
-    from wb_mqtt_bridge.infrastructure.config.models import RevoxA77ReelToReelParams
+    from locveil_bridge.infrastructure.config.models import RevoxA77ReelToReelParams
 
 T = TypeVar('T')
 

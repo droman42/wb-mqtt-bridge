@@ -25,11 +25,11 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 
 from pyatv.const import PowerState
-from wb_mqtt_bridge.infrastructure.devices.apple_tv.driver import (
+from locveil_bridge.infrastructure.devices.apple_tv.driver import (
     AppleTVDevice,
     PyATVDeviceListener,
 )
-from wb_mqtt_bridge.infrastructure.config.models import (
+from locveil_bridge.infrastructure.config.models import (
     AppleTVDeviceConfig,
     AppleTVConfig,
     AppleTVProtocolConfig,

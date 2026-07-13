@@ -47,7 +47,7 @@ A Python-based web service that integrates as an MQTT client with Wirenboard wb-
 The project follows a domain-centric (DDD/Hexagonal) architecture for better maintainability and testability:
 
 ```
-src/wb_mqtt_bridge/
+src/locveil_bridge/
 ├── app/                     # Application bootstrap and configuration
 │   ├── __init__.py         # FastAPI app export
 │   ├── bootstrap.py        # Dependency injection and app setup
@@ -99,7 +99,7 @@ pip install -e .
 ```
 
 After installation, the following console scripts will be available:
-- `locveil-bridge` / `wb-api` - Start the web service
+- `locveil-bridge` - Start the web service
 - `mqtt-sniffer` - Monitor MQTT traffic
 - `device-test` - Test device configurations
 - `broadlink-cli` / `broadlink-discovery` - Broadlink utilities
@@ -221,15 +221,12 @@ Start the web service using the console script:
 ```bash
 # Using the main console script
 locveil-bridge
-
-# Or using the API-specific script
-wb-api
 ```
 
 Or use uvicorn directly:
 
 ```bash
-uvicorn wb_mqtt_bridge.app:app --host 0.0.0.0 --port 8000
+uvicorn locveil_bridge.app:app --host 0.0.0.0 --port 8000
 ```
 
 Other available console scripts:
@@ -293,7 +290,7 @@ The system organizes device actions into functional groups for easier management
 
 ### Supported Device Types
 
-Nine device drivers ship today, each under `src/wb_mqtt_bridge/infrastructure/devices/<name>/driver.py`:
+Nine device drivers ship today, each under `src/locveil_bridge/infrastructure/devices/<name>/driver.py`:
 
 1. **LG TV** (`lg_tv/driver.py`, class `LgTv`) — webOS TV over WebSocket (asyncwebostv); power, volume, app launching, input switching, pointer.
 2. **eMotiva XMC2** (`emotiva_xmc2/driver.py`, class `EMotivaXMC2`) — dual-zone AV processor (pymotivaxmc2); power/Zone-2 power, volume, input, notifications.
@@ -309,9 +306,9 @@ Nine device drivers ship today, each under `src/wb_mqtt_bridge/infrastructure/de
 
 To add support for a new device type:
 
-1. Create a new directory and driver file: `src/wb_mqtt_bridge/infrastructure/devices/{device_name}/driver.py`
+1. Create a new directory and driver file: `src/locveil_bridge/infrastructure/devices/{device_name}/driver.py`
 2. Create a class that inherits from `BaseDevice`
-3. Register the device in `pyproject.toml` under `[project.entry-points."wb_mqtt_bridge.devices"]`
+3. Register the device in `pyproject.toml` under `[project.entry-points."locveil_bridge.devices"]`
 4. Implement the required abstract methods:
    - `async setup()` - Initialize the device
    - `async shutdown()` - Clean up device resources
@@ -322,10 +319,10 @@ To add support for a new device type:
    async def handle_action_name(self, cmd_config: StandardCommandConfig, params: Dict[str, Any]) -> bool:
    ```
 
-Example (`src/wb_mqtt_bridge/infrastructure/devices/my_device/driver.py`):
+Example (`src/locveil_bridge/infrastructure/devices/my_device/driver.py`):
 ```python
-from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
-from wb_mqtt_bridge.domain.devices.models import StandardCommandConfig
+from locveil_bridge.infrastructure.devices.base import BaseDevice
+from locveil_bridge.domain.devices.models import StandardCommandConfig
 from typing import Dict, Any, List
 
 class MyCustomDevice(BaseDevice):
@@ -360,8 +357,8 @@ class MyCustomDevice(BaseDevice):
 
 6. Register the device in `pyproject.toml`:
 ```toml
-[project.entry-points."wb_mqtt_bridge.devices"]
-my_custom_device = "wb_mqtt_bridge.infrastructure.devices.my_device.driver:MyCustomDevice"
+[project.entry-points."locveil_bridge.devices"]
+my_custom_device = "locveil_bridge.infrastructure.devices.my_device.driver:MyCustomDevice"
 ```
 
 7. Create a configuration file in `config/devices/my_custom_device.json`
@@ -380,7 +377,7 @@ configs and per-device state models:
 - ✅ Device-state models exposed in `/openapi.json` (the contract the UI consumes)
 - ✅ Test suite runs in CI (amd64); ARM image built via GitHub Actions
 
-The OpenAPI snapshot (`openapi.json`) is regenerated with `wb-openapi` whenever the
+The OpenAPI snapshot (`openapi.json`) is regenerated with `locveil-openapi` whenever the
 API surface or a device-state model changes.
 
 ## API Endpoints

@@ -29,11 +29,11 @@ Two commands read the config and print the bridge's public surfaces without conn
 anything. This is the fastest way to understand what the bridge *is* before running it.
 
 ```bash
-uv run wb-catalog -o catalog.json    # the device catalog: every device, room, capability,
+uv run locveil-catalog -o catalog.json    # the device catalog: every device, room, capability,
                                      # and value vocabulary — what the UI and the voice
                                      # assistant consume. Prints "N devices, M rooms, version …".
 
-uv run wb-openapi -o openapi.json    # the full REST + SSE contract (the same file the UI
+uv run locveil-openapi -o openapi.json    # the full REST + SSE contract (the same file the UI
                                      # generates its TypeScript types from).
 ```
 

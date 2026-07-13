@@ -16,13 +16,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from wb_mqtt_bridge.infrastructure.capabilities.loader import (
+from locveil_bridge.infrastructure.capabilities.loader import (
     enrich_state_topics_from_map,
     load_capability_map,
 )
-from wb_mqtt_bridge.infrastructure.config.models import MitsubishiHvacConfig
-from wb_mqtt_bridge.infrastructure.devices.mitsubishi_hvac import driver as hvac_driver
-from wb_mqtt_bridge.infrastructure.devices.mitsubishi_hvac.driver import MitsubishiHvac
+from locveil_bridge.infrastructure.config.models import MitsubishiHvacConfig
+from locveil_bridge.infrastructure.devices.mitsubishi_hvac import driver as hvac_driver
+from locveil_bridge.infrastructure.devices.mitsubishi_hvac.driver import MitsubishiHvac
 
 BACKEND = Path(__file__).resolve().parents[2]
 CAPS = BACKEND / "config" / "capabilities"
@@ -241,7 +241,7 @@ def test_catalog_advertises_six_capabilities_with_value_param(device):
     """The catalog surface: six capabilities; every enum/float `set` advertises the
     canonical `{value}` param (the voice contract shape — VWB-19's select-form
     convention, delivered here through param_map on ordinary command-form actions)."""
-    from wb_mqtt_bridge.presentation.api.param_projection import project_action_params
+    from locveil_bridge.presentation.api.param_projection import project_action_params
 
     caps = device.capabilities
     assert set(caps.root) == {"power", "mode", "fan", "vane", "widevane", "temperature"}

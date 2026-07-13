@@ -15,9 +15,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from wb_mqtt_bridge.app import app as main_app
-from wb_mqtt_bridge.domain.capabilities.models import CapabilityAction, CapabilityMap
-from wb_mqtt_bridge.presentation.api.routers import devices as devices_router
+from locveil_bridge.app import app as main_app
+from locveil_bridge.domain.capabilities.models import CapabilityAction, CapabilityMap
+from locveil_bridge.presentation.api.routers import devices as devices_router
 
 pytestmark = pytest.mark.unit
 
@@ -155,8 +155,8 @@ def test_single_command_path_unchanged(sequence_world):
 @pytest.mark.asyncio
 async def test_proxy_executes_sequence_actions(tmp_path):
     import json as _json
-    from wb_mqtt_bridge.domain.scenarios.proxy import ScenarioProxy
-    from wb_mqtt_bridge.domain.scenarios.service import ScenarioManager
+    from locveil_bridge.domain.scenarios.proxy import ScenarioProxy
+    from locveil_bridge.domain.scenarios.service import ScenarioManager
 
     device = SimpleNamespace(
         device_id="ld",

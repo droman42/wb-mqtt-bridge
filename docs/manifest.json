@@ -17,15 +17,15 @@
     "contracts/docs-manifest/README.md"
   ],
   "surfaces": {
-    "rest-api": ["backend/src/wb_mqtt_bridge/presentation/**"],
-    "catalog": ["contracts/catalog/**", "backend/src/wb_mqtt_bridge/presentation/api/catalog.py"],
+    "rest-api": ["backend/src/locveil_bridge/presentation/**"],
+    "catalog": ["contracts/catalog/**", "backend/src/locveil_bridge/presentation/api/catalog.py"],
     "device-integration": ["contracts/device-integration/**"],
-    "drivers": ["backend/src/wb_mqtt_bridge/infrastructure/devices/**", "backend/src/wb_mqtt_bridge/domain/devices/**"],
-    "scenarios": ["backend/src/wb_mqtt_bridge/domain/scenarios/**", "backend/config/scenarios/**", "backend/config/topology.json"],
-    "config": ["backend/config/**", "backend/src/wb_mqtt_bridge/infrastructure/config/**"],
+    "drivers": ["backend/src/locveil_bridge/infrastructure/devices/**", "backend/src/locveil_bridge/domain/devices/**"],
+    "scenarios": ["backend/src/locveil_bridge/domain/scenarios/**", "backend/config/scenarios/**", "backend/config/topology.json"],
+    "config": ["backend/config/**", "backend/src/locveil_bridge/infrastructure/config/**"],
     "ui": ["ui/src/**"],
-    "mqtt": ["backend/src/wb_mqtt_bridge/infrastructure/mqtt/**", "backend/src/wb_mqtt_bridge/infrastructure/wb_device/**", "wb-rules/**"],
-    "reports": ["backend/src/wb_mqtt_bridge/domain/reports/**", "contracts/pins/report-protocol/**"],
+    "mqtt": ["backend/src/locveil_bridge/infrastructure/mqtt/**", "backend/src/locveil_bridge/infrastructure/wb_device/**", "wb-rules/**"],
+    "reports": ["backend/src/locveil_bridge/domain/reports/**", "contracts/pins/report-protocol/**"],
     "deployment": ["ops/**", ".github/workflows/**", "backend/Dockerfile", "ui/Dockerfile"]
   },
   "nodes": [

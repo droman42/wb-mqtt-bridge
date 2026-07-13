@@ -5,7 +5,7 @@
 #
 # The prompt IS the command line; cli_provider shlex-splits it (config.argv absent).
 # cwd=../backend runs the console scripts from the code root; the Makefile puts the
-# backend venv's bin on PATH so wb-openapi / broadlink-cli resolve.
+# backend venv's bin on PATH so locveil-openapi / broadlink-cli resolve.
 # return_mode: full → output is JSON {stdout, stderr, exit_code, duration_ms}.
 
 description: locveil-bridge — CLI contract tests (argparse console scripts; no service/hardware)
@@ -22,9 +22,9 @@ providers:
       timeout_s: 60
 
 tests:
-  # ── wb-openapi: dumps the OpenAPI schema to stdout (exit 0, valid JSON). ────────
-  - description: wb-openapi --stdout emits a valid OpenAPI document
-    vars: { cmd: "wb-openapi --stdout" }
+  # ── locveil-openapi: dumps the OpenAPI schema to stdout (exit 0, valid JSON). ────────
+  - description: locveil-openapi --stdout emits a valid OpenAPI document
+    vars: { cmd: "locveil-openapi --stdout" }
     assert:
       - { type: javascript, value: "JSON.parse(output).exit_code === 0" }
       # stdout must itself be a valid OpenAPI JSON doc with the core fields.

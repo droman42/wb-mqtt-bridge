@@ -25,9 +25,9 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from wb_mqtt_bridge.domain.capabilities.models import CapabilityMap
-from wb_mqtt_bridge.presentation.api.catalog import build_catalog
-from wb_mqtt_bridge.presentation.api.routers import system as system_router
+from locveil_bridge.domain.capabilities.models import CapabilityMap
+from locveil_bridge.presentation.api.catalog import build_catalog
+from locveil_bridge.presentation.api.routers import system as system_router
 
 
 # ----- Test doubles ---------------------------------------------------------

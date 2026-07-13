@@ -9,7 +9,7 @@ YAML + a thin Makefile (deployment glue, no test logic). Mirrors `locveil-voice/
 ```
 eval/
   Makefile                     # the only entrypoint
-  cli.promptfooconfig.yaml     # CLI contract tests (wb-openapi, broadlink-cli)
+  cli.promptfooconfig.yaml     # CLI contract tests (locveil-openapi, broadlink-cli)
   mqtt.promptfooconfig.yaml    # MQTT system tests (retained catalog/state)
   profiles/targets/{local,wb7}.env   # WHERE the broker/SUT is → MQTT_HOST, API_URL
   fixtures/                    # CLI fixtures (e.g. a real kitchen_hood RF code)
@@ -28,7 +28,7 @@ eval/
 
 | Config | Kind | Needs running | Needs hardware | Status |
 |---|---|---|---|---|
-| `cli.promptfooconfig.yaml` | CLI contracts (`wb-openapi`, `broadlink-cli`) | nothing | no | ✅ **passing (4/4)** |
+| `cli.promptfooconfig.yaml` | CLI contracts (`locveil-openapi`, `broadlink-cli`) | nothing | no | ✅ **passing (4/4)** |
 | `mqtt.promptfooconfig.yaml` | retained `bridge/catalog/version` | broker + bridge service | no | ⏳ pending a broker |
 
 ## Conventions & gotchas (read before editing)
@@ -39,7 +39,7 @@ eval/
   passes through literally and fails silently). The broker host always comes from `{{env.MQTT_HOST}}`.
 - **Run through `make`, not bare `promptfoo`.** The Makefile sets `PROMPTFOO_PYTHON` to the
   **backend** venv and prepends its `bin` to `PATH`; otherwise the providers can't import
-  `eval_commons` and `wb-openapi` / `broadlink-cli` don't resolve. promptfoo is a **global** npm
+  `eval_commons` and `locveil-openapi` / `broadlink-cli` don't resolve. promptfoo is a **global** npm
   install; everything Python is **`uv`**-managed in `../backend/.venv`.
 - **Code root is `backend/`**, so the CLI provider runs with `cwd: ../backend` and the venv is
   `../backend/.venv` (not the repo-root `.venv`).

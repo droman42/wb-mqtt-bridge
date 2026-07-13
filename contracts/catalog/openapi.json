@@ -2238,7 +2238,7 @@
           "manualInstructions": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/wb_mqtt_bridge__presentation__api__layout_manifest__ManualInstructions"
+                "$ref": "#/components/schemas/locveil_bridge__presentation__api__layout_manifest__ManualInstructions"
               },
               {
                 "type": "null"
@@ -3794,7 +3794,7 @@
           "manual_instructions": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/wb_mqtt_bridge__domain__scenarios__models__ManualInstructions"
+                "$ref": "#/components/schemas/locveil_bridge__domain__scenarios__models__ManualInstructions"
               },
               {
                 "type": "null"
@@ -4732,7 +4732,7 @@
         "title": "ZoneLayoutConfig",
         "type": "object"
       },
-      "wb_mqtt_bridge__domain__scenarios__models__ManualInstructions": {
+      "locveil_bridge__domain__scenarios__models__ManualInstructions": {
         "description": "Instructions that require human intervention (cannot be automated).",
         "properties": {
           "shutdown": {
@@ -4755,7 +4755,7 @@
         "title": "ManualInstructions",
         "type": "object"
       },
-      "wb_mqtt_bridge__presentation__api__layout_manifest__ManualInstructions": {
+      "locveil_bridge__presentation__api__layout_manifest__ManualInstructions": {
         "additionalProperties": false,
         "description": "Static human-in-the-loop notes for a scenario (rendered as a bottom section in the remote).",
         "properties": {

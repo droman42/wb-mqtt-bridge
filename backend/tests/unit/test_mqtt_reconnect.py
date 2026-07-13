@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from aiomqtt import MqttError
 
-from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
+from locveil_bridge.infrastructure.mqtt.client import MQTTClient
 
 
 def _client() -> MQTTClient:
@@ -64,10 +64,10 @@ async def test_reconnect_survives_more_than_max_retries_lifetime_drops():
     DROPS = 8  # deliberately > the loop's max_retries (5)
 
     with patch(
-        "wb_mqtt_bridge.infrastructure.mqtt.client.Client",
+        "locveil_bridge.infrastructure.mqtt.client.Client",
         side_effect=lambda *a, **k: _ConnectThenDrop(episodes, DROPS),
     ), patch(
-        "wb_mqtt_bridge.infrastructure.mqtt.client.asyncio.sleep", new=AsyncMock()
+        "locveil_bridge.infrastructure.mqtt.client.asyncio.sleep", new=AsyncMock()
     ):
         await c._run_mqtt_client({"hostname": "h", "port": 1883}, [])
 
@@ -93,10 +93,10 @@ async def test_on_connect_callbacks_fire_on_every_reconnect():
     c.on_connect_callbacks.append(on_connect)
 
     with patch(
-        "wb_mqtt_bridge.infrastructure.mqtt.client.Client",
+        "locveil_bridge.infrastructure.mqtt.client.Client",
         side_effect=lambda *a, **k: _ConnectThenDrop(episodes, 1),
     ), patch(
-        "wb_mqtt_bridge.infrastructure.mqtt.client.asyncio.sleep", new=AsyncMock()
+        "locveil_bridge.infrastructure.mqtt.client.asyncio.sleep", new=AsyncMock()
     ):
         await c._run_mqtt_client({"hostname": "h", "port": 1883}, [])
 
@@ -121,10 +121,10 @@ async def test_failing_on_connect_callback_does_not_break_the_loop():
     c.on_connect_callbacks.extend([bad_callback, good_callback])
 
     with patch(
-        "wb_mqtt_bridge.infrastructure.mqtt.client.Client",
+        "locveil_bridge.infrastructure.mqtt.client.Client",
         side_effect=lambda *a, **k: _ConnectThenDrop(episodes, 1),
     ), patch(
-        "wb_mqtt_bridge.infrastructure.mqtt.client.asyncio.sleep", new=AsyncMock()
+        "locveil_bridge.infrastructure.mqtt.client.asyncio.sleep", new=AsyncMock()
     ):
         await c._run_mqtt_client({"hostname": "h", "port": 1883}, [])
 

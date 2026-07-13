@@ -73,7 +73,7 @@ npm run dev
 The application will be available at `http://localhost:3000`.
 
 > If the backend's `openapi.json` changes, regenerate it on the backend side with
-> `wb-openapi` (committed there), then re-run the generators above.
+> `locveil-openapi` (committed there), then re-run the generators above.
 
 ## Configuration
 
@@ -87,11 +87,11 @@ the local monorepo layout and the CI/Docker build context. Format:
 ```json
 {
   "WirenboardIRDevice": {
-    "stateClassImport": "wb_mqtt_bridge.domain.devices.models:WirenboardIRState",
+    "stateClassImport": "locveil_bridge.domain.devices.models:WirenboardIRState",
     "deviceConfigs": ["devices/ld_player.json"]
   },
   "ScenarioDevice": {
-    "stateClassImport": "wb_mqtt_bridge.infrastructure.scenarios.models:ScenarioWBConfig",
+    "stateClassImport": "locveil_bridge.infrastructure.scenarios.models:ScenarioWBConfig",
     "scenarioConfigPath": "scenarios",
     "resolverType": "scenario_virtual_device"
   }

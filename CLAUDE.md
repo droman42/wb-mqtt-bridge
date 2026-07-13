@@ -168,5 +168,5 @@ Key things it establishes (don't rediscover the hard way):
 - Tests parameterize over the **TARGET** axis (local vs WB7 controller) via `eval/profiles/*.env` —
   never bake a broker host into a test case. promptfoo env refs are `{{env.VAR}}`, not `${VAR}`.
 
-Status: `make cli` passes (wb-openapi, broadlink-cli over a real kitchen_hood code); the MQTT
+Status: `make cli` passes (locveil-openapi, broadlink-cli over a real kitchen_hood code); the MQTT
 suite is pending a running broker + bridge (see `eval/README.md` → Notes/TODO).

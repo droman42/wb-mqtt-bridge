@@ -1,16 +1,12 @@
 import unittest
 from unittest.mock import MagicMock, AsyncMock
-import sys
-import os
 import json
 import inspect
 from typing import Dict, Any, Optional, Callable, Awaitable
 
-# Add parent directory to path to allow importing from app
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
-from wb_mqtt_bridge.domain.devices.models import LastCommand
+from locveil_bridge.infrastructure.devices.base import BaseDevice
+from locveil_bridge.domain.devices.models import LastCommand
 import pytest
 
 pytestmark = pytest.mark.unit

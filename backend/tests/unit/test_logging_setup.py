@@ -11,7 +11,7 @@ import re
 import time
 from pathlib import Path
 
-from wb_mqtt_bridge.app.bootstrap import (
+from locveil_bridge.app.bootstrap import (
     LOG_RETENTION_DAYS,
     _prune_old_logs,
     _startup_rollover,

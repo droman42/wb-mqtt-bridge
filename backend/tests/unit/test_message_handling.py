@@ -1,14 +1,10 @@
 import unittest
 from unittest.mock import MagicMock, patch, AsyncMock
-import sys
-import os
 import json
 from typing import Dict, Any
 
-# Add parent directory to path to allow importing from app
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
+from locveil_bridge.infrastructure.devices.base import BaseDevice
 import pytest
 
 pytestmark = pytest.mark.unit

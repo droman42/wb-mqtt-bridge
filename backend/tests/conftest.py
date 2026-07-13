@@ -6,8 +6,8 @@ import os
 import sys
 import pytest
 from unittest.mock import MagicMock, AsyncMock
-from wb_mqtt_bridge.domain.scenarios.scenario import Scenario
-from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition
+from locveil_bridge.domain.scenarios.scenario import Scenario
+from locveil_bridge.domain.scenarios.models import ScenarioDefinition
 
 # Add the parent directory to path to allow imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))

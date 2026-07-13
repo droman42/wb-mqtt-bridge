@@ -3,8 +3,8 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-from wb_mqtt_bridge.domain.rooms.service import RoomManager
-from wb_mqtt_bridge.domain.scenarios.models import RoomDefinition
+from locveil_bridge.domain.rooms.service import RoomManager
+from locveil_bridge.domain.scenarios.models import RoomDefinition
 
 pytestmark = pytest.mark.unit
 

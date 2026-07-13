@@ -15,7 +15,7 @@ import json
 import pytest
 from unittest.mock import MagicMock, AsyncMock
 
-from wb_mqtt_bridge.domain.scenarios.service import ScenarioManager
+from locveil_bridge.domain.scenarios.service import ScenarioManager
 
 
 pytestmark = pytest.mark.integration

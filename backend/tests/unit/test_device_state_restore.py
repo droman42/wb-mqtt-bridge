@@ -17,12 +17,12 @@ from unittest.mock import Mock
 
 import pytest
 
-from wb_mqtt_bridge.domain.devices.models import BaseDeviceState
-from wb_mqtt_bridge.domain.devices.service import DeviceManager
-from wb_mqtt_bridge.domain.scenarios.reconciler import _power_actions
-from wb_mqtt_bridge.infrastructure.capabilities.loader import load_capability_map
-from wb_mqtt_bridge.infrastructure.config.models import BaseDeviceConfig
-from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
+from locveil_bridge.domain.devices.models import BaseDeviceState
+from locveil_bridge.domain.devices.service import DeviceManager
+from locveil_bridge.domain.scenarios.reconciler import _power_actions
+from locveil_bridge.infrastructure.capabilities.loader import load_capability_map
+from locveil_bridge.infrastructure.config.models import BaseDeviceConfig
+from locveil_bridge.infrastructure.devices.base import BaseDevice
 
 pytestmark = pytest.mark.unit
 

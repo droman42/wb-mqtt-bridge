@@ -17,13 +17,13 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from wb_mqtt_bridge.app import app as main_app
-from wb_mqtt_bridge.domain.capabilities.models import Capability, CapabilityMap
-from wb_mqtt_bridge.domain.rooms.groups import FANOUT_ALLOWED_GROUPS, resolve_members
-from wb_mqtt_bridge.domain.rooms.service import RoomManager
-from wb_mqtt_bridge.presentation.api.catalog import build_catalog
-from wb_mqtt_bridge.presentation.api.routers import devices as devices_router
-from wb_mqtt_bridge.presentation.api.routers import rooms as rooms_router
+from locveil_bridge.app import app as main_app
+from locveil_bridge.domain.capabilities.models import Capability, CapabilityMap
+from locveil_bridge.domain.rooms.groups import FANOUT_ALLOWED_GROUPS, resolve_members
+from locveil_bridge.domain.rooms.service import RoomManager
+from locveil_bridge.presentation.api.catalog import build_catalog
+from locveil_bridge.presentation.api.routers import devices as devices_router
+from locveil_bridge.presentation.api.routers import rooms as rooms_router
 
 LIGHT_SWITCH_MAP = {  # the tagged illumination profile shape
     "power": {"kind": "momentary", "group": "light",

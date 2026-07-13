@@ -296,7 +296,7 @@ def test_pyatv_device_listener_implements_all_abstract_methods():
     into a unit-test failure: if a future pyatv bump adds another abstract listener method,
     this fails here instead of in production.
     """
-    from wb_mqtt_bridge.infrastructure.devices.apple_tv.driver import PyATVDeviceListener
+    from locveil_bridge.infrastructure.devices.apple_tv.driver import PyATVDeviceListener
 
     unimplemented = sorted(getattr(PyATVDeviceListener, "__abstractmethods__", frozenset()))
     assert not unimplemented, (

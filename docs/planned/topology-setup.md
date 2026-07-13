@@ -117,9 +117,9 @@ them interactively, not let an error reach `POST /reload`:
 
 | Part | Status today |
 |---|---|
-| `Topology` Pydantic model + loader | **Built.** `backend/src/wb_mqtt_bridge/domain/topology/{models.py,loader.py}`. |
+| `Topology` Pydantic model + loader | **Built.** `backend/src/locveil_bridge/domain/topology/{models.py,loader.py}`. |
 | `TopologyLink`, `OrderingEdge`, `ManualNode` schemas | **Built.** Same module. Mirror in `docs/design/scenarios/scenario_system_redesign.md` §4. |
-| `resolve_targets` (DFS the page's preview runs) | **Built.** `backend/src/wb_mqtt_bridge/domain/scenarios/reconciler.py`. |
+| `resolve_targets` (DFS the page's preview runs) | **Built.** `backend/src/locveil_bridge/domain/scenarios/reconciler.py`. |
 | Scenario validator (referenced-devices / acyclic-ordering) | **Built.** `ScenarioManager._validate_room_membership` + the loader's structural checks. |
 | Devices' exposed ports (the palette source) | **Built.** Each capability map declares them; `DeviceManager` makes them available. |
 | Graph editor UI | **Not built.** |

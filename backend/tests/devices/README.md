@@ -37,7 +37,7 @@ For Auralic device, the current test coverage is 56%, with 270 statements and 12
 
 ```bash
 # Run coverage report
-pytest tests/devices/test_auralic_device.py tests/devices/test_auralic_update_task.py --cov=wb_mqtt_bridge.infrastructure.devices.auralic --cov-report term-missing
+pytest tests/devices/test_auralic_device.py tests/devices/test_auralic_update_task.py --cov=locveil_bridge.infrastructure.devices.auralic --cov-report term-missing
 ```
 
 #### Areas for Improvement

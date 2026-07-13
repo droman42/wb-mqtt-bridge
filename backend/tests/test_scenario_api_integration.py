@@ -18,15 +18,15 @@ from unittest.mock import AsyncMock, MagicMock
 
 from fastapi.testclient import TestClient
 
-from wb_mqtt_bridge.app import app as main_app
-from wb_mqtt_bridge.presentation.api.routers import scenarios, rooms, state
-from wb_mqtt_bridge.domain.scenarios.models import (
+from locveil_bridge.app import app as main_app
+from locveil_bridge.presentation.api.routers import scenarios, rooms, state
+from locveil_bridge.domain.scenarios.models import (
     ScenarioDefinition,
     ScenarioState,
     DeviceState,
     RoomDefinition,
 )
-from wb_mqtt_bridge.domain.scenarios.scenario import Scenario, ScenarioError
+from locveil_bridge.domain.scenarios.scenario import Scenario, ScenarioError
 
 
 pytestmark = pytest.mark.integration

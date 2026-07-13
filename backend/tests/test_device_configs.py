@@ -13,7 +13,6 @@ This script tests the new device configuration architecture by:
 import os
 import sys
 import logging
-from pathlib import Path
 from typing import Dict, Any
 
 # Set up basic logging
@@ -23,18 +22,16 @@ logging.basicConfig(
 )
 logger = logging.getLogger("config_test")
 
-# Add parent directory to Python path to find app module
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
-    from wb_mqtt_bridge.infrastructure.config.manager import ConfigManager
-    from wb_mqtt_bridge.infrastructure.config.validation import validate_device_configs
-    from wb_mqtt_bridge.infrastructure.config.models import (
+    from locveil_bridge.infrastructure.config.manager import ConfigManager
+    from locveil_bridge.infrastructure.config.validation import validate_device_configs
+    from locveil_bridge.infrastructure.config.models import (
         BaseDeviceConfig,
         StandardCommandConfig,
         IRCommandConfig
     )
-    from wb_mqtt_bridge.utils.class_loader import load_class_by_name
+    from locveil_bridge.utils.class_loader import load_class_by_name
 except ImportError as e:
     logger.error(f"Failed to import required modules: {e}")
     logger.error("Make sure you're running this script from the project root directory")

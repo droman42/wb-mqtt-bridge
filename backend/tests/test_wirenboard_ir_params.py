@@ -18,10 +18,10 @@ import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock
 
-from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
-from wb_mqtt_bridge.infrastructure.devices.wirenboard_ir_device.driver import WirenboardIRDevice
-from wb_mqtt_bridge.domain.capabilities.models import CapabilityMap
-from wb_mqtt_bridge.infrastructure.config.models import (
+from locveil_bridge.infrastructure.devices.base import BaseDevice
+from locveil_bridge.infrastructure.devices.wirenboard_ir_device.driver import WirenboardIRDevice
+from locveil_bridge.domain.capabilities.models import CapabilityMap
+from locveil_bridge.infrastructure.config.models import (
     WirenboardIRDeviceConfig,
     IRCommandConfig,
     CommandParameterDefinition,

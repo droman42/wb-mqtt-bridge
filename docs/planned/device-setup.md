@@ -189,7 +189,7 @@ Things the implementation will need to answer, not papered over:
 | Part | Status today |
 |---|---|
 | Capability profiles (the proposals' destination) | **Built.** `backend/config/capabilities/profiles/*.json` (7 profiles: `light_switch`, `dimmable_light`, `rgb_light`, `cover`, `heating_loop`, `hvac`, `sensor_room`). |
-| `WbPassthroughDeviceConfig` (the typed shape the importer writes) | **Built.** `backend/src/wb_mqtt_bridge/infrastructure/config/models.py`. |
+| `WbPassthroughDeviceConfig` (the typed shape the importer writes) | **Built.** `backend/src/locveil_bridge/infrastructure/config/models.py`. |
 | Room metadata + derived membership | **Built.** See [Rooms](../architecture/rooms.md). |
 | `Broadlink` discovery + capture (low-level) | **Available** via the `broadlink` Python lib; demonstrated in the archived `broadlink-device-setup.ipynb`. |
 | WB-cell importer | **Not built.** |

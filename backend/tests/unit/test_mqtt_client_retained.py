@@ -16,7 +16,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
+from locveil_bridge.infrastructure.mqtt.client import MQTTClient
 
 
 def _client() -> MQTTClient:

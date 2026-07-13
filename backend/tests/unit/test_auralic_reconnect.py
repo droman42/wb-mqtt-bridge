@@ -13,8 +13,8 @@ disconnected branches, deep sleep included.
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from wb_mqtt_bridge.infrastructure.devices.auralic.driver import AuralicDevice
-from wb_mqtt_bridge.infrastructure.config.models import (
+from locveil_bridge.infrastructure.devices.auralic.driver import AuralicDevice
+from locveil_bridge.infrastructure.config.models import (
     AuralicDeviceConfig,
     AuralicConfig,
 )
@@ -194,7 +194,7 @@ async def test_power_on_wakes_halted_via_set_halt(monkeypatch):
     device._refresh_sources_cache = AsyncMock()
     monkeypatch.setattr("asyncio.sleep", AsyncMock())
 
-    from wb_mqtt_bridge.infrastructure.config.models import BaseCommandConfig
+    from locveil_bridge.infrastructure.config.models import BaseCommandConfig
     result = await device.handle_power_on(BaseCommandConfig(action="power_on"), {})
 
     assert result["success"] is True, result
@@ -210,7 +210,7 @@ async def test_power_on_unreachable_fails_without_ir():
     device.openhome_device = None
     device._deep_sleep_mode = False
 
-    from wb_mqtt_bridge.infrastructure.config.models import BaseCommandConfig
+    from locveil_bridge.infrastructure.config.models import BaseCommandConfig
     result = await device.handle_power_on(BaseCommandConfig(action="power_on"), {})
 
     assert result["success"] is False
@@ -228,7 +228,7 @@ async def test_power_off_full_goes_standby_then_halt():
     device.openhome_device = full
     device._deep_sleep_mode = False
 
-    from wb_mqtt_bridge.infrastructure.config.models import BaseCommandConfig
+    from locveil_bridge.infrastructure.config.models import BaseCommandConfig
     result = await device.handle_power_off(BaseCommandConfig(action="power_off"), {})
 
     assert result["success"] is True, result
@@ -244,7 +244,7 @@ async def test_power_off_already_halted_is_noop():
     device._deep_sleep_mode = True
     device.openhome_device = _halted_openhome()
 
-    from wb_mqtt_bridge.infrastructure.config.models import BaseCommandConfig
+    from locveil_bridge.infrastructure.config.models import BaseCommandConfig
     result = await device.handle_power_off(BaseCommandConfig(action="power_off"), {})
 
     assert result["success"] is True
@@ -304,7 +304,7 @@ async def test_set_input_by_index_uses_true_device_index():
     device.openhome_device.set_source = AsyncMock()
     device._update_device_state = AsyncMock()
 
-    from wb_mqtt_bridge.infrastructure.config.models import BaseCommandConfig
+    from locveil_bridge.infrastructure.config.models import BaseCommandConfig
     result = await device.handle_set_input(BaseCommandConfig(action="set_input"), {"input": "9"})
 
     assert result["success"] is True, result
@@ -320,7 +320,7 @@ async def test_set_input_by_name_resolves_true_index():
     device.openhome_device.set_source = AsyncMock()
     device._update_device_state = AsyncMock()
 
-    from wb_mqtt_bridge.infrastructure.config.models import BaseCommandConfig
+    from locveil_bridge.infrastructure.config.models import BaseCommandConfig
     result = await device.handle_set_input(BaseCommandConfig(action="set_input"), {"input": "airplay"})
 
     assert result["success"] is True, result
@@ -334,7 +334,7 @@ async def test_set_input_rejects_unknown_index():
     device.state.connected = True
     device.openhome_device.sources = AsyncMock(return_value=_sources_fixture())
 
-    from wb_mqtt_bridge.infrastructure.config.models import BaseCommandConfig
+    from locveil_bridge.infrastructure.config.models import BaseCommandConfig
     result = await device.handle_set_input(BaseCommandConfig(action="set_input"), {"input": "5"})
 
     assert result["success"] is False

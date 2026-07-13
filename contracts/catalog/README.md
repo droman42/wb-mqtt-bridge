@@ -20,7 +20,10 @@ retro-tagged. v1.5 itself changed no contract surface: it is the convention cut 
 gave the family its layout, stamp core, and first tag. v1.6 (additive) rewrote the
 OpenAPI field descriptions reader-first — no structural change, no golden change —
 and the STAMP now enumerates the artifact set (`artifacts`) so a consumer's pin can
-be checked for completeness. Additive changes bump the
+be checked for completeness. v1.7 (additive) renamed the backend import package to
+`locveil_bridge`: the module-qualified names of the two `ManualInstructions` schema
+variants in `openapi.json` changed prefix accordingly — a schema-name rename, no
+field or structural change, and the golden catalog is byte-identical. Additive changes bump the
 minor version, breaking changes the major; the version is carried in code as the
 catalog projection's `CONTRACT_VERSION` constant and flows into the STAMP at
 regeneration. The golden's *content hash* is *not* a version — it moves whenever the
@@ -39,11 +42,11 @@ house config changes, with zero contract change.
 From `backend/`:
 
 ```bash
-uv run wb-catalog --stamp ../contracts/catalog/STAMP.json
-uv run wb-openapi -o openapi.json && cp openapi.json ../contracts/catalog/openapi.json
+uv run locveil-catalog --stamp ../contracts/catalog/STAMP.json
+uv run locveil-openapi -o openapi.json && cp openapi.json ../contracts/catalog/openapi.json
 ```
 
-`wb-catalog` builds the catalog **offline** — typed configs + capability maps +
+`locveil-catalog` builds the catalog **offline** — typed configs + capability maps +
 rooms + scenario definitions, no drivers, no network, no broker — so the dump is
 deterministic (devices sorted by id; identical bytes across runs).
 

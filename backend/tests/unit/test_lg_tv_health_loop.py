@@ -13,8 +13,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from wb_mqtt_bridge.infrastructure.devices.lg_tv.driver import LgTv
-from wb_mqtt_bridge.infrastructure.config.models import (
+from locveil_bridge.infrastructure.devices.lg_tv.driver import LgTv
+from locveil_bridge.infrastructure.config.models import (
     LgTvConfig,
     LgTvDeviceConfig,
     StandardCommandConfig,

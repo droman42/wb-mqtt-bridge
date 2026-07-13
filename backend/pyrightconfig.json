@@ -1,5 +1,5 @@
 {
-  "include": ["src/wb_mqtt_bridge"],
+  "include": ["src/locveil_bridge"],
   "venvPath": ".",
   "venv": ".venv",
   "pythonVersion": "3.11",

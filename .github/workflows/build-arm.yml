@@ -122,7 +122,7 @@ jobs:
       # [dev] extras; tests run separately below.
       - uses: droman42/py-dev-gates/.github/actions/python-health@v0.1.1
         with:
-          src: src/wb_mqtt_bridge
+          src: src/locveil_bridge
           working-directory: backend
       - name: Run tests
         run: pytest -v -m "not requires_device" --tb=short

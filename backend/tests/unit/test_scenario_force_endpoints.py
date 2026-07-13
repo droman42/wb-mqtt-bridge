@@ -14,12 +14,12 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition
-from wb_mqtt_bridge.domain.scenarios.scenario import Scenario, ScenarioError
-from wb_mqtt_bridge.domain.scenarios.service import ScenarioManager
-from wb_mqtt_bridge.infrastructure.capabilities.loader import load_capability_map
-from wb_mqtt_bridge.domain.topology.loader import load_topology
-from wb_mqtt_bridge.presentation.api.routers import scenarios as scenarios_router
+from locveil_bridge.domain.scenarios.models import ScenarioDefinition
+from locveil_bridge.domain.scenarios.scenario import Scenario, ScenarioError
+from locveil_bridge.domain.scenarios.service import ScenarioManager
+from locveil_bridge.infrastructure.capabilities.loader import load_capability_map
+from locveil_bridge.domain.topology.loader import load_topology
+from locveil_bridge.presentation.api.routers import scenarios as scenarios_router
 
 pytestmark = pytest.mark.integration
 
@@ -101,7 +101,7 @@ def _manager(devices, active=True, scenario_name="movie_appletv"):
 
 @pytest.fixture(autouse=True)
 def _no_sleep(monkeypatch):
-    import wb_mqtt_bridge.domain.scenarios.reconciler as rec
+    import locveil_bridge.domain.scenarios.reconciler as rec
 
     async def _nosleep(*a, **k):
         return None

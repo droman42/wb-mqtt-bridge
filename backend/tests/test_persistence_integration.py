@@ -6,15 +6,11 @@ The fine-grained SQLiteStateStore round-trip is covered in
 tests/unit/test_state_store.py; here we exercise the wiring that connects
 a BaseDevice -> DeviceManager._persist_state -> state_repository.save.
 """
-import os
-import sys
 import pytest
 import asyncio
 import pytest_asyncio
 from typing import Any, Dict, Optional
 
-# Add the parent directory to sys.path for importing
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Import the mock_sqlite module first to handle SQLite issues
 from tests import mock_sqlite
@@ -24,15 +20,15 @@ if not mock_sqlite.HAS_AIOSQLITE:
     pytest.skip("aiosqlite is not available", allow_module_level=True)
 
 from pydantic import Field
-from wb_mqtt_bridge.infrastructure.persistence.sqlite import SQLiteStateStore
-from wb_mqtt_bridge.domain.devices.service import DeviceManager
-from wb_mqtt_bridge.infrastructure.config.models import (
+from locveil_bridge.infrastructure.persistence.sqlite import SQLiteStateStore
+from locveil_bridge.domain.devices.service import DeviceManager
+from locveil_bridge.infrastructure.config.models import (
     BaseCommandConfig,
     WirenboardIRDeviceConfig,
     IRCommandConfig,
 )
-from wb_mqtt_bridge.domain.devices.models import BaseDeviceState
-from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
+from locveil_bridge.domain.devices.models import BaseDeviceState
+from locveil_bridge.infrastructure.devices.base import BaseDevice
 
 
 pytestmark = pytest.mark.integration

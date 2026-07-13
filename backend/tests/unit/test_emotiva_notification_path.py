@@ -22,13 +22,13 @@ These tests verify the notification path directly. They also lock in that:
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from wb_mqtt_bridge.infrastructure.devices.emotiva_xmc2.driver import EMotivaXMC2, PowerState
-from wb_mqtt_bridge.infrastructure.config.models import (
+from locveil_bridge.infrastructure.devices.emotiva_xmc2.driver import EMotivaXMC2, PowerState
+from locveil_bridge.infrastructure.config.models import (
     EmotivaXMC2DeviceConfig,
     CommandParameterDefinition,
     StandardCommandConfig,
 )
-from wb_mqtt_bridge.infrastructure.config.models import EmotivaConfig as AppEmotivaConfig
+from locveil_bridge.infrastructure.config.models import EmotivaConfig as AppEmotivaConfig
 
 
 pytestmark = pytest.mark.unit
@@ -543,7 +543,7 @@ def test_keepalive_beats_emit_no_log_lines(device: EMotivaXMC2, caplog):
     import logging as _logging
 
     with caplog.at_level(_logging.DEBUG,
-                         logger="wb_mqtt_bridge.infrastructure.devices.emotiva_xmc2.driver"):
+                         logger="locveil_bridge.infrastructure.devices.emotiva_xmc2.driver"):
         caplog.clear()
         device._handle_property_change("keepalive", None, "7500")
         assert caplog.records == []

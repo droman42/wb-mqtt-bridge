@@ -29,7 +29,7 @@ import pytest
 
 DEVICES_ROOT = (
     Path(__file__).resolve().parents[2]
-    / "src" / "wb_mqtt_bridge" / "infrastructure" / "devices"
+    / "src" / "locveil_bridge" / "infrastructure" / "devices"
 )
 
 

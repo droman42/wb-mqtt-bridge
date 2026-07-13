@@ -34,8 +34,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import required modules
 import httpx
-from wb_mqtt_bridge.infrastructure.config.manager import ConfigManager
-from wb_mqtt_bridge.presentation.api.schemas import DeviceAction, MQTTMessage
+from locveil_bridge.infrastructure.config.manager import ConfigManager
+from locveil_bridge.presentation.api.schemas import DeviceAction, MQTTMessage
 from pydantic import ValidationError
 
 logger = logging.getLogger("device_test")

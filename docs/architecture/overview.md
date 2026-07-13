@@ -81,7 +81,7 @@ A small set of conventions keeps the hexagon working — none of them are aspira
   `BaseDeviceState`. Drivers don't return free-form dicts; `execute_action` returns a
   typed `CommandResponse[StateT]`.
 - **Drivers register as entry-points.** `pyproject.toml`
-  `[project.entry-points."wb_mqtt_bridge.devices"]`. `DeviceManager.load_device_modules()`
+  `[project.entry-points."locveil_bridge.devices"]`. `DeviceManager.load_device_modules()`
   discovers them at startup; `config_class` and `device_class` resolve via
   `utils/class_loader.py`.
 - **State is persisted through the port — and restored at startup.** `DeviceManager`

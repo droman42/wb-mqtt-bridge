@@ -8,12 +8,12 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition
-from wb_mqtt_bridge.infrastructure.capabilities.loader import load_capability_map
-from wb_mqtt_bridge.domain.capabilities.models import CapabilityMap
+from locveil_bridge.domain.scenarios.models import ScenarioDefinition
+from locveil_bridge.infrastructure.capabilities.loader import load_capability_map
+from locveil_bridge.domain.capabilities.models import CapabilityMap
 import pytest
 
-from wb_mqtt_bridge.domain.scenarios.reconciler import (
+from locveil_bridge.domain.scenarios.reconciler import (
     PlannedAction,
     ReconcilePlan,
     build_plan,
@@ -21,8 +21,8 @@ from wb_mqtt_bridge.domain.scenarios.reconciler import (
     execute_plan,
     resolve_targets,
 )
-from wb_mqtt_bridge.domain.topology.loader import load_topology
-from wb_mqtt_bridge.domain.topology.models import Topology
+from locveil_bridge.domain.topology.loader import load_topology
+from locveil_bridge.domain.topology.models import Topology
 
 ROOT = Path(__file__).resolve().parents[2]
 CAPS = ROOT / "config" / "capabilities"
@@ -212,7 +212,7 @@ def test_ordering_edge_delay_becomes_pre_delay():
 
 @pytest.mark.asyncio
 async def test_execute_plan_runs_actions_in_plan_order(monkeypatch):
-    import wb_mqtt_bridge.domain.scenarios.reconciler as rec
+    import locveil_bridge.domain.scenarios.reconciler as rec
 
     async def _nosleep(*a, **k):
         return None
@@ -259,7 +259,7 @@ async def test_execute_plan_runs_actions_in_plan_order(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_execute_plan_surfaces_failure_and_continues(monkeypatch):
-    import wb_mqtt_bridge.domain.scenarios.reconciler as rec
+    import locveil_bridge.domain.scenarios.reconciler as rec
 
     async def _nosleep(*a, **k):
         return None
@@ -314,7 +314,7 @@ def _static_device(**state):
 async def test_gate_confirms_wire_state_via_normalization(monkeypatch):
     """The LG stores 'HDMI_2'/'HDMI2'; the plan targets canonical 'hdmi2' — the gate
     must confirm instead of burning its full poll window (F2)."""
-    import wb_mqtt_bridge.domain.scenarios.reconciler as rec
+    import locveil_bridge.domain.scenarios.reconciler as rec
 
     async def _nosleep(*a, **k):
         return None
@@ -333,7 +333,7 @@ async def test_gate_confirms_wire_state_via_normalization(monkeypatch):
 async def test_gate_confirms_via_value_table(monkeypatch):
     """A capability enum table (wire->canonical) translates the observed state before
     comparison — numeric-wire devices gate correctly."""
-    import wb_mqtt_bridge.domain.scenarios.reconciler as rec
+    import locveil_bridge.domain.scenarios.reconciler as rec
 
     async def _nosleep(*a, **k):
         return None
@@ -352,7 +352,7 @@ async def test_gate_confirms_via_value_table(monkeypatch):
 async def test_gate_timeout_is_a_failed_step(monkeypatch):
     """F3: a feedback:true step whose reported state never reaches the target is a
     FAILURE in the result (it stays in `executed` — it was dispatched and acked)."""
-    import wb_mqtt_bridge.domain.scenarios.reconciler as rec
+    import locveil_bridge.domain.scenarios.reconciler as rec
 
     async def _nosleep(*a, **k):
         return None
@@ -375,7 +375,7 @@ def test_preview_in_sync_across_wire_canonical_vocabularies():
     'out of sync' with believed 'HDMI_2' vs desired 'hdmi2' — the preview compared
     raw equality while the execution gate normalized. All comparison sites share
     `_satisfies` now; a TV honestly on HDMI_2 must read in sync."""
-    from wb_mqtt_bridge.domain.scenarios.reconciler import build_reconcile_preview
+    from locveil_bridge.domain.scenarios.reconciler import build_reconcile_preview
 
     devices = {
         "living_room_tv": _device("LgTv", "living_room_tv", power="on", input_source="HDMI_2"),
@@ -411,7 +411,7 @@ def test_plan_diff_skips_wire_form_already_satisfied():
 async def test_gate_timeout_only_gates_feedback_steps(monkeypatch):
     """Feedback-less steps keep the optimistic path — an IR toggle has nothing to
     report, so no gate failure can exist for it."""
-    import wb_mqtt_bridge.domain.scenarios.reconciler as rec
+    import locveil_bridge.domain.scenarios.reconciler as rec
 
     async def _nosleep(*a, **k):
         return None
@@ -685,7 +685,7 @@ def test_power_off_targets_bool_complement_for_auralic():
 
 
 async def test_gate_satisfied_immediately_when_bool_off_reached():
-    from wb_mqtt_bridge.domain.scenarios.reconciler import _gate
+    from locveil_bridge.domain.scenarios.reconciler import _gate
 
     devices = {"streamer": _device("AuralicDevice", "streamer", power="on", connected=True)}
     plan = build_power_off_plan(["streamer"], devices)
@@ -707,7 +707,7 @@ def test_power_off_keeps_string_off_for_string_fields():
 # --- SCN-11: forced single-device plan + reconcile preview -------------------
 
 
-from wb_mqtt_bridge.domain.scenarios.reconciler import (  # noqa: E402
+from locveil_bridge.domain.scenarios.reconciler import (  # noqa: E402
     build_forced_device_plan,
     build_reconcile_preview,
 )
@@ -854,7 +854,7 @@ def test_movie_appletv_plan_keeps_on_path_zone2():
 def test_preview_desired_set_agrees_with_planner_on_zones():
     """SCN-11 parity: the force-reconcile dialog must not show an off-path zone as
     desired — else movie_ld would read 'out of sync' forever after SCN-16."""
-    from wb_mqtt_bridge.domain.scenarios.reconciler import build_reconcile_preview
+    from locveil_bridge.domain.scenarios.reconciler import build_reconcile_preview
 
     previews = {p.device_id: p for p in
                 build_reconcile_preview(_scenario("movie_ld"), TOPOLOGY, _movie_ld_devices())}
@@ -876,7 +876,7 @@ async def test_dispatch_timeout_fails_the_step_and_the_plan_continues(monkeypatc
     """A hung driver dispatch costs ONE failed step, not the whole switch — steps
     are globally serialized, so an unbounded hang would freeze every later device."""
     import asyncio
-    from wb_mqtt_bridge.domain.scenarios import reconciler as r
+    from locveil_bridge.domain.scenarios import reconciler as r
 
     monkeypatch.setattr(r, "DISPATCH_TIMEOUT_S", 0.05)
 

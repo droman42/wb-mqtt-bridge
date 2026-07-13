@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from wb_mqtt_bridge.domain.reports.service import (
+from locveil_bridge.domain.reports.service import (
     REPORT_BUNDLE_NAME,
     REPORT_FILED_LABELS,
     REPORT_SOURCE,

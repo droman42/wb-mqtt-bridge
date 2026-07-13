@@ -2,9 +2,9 @@ import json
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
 
-from wb_mqtt_bridge.domain.scenarios.service import ScenarioManager
-from wb_mqtt_bridge.domain.scenarios.scenario import Scenario, ScenarioError
-from wb_mqtt_bridge.domain.scenarios.models import ManualStep
+from locveil_bridge.domain.scenarios.service import ScenarioManager
+from locveil_bridge.domain.scenarios.scenario import Scenario, ScenarioError
+from locveil_bridge.domain.scenarios.models import ManualStep
 
 pytestmark = pytest.mark.unit
 

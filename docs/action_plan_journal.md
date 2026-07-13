@@ -25,6 +25,20 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-13 — CORE-10 DONE: `wb_mqtt_bridge` → `locveil_bridge` import rename + console scripts +
+  the deliberate `catalog-v1.7` cut (one tree churn).** Bridge was already src-layout so no layout
+  move was owed. `git mv` (98 files, history preserved) + identifier sweep across 104 `.py`, pyproject
+  (entry-point group + the 6 import-linter contract refs + root_packages), device-state-mapping, CI,
+  manifest globs, live docs. Scripts `wb-openapi`/`wb-catalog` → `locveil-*`; `wb-api` retired. **The
+  two `meta/driver` wire literals (`driver_name="wb_mqtt_bridge"`) were deliberately preserved — that
+  cutover is OPS-26, owner-gated.** catalog-v1.7: schema-name-only change (the two `ManualInstructions`
+  variants), golden byte-identical; regenerated openapi + UI types + STAMP. Removed the stale
+  gitignored `src/*.egg-info` (polluted `importlib.metadata` on the src-on-path install) + reinstalled
+  editable. sys.path shims: delegation estimated 4, actual inert count was 9 — removed all 9
+  (user-confirmed) + orphaned imports. Gates: import-linter 6/6, pyright 0, pytest 725, UI check+build
+  green. Remaining PROD-21 bridge work: CORE-11 (config→root + Dockerfiles→root), OPS-26 (wire
+  cutover, owner-gated).
+
 - **2026-07-13 — PROD-21 intake: HK-8 Python-layout convention delegated to the bridge → filed
   CORE-10 + CORE-11 + OPS-26.** Pulled the board delegation (council HK-8, normative
   `../locveil-commons/process/python-layout.md`), reconciled the keeper checklist against live repo:

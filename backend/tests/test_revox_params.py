@@ -18,9 +18,9 @@ import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from wb_mqtt_bridge.infrastructure.devices.revox_a77_reel_to_reel.driver import RevoxA77ReelToReel
-from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
-from wb_mqtt_bridge.infrastructure.config.models import (
+from locveil_bridge.infrastructure.devices.revox_a77_reel_to_reel.driver import RevoxA77ReelToReel
+from locveil_bridge.infrastructure.mqtt.client import MQTTClient
+from locveil_bridge.infrastructure.config.models import (
     RevoxA77ReelToReelConfig,
     RevoxA77ReelToReelParams,
     IRCommandConfig,

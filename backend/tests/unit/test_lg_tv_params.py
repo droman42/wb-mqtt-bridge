@@ -15,8 +15,8 @@ These tests bypass setup() entirely:
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from wb_mqtt_bridge.infrastructure.devices.lg_tv.driver import LgTv
-from wb_mqtt_bridge.infrastructure.config.models import (
+from locveil_bridge.infrastructure.devices.lg_tv.driver import LgTv
+from locveil_bridge.infrastructure.config.models import (
     LgTvDeviceConfig,
     LgTvConfig,
     StandardCommandConfig,
@@ -252,7 +252,7 @@ import pytest as _pytest  # alias to avoid colliding with the existing `pytest` 
 def test_lg_tv_power_state_mapping(raw_state, expected_on):
     """Regression for _lg_tv_is_on. Values from asyncwebostv 0.3.0
     docs/subscription_spec.md "Power States"."""
-    from wb_mqtt_bridge.infrastructure.devices.lg_tv.driver import _lg_tv_is_on
+    from locveil_bridge.infrastructure.devices.lg_tv.driver import _lg_tv_is_on
     assert _lg_tv_is_on(raw_state) is expected_on
 
 

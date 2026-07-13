@@ -24,15 +24,15 @@ from unittest.mock import AsyncMock, Mock
 import asyncio
 import pytest
 
-from wb_mqtt_bridge.domain.devices.models import LastCommand
-from wb_mqtt_bridge.domain.ports import MessageBusPort
-from wb_mqtt_bridge.infrastructure.config.models import (
+from locveil_bridge.domain.devices.models import LastCommand
+from locveil_bridge.domain.ports import MessageBusPort
+from locveil_bridge.infrastructure.config.models import (
     BaseCommandConfig,
     BaseDeviceConfig,
     CommandParameterDefinition,
 )
-from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
-from wb_mqtt_bridge.infrastructure.wb_device.service import WBVirtualDeviceService
+from locveil_bridge.infrastructure.devices.base import BaseDevice
+from locveil_bridge.infrastructure.wb_device.service import WBVirtualDeviceService
 
 pytestmark = pytest.mark.unit
 

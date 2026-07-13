@@ -8,11 +8,11 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from wb_mqtt_bridge.app import app as main_app
-from wb_mqtt_bridge.domain.capabilities.models import CapabilityAction, CapabilityMap
-from wb_mqtt_bridge.presentation.api.layout_engine import build_device_manifest
-from wb_mqtt_bridge.presentation.api.param_projection import project_action_params, project_params
-from wb_mqtt_bridge.presentation.api.routers import devices as devices_router
+from locveil_bridge.app import app as main_app
+from locveil_bridge.domain.capabilities.models import CapabilityAction, CapabilityMap
+from locveil_bridge.presentation.api.layout_engine import build_device_manifest
+from locveil_bridge.presentation.api.param_projection import project_action_params, project_params
+from locveil_bridge.presentation.api.routers import devices as devices_router
 
 pytestmark = pytest.mark.unit
 

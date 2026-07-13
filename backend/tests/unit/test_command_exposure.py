@@ -9,7 +9,7 @@
 import json
 from pathlib import Path
 
-from wb_mqtt_bridge.infrastructure.capabilities.loader import (
+from locveil_bridge.infrastructure.capabilities.loader import (
     load_capability_map,
     referenced_commands,
     validate_command_exposure,
@@ -70,8 +70,8 @@ def test_validate_command_exposure_rule():
 
 
 async def test_execute_action_exposure_gate():
-    from wb_mqtt_bridge.infrastructure.config.models import BaseDeviceConfig, StandardCommandConfig
-    from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
+    from locveil_bridge.infrastructure.config.models import BaseDeviceConfig, StandardCommandConfig
+    from locveil_bridge.infrastructure.devices.base import BaseDevice
 
     class _StubDev(BaseDevice):
         async def setup(self):

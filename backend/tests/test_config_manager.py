@@ -1,8 +1,8 @@
 import os
 import json
 import pytest
-from wb_mqtt_bridge.infrastructure.config.manager import ConfigManager
-from wb_mqtt_bridge.infrastructure.config.models import BroadlinkKitchenHoodConfig, BaseDeviceConfig
+from locveil_bridge.infrastructure.config.manager import ConfigManager
+from locveil_bridge.infrastructure.config.models import BroadlinkKitchenHoodConfig, BaseDeviceConfig
 
 pytestmark = pytest.mark.unit
 

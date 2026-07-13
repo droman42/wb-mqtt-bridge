@@ -13,10 +13,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from wb_mqtt_bridge.infrastructure.capabilities.loader import load_capability_map
-from wb_mqtt_bridge.infrastructure.config.models import StandardCommandConfig
-from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition
-from wb_mqtt_bridge.presentation.api.layout_engine import build_scenario_manifest
+from locveil_bridge.infrastructure.capabilities.loader import load_capability_map
+from locveil_bridge.infrastructure.config.models import StandardCommandConfig
+from locveil_bridge.domain.scenarios.models import ScenarioDefinition
+from locveil_bridge.presentation.api.layout_engine import build_scenario_manifest
 
 
 def _backend_root():

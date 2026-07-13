@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from wb_mqtt_bridge.infrastructure.capabilities.loader import load_capability_map
-from wb_mqtt_bridge.domain.capabilities.models import Capability
+from locveil_bridge.infrastructure.capabilities.loader import load_capability_map
+from locveil_bridge.domain.capabilities.models import Capability
 
 CAPS = Path(__file__).resolve().parents[2] / "config" / "capabilities"
 
@@ -270,8 +270,8 @@ def test_mitsubishi_hvac_configs_are_bare_and_enrich_from_class_map():
     Catches both drift directions: a table sneaking back into a config, and an
     enrichment regression that would leave the driver translating nothing."""
     from types import SimpleNamespace
-    from wb_mqtt_bridge.infrastructure.config.models import MitsubishiHvacConfig
-    from wb_mqtt_bridge.infrastructure.capabilities.loader import enrich_state_topics_from_map
+    from locveil_bridge.infrastructure.config.models import MitsubishiHvacConfig
+    from locveil_bridge.infrastructure.capabilities.loader import enrich_state_topics_from_map
 
     DEVICES_ROOT = CAPS.parent / "devices"
     m = load_capability_map("MitsubishiHvac", "any_hvac", capabilities_dir=CAPS)
@@ -412,7 +412,7 @@ def test_stateful_capability_with_nothing_at_all_still_rejected():
 def test_attach_capability_maps_assigns_per_device():
     from types import SimpleNamespace
 
-    from wb_mqtt_bridge.infrastructure.capabilities.loader import attach_capability_maps
+    from locveil_bridge.infrastructure.capabilities.loader import attach_capability_maps
 
     devices = {
         "living_room_tv": SimpleNamespace(config=SimpleNamespace(device_class="LgTv"), capabilities=None),

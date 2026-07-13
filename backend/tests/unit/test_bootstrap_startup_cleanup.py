@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from wb_mqtt_bridge.app.bootstrap import _release_partial_startup
+from locveil_bridge.app.bootstrap import _release_partial_startup
 
 
 @pytest.mark.asyncio

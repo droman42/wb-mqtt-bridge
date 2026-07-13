@@ -107,7 +107,7 @@ web, or Xiaomi Home — there's only one cloud backend per email. The user's
 wife registered through the iOS Roborock app; **no separate web account
 needed**, the same email-and-code flow works.
 
-**Bootstrap CLI** (new console script alongside `wb-openapi`,
+**Bootstrap CLI** (new console script alongside `locveil-openapi`,
 `mqtt-sniffer`, etc.):
 
 ```bash
@@ -157,7 +157,7 @@ or revoking the session in the app's device-list page).
 
 ### 4.1 Driver
 
-`backend/src/wb_mqtt_bridge/infrastructure/devices/roborock_vacuum/driver.py`:
+`backend/src/locveil_bridge/infrastructure/devices/roborock_vacuum/driver.py`:
 
 ```python
 class RoborockVacuum(BaseDevice[RoborockVacuumState]):
@@ -189,7 +189,7 @@ class RoborockVacuum(BaseDevice[RoborockVacuumState]):
 
 ### 4.2 State model
 
-`backend/src/wb_mqtt_bridge/domain/devices/models.py`:
+`backend/src/locveil_bridge/domain/devices/models.py`:
 
 ```python
 class RoborockVacuumState(BaseDeviceState):
@@ -223,7 +223,7 @@ class RoborockVacuumState(BaseDeviceState):
 
 ### 4.3 Config model
 
-`backend/src/wb_mqtt_bridge/infrastructure/config/models.py`:
+`backend/src/locveil_bridge/infrastructure/config/models.py`:
 
 ```python
 class RoborockZone(BaseModel):
@@ -587,7 +587,7 @@ WB7 has 8 GB eMMC + 1 GB RAM. Both options fit comfortably.
 ## 10. Layering + new contract entries
 
 - New `import-linter` contract: `roborock.mqtt.*` and `roborock.web_api`
-  are forbidden everywhere except `wb_mqtt_bridge.cli.roborock_auth`
+  are forbidden everywhere except `locveil_bridge.cli.roborock_auth`
   (the bootstrap CLI). Codified per [[hexagonal-law-for-all-changes]]
   workflow.
 - `domain/` import-purity: `RoborockVacuumState` + `RoborockZone` are
@@ -614,12 +614,12 @@ Voice integration HW pass deferred behind Irene on-controller.
 
 ## 12. Hexagonal LAW pre-commit checklist (template for each phase)
 
-- [ ] `grep -RnE "from wb_mqtt_bridge\.(infrastructure|presentation)" backend/src/wb_mqtt_bridge/domain/` returns zero
-- [ ] `grep -RnE "from wb_mqtt_bridge\.presentation" backend/src/wb_mqtt_bridge/infrastructure/` returns zero
-- [ ] `grep -RnE "from roborock\.(mqtt|web_api)" backend/src/wb_mqtt_bridge/` returns only `cli/roborock_auth.py`
+- [ ] `grep -RnE "from locveil_bridge\.(infrastructure|presentation)" backend/src/locveil_bridge/domain/` returns zero
+- [ ] `grep -RnE "from locveil_bridge\.presentation" backend/src/locveil_bridge/infrastructure/` returns zero
+- [ ] `grep -RnE "from roborock\.(mqtt|web_api)" backend/src/locveil_bridge/` returns only `cli/roborock_auth.py`
 - [ ] `lint-imports` clean (3 contracts kept + the new roborock.* contract)
 - [ ] `pyright` clean
-- [ ] `check-no-type-checking src/wb_mqtt_bridge` clean
+- [ ] `check-no-type-checking src/locveil_bridge` clean
 - [ ] No `self.state.X = Y` outside `__init__` (per [[state-sync-chokepoint]] static guard)
 - [ ] Suite passes; new tests added per [[device_test_pattern]]
 

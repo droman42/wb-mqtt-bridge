@@ -87,25 +87,24 @@ Homepage = "https://github.com/locveil/locveil-bridge"
 Issues = "https://github.com/locveil/locveil-bridge/issues"
 
 [project.scripts]
-locveil-bridge = "wb_mqtt_bridge.app.main:main"
-wb-api = "wb_mqtt_bridge.app.main:main"
-wb-openapi = "wb_mqtt_bridge.cli.dump_openapi:main"
-wb-catalog = "wb_mqtt_bridge.cli.dump_catalog:main"
-mqtt-sniffer = "wb_mqtt_bridge.cli.mqtt_sniffer:main"
-device-test = "wb_mqtt_bridge.cli.device_test:main"
-broadlink-cli = "wb_mqtt_bridge.cli.broadlink_cli:main"
-broadlink-discovery = "wb_mqtt_bridge.cli.broadlink_discovery:main"
+locveil-bridge = "locveil_bridge.app.main:main"
+locveil-openapi = "locveil_bridge.cli.dump_openapi:main"
+locveil-catalog = "locveil_bridge.cli.dump_catalog:main"
+mqtt-sniffer = "locveil_bridge.cli.mqtt_sniffer:main"
+device-test = "locveil_bridge.cli.device_test:main"
+broadlink-cli = "locveil_bridge.cli.broadlink_cli:main"
+broadlink-discovery = "locveil_bridge.cli.broadlink_discovery:main"
 
-[project.entry-points."wb_mqtt_bridge.devices"]
-lg_tv = "wb_mqtt_bridge.infrastructure.devices.lg_tv.driver:LgTv"
-apple_tv = "wb_mqtt_bridge.infrastructure.devices.apple_tv.driver:AppleTVDevice"
-auralic = "wb_mqtt_bridge.infrastructure.devices.auralic.driver:AuralicDevice"
-emotiva_xmc2 = "wb_mqtt_bridge.infrastructure.devices.emotiva_xmc2.driver:EMotivaXMC2"
-broadlink_hood = "wb_mqtt_bridge.infrastructure.devices.broadlink_kitchen_hood.driver:BroadlinkKitchenHood"
-wirenboard_ir = "wb_mqtt_bridge.infrastructure.devices.wirenboard_ir_device.driver:WirenboardIRDevice"
-revox_a77 = "wb_mqtt_bridge.infrastructure.devices.revox_a77_reel_to_reel.driver:RevoxA77ReelToReel"
-wb_passthrough = "wb_mqtt_bridge.infrastructure.devices.wb_passthrough.driver:WbPassthroughDevice"
-mitsubishi_hvac = "wb_mqtt_bridge.infrastructure.devices.mitsubishi_hvac.driver:MitsubishiHvac"
+[project.entry-points."locveil_bridge.devices"]
+lg_tv = "locveil_bridge.infrastructure.devices.lg_tv.driver:LgTv"
+apple_tv = "locveil_bridge.infrastructure.devices.apple_tv.driver:AppleTVDevice"
+auralic = "locveil_bridge.infrastructure.devices.auralic.driver:AuralicDevice"
+emotiva_xmc2 = "locveil_bridge.infrastructure.devices.emotiva_xmc2.driver:EMotivaXMC2"
+broadlink_hood = "locveil_bridge.infrastructure.devices.broadlink_kitchen_hood.driver:BroadlinkKitchenHood"
+wirenboard_ir = "locveil_bridge.infrastructure.devices.wirenboard_ir_device.driver:WirenboardIRDevice"
+revox_a77 = "locveil_bridge.infrastructure.devices.revox_a77_reel_to_reel.driver:RevoxA77ReelToReel"
+wb_passthrough = "locveil_bridge.infrastructure.devices.wb_passthrough.driver:WbPassthroughDevice"
+mitsubishi_hvac = "locveil_bridge.infrastructure.devices.mitsubishi_hvac.driver:MitsubishiHvac"
 
 [tool.setuptools]
 
@@ -148,36 +147,36 @@ disallow_incomplete_defs = true
 # now has a CI gate. Run locally with: lint-imports (from backend/).
 # --------------------------------------------------------------------
 [tool.importlinter]
-root_packages = ["wb_mqtt_bridge"]
+root_packages = ["locveil_bridge"]
 
 [[tool.importlinter.contracts]]
 name = "Domain depends on nothing outward"
 type = "forbidden"
-source_modules = ["wb_mqtt_bridge.domain"]
+source_modules = ["locveil_bridge.domain"]
 forbidden_modules = [
-    "wb_mqtt_bridge.infrastructure",
-    "wb_mqtt_bridge.presentation",
-    "wb_mqtt_bridge.app",
-    "wb_mqtt_bridge.cli",
+    "locveil_bridge.infrastructure",
+    "locveil_bridge.presentation",
+    "locveil_bridge.app",
+    "locveil_bridge.cli",
 ]
 
 [[tool.importlinter.contracts]]
 name = "Infrastructure does not import presentation, the composition root, or the CLI"
 type = "forbidden"
-source_modules = ["wb_mqtt_bridge.infrastructure"]
+source_modules = ["locveil_bridge.infrastructure"]
 forbidden_modules = [
-    "wb_mqtt_bridge.presentation",
-    "wb_mqtt_bridge.app",
-    "wb_mqtt_bridge.cli",
+    "locveil_bridge.presentation",
+    "locveil_bridge.app",
+    "locveil_bridge.cli",
 ]
 
 [[tool.importlinter.contracts]]
 name = "Presentation does not import the composition root or the CLI"
 type = "forbidden"
-source_modules = ["wb_mqtt_bridge.presentation"]
+source_modules = ["locveil_bridge.presentation"]
 forbidden_modules = [
-    "wb_mqtt_bridge.app",
-    "wb_mqtt_bridge.cli",
+    "locveil_bridge.app",
+    "locveil_bridge.cli",
 ]
 
 [[tool.importlinter.contracts]]
@@ -188,13 +187,13 @@ forbidden_modules = [
 # domain <-> utils package cycle this contract now prevents from returning.)
 name = "Utils (foundation) depends on nothing upward"
 type = "forbidden"
-source_modules = ["wb_mqtt_bridge.utils"]
+source_modules = ["locveil_bridge.utils"]
 forbidden_modules = [
-    "wb_mqtt_bridge.domain",
-    "wb_mqtt_bridge.infrastructure",
-    "wb_mqtt_bridge.presentation",
-    "wb_mqtt_bridge.app",
-    "wb_mqtt_bridge.cli",
+    "locveil_bridge.domain",
+    "locveil_bridge.infrastructure",
+    "locveil_bridge.presentation",
+    "locveil_bridge.app",
+    "locveil_bridge.cli",
 ]
 
 [[tool.importlinter.contracts]]
@@ -204,22 +203,22 @@ forbidden_modules = [
 name = "Device drivers are independent of each other"
 type = "independence"
 modules = [
-    "wb_mqtt_bridge.infrastructure.devices.apple_tv",
-    "wb_mqtt_bridge.infrastructure.devices.auralic",
-    "wb_mqtt_bridge.infrastructure.devices.broadlink_kitchen_hood",
-    "wb_mqtt_bridge.infrastructure.devices.emotiva_xmc2",
-    "wb_mqtt_bridge.infrastructure.devices.lg_tv",
-    "wb_mqtt_bridge.infrastructure.devices.mitsubishi_hvac",
-    "wb_mqtt_bridge.infrastructure.devices.revox_a77_reel_to_reel",
-    "wb_mqtt_bridge.infrastructure.devices.wb_passthrough",
-    "wb_mqtt_bridge.infrastructure.devices.wirenboard_ir_device",
+    "locveil_bridge.infrastructure.devices.apple_tv",
+    "locveil_bridge.infrastructure.devices.auralic",
+    "locveil_bridge.infrastructure.devices.broadlink_kitchen_hood",
+    "locveil_bridge.infrastructure.devices.emotiva_xmc2",
+    "locveil_bridge.infrastructure.devices.lg_tv",
+    "locveil_bridge.infrastructure.devices.mitsubishi_hvac",
+    "locveil_bridge.infrastructure.devices.revox_a77_reel_to_reel",
+    "locveil_bridge.infrastructure.devices.wb_passthrough",
+    "locveil_bridge.infrastructure.devices.wirenboard_ir_device",
 ]
 
 [[tool.importlinter.contracts]]
 name = "Presentation does not reach into infrastructure adapters (one documented exception)"
 type = "forbidden"
-source_modules = ["wb_mqtt_bridge.presentation"]
-forbidden_modules = ["wb_mqtt_bridge.infrastructure"]
+source_modules = ["locveil_bridge.presentation"]
+forbidden_modules = ["locveil_bridge.infrastructure"]
 # Documented exception: POST /reload constructs an MQTTClient directly and drives
 # its client-specific reconnect methods (stop / connect_and_subscribe /
 # wait_for_connection). The clean fix (extract an application-layer reload service)
@@ -227,7 +226,7 @@ forbidden_modules = ["wb_mqtt_bridge.infrastructure"]
 # HW-verified without the user at the rack. Tracked in docs/action_plan.md §5.1.
 # See docs/architecture/overview.md "The boundary, in practice".
 ignore_imports = [
-    "wb_mqtt_bridge.presentation.api.routers.system -> wb_mqtt_bridge.infrastructure.mqtt.client",
+    "locveil_bridge.presentation.api.routers.system -> locveil_bridge.infrastructure.mqtt.client",
 ]
 
 [[tool.mypy.overrides]]

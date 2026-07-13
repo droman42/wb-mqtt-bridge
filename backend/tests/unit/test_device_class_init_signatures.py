@@ -1,4 +1,4 @@
-"""Regression: every device driver class registered via the `wb_mqtt_bridge.devices`
+"""Regression: every device driver class registered via the `locveil_bridge.devices`
 entry-point group must accept the constructor kwargs DeviceManager.initialize_devices
 passes. Otherwise the moment DeviceManager passes a new kwarg, every driver TypeErrors
 at instantiation and the bridge boots with no devices -- a real production bug surfaced
@@ -22,9 +22,9 @@ INIT_KWARGS_PASSED_BY_DEVICEMANAGER = {"mqtt_client"}
 def _registered_device_classes():
     eps = entry_points()
     if hasattr(eps, "select"):  # py3.10+
-        devs = eps.select(group="wb_mqtt_bridge.devices")
+        devs = eps.select(group="locveil_bridge.devices")
     else:  # py3.8-3.9
-        devs = eps.get("wb_mqtt_bridge.devices", [])
+        devs = eps.get("locveil_bridge.devices", [])
     for ep in devs:
         yield ep.name, ep.load()
 

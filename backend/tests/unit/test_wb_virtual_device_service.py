@@ -5,9 +5,9 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 from typing import Dict, Any
 
-from wb_mqtt_bridge.infrastructure.wb_device.service import WBVirtualDeviceService, CommandExecutor
-from wb_mqtt_bridge.domain.ports import MessageBusPort
-from wb_mqtt_bridge.infrastructure.config.models import BaseDeviceConfig, BaseCommandConfig, CommandParameterDefinition
+from locveil_bridge.infrastructure.wb_device.service import WBVirtualDeviceService, CommandExecutor
+from locveil_bridge.domain.ports import MessageBusPort
+from locveil_bridge.infrastructure.config.models import BaseDeviceConfig, BaseCommandConfig, CommandParameterDefinition
 
 pytestmark = pytest.mark.unit
 
@@ -75,7 +75,7 @@ class TestWBVirtualDeviceService:
         now default to a non-empty, type-appropriate value (pushbutton/switch -> "0", text ->
         placeholder).
         """
-        from wb_mqtt_bridge.infrastructure.config.models import IRCommandConfig
+        from locveil_bridge.infrastructure.config.models import IRCommandConfig
 
         def cmd(action):
             return IRCommandConfig(action=action, topic=f"/devices/x/controls/{action}",
@@ -410,7 +410,7 @@ class TestWBVirtualDeviceService:
     
     def test_get_initial_wb_control_state_type_based(self, wb_service):
         """Initial WB control state is derived from the control TYPE and is never empty."""
-        from wb_mqtt_bridge.infrastructure.config.models import IRCommandConfig, CommandParameterDefinition
+        from locveil_bridge.infrastructure.config.models import IRCommandConfig, CommandParameterDefinition
 
         def cmd(action, group, params=None):
             return IRCommandConfig(action=action, topic=f"/devices/x/controls/{action}",

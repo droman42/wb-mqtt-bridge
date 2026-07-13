@@ -10,7 +10,7 @@ loses that device's typed state — so assert it explicitly.
 
 import pytest
 
-from wb_mqtt_bridge.app.bootstrap import create_app, OPENAPI_EXTRA_MODELS
+from locveil_bridge.app.bootstrap import create_app, OPENAPI_EXTRA_MODELS
 
 pytestmark = pytest.mark.unit
 

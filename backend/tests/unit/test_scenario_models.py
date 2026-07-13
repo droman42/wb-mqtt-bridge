@@ -1,6 +1,6 @@
 import pytest
 from pydantic import ValidationError
-from wb_mqtt_bridge.domain.scenarios.models import (
+from locveil_bridge.domain.scenarios.models import (
     ManualInstructions,
     ScenarioDefinition,
     DeviceState,

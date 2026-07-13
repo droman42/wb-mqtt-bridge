@@ -10,11 +10,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition
-from wb_mqtt_bridge.domain.scenarios.scenario import Scenario
-from wb_mqtt_bridge.domain.scenarios.service import ScenarioManager
-from wb_mqtt_bridge.infrastructure.capabilities.loader import load_capability_map
-from wb_mqtt_bridge.domain.topology.loader import load_topology
+from locveil_bridge.domain.scenarios.models import ScenarioDefinition
+from locveil_bridge.domain.scenarios.scenario import Scenario
+from locveil_bridge.domain.scenarios.service import ScenarioManager
+from locveil_bridge.infrastructure.capabilities.loader import load_capability_map
+from locveil_bridge.domain.topology.loader import load_topology
 
 pytestmark = pytest.mark.integration
 
@@ -99,7 +99,7 @@ def _manager(devices, scenario_name="movie_appletv"):
 
 @pytest.fixture(autouse=True)
 def _no_sleep(monkeypatch):
-    import wb_mqtt_bridge.domain.scenarios.reconciler as rec
+    import locveil_bridge.domain.scenarios.reconciler as rec
 
     async def _nosleep(*a, **k):
         return None

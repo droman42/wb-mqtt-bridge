@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from wb_mqtt_bridge.domain.scenarios.models import RoomDefinition
+from locveil_bridge.domain.scenarios.models import RoomDefinition
 
 ROOMS_JSON = Path(__file__).resolve().parents[2] / "config" / "rooms.json"
 

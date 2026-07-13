@@ -13,8 +13,8 @@ EmotivaController as `self.client` and flipping `state.connected` to True.
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from wb_mqtt_bridge.infrastructure.devices.emotiva_xmc2.driver import EMotivaXMC2, PowerState
-from wb_mqtt_bridge.infrastructure.config.models import (
+from locveil_bridge.infrastructure.devices.emotiva_xmc2.driver import EMotivaXMC2, PowerState
+from locveil_bridge.infrastructure.config.models import (
     EmotivaXMC2DeviceConfig,
     EmotivaConfig,
     StandardCommandConfig,

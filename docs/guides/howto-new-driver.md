@@ -52,24 +52,24 @@ A new driver lands in five places, all referenced from `pyproject.toml`:
 4. **The class-level capability map** in
    `config/capabilities/classes/<DeviceClass>.json`.
 5. **The entry-point** in `backend/pyproject.toml` under
-   `[project.entry-points."wb_mqtt_bridge.devices"]`.
+   `[project.entry-points."locveil_bridge.devices"]`.
 
 Plus the OpenAPI hook (one line in `app/bootstrap.py`) and tests.
 
 ## Worked example — the shape of a native driver
 
 The `AuralicDevice` driver shows every required piece in one place
-(`backend/src/wb_mqtt_bridge/infrastructure/devices/auralic/driver.py`).
+(`backend/src/locveil_bridge/infrastructure/devices/auralic/driver.py`).
 Highlights:
 
 ```python
 from openhomedevice.device import Device as OpenHomeDevice
 
-from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
-from wb_mqtt_bridge.domain.devices.models import AuralicDeviceState
-from wb_mqtt_bridge.infrastructure.config.models import AuralicDeviceConfig
-from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
-from wb_mqtt_bridge.domain.devices.types import CommandResult
+from locveil_bridge.infrastructure.devices.base import BaseDevice
+from locveil_bridge.domain.devices.models import AuralicDeviceState
+from locveil_bridge.infrastructure.config.models import AuralicDeviceConfig
+from locveil_bridge.infrastructure.mqtt.client import MQTTClient
+from locveil_bridge.domain.devices.types import CommandResult
 
 
 class AuralicDevice(BaseDevice[AuralicDeviceState]):
@@ -211,8 +211,8 @@ every capability field with a worked breakdown.
 ## Register the driver — `pyproject.toml`
 
 ```toml
-[project.entry-points."wb_mqtt_bridge.devices"]
-my_new_driver = "wb_mqtt_bridge.infrastructure.devices.my_new_driver.driver:MyNewDriver"
+[project.entry-points."locveil_bridge.devices"]
+my_new_driver = "locveil_bridge.infrastructure.devices.my_new_driver.driver:MyNewDriver"
 ```
 
 `DeviceManager.load_device_modules()` discovers all entries at startup;
@@ -222,7 +222,7 @@ name); `config_class` resolves via `utils/class_loader.py`.
 ## Register the state model — OpenAPI hook
 
 Add the state model to `OPENAPI_EXTRA_MODELS` in
-`backend/src/wb_mqtt_bridge/app/bootstrap.py`:
+`backend/src/locveil_bridge/app/bootstrap.py`:
 
 ```python
 OPENAPI_EXTRA_MODELS = [
@@ -234,7 +234,7 @@ Then regenerate the OpenAPI schema:
 
 ```bash
 cd backend
-wb-openapi -o openapi.json
+locveil-openapi -o openapi.json
 ```
 
 …and commit `openapi.json`. The UI's TypeScript generation

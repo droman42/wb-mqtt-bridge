@@ -20,8 +20,8 @@ import pytest
 import pytest_asyncio
 from unittest.mock import MagicMock, patch
 
-from wb_mqtt_bridge.infrastructure.devices.broadlink_kitchen_hood.driver import BroadlinkKitchenHood
-from wb_mqtt_bridge.infrastructure.config.models import BroadlinkKitchenHoodConfig
+from locveil_bridge.infrastructure.devices.broadlink_kitchen_hood.driver import BroadlinkKitchenHood
+from locveil_bridge.infrastructure.config.models import BroadlinkKitchenHoodConfig
 
 
 pytestmark = pytest.mark.integration

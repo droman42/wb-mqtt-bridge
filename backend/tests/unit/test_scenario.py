@@ -1,8 +1,8 @@
 import pytest
 from unittest.mock import AsyncMock
 
-from wb_mqtt_bridge.domain.scenarios.scenario import Scenario, ScenarioError, ScenarioExecutionError
-from wb_mqtt_bridge.domain.scenarios.models import ScenarioDefinition
+from locveil_bridge.domain.scenarios.scenario import Scenario, ScenarioError, ScenarioExecutionError
+from locveil_bridge.domain.scenarios.models import ScenarioDefinition
 
 pytestmark = pytest.mark.unit
 
@@ -143,7 +143,7 @@ class TestScenario:
         devices that the DeviceManager does not know about must be rejected at
         validation time, with the offending device IDs surfaced in the error.
         """
-        from wb_mqtt_bridge.domain.scenarios.models import ScenarioConfigurationError
+        from locveil_bridge.domain.scenarios.models import ScenarioConfigurationError
 
         # Strip all devices so the scenario's tv/soundbar references become invalid.
         mock_device_manager.devices.clear()
@@ -165,7 +165,7 @@ class TestScenario:
         that declares no source could never be activated (the reconciler would have
         nothing to resolve) — validation must catch it at load time.
         """
-        from wb_mqtt_bridge.domain.scenarios.models import ScenarioConfigurationError
+        from locveil_bridge.domain.scenarios.models import ScenarioConfigurationError
 
         data = {k: v for k, v in SAMPLE_SCENARIO.items() if k not in ("source", "display", "audio")}
         definition = ScenarioDefinition.model_validate(data)

@@ -8,18 +8,18 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from wb_mqtt_bridge.app import app as main_app
-from wb_mqtt_bridge.domain.capabilities.models import CapabilityMap
-from wb_mqtt_bridge.domain.scenarios.proxy import (
+from locveil_bridge.app import app as main_app
+from locveil_bridge.domain.capabilities.models import CapabilityMap
+from locveil_bridge.domain.scenarios.proxy import (
     INHERITABLE_DOMAINS,
     NO_SCENARIO,
     ScenarioProxy,
     ScenarioProxyError,
 )
-from wb_mqtt_bridge.domain.scenarios.service import ScenarioManager
-from wb_mqtt_bridge.infrastructure.scenarios.wb_adapter import ScenarioWBAdapter
-from wb_mqtt_bridge.presentation.api.catalog import build_catalog
-from wb_mqtt_bridge.presentation.api.routers import devices as devices_router
+from locveil_bridge.domain.scenarios.service import ScenarioManager
+from locveil_bridge.infrastructure.scenarios.wb_adapter import ScenarioWBAdapter
+from locveil_bridge.presentation.api.catalog import build_catalog
+from locveil_bridge.presentation.api.routers import devices as devices_router
 
 pytestmark = pytest.mark.unit
 

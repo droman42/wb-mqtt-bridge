@@ -11,27 +11,23 @@ This test suite verifies:
 import unittest
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch, AsyncMock
-import sys
-import os
 
-# Add parent directory to path to allow importing from app
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Import the mock_sqlite module first to handle SQLite issues
 
 # Import required modules
-from wb_mqtt_bridge.infrastructure.devices.broadlink_kitchen_hood.driver import BroadlinkKitchenHood
-from wb_mqtt_bridge.infrastructure.devices.wirenboard_ir_device.driver import WirenboardIRDevice
-from wb_mqtt_bridge.infrastructure.config.models import (
+from locveil_bridge.infrastructure.devices.broadlink_kitchen_hood.driver import BroadlinkKitchenHood
+from locveil_bridge.infrastructure.devices.wirenboard_ir_device.driver import WirenboardIRDevice
+from locveil_bridge.infrastructure.config.models import (
     BroadlinkKitchenHoodConfig, WirenboardIRDeviceConfig,
     StandardCommandConfig, IRCommandConfig
 )
-from wb_mqtt_bridge.domain.devices.models import (
+from locveil_bridge.domain.devices.models import (
     KitchenHoodState, WirenboardIRState, LastCommand
 )
-from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
+from locveil_bridge.infrastructure.mqtt.client import MQTTClient
 from fastapi.testclient import TestClient
-from wb_mqtt_bridge.app import app
+from locveil_bridge.app import app
 import pytest
 
 pytestmark = pytest.mark.integration
@@ -220,10 +216,10 @@ class TestAPIResponse(unittest.TestCase):
         # We patch them on the devices router specifically since that's what
         # the /devices endpoints use.
         self.device_manager_patch = patch(
-            'wb_mqtt_bridge.presentation.api.routers.devices.device_manager'
+            'locveil_bridge.presentation.api.routers.devices.device_manager'
         )
         self.mqtt_client_patch = patch(
-            'wb_mqtt_bridge.presentation.api.routers.devices.mqtt_client'
+            'locveil_bridge.presentation.api.routers.devices.mqtt_client'
         )
         
         # Start patches
@@ -279,7 +275,7 @@ class TestAPIResponse(unittest.TestCase):
 
         # The state router has its own `device_manager` global.
         with patch(
-            "wb_mqtt_bridge.presentation.api.routers.state.device_manager",
+            "locveil_bridge.presentation.api.routers.state.device_manager",
             self.mock_device_manager,
         ):
             response = self.client.get("/devices/kitchen_hood/state")

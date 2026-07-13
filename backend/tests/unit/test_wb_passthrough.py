@@ -15,13 +15,13 @@ Real driver, real config, mocked MQTT client. Exercises:
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from wb_mqtt_bridge.infrastructure.config.models import (
+from locveil_bridge.infrastructure.config.models import (
     CommandParameterDefinition,
     StateTopicSpec,
     WbPassthroughCommandConfig,
     WbPassthroughDeviceConfig,
 )
-from wb_mqtt_bridge.infrastructure.devices.wb_passthrough.driver import (
+from locveil_bridge.infrastructure.devices.wb_passthrough.driver import (
     WbPassthroughDevice,
     _parse_template,
 )
@@ -740,7 +740,7 @@ def test_invert_bool_static_passthrough_for_non_zero_one_forms():
     """If someone authored a bool command with `value: "on"`/`"off"`, the toggle
     should preserve the surface form (returning `"off"`/`"on"`, not `"1"`/`"0"`).
     Unknown forms pass through unchanged."""
-    from wb_mqtt_bridge.infrastructure.devices.wb_passthrough.driver import (
+    from locveil_bridge.infrastructure.devices.wb_passthrough.driver import (
         _toggle_bool_wire_form,
     )
     assert _toggle_bool_wire_form("0") == "1"

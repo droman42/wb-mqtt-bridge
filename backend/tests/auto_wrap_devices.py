@@ -13,7 +13,7 @@ from typing import List
 # Add the parent directory to path to allow importing
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
+from locveil_bridge.infrastructure.devices.base import BaseDevice
 from tests.test_helpers import wrap_device_init
 
 
@@ -29,9 +29,9 @@ def find_device_classes() -> List[type]:
     try:
         eps = entry_points()
         if hasattr(eps, 'select'):  # Python 3.10+
-            device_entries = eps.select(group='wb_mqtt_bridge.devices')
+            device_entries = eps.select(group='locveil_bridge.devices')
         else:  # Python 3.8-3.9
-            device_entries = eps.get('wb_mqtt_bridge.devices', [])
+            device_entries = eps.get('locveil_bridge.devices', [])
         
         for entry_point in device_entries:
             try:

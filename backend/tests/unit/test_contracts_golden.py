@@ -1,15 +1,15 @@
 """VWB-15: the committed contract artifacts must never go stale (the drift guard).
 
 Regenerates the golden catalog (offline, deterministic — the same builder the
-`wb-catalog` CLI uses) and the OpenAPI schema, and fails if the committed copies in
+`locveil-catalog` CLI uses) and the OpenAPI schema, and fails if the committed copies in
 `contracts/catalog/` (and the UI-consumed `backend/openapi.json`) differ. Runs inside
 the normal backend test job, so the check is self-contained in CI: any config /
 capability-map / API change that alters the contract without a re-dump fails here
 with a one-command fix.
 
 Fix on failure (from backend/):
-    uv run wb-catalog --stamp ../contracts/catalog/STAMP.json
-    uv run wb-openapi -o openapi.json && cp openapi.json ../contracts/catalog/openapi.json
+    uv run locveil-catalog --stamp ../contracts/catalog/STAMP.json
+    uv run locveil-openapi -o openapi.json && cp openapi.json ../contracts/catalog/openapi.json
 """
 
 import json
@@ -17,9 +17,9 @@ from pathlib import Path
 
 import pytest
 
-from wb_mqtt_bridge.cli.dump_catalog import build_offline_catalog
-from wb_mqtt_bridge.cli.dump_openapi import generate_openapi
-from wb_mqtt_bridge.presentation.api.catalog import CONTRACT_VERSION
+from locveil_bridge.cli.dump_catalog import build_offline_catalog
+from locveil_bridge.cli.dump_openapi import generate_openapi
+from locveil_bridge.presentation.api.catalog import CONTRACT_VERSION
 
 pytestmark = pytest.mark.unit
 
@@ -29,8 +29,8 @@ CONTRACTS = REPO / "contracts" / "catalog"
 
 _REGEN_HINT = (
     "contract artifact stale — regenerate: "
-    "`uv run wb-catalog --stamp ../contracts/catalog/STAMP.json` "
-    "(and `uv run wb-openapi -o openapi.json && cp openapi.json "
+    "`uv run locveil-catalog --stamp ../contracts/catalog/STAMP.json` "
+    "(and `uv run locveil-openapi -o openapi.json && cp openapi.json "
     "../contracts/catalog/openapi.json` for the API schema)"
 )
 

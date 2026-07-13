@@ -2248,7 +2248,7 @@ export interface components {
              * @enum {string}
              */
             entityKind: "device" | "scenario";
-            manualInstructions?: components["schemas"]["wb_mqtt_bridge__presentation__api__layout_manifest__ManualInstructions"] | null;
+            manualInstructions?: components["schemas"]["locveil_bridge__presentation__api__layout_manifest__ManualInstructions"] | null;
             /** Remotezones */
             remoteZones?: components["schemas"]["RemoteZone"][];
             stateInterface?: components["schemas"]["StateDefinition"] | null;
@@ -2964,7 +2964,7 @@ export interface components {
              */
             display?: string | null;
             /** @description Instructions requiring human intervention */
-            manual_instructions?: components["schemas"]["wb_mqtt_bridge__domain__scenarios__models__ManualInstructions"] | null;
+            manual_instructions?: components["schemas"]["locveil_bridge__domain__scenarios__models__ManualInstructions"] | null;
             /** @description Localized display names (ru/en required, extra locales allowed) — the display surface everywhere (UI navbar, manifest title) and the voice surface for scenario activation («включи кино» needs a Russian label). Replaces the legacy flat `name` (mirroring the device `device_name` → `names` migration). */
             names: components["schemas"]["LocalizedName"];
             /**
@@ -3325,7 +3325,7 @@ export interface components {
          * ManualInstructions
          * @description Instructions that require human intervention (cannot be automated).
          */
-        wb_mqtt_bridge__domain__scenarios__models__ManualInstructions: {
+        locveil_bridge__domain__scenarios__models__ManualInstructions: {
             /**
              * Shutdown
              * @description Steps to perform when shutting down the scenario
@@ -3341,7 +3341,7 @@ export interface components {
          * ManualInstructions
          * @description Static human-in-the-loop notes for a scenario (rendered as a bottom section in the remote).
          */
-        wb_mqtt_bridge__presentation__api__layout_manifest__ManualInstructions: {
+        locveil_bridge__presentation__api__layout_manifest__ManualInstructions: {
             /** Shutdown */
             shutdown?: string[];
             /** Startup */

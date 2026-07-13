@@ -38,7 +38,7 @@ pytest -v
 To run tests with coverage:
 
 ```bash
-pytest --cov=wb_mqtt_bridge tests/
+pytest --cov=locveil_bridge tests/
 ```
 
 ## Test Categories

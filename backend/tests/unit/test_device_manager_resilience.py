@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from wb_mqtt_bridge.domain.devices.service import DeviceManager
+from locveil_bridge.domain.devices.service import DeviceManager
 
 
 class _Dev:

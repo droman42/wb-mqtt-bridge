@@ -5,8 +5,8 @@ import os
 # Add current directory to Python path
 sys.path.append('.')
 
-from wb_mqtt_bridge.infrastructure.config.manager import ConfigManager
-from wb_mqtt_bridge.infrastructure.mqtt.client import MQTTClient
+from locveil_bridge.infrastructure.config.manager import ConfigManager
+from locveil_bridge.infrastructure.mqtt.client import MQTTClient
 
 def main():
     # Initialize config manager

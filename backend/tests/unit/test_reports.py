@@ -17,13 +17,13 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from wb_mqtt_bridge.domain.ports import ReportSinkPort
-from wb_mqtt_bridge.domain.reports.models import ReportFiling, ReportFilingResult, ReportsSettings
-from wb_mqtt_bridge.domain.reports.redaction import redact_mapping, redact_text
-from wb_mqtt_bridge.domain.reports.rings import DispatchRing, MqttWindow
-from wb_mqtt_bridge.domain.reports.service import RateLimited, ReportService
-from wb_mqtt_bridge.infrastructure.reports.github_sink import GitHubReportSink
-from wb_mqtt_bridge.presentation.api.routers import reports as reports_router
+from locveil_bridge.domain.ports import ReportSinkPort
+from locveil_bridge.domain.reports.models import ReportFiling, ReportFilingResult, ReportsSettings
+from locveil_bridge.domain.reports.redaction import redact_mapping, redact_text
+from locveil_bridge.domain.reports.rings import DispatchRing, MqttWindow
+from locveil_bridge.domain.reports.service import RateLimited, ReportService
+from locveil_bridge.infrastructure.reports.github_sink import GitHubReportSink
+from locveil_bridge.presentation.api.routers import reports as reports_router
 
 
 # --- rings -------------------------------------------------------------------
@@ -103,7 +103,7 @@ def test_redact_text_masks_url_embedded_credentials():
 def test_reports_config_requires_explicit_repo_when_enabled():
     """VWB-35 (HK-3 q4): the schema carries no repo default — enabling filing
     without naming the repo must refuse to load; disabled stays valid repo-less."""
-    from wb_mqtt_bridge.infrastructure.config.models import ReportsConfig
+    from locveil_bridge.infrastructure.config.models import ReportsConfig
     assert ReportsConfig().repo is None
     assert ReportsConfig(enabled=False).enabled is False
     with pytest.raises(ValueError, match="reports.repo"):

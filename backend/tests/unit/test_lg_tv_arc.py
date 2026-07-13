@@ -10,8 +10,8 @@ satisfies the precondition for the eMotiva's HDMI ARC auto-engagement).
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from wb_mqtt_bridge.infrastructure.devices.lg_tv.driver import LgTv
-from wb_mqtt_bridge.infrastructure.config.models import (
+from locveil_bridge.infrastructure.devices.lg_tv.driver import LgTv
+from locveil_bridge.infrastructure.config.models import (
     LgTvConfig,
     LgTvDeviceConfig,
     StandardCommandConfig,

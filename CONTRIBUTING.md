@@ -77,7 +77,7 @@ Run all three locally before pushing:
 ```bash
 cd backend
 lint-imports
-check-no-type-checking src/wb_mqtt_bridge
+check-no-type-checking src/locveil_bridge
 pyright
 ```
 
@@ -102,7 +102,7 @@ is the project's audit trail.
 - **black** + **isort** (black profile), line length 88, target py311.
 - **pyright** is the type-check gate (see "Three health gates" below).
   Pinned `1.1.410`, config `backend/pyrightconfig.json`, scope
-  `src/wb_mqtt_bridge/`. **0 errors, empty suppression list.** Type
+  `src/locveil_bridge/`. **0 errors, empty suppression list.** Type
   hints expected on new code.
 - *(Legacy: `mypy` is still installed via `[dev]` but is no longer the
   type-check gate. Removing it is tracked.)*
@@ -154,7 +154,7 @@ Recovery runbook for the git-sourced deps:
 The committed `backend/openapi.json` — *not* a running server — is what the
 UI build consumes.
 
-- **Regenerate + commit `openapi.json`** (`wb-openapi -o openapi.json` from
+- **Regenerate + commit `openapi.json`** (`locveil-openapi -o openapi.json` from
   inside `backend/`) whenever the REST surface or any device-state model
   changes. A test (`tests/unit/test_openapi_schema.py`) guards that every
   `OPENAPI_EXTRA_MODELS` entry actually lands in the schema.
@@ -203,8 +203,8 @@ its files can break.
   (`test_contracts_golden.py`): the committed `contracts/catalog/` artifacts
   (golden catalog + pinned openapi) are regenerated in-test and compared — if
   a config or API change alters the contract, regenerate with
-  `uv run wb-catalog --stamp ../contracts/catalog/STAMP.json`
-  (and `wb-openapi` for the schema; see `contracts/catalog/README.md`).
+  `uv run locveil-catalog --stamp ../contracts/catalog/STAMP.json`
+  (and `locveil-openapi` for the schema; see `contracts/catalog/README.md`).
 - **`contract-guard`** (contracts/** or its vendored script changed) —
   `scripts/contract_guard.py --check`, the contract-coherence check (layout,
   stamps, pinned-copy hashes; a vendored copy of the shared Locveil

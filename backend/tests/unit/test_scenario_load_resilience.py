@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from wb_mqtt_bridge.domain.scenarios.service import ScenarioManager
+from locveil_bridge.domain.scenarios.service import ScenarioManager
 
 
 def _manager(scenario_dir, available_device_ids):

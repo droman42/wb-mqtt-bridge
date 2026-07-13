@@ -16,11 +16,11 @@ import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock
 
-from wb_mqtt_bridge.infrastructure.devices.wirenboard_ir_device.driver import WirenboardIRDevice
-from wb_mqtt_bridge.infrastructure.devices.emotiva_xmc2.driver import EMotivaXMC2, PowerState
-from wb_mqtt_bridge.infrastructure.devices.auralic.driver import AuralicDevice
-from wb_mqtt_bridge.infrastructure.devices.lg_tv.driver import LgTv
-from wb_mqtt_bridge.infrastructure.config.models import (
+from locveil_bridge.infrastructure.devices.wirenboard_ir_device.driver import WirenboardIRDevice
+from locveil_bridge.infrastructure.devices.emotiva_xmc2.driver import EMotivaXMC2, PowerState
+from locveil_bridge.infrastructure.devices.auralic.driver import AuralicDevice
+from locveil_bridge.infrastructure.devices.lg_tv.driver import LgTv
+from locveil_bridge.infrastructure.config.models import (
     WirenboardIRDeviceConfig,
     IRCommandConfig,
     EmotivaXMC2DeviceConfig,

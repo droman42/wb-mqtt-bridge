@@ -14,8 +14,8 @@ the prior tests hung at collection because of those side-effects. We instead:
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from wb_mqtt_bridge.infrastructure.devices.auralic.driver import AuralicDevice
-from wb_mqtt_bridge.infrastructure.config.models import (
+from locveil_bridge.infrastructure.devices.auralic.driver import AuralicDevice
+from locveil_bridge.infrastructure.config.models import (
     AuralicDeviceConfig,
     AuralicConfig,
     StandardCommandConfig,

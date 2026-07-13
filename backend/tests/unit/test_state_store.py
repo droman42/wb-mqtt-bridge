@@ -1,10 +1,6 @@
-import os
-import sys
 import pytest
 import pytest_asyncio
 
-# Add the app directory to sys.path for importing
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 # Import the mock_sqlite module first to handle SQLite issues
 from tests import mock_sqlite
@@ -13,7 +9,7 @@ from tests import mock_sqlite
 if not mock_sqlite.HAS_AIOSQLITE:
     pytest.skip("aiosqlite is not available", allow_module_level=True)
 
-from wb_mqtt_bridge.infrastructure.persistence.sqlite import SQLiteStateStore
+from locveil_bridge.infrastructure.persistence.sqlite import SQLiteStateStore
 
 pytestmark = pytest.mark.integration
 
