@@ -744,21 +744,6 @@ endpoint).
 
 - [ ] **OPS-19** `[P2]` `[deferred]` — **`pyatv` git source is unmirrored — a dependency-policy Rule 2 compliance gap (policy home since DOC-15: `CONTRIBUTING.md` → Dependency policy; ex-ADR 0006, archived).** Surfaced by the REL-4 ADR review. `pyatv` is pinned to `git+https://github.com/postlund/pyatv@9177803…` — SHA-pinned (immutable, so the build is reproducible today) but **not** mirrored under the owner's account, which the policy's Rule 2 requires for repos the owner doesn't control; the old ADR's "only remaining git source" claim was already annotated false 2026-07-10. Residual risk: an upstream force-push/deletion of `postlund/pyatv` breaks recovery. **Decision + small op:** either mirror `postlund/pyatv` → `droman42/pyatv` and repoint the pin (comply), OR record an accepted exception in the CONTRIBUTING dependency-policy section with rationale. Not a release gate (reproducible now). Minor sibling: the dev-only `py-dev-gates@v0.1.1` is tag-pinned (owner-controlled) — fold in or leave.
 
-- [ ] **OPS-25** `[P2]` — **Production log hygiene: 20 MB/day of idle DEBUG chatter** (evidence:
-  `docs/review/emotiva_wedge_20260712.md` finding 3). `system.json` ships `log_level: "DEBUG"`
-  (pre-monorepo default, never production-tuned) and, since the DRV-30 keepAlive watchdog, every
-  7.5 s beat emits ~9 DEBUG lines across `pymotivaxmc2` + the eMotiva driver — measured on the
-  2026-07-12 log: ~two-thirds of 138 k lines are idle eMotiva chatter, flat around the clock.
-  Scope: (1) production log level decision — `INFO` root, or targeted per-logger levels (keep the
-  bridge at DEBUG if wanted, `pymotivaxmc2.*` at INFO+) — config surface is `system.json` per
-  `config-master-tree`; (2) silence keepAlive processing below the chosen level (it must stay
-  CHEAP — the watchdog's timing logic is untouched); (3) sweep the `[EMOTIVA_DEBUG]` /
-  `[MQTT_DEBUG]` / `[SCENARIO_DEBUG]` forensic tags left from the REL-3 investigation — keep or
-  demote deliberately; (4) confirm the ops-side rotation bounds are sane for the chosen level
-  (flash wear on the WB7 sdcard is the cost driver). Config + logging only — no behavior change.
-
-
-
 ### CORE — Backend core / architecture
 
 - [ ] **CORE-1** `[P2]` `[deferred]` `HW-GATED` — **System-router adapter cleanup — Item A only (Item B DONE 2026-05-26).** Item A: `POST /reload`'s `reload_system_task` constructs + drives a concrete `MQTTClient` inline; extract an application-layer reload service (e.g. `app/reload_service.py`) so the router stays a thin adapter. **Gated on hardware** — touches the live MQTT-reconnect path; can't be safely HW-verified without you at the rack. **Completion goal = 100% clean hexagon (explicit, added 2026-07-07):** this task owns the **only** `ignore_imports` exception in the import-linter config (`presentation.api.routers.system -> infrastructure.mqtt.client`, backend `pyproject.toml`); done means (1) the reload service extracted and the back-edge gone from the code, (2) the **`ignore_imports` entry deleted** — the contract set (6 since CORE-6) passes with **zero exceptions**, (3) the "one documented exception" passages updated in `docs/architecture/overview.md` + the contract name/comment in `pyproject.toml` + the [[hexagonal-layering]] memory, (4) HW-verified at the rack: `POST /reload` still reconnects cleanly against the live broker. Item B (response DTO for `/config/system`) done in `73ee8d5` — new presentation `SystemConfigResponse` + nested DTOs; wire shape field-identical; `presentation/api/schemas.py` no longer imports the infra `SystemConfig`.

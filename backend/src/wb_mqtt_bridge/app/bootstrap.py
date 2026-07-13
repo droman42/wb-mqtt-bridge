@@ -50,8 +50,11 @@ from wb_mqtt_bridge.presentation.api.sse_manager import sse_manager, SSEChannel
 from wb_mqtt_bridge.__version__ import __version__
 
 
-# Setup logging
-LOG_RETENTION_DAYS = 30
+# Setup logging. Retention = today + yesterday only (OPS-25, owner decision):
+# yesterday's file keeps cross-midnight analysis possible; anything older is
+# gone — the WB7 sdcard pays for every retained megabyte. The container's
+# stdout copy is separately capped by docker json-file (10m x 3).
+LOG_RETENTION_DAYS = 1
 
 
 def _startup_rollover(log_path: Path) -> None:
@@ -228,10 +231,6 @@ def create_app() -> FastAPI:
             log_file = system_config.log_file or 'logs/service.log'
             log_level = system_config.log_level
             setup_logging(log_file, log_level)
-        
-            # Diagnostic: Check what level was actually set
-            root_logger = logging.getLogger()
-            print(f"DEBUG: After setup_logging - Root logger level: {root_logger.level} (requested: {log_level})")
         
             # Check for log level override from environment
             override_log_level = os.getenv('OVERRIDE_LOG_LEVEL')

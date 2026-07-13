@@ -533,3 +533,20 @@ async def test_dispatch_seam_replays_the_20260712_wedge_and_holds(device: EMotiv
     start = _time.monotonic()
     await device.execute_action("power_on", {"zone": 1}, source="scenario")
     assert _time.monotonic() - start < 0.2
+
+
+def test_keepalive_beats_emit_no_log_lines(device: EMotivaXMC2, caplog):
+    """OPS-25: the 7.5 s heartbeat produced ~9 log lines per beat (~2/3 of a 20 MB
+    day file). Driver-side, a keepAlive beat must log NOTHING even at DEBUG — the
+    watchdog's own INFO/ERROR transitions carry the evidence; a real property
+    change keeps its debug line."""
+    import logging as _logging
+
+    with caplog.at_level(_logging.DEBUG,
+                         logger="wb_mqtt_bridge.infrastructure.devices.emotiva_xmc2.driver"):
+        caplog.clear()
+        device._handle_property_change("keepalive", None, "7500")
+        assert caplog.records == []
+
+        device._handle_property_change("volume", None, "-30.0")
+        assert any("volume" in r.message for r in caplog.records)

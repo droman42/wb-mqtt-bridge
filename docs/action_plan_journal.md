@@ -69,6 +69,15 @@ entries use the new IDs.
   are fully convention-shaped. With VWB-29/40/41 this completes all four PROD-16 bridge delegation
   items in one session; board write-back rode the intake (`commons ef751bf`).
 
+- **2026-07-13 — OPS-25: production log hygiene — the 20 MB/day is over.** Root INFO +
+  `pymotivaxmc2: WARNING` pinned in the existing `loggers` map (no model change — the mechanism
+  was there all along, the library just never joined pyatv/upnp in it); keepAlive beats now log
+  NOTHING even at DEBUG (driver-side early-exit, watchdog untouched, caplog-locked); the 34
+  forensic tags stay as flip-on instrumentation; the boot-time `print("DEBUG: …")` leftover gone;
+  retention 30→1 day (owner decision: today + yesterday — cross-midnight analysis, nothing else).
+  2026-07-12 corpus at the new levels: ~1.5 k lines (≈300 KB) instead of 138 k / 20 MB. Lands on
+  the WB7 at the next update.sh cycle. Suite 725.
+
 - **2026-07-13 — SCN-16 + SCN-17: the DRV-38 review remediations land in one shot.** SCN-16:
   zone-aware power planning — `ZonePower.port` (planner metadata, zero contract drift) +
   `resolve_targets` now returns `used_ports` (both endpoints per link — `source_targets`

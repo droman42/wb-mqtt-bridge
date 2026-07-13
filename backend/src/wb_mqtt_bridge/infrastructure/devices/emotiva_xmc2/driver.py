@@ -344,10 +344,13 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         # Use the new decorator pattern for callbacks
         @self.client.on(property)
         async def property_callback(value):
-            # DEBUG: Enhanced callback logging
-            logger.debug(f"[EMOTIVA_DEBUG] Hardware callback triggered: {property.value} = {value} (device={self.get_name()}, timestamp={datetime.now().isoformat()})")
             # Convert property enum value to lowercase for consistent handling
             property_name = property.value.lower()
+            # keepAlive beats are pure heartbeat: ~11.5k/day at 7.5 s — never log
+            # them, even at DEBUG (OPS-25; the watchdog's own INFO/ERROR transitions
+            # are the evidence of life and death).
+            if property_name != "keepalive":
+                logger.debug(f"[EMOTIVA_DEBUG] Hardware callback triggered: {property.value} = {value} (device={self.get_name()}, timestamp={datetime.now().isoformat()})")
             self._handle_property_change(property_name, None, value)
             
         # DEBUG: Log callback registration
@@ -374,8 +377,10 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             old_value: Previous value of the property
             new_value: New value of the property
         """
-        # DEBUG: Enhanced property change logging
-        logger.debug(f"[EMOTIVA_DEBUG] Property change callback: {property_name} = {old_value} -> {new_value} (device={self.get_name()}, connected={self.state.connected})")
+        # DEBUG: Enhanced property change logging (keepAlive beats excepted — pure
+        # heartbeat noise, OPS-25)
+        if property_name != "keepalive":
+            logger.debug(f"[EMOTIVA_DEBUG] Property change callback: {property_name} = {old_value} -> {new_value} (device={self.get_name()}, connected={self.state.connected})")
 
         # DRV-30: every notification is proof of life. Record it for the watchdog and
         # the post-power-on quiescence gate; a notification arriving while the device
