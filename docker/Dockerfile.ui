@@ -3,18 +3,14 @@ FROM node:20 AS builder
 
 WORKDIR /app
 
-# Build context is the MONOREPO ROOT (this Dockerfile is ui/Dockerfile). Copy the UI package
-# manifests first for better caching.
+# Build context is the MONOREPO ROOT (this Dockerfile is docker/Dockerfile.ui). Copy the UI
+# package manifests first for better caching.
 COPY ui/package*.json ./
 RUN npm ci
 
-# Copy only what codegen needs from the backend (same monorepo): device configs
-# (backend/config/devices/*.json) + the API contract (backend/openapi.json). No Python / pip is
-# needed: device-state types come from openapi.json, not from importing the package.
-COPY backend/config ./backend/config
-COPY backend/openapi.json ./backend/openapi.json
-
-# Copy the UI source
+# Copy the UI source. Nothing from backend/ is needed: the API types (src/types/openapi.gen.ts)
+# are committed, and Layer 3 removed the build-time page generator — the build runs typecheck +
+# vite build only, reading nothing outside ui/.
 COPY ui/ ./
 
 # Set environment variables for production build.

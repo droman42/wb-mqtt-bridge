@@ -164,11 +164,12 @@ docker run -d --name wb-ui --restart unless-stopped -p 3000:3000 \
 # Access at http://localhost:3000
 ```
 
-For a local build, run from the **monorepo root** — the Dockerfile copies
-`config` and `backend/openapi.json` out of the repo-root build context:
+For a local build, run from the **monorepo root** (the Dockerfile is built with the repo
+root as context; it copies only `ui/` — the committed API types mean the build reads
+nothing outside it):
 
 ```bash
-docker build -t locveil-bridge-ui:local -f ui/Dockerfile .
+docker build -t locveil-bridge-ui:local -f docker/Dockerfile.ui .
 ```
 
 ## Component Library

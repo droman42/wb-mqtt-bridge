@@ -25,6 +25,25 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-13 — CORE-11 DONE: config tree → repo root + Dockerfiles → `docker/` (root context).**
+  Two commits, NO contract cut (golden byte-identical). `git mv backend/config → config` (pure
+  renames). The `ConfigManager`/CLI default `"config"` stays CWD-relative — the container resolves it
+  via WORKDIR `/app` + the `/app/config` mount, so nothing repo-relative gets baked in. **Reconciliation
+  surfaced the cert-path coupling** the delegation's "loader/CLI defaults" hinted at: LG TV configs store
+  cert paths (`config/devices/certs/*.pem`) validated relative to CWD = the deployment root, which is now
+  the repo root (was `backend/`), matching the container's `/app`. So the offline catalog build + the real
+  `locveil-catalog`/`locveil-openapi` regen now run from the repo root (`uv run --project backend …`);
+  updated `dump_catalog --output` default, the golden test (`monkeypatch.chdir(REPO)`), and the regen
+  docs — verified the repo-root regen reproduces the byte-identical golden with the LG TVs present. ~15
+  test config anchors retargeted; walk-up tests auto-adapt. ops/update.sh, compose comments, CI filters
+  (backend + ui), the `config-master-tree` invariant, manifest globs, and two `.dot`+`.png` diagrams
+  followed. Dockerfiles moved to `docker/` with root context: backend COPYs re-prefixed, **CORE-10's
+  `CMD ["wb-api"]` miss fixed → `locveil-bridge`**, the UI's vestigial `COPY backend/config`/`openapi.json`
+  removed (build reads nothing outside `ui/`), CI repointed, the two `.dockerignore`s merged to one root
+  file. Both images build clean locally (amd64). Gates: import-linter 6/6, pyright 0, pytest 725,
+  contract-guard 0, docs-manifest 8/8, UI check+build green. Remaining PROD-21 bridge work: OPS-26
+  (owner-gated wire cutover).
+
 - **2026-07-13 — CORE-10 DONE: `wb_mqtt_bridge` → `locveil_bridge` import rename + console scripts +
   the deliberate `catalog-v1.7` cut (one tree churn).** Bridge was already src-layout so no layout
   move was owed. `git mv` (98 files, history preserved) + identifier sweep across 104 `.py`, pyproject

@@ -205,9 +205,10 @@ uv sync --frozen
 
 **5. Measuring Optimization Impact:**
 ```bash
-# Compare image sizes
-docker build -t locveil-bridge:full --build-arg LEAN=false .
-docker build -t locveil-bridge:lean --build-arg LEAN=true .
+# Compare image sizes (run from the repo root; the backend Dockerfile lives in docker/
+# and is built with the monorepo root as context since CORE-11)
+docker build -f docker/Dockerfile.backend -t locveil-bridge:full --build-arg LEAN=false .
+docker build -f docker/Dockerfile.backend -t locveil-bridge:lean --build-arg LEAN=true .
 docker images | grep locveil-bridge
 
 # Inspect what was removed

@@ -32,9 +32,10 @@ ENV PATH="/root/.local/bin:$PATH"
 RUN mkdir -p /etc/pip && \
     echo "[global]\nextra-index-url=https://www.piwheels.org/simple" > /etc/pip/pip.conf
 
-# Copy source code and UV project files
-COPY src/ ./src/
-COPY pyproject.toml uv.lock ./
+# Copy source code and UV project files (build context is the repo root since CORE-11,
+# so the backend component is addressed under backend/).
+COPY backend/src/ ./src/
+COPY backend/pyproject.toml backend/uv.lock ./
 
 # Create virtual environment and install dependencies with UV
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -150,5 +151,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=10)" || exit 1
 
-# Command to run the service using the console script
-CMD ["wb-api", "--host", "0.0.0.0", "--port", "8000"] 
+# Command to run the service using the console script (wb-api was retired in CORE-10;
+# locveil-bridge is the surviving entry point).
+CMD ["locveil-bridge", "--host", "0.0.0.0", "--port", "8000"]
