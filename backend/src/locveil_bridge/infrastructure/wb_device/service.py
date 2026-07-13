@@ -74,7 +74,7 @@ class WBVirtualDeviceService:
         self,
         config: Union[BaseDeviceConfig, Dict[str, Any]],
         command_executor: CommandExecutor,
-        driver_name: str = "wb_mqtt_bridge",
+        driver_name: str = "locveil-bridge",
         device_type: Optional[str] = None,
         entity_id: Optional[str] = None,      # Virtual entity abstraction (Phase 3 enhancement)
         entity_name: Optional[str] = None,    # Virtual entity abstraction (Phase 3 enhancement)

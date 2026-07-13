@@ -25,6 +25,17 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-13 — OPS-26 DONE: `meta/driver` wire-identity cutover `wb_mqtt_bridge` → `locveil-bridge`
+  (the last PROD-21 bridge item).** Owner-gate lifted by the user. Separate, separately-revertible
+  commit — the only task allowed to touch the retained `meta/driver` string. Flipped the two default
+  literals (`wb_device/service.py:77`, `devices/base.py:122` — the production caller) that CORE-10
+  deliberately preserved. Reconciliation confirmed `driver_name` is never a persisted-state key (only
+  the in-memory `_active_devices` dict + the `meta.driver` publish, `retain=True qos=1`) and no
+  doc/config states the value → pure republish-in-place, no broker migration. Functionally verified:
+  the real publish path now emits `meta.driver == "locveil-bridge"`. Live retained topic flips on the
+  next WB7 image deploy (`git pull` + `update.sh` + restart). Gates: import-linter 6/6, pyright 0,
+  pytest 725. **PROD-21 bridge share fully consumed (CORE-10 + CORE-11 + OPS-26 all DONE).**
+
 - **2026-07-13 — CORE-11 DONE: config tree → repo root + Dockerfiles → `docker/` (root context).**
   Two commits, NO contract cut (golden byte-identical). `git mv backend/config → config` (pure
   renames). The `ConfigManager`/CLI default `"config"` stays CWD-relative — the container resolves it

@@ -119,7 +119,7 @@ class BaseDevice(DevicePort[StateT], ABC, Generic[StateT]):
         success = await self.wb_service.setup_wb_device_from_config(
             config=self.config,
             command_executor=self._execute_wb_command_from_service,
-            driver_name="wb_mqtt_bridge",
+            driver_name="locveil-bridge",
             device_type=self.config.device_class.lower() if hasattr(self.config, 'device_class') else None,
             capabilities=self.capabilities,
             state_provider=self.get_current_state,
