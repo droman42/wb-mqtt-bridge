@@ -261,6 +261,32 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   satellite-triggered). The HVACs are out of scope permanently unless the owner reopens firmware
   (`device_integration_convention.md` §2).
 
+- [ ] **DRV-38** `[P1]` — **eMotiva wedge #2 (2026-07-12, `movie_appletv`): close the DRV-30
+  coverage gap + REVIEW the topology layer's protection model.** Evidence (frozen):
+  [`docs/review/emotiva_wedge_20260712.md`](review/emotiva_wedge_20260712.md) — the device's
+  last-ever packet was its ack to an **ungated `zone2_power_on`** fired 2.3 s into a
+  bridge-visible ARC handshake (`input_source` was already `'arc'` in the driver's own state);
+  `_await_input_ready` has exactly one call site (`handle_set_input`), so any plan shape whose
+  post-power step is NOT an input switch walks straight into the known-fatal window —
+  `movie_appletv` (input already correct ⇒ next step is zone-2 power) was never exercised live
+  after DRV-30 (zero appletv mentions in the REL-3 record). NOT a config regression (zone2
+  topology link + scenario predate the monorepo); the firmware vulnerability itself stands —
+  DRV-31/32 (the 3.2 flash + CEC bench) keep full value, and this wedge's unplug recovery has
+  likely reset CEC again (re-check per DRV-32). **Scope: (a) the immediate fix** — hoist the
+  ARC-window hold from `handle_set_input` to cover EVERY control-port command the device accepts
+  post-power-on (zone2 power, volume, mode, …): gate at the driver's dispatch seam, not
+  per-handler; regression test = the wedge plan shape (power_on → fresh-`arc` claim →
+  zone2_power_on must HOLD). **(b) the topology-layer review** (`review-then-remediate`;
+  deliverable = frozen evidence under `docs/review/`, remediations filed as fresh tasks): the
+  plan's post-power command per device is an EMERGENT property of the topology diff, so
+  per-handler guards can never cover a device's unready window — review whether per-device
+  readiness belongs at the executor/dispatch layer as a first-class concept; audit every driver
+  for post-power vulnerable windows (which devices define "ready"? who enforces it?); examine
+  whether topology `ordering`/`delay_ms` settles are currently masking sibling gaps (they pace
+  authored edges, blind to runtime windows) and whether SCN-14/15 outcome-gates are being
+  mistaken for entry-gates. Live verification HW-GATED at the rack (and needs the eMotiva
+  recovered first).
+
 ### SCN — Scenarios / topology / reconciler
 
 - [ ] **SCN-10** `[P2]` `[deferred]` — **Feedback-gated topology ordering edges (wait for the
@@ -704,6 +730,19 @@ endpoint).
 - [ ] **OPS-18** `[P2]` `[deferred]` — **Startup-failure cleanup omits WB-card offline marking (asymmetric with normal shutdown)** (REL-5 #11). `app/bootstrap.py:184` — `_release_partial_startup` doesn't call `cleanup_wb_device_state`, so a partial-startup failure leaves retained `available=1` on the WB cards. Edge path (only when startup fails midway); completes the OPS-8 shutdown-symmetry.
 
 - [ ] **OPS-19** `[P2]` `[deferred]` — **`pyatv` git source is unmirrored — a dependency-policy Rule 2 compliance gap (policy home since DOC-15: `CONTRIBUTING.md` → Dependency policy; ex-ADR 0006, archived).** Surfaced by the REL-4 ADR review. `pyatv` is pinned to `git+https://github.com/postlund/pyatv@9177803…` — SHA-pinned (immutable, so the build is reproducible today) but **not** mirrored under the owner's account, which the policy's Rule 2 requires for repos the owner doesn't control; the old ADR's "only remaining git source" claim was already annotated false 2026-07-10. Residual risk: an upstream force-push/deletion of `postlund/pyatv` breaks recovery. **Decision + small op:** either mirror `postlund/pyatv` → `droman42/pyatv` and repoint the pin (comply), OR record an accepted exception in the CONTRIBUTING dependency-policy section with rationale. Not a release gate (reproducible now). Minor sibling: the dev-only `py-dev-gates@v0.1.1` is tag-pinned (owner-controlled) — fold in or leave.
+
+- [ ] **OPS-25** `[P2]` — **Production log hygiene: 20 MB/day of idle DEBUG chatter** (evidence:
+  `docs/review/emotiva_wedge_20260712.md` finding 3). `system.json` ships `log_level: "DEBUG"`
+  (pre-monorepo default, never production-tuned) and, since the DRV-30 keepAlive watchdog, every
+  7.5 s beat emits ~9 DEBUG lines across `pymotivaxmc2` + the eMotiva driver — measured on the
+  2026-07-12 log: ~two-thirds of 138 k lines are idle eMotiva chatter, flat around the clock.
+  Scope: (1) production log level decision — `INFO` root, or targeted per-logger levels (keep the
+  bridge at DEBUG if wanted, `pymotivaxmc2.*` at INFO+) — config surface is `system.json` per
+  `config-master-tree`; (2) silence keepAlive processing below the chosen level (it must stay
+  CHEAP — the watchdog's timing logic is untouched); (3) sweep the `[EMOTIVA_DEBUG]` /
+  `[MQTT_DEBUG]` / `[SCENARIO_DEBUG]` forensic tags left from the REL-3 investigation — keep or
+  demote deliberately; (4) confirm the ops-side rotation bounds are sane for the chosen level
+  (flash wear on the WB7 sdcard is the cost driver). Config + logging only — no behavior change.
 
 
 
