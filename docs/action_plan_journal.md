@@ -25,6 +25,17 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-13 — PROD-21 intake: HK-8 Python-layout convention delegated to the bridge → filed
+  CORE-10 + CORE-11 + OPS-26.** Pulled the board delegation (council HK-8, normative
+  `../locveil-commons/process/python-layout.md`), reconciled the keeper checklist against live repo:
+  bridge is **already src-layout** (`backend/src/wb_mqtt_bridge/`, tests outside the package) so no
+  layout move is owed — confirmed the delegation correctly omits one. Verified 122 `.py` files
+  reference `wb_mqtt_bridge`; entry points `wb-api`/`wb-openapi`/`wb-catalog` present; config at
+  `backend/config/`; Dockerfiles at `backend/Dockerfile` + `ui/Dockerfile`; `locveil_bridge.egg-info`
+  is a gitignored stale build artifact, not a partial rename. Filed three tasks (rename+catalog-v1.7
+  cut; config→root + Dockerfiles→root/`docker/`; owner-gated `meta/driver` wire cutover). Execution
+  not started — awaiting go. Board write-back pending.
+
 - **2026-07-12 — OPS-24: scope-guard re-pinned @ `scope-v5` — the docs-verdict rule is armed
   (PROD-17 / HK-6, bridge delegation (4); closes the bridge's PROD-17 arc).** Vendored script →
   1.2.0 (tag-verified); the `shared-invariants` block re-pinned with the org-wide
