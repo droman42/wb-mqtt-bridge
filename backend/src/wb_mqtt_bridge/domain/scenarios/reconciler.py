@@ -25,6 +25,12 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
+# SCN-17: hard bound on a single step's dispatch (`device.execute_action`). Steps are
+# globally serialized, so an unbounded driver hang would freeze the whole switch; any
+# LEGITIMATE driver-side readiness hold (the eMotiva's is capped at 15 s) plus a slow
+# command must fit comfortably under this — it is a guard rail, not pacing.
+DISPATCH_TIMEOUT_S = 60.0
+
 from wb_mqtt_bridge.domain.topology.models import Topology, TopologyLink
 
 
@@ -93,8 +99,13 @@ def _find_path(
 
 
 def resolve_targets(scenario, topology: Topology):
-    """Return ``(input_targets, source_targets, involved, manual_steps, warnings)``
-    for a thin scenario.
+    """Return ``(input_targets, source_targets, involved, manual_steps, warnings,
+    used_ports)`` for a thin scenario.
+
+    ``used_ports[device] = {port, ...}`` collects BOTH endpoints of every link on the
+    walked signal paths — unlike ``source_targets`` it never drops a port when dst
+    wins for a mid-chain device (the eMotiva is dst ``source2`` AND src ``zone2`` in
+    the same start). SCN-16 keys zone-aware power planning off it.
 
     Symmetric src/dst handling: ``input_targets[dst] = link.dst_port`` for destination
     devices (the existing path — the sink's input must be set to receive the signal),
@@ -114,6 +125,7 @@ def resolve_targets(scenario, topology: Topology):
     involved: Set[str] = set()
     manual_steps: List[ManualStep] = []
     warnings: List[str] = []
+    used_ports: Dict[str, Set[str]] = {}
 
     # A manual-node source (a turntable/tape with no driver) is not a device to control —
     # it only anchors the topology path so the sink input + manual notes still resolve.
@@ -129,6 +141,10 @@ def resolve_targets(scenario, topology: Topology):
             return
         for link in path:
             dst = link.dst_node
+            if link.src_node not in manual_nodes:
+                used_ports.setdefault(link.src_node, set()).add(link.src_port)
+            if dst not in manual_nodes:
+                used_ports.setdefault(dst, set()).add(link.dst_port)
             if dst in manual_nodes:
                 instruction = topology.nodes[dst].positions.get(link.dst_port)
                 if instruction:
@@ -157,7 +173,7 @@ def resolve_targets(scenario, topology: Topology):
 
     walk(scenario.display, "video")
     walk(scenario.audio, "audio")
-    return input_targets, source_targets, involved, manual_steps, warnings
+    return input_targets, source_targets, involved, manual_steps, warnings, used_ports
 
 
 # --- 2/3. diff + translate ---------------------------------------------------
@@ -206,7 +222,15 @@ def _wire_table(cap: Any, field_name: Optional[str]) -> Optional[Dict[str, str]]
     return None
 
 
-def _power_actions(device_id, cap, state, warnings, force: bool = False) -> List[PlannedAction]:
+def _zone_on_path(zone, used_ports: Optional[Set[str]]) -> bool:
+    """SCN-16: a zone with a declared ``port`` is planned only when the scenario's
+    resolved path uses that port on this device. Portless zones (the main zone) and
+    calls with no path context (``used_ports is None``) always plan."""
+    return zone.port is None or used_ports is None or zone.port in used_ports
+
+
+def _power_actions(device_id, cap, state, warnings, force: bool = False,
+                   used_ports: Optional[Set[str]] = None) -> List[PlannedAction]:
     """Emit power actions to bring a device ON (multi-zone aware, toggle aware).
 
     ``force`` (SCN-11): skip the believed-vs-target diff — emit unconditionally toward
@@ -221,6 +245,8 @@ def _power_actions(device_id, cap, state, warnings, force: bool = False) -> List
 
     if cap.zones:
         for zone_key, zone in cap.zones.items():
+            if not _zone_on_path(zone, used_ports):
+                continue  # off the used signal path — never touched (SCN-16)
             if not force and _satisfies(_state_value(state, zone.state_field), zone.on_value,
                                         _wire_table(cap, zone.state_field)):
                 continue
@@ -440,7 +466,7 @@ def build_plan(scenario, topology: Topology, devices: Dict[str, Any]) -> Reconci
     ``devices`` maps device_id -> device (each with ``.capabilities`` and ``.get_current_state()``).
     """
     plan = ReconcilePlan()
-    input_targets, source_targets, involved, manual_steps, warnings = resolve_targets(
+    input_targets, source_targets, involved, manual_steps, warnings, used_ports = resolve_targets(
         scenario, topology
     )
     plan.manual_steps = manual_steps
@@ -460,7 +486,8 @@ def build_plan(scenario, topology: Topology, devices: Dict[str, Any]) -> Reconci
 
         power_cap = cap_map.get("power")
         if power_cap is not None and power_cap.reconcile:
-            power_actions = _power_actions(device_id, power_cap, state, plan.warnings)
+            power_actions = _power_actions(device_id, power_cap, state, plan.warnings,
+                                           used_ports=used_ports.get(device_id))
             if power_actions:
                 raw.extend(power_actions)
             else:
@@ -530,7 +557,9 @@ def build_forced_device_plan(scenario, topology: Topology, devices: Dict[str, An
     the plan, and the other devices are presumed already settled.
     """
     plan = ReconcilePlan()
-    input_targets, source_targets, involved, _manual, _warnings = resolve_targets(scenario, topology)
+    input_targets, source_targets, involved, _manual, _warnings, used_ports = resolve_targets(
+        scenario, topology
+    )
 
     if device_id not in involved:
         plan.warnings.append(f"device '{device_id}' is not involved in this scenario")
@@ -548,7 +577,8 @@ def build_forced_device_plan(scenario, topology: Topology, devices: Dict[str, An
     raw: List[PlannedAction] = []
     power_cap = cap_map.get("power")
     if power_cap is not None and power_cap.reconcile:
-        raw.extend(_power_actions(device_id, power_cap, state, plan.warnings, force=True))
+        raw.extend(_power_actions(device_id, power_cap, state, plan.warnings, force=True,
+                                  used_ports=used_ports.get(device_id)))
 
     input_cap, target = _device_input_target(device_id, cap_map, input_targets, source_targets)
     if input_cap is not None and target is not None:
@@ -586,7 +616,9 @@ class DevicePreview:
 def build_reconcile_preview(scenario, topology: Topology, devices: Dict[str, Any]) -> List[DevicePreview]:
     """Per-device believed-vs-desired rows for the active scenario (SCN-11). Pure —
     reads capability maps + assumed state, mutates nothing."""
-    input_targets, source_targets, involved, _manual, _warnings = resolve_targets(scenario, topology)
+    input_targets, source_targets, involved, _manual, _warnings, used_ports = resolve_targets(
+        scenario, topology
+    )
     previews: List[DevicePreview] = []
 
     for device_id in sorted(involved):
@@ -602,19 +634,23 @@ def build_reconcile_preview(scenario, topology: Topology, devices: Dict[str, Any
         power_cap = cap_map.get("power")
         if power_cap is not None and power_cap.reconcile:
             if power_cap.zones:
-                believed: Any = {
-                    zk: _state_value(state, z.state_field) for zk, z in power_cap.zones.items()
+                # SCN-16 parity: the dialog's desired set matches the planner's —
+                # a zone off the used signal path is neither desired nor compared.
+                zones = {
+                    zk: z for zk, z in power_cap.zones.items()
+                    if _zone_on_path(z, used_ports.get(device_id))
                 }
-                desired: Any = {zk: z.on_value for zk, z in power_cap.zones.items()}
+                believed: Any = {
+                    zk: _state_value(state, z.state_field) for zk, z in zones.items()
+                }
+                desired: Any = {zk: z.on_value for zk, z in zones.items()}
+                power_ok = all(
+                    _satisfies(believed.get(zk), z.on_value, _wire_table(power_cap, z.state_field))
+                    for zk, z in zones.items()
+                )
             else:
                 believed = _state_value(state, power_cap.state_field)
                 desired = power_cap.on_value
-            if power_cap.zones:
-                power_ok = all(
-                    _satisfies(believed.get(zk), z.on_value, _wire_table(power_cap, z.state_field))
-                    for zk, z in power_cap.zones.items()
-                )
-            else:
                 power_ok = _satisfies(believed, desired, _wire_table(power_cap, power_cap.state_field))
             comparisons.append(DomainComparison("power", believed, desired, power_ok))
 
@@ -712,8 +748,14 @@ async def execute_plan(
             continue
 
         try:
-            resp = await device.execute_action(action.command, action.params, source="scenario")
+            resp = await asyncio.wait_for(
+                device.execute_action(action.command, action.params, source="scenario"),
+                timeout=DISPATCH_TIMEOUT_S,
+            )
             ok, err = _response_ok(resp)
+        except TimeoutError:
+            # SCN-17: a wedged/hung driver must cost one failed step, not the plan.
+            ok, err = False, f"dispatch timeout: no response within {DISPATCH_TIMEOUT_S:.0f}s"
         except Exception as exc:  # noqa: BLE001 - surface any driver error as a failure
             ok, err = False, str(exc)
 

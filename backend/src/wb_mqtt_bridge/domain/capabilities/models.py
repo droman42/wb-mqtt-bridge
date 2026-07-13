@@ -154,6 +154,14 @@ class ZonePower(BaseModel):
     state_field: str
     on_value: str | bool | int = "on"
     actions: Dict[str, CapabilityAction]
+    port: Optional[str] = Field(
+        None,
+        description="Topology port this zone feeds (e.g. the eMotiva zone 2 drives the "
+                    "'zone2' output). When set, the planner powers the zone only if the "
+                    "scenario's resolved signal path uses that port on this device "
+                    "(SCN-16 — a zone off the audio path stays untouched). None = the "
+                    "zone always powers with the device (the main zone).",
+    )
 
 
 class CapabilityField(BaseModel):

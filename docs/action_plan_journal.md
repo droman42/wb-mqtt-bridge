@@ -69,6 +69,15 @@ entries use the new IDs.
   are fully convention-shaped. With VWB-29/40/41 this completes all four PROD-16 bridge delegation
   items in one session; board write-back rode the intake (`commons ef751bf`).
 
+- **2026-07-13 — SCN-16 + SCN-17: the DRV-38 review remediations land in one shot.** SCN-16:
+  zone-aware power planning — `ZonePower.port` (planner metadata, zero contract drift) +
+  `resolve_targets` now returns `used_ports` (both endpoints per link — `source_targets`
+  structurally loses the mid-chain src port, exactly the eMotiva's `zone2`); planner, forced plan,
+  and SCN-11 preview all filter on it, so `movie_ld`/`movie_vhs` no longer fire the spurious
+  `zone2_power_on` while the three zone2-using scenarios keep it. SCN-17: `execute_plan` bounds
+  each dispatch with `wait_for(60 s)` — a hung driver costs one failed step, not the switch.
+  Suite 724, golden byte-identical. Still owed on DRV-38: the rack replay (HW-GATED).
+
 - **2026-07-13 — DRV-38 (a)+(b): the eMotiva readiness hold moved to the dispatch seam; the
   topology-layer review lands — SCN-16/SCN-17 filed.** The 2026-07-12 wedge trigger
   (`power_on {zone:2}` acked mid-ARC-handshake, then silence) is closed at the only layer that

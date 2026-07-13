@@ -139,7 +139,7 @@ def test_resolve_ld_path_emits_manual_step_and_cd_input():
         scenario_id="movie_ld", names={"ru": "LD", "en": "LD"},
         source="ld_player", display="living_room_tv", audio="mf_amplifier",
     )
-    input_targets, _source_targets, involved, manual_steps, warnings = resolve_targets(ld, TOPOLOGY)
+    input_targets, _source_targets, involved, manual_steps, warnings, _used = resolve_targets(ld, TOPOLOGY)
 
     assert input_targets["upscaler"] == "video"
     assert input_targets["processor"] == "source3"
@@ -166,7 +166,7 @@ def test_manual_source_node_anchors_path_without_being_controlled():
         }
     )
     scn = ScenarioDefinition(scenario_id="m", names={"ru": "m", "en": "m"}, source="turntable", audio="amp")
-    input_targets, _source_targets, involved, manual_steps, warnings = resolve_targets(scn, topo)
+    input_targets, _source_targets, involved, manual_steps, warnings, _used = resolve_targets(scn, topo)
 
     assert input_targets == {"amp": "cd"}        # sink input resolved through the manual source
     assert involved == {"amp"}                   # the manual source is NOT a device to control
@@ -523,7 +523,7 @@ def _music_devices(**overrides):
 )
 def test_music_scenarios_resolve_and_build_clean(name, amp_input, manual_pos, passive_source):
     scn = _scenario(name)
-    input_targets, _source_targets, involved, manual_steps, warnings = resolve_targets(scn, TOPOLOGY)
+    input_targets, _source_targets, involved, manual_steps, warnings, _used = resolve_targets(scn, TOPOLOGY)
 
     assert input_targets["mf_amplifier"] == amp_input  # amp input auto-selected from topology
     assert "mf_amplifier" in involved
@@ -540,7 +540,7 @@ def test_music_scenarios_resolve_and_build_clean(name, amp_input, manual_pos, pa
 def test_music_turntable_surfaces_both_manual_hops():
     """The turntable path runs Kuzma → Sugden PA4 (power on) → Dodocus (Phono) → amp:cd,
     so BOTH inline manual nodes surface a note; neither passive node is controlled."""
-    _, _source_targets, involved, manual_steps, warnings = resolve_targets(_scenario("music_turntable"), TOPOLOGY)
+    _, _source_targets, involved, manual_steps, warnings, _used = resolve_targets(_scenario("music_turntable"), TOPOLOGY)
     notes = {m.node: m.instruction for m in manual_steps}
     assert "Power on" in notes.get("sugden_pa4", "")
     assert "to LP" in notes.get("dodocus", "")
@@ -566,7 +566,7 @@ def test_tv_on_speakers_resolves_with_source_targets():
     The symmetric src_port mechanism puts the TV in source_targets (not input_targets) with
     src_port='arc' from the topology link `living_room_tv:arc → processor:arc`."""
     scn = _scenario("tv_on_speakers")
-    input_targets, source_targets, involved, _manual_steps, warnings = resolve_targets(scn, TOPOLOGY)
+    input_targets, source_targets, involved, _manual_steps, warnings, _used = resolve_targets(scn, TOPOLOGY)
 
     # Destinations on the audio path get input_targets per dst_port (existing behavior)
     assert input_targets.get("processor") == "arc"
@@ -638,7 +638,7 @@ def test_source_targets_skipped_when_device_has_no_source_modes():
     would fail set_input('out') since 'out' isn't a valid Auralic input)."""
     # music_auralic: source=streamer, audio=mf_amplifier. Streamer→amp link has src_port='out'.
     scn = _scenario("music_auralic")
-    _, source_targets, _, _, _ = resolve_targets(scn, TOPOLOGY)
+    _, source_targets, _, _, _, _ = resolve_targets(scn, TOPOLOGY)
     # source_targets DOES record the src_port (resolve_targets is unconditional)
     assert source_targets.get("streamer") == "out"
     # ...but build_plan must NOT emit an action for it (no source_modes in Auralic cap)
@@ -658,7 +658,7 @@ def test_source_targets_skipped_when_device_has_no_input_capability():
     by the src_port mechanism — no warnings (warnings are reserved for dst_port targets
     that fail, where the topology made a hard claim about a destination's input)."""
     scn = _scenario("movie_appletv")
-    _, source_targets, _, _, _ = resolve_targets(scn, TOPOLOGY)
+    _, source_targets, _, _, _, _ = resolve_targets(scn, TOPOLOGY)
     assert source_targets.get("appletv_living") == "hdmi"  # src_port from appletv→processor link
 
     plan = build_plan(scn, TOPOLOGY, _movie_appletv_devices())
@@ -807,3 +807,97 @@ def test_reconcile_preview_rows():
     pdom = {c.domain: c for c in proc.comparisons}["power"]
     assert isinstance(pdom.desired, dict) and isinstance(pdom.believed, dict)
     assert set(pdom.desired.keys()) == set(pdom.believed.keys())
+
+
+# --- SCN-16: zone-aware power planning (DRV-38(b) review remediation) ---------
+# docs/review/topology_readiness_review_2026-07-13.md lane R3: movie_ld/movie_vhs
+# powered the eMotiva's zone 2 although their audio rides the Dodocus RCA path —
+# the 2026-07-12 wedge trigger fired with zero functional benefit. A zone with a
+# declared `port` is planned only when the resolved path uses that port.
+
+
+def _movie_ld_devices():
+    return {
+        "ld_player": _device("WirenboardIRDevice", "ld_player"),
+        "upscaler": _device("WirenboardIRDevice", "upscaler", input=None),
+        "processor": _device("EMotivaXMC2", "processor", zone2_power=None, input_source=None),
+        "living_room_tv": _device("LgTv", "living_room_tv", input_source=None),
+        "mf_amplifier": _device("WirenboardIRDevice", "mf_amplifier", input=None),
+    }
+
+
+def test_resolve_targets_collects_used_ports_both_endpoints():
+    """used_ports keeps BOTH endpoints of every path link — including the src port
+    of a mid-chain device that source_targets drops when dst wins (the eMotiva is
+    dst 'source2' AND src 'zone2' in the same appletv start)."""
+    *_, used = resolve_targets(_scenario("movie_appletv"), TOPOLOGY)
+    assert "source2" in used["processor"]
+    assert "zone2" in used["processor"]
+
+    *_, used_ld = resolve_targets(_scenario("movie_ld"), TOPOLOGY)
+    assert "source3" in used_ld["processor"]
+    assert "zone2" not in used_ld["processor"]  # audio rides Dodocus RCA, not zone2
+
+
+def test_movie_ld_plan_skips_off_path_zone2():
+    plan = build_plan(_scenario("movie_ld"), TOPOLOGY, _movie_ld_devices())
+    assert _find(plan, "processor", "power", zone="1") is not None
+    assert _find(plan, "processor", "power", zone="2") is None  # spurious step gone
+
+
+def test_movie_appletv_plan_keeps_on_path_zone2():
+    plan = build_plan(_scenario("movie_appletv"), TOPOLOGY, _movie_appletv_devices())
+    assert _find(plan, "processor", "power", zone="1") is not None
+    assert _find(plan, "processor", "power", zone="2") is not None  # audio path uses it
+
+
+def test_preview_desired_set_agrees_with_planner_on_zones():
+    """SCN-11 parity: the force-reconcile dialog must not show an off-path zone as
+    desired — else movie_ld would read 'out of sync' forever after SCN-16."""
+    from wb_mqtt_bridge.domain.scenarios.reconciler import build_reconcile_preview
+
+    previews = {p.device_id: p for p in
+                build_reconcile_preview(_scenario("movie_ld"), TOPOLOGY, _movie_ld_devices())}
+    pdom = {c.domain: c for c in previews["processor"].comparisons}["power"]
+    assert set(pdom.desired.keys()) == {"1"}
+
+    previews = {p.device_id: p for p in
+                build_reconcile_preview(_scenario("movie_appletv"), TOPOLOGY,
+                                        _movie_appletv_devices())}
+    pdom = {c.domain: c for c in previews["processor"].comparisons}["power"]
+    assert set(pdom.desired.keys()) == {"1", "2"}
+
+
+# --- SCN-17: bounded per-step dispatch (DRV-38(b) review remediation) ---------
+
+
+@pytest.mark.asyncio
+async def test_dispatch_timeout_fails_the_step_and_the_plan_continues(monkeypatch):
+    """A hung driver dispatch costs ONE failed step, not the whole switch — steps
+    are globally serialized, so an unbounded hang would freeze every later device."""
+    import asyncio
+    from wb_mqtt_bridge.domain.scenarios import reconciler as r
+
+    monkeypatch.setattr(r, "DISPATCH_TIMEOUT_S", 0.05)
+
+    async def hang(command, params, source):
+        await asyncio.sleep(30)
+
+    async def respond(command, params, source):
+        return {"success": True}
+
+    hung = SimpleNamespace(execute_action=hang)
+    healthy = SimpleNamespace(execute_action=respond)
+
+    plan = ReconcilePlan(actions=[
+        PlannedAction(device_id="hung", domain="power", target="on",
+                      command="power_on", params={}, feedback=False),
+        PlannedAction(device_id="healthy", domain="power", target="on",
+                      command="power_on", params={}, feedback=False),
+    ])
+    result = await execute_plan(plan, {"hung": hung, "healthy": healthy})
+
+    assert len(result.failures) == 1
+    failed_action, err = result.failures[0]
+    assert failed_action.device_id == "hung" and "dispatch timeout" in err
+    assert [a.device_id for a in result.executed] == ["healthy"]

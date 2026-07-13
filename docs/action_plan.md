@@ -333,30 +333,6 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
 
 
 
-- [ ] **SCN-16** `[P1]` — **Zone-aware power planning — don't power zones off the used audio
-  path** (DRV-38(b) review remediation; evidence:
-  [`docs/review/topology_readiness_review_2026-07-13.md`](review/topology_readiness_review_2026-07-13.md)
-  lane R3). `_power_actions` emits a `power_on` for EVERY zone a device's power capability
-  declares, unconditionally — so `movie_ld`/`movie_vhs` power the eMotiva's zone 2 although
-  their audio path is Dodocus RCA → amp and never traverses `processor:zone2`; the 2026-07-12
-  wedge trigger fires for zero functional benefit. Scope: the resolver already walks the used
-  topology links — collect used ports per device and emit non-main zone power only when the
-  zone's port is on the path (zone→port mapping declared in the capability map, e.g. the
-  eMotiva zone 2 ↔ port `zone2`; the main zone always powers — it IS the device). Effect:
-  ld/vhs drop the spurious zone-2 step; appletv/zappiti/tv_on_speakers keep it (their audio
-  path uses it). Teardown untouched (powering OFF an already-off zone is idempotent and safe).
-  Reconciler tests: path-includes vs path-excludes zone planning.
-
-- [ ] **SCN-17** `[P2]` — **Executor defense-in-depth: bound `execute_action` dispatch**
-  (DRV-38(b) review remediation; evidence: the same review, lane R2). Nothing wraps
-  `await device.execute_action(...)` in `execute_plan` — a buggy, never-returning driver hold
-  hangs the entire switch (steps are globally serialized). The DRV-38(a) hold is hard-capped
-  at 15 s, so this is a guard rail, not a live bug. Scope: `asyncio.wait_for` around the
-  per-step dispatch with a generous module-level bound (must exceed any legitimate driver
-  hold + slow command — the Auralic's 25 s gate era says be generous, 60 s); timeout → the
-  step fails like an exception does (SCN-14 semantics: recorded in `failures`, plan
-  continues). Test: a device stub whose dispatch never returns → step failed, next step runs.
-
 ### VWB — Voice-integration + native WB onboarding
 
 **Context (the P3.7 push — design narrative preserved from the former phase section):**
