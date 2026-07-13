@@ -12,7 +12,7 @@ from pymotivaxmc2.enums import Property, Zone
 from wb_mqtt_bridge.infrastructure.devices.base import BaseDevice
 from wb_mqtt_bridge.domain.devices.models import EmotivaXMC2State, LastCommand
 from wb_mqtt_bridge.infrastructure.config.models import EmotivaConfig as AppEmotivaConfig, EmotivaXMC2DeviceConfig, StandardCommandConfig, CommandParameterDefinition
-from wb_mqtt_bridge.domain.devices.types import CommandResult
+from wb_mqtt_bridge.domain.devices.types import CommandResponse, CommandResult
 
 logger = logging.getLogger(__name__)
 
@@ -65,14 +65,15 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
     # 2×9 s of blind command retries; three missed 7.5 s beats (~22 s) is the detection
     # bound that replaces them with a fail-fast, speakable error.
     KEEPALIVE_MISS_LIMIT = 3
-    # Post-power-on input readiness: a clean power-up delivers its full property burst
-    # in < 1 s (3 hardware samples 2026-07-10); 2 s of notification silence = settled.
+    # Post-power-on readiness (DRV-38: held for EVERY control-port command at the
+    # dispatch seam, not just input switches): a clean power-up delivers its full
+    # property burst in < 1 s (3 hardware samples 2026-07-10); 2 s of silence = settled.
     INPUT_QUIESCENCE_S = 2.0
     # Hard cap on the readiness hold — a lost packet must never deadlock a scenario.
-    # Also the FULL hold for the ARC-exit case: the incident proves 3.3 s of silence
-    # after the 'arc' claim was still inside the fatal window (the CEC handshake is
-    # invisible to us beyond notifications), so switching away from a fresh 'arc'
-    # waits the whole window. Tune at the DRV-32 bench.
+    # Also the FULL hold for the fresh-'arc' case: two incidents prove the handshake
+    # window is fatal (set_input 3.3 s in, 2026-07-10; zone2_power_on 2.3 s after the
+    # arc claim, 2026-07-12) and its CEC traffic is invisible to us, so ANY command
+    # inside a fresh-'arc' window waits the whole cap. Tune at the DRV-32 bench.
     INPUT_READY_TIMEOUT_S = 15.0
 
     def __init__(self, config: EmotivaXMC2DeviceConfig, mqtt_client=None):
@@ -502,21 +503,52 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             )
         return None
 
-    async def _await_input_ready(self, target: str) -> None:
-        """Hold an input switch until the device is safely past its power-on transition
-        (REL-3 finding F1: `set_input` fired 3.3 s into a CEC/ARC handshake wedged the
-        firmware — wall-unplug required).
+    def _ready_gate_exempt(self, action: str, params: Optional[Dict[str, Any]]) -> bool:
+        """Whether an action may bypass the post-power-on readiness hold.
+
+        Exempt: MAIN-zone power_on (it *starts* the window) and the recovery paths
+        (a held recovery could deadlock a wedged device forever). Everything else that
+        reaches the control port waits — the 2026-07-12 wedge was `power_on {zone: 2}`,
+        the SAME action name as the exempt main-zone form, so the zone check is
+        load-bearing: an unparseable zone stays gated (the safe default)."""
+        if action in ("reconnect", "mqtt_reconnection"):
+            return True
+        if action == "power_on":
+            zone = (params or {}).get("zone", 1)
+            try:
+                return int(zone) == 1
+            except (TypeError, ValueError):
+                return False
+        return False
+
+    async def _await_device_ready(self, action: str, params: Optional[Dict[str, Any]]) -> None:
+        """Hold ANY control-port command until the device is safely past its power-on
+        transition. REL-3 finding F1: `set_input` fired 3.3 s into a CEC/ARC handshake
+        and wedged the firmware; the 2026-07-12 wedge proved the window is fatal for
+        OTHER commands too (`zone2_power_on`, acked and then silence — see
+        docs/review/emotiva_wedge_20260712.md), so the hold lives at the dispatch seam
+        (execute_action), not inside individual handlers.
 
         Notification-driven, no blind delays: outside the ARC case, proceed once the
         notification stream has been quiet for INPUT_QUIESCENCE_S (a clean power-up
-        burst measures < 1 s). Switching away from a fresh 'arc' is the known-fatal
-        window and the handshake's CEC traffic is invisible to us — that case holds
-        the full INPUT_READY_TIMEOUT_S. No power-on in sight → return immediately."""
+        burst measures < 1 s). A fresh 'arc' claim inside the window means the CEC
+        handshake is live and its traffic is invisible to us — that case holds the
+        full INPUT_READY_TIMEOUT_S for every command (the one exception: set_input TO
+        arc, which is the choreographed engagement path). The reserved `force` param
+        does NOT bypass — this hold protects hardware, not beliefs. No power-on in
+        sight → return immediately."""
         anchor = self._power_on_monotonic
         if anchor is None:
             return
         if time.monotonic() - anchor >= self.INPUT_READY_TIMEOUT_S:
             return
+
+        # set_input's target matters for the arc rule: going TO arc is the engagement
+        # choreography and must not be held by the arc case itself.
+        input_target: Optional[str] = None
+        if action == "set_input":
+            raw = (params or {}).get("input")
+            input_target = str(raw).strip().lower() if raw is not None else None
 
         held = False
         while True:
@@ -525,8 +557,8 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             if since_power >= self.INPUT_READY_TIMEOUT_S:
                 break
             # Re-evaluated every loop: the 'arc' claim can land mid-hold.
-            arc_exit = self.state.input_source == "arc" and target != "arc"
-            if not arc_exit:
+            arc_window = self.state.input_source == "arc" and input_target != "arc"
+            if not arc_window:
                 last = self._last_notification_monotonic or anchor
                 quiet = now - max(last, anchor)
                 if quiet >= self.INPUT_QUIESCENCE_S:
@@ -535,9 +567,26 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             await asyncio.sleep(0.2)
         if held:
             logger.info(
-                f"{self.get_name()}: held input switch to {target} for "
+                f"{self.get_name()}: held {action} for "
                 f"{time.monotonic() - anchor:.1f}s after power-on (readiness gate)"
             )
+
+    async def execute_action(
+        self,
+        action: str,
+        params: Optional[Dict[str, Any]] = None,
+        source: str = "unknown",
+    ) -> CommandResponse[EmotivaXMC2State]:
+        """Single dispatch chokepoint, eMotiva flavor: every command from every source
+        (scenario / canonical / API / WB MQTT) passes the post-power-on readiness hold
+        BEFORE the base dispatch. Internal choreography (e.g. `_power_cycle_for_arc`
+        calling helpers directly) deliberately bypasses — the hold guards the dispatch
+        boundary. The executor awaits this coroutine per step, so the hold naturally
+        paces a scenario plan; the step gate's poll clock starts only after dispatch
+        returns, so the hold never eats the gate budget."""
+        if not self._ready_gate_exempt(action, params):
+            await self._await_device_ready(action, params)
+        return await super().execute_action(action, params, source)
 
     def _process_property_value(self, property_name: str, value: Any) -> Any:
         """
@@ -1372,10 +1421,8 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         if self.client is None:
             return self.create_command_result(success=False, error="Not connected to processor")
 
-        # DRV-30 readiness gate: never switch input inside the post-power-on transition
-        # window — the 2026-07-10 wedge was set_input landing 3.3 s into an ARC handshake.
-        await self._await_input_ready(token)
-
+        # Readiness is enforced at the dispatch seam (execute_action → _await_device_ready,
+        # DRV-38) — no inline hold here; direct internal calls intentionally bypass.
         try:
             await self.client.select_source(index)
             self.update_state(input_source=token)  # optimistic; the SOURCE notification confirms

@@ -422,9 +422,9 @@ async def test_commands_fail_fast_while_heartbeat_lost(device: EMotivaXMC2):
 
 
 @pytest.mark.asyncio
-async def test_input_ready_quiesces_after_power_on(device: EMotivaXMC2):
-    """Within the post-power-on window, set_input holds until the notification
-    stream has been quiet for INPUT_QUIESCENCE_S — then proceeds."""
+async def test_ready_gate_quiesces_after_power_on(device: EMotivaXMC2):
+    """Within the post-power-on window, a gated command holds until the
+    notification stream has been quiet for INPUT_QUIESCENCE_S — then proceeds."""
     device.INPUT_QUIESCENCE_S = 0.05
     device.INPUT_READY_TIMEOUT_S = 2.0
     now = _time.monotonic()
@@ -433,17 +433,18 @@ async def test_input_ready_quiesces_after_power_on(device: EMotivaXMC2):
     device.state.input_source = "source2"  # not arc — normal quiescence path
 
     start = _time.monotonic()
-    await device._await_input_ready("source1")
+    await device._await_device_ready("set_input", {"input": "source1"})
     held = _time.monotonic() - start
     assert held >= 0.04  # actually waited for the quiet window
     assert held < 1.0    # …and did not run to the hard cap
 
 
 @pytest.mark.asyncio
-async def test_input_ready_arc_exit_holds_the_full_window(device: EMotivaXMC2):
-    """Switching away from a fresh 'arc' is the known-fatal window (the incident
-    wedged 3.3 s in, AFTER the stream went quiet) — that case holds the full
-    INPUT_READY_TIMEOUT_S, not just quiescence."""
+async def test_ready_gate_arc_window_holds_every_command(device: EMotivaXMC2):
+    """A fresh 'arc' claim inside the window is the known-fatal case for ANY
+    command (set_input wedged 3.3 s in on 2026-07-10; zone2_power_on wedged
+    2.3 s after the arc claim on 2026-07-12) — the full INPUT_READY_TIMEOUT_S
+    holds, quiescence alone must not release it."""
     device.INPUT_QUIESCENCE_S = 0.02
     device.INPUT_READY_TIMEOUT_S = 0.3
     now = _time.monotonic()
@@ -451,22 +452,84 @@ async def test_input_ready_arc_exit_holds_the_full_window(device: EMotivaXMC2):
     device._last_notification_monotonic = now
     device.state.input_source = "arc"
 
+    for action, params in (
+        ("set_input", {"input": "source1"}),
+        ("power_on", {"zone": 2}),   # the 2026-07-12 wedge command
+        ("set_volume", {"level": -40}),
+    ):
+        start = _time.monotonic()
+        await device._await_device_ready(action, params)
+        held = _time.monotonic() - start
+        assert held >= 0.25, f"{action} must hold the full window"
+        device._power_on_monotonic = _time.monotonic()  # re-arm for the next case
+
+    # the one exception: set_input TO arc rides the quiescence path, never the
+    # full-window arc hold (anchored slightly in the past so quiet ≥ quiescence
+    # on the first check — releases immediately despite input_source == 'arc')
+    device._power_on_monotonic = _time.monotonic() - 0.1
+    device._last_notification_monotonic = device._power_on_monotonic
     start = _time.monotonic()
-    await device._await_input_ready("source1")
-    held = _time.monotonic() - start
-    assert held >= 0.25  # full window, quiescence alone must not release it
+    await device._await_device_ready("set_input", {"input": "arc"})
+    assert _time.monotonic() - start < 0.1
 
 
 @pytest.mark.asyncio
-async def test_input_ready_no_hold_long_after_power_on(device: EMotivaXMC2):
+async def test_ready_gate_no_hold_long_after_power_on(device: EMotivaXMC2):
     """A device that powered on long ago (or whose power-on we never saw) is not
     held — the gate only guards the transition window."""
     device.INPUT_READY_TIMEOUT_S = 0.2
     device._power_on_monotonic = _time.monotonic() - 10.0
 
     start = _time.monotonic()
-    await device._await_input_ready("source1")
+    await device._await_device_ready("set_input", {"input": "source1"})
     assert _time.monotonic() - start < 0.05
 
     device._power_on_monotonic = None
-    await device._await_input_ready("source1")  # no anchor → immediate return
+    await device._await_device_ready("set_input", {"input": "source1"})  # no anchor → immediate
+
+
+def test_ready_gate_exemptions_are_zone_aware(device: EMotivaXMC2):
+    """MAIN-zone power_on starts the window and is exempt; zone-2 power_on is the
+    2026-07-12 wedge trigger and MUST be gated — same action name, zone decides.
+    Recovery actions are exempt (a held recovery could deadlock a wedged device);
+    an unparseable zone stays gated (safe default)."""
+    assert device._ready_gate_exempt("power_on", {"zone": 1}) is True
+    assert device._ready_gate_exempt("power_on", {}) is True          # zone defaults to main
+    assert device._ready_gate_exempt("power_on", None) is True
+    assert device._ready_gate_exempt("power_on", {"zone": 2}) is False
+    assert device._ready_gate_exempt("power_on", {"zone": "garbage"}) is False
+    assert device._ready_gate_exempt("reconnect", None) is True
+    assert device._ready_gate_exempt("mqtt_reconnection", None) is True
+    for gated in ("power_off", "zone2_power_toggle", "set_input", "set_volume",
+                  "mute_toggle", "get_available_inputs"):
+        assert device._ready_gate_exempt(gated, {}) is False, gated
+
+
+@pytest.mark.asyncio
+async def test_dispatch_seam_replays_the_20260712_wedge_and_holds(device: EMotivaXMC2):
+    """The regression test for the 2026-07-12 incident, through the REAL dispatch
+    chokepoint (docs/review/emotiva_wedge_20260712.md): main power_on, the TV's
+    ARC claim lands, then the plan's zone-2 power command arrives via
+    execute_action — it must HOLD for the full window instead of reaching the
+    hardware mid-handshake. Mock tests that drive handlers directly structurally
+    cannot catch this class — the gate lives on execute_action."""
+    device.INPUT_QUIESCENCE_S = 0.02
+    device.INPUT_READY_TIMEOUT_S = 0.3
+    now = _time.monotonic()
+    device._power_on_monotonic = now          # main power_on just happened
+    device._last_notification_monotonic = now
+    device.state.power = PowerState.ON
+    device.state.input_source = "arc"         # the TV's ARC grab, bridge-visible
+    device.client.power_on = _AsyncMock()
+
+    start = _time.monotonic()
+    await device.execute_action("power_on", {"zone": 2}, source="scenario")
+    held = _time.monotonic() - start
+    assert held >= 0.25  # the hold, where 2026-07-12 had 0 ms
+
+    # main-zone power_on through the same seam is never held
+    device._power_on_monotonic = _time.monotonic()
+    device.state.input_source = "arc"
+    start = _time.monotonic()
+    await device.execute_action("power_on", {"zone": 1}, source="scenario")
+    assert _time.monotonic() - start < 0.2
