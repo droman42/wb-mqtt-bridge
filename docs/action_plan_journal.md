@@ -25,6 +25,15 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-14 — PROD-19 intake: the locveil-reports intake-consolidation twin filed as OPS-28.**
+  The board's PROD-19 ("one door, locveil-reports") delegated the bridge twin of voice BUILD-14 —
+  the write-back slot had been empty since HK-7 because BUILD-14's "the bridge repo has the same
+  question" claim never got a bridge task. Reconciled at intake: the bridge carries none of voice's
+  pre-board machinery (no issue templates, no triage workflow, no docs pointers, zero issues ever
+  filed), but the public repo's Issues tab is enabled bare — an unwatched side door, and the only
+  intake channel a public visitor can see (locveil-reports is private). Filed `[P2][deferred]` to
+  travel with voice BUILD-14's posture decision (forward / redirect-templates / disable). ID written
+  back into board PROD-19 (`Bridge ID: **OPS-28**`).
 - **2026-07-14 — PROD-24 intake: the Workbench bridge delegation filed as UI-17.** The board's
   Workbench shell council (PROD-24, decided 2026-07-14; commons `docs/design/workbench.md`) delegated
   one bridge item — the sprint-01 "(files at intake)" UI-surfaces row, grown by the council:
