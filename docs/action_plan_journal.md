@@ -25,6 +25,7 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-14 — OPS-27: contract-guard re-vendored @ v2 (PROD-22) — and the new rule fired on us immediately.** The TAG-MISSING check the bridge requested after the catalog-v1.7 false green found a second instance in this very repo: the docs-manifest STAMP named a tag that didn't exist. Tag created at the STAMP's landing commit (3592282); check green. Executed by the commons session on owner instruction.
 - **2026-07-13 — OPS-26 DONE: `meta/driver` wire-identity cutover `wb_mqtt_bridge` → `locveil-bridge`
   (the last PROD-21 bridge item).** Owner-gate lifted by the user. Separate, separately-revertible
   commit — the only task allowed to touch the retained `meta/driver` string. Flipped the two default

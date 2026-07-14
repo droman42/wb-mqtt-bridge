@@ -35,10 +35,11 @@ import argparse
 import hashlib
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 STAMP_CORE = ("contract", "version", "tag", "date", "owner_repo")
 PIN_CORE = ("contract", "version", "tag", "owner_repo", "pin_date")
@@ -89,7 +90,19 @@ def _check_version_tag(kind: str, where: str, meta: dict, rep: Report, strict: b
         rep.fail(msg) if strict else rep.warn(msg + " [legacy pin — fix at next re-pin]")
 
 
-def check_owned(folder: Path, registry_text: str, rep: Report) -> None:
+def _local_tag_exists(root: Path, tag: str) -> bool | None:
+    """True/False if determinable; None when not a git repo / git unavailable."""
+    try:
+        out = subprocess.run(["git", "-C", str(root), "tag", "-l", tag],
+                             capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if out.returncode != 0:
+        return None
+    return tag in out.stdout.split()
+
+
+def check_owned(folder: Path, registry_text: str, rep: Report, root: Path) -> None:
     name = folder.name
     if name not in registry_text:
         rep.fail(f"UNREGISTERED: owned contract '{name}' not mentioned in contracts/README.md")
@@ -110,6 +123,18 @@ def check_owned(folder: Path, registry_text: str, rep: Report) -> None:
     if "date" in stamp and not DATE_RE.match(str(stamp["date"])):
         rep.fail(f"STAMP-DATE: contracts/{name}/STAMP.json date {stamp['date']!r} not ISO (YYYY-MM-DD…)")
     _check_version_tag("STAMP", f"contracts/{name}/STAMP.json", stamp, rep, strict=True)
+    # PROD-22: a STAMP naming a tag that was never created is a false green — the
+    # consumer re-pins AGAINST the tag. Local tag object is the bar (remote push is
+    # out of scope; a guard can't see the remote).
+    tag = stamp.get("tag")
+    if tag:
+        exists = _local_tag_exists(root, str(tag))
+        if exists is False:
+            rep.fail(f"TAG-MISSING: contracts/{name}/STAMP.json names '{tag}' but no such "
+                     "git tag exists — create the tag in the same change as the STAMP bump")
+        elif exists is None:
+            rep.warn(f"TAG-UNCHECKED: could not resolve git tags for contracts/{name} "
+                     "(not a git repo or git unavailable)")
 
 
 def check_pin(folder: Path, registry_text: str, rep: Report) -> None:
@@ -178,7 +203,7 @@ def run_check(root: Path) -> Report:
                 else:
                     check_pin(pin_child, registry_text, rep)
         else:
-            check_owned(child, registry_text, rep)
+            check_owned(child, registry_text, rep, root)
     return rep
 
 
