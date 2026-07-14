@@ -32,8 +32,12 @@ digraph device_setup {
   ir_db [shape=note, fillcolor="#fff8e1", color="#f57f17",
          label="public IR-code databases\nLIRC · Flipper · Global Caché\n──────────────────────────\nsearch by manufacturer + model,\nimport pre-captured codes,\nmap → device config commands"];
 
+  // --- staged proposals (planned) ---
+  staged [shape=note, fillcolor="#fff8e1", color="#f57f17", style="filled,dashed",
+          label="staged proposals (planned)\ndata/staged-config/ on the controller\none proposal per target · base-hash guarded\nlive config tree stays read-only"];
+
   // --- user review ---
-  user [label="user reviews\n+ commits",
+  user [label="user reviews the diff\n+ commits to the repo",
         fillcolor="#fff3e0", color="#ef6c00"];
 
   // --- the artefacts produced ---
@@ -50,10 +54,11 @@ digraph device_setup {
   // edges
   wbconf -> importer [label="read", color="#388e3c"];
   importer -> page [color="#388e3c"];
-  page -> user;
+  page -> staged [label="Apply = stage\n(controller API)", color="#1976d2"];
   ir_db -> ir_page [label="search /\nimport", color="#f57f17", style=dashed];
-  ir_page -> user [style=dashed];
-  user -> cfg;
+  ir_page -> staged [style=dashed, label="save = stage"];
+  staged -> user [label="review"];
+  user -> cfg [label="promotion\n= commit"];
 
   // claude flow today
   wbconf -> claude [label="user pastes\nfragments", style=dashed, color="#bdbdbd"];

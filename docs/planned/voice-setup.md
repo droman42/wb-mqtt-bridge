@@ -74,7 +74,8 @@ page describes.
 
 ## The planned voice-setup page
 
-A `/setup/voice` route (admin shell) with four panes:
+A voice-setup page (a Workbench Bridge-plugin page — it is a bridge-backend
+surface despite the name, so it lives under the Bridge tab) with four panes:
 
 | Pane | Purpose |
 |---|---|
@@ -142,7 +143,7 @@ Two endpoints + one new MQTT topic family the page needs:
 | `/voice/status` + `/voice/test-utterance` endpoints | **Not built.** |
 | Retained `bridge/voice/satellites/*` family | **Not built.** |
 | Voice-setup page UI | **Not built.** |
-| Admin route / auth shell | **Not built.** (Shared with the other planned admin pages.) |
+| Operator shell | **Superseded** — this is a Workbench page (Bridge plugin); no admin route or auth shell lands in the consumer UI. See [`workbench_split.md`](../design/ui/workbench_split.md). |
 
 ## Where to go next
 
@@ -155,8 +156,9 @@ Two endpoints + one new MQTT topic family the page needs:
   endpoints and MQTT topics the voice path already uses.
 - **[Planned: device setup](device-setup.md)** + **[topology
   setup](topology-setup.md)** + **[appliance + room pages](appliance-pages.md)**
-  — sibling admin surfaces. All four planned pages share the same admin
-  shell + auth dependency.
+  — sibling planned surfaces. The setup pages share the Workbench
+  Bridge-plugin home ([`workbench_split.md`](../design/ui/workbench_split.md));
+  appliance + room pages stay in the consumer UI.
 - **Sister project**:
   [`locveil-voice`](https://github.com/locveil/locveil-voice) — Irene
   itself; its `docs/design/mqtt_integration.md` is the counterpart spec

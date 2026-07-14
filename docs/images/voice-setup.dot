@@ -34,7 +34,7 @@ digraph voice_setup {
   }
 
   // --- the planned setup page ---
-  page [label="Voice-setup page (planned)\n/setup/voice  (admin shell)\n• catalog version + last-Irene-fetch indicator\n• per-room voice satellite status\n• test-utterance flow (issues canonical via #18-style probe)\n• 6-code error explorer\n• locale coverage per device + scenario",
+  page [label="Voice-setup page (planned)\nLocveil Workbench · Bridge plugin\n• catalog version + last-Irene-fetch indicator\n• per-room voice satellite status\n• test-utterance flow (issues canonical via #18-style probe)\n• 6-code error explorer\n• locale coverage per device + scenario",
         fillcolor="#e3f2fd", color="#1976d2", width=4.8, style="filled,rounded,dashed"];
 
   // --- broker between bridge and Irene ---

@@ -155,7 +155,7 @@ late-2026 problem, not an imminent one.
 | `/room/:id` route | **Not built.** |
 | `RoomPage` component | **Not built.** |
 | Backend room + catalog data | **Built.** `GET /room/list` · `GET /room/{id}` · `GET /system/catalog`. |
-| Admin route / auth shell | **Not built.** (Shared with [device-setup](device-setup.md) + [topology-setup](topology-setup.md).) |
+| Admin route / auth shell | **No longer needed** — appliance + room pages are family-facing pages of the consumer UI and require no admin shell; the operator surfaces moved to the Locveil Workbench instead (see [`workbench_split.md`](../design/ui/workbench_split.md)). |
 
 ## Where to go next
 
@@ -164,6 +164,7 @@ late-2026 problem, not an imminent one.
 - **[Architecture: rooms](../architecture/rooms.md)** — the data behind room
   pages.
 - **[Planned: device setup](device-setup.md)** and **[topology
-  setup](topology-setup.md)** — sibling planned admin surfaces.
+  setup](topology-setup.md)** — sibling planned surfaces (those two live in the
+  Locveil Workbench; these pages stay in the consumer UI).
 - **`docs/design/ui/appliances.md`** *(internal design reference)* — the
   full design proposal from which this page is distilled.

@@ -25,6 +25,21 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-14 — UI-17 DONE: the Workbench split designed on the bridge side; UI-18 + CORE-12 +
+  DOC-17 filed.** The design (`docs/design/ui/workbench_split.md`) renders PROD-24 for this repo:
+  the Bridge plugin (new top-level `workbench-plugin/`, built artifact consumed by the commons shell
+  via `file:` dep; RU/EN bundles; status slot from `GET /system` + catalog version; `reportHook` →
+  `POST /reports`), the staged-write API shape (envelope-per-target in `data/staged-config/`,
+  stage-time full-tree validation, stale-base conflicts never merge, self-cleaning after promotion;
+  promotion stays a human commit), and the v1 read-only cut that ships useful pages before PROD-4 —
+  every config-writing verb dormant under the named gate `PROD-4-auth`. The four planned pages were
+  re-pointed in the same change (admin-shell rows superseded/deleted, staging language on
+  device-setup/topology-setup, live-vs-file answered = staging) and the three flow diagrams
+  regenerated with the staged hop / Workbench chassis. Discovered (not caused) staleness filed as
+  DOC-17: planned-pages status tables predate recent landings (HvacPanel, value-labels) and every
+  diagram title still says "wb-mqtt-bridge". Implementation follow-ups: UI-18 (plugin skeleton +
+  read-only cut, gated on the commons shell), CORE-12 (staged-write API, hard-gated on PROD-4's
+  auth decision).
 - **2026-07-14 — OPS-13 DONE (UI-8 absorbed): the UI dev-toolchain is on eslint 9 flat config +
   @typescript-eslint 8 + vite 6.** Sprint-01 decision 1 discharged — ui-kit (PROD-10) now targets the
   migrated toolchain and the migration ran once. `.eslintrc.cjs` → `eslint.config.js` as a faithful

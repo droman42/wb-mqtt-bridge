@@ -37,7 +37,7 @@ manual nodes / semantics / validation rules).
 
 Three things flip on:
 
-- **A graph editor** at `/setup/topology` that consumes `DeviceManager.devices`
+- **A graph editor** (a Workbench Bridge-plugin page) that consumes `DeviceManager.devices`
   as the palette of available driver-backed nodes. Each device contributes the
   ports declared by its capability map (LG TV exposes `hdmi1` / `hdmi2` /
   `hdmi3` / `arc`; the eMotiva XMC-2 exposes `source1`..`sourceN` and
@@ -54,7 +54,8 @@ Three things flip on:
 
 ## Page surfaces, in detail
 
-A single `/setup/topology` route, organised in three panes:
+A single topology-setup page (a Workbench Bridge-plugin page), organised in
+three panes:
 
 | Pane | Purpose |
 |---|---|
@@ -62,10 +63,11 @@ A single `/setup/topology` route, organised in three panes:
 | **Centre — graph canvas** | Nodes + links (HDMI/SPDIF/RCA as different stroke styles per `carries`). Click a link to edit `carries`; click a node to edit ports or, for manual nodes, the `positions` text. Ordering edges drawn as a dotted overlay. |
 | **Right — path-preview + validator** | At the top: a tiny `source / display / audio` selector + the resolved `PlannedAction` list (read-only — no execute). Below it: the validator output — errors block save, warnings annotate the canvas. |
 
-The page does *not* manipulate live hardware. It edits a JSON file in the
-repo (`config/topology.json`); a topology reload happens at bridge
-restart or via the existing `POST /reload`. The runtime contract is
-unchanged.
+The page does *not* manipulate live hardware, and it does not edit the repo
+file directly: **"Apply" stages the proposed `config/topology.json` via the
+controller API; promotion is a commit.** The live config tree stays read-only;
+a topology reload happens at bridge restart or via the existing `POST /reload`
+after the promoted file syncs. The runtime contract is unchanged.
 
 ## What the validator must enforce
 
@@ -95,10 +97,11 @@ them interactively, not let an error reach `POST /reload`:
   and the implicit "manual node positions" links. Showing all three on the
   canvas without clutter needs design — current sketch is solid lines for
   signal, dotted overlay for ordering, manual nodes as a distinct shape.
-- **Live vs file edit mode.** Does the page edit `topology.json` in place
-  (instant-but-invasive) or stage in memory and write on "save" (safer)?
-  The latter is the same pattern as the device-setup page; consistency
-  suggests staging.
+- **Live vs file edit mode.** *Answered: staging.* The page never edits
+  `topology.json` in place — "save" stages a proposal via the controller API,
+  and promotion to the repo is an explicit human commit; the same write model
+  as the device-setup page (design:
+  [`workbench_split.md`](../design/ui/workbench_split.md)).
 - **Visual ports per device.** Some devices have many ports (eMotiva
   XMC-2: 5–7 inputs + 2 zones; LG TV: 4 HDMI + ARC). Render them as
   labelled handles around the node? As a dropdown when an incoming edge
@@ -125,7 +128,7 @@ them interactively, not let an error reach `POST /reload`:
 | Graph editor UI | **Not built.** |
 | Path-preview UI | **Not built.** |
 | Interactive validator UI | **Not built.** |
-| Admin route / auth shell | **Not built.** (Shared with [device-setup](device-setup.md).) |
+| Operator shell | **Superseded** — this is a Workbench page (Bridge plugin), like [device-setup](device-setup.md); no admin route or auth shell lands in the consumer UI. See [`workbench_split.md`](../design/ui/workbench_split.md). |
 
 ## Where to go next
 
@@ -134,7 +137,7 @@ them interactively, not let an error reach `POST /reload`:
 - **[Architecture: devices and scenarios](../architecture/devices-and-scenarios.md)**
   — the reconciler diagram, in particular `resolve_targets` and `order`, both
   of which this page's preview + validator mirror.
-- **[Planned: device setup](device-setup.md)** — sibling planning doc with the
-  same admin-shell dependency.
+- **[Planned: device setup](device-setup.md)** — sibling planning doc; the same
+  Workbench Bridge-plugin home and staged write model.
 - **`docs/design/scenarios/scenario_system_redesign.md` §4** *(internal design
   ref)* — the authoritative topology schema spec the page must conform to.

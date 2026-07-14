@@ -20,8 +20,12 @@ digraph topology_setup {
   page [label="Topology-setup page (planned)\n• graph editor — nodes + edges + ordering edges\n• drag devices in from a palette\n• declare manual nodes (RCA hubs, tape decks, …)\n• carries: video / audio / arc per link\n• path-preview — DFS source → display → audio\n• validator — referenced devices exist, no cycles,\n  sink ports resolve to declared inputs",
         fillcolor="#e3f2fd", color="#1976d2", width=4.8, style="filled,rounded,dashed"];
 
+  // --- staged proposals (planned) ---
+  staged [shape=note, fillcolor="#fff8e1", color="#f57f17", style="filled,dashed",
+          label="staged proposal (planned)\ndata/staged-config/ on the controller\nbase-hash guarded · live config tree stays read-only"];
+
   // --- user review ---
-  user [label="user reviews\n+ commits",
+  user [label="user reviews the diff\n+ commits to the repo",
         fillcolor="#fff3e0", color="#ef6c00"];
 
   // --- output ---
@@ -37,8 +41,9 @@ digraph topology_setup {
 
   // edges
   devmgr -> page [color="#1976d2", label="palette\nof available\nnodes"];
-  page -> user;
-  user -> cfg;
+  page -> staged [label="save = stage\n(controller API)", color="#1976d2"];
+  staged -> user [label="review"];
+  user -> cfg [label="promotion\n= commit"];
 
   // today's flow
   interview -> cfg [style=dashed, color="#bdbdbd", label="hand-written"];

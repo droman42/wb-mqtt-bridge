@@ -61,7 +61,8 @@ naming convention are judgment calls the importer should not make alone.
 
 ### The main setup page
 
-A single `/setup/devices` route, organised in three panes:
+A single device-setup page (a Workbench Bridge-plugin page), organised in three
+panes:
 
 | Pane | Purpose |
 |---|---|
@@ -69,10 +70,14 @@ A single `/setup/devices` route, organised in three panes:
 | **Centre — editor** | The selected device's editable form: localised names, profile picker, state_topic specs, command map. Live preview of the JSON that will be written, with a diff against the current file if one exists. |
 | **Right — linter + log** | Type mismatches, missing fields, ambiguous pairings. Below it, a running log of "what changed this session" — committed to the workflow log on save. |
 
-The page does *not* edit the controller. It reads `/etc/wb-webui.conf` (over
-SSH today, over a future controller-side helper later) and writes
-`config/devices/wb-devices/<room>/<device_id>.json` in the repo.
-"Apply" is a commit; nothing is mutable at the broker.
+The page does *not* edit the controller, and it does not write the repo either:
+**"Apply" stages the proposed config via the controller API; promotion is a
+commit.** The page reads `/etc/wb-webui.conf` content (pasted or uploaded in the
+dev phase; a controller-side helper is a later option) and stages
+`config/devices/wb-devices/<room>/<device_id>.json` proposals under the
+controller's writable data area — the live config tree stays read-only, and
+moving a proposal into the repo is an explicit human commit. Nothing is mutable
+at the broker.
 
 ### The IR-learning sub-page
 
@@ -166,10 +171,11 @@ Things the implementation will need to answer, not papered over:
 - **en/de translation source.** Curated table is fast but limited; LLM call
   is flexible but ties setup to network connectivity and an API key. Probably
   both: table first, LLM only on miss, always with the user reviewing.
-- **Where does the page live?** Today the UI bundle is the consumer-facing
-  remote. A setup page belongs there, behind an "admin" route — but the UI
-  carries no auth today. Adding an admin shell + a route guard is part of
-  this work, not a free dependency.
+- **Where does the page live?** *Answered:* in the **Locveil Workbench** — the
+  workstation-run operator shell — as a page of the Bridge plugin (design:
+  [`workbench_split.md`](../design/ui/workbench_split.md)). The consumer-facing
+  UI bundle never grows an admin route or auth; the Workbench answers that
+  once, centrally.
 - **How is the IR-learning page protected from accidental overwrite?** A
   device config already on disk should not be silently mutated by a capture
   session — the page should diff and prompt.
@@ -196,7 +202,7 @@ Things the implementation will need to answer, not papered over:
 | Setup page UI | **Not built.** |
 | IR-learning sub-page UI | **Not built.** |
 | IR-database adapter (LIRC / Flipper / Global Caché) | **Not built.** |
-| Admin route / auth shell | **Not built.** |
+| Operator shell | **Superseded** — this is a Workbench page (Bridge plugin); no admin route or auth shell lands in the consumer UI. See [`workbench_split.md`](../design/ui/workbench_split.md). |
 
 ## Where to go next
 

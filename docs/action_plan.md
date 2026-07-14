@@ -702,39 +702,20 @@ endpoint).
 
 - [ ] **UI-15** `[P2]` `[deferred]` — **Force re-tap arms non-power controls but only PowerZone buttons show the armed pulse** (REL-5 #18, PLAUSIBLE). `ui/src/components/RemoteControlLayout.tsx:1128`. Deferred — minor UX; fold the visual feel-check into the REL-3 rack pass.
 
-- [ ] **UI-17** `[P1]` — **UI surfaces → Workbench/operations split: Bridge-plugin design + staged-write
-  API shape + planned-docs follow-up** (the sprint-01 "(files at intake)" UI-surfaces row, filed at
-  PROD-24 intake 2026-07-14, grown by the PROD-24 council delegation; the council decisions are the
-  record — board PROD-24 (1)–(5) + `../locveil-commons/docs/design/workbench.md`). **NB the ID
-  coincidence:** voice filed its *own* UI-17 at the same council (config-ui → Workbench plugin) — IDs
-  are repo-local; cross-repo references must say "bridge UI-17" / "voice UI-17".
-  - **Classification (DECIDED by the council — consume, don't redesign):** bridge `ui/` +
-    appliance/room pages = **operations** (stays controller-served as-is; the "admin route / auth
-    shell" scope all four planned pages declared is **deleted from operations** — the Workbench
-    answers it once) · `docs/planned/` device-setup / topology-setup / voice-setup = **workbench**,
-    one **Bridge plugin tab** (IR learning = a sidebar entry under device-setup; voice-setup stays
-    under Bridge — it is a bridge-backend surface despite the name).
-  - **Design deliverable** (`design-then-implement`; → a new workbench-split design doc under
-    `docs/design/ui/`, created at execution):
-    (a) the Bridge plugin against plugin contract v1 — runtime-registrable pages, i18n RU/EN bundles +
-    shell-provided locale, per-page backend targets, per-plugin status slot, optional report hook,
-    dormant verbs with named gates; plugin source lives HERE, the shell consumes BUILT artifacts
-    (dev-phase mechanism: `file:` deps on the built plugin package — never TS sources);
-    (b) the **staged-write API shape** — repo-owned config targets: workbench pages write **staged
-    proposals** via a controller API into `data/staged-config/` (the already-writable data mount);
-    promotion to the canonical repo is an explicit human commit; live mounts stay read-only;
-    `update.sh` one-way sync unchanged (dev-phase convention — the final form is deferred to a
-    further productization step). **Binding condition on record: no write API ships before PROD-4's
-    auth decision lands.**
-  - **Planned-docs follow-up (rides completion, same change):** the four `docs/planned/` pages —
-    device-setup + topology-setup gain "Apply stages via the controller API; promotion is a commit";
-    topology-setup's "Live vs file edit mode" open question is ANSWERED = staging; the shared
-    "Admin route / auth shell — Not built" rows across all four pages re-point to the Workbench
-    shell. (The pages are not `docs/manifest.json` nodes — only their `diagram/*` flow diagrams are;
-    touch those only if the described flows change.)
-  - **ui-kit adoption plan:** bridge `ui` adoption = sprint-02, after OPS-13 (DONE 2026-07-14) + `ui-kit-v1`
-    (sprint-01 decision 1: OPS-13 runs first; eslint-9 flat config is the shared target, vite majors
-    are per-consumer).
+- [ ] **UI-18** `[P1]` — **Bridge Workbench plugin: package skeleton + the read-only v1 cut** (filed at
+  UI-17 completion, `design-then-implement`; design:
+  [`docs/design/ui/workbench_split.md`](design/ui/workbench_split.md) §2). New top-level
+  `workbench-plugin/` (working name `@locveil/bridge-workbench-plugin`): vite-6 **library** build →
+  ESM dist + types + embedded generated API types (own `gen:api-types`; no imports from `ui/`);
+  eslint-9 flat config mirroring `ui/eslint.config.js`. Contract-v1 descriptor: id `bridge`, RU/EN
+  i18n bundles, status slot fed from `GET /system` + the catalog version hash, `reportHook` → the
+  live `POST /reports`. Pages in the v1 cut: **voice-readiness** as the first real page (existing
+  read/action surfaces only — catalog version, `/canonical` test-utterance); device-setup +
+  topology-setup as shells with their **config-writing verbs dormant under the named gate
+  `PROD-4-auth`** (the deep features — WB-cell importer, graph editor — stay in their planned pages
+  and file when pulled). **Gated on** the commons workbench shell existing to consume the built
+  artifact (the shell + the first two plugins co-develop; PROD-10 rule); ui-kit restyle rides
+  `ui-kit-v1`. `config-ui-stays-functional` applies to the plugin's own check/build gates.
 
 ### OPS — Docker / CI-CD / deploy / ops
 
@@ -820,6 +801,21 @@ endpoint).
 
 - [ ] **CORE-8** `[P1]` `[deferred]` — **Broker/device secret handling — out of config, off the wire, out of the logs** (REL-5 #1 (P0), #4/#5, #9, #12; `docs/review/rel5_pretag_review.md`). **Deferred to productization by user decision 2026-07-09** — proper secrets management + any API auth is product-shaped, and the house is on a trusted LAN. Scope: **(#1)** drop `auth` from `system.json` (env-only) and mask/drop `auth` in the `/config/system` + `/system` presentation DTOs (`system.py`, reuse `redact_mapping`) — today the broker password is served unauthenticated on the LAN; **(#12)** FIX the dead `_apply_environment_variables` (`config/manager.py:289` — `MQTT_BROKER_HOST/USERNAME/PASSWORD` overrides never take effect, which also unblocks the env-only path above); **(#4/#5)** stop logging the raw `broker_config` (`mqtt/client.py:18`); **(#9)** stop logging the LG WebOS `client_key` (`lg_tv/driver.py:904`). NB: rotating the currently-committed broker password is a separate near-term user op (the value is in git history) — recommended regardless of when this code work lands.
 
+- [ ] **CORE-12** `[P1]` — **Staged-write API for repo-owned config — implementation** (filed at UI-17
+  completion, `design-then-implement`; design:
+  [`docs/design/ui/workbench_split.md`](design/ui/workbench_split.md) §3; write model normative home:
+  board PROD-4 item 4). One envelope per target under `data/staged-config/` (`{target, base_sha256,
+  content, staged_at, note}`); `GET /staged` · `GET/PUT/DELETE /staged/{target}`; **stage-time
+  validation = overlay on the live tree + the existing load-time validation** (Pydantic models +
+  topology/scenario structural checks, 422 on failure); stale base (`base_sha256` ≠ live) surfaces as
+  conflict, never merges; self-cleaning when the live hash equals the proposal hash (promotion
+  landed); promotion itself is a human commit + `update.sh`, no endpoint. Hexagonal placement: thin
+  presentation router → app-layer staging service (bootstrap-wired) → infrastructure staged-store
+  adapter; **zero new import-linter exceptions**. **HARD GATE (binding condition, board PROD-24/PROD-4):
+  the endpoints must be unreachable until PROD-4's auth decision lands** — code may land behind a
+  disabled feature flag, reachability may not. OpenAPI/`contracts/` regen + UI types ride whichever
+  change first exposes the schema.
+
 **The ledger & documentation reconciliation series (DOC-4…DOC-10).** Filed 2026-06-30 from two
 chat-requested analyses: (1) a comparison of this plan's former positional `P0…P4 / #n` numbering
 against the sister repo's workstream-serial ledger (`../locveil-voice/docs/RELEASE_PLAN.md` + frozen
@@ -837,6 +833,16 @@ all done; DOC-7 folded into DOC-9.
 
 - ~~**DOC-11**~~ — *reconcile `docs/architecture/ui.md` with canonical-first dispatch; **folded into REL-4** at the release-1 sign-off (2026-07-06, DOC-7→DOC-9 precedent). The finding: the "Scenario manifests — same shape, different routing" section still describes pre-SCN-6 dispatch (controls posted at role devices; since SCN-6 they dispatch through the room's Scenario Manager entity) and claims the `source` device contributes an input-dropdown (scenario manifests deliberately render no inputs control); canonical dispatch as the UI's only write path is explained nowhere.*
 
+- [ ] **DOC-17** `[P2]` `[deferred]` — **Planned-pages + diagram staleness reconcile** (discovered
+  during UI-17's planned-docs pass 2026-07-14 — pre-existing, distinct from the UI-17 edits, filed
+  per the discovered-staleness rule). The four `docs/planned/` pages carry status tables/prose that
+  predate recent landings — spot-verified: voice-setup lists the value-label translation layer
+  ("#26") as *Not built* (DONE 2026-06-09) and its §P3.7 tail statuses need a sweep; appliance-pages
+  lists `HvacPanel.tsx` as *Not built* (shipped with DRV-28/UI-16). Sweep all four pages' "Where the
+  parts already live in code" tables + status headers against the current tree. Fold in: every
+  diagram title under `docs/images/*.dot` still says "wb-mqtt-bridge" (rename era) — retitle to
+  `locveil-bridge` in one pass and regenerate the PNGs in the existing visual style. Pure docs; not
+  release-gated.
 
 ### REL — Release
 
