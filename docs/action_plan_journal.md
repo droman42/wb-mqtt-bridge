@@ -25,6 +25,17 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-14 — OPS-13 DONE (UI-8 absorbed): the UI dev-toolchain is on eslint 9 flat config +
+  @typescript-eslint 8 + vite 6.** Sprint-01 decision 1 discharged — ui-kit (PROD-10) now targets the
+  migrated toolchain and the migration ran once. `.eslintrc.cjs` → `eslint.config.js` as a faithful
+  translation (same ts/tsx-only scope, same type-aware tuning); vite landed at 6.4.3, the exact
+  first-patched version the filing predicted. The 26 new-rule errors were fixed in code, not config:
+  17 custom-icon empty interfaces → type aliases, 7 redundant `as 'material'` assertions removed,
+  `fmtValue` got honest positive typeof-narrowing (negative `typeof` doesn't narrow `unknown` — the
+  rule was right), one documented inline disable for the axios re-reject idiom. Gates green (check +
+  build), the vite-6 SSE dev-proxy smoke passed against a mock backend (both `http-proxy` hooks
+  fired, stream unbuffered), `npm audit` 0, minimatch 9.0.3 out of the lockfile — the five
+  OPS-7-dismissed Dependabot alerts resolve on the post-push scan. docs: ui-readme (Vite 5 → 6).
 - **2026-07-14 — PROD-19 intake: the locveil-reports intake-consolidation twin filed as OPS-28.**
   The board's PROD-19 ("one door, locveil-reports") delegated the bridge twin of voice BUILD-14 —
   the write-back slot had been empty since HK-7 because BUILD-14's "the bridge repo has the same

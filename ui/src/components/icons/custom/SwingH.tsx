@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface SwingHProps extends React.SVGProps<SVGSVGElement> {}
+type SwingHProps = React.SVGProps<SVGSVGElement>;
 
 /** UI-16: widevane (horizontal) swing — the 90°-rotated pair of SwingV: detached
  * rays fanning left/right, pivot implied above (approved iteration 3). */

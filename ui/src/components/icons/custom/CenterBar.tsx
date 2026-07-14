@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface CenterBarProps extends React.SVGProps<SVGSVGElement> {}
+type CenterBarProps = React.SVGProps<SVGSVGElement>;
 
 /** UI-16: widevane "center" — a plain bold keyboard-pipe bar, per the owner's
  * explicit request ("keyboard |", approved iteration 2). */

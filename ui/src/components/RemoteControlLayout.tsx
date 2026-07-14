@@ -118,7 +118,7 @@ const PowerZone = ({ zone, deviceStructure, onAction, className, isActionPending
             />
           ) : (
             <Icon
-              library={leftButton.action.icon.iconLibrary as 'material'}
+              library={leftButton.action.icon.iconLibrary}
               name={leftButton.action.icon.iconName}
               fallback={leftButton.action.icon.fallbackIcon}
               size="lg"
@@ -150,7 +150,7 @@ const PowerZone = ({ zone, deviceStructure, onAction, className, isActionPending
             />
           ) : (
             <Icon
-              library={middleButton.action.icon.iconLibrary as 'material'}
+              library={middleButton.action.icon.iconLibrary}
               name={middleButton.action.icon.iconName}
               fallback={middleButton.action.icon.fallbackIcon}
               size="lg"
@@ -182,7 +182,7 @@ const PowerZone = ({ zone, deviceStructure, onAction, className, isActionPending
             />
           ) : (
             <Icon
-              library={rightButton.action.icon.iconLibrary as 'material'}
+              library={rightButton.action.icon.iconLibrary}
               name={rightButton.action.icon.iconName}
               fallback={rightButton.action.icon.fallbackIcon}
               size="lg"
@@ -718,7 +718,7 @@ const VolumeZone = ({ zone, deviceStructure, onAction, className, isActionPendin
                 />
               ) : (
                 <Icon
-                  library={volumeSlider.muteAction.icon.iconLibrary as 'material'}
+                  library={volumeSlider.muteAction.icon.iconLibrary}
                   name={volumeSlider.muteAction.icon.iconName}
                   fallback={volumeSlider.muteAction.icon.fallbackIcon}
                   size="lg"
@@ -758,7 +758,7 @@ const VolumeZone = ({ zone, deviceStructure, onAction, className, isActionPendin
                 />
               ) : (
                 <Icon
-                  library={buttons.upAction.icon.iconLibrary as 'material'}
+                  library={buttons.upAction.icon.iconLibrary}
                   name={buttons.upAction.icon.iconName}
                   fallback={buttons.upAction.icon.fallbackIcon}
                   size="lg"
@@ -788,7 +788,7 @@ const VolumeZone = ({ zone, deviceStructure, onAction, className, isActionPendin
                 />
               ) : (
                 <Icon
-                  library={buttons.downAction.icon.iconLibrary as 'material'}
+                  library={buttons.downAction.icon.iconLibrary}
                   name={buttons.downAction.icon.iconName}
                   fallback={buttons.downAction.icon.fallbackIcon}
                   size="lg"
@@ -818,7 +818,7 @@ const VolumeZone = ({ zone, deviceStructure, onAction, className, isActionPendin
                 />
               ) : (
                 <Icon
-                  library={buttons.muteAction.icon.iconLibrary as 'material'}
+                  library={buttons.muteAction.icon.iconLibrary}
                   name={buttons.muteAction.icon.iconName}
                   fallback={buttons.muteAction.icon.fallbackIcon}
                   size="lg"

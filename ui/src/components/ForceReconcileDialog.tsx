@@ -28,7 +28,11 @@ function fmtValue(v: unknown): string {
       .map(([zone, val]) => `z${zone}:${fmtValue(val)}`)
       .join(' ');
   }
-  return String(v);
+  // typeof-negation doesn't narrow `unknown`, so spell the primitives out — contract
+  // values are only ever string/number/boolean below the object case anyway.
+  if (typeof v === 'string') return v;
+  if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'bigint') return String(v);
+  return '?';
 }
 
 function fmtStep(s: ReconcilePlanStep): string {

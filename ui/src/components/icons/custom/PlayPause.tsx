@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface PlayPauseProps extends React.SVGProps<SVGSVGElement> {}
+type PlayPauseProps = React.SVGProps<SVGSVGElement>;
 
 export function PlayPause(props: PlayPauseProps) {
   return (

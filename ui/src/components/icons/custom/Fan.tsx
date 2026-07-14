@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface FanProps extends React.SVGProps<SVGSVGElement> {}
+type FanProps = React.SVGProps<SVGSVGElement>;
 
 export function Fan(props: FanProps) {
   return (

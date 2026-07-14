@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface SwingVProps extends React.SVGProps<SVGSVGElement> {}
+type SwingVProps = React.SVGProps<SVGSVGElement>;
 
 /** UI-16: vane (vertical) swing — three DETACHED rays fanning through the sweep
  * angles, convergence implied off-glyph, matching the firmware's ⚟ (approved in

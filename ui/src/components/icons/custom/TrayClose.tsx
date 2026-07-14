@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface TrayCloseProps extends React.SVGProps<SVGSVGElement> {}
+type TrayCloseProps = React.SVGProps<SVGSVGElement>;
 
 export function TrayClose(props: TrayCloseProps) {
   return (

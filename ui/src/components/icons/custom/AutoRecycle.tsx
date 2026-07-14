@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface AutoRecycleProps extends React.SVGProps<SVGSVGElement> {}
+type AutoRecycleProps = React.SVGProps<SVGSVGElement>;
 
 /** UI-16: the HVAC "auto" value icon — three chasing arrows, faithful to the
  * mitsubishi2wb firmware's ♻ glyph (approved in the icon review, iteration 2). */

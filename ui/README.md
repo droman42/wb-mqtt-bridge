@@ -17,7 +17,7 @@ remote-control-style page per device, generated at build time from the
 
 ## Technology Stack
 
-- **Frontend**: React 18 + TypeScript + Vite 5
+- **Frontend**: React 18 + TypeScript + Vite 6
 - **Styling**: Tailwind CSS v3 + shadcn/ui components
 - **State Management**: Zustand + Immer
 - **Data Fetching**: TanStack Query 5

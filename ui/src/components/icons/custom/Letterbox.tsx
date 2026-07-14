@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface LetterboxProps extends React.SVGProps<SVGSVGElement> {}
+type LetterboxProps = React.SVGProps<SVGSVGElement>;
 
 export function Letterbox(props: LetterboxProps) {
   return (

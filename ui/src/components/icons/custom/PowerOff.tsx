@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface PowerOffProps extends React.SVGProps<SVGSVGElement> {}
+type PowerOffProps = React.SVGProps<SVGSVGElement>;
 
 export function PowerOff(props: PowerOffProps) {
   return (

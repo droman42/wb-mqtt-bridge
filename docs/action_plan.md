@@ -652,11 +652,6 @@ endpoint).
 
 ### UI — config-ui
 
-- [ ] **UI-8** `[P2]` `[deferred]` — **UI `vite` 5 → 6 migration (deferred — deliberate major upgrade).** Filed 2026-06-27. Closes the remaining build-toolchain Dependabot alerts that couldn't be cleared by the lockfile-only `npm audit fix` (see journal 2026-06-27): **vite #113/#154/#155** (path traversal / dev-server) and **esbuild #81** (esbuild 0.25 rides vite 6). Does **NOT** cover the other 2 residual alerts — `minimatch` #101 (pinned by `@typescript-eslint@6`) and `js-yaml` #152 (pinned by `jest@29`); those are separate toolchain-major tasks (eslint 6→9 / jest upgrade), file them if/when pursued.
-  - **Scope.** Bump `vite ^5.4.21 → ^6.x` + `@vitejs/plugin-react ^4.0.3 → ^4.3.x` (vite-6-compatible) in `ui/package.json`; refresh the lockfile. No test-runner impact — `ui/` uses **jest**, not vitest.
-  - **Low-risk by construction (already vite-6-ready):** config is ESM (`vite.config.ts` uses `import.meta.url`), `build.target` is explicitly `'esnext'`, Docker builder is **Node 20** + `engines.node >=18.0.0` — so vite 6's CJS-API removal, raised Node floor, and changed default target don't bite.
-  - **Risk surface = the dev-server SSE proxy.** `server.proxy['/events'].configure()` hooks `proxy.on('proxyReq'|'proxyRes'|'error', …)` to force `text/event-stream` + disable buffering. Re-verify these `http-proxy` hooks against vite 6's proxy API. This is **dev-server-only** (`npm run dev`); the production nginx path is unaffected.
-  - **Definition of done.** `cd ui && npm run check && npm run build` clean (`config-ui-stays-functional`); a `npm run dev` SSE smoke test (the `/events` proxy still streams against a running backend) since #113 + the SSE proxy both live on the dev server; Dependabot drops to the 2 eslint/jest residuals. Then journal it (`read-at-start-record-at-completion`).
 
 - [ ] **UI-10** `[P2]` `[deferred]` — **Inputs/apps dropdowns don't reflect the live selection.** Found
   at the 2026-07-07 rack sitting (living-room TV playing ivi; page shows "Select App…"): on every
@@ -737,7 +732,7 @@ endpoint).
     "Admin route / auth shell — Not built" rows across all four pages re-point to the Workbench
     shell. (The pages are not `docs/manifest.json` nodes — only their `diagram/*` flow diagrams are;
     touch those only if the described flows change.)
-  - **ui-kit adoption plan:** bridge `ui` adoption = sprint-02, after OPS-13 + `ui-kit-v1`
+  - **ui-kit adoption plan:** bridge `ui` adoption = sprint-02, after OPS-13 (DONE 2026-07-14) + `ui-kit-v1`
     (sprint-01 decision 1: OPS-13 runs first; eslint-9 flat config is the shared target, vite majors
     are per-consumer).
 
@@ -745,20 +740,6 @@ endpoint).
 
 - [ ] **OPS-11** `[P2]` `[deferred]` — **Multi-arch images: add `linux/arm64` (aarch64, next-gen Wirenboard) alongside `linux/arm/v7`.** Filed 2026-07-02 off a chat analysis (sister-repo prompt: `locveil-voice` builds armv7 + aarch64 + standalone). **Unlike the voice repo** (per-target Dockerfiles + arch-suffixed image names, forced by per-platform ML profiles), the bridge's images are identical on both arches → use buildx **multi-platform manifests**: `platforms: linux/arm/v7,linux/arm64` in both image jobs of `.github/workflows/build-arm.yml` yields ONE manifest list per existing tag — WB7 pulls armv7, WB8 pulls arm64 from the same `ghcr.io/...:latest`; `ops/` (compose / `update.sh` / INSTALL.md flow) unchanged. **Work items:** (1) workflow: extend `platforms`, **drop the `ARCH=arm32v7` build-arg** — the Dockerfile's `${ARCH:+$ARCH/}python` prefix predates platform-aware buildx and would force the arm32 base into the arm64 leg (Dockerfile itself needs no change; `ARG ARCH=` defaults empty); (2) `ui/Dockerfile`: stage 1 → `FROM --platform=$BUILDPLATFORM node:20 AS builder` — the `dist/` bundle is arch-independent, so the ~14-min QEMU node build runs natively on the amd64 runner once and only the small nginx stage builds per-arch (bonus: the *existing* armv7 UI build should drop to ~2-3 min); (3) docs: a sentence each in `ops/INSTALL.md` + the READMEs noting the images are multi-arch. **Notes:** piwheels extra-index is armv7-only but harmless on arm64 (PyPI aarch64 cp311 wheel coverage is good — likely a faster leg than armv7); that `/etc/pip/pip.conf` is probably vestigial anyway since the image installs via `uv`, which doesn't read pip config — verify/drop while in there. WB8's Cortex-A5x could in principle run the armv7 image via AArch32 compat, but native arm64 is the clean path at ~6 lines of diff. **Verification:** QEMU build smoke in CI; real run gated on actual WB8 hardware (hence `[later]`).
 
-- [ ] **OPS-13** `[P2]` `[deferred]` — **UI dev-toolchain migration: eslint 9 + @typescript-eslint 8 + vite 6/8.**
-  Filed 2026-07-08 as the deliberate-successor half of the OPS-7 triage: the five then-open
-  Dependabot alerts (vite ×3, esbuild, minimatch — ALL `scope: development`, none in the shipped
-  nginx container or the backend image) were dismissed as `tolerable_risk` with comments pointing
-  here, because every fix crosses a major boundary: the vite/esbuild trio needs **vite ^5.4 →
-  ≥6.4.3** (first patched); the minimatch ReDoS is pinned exactly (`9.0.3`) by
-  `@typescript-eslint/typescript-estree` 6.21, fixed only in **@typescript-eslint ≥7.5.1**, which
-  in practice means the **eslint 8 → 9 flat-config migration** (package.json pins: eslint `^8.45`,
-  @typescript-eslint `^6.0`). One coherent post-release pass: migrate the eslint config to flat
-  config + bump the @typescript-eslint pair + vite to current (esbuild rides along), then
-  `npm run check && npm run build` + a dev-server smoke; re-check the dismissed alerts after.
-  **Not before the release** — pure dev-chain churn with zero deployment exposure, and a
-  toolchain major adds confounders right when the rack sessions need a stable build (OPS-7's
-  standing rule: bump build-chain deps only for a CVE in the actual runtime path).
 
 - [ ] **OPS-14** `[P2]` `[deferred]` — **Adopt the shared logging package from
   `locveil-commons/packages/core-py`, replacing the OPS-12 local implementation** (INTAKE — filed

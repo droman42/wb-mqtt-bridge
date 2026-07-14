@@ -71,6 +71,9 @@ api.interceptors.response.use(
       durationMs: Date.now() - start,
       error: err.response?.data ? JSON.stringify(err.response.data).slice(0, 300) : err.message,
     });
+    // Re-reject the original AxiosError untouched; wrapping it in Error would hide .response
+    // from downstream handlers.
+    // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
     return Promise.reject(error);
   }
 );
