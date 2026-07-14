@@ -707,6 +707,40 @@ endpoint).
 
 - [ ] **UI-15** `[P2]` `[deferred]` — **Force re-tap arms non-power controls but only PowerZone buttons show the armed pulse** (REL-5 #18, PLAUSIBLE). `ui/src/components/RemoteControlLayout.tsx:1128`. Deferred — minor UX; fold the visual feel-check into the REL-3 rack pass.
 
+- [ ] **UI-17** `[P1]` — **UI surfaces → Workbench/operations split: Bridge-plugin design + staged-write
+  API shape + planned-docs follow-up** (the sprint-01 "(files at intake)" UI-surfaces row, filed at
+  PROD-24 intake 2026-07-14, grown by the PROD-24 council delegation; the council decisions are the
+  record — board PROD-24 (1)–(5) + `../locveil-commons/docs/design/workbench.md`). **NB the ID
+  coincidence:** voice filed its *own* UI-17 at the same council (config-ui → Workbench plugin) — IDs
+  are repo-local; cross-repo references must say "bridge UI-17" / "voice UI-17".
+  - **Classification (DECIDED by the council — consume, don't redesign):** bridge `ui/` +
+    appliance/room pages = **operations** (stays controller-served as-is; the "admin route / auth
+    shell" scope all four planned pages declared is **deleted from operations** — the Workbench
+    answers it once) · `docs/planned/` device-setup / topology-setup / voice-setup = **workbench**,
+    one **Bridge plugin tab** (IR learning = a sidebar entry under device-setup; voice-setup stays
+    under Bridge — it is a bridge-backend surface despite the name).
+  - **Design deliverable** (`design-then-implement`; → a new workbench-split design doc under
+    `docs/design/ui/`, created at execution):
+    (a) the Bridge plugin against plugin contract v1 — runtime-registrable pages, i18n RU/EN bundles +
+    shell-provided locale, per-page backend targets, per-plugin status slot, optional report hook,
+    dormant verbs with named gates; plugin source lives HERE, the shell consumes BUILT artifacts
+    (dev-phase mechanism: `file:` deps on the built plugin package — never TS sources);
+    (b) the **staged-write API shape** — repo-owned config targets: workbench pages write **staged
+    proposals** via a controller API into `data/staged-config/` (the already-writable data mount);
+    promotion to the canonical repo is an explicit human commit; live mounts stay read-only;
+    `update.sh` one-way sync unchanged (dev-phase convention — the final form is deferred to a
+    further productization step). **Binding condition on record: no write API ships before PROD-4's
+    auth decision lands.**
+  - **Planned-docs follow-up (rides completion, same change):** the four `docs/planned/` pages —
+    device-setup + topology-setup gain "Apply stages via the controller API; promotion is a commit";
+    topology-setup's "Live vs file edit mode" open question is ANSWERED = staging; the shared
+    "Admin route / auth shell — Not built" rows across all four pages re-point to the Workbench
+    shell. (The pages are not `docs/manifest.json` nodes — only their `diagram/*` flow diagrams are;
+    touch those only if the described flows change.)
+  - **ui-kit adoption plan:** bridge `ui` adoption = sprint-02, after OPS-13 + `ui-kit-v1`
+    (sprint-01 decision 1: OPS-13 runs first; eslint-9 flat config is the shared target, vite majors
+    are per-consumer).
+
 ### OPS — Docker / CI-CD / deploy / ops
 
 - [ ] **OPS-11** `[P2]` `[deferred]` — **Multi-arch images: add `linux/arm64` (aarch64, next-gen Wirenboard) alongside `linux/arm/v7`.** Filed 2026-07-02 off a chat analysis (sister-repo prompt: `locveil-voice` builds armv7 + aarch64 + standalone). **Unlike the voice repo** (per-target Dockerfiles + arch-suffixed image names, forced by per-platform ML profiles), the bridge's images are identical on both arches → use buildx **multi-platform manifests**: `platforms: linux/arm/v7,linux/arm64` in both image jobs of `.github/workflows/build-arm.yml` yields ONE manifest list per existing tag — WB7 pulls armv7, WB8 pulls arm64 from the same `ghcr.io/...:latest`; `ops/` (compose / `update.sh` / INSTALL.md flow) unchanged. **Work items:** (1) workflow: extend `platforms`, **drop the `ARCH=arm32v7` build-arg** — the Dockerfile's `${ARCH:+$ARCH/}python` prefix predates platform-aware buildx and would force the arm32 base into the arm64 leg (Dockerfile itself needs no change; `ARG ARCH=` defaults empty); (2) `ui/Dockerfile`: stage 1 → `FROM --platform=$BUILDPLATFORM node:20 AS builder` — the `dist/` bundle is arch-independent, so the ~14-min QEMU node build runs natively on the amd64 runner once and only the small nginx stage builds per-arch (bonus: the *existing* armv7 UI build should drop to ~2-3 min); (3) docs: a sentence each in `ops/INSTALL.md` + the READMEs noting the images are multi-arch. **Notes:** piwheels extra-index is armv7-only but harmless on arm64 (PyPI aarch64 cp311 wheel coverage is good — likely a faster leg than armv7); that `/etc/pip/pip.conf` is probably vestigial anyway since the image installs via `uv`, which doesn't read pip config — verify/drop while in there. WB8's Cortex-A5x could in principle run the armv7 image via AArch32 compat, but native arm64 is the clean path at ~6 lines of diff. **Verification:** QEMU build smoke in CI; real run gated on actual WB8 hardware (hence `[later]`).

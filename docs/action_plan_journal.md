@@ -25,6 +25,18 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-14 — PROD-24 intake: the Workbench bridge delegation filed as UI-17.** The board's
+  Workbench shell council (PROD-24, decided 2026-07-14; commons `docs/design/workbench.md`) delegated
+  one bridge item — the sprint-01 "(files at intake)" UI-surfaces row, grown by the council:
+  Bridge-plugin design + the staged-write API shape (`data/staged-config/` proposals; promotion = an
+  explicit human commit; **no write API before PROD-4's auth decision**) + the planned-docs follow-up.
+  Reconciled clean against the repo: the four ID-less `docs/planned/` pages exist and all four carry
+  the shared "Admin route / auth shell — Not built" row (the scope the council deleted from operations
+  — the Workbench answers it once); topology-setup's "Live vs file edit mode" open question is the one
+  the council answered = staging; the pages are not `docs/manifest.json` nodes (only their flow
+  diagrams are). Cross-repo ID coincidence flagged in the entry: voice filed its *own* UI-17
+  (config-ui → Workbench plugin) at the same council — references must be repo-qualified. ID written
+  back into board PROD-24 (`Bridge ID: **UI-17**`).
 - **2026-07-14 — DOC-16: VWB-39's stale dependency line re-anchored (commons PROD-23 delegation).** The
   HK-9 dependency audit's side-find executed: the line still framed done-VWB-38 (`device-integration-v1`,
   2026-07-12) as pending and named "DRV-36's implementation" (DRV-36 was design-only — the implementation
