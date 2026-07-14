@@ -640,11 +640,14 @@ endpoint).
 - [ ] **VWB-34** `[P2]` `[deferred]` — **Publish confirmation-timing in the contract — design** (`design-then-implement`; filed 2026-07-10 off the DRV-29 post-mortem chat: "your HTTP timeout must exceed 15 s" is contract information currently delivered out-of-band in a handover note — the same coupling class DRV-29 fixed, one layer up: retune a gate to 30 s and voice's timeouts fire again with no signal in the pinned catalog). **Cross-repo** — intended for delegation to the board once board-as-outbox lands (Domovoy arc); the voice side co-owns the consumption design (example on the table: implement scenario startup as a *durable action* on the voice side). Three tiers established in the chat analysis, to be confirmed/refined by the design: **(1) capabilities** — publish a client-meaningful optional `confirm_timeout_ms` per capability (present only when gated), derived from but NOT exposing the internal `gate` object (the gate is implementation — reconciler polling cadence; the latency promise is contract — keeps internals re-tunable without a re-pin); consumers: voice sizes per-capability HTTP timeouts and can auto-choose `wait:false` + optimistic speech for slow capabilities instead of hardcoding device lists; the UI's HvacPanel shows an honest progress expectation; extends VWB-24's zero-round-trip philosophy (catalog says what's valid → now also what to expect). **(2) scenarios** — a static estimate would lie (switch duration is diff-dependent: warm shared devices ≈ seconds, cold start ≈ the critical path); the honest publishable fact is an **upper bound** `max_duration_ms`, mechanically derivable from the cold-start plan (step gates + IR delays along the critical path) — a ceiling for client timeouts, never exceeded, usually beaten; progress narration uses the existing SSE state stream, not a number. **(3) async composites** — the fully clean answer for long-running composites is the async-job pattern (`202 Accepted` + progress events + completion event, dissolving the timeout question; the durable-action idea lives here) — a real API redesign touching voice + UI both, deliberately the design's decision whether/when, NOT presumed. Contract cost when implemented: catalog model + derivation + golden/openapi re-pin + voice re-pin — batch with an adjacent deliberate contract cut (OPS-16 tagging discipline applies). Deliverable: design doc + filed implementation follow-up(s).
 
 - [ ] **VWB-39** `[P2]` `[deferred]` — **Descriptor-pin conformance test (PROD-15 bridge delegation,
-  item 4; the VWB-37 pattern).** Once VWB-38's versioned artifact exists: pin it (the
-  report-protocol pin recipe — byte-identical copy, tag-verified; org pin shape at
-  `contracts/pins/<name>/` since VWB-40) and lock the bridge-side
-  consuming surface to the pin with a unit test (`test_report_protocol_pin.py` shape). Depends on
-  VWB-38 (and on DRV-36's implementation for the consuming constants).
+  item 4; the VWB-37 pattern).** VWB-38's versioned artifact EXISTS (`device-integration-v1`, DONE
+  2026-07-12): pin it (the report-protocol pin recipe — byte-identical copy, tag-verified; org pin
+  shape at `contracts/pins/<name>/` since VWB-40) and lock the bridge-side
+  consuming surface to the pin with a unit test (`test_report_protocol_pin.py` shape). **Activates
+  alongside DRV-37** (the implementation — DRV-36 was design-only; the consuming constants land in
+  DRV-37), i.e. at the satellite's first conforming descriptor (the PROD-20 chain). *(Dep line
+  re-anchored 2026-07-14, DOC-16 — the old text named done-VWB-38 as pending and "DRV-36's
+  implementation".)*
 
 
 ### UI — config-ui
