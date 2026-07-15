@@ -310,6 +310,18 @@ possible round-3.
   commit that landed the STAMP), check now green, 0 warnings. docs: none — vendored tool only;
   CONTRIBUTING's contract-guard text is version-agnostic.
 - [x] **OPS-29** `[P2]` — **DONE 2026-07-15.** **Forensic logging middle ground: the load-bearing eMotiva transitions survive INFO** (wedge #3 finding 5 — OPS-25's hygiene blinded the `source → arc` claim and the power transitions at the 2026-07-14 incident). Driver-side: `_handle_property_change` logs **device-reported transitions** of `power` / `zone2_power` / `input_source` at INFO (`"{name}: {field} old -> new (device-reported)"`) — only on actual value change, so it's a handful of lines per scenario switch; keepAlive stays fully silent and non-forensic properties (volume etc.) gain nothing. The ARC grab — the readiness gate's trigger condition — is now visible in a production log. Ops-side: `ops/INSTALL.md` gains the **"Full protocol forensics"** section — the deliberate temporary flip-on (runtime `system.json`: root `DEBUG` + unpin `pymotivaxmc2` from the loggers map, restart, reproduce, **revert**; ~20 MB/day, and `update.sh` re-syncs the repo copy over the edits anyway). Test: caplog — source/power transitions INFO-visible, same-value non-transitions quiet, keepAlive silent at INFO, volume gains no INFO line. Suite 728, pyright 0, import-linter 6/6. docs: install (the forensics section; the manifest has no dedicated logging node — verified).
+- [x] **OPS-30** `[P2]` — **DONE 2026-07-15** (filed + executed same day; surfaced by the first
+  post-OPS-27 `workflow_dispatch`). **Contract-guard CI job gets tags: `fetch-tags: true` on its
+  checkout.** The OPS-27 `TAG-MISSING` rule resolves STAMP tags via `git tag -l`, but the CI job's
+  bare `actions/checkout@v6` produces a tag-less shallow clone — the check could never pass in CI
+  (all three STAMP tags exist locally AND on origin; nothing was wrong with the contracts). Latent
+  since OPS-27 landed: the very push that vendored contract-guard-v2 already failed this job in CI
+  (run 29317709478, 2026-07-14, unnoticed), every later push skipped it via the `contracts` path
+  filter, and the 2026-07-15 backend-image dispatch (which forces all gates) re-exposed it. Fix is
+  workflow-only — the vendored guard is untouched (commons-owned; and its logic is correct — the
+  checkout just has to provide tags). Verified: guard green locally at the same commit; the fix
+  push itself re-runs the job (the `contracts` filter includes the workflow file). docs: none —
+  CI job internals; no manifest node describes workflow mechanics.
 
 ## CORE — Backend core / architecture
 

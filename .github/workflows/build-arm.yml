@@ -107,7 +107,11 @@ jobs:
     needs: changes
     if: needs.changes.outputs.contracts == 'true' || github.event_name == 'workflow_dispatch'
     steps:
+      # fetch-tags: the guard's TAG-MISSING check (contract-guard-v2) resolves STAMP
+      # tags via `git tag -l`; the default tag-less shallow checkout has none.
       - uses: actions/checkout@v6
+        with:
+          fetch-tags: true
       - run: python3 scripts/contract_guard.py --check
 
   backend-test:

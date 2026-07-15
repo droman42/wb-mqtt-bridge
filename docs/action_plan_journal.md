@@ -25,6 +25,16 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-15 — OPS-30 DONE: contract-guard CI job fetches tags.** The first manual image-build
+  dispatch since OPS-27 forced the contract-guard gate to run and it failed with three
+  `TAG-MISSING` violations — a CI-environment false alarm, not a contracts problem: all three
+  STAMP tags (`catalog-v1.7`, `device-integration-v1`, `docs-manifest-v1`) exist locally and on
+  origin, but the job's bare `actions/checkout@v6` clone carries no tags at all, so the v2 rule's
+  `git tag -l` could never see them. Latent since the OPS-27 push itself (its own CI run failed
+  the same way, unnoticed; every push since skipped the path-gated job). Fix: `fetch-tags: true`
+  on that job's checkout, workflow-only — the vendored guard stays byte-identical to
+  contract-guard-v2. The fix commit re-runs the gate (the `contracts` filter includes the
+  workflow file).
 - **2026-07-15 — DRV-39 DONE (DRV-40 folded in): eMotiva silence-while-busy — the terminal wedge fix.**
   `busy` is now a first-class driver state (`_busy_since`): armed by any commanded transition
   (power/input) and by the uncommanded `arc` grab, cleared on 2 s notification quiescence. The
