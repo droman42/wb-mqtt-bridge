@@ -1,3 +1,13 @@
+> **RETIRED 2026-07-15 (archived).** This spec describes the *build-time codegen* remote
+> layout — `ZoneDetection.ts`, `RemoteControlTemplate.ts`, per-device `*.gen.tsx`,
+> `src/lib/deviceHandlers/`, `StateTypeGenerator.ts` — all of which have been **removed**
+> from `ui/`. The shipped architecture is the **runtime Layout Manifest**
+> (`GET /devices/{id}/layout` → `LayoutManifest`, rendered by
+> `ui/src/components/RuntimeDevicePage.tsx` via `layoutManifestAdapter.ts`). Living truth:
+> [`docs/architecture/ui.md`](../../architecture/ui.md), the `layout-manifest` diagram, and
+> [`docs/design/scenarios/scenario_system_redesign.md`](../scenarios/scenario_system_redesign.md).
+> Kept for historical reference only — do not implement from this document.
+
 # Device Remote Control Layout Specification
 
 ## Overview

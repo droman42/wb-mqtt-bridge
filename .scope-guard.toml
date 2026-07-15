@@ -27,10 +27,11 @@ dirs = ["docs/design", "docs/review"]
 index = false
 link_scan = true                         # ledger references docs/design|review paths
 # unreferenced (scope-v6, HK-10/IMPL-2): an evidence doc on disk that no active/DONE entry
-# names is forgotten scope. Adopt at the consumer default `warn` (commons uses `error`) —
-# the four pre-existing unreferenced docs are anchored/reconciled by DOC-18; flip to `error`
-# once that lands to lock the fourth direction in.
-unreferenced = "warn"
+# names is forgotten scope. DOC-18 reconciled the four pre-existing unreferenced docs — two
+# anchored (mitsubishi hardware note, UI deployment networking), two retired to docs/archive/
+# (remote_layout build-time spec, wb-alice-bridge research) — so this is now `error` to match
+# commons and lock the fourth anchoring direction in.
+unreferenced = "error"
 
 [journal]
 active = "docs/action_plan_journal.md"

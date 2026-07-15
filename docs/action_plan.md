@@ -844,18 +844,6 @@ all done; DOC-7 folded into DOC-9.
 
 - ~~**DOC-11**~~ — *reconcile `docs/architecture/ui.md` with canonical-first dispatch; **folded into REL-4** at the release-1 sign-off (2026-07-06, DOC-7→DOC-9 precedent). The finding: the "Scenario manifests — same shape, different routing" section still describes pre-SCN-6 dispatch (controls posted at role devices; since SCN-6 they dispatch through the room's Scenario Manager entity) and claims the `source` device contributes an input-dropdown (scenario manifests deliberately render no inputs control); canonical dispatch as the UI's only write path is explained nowhere.*
 
-- [ ] **DOC-18** `[P2]` `[deferred]` — **Anchor the four unreferenced evidence docs** (surfaced by
-  the scope-v6 re-pin's new UNREFERENCED-evidence rule, OPS-31 — HK-10's fourth anchoring direction).
-  These docs live under an `evidence.dirs` root but no active/DONE ledger entry names them, so the
-  guard reports them as forgotten scope (warn, non-blocking): `docs/design/conditioner/mitsubishi.md`,
-  `docs/design/ui/deployment-network-config.md`, `docs/design/ui/remote_layout.md`,
-  `docs/review/wb-alice-bridge.md`. For **each**: reconcile against the live tree and either give it a
-  real referencing entry (still-live design/review scope that lost its ledger link in the re-ID /
-  rename passes) or tombstone it (obsolete). Listing the paths in this row already anchors them (the
-  rule matches path/basename in the ledgers), so the guard is green today — the work is the actual
-  keep-vs-retire decision, and it unblocks flipping `[evidence] unreferenced` from `warn` to `error`
-  to match commons. Pure docs; not release-gated.
-
 ### REL — Release
 
 *(All `[release]` REL tasks complete — see `docs/action_plan_DONE.md`. The only open `[release]`

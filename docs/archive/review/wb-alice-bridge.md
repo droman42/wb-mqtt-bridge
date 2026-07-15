@@ -1,5 +1,13 @@
 # Research: Wiren Board native Yandex Alisa bridge (`wb-mqtt-alice`) — fit with this project
 
+> **RETIRED 2026-07-15 (archived, owner decision).** The WB-native Alisa bridge is **not** the
+> project's voice path — the shipped integration is the **Irene catalog contract** (bridge as the
+> authoritative device catalog + canonical actuation backend; the decision is recorded where ADR
+> 0005's voice half was verified-and-archived). This brief's own verdict pointed the same way:
+> Alisa's capability model can't express the AV-heavy `pushbutton` device set, and the bridge is
+> cloud-dependent (not LAN-only). Kept for historical reference; the parked "scenarios as
+> voice-triggerable on/off" idea, if ever revisited, starts from git history, not from active scope.
+
 **Status:** Research brief, 2026-05-23 (web-verified). **PARKED — do not act on this yet.** Revisit
 only **after** the scenario migration is fully done, all devices are hardware-tested, and the house
 works end-to-end ("everything works for my home"). At that point: decide on scenarios-as-`switch`

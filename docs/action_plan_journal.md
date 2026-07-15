@@ -25,6 +25,17 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-15 — DOC-18 DONE: the four unreferenced evidence docs reconciled — two anchored,
+  two retired.** Scope-v6's UNREFERENCED rule (OPS-31) flagged four docs no ledger entry named.
+  Verified each against the tree: **kept + anchored** `docs/design/conditioner/mitsubishi.md`
+  (CN105 brown-out hardware note; MitsubishiHvac live) and `docs/design/ui/deployment-network-config.md`
+  (consumer-UI container networking — nginx template / entrypoint / runtime.ts all present).
+  **Retired to `docs/archive/`** (owner: "archive retired documents", "alise should be retired"):
+  `remote_layout.md` → `docs/archive/ui-docs/` (described the removed build-time codegen renderer,
+  superseded by the runtime Layout Manifest) and `wb-alice-bridge.md` → `docs/archive/review/` (the
+  shipped voice path is the Irene catalog contract, not the WB-native Alisa bridge). Both got a dated
+  retirement banner before the move. Tree clean → `[evidence] unreferenced` flipped `warn`→`error` to
+  match commons and lock HK-10's fourth direction. Guard bare: green.
 - **2026-07-15 — DOC-17 DONE: planned-pages prose staleness + the diagram title rename.**
   Two-part docs task, scope narrowed twice at owner direction. (1) `device-setup.md` +
   `topology-setup.md` left as-is — owner classes them dummy placeholder pages for now, not content

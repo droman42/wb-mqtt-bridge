@@ -390,10 +390,10 @@ possible round-3.
   *sources* (`process/claude-blocks/`) are byte-unchanged between scope-v5 and scope-v6, so the
   markers stay `scope-v5`/`scope-v4` and the `[claude.blocks]` hashes still match — a script-only
   re-pin. **(d)** First green run surfaced **four** pre-existing unreferenced evidence docs
-  (`docs/design/conditioner/mitsubishi.md`, `docs/design/ui/deployment-network-config.md`,
-  `docs/design/ui/remote_layout.md`, `docs/review/wb-alice-bridge.md`) — discovered forgotten scope,
-  filed as **DOC-18** (naming them anchors them; the reconcile decides keep-and-reference vs
-  tombstone). Guard 1.3.0 run bare: green (0 warnings once DOC-18 anchors the four). CI comment
+  (`docs/design/conditioner/mitsubishi.md`, `docs/design/ui/deployment-network-config.md`, plus two
+  since retired to `docs/archive/` by DOC-18 — the remote-layout spec and the wb-alice-bridge brief)
+  — discovered forgotten scope, filed as **DOC-18** (naming them anchors them; the reconcile decides
+  keep-and-reference vs retire). Guard 1.3.0 run bare: green (0 warnings once DOC-18 anchors the four). CI comment
   re-truthed (`ledger-guard`: scope-v6 since OPS-31). docs: none — guard/config/CI internals; no
   manifest node describes them.
 
@@ -558,6 +558,27 @@ First real phase to tackle via GSD: **ROADMAP Phase 1 = Fix the Scenario Layer**
   diagram/scenario-reconciler, diagram/declarative-composition, diagram/room-membership,
   diagram/rooms-in-use, diagram/topology-setup-flow, diagram/voice-setup (the planned pages
   themselves are not manifest nodes).
+
+- [x] **DOC-18** `[P2]` — **DONE 2026-07-15** (filed at the scope-v6 re-pin, OPS-31, same session).
+  **The four unreferenced evidence docs reconciled — two anchored, two retired.** Scope-v6's new
+  UNREFERENCED-evidence rule flagged four docs under the `evidence.dirs` roots that no ledger entry
+  named. Verified each against the live tree and made the keep-vs-retire call: **(a) KEPT + anchored
+  here** — `docs/design/conditioner/mitsubishi.md` (the CN105 brown-out / power-rail hardware note;
+  the `MitsubishiHvac` driver + 3 HVAC panels are live, so the reference stays useful) and
+  `docs/design/ui/deployment-network-config.md` (the consumer-UI container networking —
+  `ui/nginx.conf.template`, `docker-entrypoint.sh`, `src/config/runtime.ts` all still present and
+  accurate). **(b) RETIRED to `docs/archive/`** — the layout spec now at
+  `docs/archive/ui-docs/remote_layout.md` described the removed build-time codegen renderer
+  (`ZoneDetection.ts` / `RemoteControlTemplate.ts` / per-device `*.gen.tsx` / `deviceHandlers/`, all
+  gone), superseded by the runtime Layout Manifest (`RuntimeDevicePage.tsx` + `layoutManifestAdapter.ts`);
+  the research brief now at `docs/archive/review/wb-alice-bridge.md` was retired at owner decision —
+  the shipped voice path is the Irene catalog contract, not the WB-native Alisa bridge (the same call
+  ADR 0005's archived voice half records). Both gained a dated retirement banner naming where living
+  truth sits before the move. With the tree clean, `[evidence] unreferenced` flipped `warn` → **`error`**
+  in `.scope-guard.toml` to match commons and lock HK-10's fourth anchoring direction in. Guard bare:
+  green. docs: none — the two kept docs are internal design/hardware notes (not manifest nodes; the
+  manifest roots are architecture/guides/images, not `docs/design`), and archival moves nothing a
+  manifest node describes.
 
 ## REL — Release
 
