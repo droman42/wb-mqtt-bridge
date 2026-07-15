@@ -384,17 +384,6 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   as owed — both rooms' scenarios active concurrently, per-room Scenario Manager isolation (no
   cross-talk, both WB «Сценарии» cards correct, in-room-only transition diffs).
 
-- [ ] **SCN-18** `[P1]` — **Boot-restore policy: a redeploy must not cold-start the rack unattended**
-  (wedge #3 finding 6 — [`docs/review/emotiva_wedge_20260714.md`](review/emotiva_wedge_20260714.md)).
-  On 2026-07-14 08:07 the bridge restart re-ran the full `movie_appletv` cold-start plan because the
-  scenario was persisted active: a code deploy became a hardware-touching event, reproducing the
-  known-dangerous cold-start gesture (eMotiva power-on with TV state unknown) with nobody watching —
-  and it wedged the processor. **Decision-first (owner):** options — (a) restore *tracking only*
-  (mark the scenario active, execute nothing; first user interaction reconciles), (b) reconcile-
-  observe (compute the diff, publish it as pending, act only on confirmation), (c) keep executing
-  but only within N minutes of the persisted timestamp (a deploy hours later restores tracking
-  only), (d) status quo. Then implement per `design-then-implement`. Touches
-  `domain/scenarios/service.py` restore path; no contract change expected.
 
 ### VWB — Voice-integration + native WB onboarding
 
@@ -822,16 +811,6 @@ endpoint).
   about public intake today — record the chosen posture wherever it lands. Refs: board PROD-19,
   voice BUILD-14, `docs/design/problem_reports_bridge.md`.
 
-- [ ] **OPS-29** `[P2]` — **Forensic logging middle ground: the load-bearing eMotiva transitions
-  must survive INFO** (wedge #3 finding 5 —
-  [`docs/review/emotiva_wedge_20260714.md`](review/emotiva_wedge_20260714.md)). OPS-25's hygiene is
-  right, but it blinded the exact evidence the wedge forensics need: with `pymotivaxmc2` at WARNING
-  and root at INFO, the uncommanded `source → arc` claim (the trigger condition the DRV-38 readiness
-  gate keys on) and all property transitions are invisible. Scope: log **uncommanded source/input
-  changes** and main/zone2 **power transitions** at INFO in the driver (rare events — a handful of
-  lines per scenario, no volume risk; keepAlive stays silent); document the deliberate flip-on
-  procedure for full UDP forensics (root DEBUG + unpin `pymotivaxmc2`) in the ops notes. Docs check
-  at completion: manifest has no logging node — verify.
 
 ### CORE — Backend core / architecture
 

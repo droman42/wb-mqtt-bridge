@@ -25,6 +25,22 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-15 — SCN-18 DONE: boot restore is tracking-only — a restart never touches hardware.**
+  Owner decision (same day, after the restart-vs-deploy analysis: detectable via a baked build sha,
+  but it misclassifies the power-outage case, and reconcile-at-boot is a no-op exactly when it's
+  safe): restore marks the scenario active (state, persistence, WB card, SSE) and dispatches zero
+  device commands — `_restore_state` → new `_restore_tracking`, replacing the full
+  `switch_scenario`. Kills the wedge-#3 exposure (the 07-14 boot-restore cold-start) and the
+  3am-outage cold-start. Drift heals on demand via the SCN-11 dialog. 2 new tests (zero dispatch,
+  no manual steps); suite 728; docs: arch/key-concepts restart passage now says tracking-only
+  explicitly.
+- **2026-07-15 — OPS-29 DONE: the load-bearing eMotiva transitions survive INFO.** Device-reported
+  transitions of power / zone2_power / input_source now log at INFO in the driver (actual value
+  changes only — a handful of lines per scenario switch; keepAlive stays silent), so the
+  `source → arc` grab that keys the readiness gate is visible in a production log — OPS-25's
+  hygiene had blinded exactly that evidence at wedge #3. `ops/INSTALL.md` gains the "Full protocol
+  forensics" temporary flip-on procedure (root DEBUG + unpin pymotivaxmc2, revert after). Caplog
+  test locks the contract. docs: install.
 - **2026-07-15 — LIB-1 + LIB-2 + LIB-3 DONE: pymotivaxmc2 0.8.0 shipped and repinned (one unattended
   sweep, owner-directed).** Three commits in `../pymotivaxmc2` (`08073b3` serialization + stale-frame
   hygiene · `0f2d111` per-call retries/`ack="no"`/pacing/missing-only batch retry · `f7ff11a`

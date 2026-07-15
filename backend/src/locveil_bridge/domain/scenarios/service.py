@@ -466,7 +466,18 @@ class ScenarioManager:
 
     async def _restore_state(self) -> None:
         """
-        Restore each room's previously active scenario, if any.
+        Restore each room's previously active scenario — TRACKING ONLY (SCN-18).
+
+        Restore marks the scenario active (state, persistence, WB card, SSE) and
+        executes NOTHING: no reconcile plan, zero device commands. Owner decision
+        2026-07-15 off the 2026-07-14 incident, where a redeploy's boot-restore
+        re-ran the full `movie_appletv` cold-start plan unattended and wedged the
+        eMotiva. The reasoning generalizes: when executing at boot would be safe
+        (crash mid-activity — devices still in the believed state) the plan is a
+        no-op anyway, and when it would DO something (deploy, power-outage
+        recovery) unattended hardware actuation is exactly what must not happen.
+        Drift shows honestly on the scenario page (SCN-11 out-of-sync dialog) and
+        reconciles on demand via force-reconcile.
 
         Reads the per-room keys (`active_scenario:<room_id>`); additionally performs a
         ONE-SHOT migration of the legacy global `active_scenario` key (pre-SCN-6
@@ -505,13 +516,27 @@ class ScenarioManager:
                 logger.error(f"Error loading active scenario for room '{room_id}': {str(e)}")
 
         for room_id, scenario_id in sorted(targets.items()):
-            logger.info(f"Restoring previously active scenario in '{room_id}': {scenario_id}")
+            logger.info(
+                f"Restoring previously active scenario in '{room_id}': {scenario_id} "
+                f"(tracking only — no device commands at boot)"
+            )
             try:
-                await self.switch_scenario(scenario_id)
+                await self._restore_tracking(room_id, self.scenario_map[scenario_id])
                 # DEBUG: Log successful restoration
                 logger.debug(f"[SCENARIO_DEBUG] Successfully restored scenario: {scenario_id}")
             except Exception as e:
                 logger.error(f"Error restoring scenario {scenario_id}: {str(e)}")
+
+    async def _restore_tracking(self, room: str, incoming: Scenario) -> None:
+        """Mark ``incoming`` active in ``room`` WITHOUT executing anything (SCN-18).
+
+        The state-setting half of a switch — active map, persistence, WB card +
+        SSE observers — with zero device dispatch. No activation ran, so there
+        are no activation manual steps to surface."""
+        self.active[room] = incoming
+        self._activation_manual_steps[room] = []
+        await self._persist_state(room)
+        await self._notify_active_changed(room)
     
     async def deactivate(self, room_id: Optional[str] = None) -> Dict[str, Any]:
         """Deactivate a room's active scenario by powering off the devices it involves.

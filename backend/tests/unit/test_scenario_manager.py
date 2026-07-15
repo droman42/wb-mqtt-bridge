@@ -534,3 +534,53 @@ class TestScenarioManager:
         assert live.manual_steps[0].node == "dodocus_hub"
         assert live.manual_steps[0].instruction == "Set Dodocus hub to LD"
         assert live.manual_steps[1].node == "kuzma"
+
+
+class TestBootRestoreTrackingOnly:
+    """SCN-18: boot restore marks the scenario active and executes NOTHING.
+
+    Owner decision 2026-07-15 (wedge #3: a redeploy's boot-restore re-ran the
+    movie_appletv cold-start plan unattended and wedged the eMotiva). When
+    executing at boot would be safe the plan is a no-op; when it would act,
+    unattended is exactly when it must not. Drift heals via SCN-11
+    force-reconcile on demand."""
+
+    @pytest.mark.asyncio
+    async def test_restore_dispatches_zero_device_commands(
+        self, mock_device_manager, mock_room_manager, mock_store, scenario_dir
+    ):
+        await mock_store.save("active_scenario:living_room", {"scenario_id": "movie_mode"})
+
+        manager = ScenarioManager(
+            device_manager=mock_device_manager,
+            room_manager=mock_room_manager,
+            state_repository=mock_store,
+            scenario_dir=scenario_dir,
+        )
+        await manager.initialize()
+
+        # Tracking restored...
+        active = manager.active_in_room("living_room")
+        assert active is not None and active.scenario_id == "movie_mode"
+        # ...but not one command reached any device.
+        for device in mock_device_manager.devices.values():
+            execute = getattr(device, "execute_action", None)
+            if execute is not None and hasattr(execute, "assert_not_called"):
+                execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_restore_surfaces_no_manual_steps(
+        self, mock_device_manager, mock_room_manager, mock_store, scenario_dir
+    ):
+        """No activation ran, so no activation manual steps are surfaced."""
+        await mock_store.save("active_scenario:living_room", {"scenario_id": "movie_mode"})
+
+        manager = ScenarioManager(
+            device_manager=mock_device_manager,
+            room_manager=mock_room_manager,
+            state_repository=mock_store,
+            scenario_dir=scenario_dir,
+        )
+        await manager.initialize()
+
+        assert manager._activation_manual_steps.get("living_room") == []

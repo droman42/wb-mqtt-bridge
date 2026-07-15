@@ -234,7 +234,11 @@ go stale if the bridge powered everything down without way to verify. A clean
 On restart, `DeviceManager` loads device states from the store (last known assumed
 state per device), `ScenarioManager` rehydrates the active scenario id, and the
 system is back where it was — the next scenario action diffs against the restored
-state.
+state. Rehydration is tracking-only: the bridge marks the scenario active and sends
+**no device commands at boot**, so a restart — whether a crash recovery, a software
+update, or power returning after an outage — never turns equipment on or off by
+itself. If the room drifted while the bridge was down, the scenario page shows the
+difference and offers to reconcile on demand.
 
 ## Where to go next
 
