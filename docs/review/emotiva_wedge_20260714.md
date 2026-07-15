@@ -137,6 +137,33 @@ forever (2 455 cycles) — harmless against a dead unit, but it deserves backoff
   current state"* — redundant sends are spec-safe but re-enter the transition;
   worth knowing for the idempotence guard's `force` path.
 
+## Finding 4b — "what did we change after the good rack day?": nothing on this path
+*(added 2026-07-15, owner question #4 — the owner's baseline is REL-3, 2026-07-10, two
+sittings same day; devices = DRV-1, closed at the 2026-07-07 sitting)*
+
+Git-verified: between REL-3's close and the code that wedged on 07-12, the eMotiva
+driver changed **zero lines** and the scenario executor only a docstring (DOC-14); the
+07-13 batch (DRV-38a / SCN-16 / SCN-17 / OPS-25 / CORE-10/11 renames) all move in the
+safe direction (more holds, fewer zone-2 commands, a timeout bound, quieter logs, pure
+moves). **The repeating crashes are not a regression** — they are two illusions baked
+into the REL-3 close itself:
+
+1. **Coverage illusion** (= wedge #2 Finding 1): sitting #2 validated the wedge
+   gesture on `movie_zappiti` (post-power step = the gated `set_input`); the
+   `movie_appletv` shape (input already correct → ungated zone-2 next) never ran
+   after DRV-30.
+2. **Validation-environment illusion**: sitting #2's pass almost certainly ran
+   against a device that could not reproduce the fault — wedge #1's wall-unplug had
+   reset the XMC-2's CEC config to disabled (panel-confirmed same afternoon; DRV-32
+   restoration deferred), so no ARC handshake and no fatal window existed during the
+   validation. By 07-12 the TV was grabbing ARC again (uncommanded `source → HDMI
+   ARC` in the wedge-#2 log) — CEC was active again. **Open question to the owner:
+   was CEC re-enabled at the rack between 07-10 and 07-12?** Either way, the DRV-38
+   rack replay is inconclusive unless the CEC state is pinned FIRST (a pass against a
+   CEC-off unit proves nothing — that is precisely what sitting #2's pass was).
+   Wedge #3's trigger (the power-on tail) also ran clean at sitting #2, consistent
+   with this reading.
+
 ## Finding 5 — OPS-25 blinded the forensics
 
 With `pymotivaxmc2` at WARNING and root at INFO, the uncommanded `source → arc` claim
