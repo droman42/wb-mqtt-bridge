@@ -163,6 +163,24 @@ into the REL-3 close itself:
    CEC-off unit proves nothing — that is precisely what sitting #2's pass was).
    Wedge #3's trigger (the power-on tail) also ran clean at sitting #2, consistent
    with this reading.
+   *(Answered by the owner, 2026-07-15 — two facts: **CEC WAS ENABLED during the
+   rack sitting**, and nothing was re-enabled between 07-10 and 07-12; REL-3 had no
+   power-on issues. This **RETRACTS illusion #2**: sitting #2 was a genuine
+   validation — CEC live, TV on, and the `movie_zappiti` gesture passed because its
+   post-power command was the DRV-30-GATED `set_input`; the gate worked where it
+   covered the command. The record's "CEC found disabled" panel read from the
+   wedge-#1 afternoon must have been restored during the session or read
+   sub-toggles — reconcile at the DRV-32 bench (`tv_on_speakers` still failing
+   suggests `Audio to TV` specifically may have stayed off while `Enable` was on).
+   What stands is the **coverage illusion alone**, plus a sharpened model of the
+   window: REL-3's clean power-ups ran the SAME power-on tail against a CEC-live
+   unit and survived — a control packet in the window is a probabilistic dice roll,
+   not a certain kill; wedges #1/#2/#3 are three different commands losing the same
+   roll. Wedge #3's added exposure, never run at REL-3: the boot-restore woke the
+   TV and powered the processor near-simultaneously (LG wake at +4 s announcing CEC
+   into a mid-init unit) → weight to SCN-18. Defense direction unchanged and
+   sharpened: silence-while-busy (DRV-39) minimizes the rolls; the fw 3.2 flash
+   (DRV-31/32) removes the table.)*
 
 ## Finding 5 — OPS-25 blinded the forensics
 
