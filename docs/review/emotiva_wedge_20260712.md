@@ -31,6 +31,15 @@ path, whose post-power eMotiva step IS a `set_input` — gated, passed. `movie_a
 needs no input switch, so its post-power step is the ungated zone-2 power command; the
 REL-3 findings record contains zero appletv mentions — this plan shape never ran live
 after DRV-30. The wedge class was declared fixed on evidence from one command path.
+*(Correction 2026-07-15, owner: "`movie_appletv` needs no input switch" is FALSE —
+`movie_appletv` switches the processor input to `source2` (topology: `appletv_living:hdmi
+→ processor:source2`), and every video scenario switches the processor input. On THIS
+run the `set_input` step was **diff-dropped because the input was already `source2`**
+(row 1's ":37.14 source = HDMI 2"), a runtime condition — not a structural absence.
+The finding's conclusion stands (the ungated zone-2 was the survivor in the window),
+but the reason is the runtime diff, not the scenario shape. Full corrected model —
+the whack-a-mole chain across all three wedges — in `emotiva_wedge_20260714.md`
+Finding 4c.)*
 
 **Not a config regression:** the `processor:zone2 → mf_amplifier:aux2` topology link and
 the zone-2 capability predate the monorepo (`f187b96`); `movie_appletv.json` last changed

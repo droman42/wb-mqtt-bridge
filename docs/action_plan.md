@@ -304,11 +304,17 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
 - [ ] **DRV-39** `[P1]` — **eMotiva `power_on` handler: quiet the post-send tail — it floods the
   fatal window the gate was built to protect** (wedge #3, 2026-07-14 08:07, startup restore of
   `movie_appletv`; evidence: [`docs/review/emotiva_wedge_20260714.md`](review/emotiva_wedge_20260714.md)
-  Findings 1 + 4). DRV-38(a) gates every *dispatched* command, but `handle_power_on`'s own tail runs
-  inside the exempt command: a "defensive" `client.subscribe(9 props)` right after the ack + a
-  `sleep(1.0)` → `_refresh_device_state()` full Update batch that the library silently retries whole
-  3× (2 s/3 s/4.5 s) — a dozen-plus control-port packets in the first seconds of the power-on
-  transition; wedge #3's first anomaly is exactly this batch timing out at +3.3 s. **Fix shape —
+  Findings 1 + 4 + 4c). **This is the third wedge in a whack-a-mole chain, and the reason the
+  per-command approach cannot converge** (Finding 4c): all five video scenarios share one shape —
+  power processor, switch processor input, power zone-2 — and the wedge is *whichever control-port
+  packet lands in the CEC/ARC window*. DRV-30 gated `set_input` → wedge #2 surfaced ungated
+  `zone2_power_on` (appletv's `set_input` was diff-dropped, input already `source2`). DRV-38(a) gated
+  every *dispatched* command → wedge #3 surfaced the residual: `handle_power_on`'s own tail, which
+  runs inside the exempt `power_on` — a "defensive" `client.subscribe(9 props)` right after the ack +
+  a `sleep(1.0)` → `_refresh_device_state()` full Update batch the library silently retries whole 3×
+  (2 s/3 s/4.5 s), a dozen-plus control-port packets in the first seconds of the power-on transition;
+  wedge #3's first anomaly is exactly this batch timing out at +3.3 s. Chasing the next command each
+  time is why the invariant, not another gated handler, is the fix. **Fix shape —
   RESHAPED by the owner's silence-while-busy principle (2026-07-15 chat, review annotation #3):
   make *busy* a first-class driver state and the invariant "zero new traffic while busy".**
   (1) **Busy latch:** armed by ANY commanded transition (power AND input switches — anything that

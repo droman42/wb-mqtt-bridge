@@ -204,20 +204,47 @@ already contains DRV-30):
 
 **Conclusion: the wedging gesture runs byte-identical code to REL-3 — it is NOT a
 regression.** It is also NOT firmware-primary: on 07-14 the ONLY eMotiva control-port
-traffic after `power_on` was the tail (no zone-2, no set_input — the status batch
-timing out at +3.3 s is the first anomaly), so **the bridge-side root cause is the
-power-on tail, which is our code** (→ DRV-39). The two facts reconcile via **coverage,
-not change**: `movie_appletv` was never run at REL-3 (Finding 1 / wedge-#2 record —
-zero appletv mentions); every scenario tested that day ended its post-power step in a
-`set_input`, which DRV-30 had just gated. `movie_appletv`'s post-power step is not an
-input switch, so nothing follows `power_on` but its own tail. What increased between
-"worked" and "wedges" is **exposure**: the 07-13 rename-era redeploys each re-fired the
-persisted `movie_appletv` at cold boot (→ SCN-18), rolling the one untested gesture
-repeatedly against a cold device. *(Plausible, unproven — REL-3 logs are past the
-2-day retention: at REL-3 the eMotiva was likely already ON during scenario testing, so
-`power_on` idempotence-skipped and the tail never ran; on 07-14's cold boot-restore the
-device was OFF, so `power_on` executed and the tail fired. Would explain why even the
-tested shapes never hit the tail that day.)*
+traffic after `power_on` was the tail (no zone-2, no set_input dispatched — the status
+batch timing out at +3.3 s is the first anomaly; DRV-38a's gate correctly held the
+later commands, but the tail runs inside the exempt `power_on`), so **the bridge-side
+root cause is the power-on tail, which is our code** (→ DRV-39).
+
+**The mechanism is WHACK-A-MOLE, not a structural coverage gap** *(corrected 2026-07-15,
+owner catching two errors in the first draft of this finding — see below).* The
+scenario shapes are NOT the discriminator: **all five video scenarios share one shape**
+— power processor (main), **switch the processor input** (appletv→`source2`,
+ld/vhs→`source3`, zappiti→`source1`, tv_on_speakers→`arc`; topology-verified), and
+(pre-SCN-16) **power zone-2** (R3: `zone2_power_on` fired in all five). The wedge is
+simply *whichever control-port packet lands in the CEC/ARC window*, emergent from the
+runtime diff + timing:
+
+- **Wedge #1** (pre-DRV-30): `set_input` landed in the window.
+- **Wedge #2** (DRV-30 gated `set_input` only): appletv's `set_input` was **diff-dropped
+  because the input was already `source2`** (a runtime condition, NOT because the
+  scenario lacks an input switch — the first-draft error), leaving ungated
+  `zone2_power_on` as the survivor in the window.
+- **Wedge #3** (DRV-38a gated all *dispatched* commands): the gate held zone-2/set_input
+  correctly; the residual emission was the `power_on` tail, inside the exempt handler.
+
+Three different commands, one firmware window; each fix surfaced the next-most-exposed
+emission. This is why per-command gating cannot converge and **silence-while-busy
+(DRV-39) is the terminal fix**. What increased between "worked" and "wedges" is
+**exposure**: the 07-13 rename-era redeploys each re-fired the persisted `movie_appletv`
+at cold boot (→ SCN-18), repeatedly rolling the window against a cold device.
+*(Plausible, unproven — REL-3 logs are past the 2-day retention: at REL-3 the eMotiva
+was likely already ON during scenario testing, so `power_on` idempotence-skipped and
+the tail never ran; on 07-14's cold boot-restore the device was OFF, so `power_on`
+executed and the tail fired.)*
+
+**Two first-draft errors this finding corrects (owner, 2026-07-15):** (1) "`movie_appletv`'s
+post-power step is not an input switch" — WRONG; it switches to `source2`, and every
+video scenario switches the processor input. (2) "SCN-16 keeps appletv's zone-2, only
+ld/vhs change" framed zone-2 as appletv-special — WRONG; all five powered zone-2
+pre-SCN-16. Open item raised at review: whether ld/vhs *physically* need the processor
+zone-2 (topology routes their audio via Dodocus→`mf_amplifier:cd`, so SCN-16 dropped
+zone-2 as off-path) — if they do, SCN-16 dropped a needed command → a separate ld/vhs
+audio regression to confirm at the rack (does NOT affect the wedge — dropping a command
+cannot wedge).
 
 ## Finding 5 — OPS-25 blinded the forensics
 
