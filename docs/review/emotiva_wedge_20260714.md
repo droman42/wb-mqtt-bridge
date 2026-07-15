@@ -244,7 +244,9 @@ pre-SCN-16. Open item raised at review: whether ld/vhs *physically* need the pro
 zone-2 (topology routes their audio via Dodocus→`mf_amplifier:cd`, so SCN-16 dropped
 zone-2 as off-path) — if they do, SCN-16 dropped a needed command → a separate ld/vhs
 audio regression to confirm at the rack (does NOT affect the wedge — dropping a command
-cannot wedge).
+cannot wedge). **RESOLVED 2026-07-15 (owner): ld/vhs audio is pure analog through the
+Dodocus (→ `mf_amplifier:cd`); the processor zone-2 is genuinely off their path.
+SCN-16 is correct — no ld/vhs regression. The topology matches physical reality.**
 
 ## Finding 5 — OPS-25 blinded the forensics
 
