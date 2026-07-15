@@ -25,6 +25,20 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-15 — DRV-39 DONE (DRV-40 folded in): eMotiva silence-while-busy — the terminal wedge fix.**
+  `busy` is now a first-class driver state (`_busy_since`): armed by any commanded transition
+  (power/input) and by the uncommanded `arc` grab, cleared on 2 s notification quiescence. The
+  readiness gate returns a verdict and **fails closed** — at the cap it refuses the command
+  (`success=False`/"still settling") instead of releasing it into a live CEC/ARC window (reverses
+  DRV-38a's release-on-cap; `force` is the operator override). The power-on handler's defensive
+  re-subscribe + status batch — the 2026-07-14 wedge itself — is deleted (we're already subscribed;
+  the device pushes its burst unbidden). Subscription-breadth audit: the 9 monitored properties all
+  surface in state, so the set stays; the load win was dropping the re-subscribe. DRV-40 folded in:
+  the watchdog's recovery probe now backs off (interval→×2→90 s cap, reset on recovery) — the
+  07-14 outage's 2 455 probe cycles become a handful; detection latency unchanged. 6 new + 5
+  reshaped tests (fail-closed through real dispatch, force bypass, arc-arm, backoff); suite 734,
+  pyright 0, import-linter 6/6, no contract drift. HW verification rides the DRV-38 rack replay
+  (CEC-state pin first, DRV-32). DRV-38a's entry annotated with the fail-closed supersession.
 - **2026-07-15 — SCN-18 DONE: boot restore is tracking-only — a restart never touches hardware.**
   Owner decision (same day, after the restart-vs-deploy analysis: detectable via a baked build sha,
   but it misclassifies the power-outage case, and reconcile-at-boot is a no-op exactly when it's

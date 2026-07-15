@@ -65,15 +65,27 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
     # 2×9 s of blind command retries; three missed 7.5 s beats (~22 s) is the detection
     # bound that replaces them with a fail-fast, speakable error.
     KEEPALIVE_MISS_LIMIT = 3
-    # Post-power-on readiness (DRV-38: held for EVERY control-port command at the
-    # dispatch seam, not just input switches): a clean power-up delivers its full
-    # property burst in < 1 s (3 hardware samples 2026-07-10); 2 s of silence = settled.
+    # DRV-40: recovery-probe backoff. The watchdog TICKS every keepAlive interval
+    # (detection latency stays tight), but while the device is gone the re-subscribe
+    # PROBE backs off from one interval up to this cap so a dead unit isn't hammered
+    # (the 2026-07-14 outage logged 2 455 probe cycles / 12.5 h). Reset on recovery.
+    KEEPALIVE_PROBE_BACKOFF_MAX_S = 90.0
+
+    # --- DRV-38/DRV-39: busy-while-transitioning readiness gate ---
+    # "Busy" is a first-class device state: a power or input transition renegotiates
+    # the HDMI/CEC layer, and a control-port packet landing in that window wedges the
+    # fw-3.1 firmware (set_input 3.3 s in, 2026-07-10; zone2_power_on 2.3 s after the
+    # arc claim, 2026-07-12; the power_on handler's own tail, 2026-07-14). The
+    # invariant (DRV-39): ZERO new control traffic while busy.
+    # A clean power-up delivers its full property burst in < 1 s (3 hw samples
+    # 2026-07-10); 2 s of notification silence = the transition settled.
     INPUT_QUIESCENCE_S = 2.0
-    # Hard cap on the readiness hold — a lost packet must never deadlock a scenario.
-    # Also the FULL hold for the fresh-'arc' case: two incidents prove the handshake
-    # window is fatal (set_input 3.3 s in, 2026-07-10; zone2_power_on 2.3 s after the
-    # arc claim, 2026-07-12) and its CEC traffic is invisible to us, so ANY command
-    # inside a fresh-'arc' window waits the whole cap. Tune at the DRV-32 bench.
+    # Hard cap on the busy hold. Reaching it means the device never went quiet within
+    # the window (still transitioning, or a fresh-'arc' handshake whose CEC traffic is
+    # invisible to us) — DRV-39 FAILS CLOSED there: refuse the command with a speakable
+    # error rather than release it into a possibly-live window (a failed scenario step
+    # is a retry; a wedge is a wall-unplug). `force` is the operator override. Tune at
+    # the DRV-32 bench once the ARC-settle signal is characterized.
     INPUT_READY_TIMEOUT_S = 15.0
 
     def __init__(self, config: EmotivaXMC2DeviceConfig, mqtt_client=None):
@@ -95,16 +107,22 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         self._source_buttons: Dict[int, Dict[str, Any]] = {}
         self._source_index_by_name: Dict[str, int] = {}
 
-        # --- DRV-30: heartbeat watchdog + post-power-on readiness bookkeeping ---
+        # --- DRV-30/39: heartbeat watchdog + busy-transition readiness bookkeeping ---
         # Monotonic timestamps: wall-clock jumps must not fake or mask a heartbeat.
         self._last_notification_monotonic: Optional[float] = None
-        self._power_on_monotonic: Optional[float] = None
+        # DRV-39: monotonic time the current transition (busy window) started; None =
+        # idle. Armed by a commanded transition (power/input) or an uncommanded one
+        # (the TV's 'arc' grab); cleared when the notification stream settles.
+        self._busy_since: Optional[float] = None
         self._keepalive_interval_s: float = self.KEEPALIVE_INTERVAL_FALLBACK_S
         self._keepalive_task: Optional[asyncio.Task] = None
         # True after the watchdog declares the device gone (wedge / wall-unplug).
         # Commands fail fast while set (force bypasses); the watchdog probes for
         # recovery by re-subscribing — device-side subscriptions die with the device.
         self._heartbeat_lost: bool = False
+        # DRV-40: recovery-probe backoff state.
+        self._probe_interval_s: float = self.KEEPALIVE_INTERVAL_FALLBACK_S
+        self._last_probe_monotonic: Optional[float] = None
         
         # Initialize device state with Pydantic model
         self.state: EmotivaXMC2State = EmotivaXMC2State(
@@ -398,15 +416,24 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         # Process the value with our helper
         processed_value = self._process_property_value(property_name, new_value)
 
-        # DRV-30: an Off→On transition (ours or external — front panel, CEC) anchors
-        # the post-power-on readiness window for input switching.
+        # DRV-39: a device-reported transition arms the busy window — the CEC/HDMI
+        # renegotiation is starting and no new control traffic may enter it.
+        #  - power Off→On (ours or external — front panel, CEC)
+        #  - the TV grabbing 'arc' (uncommanded; the wedge-#2 trigger condition)
         if (
             property_name == "power"
             and processed_value == PowerState.ON
             and self.state.power != PowerState.ON
         ):
-            self._power_on_monotonic = time.monotonic()
-        
+            self._busy_since = time.monotonic()
+        elif (
+            property_name == "source"
+            and self._source_token(new_value) == "arc"
+            and self.state.input_source != "arc"
+        ):
+            self._busy_since = time.monotonic()
+            logger.info(f"{self.get_name()}: 'arc' grab observed — busy window armed")
+
         # Map property changes to our state model
         updates = {}
         
@@ -480,6 +507,8 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
 
         if not self._heartbeat_lost:
             self._heartbeat_lost = True
+            self._probe_interval_s = self._keepalive_interval_s  # DRV-40: reset backoff
+            self._last_probe_monotonic = None                    # → first probe fires now
             self.update_state(connected=False, notifications=False)
             self.set_error(
                 f"heartbeat lost: no notifications for {silent_s:.0f}s "
@@ -491,12 +520,28 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 f"{self.get_name()} is unreachable (heartbeat lost)", "action_error"
             )
 
+        # DRV-40: throttle the recovery probe. The tick runs every keepAlive interval,
+        # but a dead unit is probed on a backoff (interval → ×2 per failure → cap), so
+        # a long outage costs a handful of probes, not one every ~17 s for hours.
+        now = time.monotonic()
+        if (
+            self._last_probe_monotonic is not None
+            and now - self._last_probe_monotonic < self._probe_interval_s
+        ):
+            return  # backing off; not time to probe yet
+        self._last_probe_monotonic = now
+
         # Recovery probe (also re-establishes subscriptions after a device reboot).
         try:
             await self.client.subscribe(self.PROPERTIES_TO_MONITOR)
         except Exception:
-            return  # still gone; next tick probes again
+            # Still gone — widen the probe interval up to the cap.
+            self._probe_interval_s = min(
+                self._probe_interval_s * 2, self.KEEPALIVE_PROBE_BACKOFF_MAX_S
+            )
+            return
         self._heartbeat_lost = False
+        self._probe_interval_s = self._keepalive_interval_s
         self._last_notification_monotonic = time.monotonic()
         self.clear_error()
         self.update_state(connected=True, notifications=True)
@@ -544,27 +589,25 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                 return False
         return False
 
-    async def _await_device_ready(self, action: str, params: Optional[Dict[str, Any]]) -> None:
-        """Hold ANY control-port command until the device is safely past its power-on
-        transition. REL-3 finding F1: `set_input` fired 3.3 s into a CEC/ARC handshake
-        and wedged the firmware; the 2026-07-12 wedge proved the window is fatal for
-        OTHER commands too (`zone2_power_on`, acked and then silence — see
-        docs/review/emotiva_wedge_20260712.md), so the hold lives at the dispatch seam
-        (execute_action), not inside individual handlers.
+    async def _await_device_ready(self, action: str, params: Optional[Dict[str, Any]]) -> bool:
+        """Hold a control-port command until the device is past its transition window,
+        and report whether it is now SAFE to proceed (DRV-39 silence-while-busy).
 
-        Notification-driven, no blind delays: outside the ARC case, proceed once the
-        notification stream has been quiet for INPUT_QUIESCENCE_S (a clean power-up
-        burst measures < 1 s). A fresh 'arc' claim inside the window means the CEC
-        handshake is live and its traffic is invisible to us — that case holds the
-        full INPUT_READY_TIMEOUT_S for every command (the one exception: set_input TO
-        arc, which is the choreographed engagement path). The reserved `force` param
-        does NOT bypass — this hold protects hardware, not beliefs. No power-on in
-        sight → return immediately."""
-        anchor = self._power_on_monotonic
-        if anchor is None:
-            return
-        if time.monotonic() - anchor >= self.INPUT_READY_TIMEOUT_S:
-            return
+        Returns:
+            True  — the device settled (notification stream quiet for
+                    INPUT_QUIESCENCE_S); proceed with the command.
+            False — the busy window ran to INPUT_READY_TIMEOUT_S without settling
+                    (still transitioning, or a fresh-'arc' handshake whose CEC
+                    traffic is invisible to us). The caller FAILS CLOSED: refuse the
+                    command rather than fire into a possibly-live window. A failed
+                    scenario step is a retry; a wedge is a wall-unplug.
+
+        Not busy (no armed window, or the window already aged past the cap) → returns
+        True immediately. The `force` bypass is handled by the caller, not here — this
+        gate protects hardware, not beliefs."""
+        anchor = self._busy_since
+        if anchor is None or time.monotonic() - anchor >= self.INPUT_READY_TIMEOUT_S:
+            return True
 
         # set_input's target matters for the arc rule: going TO arc is the engagement
         # choreography and must not be held by the arc case itself.
@@ -576,23 +619,38 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         held = False
         while True:
             now = time.monotonic()
-            since_power = now - anchor
-            if since_power >= self.INPUT_READY_TIMEOUT_S:
-                break
+            since = now - anchor
             # Re-evaluated every loop: the 'arc' claim can land mid-hold.
             arc_window = self.state.input_source == "arc" and input_target != "arc"
             if not arc_window:
                 last = self._last_notification_monotonic or anchor
                 quiet = now - max(last, anchor)
                 if quiet >= self.INPUT_QUIESCENCE_S:
-                    break
+                    # Settled: the transition completed. Clear the window so later
+                    # commands aren't held by a stale anchor, and proceed.
+                    self._busy_since = None
+                    if held:
+                        logger.info(
+                            f"{self.get_name()}: held {action} {since:.1f}s for the "
+                            f"transition to settle (readiness gate)"
+                        )
+                    return True
+            if since >= self.INPUT_READY_TIMEOUT_S:
+                # Cap reached without settling → FAIL CLOSED.
+                logger.warning(
+                    f"{self.get_name()}: {action} refused — device still settling "
+                    f"{since:.1f}s after a power/input change (readiness cap; use force "
+                    f"to override)"
+                )
+                return False
             held = True
             await asyncio.sleep(0.2)
-        if held:
-            logger.info(
-                f"{self.get_name()}: held {action} for "
-                f"{time.monotonic() - anchor:.1f}s after power-on (readiness gate)"
-            )
+
+    # DRV-39: commanded transitions that (re)start the HDMI/CEC renegotiation window.
+    # After dispatching one, the busy window is armed so the NEXT command in the plan
+    # waits — power-on already anchors via its Off→On notification + the handler, but
+    # power-off and input switches renegotiate too and must arm the window as well.
+    _TRANSITION_ACTIONS = frozenset({"power_on", "power_off", "set_input"})
 
     async def execute_action(
         self,
@@ -601,15 +659,32 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         source: str = "unknown",
     ) -> CommandResponse[EmotivaXMC2State]:
         """Single dispatch chokepoint, eMotiva flavor: every command from every source
-        (scenario / canonical / API / WB MQTT) passes the post-power-on readiness hold
-        BEFORE the base dispatch. Internal choreography (e.g. `_power_cycle_for_arc`
-        calling helpers directly) deliberately bypasses — the hold guards the dispatch
+        (scenario / canonical / API / WB MQTT) passes the silence-while-busy gate BEFORE
+        the base dispatch (DRV-39). Internal choreography (e.g. `_power_cycle_for_arc`
+        calling helpers directly) deliberately bypasses — the gate guards the dispatch
         boundary. The executor awaits this coroutine per step, so the hold naturally
         paces a scenario plan; the step gate's poll clock starts only after dispatch
-        returns, so the hold never eats the gate budget."""
-        if not self._ready_gate_exempt(action, params):
-            await self._await_device_ready(action, params)
-        return await super().execute_action(action, params, source)
+        returns, so the hold never eats the gate budget.
+
+        If the device is busy and does not settle within the cap, the command is
+        REFUSED (fail-closed) unless `force` is set — firing into a live CEC/ARC
+        window is what wedges the firmware."""
+        forced = bool((params or {}).get("force"))
+        if not forced and not self._ready_gate_exempt(action, params):
+            if not await self._await_device_ready(action, params):
+                return CommandResponse(
+                    success=False,
+                    device_id=self.device_id,
+                    action=action,
+                    state=self.state,
+                    error=(f"{self.get_name()} is still settling after a power/input "
+                           f"change; try again (or force to override)"),
+                )
+        response = await super().execute_action(action, params, source)
+        # Arm the busy window for the next command once a transition dispatched OK.
+        if action in self._TRANSITION_ACTIONS and response.get("success"):
+            self._busy_since = time.monotonic()
+        return response
 
     def _process_property_value(self, property_name: str, value: Any) -> Any:
         """
@@ -1064,18 +1139,22 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         
         try:
             # Power on the specified zone.
-            # Main zone: no optimistic write — state is seeded by the device's notifications
-            # (dispatched through _handle_property_change) PLUS the defensive subscribe +
-            # refresh path below, both of which fire after the command ack.
+            # Main zone: no optimistic write — state is seeded by the device's own
+            # notifications (dispatched through _handle_property_change). We are already
+            # subscribed (setup() + the watchdog), and subscriptions survive standby→on,
+            # so the power notification + property burst arrive unbidden. DRV-39 removed
+            # the defensive re-subscribe + status batch that used to run here: that tail
+            # was the 2026-07-14 wedge — a dozen-plus control-port packets fired straight
+            # into the CEC/ARC window this very gate exists to keep quiet.
             # Zone 2: KEEP the optimistic write — until rack-verified that the explicit
             # zone2_power_on command (distinct from the zone2_power_toggle path that was
             # verified 2026-05-30) triggers the same zone2_power notification.
             if zone == Zone.MAIN:
                 await self.client.power_on(zone=zone)
-                # DRV-30: anchor the post-power-on readiness window here as well as on
-                # the Off→On notification — the anchor must exist even if notifications
-                # are broken (that failure mode is exactly what the watchdog handles).
-                self._power_on_monotonic = time.monotonic()
+                # DRV-39: arm the busy window here too — it must exist even if
+                # notifications are broken (that failure mode is what the watchdog
+                # handles); execute_action also arms it after a successful dispatch.
+                self._busy_since = time.monotonic()
                 logger.info("Main zone power_on command sent")
             elif zone == Zone.ZONE2:
                 await self.client.power_on(zone=zone)
@@ -1093,45 +1172,20 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
             
             # Update the last command information
             self._update_last_command("power_on", {"zone": zone_id})
-            
-            # If main zone was powered on, ensure we're subscribed to all properties
+
             if zone == Zone.MAIN:
-                try:
-                    # Subscribe to all properties to ensure we get updates
-                    await self.client.subscribe(self.PROPERTIES_TO_MONITOR)
-                    
-                    # Update our connected and notification status
-                    self.update_state(
-                        connected=True,
-                        startup_complete=True,
-                        notifications=True
-                    )
-                    
-                    # Synchronize state after power on to get current values
-                    await asyncio.sleep(1.0)  # Brief delay to allow device to stabilize
-                    updated_properties = await self._refresh_device_state()
-                    
-                    # Emit progress message
-                    await self.emit_progress(f"Zone {zone_id} powered on successfully", "action_success")
-                    
-                    # Return success result with updated properties
-                    return self.create_command_result(
-                        success=True,
-                        message=f"Zone {zone_id} powered on successfully",
-                        power=PowerState.ON.value,
-                        zone=zone_id,
-                        updated_properties=list(updated_properties.keys()) if updated_properties else []
-                    )
-                except Exception as e:
-                    logger.error(f"Error during post-power-on operations: {str(e)}")
-                    # Still return success for the power-on, but include warning
-                    return self.create_command_result(
-                        success=True,
-                        message=f"Zone {zone_id} powered on, but state synchronization had errors: {str(e)}",
-                        power=PowerState.ON.value,
-                        zone=zone_id,
-                        warnings=["State synchronization incomplete, some state updates may be missing"]
-                    )
+                # DRV-39: NO post-power-on control traffic. We're already subscribed and
+                # the device pushes its power notification + property burst unbidden;
+                # _handle_property_change seeds state from them (and re-arms the busy
+                # window). Mark connected optimistically; the notifications confirm it.
+                self.update_state(connected=True, startup_complete=True, notifications=True)
+                await self.emit_progress(f"Zone {zone_id} powered on successfully", "action_success")
+                return self.create_command_result(
+                    success=True,
+                    message=f"Zone {zone_id} powered on successfully",
+                    power=PowerState.ON.value,
+                    zone=zone_id,
+                )
             else:
                 # For non-main zones, just return success
                 await self.emit_progress(f"Zone {zone_id} powered on successfully", "action_success")

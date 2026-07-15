@@ -167,23 +167,30 @@ async def test_handle_set_volume_zone2_does_not_optimistically_write_zone2_volum
 
 
 @pytest.mark.asyncio
-async def test_handle_power_on_main_zone_does_not_optimistically_write_power(
+async def test_handle_power_on_main_zone_is_silent_and_no_optimistic_write(
     device: EMotivaXMC2,
 ):
-    """Main-zone power_on relies on the device's notification + post-command refresh
-    path to update state.power. No optimistic write in the handler."""
+    """Main-zone power_on sends ONLY the power command — DRV-39 removed the
+    defensive re-subscribe + status batch that used to fire straight into the
+    CEC/ARC window (the 2026-07-14 wedge). No optimistic power write either;
+    state.power stays OFF until the device's own notification arrives."""
     device.state.power = PowerState.OFF
-    # Stub the post-command subscribe + refresh path so they don't actually run.
     device.client.subscribe = AsyncMock()
     device._refresh_device_state = AsyncMock(return_value={})
+
     result = await device.handle_power_on(
         device.config.commands["power_on"], {"zone": 1}
     )
+
     assert result["success"] is True
     device.client.power_on.assert_awaited_once()
-    # Optimistic write is gone — state.power stays OFF until the notification arrives
-    # (the stubbed _refresh_device_state didn't fire any notification).
+    # The tail is gone: no re-subscribe, no status batch, no post-power traffic.
+    device.client.subscribe.assert_not_called()
+    device._refresh_device_state.assert_not_called()
+    # No optimistic write — state.power stays OFF until the notification arrives.
     assert device.state.power == PowerState.OFF
+    # The busy window is armed for the next command in the plan.
+    assert device._busy_since is not None
 
 
 # --- Mute KEEPS the optimistic write (protocol-impossible read-back) ------
@@ -330,6 +337,7 @@ def test_process_property_value_unparseable_volume_falls_back(device: EMotivaXMC
 # restarted. Timings here are shrunk via instance-attribute overrides.
 
 import time as _time
+from asyncio import sleep as _asyncio_sleep
 from unittest.mock import AsyncMock as _AsyncMock
 
 
@@ -347,13 +355,13 @@ def test_power_off_to_on_transition_anchors_readiness_window(device: EMotivaXMC2
     """An observed Off→On (ours or external — front panel, CEC) starts the
     post-power-on readiness window for input switching."""
     device.state.power = PowerState.OFF
-    device._power_on_monotonic = None
+    device._busy_since = None
     device._handle_property_change("power", None, "On")
-    assert device._power_on_monotonic is not None
+    assert device._busy_since is not None
     # already-On repeats must NOT re-anchor
-    anchor = device._power_on_monotonic
+    anchor = device._busy_since
     device._handle_property_change("power", None, "On")
-    assert device._power_on_monotonic == anchor
+    assert device._busy_since == anchor
 
 
 def test_notification_while_lost_recovers_heartbeat(device: EMotivaXMC2):
@@ -414,7 +422,7 @@ async def test_commands_fail_fast_while_heartbeat_lost(device: EMotivaXMC2):
 
     # force bypasses the guard and reaches the client call
     device.client.select_source = _AsyncMock()
-    device._power_on_monotonic = None  # no readiness hold in this test
+    device._busy_since = None  # no readiness hold in this test
     result = await device.handle_set_input(
         device.config.commands["set_input"], {"input": "source2", "force": True}
     )
@@ -428,27 +436,30 @@ async def test_ready_gate_quiesces_after_power_on(device: EMotivaXMC2):
     device.INPUT_QUIESCENCE_S = 0.05
     device.INPUT_READY_TIMEOUT_S = 2.0
     now = _time.monotonic()
-    device._power_on_monotonic = now
+    device._busy_since = now
     device._last_notification_monotonic = now
     device.state.input_source = "source2"  # not arc — normal quiescence path
 
     start = _time.monotonic()
-    await device._await_device_ready("set_input", {"input": "source1"})
+    ready = await device._await_device_ready("set_input", {"input": "source1"})
     held = _time.monotonic() - start
+    assert ready is True  # settled → safe to proceed
     assert held >= 0.04  # actually waited for the quiet window
     assert held < 1.0    # …and did not run to the hard cap
+    assert device._busy_since is None  # window cleared on settle
 
 
 @pytest.mark.asyncio
-async def test_ready_gate_arc_window_holds_every_command(device: EMotivaXMC2):
+async def test_ready_gate_arc_window_fails_closed(device: EMotivaXMC2):
     """A fresh 'arc' claim inside the window is the known-fatal case for ANY
     command (set_input wedged 3.3 s in on 2026-07-10; zone2_power_on wedged
-    2.3 s after the arc claim on 2026-07-12) — the full INPUT_READY_TIMEOUT_S
-    holds, quiescence alone must not release it."""
+    2.3 s after the arc claim on 2026-07-12). DRV-39: the window holds the full
+    cap and then FAILS CLOSED — quiescence never releases it, and at the cap the
+    gate REFUSES (returns False) rather than firing into a live handshake."""
     device.INPUT_QUIESCENCE_S = 0.02
     device.INPUT_READY_TIMEOUT_S = 0.3
     now = _time.monotonic()
-    device._power_on_monotonic = now
+    device._busy_since = now
     device._last_notification_monotonic = now
     device.state.input_source = "arc"
 
@@ -458,19 +469,21 @@ async def test_ready_gate_arc_window_holds_every_command(device: EMotivaXMC2):
         ("set_volume", {"level": -40}),
     ):
         start = _time.monotonic()
-        await device._await_device_ready(action, params)
+        ready = await device._await_device_ready(action, params)
         held = _time.monotonic() - start
         assert held >= 0.25, f"{action} must hold the full window"
-        device._power_on_monotonic = _time.monotonic()  # re-arm for the next case
+        assert ready is False, f"{action} must fail closed at the cap"
+        device._busy_since = _time.monotonic()  # re-arm for the next case
 
     # the one exception: set_input TO arc rides the quiescence path, never the
     # full-window arc hold (anchored slightly in the past so quiet ≥ quiescence
-    # on the first check — releases immediately despite input_source == 'arc')
-    device._power_on_monotonic = _time.monotonic() - 0.1
-    device._last_notification_monotonic = device._power_on_monotonic
+    # on the first check — releases immediately, ready, despite input_source == 'arc')
+    device._busy_since = _time.monotonic() - 0.1
+    device._last_notification_monotonic = device._busy_since
     start = _time.monotonic()
-    await device._await_device_ready("set_input", {"input": "arc"})
+    ready = await device._await_device_ready("set_input", {"input": "arc"})
     assert _time.monotonic() - start < 0.1
+    assert ready is True
 
 
 @pytest.mark.asyncio
@@ -478,14 +491,15 @@ async def test_ready_gate_no_hold_long_after_power_on(device: EMotivaXMC2):
     """A device that powered on long ago (or whose power-on we never saw) is not
     held — the gate only guards the transition window."""
     device.INPUT_READY_TIMEOUT_S = 0.2
-    device._power_on_monotonic = _time.monotonic() - 10.0
+    device._busy_since = _time.monotonic() - 10.0
 
     start = _time.monotonic()
-    await device._await_device_ready("set_input", {"input": "source1"})
+    assert await device._await_device_ready("set_input", {"input": "source1"}) is True
     assert _time.monotonic() - start < 0.05
 
-    device._power_on_monotonic = None
-    await device._await_device_ready("set_input", {"input": "source1"})  # no anchor → immediate
+    device._busy_since = None
+    # no anchor → immediate, ready
+    assert await device._await_device_ready("set_input", {"input": "source1"}) is True
 
 
 def test_ready_gate_exemptions_are_zone_aware(device: EMotivaXMC2):
@@ -506,33 +520,44 @@ def test_ready_gate_exemptions_are_zone_aware(device: EMotivaXMC2):
 
 
 @pytest.mark.asyncio
-async def test_dispatch_seam_replays_the_20260712_wedge_and_holds(device: EMotivaXMC2):
+async def test_dispatch_seam_replays_the_20260712_wedge_and_fails_closed(device: EMotivaXMC2):
     """The regression test for the 2026-07-12 incident, through the REAL dispatch
     chokepoint (docs/review/emotiva_wedge_20260712.md): main power_on, the TV's
     ARC claim lands, then the plan's zone-2 power command arrives via
-    execute_action — it must HOLD for the full window instead of reaching the
-    hardware mid-handshake. Mock tests that drive handlers directly structurally
-    cannot catch this class — the gate lives on execute_action."""
+    execute_action. DRV-39: it holds the full window and then FAILS CLOSED — the
+    command is refused, never reaching the hardware mid-handshake (where
+    2026-07-12 fired it at +2.3 s and wedged). Mock tests that drive handlers
+    directly structurally cannot catch this class — the gate lives on execute_action."""
     device.INPUT_QUIESCENCE_S = 0.02
     device.INPUT_READY_TIMEOUT_S = 0.3
     now = _time.monotonic()
-    device._power_on_monotonic = now          # main power_on just happened
+    device._busy_since = now          # main power_on just happened
     device._last_notification_monotonic = now
     device.state.power = PowerState.ON
     device.state.input_source = "arc"         # the TV's ARC grab, bridge-visible
     device.client.power_on = _AsyncMock()
 
     start = _time.monotonic()
-    await device.execute_action("power_on", {"zone": 2}, source="scenario")
+    result = await device.execute_action("power_on", {"zone": 2}, source="scenario")
     held = _time.monotonic() - start
-    assert held >= 0.25  # the hold, where 2026-07-12 had 0 ms
+    assert held >= 0.25                  # the hold, where 2026-07-12 had 0 ms
+    assert result["success"] is False    # …and then refused, not fired
+    assert "settling" in result["error"]
+    device.client.power_on.assert_not_called()  # never reached the hardware
 
-    # main-zone power_on through the same seam is never held
-    device._power_on_monotonic = _time.monotonic()
+    # main-zone power_on through the same seam is exempt (it *starts* the window)
+    device._busy_since = _time.monotonic()
     device.state.input_source = "arc"
     start = _time.monotonic()
     await device.execute_action("power_on", {"zone": 1}, source="scenario")
     assert _time.monotonic() - start < 0.2
+
+    # force overrides the gate — the operator escape hatch reaches the hardware
+    device._busy_since = _time.monotonic()
+    device.state.input_source = "arc"
+    device.client.power_on = _AsyncMock()
+    result = await device.execute_action("power_on", {"zone": 2, "force": True}, source="cli")
+    device.client.power_on.assert_awaited()
 
 
 def test_keepalive_beats_emit_no_log_lines(device: EMotivaXMC2, caplog):
@@ -587,3 +612,112 @@ def test_forensic_transitions_survive_info(device: EMotivaXMC2, caplog):
         caplog.clear()
         device._handle_property_change("volume", None, "-25.0")
         assert not any(r.levelno == _logging.INFO for r in caplog.records)
+
+
+# --- DRV-39: busy latch + fail-closed + arc-arm; DRV-40: probe backoff ---------
+
+
+def test_arc_grab_arms_busy_window(device: EMotivaXMC2):
+    """DRV-39: the TV grabbing 'arc' (uncommanded) arms the busy window on its
+    own, independent of any power-on — the wedge-#2 trigger condition. The
+    source token maps 'ARC' -> 'arc'."""
+    device._busy_since = None
+    device.state.input_source = "source2"
+    device._handle_property_change("source", None, "HDMI ARC")  # maps to 'arc'
+    assert device._busy_since is not None
+    # A non-arc source change does NOT arm the window.
+    device._busy_since = None
+    device.state.input_source = "arc"
+    device._handle_property_change("source", None, "HDMI 2")
+    assert device._busy_since is None
+
+
+@pytest.mark.asyncio
+async def test_execute_action_arms_busy_after_transition(device: EMotivaXMC2):
+    """DRV-39: a successful power_off / set_input dispatch arms the busy window so
+    the NEXT command in the plan waits — power-on isn't the only transition that
+    renegotiates HDMI/CEC."""
+    device._busy_since = None
+    device.state.power = PowerState.ON
+    device.client.power_off = _AsyncMock()
+    await device.execute_action("power_off", {"zone": 1}, source="scenario")
+    assert device._busy_since is not None
+
+
+@pytest.mark.asyncio
+async def test_execute_action_fails_closed_refuses_dispatch(device: EMotivaXMC2):
+    """DRV-39: when the busy window never settles, execute_action refuses the
+    command (fail-closed) and the handler never runs."""
+    device.INPUT_QUIESCENCE_S = 0.02
+    device.INPUT_READY_TIMEOUT_S = 0.1
+    device._busy_since = _time.monotonic()
+    device.state.input_source = "arc"          # never settles
+    device.client.set_volume = _AsyncMock()
+
+    result = await device.execute_action("set_volume", {"level": -40}, source="scenario")
+
+    assert result["success"] is False and "settling" in result["error"]
+    device.client.set_volume.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_execute_action_force_bypasses_gate(device: EMotivaXMC2):
+    """DRV-39: `force` is the operator override — it reaches the hardware even
+    inside a live window (DRV-5 escape-hatch convention)."""
+    device.INPUT_READY_TIMEOUT_S = 5.0
+    device._busy_since = _time.monotonic()
+    device.state.input_source = "arc"
+    device.client.set_volume = _AsyncMock()
+
+    start = _time.monotonic()
+    await device.execute_action("set_volume", {"level": -40, "force": True}, source="cli")
+
+    assert _time.monotonic() - start < 0.1   # not held
+    device.client.set_volume.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_watchdog_probe_backs_off_on_repeated_failure(device: EMotivaXMC2):
+    """DRV-40: while the device is gone, the re-subscribe probe backs off
+    (interval x2 per failure, capped) instead of firing every tick — the
+    2026-07-14 outage logged 2 455 probe cycles over 12.5 h."""
+    device._keepalive_interval_s = 0.01
+    device.KEEPALIVE_PROBE_BACKOFF_MAX_S = 0.32
+    device._last_notification_monotonic = _time.monotonic() - 1.0  # long past 3 misses
+    device.client.subscribe = _AsyncMock(side_effect=TimeoutError("no ack"))
+
+    # First tick: marks lost + probes once (backoff was reset, last_probe = None).
+    await device._watchdog_tick()
+    assert device._heartbeat_lost is True
+    assert device.client.subscribe.await_count == 1
+    assert device._probe_interval_s == 0.02  # widened after the failed probe
+
+    # Immediately ticking again does NOT probe — still inside the backoff interval.
+    await device._watchdog_tick()
+    assert device.client.subscribe.await_count == 1
+
+    # After waiting out the interval, it probes again and widens further.
+    await _asyncio_sleep(0.025)
+    await device._watchdog_tick()
+    assert device.client.subscribe.await_count == 2
+    assert device._probe_interval_s == 0.04
+
+    # Backoff is capped.
+    for _ in range(10):
+        device._last_probe_monotonic = _time.monotonic() - 100.0  # force "due"
+        await device._watchdog_tick()
+    assert device._probe_interval_s <= device.KEEPALIVE_PROBE_BACKOFF_MAX_S
+
+
+@pytest.mark.asyncio
+async def test_watchdog_backoff_resets_on_recovery(device: EMotivaXMC2):
+    """A successful probe resets the backoff so the next outage detects fast again."""
+    device._keepalive_interval_s = 0.01
+    device._last_notification_monotonic = _time.monotonic() - 1.0
+    device._probe_interval_s = 0.32          # as if it had backed off
+    device.client.subscribe = _AsyncMock()   # probe succeeds
+
+    await device._watchdog_tick()
+
+    assert device._heartbeat_lost is False
+    assert device._probe_interval_s == device._keepalive_interval_s

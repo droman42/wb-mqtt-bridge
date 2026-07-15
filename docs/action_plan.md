@@ -268,6 +268,9 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   override gates EVERY command (zone-aware exemption: `power_on` zone 1 exempt, zone 2 — the
   wedge command — gated; recovery paths exempt; `force` does NOT bypass); fresh-`arc` full-window
   hold now applies to any command; wedge-replay regression test through real dispatch; suite 719.
+  **(a) semantics superseded by DRV-39 (2026-07-15): the gate now FAILS CLOSED** — at the cap it
+  refuses the command instead of releasing it, and `force` DOES bypass (the operator override);
+  the wedge-replay test asserts *refused*. The rack replay below validates the DRV-39 stack.
   **(b) DONE 2026-07-13:** the topology-layer review —
   [`docs/review/topology_readiness_review_2026-07-13.md`](review/topology_readiness_review_2026-07-13.md)
   (three lanes: only the eMotiva is HARD-RISK fleet-wide; the executor honors a driver-side hold
@@ -301,57 +304,7 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   mistaken for entry-gates. Live verification HW-GATED at the rack (and needs the eMotiva
   recovered first).
 
-- [ ] **DRV-39** `[P1]` — **eMotiva `power_on` handler: quiet the post-send tail — it floods the
-  fatal window the gate was built to protect** (wedge #3, 2026-07-14 08:07, startup restore of
-  `movie_appletv`; evidence: [`docs/review/emotiva_wedge_20260714.md`](review/emotiva_wedge_20260714.md)
-  Findings 1 + 4 + 4c). **This is the third wedge in a whack-a-mole chain, and the reason the
-  per-command approach cannot converge** (Finding 4c): all five video scenarios share one shape —
-  power processor, switch processor input, power zone-2 — and the wedge is *whichever control-port
-  packet lands in the CEC/ARC window*. DRV-30 gated `set_input` → wedge #2 surfaced ungated
-  `zone2_power_on` (appletv's `set_input` was diff-dropped, input already `source2`). DRV-38(a) gated
-  every *dispatched* command → wedge #3 surfaced the residual: `handle_power_on`'s own tail, which
-  runs inside the exempt `power_on` — a "defensive" `client.subscribe(9 props)` right after the ack +
-  a `sleep(1.0)` → `_refresh_device_state()` full Update batch the library silently retries whole 3×
-  (2 s/3 s/4.5 s), a dozen-plus control-port packets in the first seconds of the power-on transition;
-  wedge #3's first anomaly is exactly this batch timing out at +3.3 s. Chasing the next command each
-  time is why the invariant, not another gated handler, is the fix. **Fix shape —
-  RESHAPED by the owner's silence-while-busy principle (2026-07-15 chat, review annotation #3):
-  make *busy* a first-class driver state and the invariant "zero new traffic while busy".**
-  (1) **Busy latch:** armed by ANY commanded transition (power AND input switches — anything that
-  renegotiates HDMI/CEC; today only power-on anchors the window) and by uncommanded transition
-  notifications (the `arc` grab, regardless of who started it); cleared by the completion
-  notification + the existing 2 s quiescence. (2) **Silence while latched:** no commands, no
-  queries, no handler tails — drop the defensive re-subscribe (subscriptions survive standby→on on
-  fw 3.1, observed; mains cold boot is covered by the DRV-30 watchdog probe) and drop/defer the
-  status batch (the burst arrives unbidden; per the protocol's own model — ack = receipt, the
-  notification = completion). (3) **Cap fails CLOSED:** on the hold cap expiring, refuse the
-  command with a speakable "still settling" error instead of releasing it into a possibly-live
-  window (today's release-on-cap is "try while busy, delayed"; wedge cost ≫ failed-step cost);
-  `force` stays the operator override — CONFIRM this flip at execution, it changes DRV-38(a)
-  semantics. Regression test through real dispatch (the DRV-38 wedge-replay pattern); rack
-  verification rides the DRV-38 replay session. LIB-2's retry=0 / `ack="no"` options are this
-  invariant's library-side half (a retry into a busy device is new traffic too). **Second,
-  independent rationale from research** ([`docs/review/emotiva_arc_community_research_2026-07-15.md`](review/emotiva_arc_community_research_2026-07-15.md)):
-  the official openHAB Emotiva binding documents that "Emotiva processors have limited processing
-  power, so if the binding subscribes to all channels simultaneously the device might grind to a
-  halt… requiring a manual reboot" — a second integrator hitting our wedge as a *concurrent-load*
-  problem, not just a timing one. Adds a lever beyond silence-while-busy: **reduce subscription
-  breadth** — we subscribe to all 9–10 properties at once and the power-on tail re-subscribes to
-  all again; evaluate trimming the monitored set to what the driver actually consumes. (openHAB
-  independently uses the same 7.5 s keepalive / 2-min-retry / OFFLINE design — our watchdog
-  parameters are validated.) **Driver-side scope of this lever (the library/driver boundary,
-  decided 2026-07-15):** subscription breadth is a driver decision, not the library's — (a) trim
-  `PROPERTIES_TO_MONITOR` to what the driver actually reads (audit each of the 9–10 against real
-  consumers), and (b) stop the `power_on` tail re-subscribing to the full set. The library's job
-  (LIB-1 serialization + LIB-3 sequence numbers) is to make whatever we *do* subscribe to safe and
-  loss-detectable; choosing the minimal set is ours.
 
-- [ ] **DRV-40** `[P2]` `[deferred]` — **Watchdog recovery probe needs backoff** (wedge #3 record:
-  **2 455** re-subscribe cycles over 12.5 h, one every ~17 s, against a dead device —
-  [`emotiva_wedge_20260714.md`](review/emotiva_wedge_20260714.md) timeline). Harmless but noisy
-  (7 366 controlPort timeout warnings). Keep the first-probe latency (fast recovery detection),
-  then back off exponentially to a cap (~60–120 s); reset on recovery. Pure driver change
-  (`_watchdog_tick`); pairs with LIB-2's retry damping (each probe today is 3 library attempts).
 
 ### SCN — Scenarios / topology / reconciler
 
