@@ -106,6 +106,14 @@ forever (2 455 cycles) — harmless against a dead unit, but it deserves backoff
   executor's SCN-14 outcome gates already key on notifications (conformant at the
   right layer); the known residual ack-keyed spot is `zone2_power_on`'s optimistic
   state write.)*
+  *(Annotation 2026-07-15, owner question #2: and we DO wait for the receipt on
+  every command — the library forces `ack="yes"` on every command packet
+  (`xmlcodec.py:38-40`; the spec makes it optional) and `send_command` always blocks
+  on the ack; the sole fire-and-forget path is unsubscribe. Our discipline is thus
+  receipt-synchronous everywhere, completion-asynchronous everywhere — and because a
+  busy device is slow to ack, the always-awaited ack is itself the retry-ladder
+  entry point precisely when the device is most fragile. Feeds LIB-2: expose the
+  spec's `ack="no"` form as a per-call option.)*
 - **The defensive re-subscribe guards a case the spec doesn't describe and
   observation contradicts.** The spec is silent on whether subscriptions survive
   power transitions; observed on fw 3.1: keepAlives flow in standby and the post-

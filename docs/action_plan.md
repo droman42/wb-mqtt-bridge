@@ -888,7 +888,10 @@ lockfile carve-out. Mirror-image of `cross-repo-source-of-truth`: here the bridg
   the power-on status batch retried into the booting unit). Fix shape: make retries visible +
   configurable per call (callers like a readiness-sensitive driver need retry=0), re-request only
   the *missing* properties on batch retry, and offer an optional global min-inter-packet pacing
-  knob. Release + bridge pin bump; the driver's power-on tail (DRV-39) consumes the retry=0 option
+  knob. Also (owner Q&A 2026-07-15, review annotation #2): the library forces `ack="yes"` on every
+  command (`xmlcodec.py:38-40`) though the spec makes it optional — expose `ack="no"` as a per-call
+  option, since the always-awaited ack is the retry-ladder entry point exactly when the device is
+  busy/fragile. Release + bridge pin bump; the driver's power-on tail (DRV-39) consumes the retry=0 option
   if it keeps any post-power-on query.
 
 - [ ] **LIB-3** `[P2]` `[deferred]` — **API + hygiene batch.** (1) Public accessor for the
