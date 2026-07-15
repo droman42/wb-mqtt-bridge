@@ -182,6 +182,43 @@ into the REL-3 close itself:
    sharpened: silence-while-busy (DRV-39) minimizes the rolls; the fw 3.2 flash
    (DRV-31/32) removes the table.)*
 
+## Finding 4c — "what did we change on the DRIVER since REL-3?" — git-definitive: nothing on this path
+*(added 2026-07-15, owner insisting the repeating crashes MUST be a driver regression, not firmware)*
+
+Verified three independent ways against `38930af` (the REL-3 good-state close, which
+already contains DRV-30):
+
+1. **Full driver diff `38930af..HEAD`, code-only:** the sole functional change is
+   **DRV-38a** (`b4407bc`) — it moved the readiness hold from `handle_set_input`'s
+   inline call to the `execute_action` seam. **Main-zone `power_on` was ungated
+   before AND is explicitly exempt after** (`_ready_gate_exempt`), so the power-on
+   path is behaviorally identical. OPS-25 (log silencing) and CORE-10 (rename) are
+   behavior-neutral.
+2. **The power-on TAIL** (defensive `subscribe()` + `sleep(1.0)` + status batch —
+   the flood in Finding 1) was introduced in **`cc86c07` "Code restructuring
+   completed"**, pre-monorepo. It ran identically at DRV-1 (07-07), REL-3 (07-10),
+   and 07-14. Not a post-REL-3 change.
+3. **Scenario layer `38930af..HEAD`:** SCN-16 keeps `movie_appletv`'s zone-2 (only
+   `ld/vhs` change); SCN-17 adds a 60 s dispatch timeout; DOC-14 is docstrings.
+   `movie_appletv`'s plan shape is unchanged.
+
+**Conclusion: the wedging gesture runs byte-identical code to REL-3 — it is NOT a
+regression.** It is also NOT firmware-primary: on 07-14 the ONLY eMotiva control-port
+traffic after `power_on` was the tail (no zone-2, no set_input — the status batch
+timing out at +3.3 s is the first anomaly), so **the bridge-side root cause is the
+power-on tail, which is our code** (→ DRV-39). The two facts reconcile via **coverage,
+not change**: `movie_appletv` was never run at REL-3 (Finding 1 / wedge-#2 record —
+zero appletv mentions); every scenario tested that day ended its post-power step in a
+`set_input`, which DRV-30 had just gated. `movie_appletv`'s post-power step is not an
+input switch, so nothing follows `power_on` but its own tail. What increased between
+"worked" and "wedges" is **exposure**: the 07-13 rename-era redeploys each re-fired the
+persisted `movie_appletv` at cold boot (→ SCN-18), rolling the one untested gesture
+repeatedly against a cold device. *(Plausible, unproven — REL-3 logs are past the
+2-day retention: at REL-3 the eMotiva was likely already ON during scenario testing, so
+`power_on` idempotence-skipped and the tail never ran; on 07-14's cold boot-restore the
+device was OFF, so `power_on` executed and the tail fired. Would explain why even the
+tested shapes never hit the tail that day.)*
+
 ## Finding 5 — OPS-25 blinded the forensics
 
 With `pymotivaxmc2` at WARNING and root at INFO, the uncommanded `source → arc` claim
