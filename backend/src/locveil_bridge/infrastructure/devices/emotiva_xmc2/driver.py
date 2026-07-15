@@ -217,10 +217,9 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
                     )
 
                     # DRV-30: start the heartbeat watchdog on the device-advertised
-                    # keepAlive interval (transponder packet; the library keeps it in
-                    # its discovery info — no public accessor yet, hence getattr).
-                    info = getattr(self.client, "_info", None) or {}
-                    ka_ms = info.get("keepAlive")
+                    # keepAlive interval (transponder packet; public accessor since
+                    # pymotivaxmc2 0.8.0 — LIB-3).
+                    ka_ms = self.client.keepalive_interval_ms
                     if ka_ms:
                         self._keepalive_interval_s = float(ka_ms) / 1000.0
                     self._heartbeat_lost = False

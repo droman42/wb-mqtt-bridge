@@ -25,6 +25,18 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-15 — LIB-1 + LIB-2 + LIB-3 DONE: pymotivaxmc2 0.8.0 shipped and repinned (one unattended
+  sweep, owner-directed).** Three commits in `../pymotivaxmc2` (`08073b3` serialization + stale-frame
+  hygiene · `0f2d111` per-call retries/`ack="no"`/pacing/missing-only batch retry · `f7ff11a`
+  keepAlive accessor/real unsubscribe/`SO_REUSEADDR`/sequence surfacing), each with tests + guide
+  updates; release `927ae18` bumped 0.7.0 → **0.8.0** (minor — new public surface), tag `v0.8.0`
+  pushed, the library's gated CI published to **PyPI** (295 tests, import-linter 4/4,
+  no-TYPE_CHECKING, pyright 0). Bridge repin in the same change: `pymotivaxmc2==0.8.0` + lockfile,
+  and the driver's `getattr(client, "_info")` replaced with the new public
+  `keepalive_interval_ms` (the LIB-3 completion item). Bridge gates on 0.8.0: pytest **725**,
+  import-linter 6/6, pyright 0. Semantics now under the driver: control-port transactions serialize
+  and drain stale frames (the wedge-#3 cross-talk class dies in the transport), and DRV-39 has its
+  library-side toolkit ready (`retries=0`, `ack="no"`, `min_send_interval`, notification gaps).
 - **2026-07-15 — eMotiva fix set re-scoped on the community research: the library/driver boundary
   drawn, LIB-1 reshaped to serialization.** Owner-approved. Principle recorded in the LIB section:
   the **library** owns protocol-transport safety (packets-in-flight, replies, retries, pacing,

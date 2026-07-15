@@ -35,7 +35,7 @@ dependencies = [
     "paho-mqtt>=1.6.1,<2",
     # Device-specific libraries (PyPI versions - Phase 1 migration)
     "broadlink>=0.18.0,<1",
-    "pymotivaxmc2==0.7.0", # PyPI; 0.7.0 pyright-clean public types + py.typed marker (consumer pyright sees real signatures, not Any); 0.6.9 subscribe() auto-dispatches initial values through registered @on(prop) callbacks + EmotivaController.subscribe waits for confirmation and returns the dict (handoff 2026-05-30); 0.6.8 adds select_source()/get_input_names() + configurable ack_timeout
+    "pymotivaxmc2==0.8.0", # PyPI; 0.8.0 (LIB-1/2/3) serializes control-port transactions + drains stale frames (the wedge-#3 cross-talk/flood class), adds per-call retries=/ack= + max_retries=/min_send_interval= knobs, missing-only batch retry, keepalive_interval_ms accessor, real unsubscribe on disconnect, SO_REUSEADDR, notification_sequence/notification_gaps; 0.7.0 pyright-clean public types + py.typed marker
     "asyncwebostv==0.4.0",  # PyPI; 0.4.0 facades (WebOSTV/SecureWebOSTV) in __all__ + shipped controls.pyi stubs → consumer pyright sees real signatures, drops the self.* : Any workarounds; 0.3.5 _close_callbacks fire on remote-side ConnectionClosed (silent WS death detection); 0.3.4 close-callback registry; 0.3.3 pointer wire-format fixes + pointer_spec.md; 0.3.2 input_source derived from foreground_app + app_id_to_input_id helper; 0.3.1 payload-contract fixes; 0.3.0 subscription-lifecycle hardening
     # Network and HTTP libraries
     "websockets>=15.0.1,<16",
