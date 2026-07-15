@@ -129,8 +129,9 @@ priority/order meaning. Old positional IDs (`#13`, `§5.1 #7`, `P4 #7`) resolve 
 
 **Workstreams** (stable buckets): **DRV** device drivers · **SCN** scenarios/topology/reconciler ·
 **VWB** voice-integration + native WB onboarding · **UI** config-ui · **OPS** docker/CI-CD/deploy/ops ·
-**CORE** backend core/architecture · **DOC** docs/ledger/process · **REL** release (added 2026-07-06,
-mirrors the voice repo's REL series).
+**CORE** backend core/architecture · **LIB** pymotivaxmc2 library fixes (added 2026-07-15 off the
+wedge-#3 review — tracked here, executed in the sibling `../pymotivaxmc2`, landing as pin bumps) ·
+**DOC** docs/ledger/process · **REL** release (added 2026-07-06, mirrors the voice repo's REL series).
 
 **Status:** `- [ ]` open · `- [x]` done · `- [~]` partial/paused. Inline markers (with reason):
 `DOING` · `BLOCKED` · `DEFERRED` · `PARKED` · `HW-GATED` (waiting on the user at the rack).
@@ -300,6 +301,29 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   mistaken for entry-gates. Live verification HW-GATED at the rack (and needs the eMotiva
   recovered first).
 
+- [ ] **DRV-39** `[P1]` — **eMotiva `power_on` handler: quiet the post-send tail — it floods the
+  fatal window the gate was built to protect** (wedge #3, 2026-07-14 08:07, startup restore of
+  `movie_appletv`; evidence: [`docs/review/emotiva_wedge_20260714.md`](review/emotiva_wedge_20260714.md)
+  Findings 1 + 4). DRV-38(a) gates every *dispatched* command, but `handle_power_on`'s own tail runs
+  inside the exempt command: a "defensive" `client.subscribe(9 props)` right after the ack + a
+  `sleep(1.0)` → `_refresh_device_state()` full Update batch that the library silently retries whole
+  3× (2 s/3 s/4.5 s) — a dozen-plus control-port packets in the first seconds of the power-on
+  transition; wedge #3's first anomaly is exactly this batch timing out at +3.3 s. **Fix shape (per
+  the protocol's own transaction model — ack = receipt, the notification = completion):** after
+  sending `power_on`, wait **passively** for the power notification + property burst (we are already
+  subscribed; everything arrives unbidden). Drop the defensive re-subscribe (subscriptions survive
+  standby→on on fw 3.1 — observed; the mains-cold-boot loss case is already covered by the DRV-30
+  watchdog probe) and drop/defer the status batch behind the existing readiness window if a refresh
+  is genuinely still needed. Regression test through real dispatch (the DRV-38 wedge-replay pattern);
+  rack verification rides the DRV-38 replay session.
+
+- [ ] **DRV-40** `[P2]` `[deferred]` — **Watchdog recovery probe needs backoff** (wedge #3 record:
+  **2 455** re-subscribe cycles over 12.5 h, one every ~17 s, against a dead device —
+  [`emotiva_wedge_20260714.md`](review/emotiva_wedge_20260714.md) timeline). Harmless but noisy
+  (7 366 controlPort timeout warnings). Keep the first-probe latency (fast recovery detection),
+  then back off exponentially to a cap (~60–120 s); reset on recovery. Pure driver change
+  (`_watchdog_tick`); pairs with LIB-2's retry damping (each probe today is 3 library attempts).
+
 ### SCN — Scenarios / topology / reconciler
 
 - [ ] **SCN-10** `[P2]` `[deferred]` — **Feedback-gated topology ordering edges (wait for the
@@ -331,7 +355,17 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   as owed — both rooms' scenarios active concurrently, per-room Scenario Manager isolation (no
   cross-talk, both WB «Сценарии» cards correct, in-room-only transition diffs).
 
-
+- [ ] **SCN-18** `[P1]` — **Boot-restore policy: a redeploy must not cold-start the rack unattended**
+  (wedge #3 finding 6 — [`docs/review/emotiva_wedge_20260714.md`](review/emotiva_wedge_20260714.md)).
+  On 2026-07-14 08:07 the bridge restart re-ran the full `movie_appletv` cold-start plan because the
+  scenario was persisted active: a code deploy became a hardware-touching event, reproducing the
+  known-dangerous cold-start gesture (eMotiva power-on with TV state unknown) with nobody watching —
+  and it wedged the processor. **Decision-first (owner):** options — (a) restore *tracking only*
+  (mark the scenario active, execute nothing; first user interaction reconciles), (b) reconcile-
+  observe (compute the diff, publish it as pending, act only on confirmation), (c) keep executing
+  but only within N minutes of the persisted timestamp (a deploy hours later restores tracking
+  only), (d) status quo. Then implement per `design-then-implement`. Touches
+  `domain/scenarios/service.py` restore path; no contract change expected.
 
 ### VWB — Voice-integration + native WB onboarding
 
@@ -759,6 +793,17 @@ endpoint).
   about public intake today — record the chosen posture wherever it lands. Refs: board PROD-19,
   voice BUILD-14, `docs/design/problem_reports_bridge.md`.
 
+- [ ] **OPS-29** `[P2]` — **Forensic logging middle ground: the load-bearing eMotiva transitions
+  must survive INFO** (wedge #3 finding 5 —
+  [`docs/review/emotiva_wedge_20260714.md`](review/emotiva_wedge_20260714.md)). OPS-25's hygiene is
+  right, but it blinded the exact evidence the wedge forensics need: with `pymotivaxmc2` at WARNING
+  and root at INFO, the uncommanded `source → arc` claim (the trigger condition the DRV-38 readiness
+  gate keys on) and all property transitions are invisible. Scope: log **uncommanded source/input
+  changes** and main/zone2 **power transitions** at INFO in the driver (rare events — a handful of
+  lines per scenario, no volume risk; keepAlive stays silent); document the deliberate flip-on
+  procedure for full UDP forensics (root DEBUG + unpin `pymotivaxmc2`) in the ops notes. Docs check
+  at completion: manifest has no logging node — verify.
+
 ### CORE — Backend core / architecture
 
 - [ ] **CORE-1** `[P2]` `[deferred]` `HW-GATED` — **System-router adapter cleanup — Item A only (Item B DONE 2026-05-26).** Item A: `POST /reload`'s `reload_system_task` constructs + drives a concrete `MQTTClient` inline; extract an application-layer reload service (e.g. `app/reload_service.py`) so the router stays a thin adapter. **Gated on hardware** — touches the live MQTT-reconnect path; can't be safely HW-verified without you at the rack. **Completion goal = 100% clean hexagon (explicit, added 2026-07-07):** this task owns the **only** `ignore_imports` exception in the import-linter config (`presentation.api.routers.system -> infrastructure.mqtt.client`, backend `pyproject.toml`); done means (1) the reload service extracted and the back-edge gone from the code, (2) the **`ignore_imports` entry deleted** — the contract set (6 since CORE-6) passes with **zero exceptions**, (3) the "one documented exception" passages updated in `docs/architecture/overview.md` + the contract name/comment in `pyproject.toml` + the [[hexagonal-layering]] memory, (4) HW-verified at the rack: `POST /reload` still reconnects cleanly against the live broker. Item B (response DTO for `/config/system`) done in `73ee8d5` — new presentation `SystemConfigResponse` + nested DTOs; wire shape field-identical; `presentation/api/schemas.py` no longer imports the infra `SystemConfig`.
@@ -815,6 +860,46 @@ endpoint).
   the endpoints must be unreachable until PROD-4's auth decision lands** — code may land behind a
   disabled feature flag, reachability may not. OpenAPI/`contracts/` regen + UI types ride whichever
   change first exposes the schema.
+
+### LIB — pymotivaxmc2 library (sibling repo)
+
+Fixes to the owner-maintained **`../pymotivaxmc2`** library (PyPI, pinned `==0.7.0` in
+`backend/pyproject.toml`), filed off the wedge-#3 review
+([`docs/review/emotiva_wedge_20260714.md`](review/emotiva_wedge_20260714.md) Finding 2). The bridge
+ledger **tracks** these; the code lands in the sibling repo (its own commits/tests/release), and each
+fix arrives here as a **pin bump** — a deliberate version decision, i.e. a normal task, not the
+lockfile carve-out. Mirror-image of `cross-repo-source-of-truth`: here the bridge is the consumer.
+
+- [ ] **LIB-1** `[P1]` — **controlPort reply correlation — kill the shared-queue cross-talk.** All
+  control transactions read one unkeyed `asyncio.Queue` per port (`socket_mgr.py:106-113`) and acks
+  are never matched to requests (`protocol.py:63`, tag-only check), while `Semaphore(5)`
+  (`protocol.py:28`) permits 5 concurrent transactions: coroutines steal each other's replies →
+  false timeouts → silent retries. **Observed in production** (wedge #3, 08:08:18.121: `Unexpected
+  response tag: emotivaUpdate (expected 'emotivaSubscription')`). Fix shape: route replies to their
+  transaction (match on tag + requested property set; or a dispatcher that fans control-port frames
+  to per-transaction futures); a mismatched frame must never be consumed-and-dropped by the wrong
+  waiter. Release + bridge pin bump.
+
+- [ ] **LIB-2** `[P1]` — **Retry-storm damping + command pacing.** Every control call silently
+  retries up to 3× (`send_command` `protocol.py:45-97`, `subscribe` `:218-296`,
+  `request_properties_full` `:130-205` — the last re-sends the WHOLE property batch when any
+  property is missing). The library's own `docs/emotiva_lib_fixes.md` names "device stuck under
+  command floods" as this unit's failure mode — the retry machinery is the amplifier (wedge #3:
+  the power-on status batch retried into the booting unit). Fix shape: make retries visible +
+  configurable per call (callers like a readiness-sensitive driver need retry=0), re-request only
+  the *missing* properties on batch retry, and offer an optional global min-inter-packet pacing
+  knob. Release + bridge pin bump; the driver's power-on tail (DRV-39) consumes the retry=0 option
+  if it keeps any post-power-on query.
+
+- [ ] **LIB-3** `[P2]` `[deferred]` — **API + hygiene batch.** (1) Public accessor for the
+  transponder's `keepAlive` interval — parsed then dropped today (`discovery.py:147-149`); the
+  bridge driver reads private `_info` via getattr. (2) Real unsubscribe on `disconnect()` — the
+  current empty `<emotivaUnsubscribe>` (`controller.py:153`, `xmlcodec.py:80-92`) is a no-op per
+  spec §2.1.5 ("each notification property must be unsubscribed explicitly"); requires tracking the
+  subscribed set. (3) `SO_REUSEADDR` on the fixed 7002/7003 binds (`socket_mgr.py:64-67`) — rapid
+  disconnect→connect risks `address already in use`. (4) Surface notification **sequence numbers**
+  (spec §2.6, v2.0+) so consumers can detect missed notifications instead of blind full refreshes.
+  One release; bridge pin bump + driver cleanup of the `_info` getattr.
 
 **The ledger & documentation reconciliation series (DOC-4…DOC-10).** Filed 2026-06-30 from two
 chat-requested analyses: (1) a comparison of this plan's former positional `P0…P4 / #n` numbering

@@ -25,6 +25,25 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-15 — eMotiva wedge #3 investigated: evidence frozen, seven tasks filed, LIB workstream
+  born.** The 2026-07-14 08:07 wedge (startup restore of `movie_appletv` after the redeploy) is NOT
+  the keep-alive/watchdog work (cleared on three counts — wedge #1 predates DRV-30; the watchdog
+  fired 25 s AFTER the silence began; interval math correct) and NOT a gated-command escape: the
+  device died ~3 s after its own gate-exempt main-zone `power_on`, whose handler tail (defensive
+  re-subscribe + a 9-property Update batch at +1 s, silently retried whole 3× by the library) floods
+  the fw-3.1 fatal window from inside the exempt command. The library's shared-queue cross-talk was
+  observed directly in production (`emotivaUpdate` consumed by a subscribe probe). Protocol-doc
+  analysis: subscribe/update are legal "at any time" but the spec's own transaction model names the
+  *notification*, not the ack, as the resume point — and observation shows subscriptions survive
+  standby→on, so the defensive re-subscribe guards a non-case. Evidence frozen:
+  `docs/review/emotiva_wedge_20260714.md`. Filed: **DRV-39** (quiet the power-on tail), **DRV-40**
+  (watchdog probe backoff — 2 455 cycles/12.5 h on record), **SCN-18** (boot-restore policy — a
+  redeploy cold-started the rack unattended), **LIB-1/2/3** (pymotivaxmc2: reply correlation, retry
+  damping + pacing, API/hygiene batch — new **LIB** workstream: tracked here, executed in
+  `../pymotivaxmc2`, landing as pin bumps; scope-guard prefixes updated), **OPS-29** (forensic
+  middle ground — the ARC claim must survive INFO). DRV-31/32 (fw 3.2 flash) and the DRV-38 rack
+  replay stand unchanged; device recovered 20:46 via external power-cycle, the DRV-30 recovery path
+  worked first try.
 - **2026-07-14 — UI-17 DONE: the Workbench split designed on the bridge side; UI-18 + CORE-12 +
   DOC-17 filed.** The design (`docs/design/ui/workbench_split.md`) renders PROD-24 for this repo:
   the Bridge plugin (new top-level `workbench-plugin/`, built artifact consumed by the commons shell
