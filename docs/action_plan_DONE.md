@@ -226,6 +226,24 @@ possible round-3.
   workbench is a dev-phase workstation tool; no manifest node describes it, `workbench-plugin/**`
   maps to no docs surface, and the package README is the consumer doc (the commons ui-kit/shell
   precedent).
+- [x] **UI-19** `[P1]` — **DONE 2026-07-15** (filed + executed same day; commons **IMPL-6**
+  consumer note, repo-to-repo — no board write-back asked). **The plugin's backend address comes
+  from `PageProps.backends.api` (workbench-v1.2).** IMPL-6 landed deployment-facts injection:
+  per-plugin `backends` in the owner-edited shell config, passed config → runtime-config →
+  loader → `PageProps.backends` — the UI-18 plugin's ad-hoc `window.__LOCVEIL_BRIDGE_API__`
+  global (which nothing ever set) anticipated the need but was the wrong mechanism, and its
+  hostname fallback was the same shell-origin trap the IMPL-6 note warns about. Change (~10
+  lines): the global is GONE; the page wrapper feeds `backends.api` into the module client
+  **synchronously** (`setShellBase` — child effects run before parent effects, so a `useEffect`
+  would fire after the pages' mount-time loads; the voice plugin's reasoning, adopted verbatim);
+  `apiBase()` precedence is now localStorage override (the user-level escape hatch, kept — a
+  non-empty address on the voice-readiness page stores it, emptying the field returns control to
+  the shell config) → shell-configured backend → `hostname:8000` fallback (now covering only a
+  shell with no backends configured). Plugin 0.1.1; README resolution paragraph updated.
+  Verified: `npm run check` + build green; serve.mjs runtime-config hands the bridge entry
+  `backends.api = http://192.168.1.50:8000` (the owner-configured WB7 origin). docs: none — same
+  scope as UI-18 (dev-phase workstation tool; package README is the consumer doc, updated in
+  place).
 
 ## OPS — Docker / CI-CD / deploy / ops
 

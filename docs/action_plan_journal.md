@@ -25,6 +25,15 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-15 — UI-19 DONE: backend address via `PageProps.backends.api` (IMPL-6 intake).**
+  Commons landed deployment-facts injection (workbench-v1.2): per-plugin `backends` in the
+  owner-edited shell config reach pages through the loader. The plugin's pre-IMPL-6 invention —
+  an ad-hoc `window.__LOCVEIL_BRIDGE_API__` global nothing set, plus a hostname fallback that
+  hit the shell origin — replaced (~10 lines): the page wrapper now feeds `backends.api` into
+  the module client synchronously (child effects run before parent effects — the voice plugin's
+  reasoning), precedence localStorage escape hatch → shell config → `hostname:8000`. Plugin
+  0.1.1; check+build green; runtime-config verified handing the bridge
+  `http://192.168.1.50:8000`.
 - **2026-07-15 — UI-18 DONE: the Bridge Workbench plugin ships and loads in the shell.** New
   top-level `workbench-plugin/` built to the HK-11 shape: single-file ESM entry (17 kB) with the
   singleton set external, plugin-run Tailwind css (preflight off), build-emitted

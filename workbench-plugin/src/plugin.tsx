@@ -13,7 +13,7 @@ import { TooltipProvider } from 'locveil-ui-kit';
 import type { PageProps } from 'locveil-workbench/contract';
 import type { ComponentType } from 'react';
 
-import { api } from '@/api';
+import { api, setShellBase } from '@/api';
 import VoiceReadinessPage from '@/pages/VoiceReadinessPage';
 import DeviceSetupPage from '@/pages/DeviceSetupPage';
 import TopologyPage from '@/pages/TopologyPage';
@@ -21,6 +21,10 @@ import './index.css';
 
 function page(Page: ComponentType<PageProps>): ComponentType<PageProps> {
   return function BridgePage(props: PageProps) {
+    // Synchronous on purpose (idempotent singleton mutation): child effects run
+    // BEFORE parent effects, so a useEffect here would fire AFTER the page's own
+    // mount-time data loads — and those fetches would hit the shell origin.
+    setShellBase(props.backends?.api);
     return (
       <TooltipProvider delayDuration={300}>
         <Page {...props} />

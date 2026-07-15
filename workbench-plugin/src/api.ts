@@ -15,25 +15,26 @@ export type RoomDefinitionResponse = components['schemas']['RoomDefinitionRespon
 export type CanonicalActionRequest = components['schemas']['CanonicalActionRequest'];
 export type ReportRequest = components['schemas']['ReportRequest'];
 
-declare global {
-  interface Window {
-    /** Runtime API base injected by the embedding page, if any. */
-    __LOCVEIL_BRIDGE_API__?: string;
-  }
-}
-
 const STORAGE_KEY = 'locveil-bridge-api';
 const DEFAULT_PORT = 8000;
 
-/** Resolve the bridge controller base URL. Precedence: page-injected global →
- *  operator override (localStorage, settable from the voice-readiness page) →
- *  same-hostname fallback on the backend's standard port (covers a local dev
- *  backend; a workstation targeting the WB7 sets the override once). */
+let shellBase: string | null = null;
+
+/** Fed from `PageProps.backends.api` by the page wrapper (IMPL-6): deployment facts
+ *  live in the owner-edited shell config, never in build artifacts. Relative fetches
+ *  would resolve against the SHELL origin — always go through apiBase(). */
+export function setShellBase(url: string | undefined): void {
+  shellBase = url ? url.replace(/\/+$/, '') : null;
+}
+
+/** Resolve the bridge controller base URL. Precedence: operator override
+ *  (localStorage — the user-level escape hatch, settable from the voice-readiness
+ *  page) → the shell-configured backend (IMPL-6) → same-hostname fallback on the
+ *  backend's standard port (covers only a shell with no backends configured). */
 export function apiBase(): string {
-  const injected = typeof window !== 'undefined' ? window.__LOCVEIL_BRIDGE_API__ : undefined;
-  if (injected) return injected.replace(/\/+$/, '');
   const stored = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEY) : null;
   if (stored) return stored.replace(/\/+$/, '');
+  if (shellBase) return shellBase;
   const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
   return `http://${hostname}:${DEFAULT_PORT}`;
 }
@@ -41,10 +42,6 @@ export function apiBase(): string {
 export function setApiBaseOverride(url: string | null): void {
   if (url && url.trim()) window.localStorage.setItem(STORAGE_KEY, url.trim());
   else window.localStorage.removeItem(STORAGE_KEY);
-}
-
-export function hasApiBaseOverride(): boolean {
-  return window.localStorage.getItem(STORAGE_KEY) !== null;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

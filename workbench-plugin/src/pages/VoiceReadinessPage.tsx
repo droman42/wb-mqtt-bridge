@@ -25,7 +25,6 @@ import type { PageProps } from 'locveil-workbench/contract';
 import {
   api,
   apiBase,
-  hasApiBaseOverride,
   setApiBaseOverride,
   type CatalogResponse,
   type SystemInfo,
@@ -101,8 +100,12 @@ export default function VoiceReadinessPage({ locale }: PageProps) {
     }
   };
 
+  // The user-level escape hatch over the shell-configured backend (IMPL-6):
+  // a non-empty address is stored as the override; emptying the field clears it
+  // and the shell config (or the hostname fallback) takes over again.
   const applyBase = () => {
-    setApiBaseOverride(baseDraft === apiBase() && !hasApiBaseOverride() ? null : baseDraft);
+    setApiBaseOverride(baseDraft.trim() || null);
+    setBaseDraft(apiBase());
     void load();
   };
 

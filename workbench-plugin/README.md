@@ -25,8 +25,10 @@ From `../../locveil-commons/packages/workbench`: add this package's `dist/` path
 
 - **Voice readiness** — catalog + bridge versions and a canonical-command test pane
   (fires `POST /devices/{id}/canonical`, the same path the voice assistant uses).
-  Also hosts the controller address setting: the plugin defaults to
-  `http://<page-host>:8000` and the override is kept in browser storage.
+  Also hosts the controller address override (kept in browser storage) — an escape
+  hatch over the normal source of the address: the shell's `workbench.config.json`
+  `backends.api` entry. With neither set, the plugin falls back to
+  `http://<page-host>:8000`.
 - **Device setup** — the configured-device inventory (read-only).
 - **Topology** — rooms and their devices (read-only).
 
