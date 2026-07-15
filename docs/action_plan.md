@@ -308,14 +308,23 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   inside the exempt command: a "defensive" `client.subscribe(9 props)` right after the ack + a
   `sleep(1.0)` → `_refresh_device_state()` full Update batch that the library silently retries whole
   3× (2 s/3 s/4.5 s) — a dozen-plus control-port packets in the first seconds of the power-on
-  transition; wedge #3's first anomaly is exactly this batch timing out at +3.3 s. **Fix shape (per
-  the protocol's own transaction model — ack = receipt, the notification = completion):** after
-  sending `power_on`, wait **passively** for the power notification + property burst (we are already
-  subscribed; everything arrives unbidden). Drop the defensive re-subscribe (subscriptions survive
-  standby→on on fw 3.1 — observed; the mains-cold-boot loss case is already covered by the DRV-30
-  watchdog probe) and drop/defer the status batch behind the existing readiness window if a refresh
-  is genuinely still needed. Regression test through real dispatch (the DRV-38 wedge-replay pattern);
-  rack verification rides the DRV-38 replay session.
+  transition; wedge #3's first anomaly is exactly this batch timing out at +3.3 s. **Fix shape —
+  RESHAPED by the owner's silence-while-busy principle (2026-07-15 chat, review annotation #3):
+  make *busy* a first-class driver state and the invariant "zero new traffic while busy".**
+  (1) **Busy latch:** armed by ANY commanded transition (power AND input switches — anything that
+  renegotiates HDMI/CEC; today only power-on anchors the window) and by uncommanded transition
+  notifications (the `arc` grab, regardless of who started it); cleared by the completion
+  notification + the existing 2 s quiescence. (2) **Silence while latched:** no commands, no
+  queries, no handler tails — drop the defensive re-subscribe (subscriptions survive standby→on on
+  fw 3.1, observed; mains cold boot is covered by the DRV-30 watchdog probe) and drop/defer the
+  status batch (the burst arrives unbidden; per the protocol's own model — ack = receipt, the
+  notification = completion). (3) **Cap fails CLOSED:** on the hold cap expiring, refuse the
+  command with a speakable "still settling" error instead of releasing it into a possibly-live
+  window (today's release-on-cap is "try while busy, delayed"; wedge cost ≫ failed-step cost);
+  `force` stays the operator override — CONFIRM this flip at execution, it changes DRV-38(a)
+  semantics. Regression test through real dispatch (the DRV-38 wedge-replay pattern); rack
+  verification rides the DRV-38 replay session. LIB-2's retry=0 / `ack="no"` options are this
+  invariant's library-side half (a retry into a busy device is new traffic too).
 
 - [ ] **DRV-40** `[P2]` `[deferred]` — **Watchdog recovery probe needs backoff** (wedge #3 record:
   **2 455** re-subscribe cycles over 12.5 h, one every ~17 s, against a dead device —

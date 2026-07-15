@@ -114,6 +114,18 @@ forever (2 455 cycles) — harmless against a dead unit, but it deserves backoff
   busy device is slow to ack, the always-awaited ack is itself the retry-ladder
   entry point precisely when the device is most fragile. Feeds LIB-2: expose the
   spec's `ack="no"` form as a per-call option.)*
+  *(Annotation 2026-07-15, owner question #3 — "should we even try to do anything
+  new while the device is busy?": No. The spec-coherent invariant is
+  **silence-while-busy** — while a transition is in flight, the correct amount of
+  new traffic (commands, queries, retries) is zero until the completion notification
+  + quiescence. This generalizes the piecemeal fixes: busy should be a first-class
+  driver state, latched by ANY commanded transition (power AND input switches — not
+  just power-on) and by uncommanded transition notifications (the `arc` grab),
+  cleared by completion + quiescence. Consequence for the 15 s cap: releasing a held
+  command into a possibly-still-busy device on cap expiry is "try while busy,
+  delayed" — the cap should FAIL-CLOSED with a speakable error instead (wedge cost ≫
+  failed-step cost; `force` stays the operator override). Folded into DRV-39's fix
+  shape.)*
 - **The defensive re-subscribe guards a case the spec doesn't describe and
   observation contradicts.** The spec is silent on whether subscriptions survive
   power transitions; observed on fw 3.1: keepAlives flow in standby and the post-
