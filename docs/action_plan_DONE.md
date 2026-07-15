@@ -530,6 +530,35 @@ First real phase to tackle via GSD: **ROADMAP Phase 1 = Fix the Scenario Layer**
       `[deferred]`, its deliverable untouched. docs: none — ledger prose only; no manifest node
       describes individual plan entries.
 
+- [x] **DOC-17** `[P2]` — **DONE 2026-07-15** (filed at UI-17's planned-docs pass 2026-07-14;
+  executed same session as the scope-v6 re-pin). **Planned-pages prose staleness + the diagram
+  rename-era title fix.** **Reconciliation narrowed the scope twice, both at owner direction:**
+  (i) **device-setup.md + topology-setup.md left untouched** — the owner classes them as dummy
+  placeholder pages for now, not content to reconcile; (ii) DOC-14 (2026-07-12) had already fixed
+  the diagram *content* (voice-setup 57→78 configs/11 rooms, appliance-pages HVAC-shipped×3), so
+  DOC-17's diagram half was purely the title rename — content was already accurate. **(a)
+  voice-setup.md:** the §P3.7 tail was stale — `#22` (global aggregates, VWB-10 DONE 2026-07-04),
+  `#25` (catalog sweep + bulk e2e, VWB-13 DONE 2026-07-09), `#26` (value-label layer, VWB-14 DONE
+  2026-06-09) all shipped but listed pending/"Not built"; only `#24` (wb-msw sensor side, VWB-12)
+  remains, deferred post-release. Fixed the header, the Pillar-C row, the "what's pending" section
+  (three shipped → one deferred), the status table, and the stale counts (6/7 profiles → **12**;
+  57 configs/10 rooms → **62/11**; 8 drivers → **9**, MitsubishiHvac added; 70 devices → **78** =
+  13 AV + 3 HVAC + 62 WB). **(b) appliance-pages.md:** `HvacPanel.tsx` shipped (3 instances,
+  registered by `device_id` in `ui/src/pages/appliances/index.ts`, routed through `DevicePage`)
+  but listed "Not built / Planned" — flipped the header, roadmap row, "next to land" paragraph, and
+  two status-table rows; added an honest note that the shipped routing is the interim device-id path,
+  the `/appliance/:id` + `AppliancePage` (`device_class` dispatch) container still the planned
+  end-state. **(c) Diagrams:** all 15 `docs/images/*.dot` titles `wb-mqtt-bridge` → `locveil-bridge`
+  (33 occurrences), PNGs regenerated in the existing style via `dot`; folded in the one same-era
+  sister-repo label in `voice-setup.dot` (`wb-mqtt-voice` → `locveil-voice`). `wb-mqtt-serial`
+  (the genuine Wirenboard daemon) correctly left alone. Manifest coherence test 8/8 (descriptions
+  don't embed titles; no manifest edit needed). docs: diagram/hexagon, diagram/rest-surface,
+  diagram/ui-architecture, diagram/appliance-pages, diagram/layout-manifest, diagram/driver-flavors,
+  diagram/device-setup-flow, diagram/mqtt-integration, diagram/scenario-lifecycle,
+  diagram/scenario-reconciler, diagram/declarative-composition, diagram/room-membership,
+  diagram/rooms-in-use, diagram/topology-setup-flow, diagram/voice-setup (the planned pages
+  themselves are not manifest nodes).
+
 ## REL — Release
 
 - [x] **REL-1** `[P0]` — **DONE 2026-07-06 — Definition of release 1 signed off (interactive session).** Mirror of the voice repo's REL-1. Deliverable = the **"Definition of release 1 (exit criteria)"** section at the top of `action_plan.md`: scope gate ("every `[release]` task is `[x]`", `check_scope.py` clean), release artifact (version tag + armv7 GHCR images deployed on WB7 via `ops/` compose, serving the house; other platforms = release 2), 7 exit criteria. **Tag migration:** `[release]`/`[deferred]` replaced `[house]`/`[later]`/`[parked]` (seeded by remap, then verified per row) — final `[release]` set: DRV-1, DRV-2, DRV-5, SCN-3, VWB-13, VWB-16, OPS-8, REL-2/3/4 (DRV-5 + OPS-8 + VWB-16 individually pulled IN from `[later]`; everything else `[deferred]`). **Decisions recorded:** armv7/WB7-only release target · `/action` stays the documented internal door (full demotion = CORE-4, deferred) · DRV-3/DRV-8/children's-room-round-3/global-master-aliases/VWB-12 all release-2 · bedroom «шторы» stays curtain-only · wardrobe gains «свет» (VWB-25, executed same session) · docs-accuracy is a gate (REL-4 filed, DOC-11 folded in). **Structures reconciled:** the survey-era "Open questions" section closed (7/7 answered — 6 by events with evidence, 1 by decision); the acceptance-gate section annotated as absorbed (items 4½+5 ride REL-3); REL-2 (cutover, previously an ID-less user debt) + REL-3 (converged rack pass, the voice ARCH-25 pattern) + REL-4 (release docs pass) filed. Journal rotated (first archive under `docs/archive/journal/`, the 1595-line high-water breach).

@@ -1,4 +1,4 @@
-// wb-mqtt-bridge — scenario lifecycle: start, switch, shutdown. Render:
+// locveil-bridge — scenario lifecycle: start, switch, shutdown. Render:
 //   dot -Tpng docs/images/scenario-lifecycle.dot -o docs/images/scenario-lifecycle.png
 // Palette: see hexagon.dot header.
 digraph lifecycle {
@@ -7,7 +7,7 @@ digraph lifecycle {
   splines=spline;
   nodesep=0.55; ranksep=1.0;
   fontname="Helvetica"; labelloc=t; fontsize=16;
-  label="wb-mqtt-bridge — scenario lifecycle, room-scoped (Harmony model: optimistic state, transparent shutdown)";
+  label="locveil-bridge — scenario lifecycle, room-scoped (Harmony model: optimistic state, transparent shutdown)";
 
   node [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.4];
   edge [fontname="Helvetica", fontsize=9, color="#1976d2", arrowsize=0.7];

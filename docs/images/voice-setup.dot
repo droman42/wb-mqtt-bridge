@@ -1,4 +1,4 @@
-// wb-mqtt-bridge — planned voice-setup process. Render:
+// locveil-bridge — planned voice-setup process. Render:
 //   dot -Tpng docs/images/voice-setup.dot -o docs/images/voice-setup.png
 // Palette: see hexagon.dot header.
 digraph voice_setup {
@@ -7,14 +7,14 @@ digraph voice_setup {
   splines=spline;
   nodesep=0.45; ranksep=0.9;
   fontname="Helvetica"; labelloc=t; fontsize=16;
-  label="wb-mqtt-bridge — voice-setup process: contract pillars + admin surface (most built, no setup page yet)";
+  label="locveil-bridge — voice-setup process: contract pillars + admin surface (most built, no setup page yet)";
 
   node [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.4];
   edge [fontname="Helvetica", fontsize=9, color="#9e9e9e", arrowsize=0.7];
 
   // --- contract pillars (bridge side) ---
   subgraph cluster_bridge {
-    label="wb-mqtt-bridge — contract surface"; fontsize=12; color="#cfcfcf"; style=rounded; margin=12;
+    label="locveil-bridge — contract surface"; fontsize=12; color="#cfcfcf"; style=rounded; margin=12;
 
     pill_a [label="Pillar A: canonical action endpoint\nPOST /devices/{id}/canonical\n{capability, action, params}\n6-code error enum · 500 ms echo wait",
             fillcolor="#fff3e0", color="#ef6c00"];
@@ -28,7 +28,7 @@ digraph voice_setup {
 
   // --- the Irene side (sister project, shown for context) ---
   subgraph cluster_irene {
-    label="wb-mqtt-voice (Irene) — sister project"; fontsize=12; color="#cfcfcf"; style=rounded; margin=12;
+    label="locveil-voice (Irene) — sister project"; fontsize=12; color="#cfcfcf"; style=rounded; margin=12;
     irene [label="Irene satellite\n• pulls catalog at startup\n• subscribes to bridge/catalog/version\n• sends canonical actions on utterance",
            fillcolor="#e3f2fd", color="#1976d2"];
   }

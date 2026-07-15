@@ -1,13 +1,13 @@
 # Planned — voice-setup process
 
-> **Status — contract AGREED, infrastructure mostly built, no setup process or
+> **Status — contract AGREED, infrastructure built, no setup process or
 > page yet.** The bridge↔Irene contract was reconciled 2026-06-06; the bridge
 > side has shipped Pillar A (canonical endpoint), Pillar B (catalog endpoint +
-> retained version topic), and most of Pillar C (WB-passthrough driver + 6
-> capability profiles + 57 device configs across 10 rooms). What's missing is
-> (a) four tail tasks in §P3.7 to close Pillar C, and (b) the *setup process*
-> itself — the operator-facing surface that turns a fresh bridge into a working
-> voice deployment.
+> retained version topic), and nearly all of Pillar C (WB-passthrough driver + 12
+> capability profiles + 62 device configs across 11 rooms). What's missing is
+> (a) one deferred tail task in §P3.7 — the `wb-msw-v3` sensor side (#24) — and
+> (b) the *setup process* itself — the operator-facing surface that turns a fresh
+> bridge into a working voice deployment.
 
 ## What the contract says
 
@@ -18,7 +18,7 @@ The full contract lives in `docs/design/voice_integration_contract_draft.md`
 |---|---|---|
 | **A. Canonical action endpoint** | `POST /devices/{id}/canonical {capability, action, params}`; capability→native through the existing map; 6-code structured error enum (HTTP-mirrored); synchronous with a 500 ms value-topic-echo timeout. | **Shipped** (§P3.7 #15, HW-verified at #18 against a live `wb-mr6c` in the cabinet). |
 | **B. Voice-friendly catalog read** | `GET /system/catalog` — flat capability-shaped projection of devices + rooms; **all locales**; sensors as one `sensor` capability with read-only `fields`; one device, one room. Retained `bridge/catalog/version` MQTT topic carries a content hash so Irene re-fetches only on real change. | **Shipped** (§P3.7 #17). |
-| **C. Native WB onboarding** | Generic data-driven WB-passthrough driver; composite payloads (RGB, HVAC) handled inside the driver via typed `state_topics` + `payload_template`; `global` is a regular room holding whole-house aggregates; loop guard on the state-sync chokepoint (no WB-publish callback for passthrough). | **Mostly shipped** (§P3.7 #13–#23 done). Tail open: #22 / #24 / #25 / #26 — see below. |
+| **C. Native WB onboarding** | Generic data-driven WB-passthrough driver; composite payloads (RGB, HVAC) handled inside the driver via typed `state_topics` + `payload_template`; `global` is a regular room holding whole-house aggregates; loop guard on the state-sync chokepoint (no WB-publish callback for passthrough). | **Nearly all shipped** (§P3.7 #13–#26 done, incl. `global` aggregates #22, the catalog completeness sweep + bulk e2e #25, and the value-label layer #26). One tail open: #24 (the `wb-msw-v3` sensor side, deferred post-release) — see below. |
 
 The strategic decision the contract encodes: **`locveil-bridge` is the single
 authoritative device catalog + actuation backend for the whole house** — native
@@ -33,36 +33,39 @@ WB gear *and* the AV stack. Irene owns voice; the bridge owns everything else.
 - A live canonical-action endpoint, end-to-end-verified against a real
   Wirenboard relay.
 - A live catalog endpoint with retained-version refresh-nudge.
-- 8 device drivers (the AV stack + the generic WB-passthrough) backing 70
-  devices total (13 AV + 57 WB-passthrough) across 10 rooms.
-- 7 capability profiles (`light_switch`, `dimmable_light`, `rgb_light`,
-  `cover`, `heating_loop`, `hvac`, `sensor_room`) that the WB-passthrough
-  fleet draws from.
+- 9 device drivers (the AV stack, the Mitsubishi HVAC panels, and the generic
+  WB-passthrough) backing 78 device configs total (13 AV + 3 HVAC + 62
+  WB-passthrough) across 11 rooms.
+- 12 capability profiles (`light_switch`, `dimmable_light`, `rgb_light`,
+  `cover`, `heating_loop`, `heating_control`, `home_mode`, `seasonal_mode`,
+  `water_supply`, `cleaning_mode`, `power_switch`, `sensor_room`) that the
+  WB-passthrough fleet draws from.
 
 ### What's pending on the bridge side
 
-These four §P3.7 tasks complete Pillar C; the contract is otherwise satisfied:
+Pillar C is effectively complete — three of its four tail tasks have shipped:
 
-- **§P3.7 #22 — aggregate devices in `global`.** Whole-house utterances like
-  "включи свет везде" need a single canonical call against an aggregate
-  device (e.g. `all_lights`) that hits a `wb-rules` fan-out scene. Each
-  aggregate is a normal `WbPassthroughDevice` config in `room: "global"`;
-  the `wb-rules` scene is user tech debt (controller-side), out of scope
-  for this bridge.
+- **§P3.7 #22 — aggregate devices in `global` — shipped.** Whole-house
+  utterances like "включи свет везде" fire a single canonical call against an
+  aggregate device (e.g. `all_lights`) — a normal `WbPassthroughDevice` config
+  in `room: "global"` — that hits a `wb-rules` fan-out scene (the scene itself
+  is controller-side, out of scope for this bridge).
+- **§P3.7 #25 — catalog completeness sweep + bulk e2e — shipped.** Every device
+  was walked through `POST /devices/{id}/canonical` for every declared
+  capability against the broker.
+- **§P3.7 #26 — value-label translation layer — shipped.** Three-layer enum
+  mapping (wire / canonical / labels) on `CapabilityField` + `StateTopicSpec` so
+  HVAC mode, heating-loop mode, vane / widevane surface localised labels in the
+  catalog without changing the wire format — the foundation the native React
+  HvacPanel builds on.
+
+One tail task remains, deferred post-release:
+
 - **§P3.7 #24 — `wb-msw-v3_*` sensor side.** Decide whether each multi-sensor
   pack is one device with both IR + sensor capabilities, or split into two
-  device entries; implement and onboard the eight `wb-msw-v3` packs the
-  house currently has.
-- **§P3.7 #25 — catalog completeness sweep + bulk e2e.** Walk every device
-  through `POST /devices/{id}/canonical` for every declared capability,
-  watch the broker, confirm round-trips. Including each `global` aggregate
-  landing on its `wb-rules` topic.
-- **§P3.7 #26 — value-label translation layer.** Three-layer enum mapping
-  (wire / canonical / labels) on `CapabilityField` + `StateTopicSpec` so
-  HVAC mode, heating-loop mode, vane / widevane all surface localised
-  labels in the catalog without changing the wire format. Blocks the
-  native React HvacPanel and restores typed mode fields the catalog
-  currently lacks.
+  device entries; implement and onboard the `wb-msw-v3` packs the house has.
+  The IR side is already referenced as transport plumbing from the AV configs;
+  the sensor side is the open piece.
 
 ### What's missing structurally — the setup process itself
 
@@ -82,7 +85,7 @@ surface despite the name, so it lives under the Bridge tab) with four panes:
 | **Catalog status** | Current `bridge/catalog/version` content hash + when it was last bumped; per-Irene-satellite last-fetch timestamp (read from a retained `bridge/catalog/fetched-by/{satellite_id}` topic Irene publishes on each refresh, planned). A green badge = "every satellite is on this version." |
 | **Per-room satellite status** | One row per room, showing whether an Irene satellite has registered (planned: a retained `bridge/voice/satellites/{room}` heartbeat from each Irene instance), its locale, its last activity. |
 | **Test-utterance flow** | A "fire canonical" form: pick a device, pick a capability, pick an action, fire `POST /devices/{id}/canonical`. Display the 6-code error enum on failure with the spec's plain-English explanation, the post-state on success. Mirrors the §P3.7 #18 verification probe — but on demand. |
-| **Locale + capability coverage** | A table: device × locale × capability — which devices have all three of `ru`/`en`/`de` names, which capabilities have value-labels (post-§P3.7 #26), which ones still lack a localisation. Drives the "what does Irene still need" backlog. |
+| **Locale + capability coverage** | A table: device × locale × capability — which devices have all three of `ru`/`en`/`de` names, which capabilities have value-labels (from the §P3.7 #26 layer), which ones still lack a localisation. Drives the "what does Irene still need" backlog. |
 
 The page does *not* edit voice configuration. Irene's own configuration
 (which bridge URL to talk to, which room to scope to, ASR/TTS model
@@ -136,10 +139,10 @@ Two endpoints + one new MQTT topic family the page needs:
 | `GET /system/catalog` | **Built.** `presentation/api/catalog.py` + `presentation/api/routers/system.py`. |
 | Retained `bridge/catalog/version` topic | **Built.** Bumped at the end of `reload_system_task`. |
 | WB-passthrough driver + capability profiles + 57 configs | **Built.** See [Devices and scenarios](../architecture/devices-and-scenarios.md). |
-| `global` room | **Built (housing).** Aggregates inside it: **Not built** (#22). |
-| Value-label translation layer | **Not built** (#26). |
-| Multi-sensor `wb-msw-v3` onboarding | **Not built** (#24). |
-| Catalog completeness sweep + bulk e2e | **Not run** (#25). |
+| `global` room + aggregate devices | **Built** (#22). |
+| Value-label translation layer | **Built** (#26). `CapabilityField` / `StateTopicSpec` wire/canonical/labels triplet; the HVAC panels consume it. |
+| Multi-sensor `wb-msw-v3` onboarding | **Not built** (#24, deferred post-release). |
+| Catalog completeness sweep + bulk e2e | **Run** (#25). |
 | `/voice/status` + `/voice/test-utterance` endpoints | **Not built.** |
 | Retained `bridge/voice/satellites/*` family | **Not built.** |
 | Voice-setup page UI | **Not built.** |

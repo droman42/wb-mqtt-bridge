@@ -1,4 +1,4 @@
-// wb-mqtt-bridge — MQTT integration with Wirenboard. Render:
+// locveil-bridge — MQTT integration with Wirenboard. Render:
 //   dot -Tpng docs/images/mqtt-integration.dot -o docs/images/mqtt-integration.png
 // Palette: see hexagon.dot header.
 digraph mqtt_integration {
@@ -7,14 +7,14 @@ digraph mqtt_integration {
   splines=spline;
   nodesep=0.45; ranksep=1.1;
   fontname="Helvetica"; labelloc=t; fontsize=16;
-  label="wb-mqtt-bridge — MQTT integration: virtual-device emulation + WB-passthrough mirroring";
+  label="locveil-bridge — MQTT integration: virtual-device emulation + WB-passthrough mirroring";
 
   node [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.4];
   edge [fontname="Helvetica", fontsize=9, color="#9e9e9e", arrowsize=0.7];
 
   // --- left: the bridge (driven side) ---
   subgraph cluster_bridge {
-    label="wb-mqtt-bridge"; fontsize=12; color="#cfcfcf"; style=rounded; margin=12;
+    label="locveil-bridge"; fontsize=12; color="#cfcfcf"; style=rounded; margin=12;
     drivers [label="device drivers\n(native / IR / WB-passthrough)", fillcolor="#f3e5f5", color="#7b1fa2"];
     wbsvc   [label="WBVirtualDeviceService\n(infrastructure/wb_device)", fillcolor="#f3e5f5", color="#7b1fa2"];
     mqttcli [label="MQTTClient (aiomqtt)\nMessageBusPort impl", fillcolor="#f3e5f5", color="#7b1fa2"];

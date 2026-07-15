@@ -1,10 +1,13 @@
 # Planned — appliance pages + room pages
 
-> **Status — partially shipped (kitchen hood only); rest designed-but-not-built.**
-> The architecture for appliance pages is settled and one example exists
-> (`ui/src/pages/appliances/KitchenHoodPage.tsx`), but the surrounding shell —
-> the `AppliancePage` container, the `/appliance/:id` route, and pages for the
-> other appliances the project plans to support — has not landed yet. Room
+> **Status — partially shipped (kitchen hood + the 3 Mitsubishi HVAC panels);
+> rest designed-but-not-built.** The architecture for appliance pages is settled
+> and two appliance classes ship today — `ui/src/pages/appliances/KitchenHoodPage.tsx`
+> and `HvacPanel.tsx` (the three Mitsubishi instances). They route through the
+> existing `DevicePage` via a device-id-keyed registry (`ui/src/pages/appliances/index.ts`);
+> the *fuller* shell the design proposes — a dedicated `AppliancePage` container on
+> its own `/appliance/:id` route, dispatching by `device_class` — has not landed yet,
+> and neither have pages for the other appliances the project plans to support. Room
 > pages have no design and no code; the backend data is already there.
 
 ## Why appliances are different
@@ -38,11 +41,17 @@ Three pieces, exactly mirroring the existing device path:
 2. **An `AppliancePage` container** — loads the device's config (
    `GET /config/device/{id}`), reads the `device_class`, dispatches to the
    matching component via a registry in `ui/src/pages/appliances/index.ts`.
-3. **One React file per appliance class** — `KitchenHoodPage.tsx`,
-   `HvacPanel.tsx` (planned, see §P3.7 #26), `RoborockPage.tsx` (planned),
-   and onwards. Each is hand-authored against the canonical surfaces
+3. **One React file per appliance class** — `KitchenHoodPage.tsx` and
+   `HvacPanel.tsx` (both shipped), `RoborockPage.tsx` (planned), and onwards.
+   Each is hand-authored against the canonical surfaces
    `GET /devices/{id}/state`, `POST /devices/{id}/action`, and the
    `/events/devices` SSE channel — no new endpoints needed.
+
+   *Interim routing:* the two shipped panels are reached through the existing
+   `DevicePage` via the device-id-keyed registry in
+   `ui/src/pages/appliances/index.ts`, not the `/appliance/:id` route + container
+   above — that dedicated route is still the planned end-state (see the status
+   table).
 
 The kitchen hood is the worked example today: a light toggle + a four-speed
 slider, posting `light_on` / `light_off` / `set_speed` actions; live state
@@ -55,16 +64,15 @@ Each is a separate page; none of them share UI shape:
 | Class | Status | What it renders |
 |---|---|---|
 | `BroadlinkKitchenHood` | **Shipped.** `KitchenHoodPage.tsx`. | Light + 4-speed slider. |
-| Mitsubishi HVAC (3 configs already authored) | **Planned** — needs `HvacPanel.tsx` via the value-label translation layer (the P3.7 #26 design). | Mode / fan / vane / widevane dropdowns + setpoint input + read-only room temp; mirrors the firmware's own `/control` page. |
+| Mitsubishi HVAC (`MitsubishiHvac`, 3 instances) | **Shipped.** `HvacPanel.tsx` — one generic panel, the `device_id` selects the catalog entry. | Mode / fan / vane / widevane dropdowns + setpoint input + read-only room temp; mirrors the firmware's own `/control` page. |
 | Roborock | **Planned** — driver also planned (not yet in the entry-point list). | Interactive map, room selection, cleaning modes. |
 | Washing machine, oven, etc. | **Future** — no driver yet, no device on the network. | Cycle / temperature / timer surfaces. |
 
-The HVAC panel is the next one to land. It's blocked on the value-label
-translation layer (so mode/fan/vane/widevane dropdowns can label themselves
-locally and post canonical names back) — see the action plan's §P3.7 #26
-for the full design. The panel design itself is "mirror the firmware
-`/control` page exactly" — the firmware (`mitsubishi2wb`) already proves
-the UI shape works on a tiny ESP touchscreen.
+The HVAC panel shipped alongside the value-label translation layer (§P3.7 #26),
+which lets the mode/fan/vane/widevane dropdowns label themselves locally and post
+canonical names back. The panel follows "mirror the firmware `/control` page
+exactly" — the firmware (`mitsubishi2wb`) already proves the UI shape works on a
+tiny ESP touchscreen.
 
 ## What the `AppliancePage` container does
 
@@ -147,10 +155,10 @@ late-2026 problem, not an imminent one.
 |---|---|
 | `device_category` on every config | **Built.** `BaseDeviceConfig.device_category`. |
 | `KitchenHoodPage.tsx` (one appliance page) | **Built.** Reads `/devices/{id}/state` + posts `light_on`/`set_speed`. |
-| `ui/src/pages/appliances/index.ts` (the registry) | **Skeleton.** Used by the kitchen hood; needs to grow as more pages land. |
-| `/appliance/:id` route | **Not built.** |
-| `AppliancePage` container | **Not built.** |
-| `HvacPanel.tsx` | **Not built.** Blocked on the §P3.7 #26 value-label translation layer. |
+| `ui/src/pages/appliances/index.ts` (the registry) | **Built.** Registers the kitchen hood + the 3 HVAC instances, keyed by `device_id`, routed from `DevicePage`. |
+| `/appliance/:id` route | **Not built.** Interim: appliance pages route through `DevicePage` today. |
+| `AppliancePage` container (`device_class` dispatch) | **Not built.** The registry above is the interim device-id-keyed stand-in. |
+| `HvacPanel.tsx` | **Built.** `ui/src/pages/appliances/HvacPanel.tsx` — catalog-driven mode/fan/vane/widevane dropdowns (§P3.7 #26); 3 instances. |
 | `RoborockPage.tsx` + driver | **Not built.** Driver not on the entry-point list. |
 | `/room/:id` route | **Not built.** |
 | `RoomPage` component | **Not built.** |

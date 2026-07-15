@@ -1,4 +1,4 @@
-// wb-mqtt-bridge — REST + SSE surface organised by router. Render:
+// locveil-bridge — REST + SSE surface organised by router. Render:
 //   dot -Tpng docs/images/rest-surface.dot -o docs/images/rest-surface.png
 // Palette: see hexagon.dot header.
 digraph rest_surface {
@@ -7,7 +7,7 @@ digraph rest_surface {
   splines=spline;
   nodesep=0.35; ranksep=0.7;
   fontname="Helvetica"; labelloc=t; fontsize=16;
-  label="wb-mqtt-bridge — REST + SSE surface (presentation/api/routers/)";
+  label="locveil-bridge — REST + SSE surface (presentation/api/routers/)";
 
   node [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.4];
   edge [fontname="Helvetica", fontsize=9, color="#9e9e9e", arrowsize=0.7];

@@ -25,6 +25,19 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-15 — DOC-17 DONE: planned-pages prose staleness + the diagram title rename.**
+  Two-part docs task, scope narrowed twice at owner direction. (1) `device-setup.md` +
+  `topology-setup.md` left as-is — owner classes them dummy placeholder pages for now, not content
+  to reconcile. (2) DOC-14 (2026-07-12) had already corrected the diagram *content* (voice-setup
+  78 configs/11 rooms; appliance-pages HVAC-shipped×3), so DOC-17's diagram half was purely the
+  rename-era title fix. **voice-setup.md:** §P3.7 tail reconciled — #22/#25/#26 all shipped
+  (VWB-10/13/14), only #24 (wb-msw sensor side) remains deferred; counts corrected (12 profiles,
+  62 WB configs, 11 rooms, 9 drivers, 78 device configs). **appliance-pages.md:** HvacPanel.tsx
+  flipped Not-built→Built (3 instances, device-id-keyed via `DevicePage`), with an honest note
+  that the `/appliance/:id` + `AppliancePage` container is still the planned end-state. **Diagrams:**
+  all 15 `*.dot` titles `wb-mqtt-bridge`→`locveil-bridge` (33 occurrences) + the one `wb-mqtt-voice`
+  sister-label→`locveil-voice`; PNGs regenerated via `dot`; `wb-mqtt-serial` (real WB daemon) left
+  alone. Manifest coherence 8/8, no manifest edit. docs verdict = the 15 diagram nodes.
 - **2026-07-15 — OPS-31 DONE: scope-guard re-pinned @ `scope-v6` (1.3.0) — the UNREFERENCED
   rule.** Commons published scope-v6 (IMPL-2 / HK-10): the guard now flags any evidence doc on
   disk that no active/DONE entry names — the fourth anchoring direction. Script-only re-pin:

@@ -1,7 +1,7 @@
-// wb-mqtt-bridge — hexagonal architecture (ports & adapters). Render:
+// locveil-bridge — hexagonal architecture (ports & adapters). Render:
 //   dot -Tpng docs/images/hexagon.dot -o docs/images/hexagon.png
 //
-// Shared palette (reused across every wb-mqtt-bridge diagram):
+// Shared palette (reused across every locveil-bridge diagram):
 //   domain          amber   fill #fff3e0 / line #ef6c00
 //   presentation    blue    fill #e3f2fd / line #1976d2   (driving adapters)
 //   infrastructure  purple  fill #f3e5f5 / line #7b1fa2   (driven adapters)
@@ -14,7 +14,7 @@ digraph hexagon {
   splines=spline;
   nodesep=0.45; ranksep=1.2;
   fontname="Helvetica"; labelloc=t; fontsize=16;
-  label="wb-mqtt-bridge — hexagonal architecture: every dependency points inward, across a port";
+  label="locveil-bridge — hexagonal architecture: every dependency points inward, across a port";
 
   node [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.4];
   edge [fontname="Helvetica", fontsize=9, color="#9e9e9e", arrowsize=0.7];

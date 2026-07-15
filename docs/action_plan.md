@@ -844,17 +844,6 @@ all done; DOC-7 folded into DOC-9.
 
 - ~~**DOC-11**~~ — *reconcile `docs/architecture/ui.md` with canonical-first dispatch; **folded into REL-4** at the release-1 sign-off (2026-07-06, DOC-7→DOC-9 precedent). The finding: the "Scenario manifests — same shape, different routing" section still describes pre-SCN-6 dispatch (controls posted at role devices; since SCN-6 they dispatch through the room's Scenario Manager entity) and claims the `source` device contributes an input-dropdown (scenario manifests deliberately render no inputs control); canonical dispatch as the UI's only write path is explained nowhere.*
 
-- [ ] **DOC-17** `[P2]` `[deferred]` — **Planned-pages + diagram staleness reconcile** (discovered
-  during UI-17's planned-docs pass 2026-07-14 — pre-existing, distinct from the UI-17 edits, filed
-  per the discovered-staleness rule). The four `docs/planned/` pages carry status tables/prose that
-  predate recent landings — spot-verified: voice-setup lists the value-label translation layer
-  ("#26") as *Not built* (DONE 2026-06-09) and its §P3.7 tail statuses need a sweep; appliance-pages
-  lists `HvacPanel.tsx` as *Not built* (shipped with DRV-28/UI-16). Sweep all four pages' "Where the
-  parts already live in code" tables + status headers against the current tree. Fold in: every
-  diagram title under `docs/images/*.dot` still says "wb-mqtt-bridge" (rename era) — retitle to
-  `locveil-bridge` in one pass and regenerate the PNGs in the existing visual style. Pure docs; not
-  release-gated.
-
 - [ ] **DOC-18** `[P2]` `[deferred]` — **Anchor the four unreferenced evidence docs** (surfaced by
   the scope-v6 re-pin's new UNREFERENCED-evidence rule, OPS-31 — HK-10's fourth anchoring direction).
   These docs live under an `evidence.dirs` root but no active/DONE ledger entry names them, so the

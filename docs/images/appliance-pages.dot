@@ -1,4 +1,4 @@
-// wb-mqtt-bridge — appliance pages (shipped) + room pages (planned). Render:
+// locveil-bridge — appliance pages (shipped) + room pages (planned). Render:
 //   dot -Tpng docs/images/appliance-pages.dot -o docs/images/appliance-pages.png
 // Palette: see hexagon.dot header.
 digraph appliance_pages {
@@ -7,7 +7,7 @@ digraph appliance_pages {
   splines=spline;
   nodesep=0.5; ranksep=0.8;
   fontname="Helvetica"; labelloc=t; fontsize=16;
-  label="wb-mqtt-bridge — appliance pages + room pages (shipped: kitchen hood + three HVAC panels)";
+  label="locveil-bridge — appliance pages + room pages (shipped: kitchen hood + three HVAC panels)";
 
   node [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.4];
   edge [fontname="Helvetica", fontsize=9, color="#9e9e9e", arrowsize=0.7];

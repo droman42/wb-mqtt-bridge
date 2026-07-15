@@ -1,4 +1,4 @@
-// wb-mqtt-bridge — planned device-setup flow. Render:
+// locveil-bridge — planned device-setup flow. Render:
 //   dot -Tpng docs/images/device-setup-flow.dot -o docs/images/device-setup-flow.png
 // Palette: see hexagon.dot header.
 digraph device_setup {
@@ -7,7 +7,7 @@ digraph device_setup {
   splines=spline;
   nodesep=0.45; ranksep=0.9;
   fontname="Helvetica"; labelloc=t; fontsize=16;
-  label="wb-mqtt-bridge — planned device-setup flow (Claude-interactive today, page-driven tomorrow)";
+  label="locveil-bridge — planned device-setup flow (Claude-interactive today, page-driven tomorrow)";
 
   node [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.4];
   edge [fontname="Helvetica", fontsize=9, color="#9e9e9e", arrowsize=0.7];
