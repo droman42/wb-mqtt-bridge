@@ -96,6 +96,16 @@ forever (2 455 cycles) — harmless against a dead unit, but it deserves backoff
   (we are already subscribed — everything arrives unbidden) → only then transact.
   Our tail runs in the receipt→completion gap: legal per the letter, against the
   grain of the model.
+  *(Annotation 2026-07-15, owner question at review: this model is stated in the
+  spec's GENERIC command sections — §2.1.2 "Commands", §2.4 command packets — so it
+  applies to ALL commands, not just power_on; power-on is merely the doc's worked
+  example. The gap's practical width differs: instant commands (volume ±1, mute)
+  complete in milliseconds and the spec's increment design assumes rapid repeats;
+  state-machine transitions (power, HDMI/CEC-renegotiating input switches) gap for
+  seconds and are where fw 3.1 is fragile — all three wedges fit that pattern. The
+  executor's SCN-14 outcome gates already key on notifications (conformant at the
+  right layer); the known residual ack-keyed spot is `zone2_power_on`'s optimistic
+  state write.)*
 - **The defensive re-subscribe guards a case the spec doesn't describe and
   observation contradicts.** The spec is silent on whether subscriptions survive
   power transitions; observed on fw 3.1: keepAlives flow in standby and the post-
