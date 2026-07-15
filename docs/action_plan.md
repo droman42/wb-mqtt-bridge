@@ -855,6 +855,18 @@ all done; DOC-7 folded into DOC-9.
   `locveil-bridge` in one pass and regenerate the PNGs in the existing visual style. Pure docs; not
   release-gated.
 
+- [ ] **DOC-18** `[P2]` `[deferred]` — **Anchor the four unreferenced evidence docs** (surfaced by
+  the scope-v6 re-pin's new UNREFERENCED-evidence rule, OPS-31 — HK-10's fourth anchoring direction).
+  These docs live under an `evidence.dirs` root but no active/DONE ledger entry names them, so the
+  guard reports them as forgotten scope (warn, non-blocking): `docs/design/conditioner/mitsubishi.md`,
+  `docs/design/ui/deployment-network-config.md`, `docs/design/ui/remote_layout.md`,
+  `docs/review/wb-alice-bridge.md`. For **each**: reconcile against the live tree and either give it a
+  real referencing entry (still-live design/review scope that lost its ledger link in the re-ID /
+  rename passes) or tombstone it (obsolete). Listing the paths in this row already anchors them (the
+  rule matches path/basename in the ledgers), so the guard is green today — the work is the actual
+  keep-vs-retire decision, and it unblocks flipping `[evidence] unreferenced` from `warn` to `error`
+  to match commons. Pure docs; not release-gated.
+
 ### REL — Release
 
 *(All `[release]` REL tasks complete — see `docs/action_plan_DONE.md`. The only open `[release]`

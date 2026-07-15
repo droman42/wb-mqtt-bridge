@@ -32,7 +32,7 @@ import sys
 import tomllib
 from pathlib import Path
 
-__version__ = "1.2.0"  # scope-v5 — docs-verdict presence rule (HK-6) on completion entries
+__version__ = "1.3.0"  # scope-v6 — UNREFERENCED-evidence check (HK-10 / IMPL-2)
 
 
 # ---------------------------------------------------------------- config
@@ -46,7 +46,8 @@ DEFAULTS = {
         "high_water": 3000, "low_water": 2000, "hard_ceiling": 4000,
         "docs_verdict_since": "",
     },
-    "evidence": {"dirs": [], "index": False, "link_scan": False, "unindexed": "warn"},
+    "evidence": {"dirs": [], "index": False, "link_scan": False, "unindexed": "warn",
+                 "unreferenced": "warn"},
     "journal": {
         "active": None, "archive_dir": None,
         "high_water": 1500, "low_water": 1000, "hard_ceiling": 2000,
@@ -261,6 +262,18 @@ def check(root: Path, cfg: dict, rules: Rules) -> Report:
                 if p.name not in idx_names:
                     msg = f"UNINDEXED review doc: {p.relative_to(root).as_posix()} not in the ledger index"
                     rep.error(msg) if E["unindexed"] == "fail" else rep.warn(msg)
+
+    # UNREFERENCED evidence — the fourth direction (HK-10 ruling 1, ledger-discipline §6):
+    # a doc ON DISK that no ledger entry (active or DONE) references is forgotten scope.
+    # Referenced = its repo-relative path OR its basename appears in active+DONE.
+    if E["unreferenced"] != "off":
+        ledgers = active + "\n" + done
+        for p in evid_files:
+            rel = p.relative_to(root).as_posix()
+            if rel not in ledgers and p.name not in ledgers:
+                msg = (f"UNREFERENCED evidence: {rel} is referenced by no ledger entry "
+                       f"(HK-10 — anchor it with a task or completion entry)")
+                rep.error(msg) if E["unreferenced"] == "error" else rep.warn(msg)
 
     # ALIAS phantom
     if L["aliases"]:

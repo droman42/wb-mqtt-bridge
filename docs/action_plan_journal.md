@@ -25,6 +25,18 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-15 — OPS-31 DONE: scope-guard re-pinned @ `scope-v6` (1.3.0) — the UNREFERENCED
+  rule.** Commons published scope-v6 (IMPL-2 / HK-10): the guard now flags any evidence doc on
+  disk that no active/DONE entry names — the fourth anchoring direction. Script-only re-pin:
+  `scripts/scope_guard.py` vendored byte-identical to the tag (1.2.0 → 1.3.0); the CLAUDE.md
+  pinned blocks are untouched because their commons *sources* (`process/claude-blocks/`) didn't
+  change between scope-v5 and scope-v6, so the `scope-v5`/`scope-v4` markers and `[claude.blocks]`
+  hashes stand. `.scope-guard.toml` gains `[evidence] unreferenced = "warn"` (the consumer
+  default; commons runs `error`) — `dirs` already had `docs/review` since OPS-24. First run
+  surfaced four pre-existing unreferenced docs (mitsubishi design, two ui/ design pages, the
+  wb-alice-bridge review) → filed **DOC-18** to reconcile/anchor them (naming them there anchors
+  them, so the guard is green now; flipping to `error` waits on DOC-18). Guard run bare: green. CI
+  `ledger-guard` comment re-truthed to scope-v6. No board delegation — consumers adopt at re-pin.
 - **2026-07-15 — UI-19 DONE: backend address via `PageProps.backends.api` (IMPL-6 intake).**
   Commons landed deployment-facts injection (workbench-v1.2): per-plugin `backends` in the
   owner-edited shell config reach pages through the loader. The plugin's pre-IMPL-6 invention —
