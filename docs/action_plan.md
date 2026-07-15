@@ -339,7 +339,12 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   breadth** — we subscribe to all 9–10 properties at once and the power-on tail re-subscribes to
   all again; evaluate trimming the monitored set to what the driver actually consumes. (openHAB
   independently uses the same 7.5 s keepalive / 2-min-retry / OFFLINE design — our watchdog
-  parameters are validated.)
+  parameters are validated.) **Driver-side scope of this lever (the library/driver boundary,
+  decided 2026-07-15):** subscription breadth is a driver decision, not the library's — (a) trim
+  `PROPERTIES_TO_MONITOR` to what the driver actually reads (audit each of the 9–10 against real
+  consumers), and (b) stop the `power_on` tail re-subscribing to the full set. The library's job
+  (LIB-1 serialization + LIB-3 sequence numbers) is to make whatever we *do* subscribe to safe and
+  loss-detectable; choosing the minimal set is ours.
 
 - [ ] **DRV-40** `[P2]` `[deferred]` — **Watchdog recovery probe needs backoff** (wedge #3 record:
   **2 455** re-subscribe cycles over 12.5 h, one every ~17 s, against a dead device —
@@ -894,29 +899,48 @@ ledger **tracks** these; the code lands in the sibling repo (its own commits/tes
 fix arrives here as a **pin bump** — a deliberate version decision, i.e. a normal task, not the
 lockfile carve-out. Mirror-image of `cross-repo-source-of-truth`: here the bridge is the consumer.
 
-- [ ] **LIB-1** `[P1]` — **controlPort reply correlation — kill the shared-queue cross-talk.** All
-  control transactions read one unkeyed `asyncio.Queue` per port (`socket_mgr.py:106-113`) and acks
-  are never matched to requests (`protocol.py:63`, tag-only check), while `Semaphore(5)`
-  (`protocol.py:28`) permits 5 concurrent transactions: coroutines steal each other's replies →
-  false timeouts → silent retries. **Observed in production** (wedge #3, 08:08:18.121: `Unexpected
-  response tag: emotivaUpdate (expected 'emotivaSubscription')`). Fix shape: route replies to their
-  transaction (match on tag + requested property set; or a dispatcher that fans control-port frames
-  to per-transaction futures); a mismatched frame must never be consumed-and-dropped by the wrong
-  waiter. Release + bridge pin bump.
+**Boundary principle (decided 2026-07-15 with the owner):** the library owns **protocol-transport
+safety** — how many control packets may be in flight, reply handling, retries, pacing, socket
+hygiene, reliable notification delivery — everything true for *any* Emotiva consumer. The **driver**
+owns **device-state semantics** — busy/readiness, which properties this product subscribes to, when
+to send, scenario pacing. Completion-awaiting ("wait for the notification, not the ack") stays
+driver-side; the library only guarantees the notification arrives.
 
-- [ ] **LIB-2** `[P1]` — **Retry-storm damping + command pacing.** Every control call silently
-  retries up to 3× (`send_command` `protocol.py:45-97`, `subscribe` `:218-296`,
-  `request_properties_full` `:130-205` — the last re-sends the WHOLE property batch when any
-  property is missing). The library's own `docs/emotiva_lib_fixes.md` names "device stuck under
-  command floods" as this unit's failure mode — the retry machinery is the amplifier (wedge #3:
-  the power-on status batch retried into the booting unit). Fix shape: make retries visible +
-  configurable per call (callers like a readiness-sensitive driver need retry=0), re-request only
-  the *missing* properties on batch retry, and offer an optional global min-inter-packet pacing
-  knob. Also (owner Q&A 2026-07-15, review annotation #2): the library forces `ack="yes"` on every
-  command (`xmlcodec.py:38-40`) though the spec makes it optional — expose `ack="no"` as a per-call
-  option, since the always-awaited ack is the retry-ladder entry point exactly when the device is
-  busy/fragile. Release + bridge pin bump; the driver's power-on tail (DRV-39) consumes the retry=0 option
-  if it keeps any post-power-on query.
+- [ ] **LIB-1** `[P1]` — **Serialize control-port transactions — one in flight at a time (subsumes
+  reply-correlation).** RESHAPED 2026-07-15 (community research: the official openHAB Emotiva binding
+  documents that "Emotiva processors have **limited processing power**, so if the binding subscribes
+  to all channels simultaneously the device might grind to a halt… requiring a manual reboot" —
+  [`emotiva_arc_community_research_2026-07-15.md`](review/emotiva_arc_community_research_2026-07-15.md)).
+  **Root:** `Semaphore(5)` (`protocol.py:28`) permits five concurrent control transactions, and all
+  of them read one unkeyed `asyncio.Queue` per port (`socket_mgr.py:106-113`) with acks matched only
+  by tag (`protocol.py:63`) — so coroutines steal each other's replies → false timeouts → silent
+  retries (observed in production, wedge #3 08:08:18.121: `Unexpected response tag: emotivaUpdate`).
+  The device cannot use the concurrency and the concurrency is what hurts it. **Fix: serialize the
+  control port** — `Semaphore(5) → 1` (or an explicit ordered transaction queue) so exactly one
+  request/response transaction (`send_command` / `subscribe` / `request_properties_full` /
+  unsubscribe) is ever outstanding. This **subsumes reply-correlation** (a single consumer of the
+  control-port queue cannot experience cross-talk) AND respects the limited-CPU load ceiling AND
+  removes the concurrent-flood path — one change, three problems. The notify port (7003, async
+  change-notifications + keepalive) is a separate socket/queue and is untouched. Public API unchanged
+  (callers still `await`; they queue instead of racing). Release + bridge pin bump.
+
+- [ ] **LIB-2** `[P1]` — **Retry-storm damping + command pacing (the second line behind LIB-1).**
+  Every control call silently retries up to 3× (`send_command` `protocol.py:45-97`, `subscribe`
+  `:218-296`, `request_properties_full` `:130-205` — the last re-sends the WHOLE property batch when
+  any property is missing). The library's own `docs/emotiva_lib_fixes.md` names "device stuck under
+  command floods" as this unit's failure mode — the retry machinery is the amplifier (wedge #3: the
+  power-on status batch retried into the booting unit). **Ordering vs LIB-1:** once the control port
+  is serialized (LIB-1), stolen-reply false timeouts largely vanish, so this is the *second* line,
+  not the first — but pacing is now a **device requirement, not a nicety**: the community research
+  confirms "limited processing power" (openHAB), so a minimum inter-packet interval is a real
+  transport property of this unit. Fix shape: make retries visible + configurable per call
+  (readiness-sensitive callers need `retry=0`), re-request only the *missing* properties on batch
+  retry, and offer the global min-inter-packet pacing knob. Also (owner Q&A 2026-07-15, review
+  annotation #2): the library forces `ack="yes"` on every command (`xmlcodec.py:38-40`) though the
+  spec makes it optional — expose `ack="no"` as a per-call option, since the always-awaited ack is
+  the retry-ladder entry point exactly when the device is busy/fragile. Release + bridge pin bump;
+  the driver's power-on tail (DRV-39) consumes the `retry=0` option if it keeps any post-power-on
+  query.
 
 - [ ] **LIB-3** `[P2]` `[deferred]` — **API + hygiene batch.** (1) Public accessor for the
   transponder's `keepAlive` interval — parsed then dropped today (`discovery.py:147-149`); the
@@ -924,9 +948,12 @@ lockfile carve-out. Mirror-image of `cross-repo-source-of-truth`: here the bridg
   current empty `<emotivaUnsubscribe>` (`controller.py:153`, `xmlcodec.py:80-92`) is a no-op per
   spec §2.1.5 ("each notification property must be unsubscribed explicitly"); requires tracking the
   subscribed set. (3) `SO_REUSEADDR` on the fixed 7002/7003 binds (`socket_mgr.py:64-67`) — rapid
-  disconnect→connect risks `address already in use`. (4) Surface notification **sequence numbers**
-  (spec §2.6, v2.0+) so consumers can detect missed notifications instead of blind full refreshes.
-  One release; bridge pin bump + driver cleanup of the `_info` getattr.
+  disconnect→connect risks `address already in use`. (4) **Surface notification sequence numbers**
+  (spec §2.6, v2.0+) — PRIORITIZED within this batch (2026-07-15): they are the protocol's proper
+  missed-notification detector and the honest alternative to the driver's blind full-refresh, so
+  they directly enable the DRV-39/DRV-32 readiness work — consider splitting this item out ahead of
+  the rest of LIB-3 if the readiness redesign needs it first. One release; bridge pin bump + driver
+  cleanup of the `_info` getattr.
 
 **The ledger & documentation reconciliation series (DOC-4…DOC-10).** Filed 2026-06-30 from two
 chat-requested analyses: (1) a comparison of this plan's former positional `P0…P4 / #n` numbering

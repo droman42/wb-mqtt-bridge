@@ -25,6 +25,20 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-15 — eMotiva fix set re-scoped on the community research: the library/driver boundary
+  drawn, LIB-1 reshaped to serialization.** Owner-approved. Principle recorded in the LIB section:
+  the **library** owns protocol-transport safety (packets-in-flight, replies, retries, pacing,
+  socket hygiene, reliable notification delivery); the **driver** owns device-state semantics
+  (busy/readiness, subscription breadth, when to send, completion-awaiting). Changes: **LIB-1**
+  reshaped from "correlate replies" to **serialize the control port** (`Semaphore(5)→1`) — the
+  openHAB "limited processing power / subscribing to all channels grinds it to a halt" finding
+  proves the device can't use concurrency, and serialization subsumes reply-correlation, respects
+  the load ceiling, and removes the concurrent-flood path in one change; **LIB-2** reframed as the
+  second line behind LIB-1 (pacing is now a device *requirement*, vendor-confirmed); **LIB-3**
+  prioritizes notification sequence numbers (they enable the readiness redesign); **DRV-39** gains
+  the explicit driver-side subscription-breadth lever (trim `PROPERTIES_TO_MONITOR`, stop the
+  power-on tail re-subscribing to all). No new tasks — the research sharpened the existing set. See
+  [`emotiva_arc_community_research_2026-07-15.md`](review/emotiva_arc_community_research_2026-07-15.md).
 - **2026-07-15 — eMotiva wedge #3 investigated: evidence frozen, seven tasks filed, LIB workstream
   born.** The 2026-07-14 08:07 wedge (startup restore of `movie_appletv` after the redeploy) is NOT
   the keep-alive/watchdog work (cleared on three counts — wedge #1 predates DRV-30; the watchdog
