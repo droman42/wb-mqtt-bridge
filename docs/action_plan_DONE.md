@@ -191,6 +191,42 @@ possible round-3.
 
 - [x] **UI-17** `[P1]` — **DONE 2026-07-14** (filed at PROD-24 intake the same day — the sprint-01 "(files at intake)" UI-surfaces row grown by the shell council; NB repo-local serial, distinct from voice's UI-17). **UI surfaces → Workbench/operations split: the bridge-side design** → [`docs/design/ui/workbench_split.md`](design/ui/workbench_split.md). **Decisions:** (1) classification consumed as ruled — `ui/` + appliance/room pages = **operations**, unchanged, the admin-route/auth-shell scope DELETED from operations; device-setup (IR learning as sidebar child) + topology-setup + voice-setup = the **Bridge plugin** under one Workbench tab (voice-setup stays under Bridge — bridge-backend surface). (2) Plugin package = new top-level `workbench-plugin/` (vite-6 **library** build → ESM dist + embedded generated API types; the shell consumes the BUILT artifact via `file:` dep, never TS sources; no imports from `ui/`; ui-kit restyle rides `ui-kit-v1`). (3) Contract-v1 mapping: static `pages()`, RU/EN bundles (device-sourced `de` data untouched — the chrome contract is RU/EN), status slot from `GET /system` + catalog version hash, `reportHook` → the live `POST /reports`, and **every config-writing verb DORMANT under the named gate `PROD-4-auth`** — rendered disabled with its gate, never hidden. (4) The **v1 read-only cut**: importer *propose* = compute endpoint (conf source dev-phase answer = paste/upload; SSH-from-backend rejected pre-PROD-4 secrets posture), topology read + dry `resolve_targets` preview, voice status + test-utterance over the existing `/canonical`; IR *capture* = existing action surfaces, only *save* waits. (5) **Staged-write API shape**: one envelope per target in `data/staged-config/` (`{target, base_sha256, content, staged_at, note}`; the `:ro` config mount enforces no-live-write structurally), `GET/PUT/DELETE /staged[/{target}]` with stage-time full-tree validation via the existing loaders (422 on failure), stale base = surfaced conflict never a merge, self-cleaning once promotion lands (live hash == proposal hash), promotion = human commit + `update.sh`; hexagonal placement presentation → app staging service → infrastructure store, **zero new import-linter exceptions**; endpoints unreachable until PROD-4's auth decision (binding condition, verbatim). **Planned-docs follow-up (same change):** all four `docs/planned/` pages re-pointed — admin-shell rows superseded (setup pages) / deleted (appliance-room, operations); device-setup + topology-setup carry "Apply stages via the controller API; promotion is a commit"; topology's live-vs-file open question ANSWERED = staging; chassis/route mentions updated — and the flow diagrams regenerated: `device-setup-flow` + `topology-setup-flow` gained the staged hop, `voice-setup` the Workbench chassis label. **Follow-ups filed:** **UI-18** (plugin package + read-only cut), **CORE-12** (staged-write API, PROD-4-gated), **DOC-17** (pre-existing planned-pages status staleness + the diagrams' old `wb-mqtt-bridge` titles — discovered, not caused). docs: diagram/device-setup-flow, diagram/topology-setup-flow, diagram/voice-setup (the planned pages themselves are not manifest nodes).
 
+- [x] **UI-18** `[P1]` — **DONE 2026-07-15** (filed at UI-17 completion; refined + unblocked at the
+  HK-11 intake the same day; design: `docs/design/ui/workbench_split.md` §2 as amended). **The
+  Bridge Workbench plugin: `workbench-plugin/` package + the read-only v1 cut, loading in the
+  commons shell.** New top-level `workbench-plugin/` (`@locveil/bridge-workbench-plugin` 0.1.0):
+  vite-6 library build → single-file ESM `dist/index.js` (17 kB) + `style.css` (plugin-run
+  Tailwind, ui-kit preset, preflight OFF) + the build-emitted fragment `dist/manifest.json`
+  (`{id: bridge, version, entry, styles[], peers}` — peers `react ^18 / react-dom ^18 /
+  react-router-dom ^6 / locveil-ui-kit ^0.1`, matching the shell's strict check); HK-11 singleton
+  set external, everything else bundled; embedded generated API types (own `gen:api-types` off
+  `backend/openapi.json`); descriptor compiles against `locveil-workbench/contract` (dev dep,
+  types only); eslint-9 flat config mirroring `ui/eslint.config.js`; no imports from `ui/`.
+  **Descriptor:** id `bridge`, RU/EN via a typed message table (plugin-local by design — no i18n
+  lib needed at this size), `status()` = `GET /system` + `GET /system/catalog` (device count +
+  catalog version; error → "нет связи"), `reportHook` → prompt + the live `POST /reports` with
+  plugin/route context. **Pages:** voice-readiness (catalog + bridge versions; canonical-command
+  test pane — device/capability/action selects fed from the catalog, params JSON, `wait` toggle →
+  `POST /devices/{id}/canonical`; hosts the controller-address setting: injected global →
+  localStorage override → `hostname:8000` fallback, the voice plugin's pattern) + device-setup
+  (device inventory from `GET /config/devices`) + topology (rooms from `GET /room/list`); every
+  config-writing verb dormant via a shared `DormantVerb` (disabled + `PROD-4-auth` chip — never
+  hidden). **Reconciliations recorded:** the design's "minimal local primitives until ui-kit-v1"
+  fallback was overtaken — ui-kit (0.1.2, in the singleton set) is consumed from day one, the
+  restyle debt never accrued; the shipped contract v1 is leaner than the design sketch (no
+  per-page `verbs`/`backendTarget` fields) — dormant verbs render in-page, the target address is
+  plugin-level per §2.2's "workbench-level configuration"; §2.2's sidebar-children idea has no
+  contract surface — Import/IR-learning render as sections of device-setup. **Registered with the
+  shell:** the bridge location added to commons `workbench.config.json` (the mount its `$comment`
+  reserved). **Verified:** plugin `npm run check` (tsc + eslint-9 type-aware, 0 problems) + build
+  green; the shell's serve path live end-to-end — `/runtime-config.json` lists the plugin,
+  `/plugins/2/manifest.json` + entry + styles all 200 with correct MIME (the IMPL-1 verification
+  bar). Honest caveat: machine checks stop at the HTTP layer + static gates — browser render and
+  live-backend page interaction are one `npm run serve` + WB7 target away. docs: none — the
+  workbench is a dev-phase workstation tool; no manifest node describes it, `workbench-plugin/**`
+  maps to no docs surface, and the package README is the consumer doc (the commons ui-kit/shell
+  precedent).
+
 ## OPS — Docker / CI-CD / deploy / ops
 
 - [x] **OPS-1** — **DONE** 2026-05-19. Deleted local + origin: backend `code_structure`, backend `feature/wb-virtual-device-emulation`, UI `code_structure`. Both repos now have only `main`.

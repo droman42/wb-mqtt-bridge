@@ -707,31 +707,6 @@ endpoint).
 
 - [ ] **UI-15** `[P2]` `[deferred]` — **Force re-tap arms non-power controls but only PowerZone buttons show the armed pulse** (REL-5 #18, PLAUSIBLE). `ui/src/components/RemoteControlLayout.tsx:1128`. Deferred — minor UX; fold the visual feel-check into the REL-3 rack pass.
 
-- [ ] **UI-18** `[P1]` — **Bridge Workbench plugin: package skeleton + the read-only v1 cut** (filed at
-  UI-17 completion, `design-then-implement`; design:
-  [`docs/design/ui/workbench_split.md`](design/ui/workbench_split.md) §2 — **§2.1 amended at the
-  HK-11 intake 2026-07-15**: runtime assembly supersedes the `file:` consumption). New top-level
-  `workbench-plugin/` (working name `@locveil/bridge-workbench-plugin`): vite-6 **library** build →
-  a **single-file ESM entry** + types + embedded generated API types (own `gen:api-types`; no
-  imports from `ui/`), with the **HK-11 singleton set external** (react, react-dom(/client),
-  react/jsx-runtime, react-router-dom **pinned major 6** — bridge ships 6.30.4 — and
-  locveil-ui-kit; resolved via the shell's import map, everything else bundles into the plugin)
-  and the **build-emitted manifest fragment** `dist/manifest.json`
-  (`{id, version, entry, styles[], peers{}, backendCompat?}`; styles as emitted CSS files the
-  shell injects; plugin build disables Tailwind preflight). The descriptor compiles against
-  **`locveil-workbench/contract`**; reference build shape = the shell's in-tree demo plugin
-  (`packages/workbench/demo-plugin`). eslint-9 flat config mirroring `ui/eslint.config.js`.
-  Contract-v1 descriptor: id `bridge`, RU/EN
-  i18n bundles, status slot fed from `GET /system` + the catalog version hash, `reportHook` → the
-  live `POST /reports`. Pages in the v1 cut: **voice-readiness** as the first real page (existing
-  read/action surfaces only — catalog version, `/canonical` test-utterance); device-setup +
-  topology-setup as shells with their **config-writing verbs dormant under the named gate
-  `PROD-4-auth`** (the deep features — WB-cell importer, graph editor — stay in their planned pages
-  and file when pulled). **Shell gate DISCHARGED at the HK-11 intake** — commons IMPL-1 (workbench
-  shell v1) is DONE 2026-07-15 and consumes exactly this build shape, so UI-18 is startable; ui-kit
-  restyle still rides `ui-kit-v1`. `config-ui-stays-functional` applies to the plugin's own
-  check/build gates.
-
 ### OPS — Docker / CI-CD / deploy / ops
 
 - [ ] **OPS-11** `[P2]` `[deferred]` — **Multi-arch images: add `linux/arm64` (aarch64, next-gen Wirenboard) alongside `linux/arm/v7`.** Filed 2026-07-02 off a chat analysis (sister-repo prompt: `locveil-voice` builds armv7 + aarch64 + standalone). **Unlike the voice repo** (per-target Dockerfiles + arch-suffixed image names, forced by per-platform ML profiles), the bridge's images are identical on both arches → use buildx **multi-platform manifests**: `platforms: linux/arm/v7,linux/arm64` in both image jobs of `.github/workflows/build-arm.yml` yields ONE manifest list per existing tag — WB7 pulls armv7, WB8 pulls arm64 from the same `ghcr.io/...:latest`; `ops/` (compose / `update.sh` / INSTALL.md flow) unchanged. **Work items:** (1) workflow: extend `platforms`, **drop the `ARCH=arm32v7` build-arg** — the Dockerfile's `${ARCH:+$ARCH/}python` prefix predates platform-aware buildx and would force the arm32 base into the arm64 leg (Dockerfile itself needs no change; `ARG ARCH=` defaults empty); (2) `ui/Dockerfile`: stage 1 → `FROM --platform=$BUILDPLATFORM node:20 AS builder` — the `dist/` bundle is arch-independent, so the ~14-min QEMU node build runs natively on the amd64 runner once and only the small nginx stage builds per-arch (bonus: the *existing* armv7 UI build should drop to ~2-3 min); (3) docs: a sentence each in `ops/INSTALL.md` + the READMEs noting the images are multi-arch. **Notes:** piwheels extra-index is armv7-only but harmless on arm64 (PyPI aarch64 cp311 wheel coverage is good — likely a faster leg than armv7); that `/etc/pip/pip.conf` is probably vestigial anyway since the image installs via `uv`, which doesn't read pip config — verify/drop while in there. WB8's Cortex-A5x could in principle run the armv7 image via AArch32 compat, but native arm64 is the clean path at ~6 lines of diff. **Verification:** QEMU build smoke in CI; real run gated on actual WB8 hardware (hence `[later]`).

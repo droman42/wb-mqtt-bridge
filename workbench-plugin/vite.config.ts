@@ -1,0 +1,67 @@
+import { defineConfig, type Plugin } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'path'
+import { writeFile } from 'node:fs/promises'
+import pkg from './package.json' with { type: 'json' }
+
+/* UI-18: the Bridge Workbench plugin (HK-11 runtime assembly) — an ESM library with
+   the frozen singleton set external (the shell serves those via its import map) plus
+   a build-emitted manifest fragment. The shell owns chrome, router, tokens and
+   preflight; design: docs/design/ui/workbench_split.md §2. */
+
+const SINGLETONS = [
+  'react',
+  'react-dom',
+  'react-dom/client',
+  'react/jsx-runtime',
+  'react-router-dom',
+  'locveil-ui-kit',
+]
+
+/** Peer majors the shell refuses-and-surfaces on (contract: ManifestFragment.peers). */
+const PEERS = {
+  react: '^18',
+  'react-dom': '^18',
+  'react-router-dom': '^6',
+  'locveil-ui-kit': '^0.1',
+}
+
+function emitManifestFragment(): Plugin {
+  return {
+    name: 'bridge-manifest-fragment',
+    async writeBundle() {
+      const fragment = {
+        id: 'bridge',
+        version: pkg.version,
+        entry: './index.js',
+        styles: ['./style.css'],
+        peers: PEERS,
+      }
+      await writeFile(
+        path.resolve(__dirname, 'dist/manifest.json'),
+        JSON.stringify(fragment, null, 2) + '\n'
+      )
+    },
+  }
+}
+
+export default defineConfig({
+  plugins: [react(), emitManifestFragment()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+  build: {
+    lib: {
+      entry: path.resolve(__dirname, 'src/plugin.tsx'),
+      formats: ['es'],
+      fileName: () => 'index.js',
+      cssFileName: 'style',
+    },
+    rollupOptions: {
+      external: SINGLETONS,
+    },
+    sourcemap: true,
+  },
+})

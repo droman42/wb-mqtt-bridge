@@ -25,6 +25,18 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-15 — UI-18 DONE: the Bridge Workbench plugin ships and loads in the shell.** New
+  top-level `workbench-plugin/` built to the HK-11 shape: single-file ESM entry (17 kB) with the
+  singleton set external, plugin-run Tailwind css (preflight off), build-emitted
+  `dist/manifest.json`, embedded generated API types, eslint-9 mirror of `ui/`. Descriptor: id
+  `bridge`, RU/EN typed message table, status slot (`/system` + catalog version), reportHook →
+  live `POST /reports`. Pages: voice-readiness (canonical test pane over the catalog vocabulary +
+  the controller-address override), device-setup (inventory), topology (rooms) — all writes
+  dormant behind `PROD-4-auth` chips. Registered in commons `workbench.config.json` (the reserved
+  mount); verified over the shell's serve: runtime-config lists it, fragment/entry/styles 200.
+  Notable reconciliations: ui-kit consumed from day one (the "local primitives until ui-kit-v1"
+  fallback expired unused); dormant verbs render in-page (contract v1 has no verb surface);
+  browser-render E2E deliberately left to the owner's first `npm run serve` against the WB7.
 - **2026-07-15 — HK-11 intake: UI-18 confirmed + refined (runtime assembly), shell gate discharged.**
   Board delegation pulled from council HK-11 (Workbench runtime assembly = native ESM + import
   map; `BOARD_DONE.md`). As the entry predicted, no new ID — the refinement is absorbed into the
