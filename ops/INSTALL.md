@@ -256,6 +256,27 @@ restore `:latest` and `update.sh` again.
 
 ---
 
+## Full protocol forensics (temporary, for diagnosing device incidents)
+
+Production logging runs at `INFO` with the `pymotivaxmc2` library pinned to
+`WARNING` — quiet on purpose. Device *transitions* that matter for diagnosing an
+incident (eMotiva power, zone-2 power, and input/ARC changes) are always logged
+at `INFO`, so a normal log already shows what the device did. When you need the
+full UDP-level picture (every packet sent and received), flip it on temporarily:
+
+1. In the runtime tree, edit `config/system.json`:
+   - set `"log_level": "DEBUG"`, and
+   - in the `loggers` map, remove (or raise) the `"pymotivaxmc2": "WARNING"` pin.
+2. `sudo systemctl restart locveil-bridge.service`.
+3. Reproduce the incident, copy the log, then **revert both edits and restart** —
+   full DEBUG writes on the order of 20 MB/day and is not meant to stay on.
+
+Note: the runtime `config/` tree is synced from the repo by `update.sh`, so a
+later update reverts these edits automatically — convenient for forensics,
+but also the reason to treat the flip as strictly temporary.
+
+---
+
 ## What replaced what
 
 | Old (docker_manager flow) | New (compose flow) |

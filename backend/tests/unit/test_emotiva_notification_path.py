@@ -550,3 +550,40 @@ def test_keepalive_beats_emit_no_log_lines(device: EMotivaXMC2, caplog):
 
         device._handle_property_change("volume", None, "-30.0")
         assert any("volume" in r.message for r in caplog.records)
+
+
+def test_forensic_transitions_survive_info(device: EMotivaXMC2, caplog):
+    """OPS-29: power / zone2_power / input-source transitions log at INFO — the
+    fresh-'arc' claim is the readiness gate's trigger and was invisible at the
+    2026-07-14 wedge (root INFO + library WARNING). keepAlive stays silent and
+    non-transitions (same value) stay quiet."""
+    import logging as _logging
+
+    with caplog.at_level(_logging.INFO,
+                         logger="locveil_bridge.infrastructure.devices.emotiva_xmc2.driver"):
+        # A real source transition (the ARC-grab shape) is INFO-visible
+        caplog.clear()
+        device._handle_property_change("source", None, "HDMI 2")
+        assert any("input_source" in r.message and "device-reported" in r.message
+                   for r in caplog.records if r.levelno == _logging.INFO)
+
+        # Same value again -> no transition, no INFO line
+        caplog.clear()
+        device._handle_property_change("source", None, "HDMI 2")
+        assert not any("device-reported" in r.message for r in caplog.records)
+
+        # Power transition is INFO-visible
+        caplog.clear()
+        device._handle_property_change("power", None, "On")
+        assert any("power" in r.message and "device-reported" in r.message
+                   for r in caplog.records if r.levelno == _logging.INFO)
+
+        # keepAlive beats remain fully silent at INFO too
+        caplog.clear()
+        device._handle_property_change("keepalive", None, "7500")
+        assert caplog.records == []
+
+        # Non-forensic properties (volume) do NOT gain INFO lines
+        caplog.clear()
+        device._handle_property_change("volume", None, "-25.0")
+        assert not any(r.levelno == _logging.INFO for r in caplog.records)

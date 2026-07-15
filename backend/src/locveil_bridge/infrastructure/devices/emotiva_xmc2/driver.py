@@ -432,6 +432,25 @@ class EMotivaXMC2(BaseDevice[EmotivaXMC2State]):
         elif property_name == "selected_mode":  # Changed from "audio_mode"
             updates["audio_mode"] = new_value
             
+        # OPS-29: the load-bearing transitions must survive INFO. The fresh-'arc'
+        # claim is the readiness gate's trigger condition and power transitions
+        # frame every fatal-window incident — both were invisible at the
+        # 2026-07-14 wedge (root INFO + library pinned to WARNING). These are
+        # rare events (a handful per scenario switch); keepAlive stays silent.
+        _forensic_fields = {
+            "power": "power",
+            "zone2_power": "zone2_power",
+            "source": "input_source",
+        }
+        state_field = _forensic_fields.get(property_name)
+        if state_field is not None and state_field in updates:
+            old = getattr(self.state, state_field)
+            new = updates[state_field]
+            if old != new:
+                logger.info(
+                    f"{self.get_name()}: {state_field} {old} -> {new} (device-reported)"
+                )
+
         # Apply state updates if any
         if updates:
             # DEBUG: Log state updates triggered by property changes
