@@ -709,18 +709,28 @@ endpoint).
 
 - [ ] **UI-18** `[P1]` — **Bridge Workbench plugin: package skeleton + the read-only v1 cut** (filed at
   UI-17 completion, `design-then-implement`; design:
-  [`docs/design/ui/workbench_split.md`](design/ui/workbench_split.md) §2). New top-level
+  [`docs/design/ui/workbench_split.md`](design/ui/workbench_split.md) §2 — **§2.1 amended at the
+  HK-11 intake 2026-07-15**: runtime assembly supersedes the `file:` consumption). New top-level
   `workbench-plugin/` (working name `@locveil/bridge-workbench-plugin`): vite-6 **library** build →
-  ESM dist + types + embedded generated API types (own `gen:api-types`; no imports from `ui/`);
-  eslint-9 flat config mirroring `ui/eslint.config.js`. Contract-v1 descriptor: id `bridge`, RU/EN
+  a **single-file ESM entry** + types + embedded generated API types (own `gen:api-types`; no
+  imports from `ui/`), with the **HK-11 singleton set external** (react, react-dom(/client),
+  react/jsx-runtime, react-router-dom **pinned major 6** — bridge ships 6.30.4 — and
+  locveil-ui-kit; resolved via the shell's import map, everything else bundles into the plugin)
+  and the **build-emitted manifest fragment** `dist/manifest.json`
+  (`{id, version, entry, styles[], peers{}, backendCompat?}`; styles as emitted CSS files the
+  shell injects; plugin build disables Tailwind preflight). The descriptor compiles against
+  **`locveil-workbench/contract`**; reference build shape = the shell's in-tree demo plugin
+  (`packages/workbench/demo-plugin`). eslint-9 flat config mirroring `ui/eslint.config.js`.
+  Contract-v1 descriptor: id `bridge`, RU/EN
   i18n bundles, status slot fed from `GET /system` + the catalog version hash, `reportHook` → the
   live `POST /reports`. Pages in the v1 cut: **voice-readiness** as the first real page (existing
   read/action surfaces only — catalog version, `/canonical` test-utterance); device-setup +
   topology-setup as shells with their **config-writing verbs dormant under the named gate
   `PROD-4-auth`** (the deep features — WB-cell importer, graph editor — stay in their planned pages
-  and file when pulled). **Gated on** the commons workbench shell existing to consume the built
-  artifact (the shell + the first two plugins co-develop; PROD-10 rule); ui-kit restyle rides
-  `ui-kit-v1`. `config-ui-stays-functional` applies to the plugin's own check/build gates.
+  and file when pulled). **Shell gate DISCHARGED at the HK-11 intake** — commons IMPL-1 (workbench
+  shell v1) is DONE 2026-07-15 and consumes exactly this build shape, so UI-18 is startable; ui-kit
+  restyle still rides `ui-kit-v1`. `config-ui-stays-functional` applies to the plugin's own
+  check/build gates.
 
 ### OPS — Docker / CI-CD / deploy / ops
 

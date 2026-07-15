@@ -1,6 +1,7 @@
 # Bridge UI surfaces under the Workbench split (UI-17)
 
-**Status: design, 2026-07-14 (UI-17).** The bridge-side rendering of the PROD-24 shell
+**Status: design, 2026-07-14 (UI-17); §2.1 amended 2026-07-15 per council HK-11
+(runtime assembly).** The bridge-side rendering of the PROD-24 shell
 council. Normative upstream, in precedence order: the **PROD-24 entry** in
 `../locveil-commons/board/BOARD.md` (the decision record) → commons
 **`docs/design/workbench.md`** (the deploy-split design) → this document (bridge
@@ -35,17 +36,38 @@ their *write path* (§3); it does not re-litigate their content.
   the plugin is workstation-side code with a different consumer (the commons shell)
   and a different release cadence. Working package name:
   `@locveil/bridge-workbench-plugin`.
-- **Build: vite 6 library mode** → ESM `dist/` + type declarations. The toolchain is
-  the one OPS-13 just landed (eslint-9 flat config as the shared target; vite majors
-  are per-consumer — bridge is on 6). The flat-config file is shared or mirrored from
-  `ui/eslint.config.js`; drift between the two is a lint-config bug.
+- **Build: vite 6 library mode** → a **single-file ESM entry** in `dist/` (one
+  `entry` for the shell's dynamic import) with the **HK-11 singleton set external**:
+  `react`, `react-dom(/client)`, `react/jsx-runtime`, `react-router-dom` (**pinned
+  major 6** — the bridge ships 6.30.4 today) and `locveil-ui-kit` resolve through
+  the shell's import map; everything else bundles into the plugin (i18n is a
+  plugin-local instance driven by the shell's locale signal). CSS is emitted as
+  files listed in the fragment's `styles[]` — the shell owns inject/remove and
+  loads the single Tailwind preflight, so the plugin build disables preflight.
+  The build also **emits the manifest fragment** `dist/manifest.json`
+  (`{id, version, entry, styles[], peers{}, backendCompat?}`, schema versioned
+  `workbench-vX`) — build-emitted by this repo, never hand-written into commons.
+  Reference shape: the shell's in-tree demo plugin
+  (`../locveil-commons/packages/workbench/demo-plugin` + `scripts/build-demo.mjs`).
+  The toolchain is the one OPS-13 just landed (eslint-9 flat config as the shared
+  target; vite majors are per-consumer — bridge is on 6, and per HK-11 the boundary
+  is runtime ESM, bundler-blind: tools are never contractual). The flat-config file
+  is shared or mirrored from `ui/eslint.config.js`; drift between the two is a
+  lint-config bug.
 - **Generated API types are embedded.** The plugin runs its own
   `gen:api-types` against `backend/openapi.json` and ships the generated types inside
   `dist/` — the openapi generator stays repo-side and the shell never sees a schema
   (`cross-repo-source-of-truth`; workbench.md §4 rules).
-- **Consumption**: the commons workbench takes a `file:` dependency on this package's
-  **built** `dist/` — never on TS sources. Final distribution (registry, pinning) is
-  deferred to the productization step (workbench.md §4).
+- **Consumption — RUNTIME ASSEMBLY (amended by council HK-11, 2026-07-15; supersedes
+  the build-time `file:` dependency this bullet originally specified).** The shell
+  dynamically imports the plugin's **built** `dist/` at runtime (native ESM behind
+  the shell-served import map — never TS sources); the shell's owner-edited config
+  lists the **location only** (dev-phase: the sibling `dist/` path). The descriptor
+  compiles against **`locveil-workbench/contract`** (the shipped shell's types-only
+  export). **Peer mismatch = strict refuse-and-surface**: a plugin whose `peers`
+  disagree with the shell's singleton majors does not load, and the shell names the
+  disagreement — never warn-and-load. Final distribution (published URLs, pinning)
+  stays deferred to the productization step (workbench.md §4).
 - **Components**: built on ui-kit tokens/components once `ui-kit-v1` exists (PROD-10).
   Until then the plugin uses minimal local primitives; the restyle-on-ui-kit debt is
   accepted and tracked by the adoption plan (§7).

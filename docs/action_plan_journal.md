@@ -25,6 +25,18 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-15 — HK-11 intake: UI-18 confirmed + refined (runtime assembly), shell gate discharged.**
+  Board delegation pulled from council HK-11 (Workbench runtime assembly = native ESM + import
+  map; `BOARD_DONE.md`). As the entry predicted, no new ID — the refinement is absorbed into the
+  already-filed UI-18: the plugin build gains the HK-11 shape (single-file ESM entry; singleton
+  set external — react/react-dom(/client)/jsx-runtime/react-router-dom pinned major 6 +
+  locveil-ui-kit — via the shell's import map; build-emitted `dist/manifest.json` fragment with
+  styles the shell injects; descriptor compiles against `locveil-workbench/contract`; reference =
+  the shell's in-tree demo plugin). `workbench_split.md` §2.1 amended same change: the build-time
+  `file:` consumption bullet superseded by runtime assembly + strict refuse-and-surface on peer
+  mismatch. Reconciliation finding beyond the delegation text: commons IMPL-1 (shell v1) is DONE
+  2026-07-15 — UI-18's "shell exists" gate is discharged, the task is startable (sprint-02
+  candidate). UI-18 written back to the HK-11 board entry as confirmed.
 - **2026-07-15 — OPS-30 DONE: contract-guard CI job fetches tags.** The first manual image-build
   dispatch since OPS-27 forced the contract-guard gate to run and it failed with three
   `TAG-MISSING` violations — a CI-environment false alarm, not a contracts problem: all three
