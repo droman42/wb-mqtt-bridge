@@ -707,6 +707,46 @@ endpoint).
 
 - [ ] **UI-15** `[P2]` `[deferred]` — **Force re-tap arms non-power controls but only PowerZone buttons show the armed pulse** (REL-5 #18, PLAUSIBLE). `ui/src/components/RemoteControlLayout.tsx:1128`. Deferred — minor UX; fold the visual feel-check into the REL-3 rack pass.
 
+- [ ] **UI-20** `[P1]` `[release]` — **A configured device whose driver never loads is shown by some
+  surfaces and denied by others — decide the invariant, then make every surface obey it** (board
+  PROD-8 council decision 3, filed at intake 2026-07-16; the council ruled this is a SEPARATE bridge
+  task and **never a rider on CORE-7**). Verified at filing — the surface isn't split two ways but
+  **three**:
+  - **Raw-config surfaces show it:** `GET /config/devices` / `/config/device/{id}`
+    (`presentation/api/routers/devices.py:135-182` ← `config_manager.get_all_typed_configs()`); the UI
+    nav dropdown with **no room selected** (`ui/src/hooks/useDataSync.ts:48-78` is the only populator of
+    `useRoomStore.devices`, straight from config — `useRoomStore.ts:104-105`); HomePage counts
+    (`HomePage.tsx:55-56`); workbench Device Setup lists it as a healthy configured device
+    (`workbench-plugin/src/pages/DeviceSetupPage.tsx:26`).
+  - **Loaded-driver surfaces deny it:** it is absent from `/system` + `/system/catalog`
+    (`presentation/api/catalog.py:305-319`); `/devices/{id}/layout`, `/devices/{id}/state`,
+    `/devices/{id}/options/{kind}`, `POST /devices/{id}/canonical` all **404**; and — a nuance the
+    board's wording missed — **room membership is a loaded-driver surface too** since the 2026-06-08
+    refactor (`domain/rooms/service.py:203-240` derives `room.devices` by walking
+    `DeviceManager.devices`; any `devices` field in `rooms.json` is stripped at `service.py:78-81`), so
+    the device *vanishes* the moment a room is selected (`useRoomStore.ts:116-118`).
+  - **A third brain:** `GET /devices/{id}/persisted_state` (`presentation/api/routers/state.py:75-92`)
+    reads the state store keyed `device:{id}` and **never touches the registry** — it answers **200
+    with a stale snapshot** for a device the rest of the runtime says does not exist.
+
+  **Root cause:** `DeviceManager.initialize_devices` logs and skips a device whose class won't load
+  (`domain/devices/service.py:116-120`) — no status is retained or surfaced, so the only signal is a
+  backend `logger.error`. Note the deliberate contrast at `service.py:154-183`: a device whose
+  *setup()* fails IS kept registered. "Driver missing" and "device offline" are handled by opposite
+  policies today. `ConfigManager` never resolves `device_class` at all — the only function that would
+  have (`infrastructure/config/validation.py:67-97`) is dead (see CORE-7's fold), so there is **no
+  startup gate**.
+  **User-visible today:** clicking the device from the unfiltered nav dropdown is a **dead link**
+  ("Layout unavailable", `RuntimeDevicePage.tsx:145-150`); HomePage renders total-vs-filtered counts
+  that disagree with no explanation; the state panel shows "Error loading device state".
+  **Scope:** decide the invariant the council left open — **suppress** (no driver → the device is
+  absent from config pages, nav and workbench too) **vs surface** (it is shown everywhere, explicitly
+  marked unavailable with the reason) — then make all three brains obey it, `persisted_state`
+  included. `design-then-implement` applies if the verdict turns out to need a **catalog-contract
+  change** (a golden/openapi cut binds voice — batch it, never two cuts); a suppress-only verdict is
+  plausibly presentation + a startup gate and may not. `config-ui-stays-functional` gates apply
+  (`cd ui && npm run check && npm run build`).
+
 ### OPS — Docker / CI-CD / deploy / ops
 
 - [ ] **OPS-11** `[P2]` `[deferred]` — **Multi-arch images: add `linux/arm64` (aarch64, next-gen Wirenboard) alongside `linux/arm/v7`.** Filed 2026-07-02 off a chat analysis (sister-repo prompt: `locveil-voice` builds armv7 + aarch64 + standalone). **Unlike the voice repo** (per-target Dockerfiles + arch-suffixed image names, forced by per-platform ML profiles), the bridge's images are identical on both arches → use buildx **multi-platform manifests**: `platforms: linux/arm/v7,linux/arm64` in both image jobs of `.github/workflows/build-arm.yml` yields ONE manifest list per existing tag — WB7 pulls armv7, WB8 pulls arm64 from the same `ghcr.io/...:latest`; `ops/` (compose / `update.sh` / INSTALL.md flow) unchanged. **Work items:** (1) workflow: extend `platforms`, **drop the `ARCH=arm32v7` build-arg** — the Dockerfile's `${ARCH:+$ARCH/}python` prefix predates platform-aware buildx and would force the arm32 base into the arm64 leg (Dockerfile itself needs no change; `ARG ARCH=` defaults empty); (2) `ui/Dockerfile`: stage 1 → `FROM --platform=$BUILDPLATFORM node:20 AS builder` — the `dist/` bundle is arch-independent, so the ~14-min QEMU node build runs natively on the amd64 runner once and only the small nginx stage builds per-arch (bonus: the *existing* armv7 UI build should drop to ~2-3 min); (3) docs: a sentence each in `ops/INSTALL.md` + the READMEs noting the images are multi-arch. **Notes:** piwheels extra-index is armv7-only but harmless on arm64 (PyPI aarch64 cp311 wheel coverage is good — likely a faster leg than armv7); that `/etc/pip/pip.conf` is probably vestigial anyway since the image installs via `uv`, which doesn't read pip config — verify/drop while in there. WB8's Cortex-A5x could in principle run the armv7 image via AArch32 compat, but native arm64 is the clean path at ~6 lines of diff. **Verification:** QEMU build smoke in CI; real run gated on actual WB8 hardware (hence `[later]`).
@@ -781,14 +821,31 @@ endpoint).
   `device-test <id> <command>` is a wanted future eval CLI surface (needs MQTT). Post-release: the
   DRV-1/SCN rack passes run off the UI + eval suite; this tool is a developer convenience, not a gate.
 
-- [ ] **CORE-7** `[P2]` `[deferred]` — **Adopt the shared dynamic code loader from
-  `locveil-commons/packages/core-py`** (INTAKE — filed uncommitted 2026-07-08, joint productization
-  session; verify before accepting). The user wants the voice repo's loader pattern for the bridge
-  (driver/module loading). Gated on the voice-side extraction design (their ARCH-42) + the core-py
-  package existing (voice BUILD-21). At task start: reconcile against the bridge's actual loading
-  needs (driver classes are wired via config `class` names today) and verify the extracted surface
-  fits the hexagon — loader = infrastructure concern behind a port, no new cross-layer imports
-  (`hexagonal-architecture`). Design: `docs/design/productization_bridge.md` §2, shared spec D-8.
+- [ ] **CORE-7** `[P2]` `[deferred]` — **Adopt the shared entry-point-group registry from
+  `locveil-commons/packages/core-py`** (filed 2026-07-08; **reconciled + scope narrowed at intake
+  2026-07-16 to the board PROD-8 council decisions** — 2 rounds, keepers voice+bridge). **Gate:
+  PROD-8 / `packages/core-py` exists** (was "voice BUILD-21" — stale, corrected by the council;
+  the skeleton is cut only AFTER voice's ARCH-50 + ARCH-42 land, so the surface is known first).
+  **Scope (council decision 1 — the shared loader is the entry-point-group registry ONLY, the
+  genuine rule-of-two leaf):** swap the bridge's driver-axis discovery over to the core-py registry.
+  The bridge is consumer #2 (voice is #1, its `DynamicLoader` engine is the extraction source);
+  today the driver axis is the `locveil_bridge.devices` entry-point group, 9 drivers
+  (`backend/pyproject.toml:98-107`), consumed at `domain/devices/service.py:51-52`.
+  **Explicitly OUT of scope:**
+  - The **by-name config resolver stays bridge-side** — `utils/class_loader.py` is not extracted and
+    not replaced; each auxiliary graduates to core-py only on its own second consumer.
+  - **No config→entry-point unification** (council decision 2 — "config-based driver loading" means
+    unify *resolution*, keep entry points). Replacing entry points with runtime config-path discovery
+    is **REJECTED**: it breaks the offline catalog generator (`dump_catalog`) that builds the
+    voice-pinned golden without loading a single driver. This stays a **self-contained infra swap —
+    no catalog-contract bump, no golden drift**.
+  - The **UI/panel driver-availability gating is UI-20**, never a rider here (council decision 3).
+  **Binding conditions:** loader lives in `utils/` or behind a port — **never `domain/`**; **zero new
+  import-linter exceptions** (`hexagonal-architecture` — verify `lint-imports` before commit).
+  **Fold in (verified dead at intake):** `infrastructure/config/validation.py:67-97`
+  (`validate_class_references`, containing the pre-HK-8 `"devices."` / `"app.schemas."` prefixes at
+  `:89`/`:94`) has **zero call sites** — `validate_device_configs` never calls it. Remove it with the
+  swap. Design: `docs/design/productization_bridge.md` §2, shared spec D-8; board PROD-8.
 
 - [ ] **CORE-8** `[P1]` `[deferred]` — **Broker/device secret handling — out of config, off the wire, out of the logs** (REL-5 #1 (P0), #4/#5, #9, #12; `docs/review/rel5_pretag_review.md`). **Deferred to productization by user decision 2026-07-09** — proper secrets management + any API auth is product-shaped, and the house is on a trusted LAN. Scope: **(#1)** drop `auth` from `system.json` (env-only) and mask/drop `auth` in the `/config/system` + `/system` presentation DTOs (`system.py`, reuse `redact_mapping`) — today the broker password is served unauthenticated on the LAN; **(#12)** FIX the dead `_apply_environment_variables` (`config/manager.py:289` — `MQTT_BROKER_HOST/USERNAME/PASSWORD` overrides never take effect, which also unblocks the env-only path above); **(#4/#5)** stop logging the raw `broker_config` (`mqtt/client.py:18`); **(#9)** stop logging the LG WebOS `client_key` (`lg_tv/driver.py:904`). NB: rotating the currently-committed broker password is a separate near-term user op (the value is in git history) — recommended regardless of when this code work lands.
 

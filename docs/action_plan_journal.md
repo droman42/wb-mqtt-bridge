@@ -28,6 +28,42 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-16 — PROD-8 delegation consumed: CORE-7 reconciled + narrowed, UI-20 filed at intake.**
+  Pulled the board's PROD-8 entry (core-py bootstrap + first two extractions, COUNCIL-DECIDED
+  2026-07-16, 2 rounds). Both bridge delegations executed; every claim verified against live code
+  first per `task-start-reconciliation`.
+  **CORE-7 — verdict (d) scope drifted → redefined** (owner consulted + accepted the narrowing
+  before the edit, per the dialect's STOP rule). Confirmed stale: the entry gated on **"voice
+  BUILD-21"**, which the council replaced with **"PROD-8 / core-py exists"** (skeleton cut only after
+  voice's ARCH-50 + ARCH-42 land). Scope narrowed to council decision 1 — the shared loader is the
+  **entry-point-group registry only**; the by-name config resolver (`utils/class_loader.py`) stays
+  bridge-side; voice's `EntryPointMetadata` quartet stays voice-side. Council decision 2 recorded as
+  a rejection with its reason: no config→entry-point unification, because runtime config-path
+  discovery breaks the offline `dump_catalog` generator that builds the voice-pinned golden without
+  loading a driver — so CORE-7 stays a self-contained infra swap, **no catalog-contract bump**.
+  Verified live: the driver axis is the `locveil_bridge.devices` group, 9 drivers
+  (`backend/pyproject.toml:98-107`), consumed at `domain/devices/service.py:51-52`.
+  **Dead-code fold verified, not taken on faith:** `infrastructure/config/validation.py:67-97`
+  (`validate_class_references`, pre-HK-8 `"devices."`/`"app.schemas."` prefixes at the board's cited
+  `:89`/`:94`) has **zero call sites** — `validate_device_configs` never calls it, so `device_class`
+  is never validated at startup at all. Folded into CORE-7 for removal with the swap.
+  **UI-20 filed `[P1]` `[release]`** (council decision 3 — a SEPARATE task, never a rider on CORE-7).
+  Intake verification found the board's "split-brained" wording **understated**: the surface is
+  **three**-brained, not two. Raw-config surfaces show a configured-but-unloaded device
+  (`/config/devices`, the nav dropdown with no room selected, workbench Device Setup lists it as
+  healthy); loaded-driver surfaces deny it (catalog, layout/state/options/canonical all 404) — and
+  **room membership is a loaded-driver surface too** since the 2026-06-08 refactor
+  (`domain/rooms/service.py:203-240` derives `room.devices` by walking `DeviceManager.devices`), a
+  nuance the board's wording missed, so the device vanishes the moment a room is selected. The third
+  brain: `GET /devices/{id}/persisted_state` (`routers/state.py:75-92`) reads the store directly and
+  answers **200 with a stale snapshot** for a device the rest of the runtime denies exists. Root
+  cause: `service.py:116-120` logs and skips, retaining no status — the deliberate opposite of the
+  setup()-failure policy at `service.py:154-183`, which keeps the device registered. User-visible:
+  dead link from the unfiltered nav dropdown ("Layout unavailable"), HomePage total-vs-filtered
+  counts disagreeing unexplained. UI-20 owns the suppress-vs-surface verdict the council left open.
+  Board write-back: lead ID **CORE-7** + **UI-20**. docs: none — ledger-only intake, no behavior
+  change (UI-20's own docs verdict lands with its fix).
+
 - **2026-07-15 — DOC-18 DONE: the four unreferenced evidence docs reconciled — two anchored,
   two retired.** Scope-v6's UNREFERENCED rule (OPS-31) flagged four docs no ledger entry named.
   Verified each against the tree: **kept + anchored** `docs/design/conditioner/mitsubishi.md`
