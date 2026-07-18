@@ -80,6 +80,8 @@ jobs:
               - 'contracts/**'
               - 'scripts/contract_guard.py'
               - '.contract-guard.toml'
+              - 'scripts/repin.py'
+              - '.repin.toml'
               - '.github/workflows/build-arm.yml'
 
   # --------------------------------------------------- fast checks (gated) ---
@@ -120,6 +122,11 @@ jobs:
       - name: Fetch tags
         run: git fetch --tags --depth=1 origin
       - run: python3 scripts/contract_guard.py --check
+      # HK-12 §5 ordinary-CI severity (OPS-33): pin/tool staleness fails only on a
+      # MAJOR family gap or a never-pinned declared family. Remote-first tokenless
+      # ls-remote (org repos are public); release flows run --fail-on any manually.
+      - name: Pin staleness (repin, vendored at repin-v1)
+        run: python3 scripts/repin.py --check --fail-on major
 
   backend-test:
     name: Backend tests (amd64)

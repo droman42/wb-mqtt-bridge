@@ -6,4 +6,8 @@
 python3 scripts/scope_guard.py --config .scope-guard.toml || exit 1
 # --relax-tags: HK-12 mid-bump tolerance — a bump commit cannot carry its own tag, so
 # TAG-MISSING/ORPHAN-TAG warn locally; CI runs strict and the pushed tag satisfies it.
-exec python3 scripts/contract_guard.py --check --relax-tags
+python3 scripts/contract_guard.py --check --relax-tags || exit 1
+# HK-12 §5 pre-commit stage: staleness WARNS here, never blocks (fail-on none; the
+# trailing || true also covers a missing/broken config — a hook must not brick commits).
+python3 scripts/repin.py --check --fail-on none || true
+exit 0

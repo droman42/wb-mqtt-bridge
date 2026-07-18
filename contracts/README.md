@@ -26,4 +26,7 @@ vendored `scripts/scope_guard.py`, enforced by the sha256 block rules in
 
 Layer-1 coherence (layout, stamps, pin hashes) is checked by the vendored
 contract-guard; layer-2 conformance lives in the named tests above, inside the
-normal backend suite.
+normal backend suite. Pin staleness is watched by the vendored repin tool
+(config: `.repin.toml`, which also tracks the vendored guard scripts' own pinned
+tags) — a warning at commit time, a major-gap gate in CI; a pin moves only by a
+deliberate re-pin, never by hand-edit or auto-fetch.

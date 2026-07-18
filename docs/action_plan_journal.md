@@ -28,6 +28,13 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-18 — OPS-33: repin adopted @ repin-v1.** `scripts/repin.py` vendored; `.repin.toml`
+  born as the family registry — report-protocol (the one consumed pin) + the `[[tool]]` manifest
+  rows for all three vendored guards. Pre-commit warns, ordinary CI gates on major-gap, release
+  flows run `--fail-on any` by hand. First full-strictness run all green: the pin and all three
+  tools are at their owners' newest tags. The workbench family joins at the next commons workbench
+  bump (machine schemas owed there first). Registry README now teaches the staleness lane.
+
 - **2026-07-18 — OPS-32: the HK-12 guard + block sweep landed (one commit).** scope-guard
   re-vendored @ scope-v7.1 (contracts-verdict + unknown-prefix), contract-guard @ contract-guard-v3
   (ORPHAN-TAG / CONTENT-DRIFT / VENDORABLE-UNREGISTERED / --relax-tags), `.contract-guard.toml`

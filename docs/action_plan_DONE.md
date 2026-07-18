@@ -426,6 +426,28 @@ possible round-3.
   block FIRST CONSUMED (pinned into CLAUDE.md + hashed); the `[[tool]]` manifest rows recording
   these tags land with OPS-33's `.repin.toml`.
 
+- [x] **OPS-33** `[P1]` — **DONE 2026-07-18** (filed + executed same day; PROD-26 bridge
+  delegation (2), sequenced after OPS-32 so the manifest records the post-sweep tags). **repin
+  adopted @ `repin-v1` — `.repin.toml` becomes the family registry.** **(a)**
+  `scripts/repin.py` vendored byte-identical to the commons tag (registry-keyed newest-tag
+  parser, fetch-at-tag + sha256 + PIN.json writer, remote-first tokenless `ls-remote` with
+  offline sibling fallback). **(b)** `.repin.toml`: family **`report-protocol`** (owner
+  locveil-commons; dest `contracts/pins/report-protocol`, conformance
+  `backend/tests/unit/test_report_protocol_pin.py`) + the `[[tool]]` vendored-tools manifest
+  (scope-guard @ scope-v7.1, contract-guard @ contract-guard-v3, repin @ repin-v1 — the
+  tag↔vendored-copy relationship stops living in prose). Owned families (catalog,
+  device-integration, docs-manifest) deliberately absent — repin tracks consumption. The
+  **workbench** family joins when commons ships its machine schemas at the next workbench bump
+  (declared now it would nag never-pinned on prose-only artifacts; recorded in the config
+  header). **(c)** `hooks/pre-commit` warn stage (`--check --fail-on none || true` — offline-safe,
+  never bricks a commit). **(d)** Ordinary CI: a `--fail-on major` step in the contract-guard job
+  (§5 ladder); `scripts/repin.py` + `.repin.toml` join the contracts path filter; release flows
+  run `--fail-on any` manually (no standing release workflow to wire yet). **(e)** First
+  `--check --fail-on any` run: ALL GREEN — report-protocol current @ v1, all three tools current
+  at their pinned tags. docs: contracts-registry (staleness paragraph added to the registry
+  README, same change). contracts: repin FIRST CONSUMED as a vendored tool @ repin-v1;
+  `.repin.toml` becomes the family registry (no pin content moved — everything verified current).
+
 ## CORE — Backend core / architecture
 
 - [x] **CORE-2** `[P1]` — **DONE 2026-07-04** (filed + executed same day; the acceptance-gate item-4 dead-code sweep, scoped against live code). **Removed:** the legacy imperative scenario path — `Scenario.initialize/execute_startup_sequence/execute_shutdown_sequence`, the shared-device `switch_scenario` legacy branch, the string-condition evaluator (`_evaluate_condition`/`_safe_evaluate_condition`/`_parse_condition_value`), `_validate_parameters` + the sequence/condition validators, `_is_power_command` (~330 lines out of `scenario.py`); the **`WB_SCENARIO_RECONCILER` kill-switch** (`switch_scenario`/`deactivate` are reconciler-only now; the already-active early return aligned to the reconciler result shape `{success, powered_off, failures}` — no consumer read the old keys); the **`CommandStep` model + `ScenarioDefinition.startup_sequence`/`shutdown_sequence` fields** (contract regenerated: `openapi.json` −76 lines, `CommandStep` schema gone; UI types regenerated, dead `CommandStep` alias dropped from `ui/src/types/api.ts`; `npm run check` + build green); the **vestigial `DeviceState.output`** field (scenarios model — **correction to the filing text**, which wrongly declared it already-gone after grepping only the devices models; no device state ever had an `output` field, so it was permanently `None`); the **Phase-B `log_migration_guidance()` shim**. **Added guard:** `validate_configuration` now requires a thin `source` selection (a sourceless scenario could never activate; rejected at load with the Bug-2 non-fatal skip). `_convert_device_state` uses `Scenario._safe_get_device_field` as a `@staticmethod` (temp-instance fallback dance removed). **Narrowed (not removed):** the wb_device **capability-less classification path** — the filing text called it the "`group` transitional fallback", but reconciliation showed the config `group` *field* is already extinct (no model defines it, no config carries it, nothing reads it); what remains is the `capabilities=None` branch, which is **live** for `kitchen_hood` (no capability map — the gate-item-1 coverage gap; mapping it is capability/catalog work for the DRV-1 kitchen_hood row or VWB-13, not dead-code removal) **and** for `_build_state_field_to_control_map`, which enumerates controls without capability context for every device. Stale "legacy config group" docstrings corrected in place; `_DOMAIN_GROUP_ALIAS` + the group-vocabulary heuristics stay (live, domain-keyed). **Tests:** legacy-path tests removed / rewritten to thin fixtures (`test_scenario.py`, `test_scenario_models.py`, `test_scenario_manager.py` — manager tests now assert manager-level behavior, transition content stays with `test_scenario_switch_reconciler.py`); new coverage: sourceless-scenario rejection. Suite 487 passing (was 502 — the delta is deleted legacy tests); import contracts 3/3; docs updated (`key-concepts.md` + `devices-and-scenarios.md` legacy-path passages removed). **Left for their owners:** `MQTTClient.stop()/start()` shims → CORE-1; piwheels `pip.conf` → OPS-11; gate item 4's "thorough code review" half + final contract audit remain part of the acceptance-gate pass itself.

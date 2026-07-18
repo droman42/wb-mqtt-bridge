@@ -1,0 +1,52 @@
+# repin config for locveil-bridge (OPS-33; vendored scripts/repin.py at repin-v1 —
+# never edit the vendored file, re-pin to move). Families this repo CONSUMES + the
+# HK-12 vendored-tools manifest. Severity ladder:
+# ../locveil-commons/process/contracts.md §5 — pre-commit warns (--fail-on none),
+# ordinary CI fails on major-gap/never-pinned (--fail-on major), release flows run
+# --fail-on any (manual: python3 scripts/repin.py --check --fail-on any).
+# The workbench family joins when commons ships its machine schemas at the next
+# workbench bump — declared now it would nag never-pinned on prose-only artifacts.
+# Owned families (catalog, device-integration, docs-manifest) never appear here:
+# repin tracks what this repo consumes, not what it cuts.
+
+[repin]
+pinned_by = "locveil-bridge scripts/repin.py (OPS-33)"
+default_fail_on = "major"
+
+[[family]]
+name = "report-protocol"
+owner_repo = "locveil-commons"
+owner_dir = "../locveil-commons"
+owner_url = "https://github.com/locveil/locveil-commons.git"
+files = ["contracts/report-protocol/report-protocol.json",
+         "contracts/report-protocol/STAMP.json"]
+[[family.dest]]
+path = "contracts/pins/report-protocol"
+conformance = "backend/tests/unit/test_report_protocol_pin.py"
+
+# Vendored-tools manifest (HK-12): each pinned_tag is checked against the owner's
+# newest family tag on the same ladder — the tag↔vendored-copy relationship stops
+# living in prose. Bump a pinned_tag only in its re-vendor ledger task.
+[[tool]]
+name = "scope-guard"
+family = "scope"
+owner_repo = "locveil-commons"
+owner_dir = "../locveil-commons"
+owner_url = "https://github.com/locveil/locveil-commons.git"
+pinned_tag = "scope-v7.1"
+
+[[tool]]
+name = "contract-guard"
+family = "contract-guard"
+owner_repo = "locveil-commons"
+owner_dir = "../locveil-commons"
+owner_url = "https://github.com/locveil/locveil-commons.git"
+pinned_tag = "contract-guard-v3"
+
+[[tool]]
+name = "repin"
+family = "repin"
+owner_repo = "locveil-commons"
+owner_dir = "../locveil-commons"
+owner_url = "https://github.com/locveil/locveil-commons.git"
+pinned_tag = "repin-v1"

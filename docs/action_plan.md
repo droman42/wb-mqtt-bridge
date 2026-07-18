@@ -814,15 +814,6 @@ endpoint).
   voice BUILD-14, `docs/design/problem_reports_bridge.md`.
 
 
-- [ ] **OPS-33** `[P1]` — **PROD-26 repin adoption.** Vendor `scripts/repin.py` @ **repin-v1**;
-  `.repin.toml` becomes the family registry: `report-protocol` (pin exists, current @
-  `report-protocol-v1`) + the `[[tool]]` vendored-tools manifest (scope-guard @ scope-v7.1,
-  contract-guard @ contract-guard-v3, repin @ repin-v1 — the tag↔vendored-copy relationship stops
-  living in prose); pre-commit warn stage (`--check --fail-on none || true`, offline-safe); ordinary
-  CI at `--fail-on major` (`process/contracts.md` §5 ladder). The **workbench** family joins when
-  commons ships the machine schemas at the next workbench bump (recorded here, not declared now — a
-  family without pinnable machine artifacts would nag never-pinned on prose).
-
 - [ ] **OPS-34** `[P1]` — **workbench-plugin CI job (HK-12 round-2 finding — owed regardless of the
   contract question).** `workbench-plugin/` has zero CI coverage today; add a gated
   `workbench-plugin-validate` job (typecheck + build) to `build-arm.yml` + a path filter. The
