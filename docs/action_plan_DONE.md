@@ -172,6 +172,26 @@ possible round-3.
 
 - [x] **VWB-41** `[P1]` — **DONE 2026-07-12** (filed + executed same session; PROD-16 bridge delegation (3), council HK-5 — closes the convention model's own gap, pre-VWB-39: no unguarded model layouts, `../locveil-commons/process/contracts.md` §4 layer 2). **Device-integration owner-side guard: committed example fixture + CI check + STAMP core.** **(a)** `contracts/device-integration/example.descriptor.json` committed = the convention README's canonical descriptor example, byte-parity ENFORCED (deliberate narrowing from the intake sketch of a maximal synthetic fixture: the guide's example is THE exhibit — a doc/fixture divergence now fails CI, so the guide can never teach a shape the schema rejects; VWB-38 had validated it once, manually). **(b)** New `tests/unit/test_device_integration_schema.py` (5 tests, rides the normal backend job which already path-triggers on `contracts/**`): schema is valid draft 2020-12, the fixture validates, README example == fixture, en-only `names` rejected (the VWB-38 manual check, now locked), and a full-surface in-test descriptor covering what the README example doesn't reach — stateful capability (feedback/reconcile/state_field), parametric `set {value}` via `param_map`, enum field with `{wire, canonical, labels}` triplets (real pinned vocabulary — the HVAC fan family), range/value control meta. **(c)** STAMP.json normalized to the core `{contract, version, tag, date, owner_repo}` (+ `profiles`/`rest_reserved` extras; `convention_version` folded into core `version`; tag `device-integration-v1` untouched — the commons report-protocol sidecar precedent; the satellite hasn't pinned yet, their DES-4 pends). **(d)** README: links re-pointed to `../catalog/` (VWB-29 move), teaches the committed fixture + the owner-guard rule. Suite 704→**708**, pyright 0.
 
+- [x] **VWB-42** `[P2]` — **DONE 2026-07-18** (repo-to-repo filing by locveil-satellite
+  2026-07-18, HK-12 round-1 greenlight, listed in the bridge PROD-26 delegation; executed after
+  OPS-32 so contract-guard v3 enforces exactly this shape). **`device-integration-v1.1` cut at
+  the VWB-41-normalized state — the post-tag STAMP fix finally has its version.** The wrinkle:
+  tag `device-integration-v1` (`d273508`) predates VWB-41's STAMP-core normalization (landed one
+  commit later, no tag bump), so the v1 tag's bytes carry the pre-convention STAMP shape and the
+  satellite's DES-4 had nothing clean to pin. **(a)** STAMP: `version` 1 → **1.1**, `tag` →
+  `device-integration-v1.1`, re-dated 2026-07-18; per the HK-12 forward requirement the v1.1
+  STAMP **enumerates `artifacts`** (convention README + descriptor schema + example fixture,
+  REPO-ROOT-RELATIVE paths per v3 semantics — the VWB-43 catalog trap avoided from day one) —
+  this ARMS CONTENT-DRIFT for the family from here on. **(b)** Annotated tag
+  **`device-integration-v1.1`** on the landing commit; its bytes carry the normalized STAMP core
+  DES-4 pins against. **(c)** Registry row: version authority `device-integration-vN[.M]`
+  (current: v1.1). **(d)** Convention README's versioning bullet re-truthed (major = breaking,
+  minor = non-breaking fixes/normalizations; stamp + tag move together; artifacts enumerated so
+  a tag's bytes always match its stamp). Schema/manifest/pin tests 18/18 green; contract-guard
+  STRICT green post-tag. docs: contract/device-integration + contracts-registry.
+  contracts: device-integration-v1.1 cut; re-pin owed: satellite (a FIRST pin — their DES-4
+  takes it; their `.repin.toml` already declares the family and nags never-pinned until then).
+
 ## UI — config-ui
 
 - [x] **UI-1** — **DONE** 2026-05-19 — backend `ab5402d`, UI `8ab2cfa`. On survey, the 8 modified UI files turned out to be one coherent appliance-category feature (not an unrelated layout refresh as initially thought) plus two unrelated SSE console-log cleanups; `docs/appliances.md` was the matching design doc. Shipped as a single paired commit per repo. `config/system.json` (UI) left untracked pending later check; `data/` added to UI `.gitignore`.

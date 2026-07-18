@@ -28,6 +28,13 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-18 — VWB-42: `device-integration-v1.1` cut (satellite's repo-to-repo ask).** The
+  VWB-41 STAMP normalization finally got its version: STAMP 1 → 1.1 + annotated tag in the same
+  change, so the tag's bytes are the clean core shape the satellite's DES-4 pins. The v1.1 STAMP
+  enumerates its three artifacts with repo-root-relative paths — CONTENT-DRIFT is armed for this
+  family from here on (and the VWB-43 path trap was dodged at birth). Registry row + convention
+  README versioning prose re-truthed. Re-pin owed: satellite (first pin).
+
 - **2026-07-18 — OPS-33: repin adopted @ repin-v1.** `scripts/repin.py` vendored; `.repin.toml`
   born as the family registry — report-protocol (the one consumed pin) + the `[[tool]]` manifest
   rows for all three vendored guards. Pre-commit warns, ordinary CI gates on major-gap, release

@@ -135,8 +135,11 @@ Rules that matter:
 ## Versioning & conformance
 
 - The convention is versioned as a whole: [`STAMP.json`](STAMP.json) names the current
-  version; the repo tag `device-integration-v<N>` is the pinnable reference. Breaking
-  changes bump the version; additive schema evolution within a version is dated in the stamp.
+  version; the repo tag `device-integration-v<N>[.<M>]` is the pinnable reference. Breaking
+  changes bump the major version; non-breaking fixes and normalizations cut a minor version
+  (first: `v1.1`). Either way the stamp and the tag move together, and the stamp enumerates
+  the convention's artifact files — an artifact edit without a version move fails the
+  repo's contract checks, so a tag's bytes always match the stamp that names it.
 - **Consumers pin, one way.** A device repo mirrors the schema (and this guide, if it likes)
   at a tagged version, records the pin, and validates its descriptors against the pinned
   schema in CI. Pins are never hand-edited; a bump means re-pin, then reconcile.

@@ -1,9 +1,14 @@
 {
   "contract": "device-integration",
-  "version": "1",
-  "tag": "device-integration-v1",
-  "date": "2026-07-12",
+  "version": "1.1",
+  "tag": "device-integration-v1.1",
+  "date": "2026-07-18",
   "owner_repo": "locveil-bridge",
+  "artifacts": [
+    "contracts/device-integration/README.md",
+    "contracts/device-integration/device-descriptor.schema.json",
+    "contracts/device-integration/example.descriptor.json"
+  ],
   "profiles": ["wb-mqtt-v1"],
   "rest_reserved": ["GET /api/status", "POST /api/control"]
 }
