@@ -28,6 +28,22 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-18 — PROD-26 delegation consumed: OPS-32/33/34 filed at intake; VWB-42 confirmed
+  in-scope.** Pulled the board's PROD-26 entry (HK-12 execution: convention-enforcement hardening,
+  decided 2026-07-18; bridge = guard sweep + repin adoption + workbench-plugin CI +  the satellite's
+  device-integration-v1.1 request). Every claim verified against live repo state per
+  `task-start-reconciliation` — **all four classify (a) valid, no narrowing needed**: scope-guard is
+  vendored at scope-v6 (v7.1 current in commons), contract-guard at v1 (v3 current), no repin
+  tool/`.repin.toml` exists here, `workbench-plugin/` has zero CI coverage, tag
+  `device-integration-v1.1` does not exist and the STAMP carries no `artifacts` list. The two
+  existing CLAUDE.md pinned blocks are byte-current against their commons sources — only the new
+  `contract-triad` block (scope-v7.1) needs adopting. VWB-42 was already filed (`4cbf667`,
+  repo-to-repo) and its claims re-verified at this intake; it executes after OPS-32 so
+  contract-guard v3's ORPHAN-TAG/CONTENT-DRIFT enforce the cut it describes. Voice's BUILD-41/42/43
+  sweep (closed 2026-07-18) used as the reference shape; deliberate bridge deviations: an explicit
+  empty-`vendorable_roots` `.contract-guard.toml` (voice ships no config) and an ordinary-CI repin
+  step at `--fail-on major` (voice gates at release time only).
+
 - **2026-07-16 — PROD-8 delegation consumed: CORE-7 reconciled + narrowed, UI-20 filed at intake.**
   Pulled the board's PROD-8 entry (core-py bootstrap + first two extractions, COUNCIL-DECIDED
   2026-07-16, 2 rounds). Both bridge delegations executed; every claim verified against live code
