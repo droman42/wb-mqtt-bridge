@@ -108,11 +108,11 @@ jobs:
 
   contract-guard:
     # Layer-1 contract coherence (OPS-23, PROD-16/HK-5; convention:
-    # locveil-commons/process/contracts.md §4 — vendored at contract-guard-v3 since
-    # OPS-32, the scope-guard consumption model). Checks the contracts/ layout,
+    # locveil-commons/process/contracts.md §4 — vendored at contract-guard-v3.1 since
+    # OPS-36, the scope-guard consumption model). Checks the contracts/ layout,
     # STAMP/PIN cores, pinned-copy hashes, and the HK-12 omission rules
-    # (ORPHAN-TAG / CONTENT-DRIFT / VENDORABLE-UNREGISTERED, config in
-    # .contract-guard.toml); semantics stay in the backend suite's conformance
+    # (ORPHAN-TAG / CONTENT-DRIFT / VENDORABLE-UNREGISTERED / ARTIFACTS-PATH, config
+    # in .contract-guard.toml); semantics stay in the backend suite's conformance
     # tests. Local-only by design — it never reaches across repos. Strict here —
     # no --relax-tags: the pushed tag must exist (the hook relaxes, CI doesn't).
     name: Contract coherence guard

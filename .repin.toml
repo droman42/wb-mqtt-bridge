@@ -55,7 +55,7 @@ family = "contract-guard"
 owner_repo = "locveil-commons"
 owner_dir = "../locveil-commons"
 owner_url = "https://github.com/locveil/locveil-commons.git"
-pinned_tag = "contract-guard-v3"
+pinned_tag = "contract-guard-v3.1"
 
 [[tool]]
 name = "repin"

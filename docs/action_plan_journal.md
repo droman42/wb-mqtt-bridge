@@ -28,6 +28,12 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-18 (evening) — OPS-36: contract-guard re-vendored @ v3.1.** IMPL-8's ARTIFACTS-PATH
+  rule (bare artifact names now fail loudly — the VWB-43 trap promoted to an org-wide guard)
+  taken the day it was tagged; first strict run 0-warning because VWB-43 had already normalized
+  the catalog STAMP — the sequencing-free rollout the VWB-43-first ordering was chosen to buy.
+  `[[tool]]` manifest bumped v3→v3.1.
+
 - **2026-07-18 (evening) — CORE-7: core-py adopted for the driver axis; CORE-13 + OPS-35 filed.**
   PROD-8's bridge half executed the day its gate opened (voice ARCH-58 closed, core-py real).
   The pin was taken by the vendored repin tool itself — `.repin.toml` grew the `core-py` family

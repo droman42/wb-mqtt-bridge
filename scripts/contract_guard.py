@@ -40,6 +40,14 @@ v3 (HK-12/PROD-26) — the omission rules:
                   degrade to warnings locally (a bump commit cannot carry its own tag);
                   CI runs strict.
 
+v3.1 (IMPL-8, owner ruling Option B) — one canonical path form:
+  ARTIFACTS-PATH  every `artifacts` entry MUST be a repo-root-relative path that
+                  resolves to a file at HEAD. Bare names FAIL: v3 resolved them from
+                  the repo root, so a bare `README.md` silently compared the ROOT
+                  readme on both sides of the drift check (the bridge VWB-43 trap).
+                  The legacy singular `artifact` field stays informational — never
+                  validated (pre-convention folder-relative values are frozen history).
+
 Distribution: locveil-contract-guard, single stdlib file, tags contract-guard-vN,
 vendored per consumer at a pinned tag (the scope-guard consumption model). --check only:
 this tool never mutates the tree.
@@ -56,7 +64,7 @@ import sys
 import tomllib
 from pathlib import Path
 
-__version__ = "3.0.0"  # contract-guard-v3 — script major tracks the tag family from here
+__version__ = "3.1.0"  # contract-guard-v3.1 — ARTIFACTS-PATH rule (IMPL-8, Option B)
 
 STAMP_CORE = ("contract", "version", "tag", "date", "owner_repo")
 PIN_CORE = ("contract", "version", "tag", "owner_repo", "pin_date")
@@ -205,7 +213,25 @@ def check_owned(folder: Path, registry_text: str, rep: Report, root: Path,
     # the STAMP's tag at HEAD — an edit without a version move is the satellite scar
     # (a fix landing one commit after the tag). Only `artifacts`-carrying STAMPs opt in;
     # package-style contracts whose HEAD advances between tags don't enumerate.
+    # ARTIFACTS-PATH (IMPL-8 v3.1, Option B): one canonical form — repo-root-relative,
+    # resolving to a file at HEAD. Validated whenever the list exists (independent of
+    # tag state); a bad entry is excluded from the drift check below.
     arts = stamp.get("artifacts")
+    if isinstance(arts, list):
+        valid: list[str] = []
+        for art in arts:
+            if not isinstance(art, str) or "/" not in art:
+                rep.fail(f"ARTIFACTS-PATH: contracts/{name} — artifacts entry {art!r} is "
+                         "not a repo-root-relative path (bare names resolved against the "
+                         "repo root and corrupted the drift comparison — IMPL-8); write "
+                         "it as '<dir>/…/<file>' and bump version+tag together")
+            elif not (root / art).is_file():
+                rep.fail(f"ARTIFACTS-PATH: contracts/{name} — artifacts entry '{art}' "
+                         "does not resolve to a file at HEAD (repo-root-relative "
+                         "required — IMPL-8)")
+            else:
+                valid.append(art)
+        arts = valid
     if tag and tag_ok and isinstance(arts, list):
         for art in arts:
             try:
@@ -216,11 +242,8 @@ def check_owned(folder: Path, registry_text: str, rep: Report, root: Path,
                 rep.warn(f"CONTENT-UNVERIFIABLE: contracts/{name} — '{art}' not readable "
                          f"at tag '{tag}' (path moved since the tag?)")
                 continue
-            head = root / art
-            if not head.is_file():
-                rep.fail(f"CONTENT-DRIFT: contracts/{name} — '{art}' listed in STAMP "
-                         "artifacts but missing at HEAD")
-            elif head.read_bytes() != tag_bytes:
+            # existence at HEAD is guaranteed by ARTIFACTS-PATH above
+            if (root / art).read_bytes() != tag_bytes:
                 rep.fail(f"CONTENT-DRIFT: contracts/{name} — '{art}' at HEAD differs "
                          f"from its bytes at '{tag}' with no version move — bump "
                          "version+tag together or revert (HK-12)")
