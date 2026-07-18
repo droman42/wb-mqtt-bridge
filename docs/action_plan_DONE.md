@@ -468,6 +468,25 @@ possible round-3.
   README, same change). contracts: repin FIRST CONSUMED as a vendored tool @ repin-v1;
   `.repin.toml` becomes the family registry (no pin content moved — everything verified current).
 
+- [x] **OPS-34** `[P1]` — **DONE 2026-07-18** (filed + executed same day; PROD-26 bridge
+  delegation (4), HK-12 round-2 finding — owed regardless of the contract question).
+  **`workbench-plugin/` gets CI coverage: gated `workbench-plugin-validate` job (typecheck +
+  build).** The plugin consumes the commons `ui-kit` + `workbench` packages as `file:` deps two
+  levels up, so the job lays out **bridge + commons as sibling checkouts inside the workspace**
+  (both org repos public — tokenless), builds `ui-kit` first (`npm ci && npm run build` — its
+  package `exports` point at an uncommitted `dist/`; the workbench package needs no build,
+  `./contract` types resolve from `src/`), then `npm ci` + `gen:api-types` + `tsc` + `vite build`
+  in the plugin. New `workbench_plugin` path filter (`workbench-plugin/**` +
+  `backend/openapi.json` — the plugin consumes the OpenAPI contract like `ui/` does + the
+  workflow file); npm cache keyed on both lockfiles (both committed). Verified locally before
+  wiring: typecheck + build green, `gen:api-types` deterministic (committed `openapi.gen.ts`
+  byte-unchanged after regen); workflow YAML parse-checked (an unquoted `file:` colon in a step
+  name was caught by the check). Commons rides its default branch in this job until the
+  workbench contract pin exists (the OPS-33-recorded next-workbench-bump hook). docs: none — CI
+  wiring only; no manifest node describes the plugin build. contracts: none — coverage for an
+  existing consumer; the workbench family's pin (first consumption on record) lands with the
+  commons machine-schema bump per OPS-33.
+
 ## CORE — Backend core / architecture
 
 - [x] **CORE-2** `[P1]` — **DONE 2026-07-04** (filed + executed same day; the acceptance-gate item-4 dead-code sweep, scoped against live code). **Removed:** the legacy imperative scenario path — `Scenario.initialize/execute_startup_sequence/execute_shutdown_sequence`, the shared-device `switch_scenario` legacy branch, the string-condition evaluator (`_evaluate_condition`/`_safe_evaluate_condition`/`_parse_condition_value`), `_validate_parameters` + the sequence/condition validators, `_is_power_command` (~330 lines out of `scenario.py`); the **`WB_SCENARIO_RECONCILER` kill-switch** (`switch_scenario`/`deactivate` are reconciler-only now; the already-active early return aligned to the reconciler result shape `{success, powered_off, failures}` — no consumer read the old keys); the **`CommandStep` model + `ScenarioDefinition.startup_sequence`/`shutdown_sequence` fields** (contract regenerated: `openapi.json` −76 lines, `CommandStep` schema gone; UI types regenerated, dead `CommandStep` alias dropped from `ui/src/types/api.ts`; `npm run check` + build green); the **vestigial `DeviceState.output`** field (scenarios model — **correction to the filing text**, which wrongly declared it already-gone after grepping only the devices models; no device state ever had an `output` field, so it was permanently `None`); the **Phase-B `log_migration_guidance()` shim**. **Added guard:** `validate_configuration` now requires a thin `source` selection (a sourceless scenario could never activate; rejected at load with the Bug-2 non-fatal skip). `_convert_device_state` uses `Scenario._safe_get_device_field` as a `@staticmethod` (temp-instance fallback dance removed). **Narrowed (not removed):** the wb_device **capability-less classification path** — the filing text called it the "`group` transitional fallback", but reconciliation showed the config `group` *field* is already extinct (no model defines it, no config carries it, nothing reads it); what remains is the `capabilities=None` branch, which is **live** for `kitchen_hood` (no capability map — the gate-item-1 coverage gap; mapping it is capability/catalog work for the DRV-1 kitchen_hood row or VWB-13, not dead-code removal) **and** for `_build_state_field_to_control_map`, which enumerates controls without capability context for every device. Stale "legacy config group" docstrings corrected in place; `_DOMAIN_GROUP_ALIAS` + the group-vocabulary heuristics stay (live, domain-keyed). **Tests:** legacy-path tests removed / rewritten to thin fixtures (`test_scenario.py`, `test_scenario_models.py`, `test_scenario_manager.py` — manager tests now assert manager-level behavior, transition content stays with `test_scenario_switch_reconciler.py`); new coverage: sourceless-scenario rejection. Suite 487 passing (was 502 — the delta is deleted legacy tests); import contracts 3/3; docs updated (`key-concepts.md` + `devices-and-scenarios.md` legacy-path passages removed). **Left for their owners:** `MQTTClient.stop()/start()` shims → CORE-1; piwheels `pip.conf` → OPS-11; gate item 4's "thorough code review" half + final contract audit remain part of the acceptance-gate pass itself.

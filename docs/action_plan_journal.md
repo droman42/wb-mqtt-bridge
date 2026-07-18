@@ -28,6 +28,14 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-18 — OPS-34: workbench-plugin CI coverage (the round-2 zero-coverage finding).** New
+  gated `workbench-plugin-validate` job: sibling checkouts of bridge + commons inside the
+  workspace (the `file:` deps two levels up), ui-kit built first, then plugin `npm ci` +
+  `gen:api-types` + typecheck + vite build; `workbench_plugin` path filter includes
+  `backend/openapi.json` since the plugin consumes the OpenAPI contract like `ui/` does. All
+  steps verified green locally before wiring. This closes the PROD-26 bridge slate: OPS-32/33/34
+  + VWB-42 all landed today.
+
 - **2026-07-18 — VWB-42: `device-integration-v1.1` cut (satellite's repo-to-repo ask).** The
   VWB-41 STAMP normalization finally got its version: STAMP 1 → 1.1 + annotated tag in the same
   change, so the tag's bytes are the clean core shape the satellite's DES-4 pins. The v1.1 STAMP

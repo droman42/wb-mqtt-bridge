@@ -800,14 +800,6 @@ endpoint).
   voice BUILD-14, `docs/design/problem_reports_bridge.md`.
 
 
-- [ ] **OPS-34** `[P1]` — **workbench-plugin CI job (HK-12 round-2 finding — owed regardless of the
-  contract question).** `workbench-plugin/` has zero CI coverage today; add a gated
-  `workbench-plugin-validate` job (typecheck + build) to `build-arm.yml` + a path filter. The
-  commons `file:` deps (`locveil-ui-kit`, `locveil-workbench`) require a sibling checkout of
-  `locveil-commons` and a ui-kit build first (its `exports` point at uncommitted `dist/`); the
-  workbench package needs no build (`./contract` types resolve from `src/`). Verified green locally
-  (typecheck + vite build) before wiring.
-
 ### CORE — Backend core / architecture
 
 - [ ] **CORE-1** `[P2]` `[deferred]` `HW-GATED` — **System-router adapter cleanup — Item A only (Item B DONE 2026-05-26).** Item A: `POST /reload`'s `reload_system_task` constructs + drives a concrete `MQTTClient` inline; extract an application-layer reload service (e.g. `app/reload_service.py`) so the router stays a thin adapter. **Gated on hardware** — touches the live MQTT-reconnect path; can't be safely HW-verified without you at the rack. **Completion goal = 100% clean hexagon (explicit, added 2026-07-07):** this task owns the **only** `ignore_imports` exception in the import-linter config (`presentation.api.routers.system -> infrastructure.mqtt.client`, backend `pyproject.toml`); done means (1) the reload service extracted and the back-edge gone from the code, (2) the **`ignore_imports` entry deleted** — the contract set (6 since CORE-6) passes with **zero exceptions**, (3) the "one documented exception" passages updated in `docs/architecture/overview.md` + the contract name/comment in `pyproject.toml` + the [[hexagonal-layering]] memory, (4) HW-verified at the rack: `POST /reload` still reconnects cleanly against the live broker. Item B (response DTO for `/config/system`) done in `73ee8d5` — new presentation `SystemConfigResponse` + nested DTOs; wire shape field-identical; `presentation/api/schemas.py` no longer imports the infra `SystemConfig`.
