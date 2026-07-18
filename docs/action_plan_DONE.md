@@ -397,6 +397,35 @@ possible round-3.
   re-truthed (`ledger-guard`: scope-v6 since OPS-31). docs: none — guard/config/CI internals; no
   manifest node describes them.
 
+- [x] **OPS-32** `[P1]` — **DONE 2026-07-18** (filed + executed same day; PROD-26 bridge
+  delegation (1), HK-12 execution; guard + block halves as ONE commit per the keepers' round-1
+  condition). **Guard + block sweep: scope-guard v6 → v7.1, contract-guard v1 → v3, the
+  contract-triad block pinned, contracts-verdict cutover.** **(a)** `scripts/scope_guard.py`
+  byte-identical to `scope-v7.1` (1.3.0 → 1.4.0: the CONTRACTS-VERDICT presence rule +
+  UNKNOWN-PREFIX; v7.1 is the additive block release — script bytes == v7). **(b)**
+  `scripts/contract_guard.py` byte-identical to `contract-guard-v3` (1.1.0 → 3.0.0: ORPHAN-TAG,
+  CONTENT-DRIFT for `artifacts`-carrying STAMPs, VENDORABLE-UNREGISTERED, `--relax-tags`; script
+  major tracks the tag family from v3). **(c)** NEW `.contract-guard.toml` — `vendorable_roots =
+  []` EXPLICIT (the keeper's recorded posture: no heuristic package-manifest scanning; a dir
+  becomes a surface only by deliberate registry row + STAMP). **(d)** `.scope-guard.toml`:
+  `contracts_verdict_since = "2026-07-18"` (ledger-discipline §7 cutover; earlier entries frozen)
+  + the third `[[claude.blocks]]` hash. **(e)** CLAUDE.md pins **`contract-triad`** @ scope-v7.1
+  between fresh markers — `a3fe8d6b…d1fc2`, byte-identical to the commons source and to the
+  voice/commons pins; the two existing blocks verified byte-current (sources unchanged since
+  scope-v5/scope-v4), so this stayed a one-block adoption. **(f)** `hooks/pre-commit`:
+  contract-guard gains `--relax-tags` (a bump commit cannot carry its own tag — warns locally, CI
+  strict). **(g)** CI: guard-job comments re-truthed (scope-v7.1 / contract-guard-v3 since
+  OPS-32), `.contract-guard.toml` joins the contracts path filter, and a belt `git fetch --tags`
+  step (the shallow-SHA checkout path has been seen to deliver no tags — voice BUILD-41 finding;
+  v3's tag rules make that fatal). Both guards run bare post-sweep: green — and the first v3 run
+  DISCOVERED that the catalog STAMP's pre-v3 `artifacts` entries are bare names where v3 expects
+  repo-root-relative paths (2 CONTENT-UNVERIFIABLE warnings + a latent root-README false-drift
+  trap) — filed as **VWB-43**, fix rides the next catalog cut (a STAMP is tag bytes).
+  docs: none — enforcement tooling + process pins; no manifest node describes them.
+  contracts: scope + contract-guard consumed-tool pins bumped v6→v7.1 / v1→v3; contract-triad
+  block FIRST CONSUMED (pinned into CLAUDE.md + hashed); the `[[tool]]` manifest rows recording
+  these tags land with OPS-33's `.repin.toml`.
+
 ## CORE — Backend core / architecture
 
 - [x] **CORE-2** `[P1]` — **DONE 2026-07-04** (filed + executed same day; the acceptance-gate item-4 dead-code sweep, scoped against live code). **Removed:** the legacy imperative scenario path — `Scenario.initialize/execute_startup_sequence/execute_shutdown_sequence`, the shared-device `switch_scenario` legacy branch, the string-condition evaluator (`_evaluate_condition`/`_safe_evaluate_condition`/`_parse_condition_value`), `_validate_parameters` + the sequence/condition validators, `_is_power_command` (~330 lines out of `scenario.py`); the **`WB_SCENARIO_RECONCILER` kill-switch** (`switch_scenario`/`deactivate` are reconciler-only now; the already-active early return aligned to the reconciler result shape `{success, powered_off, failures}` — no consumer read the old keys); the **`CommandStep` model + `ScenarioDefinition.startup_sequence`/`shutdown_sequence` fields** (contract regenerated: `openapi.json` −76 lines, `CommandStep` schema gone; UI types regenerated, dead `CommandStep` alias dropped from `ui/src/types/api.ts`; `npm run check` + build green); the **vestigial `DeviceState.output`** field (scenarios model — **correction to the filing text**, which wrongly declared it already-gone after grepping only the devices models; no device state ever had an `output` field, so it was permanently `None`); the **Phase-B `log_migration_guidance()` shim**. **Added guard:** `validate_configuration` now requires a thin `source` selection (a sourceless scenario could never activate; rejected at load with the Bug-2 non-fatal skip). `_convert_device_state` uses `Scenario._safe_get_device_field` as a `@staticmethod` (temp-instance fallback dance removed). **Narrowed (not removed):** the wb_device **capability-less classification path** — the filing text called it the "`group` transitional fallback", but reconciliation showed the config `group` *field* is already extinct (no model defines it, no config carries it, nothing reads it); what remains is the `capabilities=None` branch, which is **live** for `kitchen_hood` (no capability map — the gate-item-1 coverage gap; mapping it is capability/catalog work for the DRV-1 kitchen_hood row or VWB-13, not dead-code removal) **and** for `_build_state_field_to_control_map`, which enumerates controls without capability context for every device. Stale "legacy config group" docstrings corrected in place; `_DOMAIN_GROUP_ALIAS` + the group-vocabulary heuristics stay (live, domain-keyed). **Tests:** legacy-path tests removed / rewritten to thin fixtures (`test_scenario.py`, `test_scenario_models.py`, `test_scenario_manager.py` — manager tests now assert manager-level behavior, transition content stays with `test_scenario_switch_reconciler.py`); new coverage: sourceless-scenario rejection. Suite 487 passing (was 502 — the delta is deleted legacy tests); import contracts 3/3; docs updated (`key-concepts.md` + `devices-and-scenarios.md` legacy-path passages removed). **Left for their owners:** `MQTTClient.stop()/start()` shims → CORE-1; piwheels `pip.conf` → OPS-11; gate item 4's "thorough code review" half + final contract audit remain part of the acceptance-gate pass itself.

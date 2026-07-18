@@ -18,7 +18,12 @@ Failing rules (config-toggled where marked):
   (path-scan and/or voice-style `[x]` index) · ALIAS phantom [aliases] · MISFILED task
   [sections] · OUT-OF-ORDER id · MISSING required tag [required_tags] · ARCHIVE-POINTER
   broken [journal.archive_pointer] · NO-JOURNAL completion [journal.completion_crosscheck]
-  · DELEGATION without write-back [board.delegation_writeback] · hard-ceiling overflow.
+  · DELEGATION without write-back [board.delegation_writeback] · hard-ceiling overflow
+  · DOCS-VERDICT missing [ledger.docs_verdict_since] · CONTRACTS-VERDICT missing
+  [ledger.contracts_verdict_since] (HK-12: completions record "contracts: <what moved,
+  incl. re-pin owed: …>" or "contracts: none — <why>") · UNKNOWN-PREFIX (HK-12: a
+  declared task ID whose prefix isn't in config is invisible to every other rule —
+  fail loudly instead of silently not counting).
 Warnings: UNINDEXED review [evidence.index] · journal/DONE over high-water.
 
 Usage:  python3 scope_guard.py [--config .scope-guard.toml] [--root DIR] [--rotate all]
@@ -32,7 +37,7 @@ import sys
 import tomllib
 from pathlib import Path
 
-__version__ = "1.3.0"  # scope-v6 — UNREFERENCED-evidence check (HK-10 / IMPL-2)
+__version__ = "1.4.0"  # scope-v7 — contracts-verdict + unknown-prefix (HK-12 / PROD-26)
 
 
 # ---------------------------------------------------------------- config
@@ -45,6 +50,7 @@ DEFAULTS = {
         "required_tags": [], "tombstones": False,
         "high_water": 3000, "low_water": 2000, "hard_ceiling": 4000,
         "docs_verdict_since": "",
+        "contracts_verdict_since": "",
     },
     "evidence": {"dirs": [], "index": False, "link_scan": False, "unindexed": "warn",
                  "unreferenced": "warn"},
@@ -393,6 +399,37 @@ def check(root: Path, cfg: dict, rules: Rules) -> Report:
             if dates and max(dates) >= since and not verdict_re.search(block):
                 rep.error(f"DOCS-VERDICT missing: completion entry {tid} (dated >= "
                           f"{since}) records no docs verdict (process/user-docs.md §3)")
+
+    # contracts-verdict rule (HK-12, process/ledger-discipline.md §7): every completion
+    # entry newer than contracts_verdict_since must record a contracts verdict —
+    # "contracts: <what moved — surface cut / tag bumped / pin taken; owner-side bumps
+    # add re-pin owed: <consumers>>" or "contracts: none — <why>". Presence/syntax only;
+    # correctness stays judgment (contract-guard owns file-level coherence).
+    csince = L.get("contracts_verdict_since") or ""
+    if csince:
+        cdate_re = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
+        cverdict_re = re.compile(r"\bcontracts:\s*\S")
+        for tid, s, block in entry_blocks(done, rules):
+            if s != "x":
+                continue
+            dates = cdate_re.findall(block)
+            if dates and max(dates) >= csince and not cverdict_re.search(block):
+                rep.error(f"CONTRACTS-VERDICT missing: completion entry {tid} (dated >= "
+                          f"{csince}) records no contracts verdict (HK-12; "
+                          "process/ledger-discipline.md §7)")
+
+    # UNKNOWN-PREFIX (HK-12, the satellite DOC-prefix scar): a declaration whose prefix
+    # isn't in [ledger] prefixes is invisible to every other rule — the guard counted 18
+    # tasks while two DOC entries went unenforced. Fail loudly instead.
+    any_decl = re.compile(r"^- \[(.)\] \*\*([A-Z]+)-\d+\b")
+    known_pfx = set(L["prefixes"])
+    for which, text in (("active", active), ("done", done)):
+        for line in text.splitlines():
+            m = any_decl.match(line)
+            if m and m.group(2) not in known_pfx:
+                rep.error(f"UNKNOWN-PREFIX: a {m.group(2)}-N task is declared in the "
+                          f"{which} ledger but '{m.group(2)}' is not in [ledger] "
+                          "prefixes — add the prefix to config or fix the ID (HK-12)")
 
     # claudemd rule: pinned shared blocks present and byte-faithful (hash vs config pin).
     # Fully local — staleness vs commons is a re-pin concern, not a check concern.

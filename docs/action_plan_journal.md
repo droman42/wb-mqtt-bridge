@@ -28,6 +28,17 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-18 — OPS-32: the HK-12 guard + block sweep landed (one commit).** scope-guard
+  re-vendored @ scope-v7.1 (contracts-verdict + unknown-prefix), contract-guard @ contract-guard-v3
+  (ORPHAN-TAG / CONTENT-DRIFT / VENDORABLE-UNREGISTERED / --relax-tags), `.contract-guard.toml`
+  born with explicitly empty `vendorable_roots`, `contracts_verdict_since = 2026-07-18`, and the
+  `contract-triad` block pinned into CLAUDE.md (hash matches the commons source and the voice pin
+  bit-for-bit). Hook relaxes tag rules mid-bump; CI stays strict and gained a belt tag-fetch step.
+  From this entry on, every completion in this ledger carries a `contracts:` verdict. The first v3
+  run also earned its keep: the catalog STAMP's pre-v3 `artifacts` shape (bare names vs v3's
+  repo-root-relative reads) is a latent false-drift trap on the root README — filed as VWB-43 at
+  the same sitting; the fix rides the next catalog cut because a STAMP is tag bytes.
+
 - **2026-07-18 — PROD-26 delegation consumed: OPS-32/33/34 filed at intake; VWB-42 confirmed
   in-scope.** Pulled the board's PROD-26 entry (HK-12 execution: convention-enforcement hardening,
   decided 2026-07-18; bridge = guard sweep + repin adoption + workbench-plugin CI +  the satellite's

@@ -24,6 +24,22 @@ without PIN.json degrades to WARNINGS — the strict shape becomes mandatory at 
 next re-pin. Everything structural (loose files, unregistered folders, missing owned
 STAMP/README, hash mismatches on strict pins) FAILS.
 
+v3 (HK-12/PROD-26) — the omission rules:
+  ORPHAN-TAG      a newer <contract>-vN git tag exists than the STAMP records (the
+                  reverse of TAG-MISSING; keyed to registered contracts, never
+                  tag-pattern sniffing — release tags like v0.6.0 can't match).
+  CONTENT-DRIFT   a STAMP-enumerated artifact's bytes at HEAD differ from its bytes at
+                  the STAMP's tag with no version move (only STAMPs carrying the
+                  `artifacts` list opt in — package-style contracts whose HEAD advances
+                  between tags simply don't enumerate).
+  VENDORABLE-UNREGISTERED   a directory matching `vendorable_roots` in the optional
+                  `.contract-guard.toml` that carries a package manifest but no owned
+                  STAMP (allowlist: `non_contract`; folder→contract renames:
+                  `contract_names`). Roots are explicit config, empty by default.
+  --relax-tags    the pre-commit hook's mid-bump tolerance: TAG-MISSING and ORPHAN-TAG
+                  degrade to warnings locally (a bump commit cannot carry its own tag);
+                  CI runs strict.
+
 Distribution: locveil-contract-guard, single stdlib file, tags contract-guard-vN,
 vendored per consumer at a pinned tag (the scope-guard consumption model). --check only:
 this tool never mutates the tree.
@@ -37,9 +53,10 @@ import json
 import re
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
-__version__ = "1.1.0"
+__version__ = "3.0.0"  # contract-guard-v3 — script major tracks the tag family from here
 
 STAMP_CORE = ("contract", "version", "tag", "date", "owner_repo")
 PIN_CORE = ("contract", "version", "tag", "owner_repo", "pin_date")
@@ -102,7 +119,37 @@ def _local_tag_exists(root: Path, tag: str) -> bool | None:
     return tag in out.stdout.split()
 
 
-def check_owned(folder: Path, registry_text: str, rep: Report, root: Path) -> None:
+def _local_tags(root: Path, pattern: str) -> list[str] | None:
+    try:
+        out = subprocess.run(["git", "-C", str(root), "tag", "-l", pattern],
+                             capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return out.stdout.split() if out.returncode == 0 else None
+
+
+def _family_version(contract: str, tag: str) -> tuple[int, ...] | None:
+    m = re.fullmatch(rf"{re.escape(contract)}-v(\d+(?:\.\d+)*)", tag)
+    return tuple(int(x) for x in m.group(1).split(".")) if m else None
+
+
+def load_guard_config(root: Path) -> dict:
+    """Optional .contract-guard.toml — HK-12 rules that need explicit per-repo config."""
+    cfg = {"vendorable_roots": [], "non_contract": [], "contract_names": {}}
+    p = root / ".contract-guard.toml"
+    if p.is_file():
+        try:
+            raw = tomllib.loads(p.read_text(encoding="utf-8"))
+        except Exception as exc:  # noqa: BLE001 - report, don't crash
+            return {**cfg, "_error": f"UNPARSEABLE: .contract-guard.toml — {exc}"}
+        for key in cfg:
+            if key in raw:
+                cfg[key] = raw[key]
+    return cfg
+
+
+def check_owned(folder: Path, registry_text: str, rep: Report, root: Path,
+                relax: bool = False) -> None:
     name = folder.name
     if name not in registry_text:
         rep.fail(f"UNREGISTERED: owned contract '{name}' not mentioned in contracts/README.md")
@@ -127,14 +174,56 @@ def check_owned(folder: Path, registry_text: str, rep: Report, root: Path) -> No
     # consumer re-pins AGAINST the tag. Local tag object is the bar (remote push is
     # out of scope; a guard can't see the remote).
     tag = stamp.get("tag")
+    tag_ok = None
     if tag:
-        exists = _local_tag_exists(root, str(tag))
-        if exists is False:
-            rep.fail(f"TAG-MISSING: contracts/{name}/STAMP.json names '{tag}' but no such "
-                     "git tag exists — create the tag in the same change as the STAMP bump")
-        elif exists is None:
+        tag_ok = _local_tag_exists(root, str(tag))
+        if tag_ok is False:
+            msg = (f"TAG-MISSING: contracts/{name}/STAMP.json names '{tag}' but no such "
+                   "git tag exists — create the tag in the same change as the STAMP bump")
+            rep.warn(msg + " [relaxed: mid-bump local state]") if relax else rep.fail(msg)
+        elif tag_ok is None:
             rep.warn(f"TAG-UNCHECKED: could not resolve git tags for contracts/{name} "
                      "(not a git repo or git unavailable)")
+
+    # ORPHAN-TAG (HK-12 v3): the reverse direction — a newer family tag than the STAMP
+    # records means someone tagged without bumping the stamp (or fixed content one
+    # commit after the tag). Keyed to THIS registered contract's family only.
+    tags = _local_tags(root, f"{name}-v*")
+    if tag and tags is not None:
+        stamp_v = _family_version(name, str(tag))
+        versioned = [( _family_version(name, t), t) for t in tags
+                     if _family_version(name, t)]
+        if stamp_v is not None and versioned:
+            newest_v, newest_t = max(versioned)
+            if newest_v > stamp_v:
+                msg = (f"ORPHAN-TAG: tag '{newest_t}' exists but contracts/{name}/"
+                       f"STAMP.json still says '{tag}' — bump the STAMP in the same "
+                       "change as the tag (HK-12)")
+                rep.warn(msg + " [relaxed: mid-bump local state]") if relax else rep.fail(msg)
+
+    # CONTENT-DRIFT (HK-12 v3): STAMP-enumerated artifacts must be byte-identical to
+    # the STAMP's tag at HEAD — an edit without a version move is the satellite scar
+    # (a fix landing one commit after the tag). Only `artifacts`-carrying STAMPs opt in;
+    # package-style contracts whose HEAD advances between tags don't enumerate.
+    arts = stamp.get("artifacts")
+    if tag and tag_ok and isinstance(arts, list):
+        for art in arts:
+            try:
+                tag_bytes = subprocess.run(
+                    ["git", "-C", str(root), "show", f"{tag}:{art}"],
+                    capture_output=True, timeout=10, check=True).stdout
+            except (OSError, subprocess.SubprocessError):
+                rep.warn(f"CONTENT-UNVERIFIABLE: contracts/{name} — '{art}' not readable "
+                         f"at tag '{tag}' (path moved since the tag?)")
+                continue
+            head = root / art
+            if not head.is_file():
+                rep.fail(f"CONTENT-DRIFT: contracts/{name} — '{art}' listed in STAMP "
+                         "artifacts but missing at HEAD")
+            elif head.read_bytes() != tag_bytes:
+                rep.fail(f"CONTENT-DRIFT: contracts/{name} — '{art}' at HEAD differs "
+                         f"from its bytes at '{tag}' with no version move — bump "
+                         "version+tag together or revert (HK-12)")
 
 
 def check_pin(folder: Path, registry_text: str, rep: Report) -> None:
@@ -178,11 +267,35 @@ def check_pin(folder: Path, registry_text: str, rep: Report) -> None:
             rep.warn(f"UNLISTED-FILE: {where}/{child.name} not covered by PIN.json files map")
 
 
-def run_check(root: Path) -> Report:
+def check_vendorable(root: Path, gcfg: dict, rep: Report) -> None:
+    """VENDORABLE-UNREGISTERED (HK-12 v3): a package-manifest-carrying dir under an
+    explicit vendorable root must be a registered owned surface or allowlisted."""
+    for pattern in gcfg["vendorable_roots"]:
+        for d in sorted(root.glob(pattern)):
+            if not d.is_dir():
+                continue
+            if not ((d / "pyproject.toml").is_file() or (d / "package.json").is_file()):
+                continue
+            base = d.name
+            if base in gcfg["non_contract"]:
+                continue
+            cname = gcfg["contract_names"].get(base, base)
+            if not (root / "contracts" / cname / "STAMP.json").is_file():
+                rep.fail(f"VENDORABLE-UNREGISTERED: {d.relative_to(root).as_posix()} "
+                         f"carries a package manifest but contracts/{cname}/STAMP.json "
+                         "does not exist — cut the owned surface in the same change, or "
+                         "list it under non_contract in .contract-guard.toml (HK-12)")
+
+
+def run_check(root: Path, relax: bool = False) -> Report:
     rep = Report()
+    gcfg = load_guard_config(root)
+    if "_error" in gcfg:
+        rep.fail(gcfg["_error"])
     contracts = root / "contracts"
     if not contracts.is_dir():
-        return rep  # nothing to guard — a repo without contract surfaces is fine
+        check_vendorable(root, gcfg, rep)  # a vendorable root with NO contracts/ at all
+        return rep
     registry = contracts / "README.md"
     if not registry.is_file():
         rep.fail("NO-REGISTRY: contracts/README.md missing (the direction-labeled index)")
@@ -203,7 +316,8 @@ def run_check(root: Path) -> Report:
                 else:
                     check_pin(pin_child, registry_text, rep)
         else:
-            check_owned(child, registry_text, rep, root)
+            check_owned(child, registry_text, rep, root, relax=relax)
+    check_vendorable(root, gcfg, rep)
     return rep
 
 
@@ -213,11 +327,14 @@ def main(argv: list[str] | None = None) -> int:
                         help="repo root (default: cwd)")
     parser.add_argument("--check", action="store_true",
                         help="run the check (the default and only action)")
+    parser.add_argument("--relax-tags", action="store_true",
+                        help="mid-bump tolerance for the pre-commit hook: TAG-MISSING "
+                             "and ORPHAN-TAG warn instead of failing; CI runs strict")
     parser.add_argument("--version", action="version",
                         version=f"contract-guard {__version__}")
     args = parser.parse_args(argv)
 
-    rep = run_check(args.root.resolve())
+    rep = run_check(args.root.resolve(), relax=args.relax_tags)
     print(f"== contract-guard {__version__} · root {args.root.resolve()} ==")
     for w in rep.warnings:
         print(f"  WARN  {w}")

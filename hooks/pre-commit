@@ -4,4 +4,6 @@
 # ledger; contract-guard (process/contracts.md §4) gates contract coherence. With
 # work-on-main this is the only pre-CI gate. Install once:  git config core.hooksPath hooks
 python3 scripts/scope_guard.py --config .scope-guard.toml || exit 1
-exec python3 scripts/contract_guard.py --check
+# --relax-tags: HK-12 mid-bump tolerance — a bump commit cannot carry its own tag, so
+# TAG-MISSING/ORPHAN-TAG warn locally; CI runs strict and the pushed tag satisfies it.
+exec python3 scripts/contract_guard.py --check --relax-tags

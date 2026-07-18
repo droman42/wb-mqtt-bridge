@@ -668,6 +668,17 @@ endpoint).
   On cut: `re-pin owed: satellite` (the satellite side is a FIRST pin — its DES-4 takes it; its
   `.repin.toml` already declares the family and nags never-pinned until then).
 
+- [ ] **VWB-43** `[P1]` — **Catalog STAMP `artifacts` paths predate contract-guard v3's
+  repo-root-relative semantics** (found by OPS-32's first v3 run, 2026-07-18). The catalog STAMP
+  enumerates `catalog.golden.json` / `openapi.json` / `README.md` as bare names; v3 resolves
+  artifacts from the repo root (`git show <tag>:<path>`), so the first two are CONTENT-UNVERIFIABLE
+  (warning only) and **`README.md` resolves to the repo-root README on BOTH sides of the
+  comparison** — green today only because the root README hasn't changed since `catalog-v1.7`
+  (2026-07-13); its next edit fails the catalog family check with a baffling CONTENT-DRIFT. Fix =
+  rewrite the three entries as `contracts/catalog/…` paths — but a STAMP is tag bytes (the VWB-42
+  lesson): do it AT THE NEXT CATALOG CUT (version + tag + STAMP together), or as a deliberate
+  minor cut if a root-README edit is needed first. `[P1]` for the trap, not the warnings.
+
 ### UI — config-ui
 
 
@@ -802,20 +813,6 @@ endpoint).
   about public intake today — record the chosen posture wherever it lands. Refs: board PROD-19,
   voice BUILD-14, `docs/design/problem_reports_bridge.md`.
 
-
-- [ ] **OPS-32** `[P1]` — **PROD-26 guard + block sweep (HK-12 execution; ONE commit per the
-  keepers' round-1 condition).** Re-vendor `scripts/scope_guard.py` scope-v6 → **scope-v7.1**
-  (v7 = contracts-verdict + unknown-prefix rules; v7.1 = the additive block release, script bytes
-  unchanged) and `scripts/contract_guard.py` contract-guard-v1 → **contract-guard-v3** (ORPHAN-TAG /
-  CONTENT-DRIFT / VENDORABLE-UNREGISTERED / `--relax-tags`); write `.contract-guard.toml` with
-  **explicitly empty `vendorable_roots`** (the keeper's recorded preference — no heuristic
-  scanning); set `contracts_verdict_since = "2026-07-18"` in `.scope-guard.toml` (ledger-discipline
-  §7 — completion entries record `contracts: <what moved>` or `contracts: none — <why>`; owner-side
-  bumps record `re-pin owed: <consumers>`); pin the **third CLAUDE.md block `contract-triad`**
-  (source `../locveil-commons/process/claude-blocks/contract-triad.md` @ scope-v7.1) + its sha256
-  in `[[claude.blocks]]`; `hooks/pre-commit` gains `--relax-tags` (mid-bump tolerance — CI stays
-  strict). Reconciled at intake: the two existing pinned blocks are byte-current (sources unchanged
-  since scope-v5/scope-v4) — block work = the new block only.
 
 - [ ] **OPS-33** `[P1]` — **PROD-26 repin adoption.** Vendor `scripts/repin.py` @ **repin-v1**;
   `.repin.toml` becomes the family registry: `report-protocol` (pin exists, current @
