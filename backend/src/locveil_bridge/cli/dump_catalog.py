@@ -139,7 +139,14 @@ def main() -> int:
             "tag": f"catalog-v{CONTRACT_VERSION}",
             "date": datetime.date.today().isoformat(),
             "owner_repo": "locveil-bridge",
-            "artifacts": ["catalog.golden.json", "openapi.json", "README.md"],
+            # Repo-root-relative: contract-guard resolves each entry via
+            # `git show <tag>:<path>` from the repo root — a bare name would make
+            # the golden/openapi unverifiable and compare the wrong README.
+            "artifacts": [
+                "contracts/catalog/catalog.golden.json",
+                "contracts/catalog/openapi.json",
+                "contracts/catalog/README.md",
+            ],
             "bridge_commit": _git_commit(),
             "bridge_version": __version__,
             "catalog_version": catalog.version,

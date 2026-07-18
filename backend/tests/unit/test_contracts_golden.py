@@ -122,8 +122,15 @@ def test_stamp_carries_contract_core_and_names_a_bridge_build():
         "contract", "version", "tag", "date", "owner_repo", "artifacts",
         "bridge_commit", "bridge_version", "catalog_version",
     }
-    # pin-completeness forward requirement: the artifact set a consumer's pin must copy
-    assert set(stamp["artifacts"]) == {"catalog.golden.json", "openapi.json", "README.md"}
+    # pin-completeness forward requirement: the artifact set a consumer's pin must copy.
+    # Repo-root-relative since catalog-v1.8 — contract-guard resolves each entry via
+    # `git show <tag>:<path>` from the repo root; bare names left the golden/openapi
+    # unverifiable and compared the wrong README.
+    assert set(stamp["artifacts"]) == {
+        "contracts/catalog/catalog.golden.json",
+        "contracts/catalog/openapi.json",
+        "contracts/catalog/README.md",
+    }
     assert stamp["contract"] == "catalog"
     assert stamp["version"] == CONTRACT_VERSION, _REGEN_HINT
     assert stamp["tag"] == f"catalog-v{CONTRACT_VERSION}", _REGEN_HINT

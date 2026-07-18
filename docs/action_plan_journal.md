@@ -28,6 +28,15 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-18 (later) — VWB-43: catalog-v1.8 minor cut — the root-README false-drift trap
+  defused.** Owner go-ahead after the commons IMPL-8 sequencing note (VWB-43-first makes the
+  contract-guard v3.1 rollout sequencing-free). The real fix site was the GENERATOR:
+  `dump_catalog.py` hardcoded the bare artifact names, so hand-editing the STAMP would have
+  been reverted at the next regen — it now emits repo-root-relative paths, `CONTRACT_VERSION`
+  1.8, STAMP regenerated, golden byte-identical, lightweight `catalog-v1.8` tag pushed with the
+  commit. contract-guard now runs 0-warning with CONTENT-DRIFT genuinely armed for the catalog
+  family. Re-pin owed: voice, commons.
+
 - **2026-07-18 — OPS-34: workbench-plugin CI coverage (the round-2 zero-coverage finding).** New
   gated `workbench-plugin-validate` job: sibling checkouts of bridge + commons inside the
   workspace (the `file:` deps two levels up), ui-kit built first, then plugin `npm ci` +

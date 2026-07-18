@@ -192,6 +192,28 @@ possible round-3.
   contracts: device-integration-v1.1 cut; re-pin owed: satellite (a FIRST pin — their DES-4
   takes it; their `.repin.toml` already declares the family and nags never-pinned until then).
 
+- [x] **VWB-43** `[P1]` — **DONE 2026-07-18** (filed same day by OPS-32's first v3 run; executed
+  on owner go-ahead after the commons IMPL-8 sequencing note — VWB-43-first dissolves the v3.1
+  rollout coupling entirely). **Catalog STAMP `artifacts` → repo-root-relative: deliberate minor
+  cut `catalog-v1.8`, surface content byte-identical.** The trap being defused: the pre-v3 bare
+  names made `catalog.golden.json`/`openapi.json` CONTENT-UNVERIFIABLE and compared the
+  REPO-ROOT README on both sides of the drift check — armed to brick every commit (the hook
+  runs CONTENT-DRIFT unrelaxed) at the next root-README edit (OPS-28 was a live candidate).
+  **(a) The generator, not the STAMP, was the real fix site** — the intake-flagged check
+  confirmed `cli/dump_catalog.py` hardcodes the artifacts list, so a hand-edited STAMP would
+  have been silently reverted to bare names at the next regen, recreating the post-tag-drift
+  scar this arc exists to kill; it now emits `contracts/catalog/…` paths. **(b)**
+  `CONTRACT_VERSION` 1.7 → **1.8** (`presentation/api/catalog.py`); STAMP regenerated from the
+  repo root — version/tag/date/artifacts/bridge_commit moved, golden BYTE-IDENTICAL
+  (`5622ba7a1a78102a`), openapi untouched: a content-free convention cut like v1.7. **(c)** The
+  version-triple test's pin-completeness assertion re-pointed at the root-relative set. **(d)**
+  Lightweight tag **`catalog-v1.8`** on the landing commit (family style), pushed together.
+  contract-guard post-tag: the catalog family is fully verifiable for the first time under v3 —
+  0 warnings, CONTENT-DRIFT genuinely armed. Suite **734**, pyright 0, import-linter 6/6.
+  docs: none — STAMP/generator internals; no manifest-node behavior changes.
+  contracts: catalog-v1.8 cut (STAMP artifact paths → repo-root-relative; surface content
+  byte-identical); re-pin owed: voice, commons (voice's multi-dest catalog run updates both).
+
 ## UI — config-ui
 
 - [x] **UI-1** — **DONE** 2026-05-19 — backend `ab5402d`, UI `8ab2cfa`. On survey, the 8 modified UI files turned out to be one coherent appliance-category feature (not an unrelated layout refresh as initially thought) plus two unrelated SSE console-log cleanups; `docs/appliances.md` was the matching design doc. Shipped as a single paired commit per repo. `config/system.json` (UI) left untracked pending later check; `data/` added to UI `.gitignore`.

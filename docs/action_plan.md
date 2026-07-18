@@ -654,16 +654,6 @@ endpoint).
   re-anchored 2026-07-14, DOC-16 — the old text named done-VWB-38 as pending and "DRV-36's
   implementation".)*
 
-- [ ] **VWB-43** `[P1]` — **Catalog STAMP `artifacts` paths predate contract-guard v3's
-  repo-root-relative semantics** (found by OPS-32's first v3 run, 2026-07-18). The catalog STAMP
-  enumerates `catalog.golden.json` / `openapi.json` / `README.md` as bare names; v3 resolves
-  artifacts from the repo root (`git show <tag>:<path>`), so the first two are CONTENT-UNVERIFIABLE
-  (warning only) and **`README.md` resolves to the repo-root README on BOTH sides of the
-  comparison** — green today only because the root README hasn't changed since `catalog-v1.7`
-  (2026-07-13); its next edit fails the catalog family check with a baffling CONTENT-DRIFT. Fix =
-  rewrite the three entries as `contracts/catalog/…` paths — but a STAMP is tag bytes (the VWB-42
-  lesson): do it AT THE NEXT CATALOG CUT (version + tag + STAMP together), or as a deliberate
-  minor cut if a root-README edit is needed first. `[P1]` for the trap, not the warnings.
 
 ### UI — config-ui
 
