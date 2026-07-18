@@ -654,6 +654,19 @@ endpoint).
   re-anchored 2026-07-14, DOC-16 — the old text named done-VWB-38 as pending and "DRV-36's
   implementation".)*
 
+- [ ] **VWB-42** `[P2]` — **Cut a `device-integration-v1.1` minor tag** *(repo-to-repo filing by
+  locveil-satellite 2026-07-18 — HK-12 round-1 greenlight; listed in the bridge PROD-26 delegation
+  as "satellite's device-integration-v1.1 minor-tag request"; reconcile per
+  task-start-reconciliation at intake)*. Tag `device-integration-v1` (`d273508`) predates VWB-41's
+  STAMP-core normalization — the fix landed one commit later (`eb08146`) with NO tag bump, so the
+  tag's bytes carry the pre-convention STAMP shape. A pin is tag bytes: the satellite's DES-4
+  (convention pin + per-device descriptors) would either pin the stale shape or pin at v1 and carry
+  contract-guard's legacy warning until the next bump (the wrinkle is on record in the satellite
+  ledger since its OPS-3 intake). Ask: cut **`device-integration-v1.1`** at the normalized state —
+  STAMP `version` moves to `1.1` + tag in the same change (`process/contracts.md` §3; once the
+  bridge PROD-26 sweep vendors contract-guard v3, ORPHAN-TAG/CONTENT-DRIFT enforce exactly this).
+  On cut: `re-pin owed: satellite` (the satellite side is a FIRST pin — its DES-4 takes it; its
+  `.repin.toml` already declares the family and nags never-pinned until then).
 
 ### UI — config-ui
 
