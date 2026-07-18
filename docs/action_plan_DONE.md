@@ -481,7 +481,11 @@ possible round-3.
   workflow file); npm cache keyed on both lockfiles (both committed). Verified locally before
   wiring: typecheck + build green, `gen:api-types` deterministic (committed `openapi.gen.ts`
   byte-unchanged after regen); workflow YAML parse-checked (an unquoted `file:` colon in a step
-  name was caught by the check). Commons rides its default branch in this job until the
+  name was caught by the check). First LIVE run then caught what the local run couldn't: `tsc`
+  follows the `file:` link into `workbench/src/contract.ts`, which imports React types —
+  resolvable on the dev box (sibling `node_modules` present), absent in a bare CI checkout;
+  fixed same day with an `npm ci` step in the workbench package (no build — types only), after
+  which the job is green end-to-end. Commons rides its default branch in this job until the
   workbench contract pin exists (the OPS-33-recorded next-workbench-bump hook). docs: none — CI
   wiring only; no manifest node describes the plugin build. contracts: none — coverage for an
   existing consumer; the workbench family's pin (first consumption on record) lands with the

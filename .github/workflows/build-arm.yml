@@ -225,11 +225,19 @@ jobs:
           cache-dependency-path: |
             locveil-bridge/workbench-plugin/package-lock.json
             locveil-commons/packages/ui-kit/package-lock.json
+            locveil-commons/packages/workbench/package-lock.json
       - name: "Build ui-kit (the commons file: dep)"
         working-directory: locveil-commons/packages/ui-kit
         run: |
           npm ci
           npm run build
+      - name: Install workbench package deps
+        # No build — the plugin only consumes ./contract types from src/. But tsc
+        # follows the file: link into contract.ts, which imports React types, so
+        # the package needs its node_modules for type resolution (first live run
+        # caught this: resolvable on the dev box, absent in a bare checkout).
+        working-directory: locveil-commons/packages/workbench
+        run: npm ci
       - name: Install plugin dependencies
         working-directory: locveil-bridge/workbench-plugin
         run: npm ci
