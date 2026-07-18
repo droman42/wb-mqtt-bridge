@@ -24,6 +24,20 @@ files = ["contracts/report-protocol/report-protocol.json",
 path = "contracts/pins/report-protocol"
 conformance = "backend/tests/unit/test_report_protocol_pin.py"
 
+# CORE-7: the estate's first vendored RUNTIME code bridge-side (voice ARCH-58 is the
+# sibling). The importable copy backend/src/locveil_bridge/utils/entry_point_loader.py
+# must stay byte-identical to the pinned artifact; the conformance test asserts it.
+[[family]]
+name = "core-py"
+owner_repo = "locveil-commons"
+owner_dir = "../locveil-commons"
+owner_url = "https://github.com/locveil/locveil-commons.git"
+files = ["packages/core-py/entry_point_loader.py",
+         "contracts/core-py/STAMP.json"]
+[[family.dest]]
+path = "contracts/pins/core-py"
+conformance = "backend/tests/unit/test_core_py_pin_identity.py"
+
 # Vendored-tools manifest (HK-12): each pinned_tag is checked against the owner's
 # newest family tag on the same ladder — the tag↔vendored-copy relationship stops
 # living in prose. Bump a pinned_tag only in its re-vendor ledger task.

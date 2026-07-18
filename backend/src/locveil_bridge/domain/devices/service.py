@@ -3,13 +3,10 @@ import inspect
 import asyncio
 import json
 from typing import Dict, Any, Callable, List, Optional, Type, cast
-try:
-    from importlib.metadata import entry_points
-except ImportError:
-    from importlib_metadata import entry_points  # Python < 3.8
 from locveil_bridge.domain.ports import DevicePort
 from locveil_bridge.domain.devices.config import BaseDeviceConfig
 from locveil_bridge.utils.serialization_utils import safely_serialize, describe_serialization_issues
+from locveil_bridge.utils.entry_points import dynamic_loader
 from locveil_bridge.domain.ports import StateRepositoryPort
 
 # NOTE: This module now uses the 'device_class' field directly from device configurations
@@ -40,44 +37,32 @@ class DeviceManager:
         self._wb_service = wb_service
     
     async def load_device_modules(self):
-        """Load all device classes from entry points."""
+        """Load all device classes from entry points (the core-py registry, CORE-7)."""
         logger.info("Loading device classes from entry points")
-        
-        try:
-            # Load device classes from locveil_bridge.devices entry points.
-            # Python 3.10+: entry_points() returns EntryPoints (select-based API);
-            # older returned a Dict-shaped object. We've pinned py3.11 in CI, so
-            # select() is always available -- the legacy branch is dead.
-            eps = entry_points()
-            device_entries = eps.select(group='locveil_bridge.devices')
-            
-            logger.debug(f"Found {len(device_entries)} device entry points")
-            
-            for entry_point in device_entries:
-                try:
-                    loaded = entry_point.load()
 
-                    # Verify it's a DevicePort subclass; narrows pyright's view
-                    # from Any to Type[DevicePort] for the construction call below.
-                    if not (isinstance(loaded, type) and issubclass(loaded, DevicePort) and loaded is not DevicePort):
-                        logger.error(f"Entry point '{entry_point.name}' does not point to a valid DevicePort subclass")
-                        continue
-                    device_class: Type[DevicePort] = loaded
-                    
-                    # Register the device class
-                    self.device_classes[device_class.__name__] = device_class
-                    logger.info(f"Registered device class: {device_class.__name__} from entry point '{entry_point.name}'")
-                    
-                except Exception as e:
-                    logger.error(f"Error loading device class from entry point '{entry_point.name}': {str(e)}")
-                    import traceback
-                    logger.error(traceback.format_exc())
-        
-        except Exception as e:
-            logger.error(f"Error loading device entry points: {str(e)}")
-            import traceback
-            logger.error(traceback.format_exc())
-        
+        # Fresh discovery on every call — startup, POST /reload, and the device-test
+        # CLI all expect a re-read, matching the pre-CORE-7 inline scan.
+        dynamic_loader.clear_cache()
+
+        # The shared engine does discovery + validation: a loaded object that is not
+        # a DevicePort subclass lands in the failure ledger with a reason instead of
+        # being returned (enabled= stays None — all entry points; config-driven
+        # activation is a separate task).
+        discovered = dynamic_loader.discover_providers(
+            "locveil_bridge.devices", base_class=DevicePort
+        )
+
+        for ep_name, loaded in discovered.items():
+            # The registry keys by CLASS name — device configs carry
+            # `device_class: "LgTv"`, not the entry-point name. base_class
+            # validation above makes the cast sound.
+            device_class = cast(Type[DevicePort], loaded)
+            self.device_classes[device_class.__name__] = device_class
+            logger.info(f"Registered device class: {device_class.__name__} from entry point '{ep_name}'")
+
+        for ep_name, reason in dynamic_loader.get_discovery_failures("locveil_bridge.devices").items():
+            logger.error(f"Device entry point '{ep_name}' failed discovery: {reason}")
+
         logger.info(f"Loaded device classes: {list(self.device_classes.keys())}")
     
     def _load_device_class(self, device_class_name: str) -> Optional[Type[DevicePort]]:

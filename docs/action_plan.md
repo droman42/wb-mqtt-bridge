@@ -789,6 +789,24 @@ endpoint).
   about public intake today — record the chosen posture wherever it lands. Refs: board PROD-19,
   voice BUILD-14, `docs/design/problem_reports_bridge.md`.
 
+- [ ] **OPS-35** `[P2]` `[deferred]` — **Per-driver dependency extras + profile-driven slim
+  images** (CORE-7 follow-up, filed off the 2026-07-18 findings analysis; pairs with CORE-13 and
+  is GATED on its activation + failure policy — a slim image without loud missing-driver failure
+  is the UI-20 trap, worse). Verified: the driver→library map is **exactly 1:1 and clean** —
+  `apple_tv→pyatv` (the image's heaviest closure: protobuf/cryptography/zeroconf; also the
+  OPS-19 unmirrored git pin, which a lite profile simply doesn't ship), `lg_tv→asyncwebostv`,
+  `emotiva_xmc2→pymotivaxmc2`, `auralic→openhomedevice`(+aiohttp), `broadlink_hood→broadlink`;
+  the other four drivers (71/78 devices: passthrough, IR, HVAC, Revox) are MQTT-native, zero
+  extra deps. Today all five libs are unconditional in `backend/pyproject.toml`; the `LEAN=true`
+  build-arg is file-pruning only and STAYS as that layer. Scope: per-driver
+  `[project.optional-dependencies]` extras + an `all` extra (dev/CI installs everything — the
+  suite exercises all 9 drivers), a Dockerfile arg selecting extras from the deployment's config
+  profile, uv lock/extras verified on the armv7 build. A "WB-only house" profile
+  (passthrough+IR+HVAC — the Domovoy base case) drops all five AV libs. **Dialect decision
+  recorded:** pip-native EXTRAS, not voice's `EntryPointMetadata` quartet (voice-side per the
+  PROD-8 council; graduation to core-py only on a genuine second consumer of the metadata
+  mechanism — a board topic if ever wanted).
+
 
 ### CORE — Backend core / architecture
 
@@ -821,32 +839,6 @@ endpoint).
   `device-test <id> <command>` is a wanted future eval CLI surface (needs MQTT). Post-release: the
   DRV-1/SCN rack passes run off the UI + eval suite; this tool is a developer convenience, not a gate.
 
-- [ ] **CORE-7** `[P2]` `[deferred]` — **Adopt the shared entry-point-group registry from
-  `locveil-commons/packages/core-py`** (filed 2026-07-08; **reconciled + scope narrowed at intake
-  2026-07-16 to the board PROD-8 council decisions** — 2 rounds, keepers voice+bridge). **Gate:
-  PROD-8 / `packages/core-py` exists** (was "voice BUILD-21" — stale, corrected by the council;
-  the skeleton is cut only AFTER voice's ARCH-50 + ARCH-42 land, so the surface is known first).
-  **Scope (council decision 1 — the shared loader is the entry-point-group registry ONLY, the
-  genuine rule-of-two leaf):** swap the bridge's driver-axis discovery over to the core-py registry.
-  The bridge is consumer #2 (voice is #1, its `DynamicLoader` engine is the extraction source);
-  today the driver axis is the `locveil_bridge.devices` entry-point group, 9 drivers
-  (`backend/pyproject.toml:98-107`), consumed at `domain/devices/service.py:51-52`.
-  **Explicitly OUT of scope:**
-  - The **by-name config resolver stays bridge-side** — `utils/class_loader.py` is not extracted and
-    not replaced; each auxiliary graduates to core-py only on its own second consumer.
-  - **No config→entry-point unification** (council decision 2 — "config-based driver loading" means
-    unify *resolution*, keep entry points). Replacing entry points with runtime config-path discovery
-    is **REJECTED**: it breaks the offline catalog generator (`dump_catalog`) that builds the
-    voice-pinned golden without loading a single driver. This stays a **self-contained infra swap —
-    no catalog-contract bump, no golden drift**.
-  - The **UI/panel driver-availability gating is UI-20**, never a rider here (council decision 3).
-  **Binding conditions:** loader lives in `utils/` or behind a port — **never `domain/`**; **zero new
-  import-linter exceptions** (`hexagonal-architecture` — verify `lint-imports` before commit).
-  **Fold in (verified dead at intake):** `infrastructure/config/validation.py:67-97`
-  (`validate_class_references`, containing the pre-HK-8 `"devices."` / `"app.schemas."` prefixes at
-  `:89`/`:94`) has **zero call sites** — `validate_device_configs` never calls it. Remove it with the
-  swap. Design: `docs/design/productization_bridge.md` §2, shared spec D-8; board PROD-8.
-
 - [ ] **CORE-8** `[P1]` `[deferred]` — **Broker/device secret handling — out of config, off the wire, out of the logs** (REL-5 #1 (P0), #4/#5, #9, #12; `docs/review/rel5_pretag_review.md`). **Deferred to productization by user decision 2026-07-09** — proper secrets management + any API auth is product-shaped, and the house is on a trusted LAN. Scope: **(#1)** drop `auth` from `system.json` (env-only) and mask/drop `auth` in the `/config/system` + `/system` presentation DTOs (`system.py`, reuse `redact_mapping`) — today the broker password is served unauthenticated on the LAN; **(#12)** FIX the dead `_apply_environment_variables` (`config/manager.py:289` — `MQTT_BROKER_HOST/USERNAME/PASSWORD` overrides never take effect, which also unblocks the env-only path above); **(#4/#5)** stop logging the raw `broker_config` (`mqtt/client.py:18`); **(#9)** stop logging the LG WebOS `client_key` (`lg_tv/driver.py:904`). NB: rotating the currently-committed broker password is a separate near-term user op (the value is in git history) — recommended regardless of when this code work lands.
 
 - [ ] **CORE-12** `[P1]` — **Staged-write API for repo-owned config — implementation** (filed at UI-17
@@ -863,6 +855,21 @@ endpoint).
   the endpoints must be unreachable until PROD-4's auth decision lands** — code may land behind a
   disabled feature flag, reachability may not. OpenAPI/`contracts/` regen + UI types ride whichever
   change first exposes the schema.
+
+- [ ] **CORE-13** `[P2]` `[deferred]` — **Config-driven driver activation** (CORE-7 follow-up,
+  filed off the 2026-07-18 findings analysis; `design-then-implement` — a short design note, and
+  the failure-policy half is decided WITH UI-20, one decision). The config tree already declares
+  demand completely: `{device_class over config/devices/**/*.json}` — today 78 devices → all 9
+  classes, 71/78 riding the four MQTT-native drivers — so **no new config format is needed**.
+  Scope: derive the enabled set from the config tree at startup; map class names → entry-point
+  names WITHOUT importing (an `EntryPoint.value` is `"module:Class"` — parse, don't load); pass
+  `enabled=` to `discover_providers`; and DECIDE the missing-required-driver policy — today
+  `initialize_devices` log-and-skips (the UI-20 root cause), but under OPS-35's slim images a
+  config demanding an uninstalled driver must fail LOUDLY. The loader's failure ledger
+  (per-entry reasons, landed with CORE-7) is exactly the machinery UI-20's "surface with
+  reason" option needs. Runtime win for the owner's full-fleet house is ~nil — this is the
+  enabling half of productization deployment profiles (pairs with OPS-35; Domovoy arc / PROD-4
+  direction).
 
 ### LIB — pymotivaxmc2 library (sibling repo)
 

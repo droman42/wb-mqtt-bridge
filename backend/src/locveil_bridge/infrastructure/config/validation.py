@@ -11,8 +11,6 @@ from typing import Dict, List, Optional, Tuple, Any
 import json
 import glob
 
-from locveil_bridge.domain.devices.config import BaseDeviceConfig
-from locveil_bridge.utils.class_loader import validate_class_exists
 
 logger = logging.getLogger(__name__)
 
@@ -63,38 +61,6 @@ def validate_config_file_structure(file_path: str) -> Tuple[bool, Optional[Dict[
         )
     
     return len(errors) == 0, config_data, errors
-
-def validate_class_references(config_data: Dict[str, Any]) -> Tuple[bool, List[str]]:
-    """
-    Validate that device_class and config_class references exist.
-    
-    Args:
-        config_data: Device configuration data
-        
-    Returns:
-        Tuple containing:
-        - Boolean indicating if validation passed
-        - List of error messages
-    """
-    errors = []
-    
-    # Collect classes to validate
-    classes_to_validate = {
-        "device implementation": config_data.get('device_class', ''),
-        "configuration": config_data.get('config_class', '')
-    }
-    
-    # Validate device_class against BaseDevice
-    device_class = classes_to_validate["device implementation"]
-    if device_class and not validate_class_exists(device_class, object, "devices."):
-        errors.append(f"Device class '{device_class}' not found")
-    
-    # Validate config_class against BaseDeviceConfig
-    config_class = classes_to_validate["configuration"]
-    if config_class and not validate_class_exists(config_class, BaseDeviceConfig, "app.schemas."):
-        errors.append(f"Configuration class '{config_class}' not found")
-    
-    return len(errors) == 0, errors
 
 def discover_config_files(config_dir: str) -> List[str]:
     """

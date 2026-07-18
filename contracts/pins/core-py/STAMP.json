@@ -1,0 +1,12 @@
+{
+  "contract": "core-py",
+  "version": "1.1",
+  "tag": "core-py-v1.1",
+  "date": "2026-07-18",
+  "owner_repo": "locveil-commons",
+  "artifact": "packages/core-py/entry_point_loader.py",
+  "artifacts": ["packages/core-py/entry_point_loader.py"],
+  "design": "locveil-voice/docs/design/core_py_loader_extraction.md",
+  "distribution": "locveil-core-py 1.0.0",
+  "note": "Cross-reference stamp (PROD-8): the artifact stays importable/runnable in packages/core-py/ per the contracts convention's stays-in-home rule; tests/pyproject/README are owner-side tooling and NOT part of the pinned set — consumers vendor exactly the artifacts list, byte-identical, with a strict PIN.json + identity test (the estate's first vendored RUNTIME code). v1.1 is a PACKAGING correction found at the first consumer pin (voice ARCH-58): the v1 tag was cut before this STAMP landed, so the v1 tree carries no STAMP and pins-complete-and-verbatim could not be satisfied against it; artifact bytes are UNCHANGED from v1 — v1.1's tree carries artifact + STAMP together, per surface-with-the-artifact."
+}

@@ -28,6 +28,19 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-18 (evening) — CORE-7: core-py adopted for the driver axis; CORE-13 + OPS-35 filed.**
+  PROD-8's bridge half executed the day its gate opened (voice ARCH-58 closed, core-py real).
+  The pin was taken by the vendored repin tool itself — `.repin.toml` grew the `core-py` family
+  and one command wrote the strict pin at `core-py-v1.1` (v1 refused by design: its tree
+  predates the STAMP). The swap honored every §5 condition: loader + singleton in `utils/`
+  (never `domain/`), zero new import-linter exceptions, registry re-keyed by class name (the
+  configs' vocabulary), fresh-discovery semantics kept for `/reload`, dead
+  `validate_class_references` folded out. Verified by driving it: 9/9 drivers discovered with
+  the failure ledger empty, golden byte-identical at 79 devices. Suite 738. The findings
+  analysis (config tree = complete demand declaration; driver→lib map 1:1) became CORE-13
+  (config-driven activation, decided WITH UI-20) and OPS-35 (per-driver extras / slim images,
+  the pip-extras dialect over voice's metadata quartet).
+
 - **2026-07-18 (later) — VWB-43: catalog-v1.8 minor cut — the root-README false-drift trap
   defused.** Owner go-ahead after the commons IMPL-8 sequencing note (VWB-43-first makes the
   contract-guard v3.1 rollout sequencing-free). The real fix site was the GENERATOR:
