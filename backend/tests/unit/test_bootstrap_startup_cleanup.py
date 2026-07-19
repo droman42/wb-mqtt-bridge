@@ -42,6 +42,44 @@ async def test_release_covers_every_acquired_resource():
 
 
 @pytest.mark.asyncio
+async def test_release_marks_wb_cards_offline_before_device_shutdown():
+    """OPS-18: a failure after device setup must not leave retained available=1
+    WB cards looking live — the release mirrors the normal shutdown's offline
+    pass, while the MQTT client is still around."""
+    dev_a, dev_b = MagicMock(), MagicMock()
+    dev_a.cleanup_wb_device_state = AsyncMock()
+    dev_b.cleanup_wb_device_state = AsyncMock(side_effect=RuntimeError("broker gone"))
+    dm = MagicMock()
+    dm.devices = {"a": dev_a, "b": dev_b}
+    dm.shutdown_devices = AsyncMock()
+    mqtt = MagicMock()
+    mqtt.disconnect = AsyncMock()
+
+    await _release_partial_startup(None, dm, mqtt, None)
+
+    dev_a.cleanup_wb_device_state.assert_awaited_once()
+    dev_b.cleanup_wb_device_state.assert_awaited_once()  # failure didn't stop the loop
+    dm.shutdown_devices.assert_awaited_once()
+    mqtt.disconnect.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_release_skips_wb_offline_pass_without_mqtt():
+    """No MQTT client acquired → nothing was ever published this run and there is
+    no way to publish offline markers — the pass is skipped, the rest still runs."""
+    dev = MagicMock()
+    dev.cleanup_wb_device_state = AsyncMock()
+    dm = MagicMock()
+    dm.devices = {"a": dev}
+    dm.shutdown_devices = AsyncMock()
+
+    await _release_partial_startup(None, dm, None, None)
+
+    dev.cleanup_wb_device_state.assert_not_awaited()
+    dm.shutdown_devices.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_release_continues_past_failing_steps():
     """A raising release step must not stop the remaining releases (or raise)."""
     dm = MagicMock()

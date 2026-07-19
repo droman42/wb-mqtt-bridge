@@ -28,6 +28,12 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-19 — OPS-18: partial-startup failure marks WB cards offline.** Third of the
+  sweep — the OPS-8 symmetry closed: `_release_partial_startup` now runs the same
+  per-device WB offline pass the normal shutdown does (guarded, MQTT-still-connected,
+  skipped when no client was ever acquired). Suite 742. The sweep's third commit; the
+  repin warn lane kept flagging scope-guard v7.2 throughout — filed as OPS-37.
+
 - **2026-07-19 — VWB-31: availability failures speak 503; catalog-v1.9 cut.** Second of the
   sweep. The classifier now checks reachability wording before the param sniff, so a handler
   that already knows the device is gone gets the same `device_unreachable`/503 the

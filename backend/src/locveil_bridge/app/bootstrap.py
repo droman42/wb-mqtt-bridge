@@ -179,6 +179,21 @@ async def _release_partial_startup(
     log = logging.getLogger(__name__)
     if report_retry_task is not None:
         report_retry_task.cancel()
+    if device_manager is not None and mqtt_client is not None:
+        # Mirror the normal shutdown's WB-card offline pass (meta/error=offline +
+        # meta/available=0) while MQTT is still connected — without it, a failure
+        # after device setup leaves retained available=1 cards looking live in the
+        # WB UI with the bridge down (OPS-18, completing the OPS-8 symmetry).
+        from locveil_bridge.infrastructure.devices.base import BaseDevice as _BaseDevice  # local: keep domain/ import-pure
+        for port_device in device_manager.devices.values():
+            wb_dev = cast(_BaseDevice, port_device)
+            try:
+                await wb_dev.cleanup_wb_device_state()
+            except Exception as e:
+                log.warning(
+                    f"Startup-failure cleanup: WB offline cleanup failed for "
+                    f"{wb_dev.device_id}: {e}"
+                )
     if device_manager is not None:
         try:
             await device_manager.shutdown_devices()

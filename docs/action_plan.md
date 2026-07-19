@@ -765,8 +765,6 @@ endpoint).
   in the spec. Sibling of the voice repo's narrowed BUILD-18. Design:
   `docs/design/productization_bridge.md` §2.
 
-- [ ] **OPS-18** `[P2]` `[deferred]` — **Startup-failure cleanup omits WB-card offline marking (asymmetric with normal shutdown)** (REL-5 #11). `app/bootstrap.py:184` — `_release_partial_startup` doesn't call `cleanup_wb_device_state`, so a partial-startup failure leaves retained `available=1` on the WB cards. Edge path (only when startup fails midway); completes the OPS-8 shutdown-symmetry.
-
 - [ ] **OPS-19** `[P2]` `[deferred]` — **`pyatv` git source is unmirrored — a dependency-policy Rule 2 compliance gap (policy home since DOC-15: `CONTRIBUTING.md` → Dependency policy; ex-ADR 0006, archived).** Surfaced by the REL-4 ADR review. `pyatv` is pinned to `git+https://github.com/postlund/pyatv@9177803…` — SHA-pinned (immutable, so the build is reproducible today) but **not** mirrored under the owner's account, which the policy's Rule 2 requires for repos the owner doesn't control; the old ADR's "only remaining git source" claim was already annotated false 2026-07-10. Residual risk: an upstream force-push/deletion of `postlund/pyatv` breaks recovery. **Decision + small op:** either mirror `postlund/pyatv` → `droman42/pyatv` and repoint the pin (comply), OR record an accepted exception in the CONTRIBUTING dependency-policy section with rationale. Not a release gate (reproducible now). Minor sibling: the dev-only `py-dev-gates@v0.1.1` is tag-pinned (owner-controlled) — fold in or leave.
 
 - [ ] **OPS-28** `[P2]` `[deferred]` — **PROD-19 twin: public-issue intake posture — one door,
@@ -803,6 +801,15 @@ endpoint).
   PROD-8 council; graduation to core-py only on a genuine second consumer of the metadata
   mechanism — a board topic if ever wanted).
 
+
+- [ ] **OPS-37** `[P2]` — **Re-vendor scope-guard @ scope-v7.2** (filed 2026-07-19 off the repin
+  `[[tool]]` staleness warning that fired throughout the low-hanging-fruit sweep — the manifest
+  doing exactly its job; the OPS-31/OPS-36 same-day-re-vendor pattern applies). Diff the owner's
+  v7.1→v7.2 changes in `../locveil-commons/packages/scope-guard/`, verify the bridge passes any
+  new rules BEFORE vendoring, copy `scripts/scope_guard.py` byte-identical from the tag, bump the
+  `.repin.toml` `[[tool]]` row, re-truth the CI comment if the rule set is described there. If
+  v7.2 changes the pinned-block hashing or block set, reconcile `.scope-guard.toml` + the CLAUDE.md
+  pinned blocks against commons in the same change.
 
 ### CORE — Backend core / architecture
 
