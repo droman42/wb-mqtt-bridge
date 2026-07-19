@@ -28,6 +28,13 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-19 (follow-up) — CORE-1: the ScenarioWBAdapter residual retired pre-bench.** The
+  fifth stale-composition gap closed on owner directive before the rack visit: the reload
+  service gained a post-connect `rebuild_scenario_cards` hook — bootstrap builds a fresh
+  adapter over the new client + WB service and re-runs `setup()` (cards republished,
+  command topics re-subscribed, `on_active_changed` re-pointed). The rack checklist now
+  includes the «Сценарии» cards. Suite 747.
+
 - **2026-07-19 — CORE-1 code half: the hexagon's last exception removed (task stays open,
   HW-gated).** The `/reload` background task moved verbatim into `app/reload_service.py`;
   the router schedules it and imports zero infrastructure — the import-linter

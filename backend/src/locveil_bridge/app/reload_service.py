@@ -13,6 +13,12 @@ shaped on its own side:
   publish (VWB-32), updates its own shutdown reference, and returns a fresh
   WB virtual-device service bound to the new client (the old one kept
   publishing into the stopped client).
+- ``rebuild_scenario_cards`` fires once the new client is CONNECTED (card
+  publishes + command-topic subscriptions need a live client, mirroring
+  startup's ordering): bootstrap builds a fresh ScenarioWBAdapter over the
+  new client + WB service and runs its setup(), which also re-points the
+  scenario manager's ``on_active_changed`` hook at the new adapter — the old
+  adapter's cards, subscriptions, and hook all died with the old client.
 - ``publish_catalog_version`` is the same guarded closure startup uses; the
   explicit call at the end preserves the reload's guaranteed post-reload
   catalog-version nudge.
@@ -41,12 +47,14 @@ class ReloadService:
         device_manager: DeviceManager,
         client_factory: Callable[[], MQTTClient],
         on_new_client: Callable[[MQTTClient], WBVirtualDeviceService],
+        rebuild_scenario_cards: Callable[[MQTTClient, WBVirtualDeviceService], Awaitable[None]],
         publish_catalog_version: Callable[[], Awaitable[None]],
     ):
         self._config_manager = config_manager
         self._device_manager = device_manager
         self._client_factory = client_factory
         self._on_new_client = on_new_client
+        self._rebuild_scenario_cards = rebuild_scenario_cards
         self._publish_catalog_version = publish_catalog_version
         # The current live client — seeded by bootstrap at startup, swapped
         # here on every reload.
@@ -103,7 +111,7 @@ class ReloadService:
             if not connection_success:
                 logger.error(
                     "Failed to establish MQTT connection within timeout after "
-                    "reload - WB emulation will be skipped"
+                    "reload - WB emulation and scenario cards will be skipped"
                 )
             else:
                 logger.info("MQTT connection established successfully after reload")
@@ -122,6 +130,12 @@ class ReloadService:
                             f"Failed to setup WB emulation for device {device_id} "
                             f"after reload: {str(e)}"
                         )
+
+                # Rebuild the per-room scenario cards over the new client —
+                # their publishes, subscriptions, and the on_active_changed
+                # hook were all bound to the old one. Needs the live
+                # connection, same as startup.
+                await self._rebuild_scenario_cards(new_client, wb_service)
 
             # Bump the retained catalog version so catalog-aware subscribers
             # refetch. Done at the END so the post-reload hash is published;

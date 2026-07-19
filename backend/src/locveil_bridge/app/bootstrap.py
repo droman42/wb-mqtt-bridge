@@ -575,11 +575,26 @@ def create_app() -> FastAPI:
                 new_client.on_connect_callbacks.append(_publish_catalog_version)
                 return WBVirtualDeviceService(message_bus=new_client)
 
+            async def _rebuild_scenario_cards(
+                new_client: MQTTClient, new_wb_service: WBVirtualDeviceService
+            ) -> None:
+                # A fresh adapter over the new client: setup() republishes the
+                # cards, re-subscribes their command topics, and re-points the
+                # scenario manager's on_active_changed hook at itself — the old
+                # adapter (cards, subscriptions, hook) died with the old client.
+                nonlocal scenario_wb_adapter
+                scenario_wb_adapter = ScenarioWBAdapter(scenario_proxy, new_wb_service, new_client)
+                try:
+                    await scenario_wb_adapter.setup()
+                except Exception as e:
+                    logger.error(f"Failed to re-set up scenario WB cards after reload: {str(e)}")
+
             reload_service = ReloadService(
                 config_manager=config_manager,
                 device_manager=device_manager,
                 client_factory=_build_mqtt_client,
                 on_new_client=_adopt_mqtt_client,
+                rebuild_scenario_cards=_rebuild_scenario_cards,
                 publish_catalog_version=_publish_catalog_version,
             )
             reload_service.mqtt_client = mqtt_client

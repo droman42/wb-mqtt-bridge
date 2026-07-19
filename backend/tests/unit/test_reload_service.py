@@ -42,6 +42,7 @@ def _make_service(devices=None, handler=None):
     m.wb_service = MagicMock()
     m.client_factory = MagicMock(return_value=m.new_client)
     m.on_new_client = MagicMock(return_value=m.wb_service)
+    m.rebuild_scenario_cards = AsyncMock()
     m.publish_catalog_version = AsyncMock()
 
     service = ReloadService(
@@ -49,6 +50,7 @@ def _make_service(devices=None, handler=None):
         device_manager=m.device_manager,
         client_factory=m.client_factory,
         on_new_client=m.on_new_client,
+        rebuild_scenario_cards=m.rebuild_scenario_cards,
         publish_catalog_version=m.publish_catalog_version,
     )
     service.mqtt_client = m.old_client
@@ -89,8 +91,10 @@ async def test_reload_swaps_the_client_and_rewires_before_reinit():
         {"t/1": handler, "t/2": handler}
     )
     m.new_client.connect.assert_not_awaited()
-    # WB emulation redone + the retained catalog version republished.
+    # WB emulation redone, scenario cards rebuilt over the new composition,
+    # the retained catalog version republished.
     dev.setup_wb_emulation_if_enabled.assert_awaited_once()
+    m.rebuild_scenario_cards.assert_awaited_once_with(m.new_client, m.wb_service)
     m.publish_catalog_version.assert_awaited_once()
 
 
@@ -106,7 +110,7 @@ async def test_reload_without_handlers_connects_bare():
 
 
 @pytest.mark.asyncio
-async def test_connection_timeout_skips_wb_emulation_but_still_publishes():
+async def test_connection_timeout_skips_wb_emulation_and_scenario_cards():
     dev = _fake_device(["t/1"])
     service, m = _make_service(devices={"d1": dev}, handler=MagicMock())
     m.new_client.wait_for_connection = AsyncMock(return_value=False)
@@ -114,6 +118,7 @@ async def test_connection_timeout_skips_wb_emulation_but_still_publishes():
     await service.reload()
 
     dev.setup_wb_emulation_if_enabled.assert_not_awaited()
+    m.rebuild_scenario_cards.assert_not_awaited()
     m.publish_catalog_version.assert_awaited_once()
 
 
