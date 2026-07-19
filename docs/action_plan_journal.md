@@ -28,6 +28,18 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-19 — VWB-31: availability failures speak 503; catalog-v1.9 cut.** Second of the
+  sweep. The classifier now checks reachability wording before the param sniff, so a handler
+  that already knows the device is gone gets the same `device_unreachable`/503 the
+  echo-timeout path emits — deliberately excluding bare "available"/"unavailable" (protocol
+  limitations are real 500s; keyword set built from a sweep of actual driver error strings).
+  The endpoint's OpenAPI description documented the old mapping, and that description lives
+  in the stamped catalog openapi — owner ruled: cut the minor now (voice+commons still owe
+  the v1.8 re-pin, so one re-pin covers both). Golden byte-identical. Suite 740. Side
+  catch: a wrong-cwd `locveil-catalog` run scaffolds a stray `backend/config/` skeleton
+  that shadows the root tree for 17 cwd-fallback tests — run it from the repo root
+  (the README already says so).
+
 - **2026-07-19 — DRV-22: IR driver's dead `last_command` enrichment deleted.** First of the
   low-hanging-fruit sweep (DRV-22 → VWB-31 → OPS-18, one commit each). The REL-5 #10 finding
   held exactly as written: the base chokepoint re-records `last_command` right after every

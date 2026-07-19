@@ -289,6 +289,44 @@ def test_internal_error_returns_500_for_non_param_handler_failure(faked):
     assert r.json()["detail"]["error"]["code"] == "internal_error"
 
 
+def test_device_unreachable_returns_503_when_handler_reports_not_connected(faked):
+    """VWB-31 (REL-5 #8): a handler that already knows the device is gone (the eMotiva's
+    'Not connected to processor') surfaces device_unreachable/503, matching the
+    echo-timeout branch — not internal_error/500."""
+    dev = FakeDevice("cabinet_spots", _light_switch_cap_map(), {"power": "off"})
+    faked.devices["cabinet_spots"] = dev
+
+    async def handler(d, cmd, params):
+        return {"success": False, "error": "Not connected to processor"}
+
+    faked.handlers["cabinet_spots"] = handler
+    r = faked.client.post(
+        "/devices/cabinet_spots/canonical",
+        json={"capability": "power", "action": "on"},
+    )
+    assert r.status_code == 503
+    assert r.json()["detail"]["error"]["code"] == "device_unreachable"
+
+
+def test_protocol_limitation_failure_stays_internal_error(faked):
+    """VWB-31 boundary: '… not available on this device' is a protocol limitation, not a
+    reachability failure — it must stay internal_error/500 (the classifier deliberately
+    excludes bare 'available'/'unavailable')."""
+    dev = FakeDevice("cabinet_spots", _light_switch_cap_map(), {"power": "off"})
+    faked.devices["cabinet_spots"] = dev
+
+    async def handler(d, cmd, params):
+        return {"success": False, "error": "Mute/volume control is not available on this device"}
+
+    faked.handlers["cabinet_spots"] = handler
+    r = faked.client.post(
+        "/devices/cabinet_spots/canonical",
+        json={"capability": "power", "action": "on"},
+    )
+    assert r.status_code == 500
+    assert r.json()["detail"]["error"]["code"] == "internal_error"
+
+
 # ----- No-op short-circuit -------------------------------------------------
 
 

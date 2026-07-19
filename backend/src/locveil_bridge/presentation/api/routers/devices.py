@@ -366,8 +366,10 @@ async def execute_canonical_action(device_id: str, payload: CanonicalActionReque
       - `action_not_supported` (404)
       - `param_invalid` (400) - currently mapped from any perform_action failure with
         param-shaped error text; refined later if/when handlers distinguish cleanly.
-      - `device_unreachable` (503) - timeout OR `state.reachable` flipped False during
-        the wait (a per-control `meta/error` `r` flag landed; A3 convention).
+      - `device_unreachable` (503) - the device handler reported a reachability
+        failure (connection lost/refused), the echo wait timed out, or
+        `state.reachable` flipped False during the wait (a per-control `meta/error`
+        flag landed, per the Wirenboard MQTT convention).
       - `internal_error` (500) - everything else.
     """
     if not device_manager:
@@ -516,11 +518,24 @@ async def dispatch_device_canonical(
                 err_text = str(result.get("error") or "unknown error")
                 if total > 1:
                     err_text = f"step {i + 1}/{total} ({step.command}): {err_text}"
-                # Param-shaped failures rarely come back uniformly today; until handlers
-                # distinguish, surface most failures as internal_error. Keyword sniff for the
-                # obvious "param missing / invalid" cases so voice sees a clean 400.
+                # Handlers don't return structured error codes yet, so classification is a
+                # keyword sniff over the error text. Reachability wording maps to the same
+                # DEVICE_UNREACHABLE/503 the echo-timeout branch below emits — a handler
+                # that already knows the device is gone ("Not connected to processor")
+                # must not surface as internal_error while a silent device gets a
+                # speakable 503 (VWB-31). Deliberately narrow: protocol-limitation
+                # messages ("… not available on this device") are real 500s, so bare
+                # "available"/"unavailable" stays out of the set. Param-shaped wording
+                # maps to a clean 400.
                 low = err_text.lower()
-                if "param" in low or "missing" in low or "required" in low or "invalid" in low:
+                _UNREACHABLE_MARKERS = (
+                    "not connected", "unreachable", "connection refused",
+                    "connection failed", "connection error", "offline",
+                )
+                if any(marker in low for marker in _UNREACHABLE_MARKERS):
+                    code = CanonicalErrorCode.DEVICE_UNREACHABLE
+                    status = 503
+                elif "param" in low or "missing" in low or "required" in low or "invalid" in low:
                     code = CanonicalErrorCode.PARAM_INVALID
                     status = 400
                 else:

@@ -23,7 +23,13 @@ and the STAMP now enumerates the artifact set (`artifacts`) so a consumer's pin 
 be checked for completeness. v1.7 (additive) renamed the backend import package to
 `locveil_bridge`: the module-qualified names of the two `ManualInstructions` schema
 variants in `openapi.json` changed prefix accordingly — a schema-name rename, no
-field or structural change, and the golden catalog is byte-identical. Additive changes bump the
+field or structural change, and the golden catalog is byte-identical. v1.8
+(administrative) moved the STAMP's `artifacts` enumeration to repo-root-relative
+paths — no schema, field, or golden change. v1.9 (additive) refined the canonical
+endpoint's error mapping: a reachability failure reported by the device handler
+itself now surfaces as `device_unreachable` (503), consistent with the echo-timeout
+path — previously such failures fell through to `internal_error` (500); the endpoint
+description documents the mapping, and the golden is byte-identical. Additive changes bump the
 minor version, breaking changes the major; the version is carried in code as the
 catalog projection's `CONTRACT_VERSION` constant and flows into the STAMP at
 regeneration. The golden's *content hash* is *not* a version — it moves whenever the

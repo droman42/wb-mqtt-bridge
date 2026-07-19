@@ -43,7 +43,7 @@ from locveil_bridge.presentation.api.schemas import (
 # locveil-commons): distinct from the content-hash `CatalogResponse.version`, which moves
 # on config changes with zero contract change. Bump on deliberate contract cuts only
 # (additive = minor, breaking = major); the STAMP.json beside the golden carries it.
-CONTRACT_VERSION = "1.8"
+CONTRACT_VERSION = "1.9"
 
 
 def _project_capability_actions(

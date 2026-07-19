@@ -281,8 +281,10 @@ export interface paths {
          *       - `action_not_supported` (404)
          *       - `param_invalid` (400) - currently mapped from any perform_action failure with
          *         param-shaped error text; refined later if/when handlers distinguish cleanly.
-         *       - `device_unreachable` (503) - timeout OR `state.reachable` flipped False during
-         *         the wait (a per-control `meta/error` `r` flag landed; A3 convention).
+         *       - `device_unreachable` (503) - the device handler reported a reachability
+         *         failure (connection lost/refused), the echo wait timed out, or
+         *         `state.reachable` flipped False during the wait (a per-control `meta/error`
+         *         flag landed, per the Wirenboard MQTT convention).
          *       - `internal_error` (500) - everything else.
          */
         post: operations["execute_canonical_action_devices__device_id__canonical_post"];
