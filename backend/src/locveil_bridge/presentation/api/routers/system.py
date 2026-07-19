@@ -10,7 +10,6 @@ from locveil_bridge.presentation.api.schemas import (
     ServiceInfo,
     ReloadResponse,
 )
-from locveil_bridge.infrastructure.mqtt.client import MQTTClient
 
 # §P3.7 #17. Retained MQTT topic Irene subscribes to; the payload is the current
 # `/system/catalog` version hash. Bumped on /reload (after configs + devices reload).
@@ -30,6 +29,10 @@ state_store = None  # Keep reference to state_store
 scenario_manager = None
 room_manager = None
 scenario_proxy = None  # ScenarioProxy (SCN-6)
+# CORE-1: the /reload background work lives in the app layer
+# (`app/reload_service.py`); this router only schedules it. Wired by the
+# composition root via set_reload_service().
+reload_service = None
 
 def initialize(cfg_manager, dev_manager, mqt_client, state_st=None, scenario_mgr=None, room_mgr=None, scenario_prx=None):
     """Initialize global references needed by router endpoints."""
@@ -41,6 +44,13 @@ def initialize(cfg_manager, dev_manager, mqt_client, state_st=None, scenario_mgr
     scenario_manager = scenario_mgr
     room_manager = room_mgr
     scenario_proxy = scenario_prx
+
+def set_reload_service(service):
+    """Wire the app-layer reload service (CORE-1). Separate from initialize()
+    because the service is constructed after the routers are wired — it needs
+    the composition root's rewire hook, which needs the routers importable."""
+    global reload_service
+    reload_service = service
 
 @router.get("/", response_model=ServiceInfo)
 async def root():
@@ -114,122 +124,17 @@ async def get_system_catalog():
 @router.post("/reload", response_model=ReloadResponse)
 async def reload_system(background_tasks: BackgroundTasks):
     """Reload configurations and device modules."""
-    if not config_manager or not device_manager or not mqtt_client:
+    if not config_manager or not device_manager or not reload_service:
         raise HTTPException(status_code=503, detail="Service not fully initialized")
-    
+
     logger = logging.getLogger(__name__)
     logger.info("Reloading system configuration")
-    
-    # Reload in the background to not block the response
-    background_tasks.add_task(reload_system_task)
-    
+
+    # Reload in the background to not block the response (CORE-1: the sequence
+    # itself lives in the app layer -- app/reload_service.py).
+    background_tasks.add_task(reload_service.reload)
+
     return ReloadResponse(
         status="reload initiated",
         message="System reload has been initiated in the background"
     )
-
-async def reload_system_task():
-    """Background task to reload the system."""
-    global mqtt_client
-    logger = logging.getLogger(__name__)
-    
-    try:
-        # Stop MQTT client
-        if mqtt_client:
-            await mqtt_client.stop()
-        
-        # Reload configs and device modules
-        if config_manager:
-            config_manager.reload_configs()
-        
-        if device_manager:
-            await device_manager.load_device_modules()
-        
-        # Reconfigure MQTT client
-        if config_manager:
-            mqtt_broker_config = config_manager.get_mqtt_broker_config()
-            new_mqtt_client = MQTTClient({
-                'host': mqtt_broker_config.host,
-                'port': mqtt_broker_config.port,
-                'client_id': mqtt_broker_config.client_id,
-                'keepalive': mqtt_broker_config.keepalive,
-                'auth': mqtt_broker_config.auth
-            })
-            
-            # Start the MQTT client first, then initialize devices
-            mqtt_client = new_mqtt_client
-            
-            # Initialize devices with clean start
-            if device_manager and config_manager:
-                # Shutdown any existing devices
-                await device_manager.shutdown_devices()
-                
-                # Initialize devices with typed configs. Wire the shared MQTT client BEFORE
-                # `initialize_devices` so WB-passthrough devices' setup() can register their
-                # state_topic + meta/error subscriptions on the right client (see §P3.7 #18
-                # postmortem). Existing AV drivers don't use mqtt_client in setup() so this
-                # is a no-op for them.
-                device_manager.config_manager = config_manager
-                device_manager.set_runtime_services(mqtt_client=mqtt_client)
-                await device_manager.initialize_devices(config_manager.get_all_device_configs())
-
-                # Safety-net assignment (already set in the constructor; idempotent).
-                for device_id, device in device_manager.devices.items():
-                    device.mqtt_client = mqtt_client
-                
-                # Create topic to handler mapping
-                topic_handlers = {}
-                for device_id, device in device_manager.devices.items():
-                    # Get message handler for this device
-                    handler = device_manager.get_message_handler(device_id)
-                    if handler:
-                        # Add topic-handler mappings for this device's topics
-                        for topic in device.subscribe_topics():
-                            topic_handlers[topic] = handler
-                
-                # Connect to MQTT broker with topics and handlers
-                if topic_handlers:
-                    await mqtt_client.connect_and_subscribe(topic_handlers)
-                else:
-                    # Connect without topics if no handlers available
-                    await mqtt_client.connect()
-                
-                # Wait for MQTT connection to be fully established
-                logger.info("Waiting for MQTT connection to be established after reload...")
-                connection_success = await mqtt_client.wait_for_connection(timeout=30.0)
-                if not connection_success:
-                    logger.error("Failed to establish MQTT connection within timeout after reload - WB emulation will be skipped")
-                else:
-                    logger.info("MQTT connection established successfully after reload")
-                    
-                    # Now that MQTT is connected, set up Wirenboard virtual device emulation for all devices
-                    logger.info("Setting up Wirenboard virtual device emulation after reload...")
-                    for device_id, device in device_manager.devices.items():
-                        try:
-                            await device.setup_wb_emulation_if_enabled()
-                            logger.debug(f"WB emulation setup completed for device {device_id} after reload")
-                        except Exception as e:
-                            logger.error(f"Failed to setup WB emulation for device {device_id} after reload: {str(e)}")
-                
-            # §P3.7 #17: bump the retained catalog version so Irene's catalog consumer
-            # refetches. Done at the END so we publish the post-reload catalog hash --
-            # the broker carries it retained so late-joining subscribers still see it.
-            if mqtt_client and device_manager and room_manager:
-                try:
-                    catalog = build_catalog(device_manager, room_manager, scenario_proxy)
-                    await mqtt_client.publish(
-                        CATALOG_VERSION_TOPIC, catalog.version, retain=True
-                    )
-                    logger.info(
-                        f"Published catalog version {catalog.version!r} to "
-                        f"{CATALOG_VERSION_TOPIC} (retained) -- catalog-aware "
-                        f"subscribers can refetch."
-                    )
-                except Exception as e:  # never let the nudge mask a successful reload
-                    logger.warning(f"Failed to bump catalog version on /reload: {e}")
-
-            logger.info("System reload completed successfully")
-    except Exception as e:
-        logger.error(f"Error during system reload: {str(e)}")
-        import traceback
-        logger.error(traceback.format_exc()) 

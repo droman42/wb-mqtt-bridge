@@ -85,9 +85,9 @@ Never edit this block in place — edit in commons, then re-pin (`process/claude
   depends on nothing outward; `infrastructure/` (driven adapters: device drivers, MQTT client, SQLite
   store) and `presentation/`+`cli/` (driving adapters) depend inward; `app/` wires them. Don't add
   backwards/cross-layer imports — enforced by the **import-linter** contracts in `backend/pyproject.toml`
-  (`lint-imports` from `backend/`). The one documented exception (system router → `mqtt.client` for
-  `POST /reload`) is recorded there and in `docs/architecture/overview.md`; don't add new ones. _This is
-  the standing LAW: verify imports before every commit._
+  (`lint-imports` from `backend/`). There are NO exceptions — the last one (system router →
+  `mqtt.client` for `POST /reload`) was removed by CORE-1's `app/reload_service.py` extraction;
+  don't add any. _This is the standing LAW: verify imports before every commit._
 - **`config-ui-stays-functional`** — `ui/` is a first-class consumer of backend contracts (it imports no
   Python — it consumes the **OpenAPI contract** `backend/openapi.json` + the device/scenario configs; see
   `docs/design/ui_backend_contract.md`). Any task that changes one of these **must update `ui/` in the

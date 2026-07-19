@@ -215,19 +215,14 @@ modules = [
 ]
 
 [[tool.importlinter.contracts]]
-name = "Presentation does not reach into infrastructure adapters (one documented exception)"
+name = "Presentation does not reach into infrastructure adapters"
 type = "forbidden"
 source_modules = ["locveil_bridge.presentation"]
 forbidden_modules = ["locveil_bridge.infrastructure"]
-# Documented exception: POST /reload constructs an MQTTClient directly and drives
-# its client-specific reconnect methods (stop / connect_and_subscribe /
-# wait_for_connection). The clean fix (extract an application-layer reload service)
-# is deferred -- the reload path touches live MQTT reconnect and can't be safely
-# HW-verified without the user at the rack. Tracked in docs/action_plan.md §5.1.
-# See docs/architecture/overview.md "The boundary, in practice".
-ignore_imports = [
-    "locveil_bridge.presentation.api.routers.system -> locveil_bridge.infrastructure.mqtt.client",
-]
+# No exceptions. The last one (POST /reload constructing an MQTTClient inline)
+# was removed by CORE-1: the sequence lives in app/reload_service.py, wired by
+# the composition root. See docs/architecture/overview.md "The boundary, in
+# practice".
 
 [[tool.mypy.overrides]]
 module = ["tests.*"]

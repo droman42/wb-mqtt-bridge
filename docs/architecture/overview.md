@@ -38,13 +38,13 @@ The rule the whole thing rests on: **every dependency points inward, across a po
 A driver depends on `DevicePort`, not the other way around; a manager depends on
 `StateRepositoryPort`, not on SQLite. As of 2026-05-25 the rule holds structurally —
 `domain/` imports nothing from `infrastructure/` or `presentation/`, and
-`infrastructure/` imports nothing from `presentation/`. One presentation→infrastructure
-back-edge remains, consciously accepted: the `POST /reload` task in
-`presentation/api/routers/system.py` constructs an MQTT client directly, because the
-clean fix touches live reconnect on real hardware and is deferred. The rule is enforced
-in CI — six `import-linter` contracts (`lint-imports` from `backend/`) fail the build on
-any new backwards or cross-layer import, with that one `/reload` back-edge the sole
-recorded exception.
+`infrastructure/` imports nothing from `presentation/`. There are no exceptions: the
+last back-edge (the `POST /reload` handler once constructed an MQTT client directly)
+has been removed — the reload sequence lives in an application-layer service
+(`app/reload_service.py`) that the composition root wires, and the router only
+schedules it. The rule is enforced in CI — six `import-linter` contracts
+(`lint-imports` from `backend/`) fail the build on any backwards or cross-layer
+import, with an empty exception list.
 
 ## The five ports
 

@@ -24,6 +24,7 @@ from locveil_bridge.domain.devices.models import (
     EmotivaXMC2State,
     MitsubishiHvacState,
 )
+from locveil_bridge.app.reload_service import ReloadService
 from locveil_bridge.infrastructure.config.manager import ConfigManager
 from locveil_bridge.domain.devices.service import DeviceManager
 from locveil_bridge.infrastructure.mqtt.client import MQTTClient
@@ -538,6 +539,51 @@ def create_app() -> FastAPI:
 
             mqtt_client.on_connect_callbacks.append(_publish_catalog_version)
             await _publish_catalog_version()
+
+            # CORE-1: the /reload background work is an app-layer service now;
+            # the system router only schedules it. Composition stays here:
+            # the factory builds the replacement client exactly the way this
+            # startup built the original (maintenance guard + traffic
+            # observer — the old inline reload silently lost both), and the
+            # adopt hook re-points every router global, re-registers the
+            # on-connect catalog publish (VWB-32), updates the shutdown
+            # reference, and hands back a fresh WB service bound to the new
+            # client (the old one kept publishing into the stopped client).
+            # Bound here (post-assignment) so the closures see the non-None
+            # manager without re-reading the nonlocal.
+            _reload_cfg_manager = config_manager
+
+            def _build_mqtt_client() -> MQTTClient:
+                broker = _reload_cfg_manager.get_mqtt_broker_config()
+                client = MQTTClient({
+                    'host': broker.host,
+                    'port': broker.port,
+                    'client_id': broker.client_id,
+                    'keepalive': broker.keepalive,
+                    'auth': broker.auth
+                }, maintenance_guard=maintenance_guard)
+                client.traffic_observer = mqtt_window.record
+                return client
+
+            def _adopt_mqtt_client(new_client: MQTTClient) -> WBVirtualDeviceService:
+                nonlocal mqtt_client
+                mqtt_client = new_client
+                system.initialize(config_manager, device_manager, mqtt_client, state_store, scenario_manager, room_manager, scenario_proxy)
+                devices.initialize(config_manager, device_manager, mqtt_client, scenario_proxy)
+                mqtt.initialize(mqtt_client)
+                scenarios.initialize(scenario_manager, room_manager, mqtt_client)
+                new_client.on_connect_callbacks.append(_publish_catalog_version)
+                return WBVirtualDeviceService(message_bus=new_client)
+
+            reload_service = ReloadService(
+                config_manager=config_manager,
+                device_manager=device_manager,
+                client_factory=_build_mqtt_client,
+                on_new_client=_adopt_mqtt_client,
+                publish_catalog_version=_publish_catalog_version,
+            )
+            reload_service.mqtt_client = mqtt_client
+            system.set_reload_service(reload_service)
 
             logger.info("System startup complete")
 

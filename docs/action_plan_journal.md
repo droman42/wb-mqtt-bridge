@@ -28,6 +28,17 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-19 — CORE-1 code half: the hexagon's last exception removed (task stays open,
+  HW-gated).** The `/reload` background task moved verbatim into `app/reload_service.py`;
+  the router schedules it and imports zero infrastructure — the import-linter
+  `ignore_imports` list is now EMPTY. Reconciliation against live code found the inline
+  reload had quietly diverged from boot composition: the replacement client lost the
+  maintenance guard + traffic observer, three routers kept publishing via the stopped old
+  client, the VWB-32 on-connect publish was never re-registered, and the WB service stayed
+  bound to the dead client — the extraction routes all of that through a bootstrap factory
+  + rewire hook. `ScenarioWBAdapter` left as a known residual for the bench. Suite 747.
+  Close waits on the owner's `POST /reload` rack verify.
+
 - **2026-07-19 — OPS-37: scope-guard re-vendored @ v7.2.** The staleness nag the sweep kept
   surfacing, discharged: a one-regex rotation fix (commons IMPL-9 — `##`-style journals parsed
   as zero sections and `--rotate` refused; bridge's bullet-style journal was never affected).

@@ -24,7 +24,7 @@ client is regenerated without a Python dependency.
 | `GET` | `/system` | Full system info — `SystemInfo`. |
 | `GET` | `/config/system` | The redacted system config — `SystemConfigResponse`. |
 | `GET` | `/system/catalog` | The voice / UI catalog — devices, scenarios, rooms, capabilities, in one payload. |
-| `POST` | `/reload` | Reload configs at runtime — `ReloadResponse`. (This is the path with the documented presentation→infrastructure back-edge — it constructs an `MQTTClient` directly to drive live reconnect.) |
+| `POST` | `/reload` | Reload configs at runtime — `ReloadResponse`. The reload sequence runs as an application-layer service; the router only schedules it. |
 
 ### Devices
 
