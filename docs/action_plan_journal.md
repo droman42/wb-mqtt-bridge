@@ -28,6 +28,13 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-19 — DRV-22: IR driver's dead `last_command` enrichment deleted.** First of the
+  low-hanging-fruit sweep (DRV-22 → VWB-31 → OPS-18, one commit each). The REL-5 #10 finding
+  held exactly as written: the base chokepoint re-records `last_command` right after every
+  handler return, so the IR driver's enriched record (topic/payload, hardcoded
+  `source="mqtt"`) was overwritten on every single call — removal is pure dead code, zero
+  behavior change. Suite 738.
+
 - **2026-07-18 (evening) — OPS-36: contract-guard re-vendored @ v3.1.** IMPL-8's ARTIFACTS-PATH
   rule (bare artifact names now fail loudly — the VWB-43 trap promoted to an org-wide guard)
   taken the day it was tagged; first strict run 0-warning because VWB-43 had already normalized

@@ -236,8 +236,6 @@ entry. One ledger, **every ID in exactly one file**. The dated narrative lives i
   bench (fallback = the rejected container batch). Depends on DRV-19 (the launch path); expect a
   backend/UI split into subtasks when picked up (`config-ui-stays-functional` applies throughout).
 
-- [ ] **DRV-22** `[P2]` `[deferred]` — **IR device `last_command` detail overwritten by the base chokepoint** (REL-5 #10). `wirenboard_ir_device/driver.py:319` sets `command_topic`/`command_payload` that `BaseDevice.update_state` immediately overwrites — cosmetic, no functional impact. Cleanup.
-
 
 - [ ] **DRV-31** `[P2]` `[deferred]` — **Zappiti IR power toggle physically missed at scenario teardown** (REL-3 rack finding F5). 10:15:17 END: toggle dispatched, ROM fired, "success" — device kept playing (IR is fire-and-forget, `feedback:false`); subsequent manual toggles inverted believed-vs-physical parity. Hardware lane: re-learn ROM26 **holding the button** (the flaky single-frame-capture recipe), and investigate whether the Zappiti has **discrete on/off IR codes** to escape toggle parity entirely. DRV-5/SCN-11 remain the runtime escape hatch.
 

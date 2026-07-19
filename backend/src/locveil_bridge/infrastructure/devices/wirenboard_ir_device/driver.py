@@ -1,8 +1,7 @@
 import logging
 from typing import Dict, Any, Optional, Tuple, cast
-from datetime import datetime
 from locveil_bridge.infrastructure.devices.base import BaseDevice
-from locveil_bridge.domain.devices.models import WirenboardIRState, LastCommand
+from locveil_bridge.domain.devices.models import WirenboardIRState
 from locveil_bridge.infrastructure.config.models import WirenboardIRDeviceConfig, IRCommandConfig, BaseCommandConfig
 from locveil_bridge.infrastructure.mqtt.client import MQTTClient
 from locveil_bridge.domain.devices.types import CommandResult, ActionHandler
@@ -163,40 +162,6 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
             
         return True, converted_value, None
     
-    def record_last_command(self, 
-                           action: str, 
-                           params: Optional[Dict[str, Any]] = None, 
-                           command_topic: Optional[str] = None,
-                           command_payload: Any = None) -> None:
-        """Record the last command executed with its parameters.
-        
-        Args:
-            action: The name of the action executed
-            params: Any parameters used with the command
-            command_topic: The MQTT topic the command was sent to (IR-specific)
-            command_payload: The payload sent with the command (IR-specific)
-        """
-        # Store MQTT-specific details in params to maintain compatibility
-        effective_params: Dict[str, Any] = params or {}
-        
-        if command_topic or command_payload is not None:
-            if command_topic:
-                effective_params["command_topic"] = command_topic
-            if command_payload is not None:
-                effective_params["command_payload"] = command_payload
-                
-        # Create a standard LastCommand object and update state
-        # Since WirenboardIR devices are typically called from MQTT messages in handle_message,
-        # we use "mqtt" as the source here. API calls will be handled by BaseDevice.
-        last_command = LastCommand(
-            action=action,
-            source="mqtt",
-            timestamp=datetime.now(),
-            params=effective_params
-        )
-        
-        self.update_state(last_command=last_command)
-    
     def _create_power_toggle_handler(self, action_name: str, cmd_config: IRCommandConfig) -> ActionHandler:
         """Create a power toggle handler that switches between on/off states."""
         original_cmd_config = cmd_config
@@ -314,10 +279,7 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
             
             # For IR commands, the payload is always "1"
             payload = "1"
-            
-            # Record this command as the last executed
-            self.record_last_command(action_name, params, topic, payload)
-            
+
             # If MQTT client is available, publish the command
             if self.mqtt_client:
                 try:
@@ -397,10 +359,7 @@ class WirenboardIRDevice(BaseDevice[WirenboardIRState]):
                 
                 # For IR commands, the payload is always "1"
                 payload = "1"
-                
-                # Record this command as the last executed
-                self.record_last_command(action_name, params, topic, payload)
-                
+
                 # If MQTT client is available, publish the command
                 if self.mqtt_client:
                     try:
