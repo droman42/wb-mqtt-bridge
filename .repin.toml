@@ -47,7 +47,7 @@ family = "scope"
 owner_repo = "locveil-commons"
 owner_dir = "../locveil-commons"
 owner_url = "https://github.com/locveil/locveil-commons.git"
-pinned_tag = "scope-v7.1"
+pinned_tag = "scope-v7.2"
 
 [[tool]]
 name = "contract-guard"

@@ -1,5 +1,5 @@
 # locveil-bridge ledger-discipline config for the vendored scope-guard
-# (scripts/scope_guard.py, pinned at scope-v7.1; normative conventions:
+# (scripts/scope_guard.py, pinned at scope-v7.2; normative conventions:
 # ../locveil-commons/process/ledger-discipline.md + process/claude-md.md). Adopted by
 # OPS-22 from the PROD-13-verified starter; [claude] blocks by OPS-16 (PROD-5/HK-2).
 # Behavior changes happen in commons — re-pin, don't edit the vendored script.

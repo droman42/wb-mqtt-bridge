@@ -531,6 +531,20 @@ possible round-3.
   raise, discharged the day it appeared); CI comment re-truthed. Hook/CI invocations unchanged
   (`--relax-tags` local, strict CI). docs: none — enforcement tooling.
   contracts: contract-guard consumed-tool pin bumped v3→v3.1 (no pin content moved).
+- [x] **OPS-37** `[P2]` — **DONE 2026-07-19** (filed during the low-hanging-fruit sweep off the
+  repin `[[tool]]` staleness warning; executed next session on owner go-ahead — the OPS-31/OPS-36
+  pattern). **scope-guard re-vendored @ `scope-v7.2` (1.4.0 → 1.4.1).** The v7.1→v7.2 diff is a
+  single rotation-parser fix (commons IMPL-9): the `DATED` regex demanded the date flush against
+  the `#`s, so `##`-heading-style journals parsed as ZERO dated sections and `--rotate` refused —
+  the pattern now allows whitespace after the heading marks. No new check rules, no pinned-block
+  or hashing changes (the CLAUDE.md block markers keep their `scope-v7.1` provenance — block
+  content is unchanged between the tags). Bridge exposure: none today (our journal is
+  bullet-style, which always parsed), but future rotations are covered either way. Vendored
+  byte-identical from the tag (sha `294cf411…`), first run green (1.4.1, all block hashes hold);
+  `.repin.toml` `[[tool]]` pinned_tag → scope-v7.2 (`repin --check --fail-on any` fully green —
+  every pin + all three tools current); `.scope-guard.toml` header + CI comment re-truthed.
+  Hook/CI invocations unchanged. docs: none — enforcement tooling.
+  contracts: scope-guard consumed-tool pin bumped v7.1→v7.2 (no pin content moved).
 
 ## CORE — Backend core / architecture
 

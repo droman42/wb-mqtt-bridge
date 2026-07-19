@@ -802,15 +802,6 @@ endpoint).
   mechanism — a board topic if ever wanted).
 
 
-- [ ] **OPS-37** `[P2]` — **Re-vendor scope-guard @ scope-v7.2** (filed 2026-07-19 off the repin
-  `[[tool]]` staleness warning that fired throughout the low-hanging-fruit sweep — the manifest
-  doing exactly its job; the OPS-31/OPS-36 same-day-re-vendor pattern applies). Diff the owner's
-  v7.1→v7.2 changes in `../locveil-commons/packages/scope-guard/`, verify the bridge passes any
-  new rules BEFORE vendoring, copy `scripts/scope_guard.py` byte-identical from the tag, bump the
-  `.repin.toml` `[[tool]]` row, re-truth the CI comment if the rule set is described there. If
-  v7.2 changes the pinned-block hashing or block set, reconcile `.scope-guard.toml` + the CLAUDE.md
-  pinned blocks against commons in the same change.
-
 ### CORE — Backend core / architecture
 
 - [ ] **CORE-1** `[P2]` `[deferred]` `HW-GATED` — **System-router adapter cleanup — Item A only (Item B DONE 2026-05-26).** Item A: `POST /reload`'s `reload_system_task` constructs + drives a concrete `MQTTClient` inline; extract an application-layer reload service (e.g. `app/reload_service.py`) so the router stays a thin adapter. **Gated on hardware** — touches the live MQTT-reconnect path; can't be safely HW-verified without you at the rack. **Completion goal = 100% clean hexagon (explicit, added 2026-07-07):** this task owns the **only** `ignore_imports` exception in the import-linter config (`presentation.api.routers.system -> infrastructure.mqtt.client`, backend `pyproject.toml`); done means (1) the reload service extracted and the back-edge gone from the code, (2) the **`ignore_imports` entry deleted** — the contract set (6 since CORE-6) passes with **zero exceptions**, (3) the "one documented exception" passages updated in `docs/architecture/overview.md` + the contract name/comment in `pyproject.toml` + the [[hexagonal-layering]] memory, (4) HW-verified at the rack: `POST /reload` still reconnects cleanly against the live broker. Item B (response DTO for `/config/system`) done in `73ee8d5` — new presentation `SystemConfigResponse` + nested DTOs; wire shape field-identical; `presentation/api/schemas.py` no longer imports the infra `SystemConfig`.

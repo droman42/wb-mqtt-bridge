@@ -28,6 +28,12 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-19 — OPS-37: scope-guard re-vendored @ v7.2.** The staleness nag the sweep kept
+  surfacing, discharged: a one-regex rotation fix (commons IMPL-9 — `##`-style journals parsed
+  as zero sections and `--rotate` refused; bridge's bullet-style journal was never affected).
+  Byte-identical vendor, first run green at 1.4.1, `[[tool]]` manifest bumped, `repin --check
+  --fail-on any` fully green across all pins and tools.
+
 - **2026-07-19 — OPS-18: partial-startup failure marks WB cards offline.** Third of the
   sweep — the OPS-8 symmetry closed: `_release_partial_startup` now runs the same
   per-device WB offline pass the normal shutdown does (guarded, MQTT-still-connected,

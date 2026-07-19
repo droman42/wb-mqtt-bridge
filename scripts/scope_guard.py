@@ -37,7 +37,7 @@ import sys
 import tomllib
 from pathlib import Path
 
-__version__ = "1.4.0"  # scope-v7 — contracts-verdict + unknown-prefix (HK-12 / PROD-26)
+__version__ = "1.4.1"  # scope-v7.2 — IMPL-9: rotation parsed ##-style journals as 0 sections
 
 
 # ---------------------------------------------------------------- config
@@ -143,8 +143,10 @@ def entry_blocks(text: str, rules: Rules) -> list[tuple[str, str, str]]:
 
 
 # A dated journal entry starts either as a heading (`## 2026-07-11 — …`, commons style)
-# or a top-level bullet (`- **2026-07-11 — …**`, voice/bridge style).
-DATED = re.compile(r"^(?:#{2,3}|- \*\*)(\d{4}-\d{2}-\d{2})")
+# or a top-level bullet (`- **2026-07-11 — …**`, voice/bridge style). The heading form
+# carries a space before the date (IMPL-9: the original pattern demanded the date flush
+# against the `#`s, so ##-style journals parsed as ZERO sections and rotation refused).
+DATED = re.compile(r"^(?:#{2,3}\s*|- \*\*)(\d{4}-\d{2}-\d{2})")
 
 
 def dated_sections(text: str) -> tuple[list[str], list[tuple[str, list[str]]]]:
