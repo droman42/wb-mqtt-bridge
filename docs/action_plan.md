@@ -743,6 +743,28 @@ endpoint).
   plausibly presentation + a startup gate and may not. `config-ui-stays-functional` gates apply
   (`cd ui && npm run check && npm run build`).
 
+- [ ] **UI-21** `[P1]` `[deferred]` — **Main-UI review/redesign: the wireframe/layout session +
+  stylebook/ui-kit adoption for `ui/` — design** (`design-then-implement`; filed 2026-07-20 at the
+  owner's announcement — this is the filing the board's PROD-10 stage-② record deferred: "island
+  as-shipped + D10 fluid implementation deferred to a dedicated bridge wireframe/layout session
+  (owner-announced; bridge files it at that session's intake)"). The workbench side already lives
+  on ui-kit (UI-18, day one); the **operations `ui/` does not** — PROD-10's extraction found it a
+  stock shadcn install with never-chosen default theme values (the token carrier exists, empty)
+  and the remote island a deliberately dark, theme-independent surface whose stiffness is
+  documented as the **D10 fluid-rebuild requirement**. **Scope of the session (deliverable = a
+  design doc under `docs/design/ui/`):** (1) wireframe/layout pass over the operations surfaces
+  (remote pages, runtime device pages, appliance/room pages, HomePage/nav) — owner sketches are
+  first-class input (the `remote.png` precedent); (2) the `ui/` adoption plan for the ratified
+  tokens + `locveil-ui-kit` (Tailwind preset, dual theme, steel-A neutrals + steel-blue accent;
+  icon SPLIT ruling: Material filled stays inside the island — manifest names are a backend
+  contract); (3) the **D10 fluid island rebuild** design; (4) walk the divergence list
+  (`../locveil-commons/docs/design/ui/divergence-list.md` D1–D10) and record per-item verdicts;
+  (5) load the commons **`ui-style` skill** for the session (the stylebook is the taste
+  authority — no re-elicitation). Implementation follow-ups filed at design completion, per the
+  dialect. Inputs: `../locveil-commons/docs/design/ui/` (stylebook, token-inventory-draft,
+  divergence-list), `ui-kit-v1` (0.1.x), `remote.png`. `config-ui-stays-functional` gates apply
+  to every implementation follow-up.
+
 ### OPS — Docker / CI-CD / deploy / ops
 
 - [ ] **OPS-11** `[P2]` `[deferred]` — **Multi-arch images: add `linux/arm64` (aarch64, next-gen Wirenboard) alongside `linux/arm/v7`.** Filed 2026-07-02 off a chat analysis (sister-repo prompt: `locveil-voice` builds armv7 + aarch64 + standalone). **Unlike the voice repo** (per-target Dockerfiles + arch-suffixed image names, forced by per-platform ML profiles), the bridge's images are identical on both arches → use buildx **multi-platform manifests**: `platforms: linux/arm/v7,linux/arm64` in both image jobs of `.github/workflows/build-arm.yml` yields ONE manifest list per existing tag — WB7 pulls armv7, WB8 pulls arm64 from the same `ghcr.io/...:latest`; `ops/` (compose / `update.sh` / INSTALL.md flow) unchanged. **Work items:** (1) workflow: extend `platforms`, **drop the `ARCH=arm32v7` build-arg** — the Dockerfile's `${ARCH:+$ARCH/}python` prefix predates platform-aware buildx and would force the arm32 base into the arm64 leg (Dockerfile itself needs no change; `ARG ARCH=` defaults empty); (2) `ui/Dockerfile`: stage 1 → `FROM --platform=$BUILDPLATFORM node:20 AS builder` — the `dist/` bundle is arch-independent, so the ~14-min QEMU node build runs natively on the amd64 runner once and only the small nginx stage builds per-arch (bonus: the *existing* armv7 UI build should drop to ~2-3 min); (3) docs: a sentence each in `ops/INSTALL.md` + the READMEs noting the images are multi-arch. **Notes:** piwheels extra-index is armv7-only but harmless on arm64 (PyPI aarch64 cp311 wheel coverage is good — likely a faster leg than armv7); that `/etc/pip/pip.conf` is probably vestigial anyway since the image installs via `uv`, which doesn't read pip config — verify/drop while in there. WB8's Cortex-A5x could in principle run the armv7 image via AArch32 compat, but native arm64 is the clean path at ~6 lines of diff. **Verification:** QEMU build smoke in CI; real run gated on actual WB8 hardware (hence `[later]`).

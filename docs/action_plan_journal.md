@@ -28,6 +28,14 @@ journal's **earlier dated entries keep their original positional refs** (`§P3.7
 etc.) — they are historical and resolve via [`action_plan_aliases.md`](action_plan_aliases.md). New
 entries use the new IDs.
 
+- **2026-07-20 — UI-21 filed: the main-UI wireframe/layout session (the PROD-10 deferred
+  filing discharged).** The owner asked where the bridge's UI-redesign task was — the answer:
+  nowhere, by design. PROD-10 stage ② recorded "bridge files it at that session's intake
+  (owner-announced)", and the session had not been announced; the workbench arc's bridge
+  write-backs (UI-17/18) covered only the split + plugin. Today's ask IS the announcement —
+  UI-21 now carries the session: wireframes over the operations surfaces, the `ui/`
+  stylebook/ui-kit adoption plan, the D10 fluid island rebuild, the divergence-list verdicts.
+
 - **2026-07-19 (follow-up) — CORE-1: the ScenarioWBAdapter residual retired pre-bench.** The
   fifth stale-composition gap closed on owner directive before the rack visit: the reload
   service gained a post-connect `rebuild_scenario_cards` hook — bootstrap builds a fresh
